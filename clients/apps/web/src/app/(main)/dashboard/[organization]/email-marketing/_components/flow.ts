@@ -40,10 +40,26 @@ export type BranchStepValue = {
     | 'has-tag'
     | 'product-bought'
     | 'engagement'
+    // Course-progress family — only meaningful when the sequence is
+    // linked to a course (sequence.course_id is set). The editor hides
+    // these options outside of course-mode authoring.
+    | 'lesson-completed'
+    | 'module-completed'
+    | 'course-progress'
+    | 'course-completed-within'
   tag?: string
   product?: string
-  op?: 'gte' | 'lte' | 'eq'
+  // `op` is overloaded across branch types:
+  //   engagement       → 'gte' | 'lte' | 'eq'         (threshold comparison)
+  //   course-progress  → 'gte' | 'lte' | 'eq'         (percent comparison)
+  //   course-completed-within
+  //                    → 'within' | 'over'            (fast vs slow completer)
+  op?: 'gte' | 'lte' | 'eq' | 'within' | 'over'
   threshold?: number
+  // Course-progress branch fields.
+  lesson?: string
+  module?: string
+  days?: number
 }
 
 export type ActionStepValue = {
@@ -233,6 +249,10 @@ export const BRANCH_FIELD_LABEL: Record<string, string> = {
   'has-tag': 'has tag',
   'product-bought': 'bought product',
   engagement: 'engagement score',
+  'lesson-completed': 'completed lesson',
+  'module-completed': 'completed module',
+  'course-progress': 'course progress',
+  'course-completed-within': 'course completion time',
 }
 
 export const ACTION_LABEL: Record<string, string> = {
@@ -313,10 +333,7 @@ export const replaceStepById = (
 /**
  * Remove a step from anywhere in the tree.
  */
-export const removeStepById = (
-  steps: StepNode[],
-  id: StepId,
-): StepNode[] => {
+export const removeStepById = (steps: StepNode[], id: StepId): StepNode[] => {
   const out: StepNode[] = []
   for (const node of steps) {
     if (node.id === id) continue
@@ -573,10 +590,10 @@ export const materializeEmailsFromFlow = (
               type: 'wait',
               value: { mode: 'duration', amount: lead, unit: 'hour' },
             }
-            visit([synthetic, ...armSteps], [
-              ...branchPath,
-              { branchId: node.id, arm },
-            ])
+            visit(
+              [synthetic, ...armSteps],
+              [...branchPath, { branchId: node.id, arm }],
+            )
           } else {
             visit(armSteps, [...branchPath, { branchId: node.id, arm }])
           }

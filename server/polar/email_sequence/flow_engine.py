@@ -231,12 +231,17 @@ async def evaluate_branch(
     session: AsyncSession,
     enrollment: EmailSequenceEnrollment,
     branch_value: dict,
+    sequence: EmailSequence | None = None,
 ) -> bool:
     """Return True for the Yes path, False for No.
 
     Supports `opened-prev`, `clicked-prev` (against EmailSequenceStepSend),
     `has-tag` (against email_subscriber_tags), `product-bought` (against
-    the orders table), and `engagement` (rolling-window send activity).
+    the orders table), `engagement` (rolling-window send activity), and
+    the course-progress family — `lesson-completed`, `module-completed`,
+    `course-progress`, `course-completed-within` — which read against
+    CourseEnrollment / CourseLessonProgress for the sequence's linked
+    course (`sequence.course_id`).
 
     Unknown fields fail closed to the No path (audit issue #14 — the
     previous default-Yes silently routed every subscriber down the
@@ -270,6 +275,27 @@ async def evaluate_branch(
     if field == "engagement":
         return await _evaluate_engagement(
             session, enrollment.subscriber_id, branch_value
+        )
+    if field in (
+        "lesson-completed",
+        "module-completed",
+        "course-progress",
+        "course-completed-within",
+    ):
+        if sequence is None or sequence.course_id is None:
+            log.warning(
+                "email_sequence.flow.branch_course_without_course_id",
+                field=field,
+                sequence_id=str(sequence.id) if sequence else None,
+                enrollment_id=str(enrollment.id),
+            )
+            return False
+        return await _evaluate_course_progress(
+            session,
+            enrollment.subscriber_id,
+            sequence.course_id,
+            field,
+            branch_value,
         )
     log.warning(
         "email_sequence.flow.branch_unknown_field",
@@ -365,6 +391,204 @@ async def _evaluate_engagement(
     if op in ("ne", "is-not", "!="):
         return abs(score - threshold) >= 0.5
     return score >= threshold
+
+
+async def _evaluate_course_progress(
+    session: AsyncSession,
+    subscriber_id: UUID,
+    course_id: UUID,
+    field: str,
+    branch_value: dict,
+) -> bool:
+    """Course-progress branch family.
+
+    Resolves the subscriber → customer → CourseEnrollment for the sequence's
+    course, then answers progress questions against CourseLessonProgress.
+    All four predicates fail closed if the subscriber has no customer, no
+    enrollment, or the course has no published lessons (so the editor can't
+    accidentally route every subscriber down the Yes path for a freshly
+    created course with no content yet).
+    """
+    from sqlalchemy import func
+
+    from polar.models.course_enrollment import CourseEnrollment
+    from polar.models.course_lesson import CourseLesson
+    from polar.models.course_lesson_progress import CourseLessonProgress
+    from polar.models.course_module import CourseModule
+    from polar.models.email_subscriber import EmailSubscriber
+
+    subscriber = await session.get(EmailSubscriber, subscriber_id)
+    if subscriber is None or subscriber.customer_id is None:
+        return False
+
+    enrollment_row = await session.execute(
+        select(CourseEnrollment.id, CourseEnrollment.enrolled_at)
+        .where(
+            CourseEnrollment.customer_id == subscriber.customer_id,
+            CourseEnrollment.course_id == course_id,
+            CourseEnrollment.deleted_at.is_(None),
+        )
+        .limit(1)
+    )
+    enrollment_data = enrollment_row.first()
+    if enrollment_data is None:
+        return False
+    course_enrollment_id, enrolled_at = enrollment_data
+
+    if field == "lesson-completed":
+        lesson_raw = (branch_value.get("lesson") or "").strip()
+        if not lesson_raw:
+            return False
+        try:
+            lesson_uuid = UUID(lesson_raw)
+        except ValueError:
+            log.warning(
+                "email_sequence.flow.lesson_completed_invalid_uuid",
+                lesson=lesson_raw,
+            )
+            return False
+        row = await session.execute(
+            select(CourseLessonProgress.id)
+            .where(
+                CourseLessonProgress.enrollment_id == course_enrollment_id,
+                CourseLessonProgress.lesson_id == lesson_uuid,
+                CourseLessonProgress.deleted_at.is_(None),
+            )
+            .limit(1)
+        )
+        return row.first() is not None
+
+    if field == "module-completed":
+        module_raw = (branch_value.get("module") or "").strip()
+        if not module_raw:
+            return False
+        try:
+            module_uuid = UUID(module_raw)
+        except ValueError:
+            log.warning(
+                "email_sequence.flow.module_completed_invalid_uuid",
+                module=module_raw,
+            )
+            return False
+        # All published lessons in the module must have a progress row.
+        # Use scalar subqueries so a module with zero published lessons can
+        # never accidentally evaluate to "completed" — both counts must
+        # match AND be >= 1.
+        total_stmt = (
+            select(func.count(CourseLesson.id))
+            .join(CourseModule, CourseModule.id == CourseLesson.module_id)
+            .where(
+                CourseModule.id == module_uuid,
+                CourseModule.course_id == course_id,
+                CourseModule.deleted_at.is_(None),
+                CourseLesson.published.is_(True),
+                CourseLesson.deleted_at.is_(None),
+            )
+        )
+        completed_stmt = (
+            select(func.count(CourseLessonProgress.id))
+            .join(
+                CourseLesson, CourseLesson.id == CourseLessonProgress.lesson_id
+            )
+            .where(
+                CourseLessonProgress.enrollment_id == course_enrollment_id,
+                CourseLessonProgress.deleted_at.is_(None),
+                CourseLesson.module_id == module_uuid,
+                CourseLesson.published.is_(True),
+                CourseLesson.deleted_at.is_(None),
+            )
+        )
+        total = (await session.execute(total_stmt)).scalar_one()
+        if total == 0:
+            return False
+        completed = (await session.execute(completed_stmt)).scalar_one()
+        return completed >= total
+
+    # Both course-progress and course-completed-within need total published
+    # lesson count + completed count + completion timestamp for the course.
+    total_lessons_stmt = (
+        select(func.count(CourseLesson.id))
+        .join(CourseModule, CourseModule.id == CourseLesson.module_id)
+        .where(
+            CourseModule.course_id == course_id,
+            CourseModule.deleted_at.is_(None),
+            CourseLesson.published.is_(True),
+            CourseLesson.deleted_at.is_(None),
+        )
+    )
+    total_lessons = (await session.execute(total_lessons_stmt)).scalar_one()
+    if total_lessons == 0:
+        return False
+
+    completed_stmt = (
+        select(
+            func.count(CourseLessonProgress.id),
+            func.max(CourseLessonProgress.completed_at),
+        )
+        .join(CourseLesson, CourseLesson.id == CourseLessonProgress.lesson_id)
+        .join(CourseModule, CourseModule.id == CourseLesson.module_id)
+        .where(
+            CourseLessonProgress.enrollment_id == course_enrollment_id,
+            CourseLessonProgress.deleted_at.is_(None),
+            CourseModule.course_id == course_id,
+            CourseModule.deleted_at.is_(None),
+            CourseLesson.published.is_(True),
+            CourseLesson.deleted_at.is_(None),
+        )
+    )
+    row = (await session.execute(completed_stmt)).one()
+    completed_lessons: int = row[0] or 0
+    last_completed_at: datetime | None = row[1]
+
+    if field == "course-progress":
+        percent = (completed_lessons / total_lessons) * 100.0
+        op = (branch_value.get("op") or "gte").lower()
+        try:
+            threshold = float(branch_value.get("threshold", 50))
+        except (TypeError, ValueError):
+            threshold = 50.0
+        if op in ("gte", "ge", ">="):
+            return percent >= threshold
+        if op in ("lte", "le", "<="):
+            return percent <= threshold
+        if op in ("gt", ">"):
+            return percent > threshold
+        if op in ("lt", "<"):
+            return percent < threshold
+        if op in ("eq", "is", "=="):
+            return abs(percent - threshold) < 0.5
+        return percent >= threshold
+
+    # course-completed-within
+    try:
+        days = float(branch_value.get("days", 7))
+    except (TypeError, ValueError):
+        days = 7.0
+    op = (branch_value.get("op") or "within").lower()
+    course_completed = (
+        completed_lessons >= total_lessons and last_completed_at is not None
+    )
+    if op == "within":
+        # Yes = finished AND took <= N days from enrolment ("fast completer").
+        if not course_completed or last_completed_at is None:
+            return False
+        delta = last_completed_at - enrolled_at
+        return delta.total_seconds() <= days * 86400
+    if op == "over":
+        # Yes = at least N days have passed since enrolment and the course is
+        # still unfinished ("slow / nurture path"). A subscriber who finished
+        # *and* took longer than N days does not enter this branch — the
+        # finish event is treated as terminal so the nurture path can't
+        # double-send to someone who's already done.
+        if course_completed:
+            return False
+        elapsed = utc_now() - enrolled_at
+        return elapsed.total_seconds() >= days * 86400
+    log.warning(
+        "email_sequence.flow.course_completed_within_unknown_op",
+        op=op,
+    )
+    return False
 
 
 _STATUS_RANK = {
@@ -655,7 +879,9 @@ async def _process_one_step_tree(
             return
 
         if node_type == "branch":
-            took_yes = await evaluate_branch(session, enrollment, value)
+            took_yes = await evaluate_branch(
+                session, enrollment, value, sequence=sequence
+            )
             arm_first = first_in_arm(node, "yes" if took_yes else "no", after_id)
             if arm_first is None:
                 # Empty arm + no after-branch sibling → flow ends.
@@ -779,7 +1005,9 @@ async def _legacy_process_linear(
 
         if node_type == "branch":
             branch_index = index
-            took_yes = await evaluate_branch(session, enrollment, value)
+            took_yes = await evaluate_branch(
+                session, enrollment, value, sequence=sequence
+            )
             child_index = branch_index + (1 if took_yes else 2)
             child = get_node(flow, child_index)
             post_branch_index = branch_index + 3

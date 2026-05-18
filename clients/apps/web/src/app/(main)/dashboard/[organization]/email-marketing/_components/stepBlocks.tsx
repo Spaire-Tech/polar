@@ -519,13 +519,40 @@ export const BranchStepBody = ({
   value,
   onChange,
   productOptions,
+  lessonOptions = [],
+  moduleOptions = [],
+  courseMode = false,
 }: {
   value: BranchStepValue
   onChange: (v: BranchStepValue) => void
   productOptions: { id: string; label: string }[]
+  // Lessons / modules of the course the sequence is linked to. Empty when
+  // the editor isn't in course-mode — the course-progress options stay
+  // hidden in that case to avoid offering branches that would never fire.
+  lessonOptions?: { id: string; label: string }[]
+  moduleOptions?: { id: string; label: string }[]
+  courseMode?: boolean
 }) => {
   const upd = (patch: Partial<BranchStepValue>) =>
     onChange({ ...value, ...patch })
+  const conditionOptions = [
+    { id: 'opened-prev', label: 'Opened previous email' },
+    { id: 'clicked-prev', label: 'Clicked link in previous email' },
+    { id: 'has-tag', label: 'Has tag' },
+    { id: 'product-bought', label: 'Bought specific product' },
+    { id: 'engagement', label: 'Engagement score' },
+    ...(courseMode
+      ? [
+          { id: 'lesson-completed', label: 'Completed specific lesson' },
+          { id: 'module-completed', label: 'Completed module' },
+          { id: 'course-progress', label: 'Course progress %' },
+          {
+            id: 'course-completed-within',
+            label: 'Completed course within X days',
+          },
+        ]
+      : []),
+  ]
   return (
     <div
       style={{
@@ -539,13 +566,7 @@ export const BranchStepBody = ({
         <SelectField
           value={value.field}
           onChange={(f) => upd({ field: f as BranchStepValue['field'] })}
-          options={[
-            { id: 'opened-prev', label: 'Opened previous email' },
-            { id: 'clicked-prev', label: 'Clicked link in previous email' },
-            { id: 'has-tag', label: 'Has tag' },
-            { id: 'product-bought', label: 'Bought specific product' },
-            { id: 'engagement', label: 'Engagement score' },
-          ]}
+          options={conditionOptions}
         />
       </Field>
       {value.field === 'has-tag' && (
@@ -595,6 +616,116 @@ export const BranchStepBody = ({
               value={value.threshold ?? 50}
               onChange={(e) =>
                 upd({ threshold: Math.max(0, Number(e.target.value) || 0) })
+              }
+            />
+          </Field>
+        </div>
+      )}
+      {value.field === 'lesson-completed' && (
+        <Field
+          label="Lesson"
+          hint="Yes path runs for subscribers who've marked this lesson complete"
+        >
+          {lessonOptions.length === 0 ? (
+            <div
+              style={{
+                fontSize: 12.5,
+                color: 'var(--ink-4)',
+                padding: '8px 10px',
+                border: '1px dashed var(--line-2)',
+                borderRadius: 8,
+              }}
+            >
+              This course has no published lessons yet — add lessons to use this
+              branch.
+            </div>
+          ) : (
+            <SelectField
+              value={value.lesson ?? lessonOptions[0]?.id ?? ''}
+              onChange={(l) => upd({ lesson: l })}
+              options={lessonOptions}
+            />
+          )}
+        </Field>
+      )}
+      {value.field === 'module-completed' && (
+        <Field
+          label="Module"
+          hint="Yes path runs once every published lesson in the module is complete"
+        >
+          {moduleOptions.length === 0 ? (
+            <div
+              style={{
+                fontSize: 12.5,
+                color: 'var(--ink-4)',
+                padding: '8px 10px',
+                border: '1px dashed var(--line-2)',
+                borderRadius: 8,
+              }}
+            >
+              This course has no modules yet — add a module to use this branch.
+            </div>
+          ) : (
+            <SelectField
+              value={value.module ?? moduleOptions[0]?.id ?? ''}
+              onChange={(m) => upd({ module: m })}
+              options={moduleOptions}
+            />
+          )}
+        </Field>
+      )}
+      {value.field === 'course-progress' && (
+        <div
+          style={{ display: 'grid', gridTemplateColumns: '160px 1fr', gap: 12 }}
+        >
+          <Field label="Operator">
+            <SelectField
+              value={(value.op as 'gte' | 'lte' | 'eq') ?? 'gte'}
+              onChange={(o) => upd({ op: o as BranchStepValue['op'] })}
+              options={[
+                { id: 'gte', label: 'is at least' },
+                { id: 'lte', label: 'is at most' },
+                { id: 'eq', label: 'equals' },
+              ]}
+            />
+          </Field>
+          <Field label="Progress (% of course)">
+            <SelectField
+              value={String(value.threshold ?? 50)}
+              onChange={(t) => upd({ threshold: Number(t) })}
+              options={[
+                { id: '25', label: '25%' },
+                { id: '50', label: '50%' },
+                { id: '75', label: '75%' },
+                { id: '100', label: '100% (course complete)' },
+              ]}
+            />
+          </Field>
+        </div>
+      )}
+      {value.field === 'course-completed-within' && (
+        <div
+          style={{ display: 'grid', gridTemplateColumns: '180px 1fr', gap: 12 }}
+        >
+          <Field label="Completer type">
+            <SelectField
+              value={(value.op as 'within' | 'over') ?? 'within'}
+              onChange={(o) => upd({ op: o as BranchStepValue['op'] })}
+              options={[
+                { id: 'within', label: 'Fast (finished within)' },
+                { id: 'over', label: 'Slow (still not done after)' },
+              ]}
+            />
+          </Field>
+          <Field label="Days from enrolment">
+            <input
+              className="input"
+              type="number"
+              min={1}
+              max={365}
+              value={value.days ?? 7}
+              onChange={(e) =>
+                upd({ days: Math.max(1, Number(e.target.value) || 1) })
               }
             />
           </Field>
