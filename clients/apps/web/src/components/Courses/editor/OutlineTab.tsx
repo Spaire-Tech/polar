@@ -115,6 +115,12 @@ function LessonCard({
             <LockOutlined sx={{ fontSize: 10 }} className="text-white" />
           </div>
         )}
+        {lesson.published && !locked && (
+          <span className="absolute top-[7px] right-2 inline-flex items-center gap-1 rounded-full bg-green-100 px-1.5 py-0.5 text-[9px] font-semibold tracking-[0.05em] text-green-700 uppercase">
+            <span className="h-1 w-1 rounded-full bg-green-500" />
+            Live
+          </span>
+        )}
         <div className="absolute inset-0 flex items-center justify-center bg-transparent transition-colors group-hover:bg-black/15">
           <div className="flex h-8 w-8 scale-75 items-center justify-center rounded-full bg-white/90 opacity-0 shadow-md transition-all group-hover:scale-100 group-hover:opacity-100">
             <PlayArrowRounded sx={{ fontSize: 16 }} className="text-gray-900" />
