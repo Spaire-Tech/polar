@@ -16,6 +16,7 @@ import ScheduleOutlined from '@mui/icons-material/ScheduleOutlined'
 import SearchOutlined from '@mui/icons-material/SearchOutlined'
 import VisibilityOutlined from '@mui/icons-material/VisibilityOutlined'
 import { useMemo, useState } from 'react'
+import { useEditor } from './EditorContext'
 import { LessonContentType } from './ModuleCard'
 import { PaywallRow } from './PaywallRow'
 
@@ -99,6 +100,7 @@ function LessonCard({
   onSelect: () => void
   onDelete: () => void
 }) {
+  const { mode } = useEditor()
   return (
     <div onClick={onSelect} className={cardWrapperClass(isSelected)}>
       <div className="relative aspect-video w-full overflow-hidden">
@@ -115,7 +117,7 @@ function LessonCard({
             <LockOutlined sx={{ fontSize: 10 }} className="text-white" />
           </div>
         )}
-        {lesson.published && !locked && (
+        {mode === 'preview' && lesson.published && !locked && (
           <span className="absolute top-[7px] right-2 inline-flex items-center gap-1 rounded-full bg-green-100 px-1.5 py-0.5 text-[9px] font-semibold tracking-[0.05em] text-green-700 uppercase">
             <span className="h-1 w-1 rounded-full bg-green-500" />
             Live
