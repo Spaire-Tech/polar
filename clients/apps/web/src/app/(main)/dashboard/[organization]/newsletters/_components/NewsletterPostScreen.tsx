@@ -19,10 +19,7 @@ import {
   Block,
   ContentDoc,
 } from '../../email-marketing/_components/blockEditor/types'
-import {
-  Theme,
-  resolveTheme,
-} from '../../email-marketing/_components/blockEditor/render'
+import { Theme } from '../../email-marketing/_components/blockEditor/render'
 import { AIPopover } from './AIPopover'
 import { CommandPalette, Command } from './CommandPalette'
 import { LeftRail } from './LeftRail'
@@ -72,11 +69,22 @@ export function NewsletterPostScreen({
   const [hydrated, setHydrated] = useState(false)
   const [meta, setMeta] = useState<PostMeta>(BLANK_META)
   const [doc, setDocRaw] = useState<ContentDoc>(BLANK_DOC)
-  // The post's theme overrides. Picking a preset / tweaking a swatch
-  // updates this and the autosave PATCH writes it back as
-  // `theme_overrides`. Phase 6 will surface a "save to newsletter
-  // default" affordance that promotes the snapshot onto Newsletter.theme.
-  const [theme, setTheme] = useState<Theme>({})
+  // Two theme scopes the Style view edits independently:
+  //
+  //   brandTheme    — Newsletter.theme. Applies to every post in
+  //                   this newsletter. Saved via useUpdateNewsletter
+  //                   on a separate autosave debouncer.
+  //   postOverrides — NewsletterPost.theme_overrides. Sparse;
+  //                   overrides specific keys for THIS post only.
+  //                   Saved via useUpdateNewsletterPost alongside
+  //                   meta + doc.
+  //
+  // The Style view merges them via resolveTheme for the preview and
+  // surfaces a Scope toggle so the user always knows which one they
+  // are editing.
+  const [brandTheme, setBrandTheme] = useState<Theme>({})
+  const [postOverrides, setPostOverrides] = useState<Theme>({})
+  const [styleScope, setStyleScope] = useState<'post' | 'brand'>('post')
   const history = useDocHistory(doc, setDocRaw)
 
   useEffect(() => {
@@ -95,34 +103,23 @@ export function NewsletterPostScreen({
     if (post.content_json && isContentDoc(post.content_json)) {
       setDocRaw(post.content_json)
     }
-    // Hydrate `theme` with the RESOLVED merge of newsletter.theme +
-    // post.theme_overrides, not just the override. That way the Style
-    // view's preview shows what the post actually renders with
-    // (audit fix #6) — including newsletter-level brand defaults.
-    // We can't read newsletter.theme synchronously here (it loads via
-    // its own query), so the hook below re-resolves once `newsletter`
-    // arrives. For the first paint we use whatever the post carries.
     if (post.theme_overrides && typeof post.theme_overrides === 'object') {
-      setTheme(post.theme_overrides as Theme)
+      setPostOverrides(post.theme_overrides as Theme)
     }
     setHydrated(true)
   }, [post, hydrated])
 
-  // After the newsletter loads, fold its `theme` into the local state
-  // (additive — the post overrides we may have already set win). This
-  // runs once when the newsletter arrives, then never again — the
-  // user's edits drive the state from here on.
-  const [themeMerged, setThemeMerged] = useState(false)
+  // Hydrate brand theme separately when the newsletter arrives. Lives
+  // on a different fetch lifecycle than the post; once seeded it's
+  // user-driven from here on.
+  const [brandHydrated, setBrandHydrated] = useState(false)
   useEffect(() => {
-    if (themeMerged || !newsletter || !hydrated) return
-    const resolved = resolveTheme(
-      newsletter.theme as Theme | undefined,
-      theme,
-    )
-    setTheme(resolved)
-    setThemeMerged(true)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [newsletter, hydrated, themeMerged])
+    if (brandHydrated || !newsletter) return
+    if (newsletter.theme && typeof newsletter.theme === 'object') {
+      setBrandTheme(newsletter.theme as Theme)
+    }
+    setBrandHydrated(true)
+  }, [newsletter, brandHydrated])
 
   // ── Uploads ─────────────────────────────────────────────────────
 
@@ -156,7 +153,11 @@ export function NewsletterPostScreen({
   // Skip while we haven't hydrated yet (avoids overwriting the fetched
   // post with the BLANK_DOC fallback during the first paint).
   const save = useCallback(
-    async (snapshot: { meta: PostMeta; doc: ContentDoc; theme: Theme }) => {
+    async (snapshot: {
+      meta: PostMeta
+      doc: ContentDoc
+      overrides: Theme
+    }) => {
       if (!post) return
       // theme_overrides is sparse — only send when the user has
       // actually customised something. An empty {} means "inherit
@@ -171,54 +172,59 @@ export function NewsletterPostScreen({
           cover_visible: snapshot.meta.cover_visible,
           tags: snapshot.meta.tags,
           content_json: snapshot.doc as unknown as Record<string, unknown>,
-          theme_overrides: Object.keys(snapshot.theme).length
-            ? (snapshot.theme as unknown as Record<string, unknown>)
+          theme_overrides: Object.keys(snapshot.overrides).length
+            ? (snapshot.overrides as unknown as Record<string, unknown>)
             : null,
         },
       })
     },
     [post, updateMutation],
   )
-  const status = useAutosave({ meta, doc, theme }, save, { enabled: hydrated })
+  const status = useAutosave(
+    { meta, doc, overrides: postOverrides },
+    save,
+    { enabled: hydrated },
+  )
+
+  // Separate autosave for brand-level theme edits. Fires only when the
+  // newsletter is loaded AND the user has actually mutated brandTheme
+  // (we don't want hydration to round-trip back to the server). Surfaces
+  // its status to the Style view's Scope banner.
+  const [brandSaveStatus, setBrandSaveStatus] = useState<
+    'idle' | 'saving' | 'saved' | 'error'
+  >('idle')
+  const saveBrand = useCallback(
+    async (snapshot: { brand: Theme }) => {
+      if (!newsletter) return
+      setBrandSaveStatus('saving')
+      try {
+        await updateNewsletter.mutateAsync({
+          newsletterId: newsletter.id,
+          body: {
+            theme: snapshot.brand as unknown as Record<string, unknown>,
+          },
+        })
+        setBrandSaveStatus('saved')
+        window.setTimeout(() => setBrandSaveStatus('idle'), 1800)
+      } catch {
+        setBrandSaveStatus('error')
+      }
+    },
+    [newsletter, updateNewsletter],
+  )
+  useAutosave({ brand: brandTheme }, saveBrand, {
+    enabled: brandHydrated,
+  })
 
   // ── Mode / palette / AI ─────────────────────────────────────────
 
   const [mode, setMode] = useState<EditorMode>('write')
   const [paletteOpen, setPaletteOpen] = useState(false)
   const [railOpen, setRailOpen] = useState(true)
-  const [saveDefaultStatus, setSaveDefaultStatus] = useState<
-    'idle' | 'saving' | 'saved' | 'error'
-  >('idle')
-
-  // Promote the post-level theme overrides onto Newsletter.theme so
-  // every future post in this newsletter inherits this look. We also
-  // clear the post's own overrides since they now exactly match the
-  // newsletter default — keeping them around would shadow future
-  // newsletter-level edits.
-  const saveThemeAsDefault = useCallback(async () => {
-    if (!post) return
-    setSaveDefaultStatus('saving')
-    try {
-      await updateNewsletter.mutateAsync({
-        newsletterId: post.newsletter_id,
-        body: { theme: theme as unknown as Record<string, unknown> },
-      })
-      await updateMutation.mutateAsync({
-        postId: post.id,
-        body: { theme_overrides: null },
-      })
-      // Audit fix #6: don't drop local `theme` to {} here. The newsletter
-      // now carries the saved values; the post override is null; the
-      // user should keep SEEING what they just saved. The next render
-      // resolves to the same dict (newsletter.theme + null override =
-      // newsletter.theme), so we explicitly set it.
-      setSaveDefaultStatus('saved')
-      window.setTimeout(() => setSaveDefaultStatus('idle'), 2000)
-    } catch {
-      setSaveDefaultStatus('error')
-      window.setTimeout(() => setSaveDefaultStatus('idle'), 2500)
-    }
-  }, [post, theme, updateNewsletter, updateMutation])
+  // saveThemeAsDefault is gone. The old single-theme model needed a
+  // promote-to-default action; the new two-scope model lets the user
+  // edit Newsletter.theme directly via the Style view's Scope toggle
+  // and autosaves it through saveBrand.
   const [aiAnchor, setAiAnchor] = useState<TextSelectionAnchor | null>(null)
   // The Range captured at the moment the selection was reported. We
   // keep it in a ref because the popover renders synchronously, but
@@ -300,7 +306,7 @@ export function NewsletterPostScreen({
         setPaletteOpen((v) => !v)
       } else if (key === 's') {
         e.preventDefault()
-        save({ meta, doc, theme })
+        save({ meta, doc, overrides: postOverrides })
       } else if (key === '1') {
         e.preventDefault()
         setMode('write')
@@ -314,7 +320,7 @@ export function NewsletterPostScreen({
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [meta, doc, theme, save, publish])
+  }, [meta, doc, postOverrides, save, publish])
 
   // ── Derived ─────────────────────────────────────────────────────
 
@@ -331,11 +337,11 @@ export function NewsletterPostScreen({
     () =>
       buildCommands({
         setMode,
-        onSave: () => save({ meta, doc, theme }),
+        onSave: () => save({ meta, doc, overrides: postOverrides }),
         onPublish: publish,
         onInsert: insertBlockType,
       }),
-    [save, publish, meta, doc, theme, insertBlockType],
+    [save, publish, meta, doc, postOverrides, insertBlockType],
   )
 
   // ── Render ──────────────────────────────────────────────────────
@@ -361,7 +367,7 @@ export function NewsletterPostScreen({
         canRedo={history.canRedo}
         onUndo={history.undo}
         onRedo={history.redo}
-        onSave={() => save({ meta, doc, theme })}
+        onSave={() => save({ meta, doc, overrides: postOverrides })}
         onOpenPalette={() => setPaletteOpen(true)}
         onPublish={publish}
         userInitials={userInitials}
@@ -399,11 +405,14 @@ export function NewsletterPostScreen({
           <StyleView
             meta={meta}
             doc={doc}
-            theme={theme}
-            setTheme={setTheme}
+            brandTheme={brandTheme}
+            postOverrides={postOverrides}
+            mode={styleScope}
+            setMode={setStyleScope}
+            setBrandTheme={setBrandTheme}
+            setPostOverrides={setPostOverrides}
             onSendTest={onSendTestFromStyle}
-            onSaveAsNewsletterDefault={saveThemeAsDefault}
-            saveAsDefaultStatus={saveDefaultStatus}
+            brandSaveStatus={brandSaveStatus}
           />
         )}
       </div>
