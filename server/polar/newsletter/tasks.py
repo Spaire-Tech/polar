@@ -2,12 +2,15 @@ from uuid import UUID
 
 import structlog
 
+from polar.config import settings
 from polar.email_broadcast.render import render_blocks_to_html
 from polar.email_broadcast.repository import EmailBroadcastRepository
 from polar.exceptions import PolarTaskError
 from polar.kit.utils import utc_now
 from polar.models.email_broadcast import EmailBroadcast, EmailBroadcastStatus
-from polar.models.newsletter_post import NewsletterPostStatus
+from polar.models.newsletter import Newsletter
+from polar.models.newsletter_post import NewsletterPost, NewsletterPostStatus
+from polar.models.organization import Organization
 from polar.organization.repository import OrganizationRepository
 from polar.worker import AsyncSessionMaker, TaskPriority, actor, enqueue_job
 
@@ -23,6 +26,39 @@ class NewsletterTaskError(PolarTaskError): ...
 class NewsletterPostNotFoundForTask(NewsletterTaskError):
     def __init__(self, post_id: UUID) -> None:
         super().__init__(f"NewsletterPost {post_id} not found for publish task")
+
+
+def _read_online_url(
+    post: NewsletterPost, organization: Organization | None
+) -> str | None:
+    """The URL inserted as the 'Read online' affordance at the top of
+    the email. Honours the post's ``custom_read_online_url`` override
+    (vanity domain) and falls back to the dashboard frontend's
+    organization newsletter route.
+
+    Returns None for web-only posts (no email goes out) or when we
+    can't construct a URL (no org slug yet)."""
+    if post.custom_read_online_url:
+        return post.custom_read_online_url
+    if organization is None:
+        return None
+    return settings.generate_frontend_url(
+        f"/{organization.slug}/newsletter/{post.slug}"
+    )
+
+
+def _read_online_html(url: str | None) -> str:
+    """Tiny right-aligned 'Read online →' link rendered above the
+    block content. Inline-styled and self-contained so it survives the
+    marketing-email wrapper without any template changes."""
+    if not url:
+        return ""
+    return (
+        f'<div style="text-align:right;font-size:11.5px;'
+        f'color:#86868b;margin:0 0 14px">'
+        f'<a href="{url}" style="color:#86868b;text-decoration:underline">'
+        f"Read online →</a></div>"
+    )
 
 
 @actor(actor_name="newsletter.post.publish", priority=TaskPriority.HIGH)
@@ -59,7 +95,18 @@ async def newsletter_post_publish(post_id: UUID) -> None:
         # broadcasts that pass theme=None still produce byte-identical
         # output against the existing parity golden.
         theme = resolve_theme(newsletter.theme, post.theme_overrides)
-        content_html = render_blocks_to_html(post.content_json or {}, theme) or ""
+        rendered = render_blocks_to_html(post.content_json or {}, theme) or ""
+        # Prepend a "Read online" affordance for email_and_web posts so
+        # recipients can click through to the canonical archive URL.
+        # Web-only posts never send (handled earlier in the flow);
+        # email-only posts get None back from _read_online_url and the
+        # snippet collapses to an empty string.
+        read_online = (
+            _read_online_url(post, organization)
+            if post.channel != "email_only"
+            else None
+        )
+        content_html = _read_online_html(read_online) + rendered
 
         subject = (
             post.subject_override

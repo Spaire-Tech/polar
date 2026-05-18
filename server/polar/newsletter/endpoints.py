@@ -24,9 +24,11 @@ from .schemas import (
     NewsletterPostCreate,
     NewsletterPostRead,
     NewsletterPostUpdate,
+    NewsletterPublicPostRead,
     NewsletterRead,
     NewsletterUpdate,
 )
+from .theme import resolve_theme
 
 
 class NewsletterPostTestSend(Schema):
@@ -300,6 +302,60 @@ async def publish_post(
     except NewsletterPostAlreadyPublished as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     return _post_read(post)
+
+
+# ---- Public web archive --------------------------------------------
+#
+# Anonymous-readable route. Backs the /(main)/[organization]/newsletter/
+# /[postSlug] Next.js page. No Authenticator dep — anyone with the URL
+# can hit it. The service layer's `get_public_post` is responsible for
+# filtering to published + web-channel posts and for truncating
+# paywalled content before we render the HTML.
+
+
+@router.get(
+    "/public/{organization_slug}/{post_slug}",
+    response_model=NewsletterPublicPostRead,
+)
+async def get_public_post(
+    organization_slug: str,
+    post_slug: str,
+    session: AsyncSession = Depends(get_db_session),
+) -> NewsletterPublicPostRead:
+    result = await newsletter_service.get_public_post(
+        session,
+        organization_slug=organization_slug,
+        post_slug=post_slug,
+    )
+    if result is None:
+        raise HTTPException(status_code=404, detail="Post not found")
+    post, newsletter, organization, content_html, gated = result
+    theme = resolve_theme(newsletter.theme, post.theme_overrides)
+    return NewsletterPublicPostRead(
+        id=post.id,
+        organization_id=organization.id,
+        organization_slug=organization.slug,
+        organization_name=organization.name,
+        newsletter_id=newsletter.id,
+        newsletter_name=newsletter.name,
+        newsletter_masthead=newsletter.masthead,
+        title=post.title,
+        subtitle=post.subtitle,
+        slug=post.slug,
+        cover_url=post.cover_url,
+        cover_visible=post.cover_visible,
+        tags=list(post.tags or []),
+        content_html=content_html,
+        published_at=post.published_at,
+        web_thumbnail_url=post.web_thumbnail_url,
+        web_thumbnail_on_top=post.web_thumbnail_on_top,
+        seo_meta_title=post.seo_meta_title,
+        seo_meta_description=post.seo_meta_description,
+        audio_enabled=post.audio_enabled,
+        audio_url=post.audio_url,
+        gated=gated,
+        theme=theme,
+    )
 
 
 @router.post("/posts/{post_id}/test-send", status_code=204)

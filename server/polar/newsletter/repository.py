@@ -93,6 +93,22 @@ class NewsletterPostRepository(
             NewsletterPost.newsletter_id == newsletter_id
         )
 
+    async def get_public_by_slug(
+        self, organization_id: UUID, slug: str
+    ) -> NewsletterPost | None:
+        """Find a publicly-readable post in this org by slug.
+
+        Public-readable means published AND channel includes web. The
+        soft-delete filter is inherited from `get_base_statement`.
+        """
+        statement = self.get_base_statement().where(
+            NewsletterPost.organization_id == organization_id,
+            NewsletterPost.slug == slug,
+            NewsletterPost.status == "published",
+            NewsletterPost.channel.in_(("email_and_web", "web_only")),
+        )
+        return await self.get_one_or_none(statement)
+
     async def get_by_slug(
         self, newsletter_id: UUID, slug: str
     ) -> NewsletterPost | None:

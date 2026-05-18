@@ -22,6 +22,7 @@ from polar.models.newsletter_subscription import (
     NewsletterSubscriptionStatus,
     NewsletterSubscriptionTier,
 )
+from polar.models.organization import Organization
 from polar.organization.repository import OrganizationRepository
 from polar.postgres import AsyncSession
 from polar.worker import enqueue_job
@@ -57,6 +58,38 @@ class NewsletterPostAlreadyPublished(NewsletterError):
         super().__init__(
             f"Newsletter post {post_id} has already been published or is sending"
         )
+
+
+def truncate_at_paywall(
+    content_json: dict | None,
+) -> tuple[dict | None, bool]:
+    """Return content with everything after the first paywall block dropped.
+
+    Used for non-entitled public viewers — they see the lead-in plus
+    the paywall block (which renders the upsell CTA), but nothing past
+    it. The second tuple element is True when truncation happened so
+    callers can flag the response as gated.
+
+    Returns the original content_json untouched when there's no
+    paywall block, when content_json is None / malformed, or when the
+    paywall is the very first block (in which case there's nothing
+    above it to show anyway — the caller still flags it as gated).
+    """
+    if not isinstance(content_json, dict):
+        return content_json, False
+    blocks = content_json.get("blocks")
+    if not isinstance(blocks, list):
+        return content_json, False
+    cut: int | None = None
+    for i, b in enumerate(blocks):
+        if isinstance(b, dict) and b.get("type") == "paywall":
+            cut = i
+            break
+    if cut is None:
+        return content_json, False
+    # Keep the paywall block itself in the rendered output — it carries
+    # the upsell CTA. Strip everything after.
+    return {**content_json, "blocks": blocks[: cut + 1]}, True
 
 
 class NewsletterService:
@@ -317,6 +350,62 @@ class NewsletterService:
             to_email=to_email,
         )
         return broadcast
+
+    # ---- Public archive ---------------------------------------------
+
+    async def get_public_post(
+        self,
+        session: AsyncSession,
+        *,
+        organization_slug: str,
+        post_slug: str,
+        viewer_entitled: bool = False,
+    ) -> (
+        tuple[NewsletterPost, Newsletter, Organization, str, bool] | None
+    ):
+        """Resolve a publicly-readable post by org slug + post slug.
+
+        Returns ``(post, newsletter, organization, content_html, gated)``
+        when the post exists, is published, and the channel includes
+        web (``email_and_web`` or ``web_only``). When the post has a
+        paywall block and ``viewer_entitled`` is False, the content is
+        truncated and ``gated`` is True so callers can show the upsell
+        state.
+
+        Returns ``None`` when the org or post can't be found, or when
+        the post isn't public-readable (draft, email-only, soft-deleted).
+        We deliberately don't distinguish "not found" from "not public"
+        in the public response so we don't leak draft slugs.
+        """
+        org_repo = OrganizationRepository.from_session(session)
+        organization = await org_repo.get_by_slug(organization_slug)
+        if organization is None:
+            return None
+
+        post_repo = NewsletterPostRepository.from_session(session)
+        post = await post_repo.get_public_by_slug(organization.id, post_slug)
+        if post is None:
+            return None
+
+        newsletter_repo = NewsletterRepository.from_session(session)
+        newsletter = await newsletter_repo.get_by_id(post.newsletter_id)
+        if newsletter is None:
+            # Newsletter deleted after the post published — same
+            # not-public-anymore treatment.
+            return None
+
+        # Resolve theme + gate-truncate content + render fresh HTML.
+        # We don't trust the stored content_html cache here: the theme
+        # may have changed since publish and the cache was rendered
+        # against whatever theme was active at the time.
+        content_json, gated = truncate_at_paywall(post.content_json)
+        if gated and viewer_entitled:
+            content_json = post.content_json
+            gated = False
+        theme = resolve_theme(newsletter.theme, post.theme_overrides)
+        content_html = render_blocks_to_html(content_json or {}, theme) or ""
+
+        return post, newsletter, organization, content_html, gated
 
     # ---- Subscriptions (called by benefit strategy) -----------------
 

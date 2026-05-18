@@ -141,6 +141,42 @@ class NewsletterPostRead(TimestampedSchema, NewsletterPostBase):
 # ---- Subscription -----------------------------------------------------
 
 
+class NewsletterPublicPostRead(Schema):
+    """Public read schema for the web-archive route. Mirrors the fields
+    a public reader actually needs — no audience config, no scheduling,
+    no broadcast id — plus a server-rendered ``content_html`` that already
+    has the theme applied (so the public page doesn't ship the theme
+    dict to the browser) and a ``gated`` flag flipped by the paywall
+    truncation."""
+
+    id: UUID4
+    organization_id: UUID4
+    organization_slug: str
+    organization_name: str
+    newsletter_id: UUID4
+    newsletter_name: str
+    newsletter_masthead: str
+    title: str
+    subtitle: str | None
+    slug: str
+    cover_url: str | None
+    cover_visible: bool
+    tags: list[str]
+    content_html: str
+    published_at: datetime | None
+    web_thumbnail_url: str | None
+    web_thumbnail_on_top: bool
+    seo_meta_title: str | None
+    seo_meta_description: str | None
+    audio_enabled: bool
+    audio_url: str | None
+    gated: bool
+    # Resolved theme dict so the public page can colour the wrapper
+    # chrome (outside bg / masthead colour) to match the email render.
+    # The block HTML is already baked above.
+    theme: dict
+
+
 class NewsletterSubscriptionRead(TimestampedSchema):
     id: UUID4
     newsletter_id: UUID4

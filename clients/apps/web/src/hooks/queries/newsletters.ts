@@ -277,3 +277,79 @@ export const useTestSendNewsletterPost = () =>
         { email },
       ),
   })
+
+// ── Public archive ────────────────────────────────────────────────────
+
+export type PublicNewsletterPost = {
+  id: string
+  organization_id: string
+  organization_slug: string
+  organization_name: string
+  newsletter_id: string
+  newsletter_name: string
+  newsletter_masthead: string
+  title: string
+  subtitle: string | null
+  slug: string
+  cover_url: string | null
+  cover_visible: boolean
+  tags: string[]
+  content_html: string
+  published_at: string | null
+  web_thumbnail_url: string | null
+  web_thumbnail_on_top: boolean
+  seo_meta_title: string | null
+  seo_meta_description: string | null
+  audio_enabled: boolean
+  audio_url: string | null
+  gated: boolean
+  theme: Record<string, unknown>
+}
+
+// Anonymous fetch — no credentials so the public archive can be
+// rendered from a logged-out browser session without exposing cookies
+// to the cross-origin request.
+const fetchPublic = async <T>(path: string): Promise<T> => {
+  const res = await fetch(getServerURL(path), { credentials: 'omit' })
+  if (!res.ok) throw new Error(`API error: ${res.status}`)
+  return res.json()
+}
+
+export const usePublicNewsletterPost = (
+  organizationSlug: string,
+  postSlug: string,
+) =>
+  useQuery({
+    queryKey: ['public_newsletter_post', organizationSlug, postSlug],
+    queryFn: () =>
+      fetchPublic<PublicNewsletterPost>(
+        `/v1/newsletters/public/${encodeURIComponent(
+          organizationSlug,
+        )}/${encodeURIComponent(postSlug)}`,
+      ),
+    retry: defaultRetry,
+    enabled: !!organizationSlug && !!postSlug,
+  })
+
+// Server-side fetch helper for the Next.js page's generateMetadata +
+// SSR. Uses bare fetch (no TanStack), returns null for any failure so
+// callers can call notFound() cleanly.
+export const fetchPublicNewsletterPost = async (
+  organizationSlug: string,
+  postSlug: string,
+): Promise<PublicNewsletterPost | null> => {
+  try {
+    const res = await fetch(
+      getServerURL(
+        `/v1/newsletters/public/${encodeURIComponent(
+          organizationSlug,
+        )}/${encodeURIComponent(postSlug)}`,
+      ),
+      { credentials: 'omit', cache: 'no-store' },
+    )
+    if (!res.ok) return null
+    return (await res.json()) as PublicNewsletterPost
+  } catch {
+    return null
+  }
+}
