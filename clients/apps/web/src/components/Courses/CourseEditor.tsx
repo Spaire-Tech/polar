@@ -304,6 +304,33 @@ export default function CourseEditor({
     }
   }
 
+  const handleUpdateLessonOptions = async (
+    lesson: CourseLessonRead,
+    patch: {
+      published?: boolean
+      is_free_preview?: boolean
+      release_at?: string | null
+      drip_days?: number | null
+    },
+  ) => {
+    try {
+      await updateLesson.mutateAsync({ lessonId: lesson.id, body: patch })
+      invalidateCourse()
+      const labels: Record<string, string> = {
+        published: patch.published ? 'Lesson published' : 'Lesson unpublished',
+        is_free_preview: patch.is_free_preview
+          ? 'Marked as free preview'
+          : 'Removed from free preview',
+        release_at: 'Schedule saved',
+        drip_days: 'Schedule saved',
+      }
+      const key = Object.keys(patch)[0]
+      if (key && labels[key]) toast({ title: labels[key] })
+    } catch {
+      toast({ title: 'Failed to update lesson' })
+    }
+  }
+
   const handleGenerateAI = async (
     edits: LessonEdits,
     onChunk: (chunk: string) => void,
@@ -408,6 +435,7 @@ export default function CourseEditor({
           selectedLessonId={selectedLessonId}
           onSelectLesson={guardedSetSelectedLessonId}
           onAddLesson={(mod, ct) => handleAddLesson(mod, ct)}
+          onUpdateLesson={handleUpdateLessonOptions}
           onDeleteLesson={handleDeleteLesson}
           onReorderLessons={handleReorderLessons}
           onEditPaywall={() => setActiveTab('pricing')}
