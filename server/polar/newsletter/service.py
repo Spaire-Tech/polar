@@ -3,10 +3,12 @@ from typing import Literal
 from uuid import UUID
 
 from polar.email_broadcast.render import render_blocks_to_html
+from polar.email_broadcast.repository import EmailBroadcastRepository
 from polar.email_subscriber.repository import EmailSubscriberRepository
 from polar.exceptions import PolarError
 from polar.kit.utils import utc_now
 from polar.models.customer import Customer
+from polar.models.email_broadcast import EmailBroadcast, EmailBroadcastStatus
 from polar.models.email_subscriber import EmailSubscriber, EmailSubscriberStatus
 from polar.models.newsletter import Newsletter
 from polar.models.newsletter_post import (
@@ -18,6 +20,7 @@ from polar.models.newsletter_subscription import (
     NewsletterSubscriptionStatus,
     NewsletterSubscriptionTier,
 )
+from polar.organization.repository import OrganizationRepository
 from polar.postgres import AsyncSession
 from polar.worker import enqueue_job
 
@@ -247,6 +250,67 @@ class NewsletterService:
 
         enqueue_job("newsletter.post.publish", post_id=post.id)
         return post
+
+    async def send_test_post(
+        self,
+        session: AsyncSession,
+        post: NewsletterPost,
+        *,
+        to_email: str,
+    ) -> EmailBroadcast:
+        """Send a single test render of `post` to `to_email`.
+
+        Implementation reuses the broadcast pipeline: we materialise a
+        draft EmailBroadcast (same shape the publish task creates),
+        persist it, then hand off to email_broadcast's test-send
+        dispatcher. The broadcast row sticks around as a record of the
+        test send — cheap to keep, and useful for the author to see
+        what render the test recipient actually saw.
+        """
+        newsletter_repo = NewsletterRepository.from_session(session)
+        newsletter = await newsletter_repo.get_by_id(post.newsletter_id)
+
+        org_repo = OrganizationRepository.from_session(session)
+        organization = await org_repo.get_by_id(post.organization_id)
+
+        subject = (
+            post.subject_override or post.title or (newsletter.name if newsletter else "")
+        )
+        preview_text = post.preview_text_override or post.subtitle
+        sender_name = (
+            (newsletter.default_sender_name if newsletter else None)
+            or (organization.name if organization else "Newsletter")
+        )
+        sender_email = newsletter.default_sender_email if newsletter else None
+        reply_to_email = newsletter.default_reply_to_email if newsletter else None
+
+        content_html = render_blocks_to_html(post.content_json or {}) or ""
+
+        broadcast = EmailBroadcast(
+            organization_id=post.organization_id,
+            subject=subject,
+            preview_text=preview_text,
+            sender_name=sender_name,
+            reply_to_email=reply_to_email,
+            content_json=post.content_json,
+            content_html=content_html,
+            status=EmailBroadcastStatus.draft,
+        )
+        if sender_email:
+            broadcast.sender_email = sender_email
+
+        broadcast_repo = EmailBroadcastRepository.from_session(session)
+        broadcast = await broadcast_repo.create(broadcast, flush=True)
+
+        # Hand off to the existing email_broadcast test pipeline so we
+        # inherit retries, [TEST] subject prefix, tracking, and Resend
+        # idempotency.
+        enqueue_job(
+            "email_broadcast.send_test",
+            broadcast_id=broadcast.id,
+            to_email=to_email,
+        )
+        return broadcast
 
     # ---- Subscriptions (called by benefit strategy) -----------------
 

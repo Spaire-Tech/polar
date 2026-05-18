@@ -4,11 +4,11 @@ import { useUploadEmailImage } from '@/hooks/queries/emailMarketing'
 import {
   useNewsletter,
   useNewsletterPost,
-  usePublishNewsletterPost,
   useUpdateNewsletterPost,
 } from '@/hooks/queries/newsletters'
 import { useAuth } from '@/hooks'
 import { schemas } from '@spaire/client'
+import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Icon } from '../../email-marketing/_components/Icon'
 import { useAutosave } from '../../email-marketing/_components/blockEditor/useAutosave'
@@ -45,10 +45,10 @@ export function NewsletterPostScreen({
   organization: schemas['Organization']
   postId: string
 }) {
+  const router = useRouter()
   const { data: post, isLoading, error } = useNewsletterPost(postId)
   const { data: newsletter } = useNewsletter(post?.newsletter_id)
   const updateMutation = useUpdateNewsletterPost()
-  const publishMutation = usePublishNewsletterPost()
   const uploadMutation = useUploadEmailImage(organization.id)
   const { currentUser } = useAuth()
 
@@ -121,10 +121,16 @@ export function NewsletterPostScreen({
 
   // ── Actions (declared before keyboard listener so it can capture them) ──
 
+  // The Publish CTA navigates to the review screen rather than firing
+  // the publish endpoint directly. The actual send happens from the
+  // sticky footer in PublishPostScreen once the author has reviewed
+  // audience / schedule / pre-flight.
   const publish = useCallback(() => {
     if (!post) return
-    publishMutation.mutate({ postId: post.id })
-  }, [post, publishMutation])
+    router.push(
+      `/dashboard/${organization.slug}/newsletter/${post.id}/publish`,
+    )
+  }, [post, router, organization.slug])
 
   const insertBlockType = useCallback(() => {
     // Palette inserts route through the PostEditor's slash menu in V1;

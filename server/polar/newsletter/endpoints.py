@@ -15,6 +15,10 @@ from .repository import (
     NewsletterPostRepository,
     NewsletterRepository,
 )
+from pydantic import EmailStr
+
+from polar.kit.schemas import Schema
+
 from .schemas import (
     NewsletterCreate,
     NewsletterPostCreate,
@@ -23,6 +27,10 @@ from .schemas import (
     NewsletterRead,
     NewsletterUpdate,
 )
+
+
+class NewsletterPostTestSend(Schema):
+    email: EmailStr
 from .service import (
     NewsletterPostAlreadyPublished,
     newsletter_service,
@@ -292,3 +300,17 @@ async def publish_post(
     except NewsletterPostAlreadyPublished as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     return _post_read(post)
+
+
+@router.post("/posts/{post_id}/test-send", status_code=204)
+async def test_send_post(
+    post_id: UUID,
+    body: NewsletterPostTestSend,
+    auth_subject: auth.NewslettersWrite,
+    session: AsyncSession = Depends(get_db_session),
+) -> None:
+    repo = NewsletterPostRepository.from_session(session)
+    post = await repo.get_readable_by_id(post_id, auth_subject)
+    if post is None:
+        raise HTTPException(status_code=404, detail="Post not found")
+    await newsletter_service.send_test_post(session, post, to_email=body.email)

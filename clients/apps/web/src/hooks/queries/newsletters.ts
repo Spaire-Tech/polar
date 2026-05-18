@@ -267,3 +267,13 @@ export const usePublishNewsletterPost = () =>
       })
     },
   })
+
+export const useTestSendNewsletterPost = () =>
+  useMutation({
+    mutationFn: ({ postId, email }: { postId: string; email: string }) =>
+      fetchApiWrite<void>(
+        `/v1/newsletters/posts/${postId}/test-send`,
+        'POST',
+        { email },
+      ),
+  })
