@@ -58,6 +58,19 @@ from .member import Member, MemberRole
 from .member_session import MemberSession
 from .meter import Meter
 from .meter_event import MeterEvent
+from .newsletter import Newsletter
+from .newsletter_post import (
+    NewsletterPost,
+    NewsletterPostAudienceTier,
+    NewsletterPostChannel,
+    NewsletterPostSendMode,
+    NewsletterPostStatus,
+)
+from .newsletter_subscription import (
+    NewsletterSubscription,
+    NewsletterSubscriptionStatus,
+    NewsletterSubscriptionTier,
+)
 from .notification import Notification
 from .notification_recipient import NotificationRecipient
 from .oauth2_authorization_code import OAuth2AuthorizationCode
@@ -176,6 +189,15 @@ __all__ = [
     "Meter",
     "MeterEvent",
     "Model",
+    "Newsletter",
+    "NewsletterPost",
+    "NewsletterPostAudienceTier",
+    "NewsletterPostChannel",
+    "NewsletterPostSendMode",
+    "NewsletterPostStatus",
+    "NewsletterSubscription",
+    "NewsletterSubscriptionStatus",
+    "NewsletterSubscriptionTier",
     "Notification",
     "NotificationRecipient",
     "OAuth2AuthorizationCode",
