@@ -9,7 +9,6 @@ import {
   ButtonBlock,
   CalloutBlock,
   ContentDoc,
-  DividerBlock,
   EmbedBlock,
   GalleryBlock,
   HeadingBlock,
@@ -391,7 +390,7 @@ function BlockBody({
     case 'video':
       return <VideoBody block={block} onChange={onChange} />
     case 'divider':
-      return <DividerBody block={block} />
+      return <DividerBody />
     case 'button':
       return <ButtonBody block={block} accent={accent} onChange={onChange} />
     case 'pull':
@@ -774,7 +773,7 @@ function VideoBody({
   )
 }
 
-function DividerBody({ block: _block }: { block: DividerBlock }) {
+function DividerBody() {
   return (
     <hr
       style={{
