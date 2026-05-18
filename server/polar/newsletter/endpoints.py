@@ -28,6 +28,7 @@ from .schemas import (
     NewsletterPostUpdate,
     NewsletterPublicPostRead,
     NewsletterRead,
+    NewsletterSubscriberStats,
     NewsletterUpdate,
 )
 from .theme import resolve_theme
@@ -141,6 +142,26 @@ async def list_newsletters_by_organization(
         session, organization_id
     )
     return [_newsletter_read(n) for n in newsletters]
+
+
+@router.get(
+    "/{newsletter_id}/stats", response_model=NewsletterSubscriberStats
+)
+async def get_newsletter_stats(
+    newsletter_id: UUID,
+    auth_subject: auth.NewslettersRead,
+    session: AsyncSession = Depends(get_db_session),
+) -> NewsletterSubscriberStats:
+    from .repository import NewsletterSubscriptionRepository
+
+    # Auth check: only readable newsletters return stats.
+    repo = NewsletterRepository.from_session(session)
+    newsletter = await repo.get_readable_by_id(newsletter_id, auth_subject)
+    if newsletter is None:
+        raise HTTPException(status_code=404, detail="Newsletter not found")
+    sub_repo = NewsletterSubscriptionRepository.from_session(session)
+    stats = await sub_repo.stats(newsletter_id)
+    return NewsletterSubscriberStats(**stats)
 
 
 @router.get("/{newsletter_id}", response_model=NewsletterRead)

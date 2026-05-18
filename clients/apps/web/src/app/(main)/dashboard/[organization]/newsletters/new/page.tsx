@@ -1,7 +1,7 @@
 import { getServerSideAPI } from '@/utils/client/serverside'
 import { getOrganizationBySlugOrNotFound } from '@/utils/organization'
+import NewsletterWizard from '@/components/Newsletters/NewsletterWizard'
 import { Metadata } from 'next'
-import { NewNewsletterScreen } from '../_components/NewNewsletterScreen'
 
 export async function generateMetadata(): Promise<Metadata> {
   return { title: 'New newsletter' }
@@ -16,5 +16,5 @@ export default async function Page(props: {
     api,
     params.organization,
   )
-  return <NewNewsletterScreen organization={organization} />
+  return <NewsletterWizard organization={organization} />
 }

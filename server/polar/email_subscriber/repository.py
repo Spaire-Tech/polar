@@ -1,7 +1,7 @@
 from datetime import date, timedelta
 from uuid import UUID
 
-from sqlalchemy import Date, Select, cast, func, or_, select
+from sqlalchemy import Date, Select, cast, func, literal, or_, select
 
 from polar.auth.models import AuthSubject, Organization, User, is_organization, is_user
 from polar.kit.repository import (
@@ -17,6 +17,17 @@ from polar.models.email_subscriber import EmailSubscriber, EmailSubscriberStatus
 # JSON shape that the audience builder serializes:
 #   {"all": [{"field": "source", "op": "is", "value": "manual"}, ...]}
 # Supported field/op combos are listed in build_filter_query below.
+#
+# Newsletter publishes use a special rule shape:
+#   {"all": [{"field": "newsletter_subscription",
+#             "op": "tier",
+#             "newsletter_id": "<uuid>",
+#             "value": "all" | "free" | "paid"}]}
+# which selects only subscribers with an active NewsletterSubscription
+# for that newsletter, optionally restricted by tier. The rule joins
+# through the junction table so org subscribers who haven't subscribed
+# to this specific newsletter are excluded — fixing the routing bug
+# where newsletter publishes used to spam every org subscriber.
 def build_filter_query(
     organization_id: UUID, filter_rules: dict | None
 ) -> Select:
@@ -86,6 +97,45 @@ def build_filter_query(
                 statement = statement.where(
                     EmailSubscriber.created_at < cutoff
                 )
+
+        elif field == "newsletter_subscription":
+            # Restrict to subscribers who have an active NewsletterSubscription
+            # for the given newsletter, optionally filtered by tier. The
+            # import is local to avoid a top-of-module cycle between
+            # email_subscriber and the newsletter package.
+            from polar.models.newsletter_subscription import (
+                NewsletterSubscription,
+            )
+
+            newsletter_id_raw = rule.get("newsletter_id")
+            try:
+                newsletter_uuid = (
+                    UUID(str(newsletter_id_raw)) if newsletter_id_raw else None
+                )
+            except (TypeError, ValueError):
+                newsletter_uuid = None
+            if newsletter_uuid is None:
+                # Malformed rule — bail to a zero-match clause so a
+                # broken filter doesn't accidentally fan out to every
+                # subscriber.
+                statement = statement.where(literal(False))
+                continue
+
+            ns_conditions = [
+                NewsletterSubscription.newsletter_id == newsletter_uuid,
+                NewsletterSubscription.status == "active",
+                NewsletterSubscription.deleted_at.is_(None),
+                NewsletterSubscription.email_subscriber_id
+                == EmailSubscriber.id,
+            ]
+            if op == "tier" and value in ("free", "paid"):
+                ns_conditions.append(NewsletterSubscription.tier == value)
+            # "all" / unknown op → no tier restriction; just membership.
+            statement = statement.where(
+                select(NewsletterSubscription.id)
+                .where(*ns_conditions)
+                .exists()
+            )
 
         elif field == "last_opened_at":
             if last_open_subq is None:

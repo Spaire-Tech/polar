@@ -201,3 +201,13 @@ class NewsletterPostAITransformRequest(Schema):
 
 class NewsletterPostAITransformResponse(Schema):
     text: str
+
+
+class NewsletterSubscriberStats(Schema):
+    """Aggregate counts that back the Subscribers tab on the newsletter
+    detail page."""
+
+    free: int
+    paid: int
+    unsubscribed: int
+    total: int

@@ -130,6 +130,22 @@ export const useNewsletter = (newsletterId: string | null | undefined) =>
     enabled: !!newsletterId,
   })
 
+export type NewsletterStats = {
+  free: number
+  paid: number
+  unsubscribed: number
+  total: number
+}
+
+export const useNewsletterStats = (newsletterId: string | null | undefined) =>
+  useQuery({
+    queryKey: ['newsletter_stats', newsletterId],
+    queryFn: () =>
+      fetchApi<NewsletterStats>(`/v1/newsletters/${newsletterId}/stats`),
+    retry: defaultRetry,
+    enabled: !!newsletterId,
+  })
+
 export const useCreateNewsletter = () =>
   useMutation({
     mutationFn: (body: {

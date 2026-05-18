@@ -337,7 +337,9 @@ function BlockRow({
               onInsertBelow(e.currentTarget.getBoundingClientRect())
             }
           />
-          <ChromeButton title="Drag" icon="drag" onClick={() => {}} />
+          {/* Drag handle intentionally hidden until drop targets are
+              wired — better to ship no affordance than a fake one
+              (audit fix #8). */}
         </div>
       )}
       {hover && (

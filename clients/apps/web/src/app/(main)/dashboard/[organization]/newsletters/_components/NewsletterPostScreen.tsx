@@ -493,13 +493,16 @@ function buildCommands({
   setMode,
   onSave,
   onPublish,
-  onInsert,
 }: {
   setMode: (m: EditorMode) => void
   onSave: () => void
   onPublish: () => void
   onInsert: () => void
 }): Command[] {
+  // Insert / Tools groups were stubbed in earlier phases and never
+  // actually dispatched a real action — audit fixes #7 (palette
+  // inserts) and #9 (Find / Version history). Until the slash-menu
+  // pubsub lands, ship only commands that actually do something.
   return [
     {
       id: 'mode-write',
@@ -532,67 +535,6 @@ function buildCommands({
       icon: 'download',
       shortcut: '⌘S',
       run: onSave,
-    },
-    {
-      id: 'send-test',
-      group: 'Actions',
-      name: 'Send test email (coming soon)',
-      icon: 'flask',
-      run: () => {},
-    },
-    {
-      id: 'insert-image',
-      group: 'Insert',
-      name: 'Insert image',
-      icon: 'image',
-      insertType: 'image',
-      run: onInsert,
-    },
-    {
-      id: 'insert-divider',
-      group: 'Insert',
-      name: 'Insert divider',
-      icon: 'divider',
-      insertType: 'divider',
-      run: onInsert,
-    },
-    {
-      id: 'insert-button',
-      group: 'Insert',
-      name: 'Insert button',
-      icon: 'button-icon',
-      insertType: 'button',
-      run: onInsert,
-    },
-    {
-      id: 'insert-poll',
-      group: 'Insert',
-      name: 'Insert poll',
-      icon: 'list',
-      insertType: 'poll',
-      run: onInsert,
-    },
-    {
-      id: 'insert-paywall',
-      group: 'Insert',
-      name: 'Add paywall',
-      icon: 'lock',
-      insertType: 'paywall',
-      run: onInsert,
-    },
-    {
-      id: 'find',
-      group: 'Tools',
-      name: 'Find in document (coming soon)',
-      icon: 'search',
-      run: () => {},
-    },
-    {
-      id: 'history',
-      group: 'Tools',
-      name: 'Version history (coming soon)',
-      icon: 'rotate',
-      run: () => {},
     },
   ]
 }

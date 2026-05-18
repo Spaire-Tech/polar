@@ -276,7 +276,6 @@ function CenterTools({
         position: 'relative',
       }}
     >
-      <ToolButton title="Readability (coming soon)" icon="trending-up" disabled />
       <span
         style={{
           display: 'inline-flex',
@@ -308,19 +307,19 @@ function CenterTools({
 
       <Divider />
 
+      {/* Readability / Insert link / Comments / Version history /
+          Document info were stubs that never did anything when
+          clicked. Hidden until the underlying features land — audit
+          fix #9. */}
       <ToolButton
         title="Search & commands (⌘K)"
         icon="search"
         onClick={onOpenPalette}
       />
-      <ToolButton title="Insert link (coming soon)" icon="link" disabled />
-      <ToolButton title="Comments (coming soon)" icon="mail" disabled />
-      <ToolButton title="Version history (coming soon)" icon="rotate" disabled />
       <ToolButton title="Save (⌘S)" icon="download" onClick={onSave} />
 
       <Divider />
 
-      <ToolButton title="Document info (coming soon)" icon="info" disabled />
       <div style={{ position: 'relative' }}>
         <ToolButton
           title="Help & shortcuts"

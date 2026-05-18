@@ -349,6 +349,14 @@ class NewsletterService:
             broadcast_id=broadcast.id,
             to_email=to_email,
         )
+
+        # Soft-delete the broadcast row immediately so the org's
+        # broadcasts list isn't littered with one entry per test send.
+        # The worker still loads the broadcast via `session.get()`
+        # (which ignores the soft-delete filter), so this doesn't race
+        # with the send. (Audit fix #20 / fix-list #5b.)
+        broadcast.deleted_at = utc_now()
+        await broadcast_repo.update(broadcast)
         return broadcast
 
     # ---- Public archive ---------------------------------------------

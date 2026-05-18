@@ -121,6 +121,38 @@ async def newsletter_post_publish(post_id: UUID) -> None:
         sender_email = newsletter.default_sender_email
         reply_to_email = newsletter.default_reply_to_email
 
+        # Compose audience filter rules.
+        #
+        # The email_broadcast send pipeline has three audience paths:
+        # filter_rules, segment_id, and an "all org subscribers"
+        # fallback. The newsletter publish task previously left
+        # filter_rules and segment_id null, which dropped into the
+        # fallback and shipped every issue to the entire org's email
+        # list — including subscribers of OTHER newsletters. That bug
+        # is what this composition fixes:
+        #
+        # 1. Start from any author-supplied filter rules (rare today,
+        #    but the model accepts them).
+        # 2. ALWAYS append a newsletter_subscription rule that scopes
+        #    to active NewsletterSubscription rows for this newsletter
+        #    and the chosen audience_tier.
+        #
+        # The result is an AND of all "all" rules — i.e. authors can
+        # narrow further via custom rules, but they can't accidentally
+        # broaden past their own subscribers.
+        author_rules = (
+            list(post.audience_filter_rules.get("all") or [])
+            if isinstance(post.audience_filter_rules, dict)
+            else []
+        )
+        membership_rule = {
+            "field": "newsletter_subscription",
+            "op": "tier",
+            "newsletter_id": str(post.newsletter_id),
+            "value": post.audience_tier if post.audience_tier in ("free", "paid") else "all",
+        }
+        filter_rules = {"all": [*author_rules, membership_rule]}
+
         broadcast = EmailBroadcast(
             organization_id=post.organization_id,
             subject=subject,
@@ -129,8 +161,12 @@ async def newsletter_post_publish(post_id: UUID) -> None:
             reply_to_email=reply_to_email,
             content_json=post.content_json,
             content_html=content_html,
-            segment_id=post.audience_segment_id,
-            filter_rules=post.audience_filter_rules,
+            # We deliberately don't pass segment_id through any more
+            # — even if the post has one, the membership_rule above
+            # is the source of truth. Authors who want a segment INSIDE
+            # the newsletter audience supply it via custom filter rules.
+            segment_id=None,
+            filter_rules=filter_rules,
             status=EmailBroadcastStatus.draft,
         )
         if sender_email:

@@ -5,6 +5,7 @@ import {
   useCreateNewsletterPost,
   useNewsletter,
   useNewsletterPosts,
+  useNewsletterStats,
 } from '@/hooks/queries/newsletters'
 import Button from '@spaire/ui/components/atoms/Button'
 import { schemas } from '@spaire/client'
@@ -12,7 +13,6 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useCallback, useState } from 'react'
 import { Icon } from '../../email-marketing/_components/Icon'
-import { slugify } from './NewNewsletterScreen'
 
 // Newsletter "home". Surfaces the brand chrome, a single primary
 // "New post" CTA (Substack-style: click → land in the editor), and a
@@ -33,6 +33,15 @@ export function NewsletterDetailScreen({
   const createPost = useCreateNewsletterPost()
   const [creating, setCreating] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
+  // Tab state + subscriber stats — declared at the top of the
+  // component so the hook order is stable across renders (the
+  // newsletter loading branch below returns early, which would
+  // otherwise put these hooks on the conditional side of the
+  // rules-of-hooks check).
+  const [tab, setTab] = useState<'posts' | 'subscribers' | 'analytics'>(
+    'posts',
+  )
+  const { data: stats } = useNewsletterStats(newsletterId)
 
   const onNewPost = useCallback(async () => {
     if (!newsletter || creating) return
@@ -137,7 +146,25 @@ export function NewsletterDetailScreen({
         </div>
       )}
 
-      {postsLoading ? (
+      <Tabs
+        tab={tab}
+        setTab={setTab}
+        stats={stats}
+        publishedCount={published.length}
+      />
+
+      {tab === 'subscribers' ? (
+        <SubscribersTab
+          organizationSlug={organization.slug}
+          newsletterId={newsletter.id}
+          stats={stats}
+        />
+      ) : tab === 'analytics' ? (
+        <AnalyticsTab
+          organizationSlug={organization.slug}
+          publishedPosts={published}
+        />
+      ) : postsLoading ? (
         <div className="space-y-2">
           {[0, 1, 2].map((i) => (
             <div
@@ -182,6 +209,202 @@ export function NewsletterDetailScreen({
 
 function Shell({ children }: { children: React.ReactNode }) {
   return <div className="mx-auto max-w-5xl px-6 py-8">{children}</div>
+}
+
+// ── Tabs ─────────────────────────────────────────────────────────────
+
+function Tabs({
+  tab,
+  setTab,
+  stats,
+  publishedCount,
+}: {
+  tab: 'posts' | 'subscribers' | 'analytics'
+  setTab: (t: 'posts' | 'subscribers' | 'analytics') => void
+  stats: { free: number; paid: number; total: number } | undefined
+  publishedCount: number
+}) {
+  const items: {
+    id: 'posts' | 'subscribers' | 'analytics'
+    label: string
+    count: number | null
+  }[] = [
+    { id: 'posts', label: 'Posts', count: null },
+    {
+      id: 'subscribers',
+      label: 'Subscribers',
+      count: stats ? stats.free + stats.paid : null,
+    },
+    { id: 'analytics', label: 'Analytics', count: publishedCount },
+  ]
+  return (
+    <div className="mb-6 flex items-center gap-1 border-b border-gray-200">
+      {items.map((it) => {
+        const on = it.id === tab
+        return (
+          <button
+            key={it.id}
+            type="button"
+            onClick={() => setTab(it.id)}
+            className={
+              'relative -mb-px inline-flex items-center gap-2 px-3 py-2.5 text-sm font-medium transition-colors ' +
+              (on
+                ? 'border-b-2 border-gray-900 text-gray-900'
+                : 'border-b-2 border-transparent text-gray-500 hover:text-gray-700')
+            }
+          >
+            {it.label}
+            {it.count != null && (
+              <span
+                className={
+                  'rounded-md px-1.5 py-0.5 text-[10px] font-mono ' +
+                  (on ? 'bg-gray-100 text-gray-700' : 'text-gray-400')
+                }
+              >
+                {it.count}
+              </span>
+            )}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
+// ── Subscribers tab ─────────────────────────────────────────────────
+// Surfaces the stats roll-up; deep-links to the email-marketing
+// subscribers screen for the full list (filtered by this newsletter
+// once the `newsletter_id` query param lands on that screen — see
+// fix #4 in the audit response). For now the deep-link goes to the
+// unfiltered list with a note.
+
+function SubscribersTab({
+  organizationSlug,
+  newsletterId,
+  stats,
+}: {
+  organizationSlug: string
+  newsletterId: string
+  stats: { free: number; paid: number; unsubscribed: number; total: number } | undefined
+}) {
+  return (
+    <div>
+      <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <StatTile label="Free" value={stats?.free} />
+        <StatTile label="Paid" value={stats?.paid} />
+        <StatTile label="Unsubscribed" value={stats?.unsubscribed} tone="muted" />
+      </div>
+      <Link
+        href={`/dashboard/${organizationSlug}/email-marketing/subscribers?newsletter_id=${newsletterId}`}
+        className="inline-flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-900 hover:bg-gray-50"
+      >
+        View subscribers in Marketing
+        <Icon name="arrow-right" size={13} />
+      </Link>
+      <p className="mt-3 text-xs text-gray-500">
+        The full subscriber list lives in Email Marketing. Filtering
+        Marketing&apos;s view by this newsletter is part of the next
+        polish pass.
+      </p>
+    </div>
+  )
+}
+
+function StatTile({
+  label,
+  value,
+  tone,
+}: {
+  label: string
+  value: number | undefined
+  tone?: 'muted'
+}) {
+  return (
+    <div className="rounded-xl border border-gray-200 bg-white p-4">
+      <div className="mb-1 text-[11px] font-medium uppercase tracking-wider text-gray-500">
+        {label}
+      </div>
+      <div
+        className={
+          'text-2xl font-semibold tabular-nums ' +
+          (tone === 'muted' ? 'text-gray-500' : 'text-gray-900')
+        }
+      >
+        {value == null ? '—' : value.toLocaleString()}
+      </div>
+    </div>
+  )
+}
+
+// ── Analytics tab ───────────────────────────────────────────────────
+// Each published post links to its underlying EmailBroadcast (which
+// has full open/click/unsubscribe analytics in the email-marketing
+// dashboard). We render a thin table here as the entry point.
+
+function AnalyticsTab({
+  organizationSlug,
+  publishedPosts,
+}: {
+  organizationSlug: string
+  publishedPosts: NewsletterPostRow[]
+}) {
+  if (publishedPosts.length === 0) {
+    return (
+      <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 p-10 text-center">
+        <div className="text-sm font-medium text-gray-900">
+          No analytics yet
+        </div>
+        <p className="mt-1 text-xs text-gray-500">
+          Once you publish a post, open and click rates show up here.
+        </p>
+      </div>
+    )
+  }
+  return (
+    <ul className="divide-y divide-gray-200 overflow-hidden rounded-xl border border-gray-200 bg-white">
+      {publishedPosts.map((p) => (
+        <li key={p.id}>
+          {p.broadcast_id ? (
+            <Link
+              href={`/dashboard/${organizationSlug}/email-marketing/broadcasts/${p.broadcast_id}`}
+              className="flex items-center gap-3 px-5 py-4 hover:bg-gray-50"
+            >
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-sm font-medium text-gray-900">
+                  {p.title || 'Untitled'}
+                </div>
+                <div className="mt-0.5 text-xs text-gray-500">
+                  {p.published_at
+                    ? new Date(p.published_at).toLocaleDateString(undefined, {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric',
+                      })
+                    : '—'}
+                </div>
+              </div>
+              <span className="inline-flex items-center gap-1 text-xs text-gray-500">
+                View analytics <Icon name="arrow-right" size={11} />
+              </span>
+            </Link>
+          ) : (
+            <div className="flex items-center gap-3 px-5 py-4 opacity-60">
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-sm font-medium text-gray-900">
+                  {p.title || 'Untitled'}
+                </div>
+                <div className="mt-0.5 text-xs text-gray-500">
+                  {p.status === 'sending'
+                    ? 'Sending now — analytics will appear once delivery completes'
+                    : 'No analytics available'}
+                </div>
+              </div>
+            </div>
+          )}
+        </li>
+      ))}
+    </ul>
+  )
 }
 
 function EmptyPosts({
@@ -313,6 +536,3 @@ function PostDate({ post }: { post: NewsletterPostRow }) {
   )
 }
 
-// Silences the unused-import warning for slugify (kept exported for
-// the settings screen, which lives in this folder too).
-export const _slugify = slugify

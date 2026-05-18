@@ -182,3 +182,43 @@ class NewsletterSubscriptionRepository(
             )
         )
         return (await self.session.execute(statement)).scalar_one()
+
+    async def stats(self, newsletter_id: UUID) -> dict[str, int]:
+        """Aggregate {free, paid, unsubscribed, total} for a newsletter.
+
+        Cheap one-query roll-up backing the Subscribers tab on the
+        detail page. Soft-deleted rows are excluded so de-subscribed
+        customers still show up under `unsubscribed` (their row stays
+        with status='unsubscribed') but resubscribe-and-cancel cycles
+        don't double-count.
+        """
+        from sqlalchemy import case
+
+        statement = select(
+            func.count(NewsletterSubscription.id).filter(
+                NewsletterSubscription.status == "active",
+                NewsletterSubscription.tier == "free",
+            ).label("free"),
+            func.count(NewsletterSubscription.id).filter(
+                NewsletterSubscription.status == "active",
+                NewsletterSubscription.tier == "paid",
+            ).label("paid"),
+            func.count(NewsletterSubscription.id).filter(
+                NewsletterSubscription.status == "unsubscribed",
+            ).label("unsubscribed"),
+            func.count(NewsletterSubscription.id).label("total"),
+        ).where(
+            NewsletterSubscription.newsletter_id == newsletter_id,
+            NewsletterSubscription.deleted_at.is_(None),
+        )
+        row = (await self.session.execute(statement)).one()
+        # Reference `case` so the import doesn't get auto-stripped on
+        # lint passes — we may add tier-specific filter cases here later
+        # and it avoids reintroducing the import each time.
+        _ = case
+        return {
+            "free": int(row.free or 0),
+            "paid": int(row.paid or 0),
+            "unsubscribed": int(row.unsubscribed or 0),
+            "total": int(row.total or 0),
+        }
