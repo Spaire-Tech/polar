@@ -341,13 +341,19 @@ export function SettingsTab({
                 type="number"
                 min={0}
                 max={totalLessons}
-                value={position ?? 0}
+                value={position ?? ''}
                 onChange={(e) => {
-                  const parsed = parseInt(e.target.value, 10)
-                  const next = Number.isFinite(parsed)
-                    ? Math.max(0, Math.min(totalLessons, parsed))
-                    : 0
-                  setPosition(next)
+                  const raw = e.target.value
+                  if (raw === '') {
+                    setPosition(null)
+                    return
+                  }
+                  const parsed = parseInt(raw, 10)
+                  if (!Number.isFinite(parsed)) return
+                  setPosition(Math.max(0, Math.min(totalLessons, parsed)))
+                }}
+                onBlur={() => {
+                  if (position == null) setPosition(0)
                 }}
                 className="w-24 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
               />
