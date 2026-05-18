@@ -36,6 +36,12 @@ export const useEmailSubscribers = (
     q?: string
     page?: number
     limit?: number
+    // Optional newsletter scope. When set, the list is restricted to
+    // subscribers with an active NewsletterSubscription for that
+    // newsletter. Backed by the newsletter_subscription filter rule
+    // type that the publish task also uses (server side: filter is
+    // translated in email_subscriber/repository.build_filter_query).
+    newsletterId?: string
   },
 ) =>
   useQuery({
@@ -46,6 +52,8 @@ export const useEmailSubscribers = (
       if (parameters?.q) qs.set('q', parameters.q)
       if (parameters?.page) qs.set('page', String(parameters.page))
       if (parameters?.limit) qs.set('limit', String(parameters.limit))
+      if (parameters?.newsletterId)
+        qs.set('newsletter_id', parameters.newsletterId)
       return fetchApi<{
         items: SubscriberRow[]
         pagination: { total_count: number; max_page: number }

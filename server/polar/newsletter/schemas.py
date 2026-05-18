@@ -211,3 +211,23 @@ class NewsletterSubscriberStats(Schema):
     paid: int
     unsubscribed: int
     total: int
+
+
+class NewsletterSetupPaidAccess(Schema):
+    """Request body for the paid-tier setup helper.
+
+    The wizard hits this once with the chosen pricing so the server
+    can do the multi-step Product + Benefit + Newsletter linking
+    atomically — clients can't construct a `newsletter_access` benefit
+    directly because that benefit type isn't part of the public
+    BenefitCreate union (and shouldn't be — it's an internal grant
+    type, not a user-creatable benefit).
+    """
+
+    product_name: str = Field(min_length=1, max_length=200)
+    # Cents in the chosen currency. Mirrors `price_amount` on
+    # ProductPriceFixedCreate.
+    amount: int = Field(ge=50)
+    currency: str = Field(min_length=3, max_length=3)
+    # "month" / "year" for recurring; None for one-time.
+    recurring_interval: Literal["month", "year"] | None = None

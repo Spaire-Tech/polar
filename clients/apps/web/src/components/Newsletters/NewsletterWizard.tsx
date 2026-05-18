@@ -1,6 +1,9 @@
 'use client'
 
-import { useCreateNewsletter } from '@/hooks/queries/newsletters'
+import {
+  useCreateNewsletter,
+  useSetupNewsletterPaidAccess,
+} from '@/hooks/queries/newsletters'
 import { schemas } from '@spaire/client'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
@@ -33,6 +36,7 @@ export default function NewsletterWizard({
 }) {
   const router = useRouter()
   const createNewsletter = useCreateNewsletter()
+  const setupPaidAccess = useSetupNewsletterPaidAccess()
 
   const [step, setStep] = useState<WizardStep>('intro')
   const [info, setInfo] = useState<NewsletterInfoState>({
@@ -52,15 +56,8 @@ export default function NewsletterWizard({
     setStep('creating')
     try {
       const slug = slugify(info.name)
-      // V1 scope (see commit message): we create the Newsletter row
-      // and capture the pricing choice into the wizard state, but we
-      // do NOT yet spin up the linked Product + newsletter_access
-      // benefit. That wiring needs the generated API client to know
-      // about newsletter_access (BenefitType enum was added in Phase
-      // 0 but the OpenAPI regen is pending) and is the next ticket
-      // after this one. The Newsletter.product_id field stays null
-      // for now; the settings page surfaces a "Connect payments"
-      // banner when pricing.mode is not 'free'.
+      // Create the newsletter first so we have an id to point the
+      // Product's newsletter_access benefit at.
       const newsletter = await createNewsletter.mutateAsync({
         organization_id: organization.id,
         name: info.name.trim(),
@@ -68,6 +65,23 @@ export default function NewsletterWizard({
         masthead: info.name.trim().toUpperCase(),
         description: info.desc.trim() || null,
       })
+
+      // For paid + both modes, stand up the linked Product +
+      // newsletter_access benefit in one server-side swing. Server
+      // logic is in newsletter_service.setup_paid_access — clients
+      // can't construct the benefit directly because the public
+      // BenefitCreate union doesn't expose newsletter_access (it's
+      // an internal grant type managed by the strategy).
+      if (pricing.mode !== 'free') {
+        await setupPaidAccess.mutateAsync({
+          newsletterId: newsletter.id,
+          productName: info.name.trim(),
+          amount: pricing.paidAmount,
+          currency: pricing.currency,
+          recurringInterval: pricing.paidInterval,
+        })
+      }
+
       router.push(
         `/dashboard/${organization.slug}/newsletters/${newsletter.id}`,
       )

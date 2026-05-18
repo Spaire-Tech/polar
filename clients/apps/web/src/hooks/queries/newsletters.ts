@@ -267,6 +267,39 @@ export const useDeleteNewsletterPost = () =>
     },
   })
 
+export const useSetupNewsletterPaidAccess = () =>
+  useMutation({
+    mutationFn: ({
+      newsletterId,
+      productName,
+      amount,
+      currency,
+      recurringInterval,
+    }: {
+      newsletterId: string
+      productName: string
+      amount: number
+      currency: string
+      recurringInterval: 'month' | 'year' | null
+    }) =>
+      fetchApiWrite<NewsletterRow>(
+        `/v1/newsletters/${newsletterId}/setup-paid-access`,
+        'POST',
+        {
+          product_name: productName,
+          amount,
+          currency,
+          recurring_interval: recurringInterval,
+        },
+      ),
+    onSuccess: (data) => {
+      getQueryClient().invalidateQueries({ queryKey: ['newsletters'] })
+      getQueryClient().invalidateQueries({
+        queryKey: ['newsletter', data.id],
+      })
+    },
+  })
+
 export const usePublishNewsletterPost = () =>
   useMutation({
     mutationFn: ({ postId }: { postId: string }) =>

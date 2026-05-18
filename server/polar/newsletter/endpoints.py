@@ -28,6 +28,7 @@ from .schemas import (
     NewsletterPostUpdate,
     NewsletterPublicPostRead,
     NewsletterRead,
+    NewsletterSetupPaidAccess,
     NewsletterSubscriberStats,
     NewsletterUpdate,
 )
@@ -37,6 +38,7 @@ from .theme import resolve_theme
 class NewsletterPostTestSend(Schema):
     email: EmailStr
 from .service import (
+    NewsletterError,
     NewsletterPostAlreadyPublished,
     newsletter_service,
 )
@@ -325,6 +327,37 @@ async def publish_post(
     except NewsletterPostAlreadyPublished as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     return _post_read(post)
+
+
+@router.post(
+    "/{newsletter_id}/setup-paid-access", response_model=NewsletterRead
+)
+async def setup_paid_access(
+    newsletter_id: UUID,
+    body: NewsletterSetupPaidAccess,
+    auth_subject: auth.NewslettersWrite,
+    session: AsyncSession = Depends(get_db_session),
+) -> NewsletterRead:
+    """Spin up the linked Product + newsletter_access Benefit in one
+    call. Backs the onboarding wizard's pricing step. Returns the
+    updated Newsletter with `product_id` populated."""
+    repo = NewsletterRepository.from_session(session)
+    newsletter = await repo.get_readable_by_id(newsletter_id, auth_subject)
+    if newsletter is None:
+        raise HTTPException(status_code=404, detail="Newsletter not found")
+    try:
+        newsletter, _product = await newsletter_service.setup_paid_access(
+            session,
+            newsletter,
+            auth_subject,
+            product_name=body.product_name,
+            amount=body.amount,
+            currency=body.currency,
+            recurring_interval=body.recurring_interval,
+        )
+    except NewsletterError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    return _newsletter_read(newsletter)
 
 
 # ---- Public web archive --------------------------------------------

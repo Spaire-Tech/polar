@@ -45,6 +45,11 @@ async def list_email_subscribers(
     q: str | None = Query(
         default=None, description="Search query — matches email and name."
     ),
+    # Optional scope to a specific newsletter. Translates into a
+    # newsletter_subscription filter rule that joins through the
+    # NewsletterSubscription junction — same filter type the publish
+    # task uses to fan out, so dashboard + send line up exactly.
+    newsletter_id: UUID | None = Query(default=None),
     session: AsyncReadSession = Depends(get_db_read_session),
 ) -> ListResource[EmailSubscriberSchema]:
     results, count = await email_subscriber_service.list(
@@ -53,6 +58,7 @@ async def list_email_subscribers(
         organization_id=organization_id,
         status=status,
         q=q,
+        newsletter_id=newsletter_id,
         pagination=pagination,
         sorting=sorting,
     )

@@ -28,6 +28,7 @@ class EmailSubscriberService:
         organization_id: UUID | None = None,
         status: str | None = None,
         q: str | None = None,
+        newsletter_id: UUID | None = None,
         pagination: PaginationParams,
         sorting: list[Sorting[EmailSubscriberSortProperty]],
     ) -> tuple[Sequence[EmailSubscriber], int]:
@@ -44,6 +45,28 @@ class EmailSubscriberService:
 
         if q is not None and q.strip():
             statement = repository.apply_query_filter(statement, q.strip())
+
+        if newsletter_id is not None:
+            # Reuse the same EXISTS-against-NewsletterSubscription
+            # restriction the publish task uses, so the marketing list
+            # and the audience the send hits are identical. No tier
+            # filter — both free and paid show up here.
+            from polar.models.newsletter_subscription import (
+                NewsletterSubscription,
+            )
+            from sqlalchemy import select as sa_select
+
+            statement = statement.where(
+                sa_select(NewsletterSubscription.id)
+                .where(
+                    NewsletterSubscription.newsletter_id == newsletter_id,
+                    NewsletterSubscription.status == "active",
+                    NewsletterSubscription.deleted_at.is_(None),
+                    NewsletterSubscription.email_subscriber_id
+                    == EmailSubscriber.id,
+                )
+                .exists()
+            )
 
         # Apply sorting
         order_clauses = []

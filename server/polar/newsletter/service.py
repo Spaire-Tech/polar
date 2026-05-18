@@ -2,8 +2,10 @@ from collections.abc import Sequence
 from typing import Literal
 from uuid import UUID
 
+from polar.auth.models import AuthSubject
 from polar.email_broadcast.render import render_blocks_to_html
 from polar.email_broadcast.repository import EmailBroadcastRepository
+from polar.models import User
 
 from .theme import resolve_theme
 from polar.email_subscriber.repository import EmailSubscriberRepository
@@ -358,6 +360,110 @@ class NewsletterService:
         broadcast.deleted_at = utc_now()
         await broadcast_repo.update(broadcast)
         return broadcast
+
+    # ---- Paid-tier setup --------------------------------------------
+
+    async def setup_paid_access(
+        self,
+        session: AsyncSession,
+        newsletter: Newsletter,
+        auth_subject: AuthSubject[User | Organization],
+        *,
+        product_name: str,
+        amount: int,
+        currency: str,
+        recurring_interval: Literal["month", "year"] | None,
+    ) -> tuple[Newsletter, "object"]:
+        """Create the Product + newsletter_access Benefit + linkage in
+        one atomic-ish swing.
+
+        Built for the onboarding wizard's pricing step. Idempotent at
+        the entry point — re-running on an already-linked newsletter
+        raises rather than spawning a duplicate Product.
+
+        The newsletter_access benefit type is internal (not part of
+        the public BenefitCreate union), so we instantiate the row
+        directly here rather than going through benefit_service. The
+        BenefitGrant lifecycle takes care of customer-side enrolment
+        via the strategy we registered in Phase 0.
+        """
+        # Imports are local to keep the newsletter package's import
+        # surface clean and avoid a top-level cycle with product /
+        # benefit.
+        from polar.benefit.repository import BenefitRepository
+        from polar.models import Benefit, Product
+        from polar.models.benefit import BenefitType
+        from polar.product.repository import ProductRepository
+        from polar.product.schemas import (
+            ProductCreateOneTime,
+            ProductCreateRecurring,
+            ProductPriceFixedCreate,
+        )
+        from polar.product.service import product as product_service
+
+        if newsletter.product_id is not None:
+            raise NewsletterError(
+                "Newsletter already has a paid product attached"
+            )
+
+        price = ProductPriceFixedCreate(
+            amount_type="fixed",
+            price_amount=amount,
+            price_currency=currency,
+        )
+        if recurring_interval is None:
+            create_schema: ProductCreateOneTime | ProductCreateRecurring = (
+                ProductCreateOneTime(
+                    name=product_name,
+                    description=newsletter.description,
+                    organization_id=newsletter.organization_id,
+                    prices=[price],
+                )
+            )
+        else:
+            create_schema = ProductCreateRecurring(
+                name=product_name,
+                description=newsletter.description,
+                organization_id=newsletter.organization_id,
+                recurring_interval=recurring_interval,
+                prices=[price],
+            )
+        product: Product = await product_service.create(
+            session, create_schema, auth_subject
+        )
+
+        # Instantiate the newsletter_access benefit directly. We're
+        # bypassing the closed BenefitCreate Pydantic union (which
+        # intentionally omits internal grant types) — the underlying
+        # model column is a generic StringEnum so this is safe.
+        benefit_repo = BenefitRepository.from_session(session)
+        benefit = Benefit(
+            type=BenefitType.newsletter_access,
+            description=f"Access to {newsletter.name}",
+            is_tax_applicable=True,
+            selectable=False,  # Author-managed; not user-pickable.
+            deletable=False,  # Tied to the newsletter's lifecycle.
+            organization_id=newsletter.organization_id,
+            properties={"newsletter_id": str(newsletter.id)},
+        )
+        benefit = await benefit_repo.create(benefit, flush=True)
+
+        # Attach the benefit to the new product. Reuses the same code
+        # path the dashboard's product-benefits picker drives, so
+        # downstream invalidation hooks (webhooks, search indexes)
+        # fire as if the user had wired it manually.
+        await product_service.update_benefits(
+            session, product, [benefit.id], auth_subject
+        )
+
+        # Finally, link the product to the newsletter so the rest of
+        # the codebase (audience-tier checks, the storefront paid
+        # badge, future analytics) can find it.
+        newsletter_repo = NewsletterRepository.from_session(session)
+        newsletter.product_id = product.id
+        await newsletter_repo.update(newsletter)
+
+        return newsletter, product
 
     # ---- Public archive ---------------------------------------------
 
