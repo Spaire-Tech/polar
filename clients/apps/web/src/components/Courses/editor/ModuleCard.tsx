@@ -30,7 +30,6 @@ import OndemandVideoOutlined from '@mui/icons-material/OndemandVideoOutlined'
 import VerifiedOutlined from '@mui/icons-material/VerifiedOutlined'
 import { cn } from '@spaire/ui/lib/utils'
 import { useEffect, useRef, useState } from 'react'
-import { useEditor } from './EditorContext'
 import { ScheduleEdits, ScheduleMenu } from './ScheduleMenu'
 import { ModuleStatus, StatusDropdown } from './StatusDropdown'
 
@@ -369,7 +368,6 @@ function LessonRow({
     : isVideo
       ? OndemandVideoOutlined
       : ArticleOutlined
-  const { mode } = useEditor()
   const {
     attributes,
     listeners,
@@ -426,14 +424,12 @@ function LessonRow({
         </span>
       </button>
 
-      {/* Published indicator (Live badge in preview mode only) */}
-      {mode === 'preview' ? (
-        lesson.published && (
-          <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-green-100 px-1.5 py-0.5 text-[9px] font-semibold tracking-[0.05em] text-green-700 uppercase">
-            <span className="h-1 w-1 rounded-full bg-green-500" />
-            Live
-          </span>
-        )
+      {/* Published indicator (Live badge only on free preview lessons) */}
+      {lesson.is_free_preview ? (
+        <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-green-100 px-1.5 py-0.5 text-[9px] font-semibold tracking-[0.05em] text-green-700 uppercase">
+          <span className="h-1 w-1 rounded-full bg-green-500" />
+          Live
+        </span>
       ) : lesson.published ? (
         <CheckCircleOutlined
           className="shrink-0 text-green-500"
