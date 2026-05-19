@@ -10,7 +10,7 @@ import ImageOutlined from '@mui/icons-material/ImageOutlined'
 import InfoOutlined from '@mui/icons-material/InfoOutlined'
 import LockOutlined from '@mui/icons-material/LockOutlined'
 import PersonOutline from '@mui/icons-material/PersonOutline'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { ThumbnailPositioner } from './ThumbnailPositioner'
 
 export type CourseSettingsEdits = {
@@ -44,9 +44,26 @@ export function SettingsTab({
     (sum, m) => sum + m.lessons.length,
     0,
   )
+  // Free preview count = positional cutoff PLUS any lesson after the
+  // cutoff that's been explicitly marked is_free_preview via the lesson
+  // options menu. The settings input mirrors this combined count so it
+  // matches what the OutlineTab's Free Preview section shows.
+  const derivedFreePreviewCount = useMemo(() => {
+    const flat = course.modules.flatMap((m) => m.lessons)
+    const positional = Math.min(course.paywall_position ?? 0, flat.length)
+    const flaggedAfter = flat
+      .slice(positional)
+      .filter((l) => l.is_free_preview).length
+    return positional + flaggedAfter
+  }, [course.modules, course.paywall_position])
+  const flaggedAfterPaywall = derivedFreePreviewCount - (course.paywall_position ?? 0)
   const [enabled, setEnabled] = useState(course.paywall_enabled)
   const [position, setPosition] = useState<number | null>(
-    course.paywall_position ?? (totalLessons > 1 ? 1 : null),
+    derivedFreePreviewCount > 0
+      ? derivedFreePreviewCount
+      : totalLessons > 1
+        ? 1
+        : null,
   )
   const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(
     course.thumbnail_url ?? null,
@@ -83,7 +100,10 @@ export function SettingsTab({
     setInstructorName(course.instructor_name ?? '')
     setInstructorBio(course.instructor_bio ?? '')
     setEnabled(course.paywall_enabled)
-    setPosition(course.paywall_position)
+    // Sync the input to the actual free-preview count whenever it
+    // changes — that includes any lessons flagged via the lesson
+    // options menu, not just the positional cutoff.
+    setPosition(derivedFreePreviewCount)
     setThumbnailUrl(course.thumbnail_url ?? null)
     setThumbnailPosition(course.thumbnail_object_position ?? null)
   }, [
@@ -93,7 +113,7 @@ export function SettingsTab({
     course.instructor_name,
     course.instructor_bio,
     course.paywall_enabled,
-    course.paywall_position,
+    derivedFreePreviewCount,
     course.thumbnail_url,
     course.thumbnail_object_position,
   ])
@@ -125,7 +145,10 @@ export function SettingsTab({
   const dirty =
     detailsDirty ||
     enabled !== course.paywall_enabled ||
-    position !== course.paywall_position ||
+    // Compare against the derived count (positional + flagged) instead
+    // of raw paywall_position so the form isn't permanently "dirty"
+    // whenever there are lessons flagged via the lesson menu.
+    position !== derivedFreePreviewCount ||
     (thumbnailPosition ?? null) !== (course.thumbnail_object_position ?? null)
 
   const lockedCount =
@@ -394,6 +417,13 @@ export function SettingsTab({
                 of {totalLessons} lessons visible
               </span>
             </div>
+            {flaggedAfterPaywall > 0 && (
+              <p className="mt-2 text-xs text-gray-500">
+                Includes {flaggedAfterPaywall} lesson
+                {flaggedAfterPaywall === 1 ? '' : 's'} marked as free preview
+                from the lesson menu.
+              </p>
+            )}
 
             {lockedCount === 0 && position != null && (
               <p className="mt-3 text-xs text-amber-600">
