@@ -1,29 +1,35 @@
 """Reattach orphan revision 7c8d3e2f9a01 to the migration graph (no-op)
 
 Revision ID: 7c8d3e2f9a01
-Revises: e76d1c4a82b9
+Revises: cb9a8b32e09c
 Create Date: 2026-05-18 22:55:00.000000
 
-Production's alembic_version table is pinned to 7c8d3e2f9a01 but the
-migration file with that ID never made it into the current repo
-history (the introducing commit was force-pushed away). Without a file
-matching that revision id, alembic can't compute an upgrade path on
-deploy:
+Production's alembic_version table is pinned to 7c8d3e2f9a01: an
+earlier version of the email-tracking-pipeline migration that was
+later force-pushed out of git history and reintroduced under a new
+revision id (cb9a8b32e09c). The schema work — creating
+resend_webhook_events and its index — already ran in production
+under the orphan revision, so we cannot run cb9a8b32e09c there
+without colliding ("relation already exists").
 
-    FAILED: Can't locate revision identified by '7c8d3e2f9a01'
+This stub re-attaches the orphan as a no-op AFTER cb9a8b32e09c in
+the graph:
 
-This stub re-attaches the orphan to the graph as a no-op so the chain
-is contiguous again. Whatever schema change the original migration
-introduced is presumed already applied in production (since prod ran
-it once) and not present in dev environments that were initialised
-after it was lost. If a future migration needs to depend on those
-changes, the dev-side delta will need a follow-up migration; this stub
-exists only to unblock deploys.
+    e76d1c4a82b9 → cb9a8b32e09c → 7c8d3e2f9a01 (stub) → 1f3a55e2b610
 
+Prod, already at 7c8d3e2f9a01, skips cb9a8b32e09c (treated as past
+state) and walks forward from here. Fresh dev DBs run
+cb9a8b32e09c (creates the table), then this stub (no-op), then the
+rest of the chain — arriving at the same end state.
+
+If a follow-up audit shows cb9a8b32e09c diverges from what
+7c8d3e2f9a01 actually applied (extra columns, indexes, etc.), a
+proper repair migration will be needed; this stub only re-attaches
+the graph so deploys can proceed.
 """
 
 revision = "7c8d3e2f9a01"
-down_revision = "e76d1c4a82b9"
+down_revision = "cb9a8b32e09c"
 branch_labels: tuple[str] | None = None
 depends_on: tuple[str] | None = None
 
