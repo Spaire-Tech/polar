@@ -373,17 +373,27 @@ export function LessonDetail({
           </button>
           <button
             onClick={handleSaveClick}
-            disabled={isSaving || titleError || !isDirty}
+            disabled={
+              isSaving || titleError || !isDirty || uploadProgress !== null
+            }
             title={
               titleError
                 ? 'Title is required'
-                : !isDirty
-                  ? 'No unsaved changes'
-                  : undefined
+                : uploadProgress !== null
+                  ? 'Waiting for video upload to finish'
+                  : !isDirty
+                    ? 'No unsaved changes'
+                    : undefined
             }
-            className="px-1 py-[5px] text-[12px] font-medium tracking-tight text-blue-600 transition-opacity hover:opacity-70 disabled:opacity-50"
+            className="rounded-full bg-gray-900 px-3 py-1.5 text-[12px] font-semibold text-white transition-colors hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {isSaving ? 'Saving…' : isDirty ? 'Save' : 'Saved'}
+            {uploadProgress !== null
+              ? `Uploading ${uploadProgress}%`
+              : isSaving
+                ? 'Saving…'
+                : isDirty
+                  ? 'Save'
+                  : 'Saved'}
           </button>
           <span className="ml-1 text-[11px] tracking-tight">
             {edits.published ? (
@@ -497,14 +507,31 @@ export function LessonDetail({
                           className="h-full w-full"
                         />
                       </div>
-                      {lesson.mux_status &&
-                      lesson.mux_status !== 'ready' &&
-                      lesson.mux_status !== 'errored' ? (
+                      {uploadProgress !== null ? (
+                        <div className="flex flex-col gap-1.5">
+                          <div className="flex items-center justify-between text-xs text-indigo-700">
+                            <span className="flex items-center gap-2">
+                              <div className="h-3 w-3 animate-spin rounded-full border-2 border-indigo-500 border-t-transparent" />
+                              Uploading…
+                            </span>
+                            <span className="tabular-nums">
+                              {uploadProgress}%
+                            </span>
+                          </div>
+                          <div className="h-1 w-full overflow-hidden rounded-full bg-indigo-100">
+                            <div
+                              className="h-full rounded-full bg-indigo-500 transition-[width] duration-150"
+                              style={{ width: `${uploadProgress}%` }}
+                            />
+                          </div>
+                        </div>
+                      ) : lesson.mux_status &&
+                        lesson.mux_status !== 'ready' &&
+                        lesson.mux_status !== 'errored' ? (
                         <div className="flex items-center gap-2 text-xs text-indigo-700">
                           <div className="h-3 w-3 animate-spin rounded-full border-2 border-indigo-500 border-t-transparent" />
-                          {uploadProgress !== null
-                            ? `Uploading… ${uploadProgress}%`
-                            : 'Mux is processing — playback will switch to HLS once ready.'}
+                          Mux is processing — playback will switch to HLS once
+                          ready.
                         </div>
                       ) : (
                         <p className="text-xs text-gray-400">

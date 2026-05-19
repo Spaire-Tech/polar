@@ -226,10 +226,11 @@ export function CustomizeTab({
         media: persistedMedia,
       },
     }
-    if (
-      heroBackdropPosition &&
-      heroBackdropPosition !== (course.thumbnail_object_position ?? undefined)
-    ) {
+    // Always send the hero position when it's been set. The previous
+    // optimisation skipped the write when the new value matched the seeded
+    // value, which meant repositions to an "already-stored" coordinate
+    // (the common case after the page loads) never persisted.
+    if (heroBackdropPosition) {
       body.thumbnail_object_position = heroBackdropPosition
     }
     // Mirror "user removed media" back to the canonical course columns.

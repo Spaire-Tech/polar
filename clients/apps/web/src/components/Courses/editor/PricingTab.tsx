@@ -150,13 +150,19 @@ export function PricingTab({
                 type="number"
                 min={0}
                 max={allLessons.length}
-                value={position ?? 0}
+                value={position ?? ''}
                 onChange={(e) => {
-                  const parsed = parseInt(e.target.value, 10)
-                  const next = Number.isFinite(parsed)
-                    ? Math.max(0, Math.min(allLessons.length, parsed))
-                    : 0
-                  setPosition(next)
+                  const raw = e.target.value
+                  if (raw === '') {
+                    setPosition(null)
+                    return
+                  }
+                  const parsed = parseInt(raw, 10)
+                  if (!Number.isFinite(parsed)) return
+                  setPosition(Math.max(0, Math.min(allLessons.length, parsed)))
+                }}
+                onBlur={() => {
+                  if (position == null) setPosition(0)
                 }}
                 className="focus:border-primary w-24 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none"
               />

@@ -262,6 +262,11 @@ export function SpaireOnboardingStyles() {
         transform: none;
         font-size: 11px;
         color: var(--so-gray4);
+        /* Mask any textarea content that scrolls up behind the label.
+           Without this, long bios overlap the floated label text. */
+        background: #ffffff;
+        padding: 0 4px;
+        margin-left: -4px;
       }
       .so-hint {
         font-size: 12px;

@@ -24,6 +24,17 @@ class CourseEnrollment(RecordModel):
             unique=True,
             postgresql_where="deleted_at IS NULL",
         ),
+        # Powers the Customers tab in the course editor — listing every
+        # active enrollment for a course, newest first. Without this partial
+        # index the dashboard query degrades into a full table scan as soon
+        # as a course racks up a few thousand enrollments.
+        Index(
+            "ix_course_enrollments_course_active",
+            "course_id",
+            "enrolled_at",
+            postgresql_where="deleted_at IS NULL",
+            postgresql_ops={"enrolled_at": "DESC"},
+        ),
     )
 
     customer_id: Mapped[UUID] = mapped_column(

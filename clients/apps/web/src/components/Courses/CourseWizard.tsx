@@ -359,6 +359,16 @@ export default function CourseWizard({
 
       const humanDescription = draft.desc || course.desc || null
 
+      // If the user repositioned the hero in the wizard preview, the new
+      // object-position lives on the hero.backdrop override slot. Promote
+      // it onto the course row at creation time so the customer portal,
+      // course list, etc. all show the same crop.
+      const heroBackdrop = wizardData?.overrides.media['hero.backdrop']
+      const heroObjectPosition =
+        heroBackdrop && heroBackdrop.kind === 'image'
+          ? heroBackdrop.objectPosition ?? null
+          : null
+
       const outlineModules = outline.modules
       const created = await createCourse.mutateAsync({
         product_id: productResult.data.id,
@@ -373,7 +383,7 @@ export default function CourseWizard({
         ai_generated: true,
         description: humanDescription,
         thumbnail_url: thumbnailUrl,
-        thumbnail_object_position: null,
+        thumbnail_object_position: heroObjectPosition,
         instructor_name: draft.name || instructor.name || null,
         instructor_bio: instructor.bio || null,
         instructor_name_italic: false,

@@ -170,7 +170,11 @@ function SchedulePanel({
       : 'always'
 
   const [mode, setMode] = useState<ScheduleMode>(initialMode)
-  const [days, setDays] = useState<number>(dripDays ?? 7)
+  // Store as string so the user can backspace through to empty without the
+  // input snapping back to "0" mid-edit.
+  const [daysInput, setDaysInput] = useState<string>(
+    dripDays != null ? String(dripDays) : '7',
+  )
   const [date, setDate] = useState<string>(
     releaseAt ? releaseAt.slice(0, 10) : '',
   )
@@ -179,7 +183,9 @@ function SchedulePanel({
     if (mode === 'always') {
       onSave({ release_at: null, drip_days: null })
     } else if (mode === 'drip') {
-      onSave({ release_at: null, drip_days: Math.max(0, days) })
+      const parsed = parseInt(daysInput, 10)
+      const safe = Number.isFinite(parsed) ? Math.max(0, parsed) : 0
+      onSave({ release_at: null, drip_days: safe })
     } else {
       const iso = date ? new Date(`${date}T00:00:00Z`).toISOString() : null
       onSave({ release_at: iso, drip_days: null })
@@ -220,12 +226,12 @@ function SchedulePanel({
             <input
               type="number"
               min={0}
-              value={days}
-              onChange={(e) => setDays(parseInt(e.target.value || '0'))}
+              value={daysInput}
+              onChange={(e) => setDaysInput(e.target.value)}
               className="w-16 rounded-lg border border-gray-300 px-2 py-1 text-[12.5px] focus:border-gray-900 focus:outline-none"
             />
             <span className="text-[12px] text-gray-600">
-              day{days === 1 ? '' : 's'} after enrollment
+              day{daysInput === '1' ? '' : 's'} after enrollment
             </span>
           </div>
         )}

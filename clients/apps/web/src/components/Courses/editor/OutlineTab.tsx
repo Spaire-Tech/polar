@@ -176,6 +176,27 @@ function LessonCard({
             Live
           </span>
         )}
+        {(lesson.is_free_preview ||
+          lesson.drip_days != null ||
+          lesson.release_at) && (
+          <div className="absolute bottom-[7px] left-2 z-10 flex items-center gap-1">
+            {lesson.is_free_preview && (
+              <span className="rounded-md bg-emerald-500/90 px-1.5 py-[2px] text-[8.5px] font-bold tracking-[0.08em] text-white uppercase backdrop-blur-sm">
+                Free
+              </span>
+            )}
+            {lesson.drip_days != null && (
+              <span className="rounded-md bg-amber-500/90 px-1.5 py-[2px] text-[8.5px] font-bold tracking-[0.08em] text-white uppercase backdrop-blur-sm">
+                Drip {lesson.drip_days}d
+              </span>
+            )}
+            {lesson.release_at && lesson.drip_days == null && (
+              <span className="rounded-md bg-amber-500/90 px-1.5 py-[2px] text-[8.5px] font-bold tracking-[0.08em] text-white uppercase backdrop-blur-sm">
+                Scheduled
+              </span>
+            )}
+          </div>
+        )}
         <div className="absolute inset-0 flex items-center justify-center bg-transparent transition-colors group-hover:bg-black/15">
           <div className="flex h-8 w-8 scale-75 items-center justify-center rounded-full bg-white/90 opacity-0 shadow-md transition-all group-hover:scale-100 group-hover:opacity-100">
             <PlayArrowRounded sx={{ fontSize: 16 }} className="text-gray-900" />
@@ -334,11 +355,23 @@ export function OutlineTab({
     course.paywall_position !== undefined &&
     course.paywall_position >= 0
 
+  // A lesson is in the Free Preview section if it sits before the paywall
+  // position OR it's explicitly marked as a free preview (regardless of
+  // position). The is_free_preview flag bypasses the paywall on the
+  // customer side, so the editor needs to reflect the same grouping.
   const paywallAt = showPaywall
     ? Math.min(course.paywall_position!, filtered.length)
     : 0
-  const freeItems = showPaywall ? filtered.slice(0, paywallAt) : filtered
-  const paidItems = showPaywall ? filtered.slice(paywallAt) : []
+  const freeItems = showPaywall
+    ? filtered.filter(
+        (x, i) => i < paywallAt || x.lesson.is_free_preview === true,
+      )
+    : filtered
+  const paidItems = showPaywall
+    ? filtered.filter(
+        (x, i) => i >= paywallAt && x.lesson.is_free_preview !== true,
+      )
+    : []
 
   const freeGroups = useMemo(() => groupByModule(freeItems), [freeItems])
   const paidGroups = useMemo(() => groupByModule(paidItems), [paidItems])
