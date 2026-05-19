@@ -1,5 +1,8 @@
 'use client'
 
+import { FeatureGate } from '@/components/Entitlements/FeatureGate'
+import { MARK_BY_NAME } from '@/components/Icons/MarkIcons'
+import { useCourseById } from '@/hooks/queries/courses'
 import {
   useCreateEmailSequence,
   useCreateSequenceStep,
@@ -13,8 +16,6 @@ import {
   useUpdateSequenceStep,
   useUploadSequenceImage,
 } from '@/hooks/queries/emailMarketing'
-import { FeatureGate } from '@/components/Entitlements/FeatureGate'
-import { useCourseById } from '@/hooks/queries/courses'
 import { useProducts } from '@/hooks/queries/products'
 import { schemas } from '@spaire/client'
 import { useQueryClient } from '@tanstack/react-query'
@@ -30,11 +31,11 @@ import {
   newId as newBlockId,
   normalizeContentDoc,
 } from '../blockEditor/types'
+import { useDialogs } from '../dialogs'
 import {
   ActionStepValue,
   BranchStepValue,
   DEFAULT_FLOW_DOC,
-  DEFAULT_STEP_VALUES,
   EmailStepValue,
   FlowDoc,
   GoalStepValue,
@@ -58,9 +59,7 @@ import {
   stepSummary,
   stepTitle,
 } from '../flow'
-import { useDialogs } from '../dialogs'
 import { Icon } from '../Icon'
-import { MARK_BY_NAME } from '@/components/Icons/MarkIcons'
 import { SequenceFlowPreview } from '../SequenceFlowPreview'
 import {
   Field,
@@ -402,7 +401,8 @@ const SequenceEditorInner = ({
   useEffect(() => {
     if (!courseMode || !course) return
     if (trigger !== 'on_purchase') setTrigger('on_purchase')
-    if (triggerProduct !== course.product_id) setTriggerProduct(course.product_id)
+    if (triggerProduct !== course.product_id)
+      setTriggerProduct(course.product_id)
   }, [courseMode, course, trigger, triggerProduct])
 
   const persistedIdRef = useRef<string | null>(sequenceId)
@@ -799,6 +799,26 @@ const SequenceEditorInner = ({
     .filter((s: { id: string }) => s.id !== sequenceId)
     .map((s: { id: string; name: string }) => ({ id: s.id, label: s.name }))
 
+  // Course-progress branches need lesson + module pickers populated from
+  // the course this sequence is linked to. Outside of course-mode these
+  // arrays are empty and the BranchStepBody hides those options entirely.
+  const moduleOptions = courseMode
+    ? (course?.modules ?? []).map((m, i) => ({
+        id: m.id,
+        label: m.title || `Module ${i + 1}`,
+      }))
+    : []
+  const lessonOptions = courseMode
+    ? (course?.modules ?? []).flatMap((m, mi) =>
+        m.lessons
+          .filter((l) => l.published)
+          .map((l, li) => ({
+            id: l.id,
+            label: `${mi + 1}.${li + 1} ${l.title || 'Untitled lesson'}`,
+          })),
+      )
+    : []
+
   // Tree-aware lookup so emails authored inside branch arms still open in
   // the editor modal (the previous flat-array `find` missed nested ones).
   const editingEmailNode = editingEmailId
@@ -1044,8 +1064,8 @@ const SequenceEditorInner = ({
                   }}
                 >
                   This automation is linked to
-                  {course?.title ? ` "${course.title}"` : ' a course'}. Edit
-                  the leading wait step below to change when it fires.
+                  {course?.title ? ` "${course.title}"` : ' a course'}. Edit the
+                  leading wait step below to change when it fires.
                 </div>
               ) : courseMode ? (
                 <CourseTriggerSection
@@ -1107,46 +1127,46 @@ const SequenceEditorInner = ({
               {!courseMode &&
                 (trigger === 'on_purchase' ||
                   trigger === 'on_subscription_created') && (
-                <div
-                  style={{
-                    background: '#fafafa',
-                    border: '1px solid var(--line)',
-                    borderRadius: 12,
-                    padding: 20,
-                  }}
-                >
-                  <Field
-                    label="Triggering product"
-                    hint="Enrol the buyer when this product is purchased. Pick a specific product or leave on “Any product”."
+                  <div
+                    style={{
+                      background: '#fafafa',
+                      border: '1px solid var(--line)',
+                      borderRadius: 12,
+                      padding: 20,
+                    }}
                   >
-                    <div
-                      style={{
-                        display: 'grid',
-                        gridTemplateColumns: 'repeat(2, 1fr)',
-                        gap: 10,
-                        marginTop: 4,
-                      }}
+                    <Field
+                      label="Triggering product"
+                      hint="Enrol the buyer when this product is purchased. Pick a specific product or leave on “Any product”."
                     >
-                      <ProductCard
-                        active={triggerProduct === 'any'}
-                        onClick={() => setTriggerProduct('any')}
-                        name="Any product"
-                        kind="All products"
-                      />
-                      {products.map((p) => (
+                      <div
+                        style={{
+                          display: 'grid',
+                          gridTemplateColumns: 'repeat(2, 1fr)',
+                          gap: 10,
+                          marginTop: 4,
+                        }}
+                      >
                         <ProductCard
-                          key={p.id}
-                          active={triggerProduct === p.id}
-                          onClick={() => setTriggerProduct(p.id)}
-                          name={p.name}
-                          kind={p.is_recurring ? 'Subscription' : 'One-time'}
-                          coverUrl={p.medias[0]?.public_url ?? null}
+                          active={triggerProduct === 'any'}
+                          onClick={() => setTriggerProduct('any')}
+                          name="Any product"
+                          kind="All products"
                         />
-                      ))}
-                    </div>
-                  </Field>
-                </div>
-              )}
+                        {products.map((p) => (
+                          <ProductCard
+                            key={p.id}
+                            active={triggerProduct === p.id}
+                            onClick={() => setTriggerProduct(p.id)}
+                            name={p.name}
+                            kind={p.is_recurring ? 'Subscription' : 'One-time'}
+                            coverUrl={p.medias[0]?.public_url ?? null}
+                          />
+                        ))}
+                      </div>
+                    </Field>
+                  </div>
+                )}
               {trigger === 'manual' && (
                 <div
                   style={{
@@ -1433,9 +1453,7 @@ const SequenceEditorInner = ({
                             if (!trimmed) return 'Tag cannot be empty.'
                             if (trimmed.length > 64)
                               return 'Tag is too long (max 64 chars).'
-                            if (
-                              flow.audience.excludeTags.includes(trimmed)
-                            )
+                            if (flow.audience.excludeTags.includes(trimmed))
                               return 'That tag is already excluded.'
                             return null
                           },
@@ -1492,6 +1510,9 @@ const SequenceEditorInner = ({
                 draggingId={draggingId}
                 productOptions={productOptions}
                 sequenceOptions={sequenceOptions}
+                lessonOptions={lessonOptions}
+                moduleOptions={moduleOptions}
+                courseMode={courseMode}
                 setEditingEmailId={setEditingEmailId}
                 setExpandedId={setExpandedId}
                 setDraggingId={setDraggingId}
@@ -1872,7 +1893,6 @@ const SequenceEditorInner = ({
               {totalDays === 1 ? '' : 's'}.
             </div>
           </div>
-
         </aside>
       </div>
 
@@ -1916,9 +1936,7 @@ const SequenceEditorInner = ({
             const fresh = await queryClient.fetchQuery<ServerStep[]>({
               queryKey: ['email_sequence_steps', id],
             })
-            const target = fresh.find(
-              (s) => s.flow_step_id === editingEmail.id,
-            )
+            const target = fresh.find((s) => s.flow_step_id === editingEmail.id)
             if (target) {
               await sendTestMutation.mutateAsync({
                 sequenceId: id,
@@ -1968,8 +1986,8 @@ const CourseTriggerSection = ({
       >
         Pick a moment in the student&rsquo;s journey through
         {courseTitle ? ` "${courseTitle}"` : ' this course'}. The automation
-        enrols every buyer on purchase and waits for the moment you pick
-        before sending.
+        enrols every buyer on purchase and waits for the moment you pick before
+        sending.
       </div>
       <div
         style={{
@@ -2206,188 +2224,188 @@ const SequenceEmailComposerModal = ({
   if (typeof window === 'undefined') return null
   return createPortal(
     <div className="spaire-email-app">
-    <div
-      className="modal-fade-in"
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 1000,
-        background: 'rgba(15,23,42,0.45)',
-        backdropFilter: 'blur(8px)',
-        display: 'flex',
-        flexDirection: 'column',
-      }}
-    >
       <div
+        className="modal-fade-in"
         style={{
-          flexShrink: 0,
-          background: '#fff',
-          borderBottom: '1px solid var(--line)',
-          padding: '14px 24px',
+          position: 'fixed',
+          inset: 0,
+          zIndex: 1000,
+          background: 'rgba(15,23,42,0.45)',
+          backdropFilter: 'blur(8px)',
           display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 16,
+          flexDirection: 'column',
         }}
       >
         <div
           style={{
+            flexShrink: 0,
+            background: '#fff',
+            borderBottom: '1px solid var(--line)',
+            padding: '14px 24px',
             display: 'flex',
             alignItems: 'center',
-            gap: 14,
-            minWidth: 0,
-            flex: 1,
+            justifyContent: 'space-between',
+            gap: 16,
           }}
         >
-          <button
-            type="button"
-            className="btn-icon"
-            onClick={onClose}
-            title="Close (Esc)"
-          >
-            <Icon name="x" size={16} />
-          </button>
-          <div style={{ height: 24, width: 1, background: 'var(--line)' }} />
-          <div style={{ minWidth: 0 }}>
-            <div className="eyebrow" style={{ marginBottom: 2 }}>
-              {sequenceName} · Email {String(emailNum).padStart(2, '0')}
-            </div>
-            <div
-              style={{
-                fontSize: 14.5,
-                color: 'var(--ink)',
-                fontWeight: 500,
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                maxWidth: 480,
-              }}
-            >
-              {subject || 'Untitled email'}
-            </div>
-          </div>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span
+          <div
             style={{
-              fontSize: 12,
-              color: saveStatus === 'saved' ? 'var(--green)' : 'var(--ink-3)',
               display: 'flex',
               alignItems: 'center',
-              gap: 6,
-              transition: 'color 0.2s',
+              gap: 14,
+              minWidth: 0,
+              flex: 1,
             }}
           >
+            <button
+              type="button"
+              className="btn-icon"
+              onClick={onClose}
+              title="Close (Esc)"
+            >
+              <Icon name="x" size={16} />
+            </button>
+            <div style={{ height: 24, width: 1, background: 'var(--line)' }} />
+            <div style={{ minWidth: 0 }}>
+              <div className="eyebrow" style={{ marginBottom: 2 }}>
+                {sequenceName} · Email {String(emailNum).padStart(2, '0')}
+              </div>
+              <div
+                style={{
+                  fontSize: 14.5,
+                  color: 'var(--ink)',
+                  fontWeight: 500,
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  maxWidth: 480,
+                }}
+              >
+                {subject || 'Untitled email'}
+              </div>
+            </div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <span
               style={{
-                width: 6,
-                height: 6,
-                borderRadius: '50%',
-                background:
-                  saveStatus === 'saved' ? 'var(--green)' : 'var(--ink-4)',
+                fontSize: 12,
+                color: saveStatus === 'saved' ? 'var(--green)' : 'var(--ink-3)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                transition: 'color 0.2s',
               }}
-            />
-            {saveStatus === 'saving'
-              ? 'Saving…'
-              : saveStatus === 'saved'
-                ? 'Saved'
-                : 'Auto-saving'}
-          </span>
-          {showTestField ? (
-            <>
-              <input
-                className="input"
-                type="email"
-                placeholder="you@example.com"
-                value={testEmail}
-                onChange={(e) => {
-                  setTestEmail(e.target.value)
-                  setTestStatus('idle')
+            >
+              <span
+                style={{
+                  width: 6,
+                  height: 6,
+                  borderRadius: '50%',
+                  background:
+                    saveStatus === 'saved' ? 'var(--green)' : 'var(--ink-4)',
                 }}
-                style={{ width: 200, fontSize: 12 }}
               />
+              {saveStatus === 'saving'
+                ? 'Saving…'
+                : saveStatus === 'saved'
+                  ? 'Saved'
+                  : 'Auto-saving'}
+            </span>
+            {showTestField ? (
+              <>
+                <input
+                  className="input"
+                  type="email"
+                  placeholder="you@example.com"
+                  value={testEmail}
+                  onChange={(e) => {
+                    setTestEmail(e.target.value)
+                    setTestStatus('idle')
+                  }}
+                  style={{ width: 200, fontSize: 12 }}
+                />
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  disabled={!testEmail.trim() || testStatus === 'sending'}
+                  onClick={async () => {
+                    setTestStatus('sending')
+                    try {
+                      persist()
+                      await onSendTest(testEmail.trim())
+                      setTestStatus('sent')
+                    } catch {
+                      setTestStatus('error')
+                    }
+                  }}
+                >
+                  <Icon name="send" size={12} />
+                  {testStatus === 'sending'
+                    ? 'Sending…'
+                    : testStatus === 'sent'
+                      ? 'Sent ✓'
+                      : testStatus === 'error'
+                        ? 'Failed'
+                        : 'Send'}
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  onClick={() => {
+                    setShowTestField(false)
+                    setTestStatus('idle')
+                  }}
+                >
+                  <Icon name="x" size={12} />
+                </button>
+              </>
+            ) : (
               <button
                 type="button"
                 className="btn btn-secondary btn-sm"
-                disabled={!testEmail.trim() || testStatus === 'sending'}
-                onClick={async () => {
-                  setTestStatus('sending')
-                  try {
-                    persist()
-                    await onSendTest(testEmail.trim())
-                    setTestStatus('sent')
-                  } catch {
-                    setTestStatus('error')
-                  }
-                }}
+                onClick={() => setShowTestField(true)}
               >
                 <Icon name="send" size={12} />
-                {testStatus === 'sending'
-                  ? 'Sending…'
-                  : testStatus === 'sent'
-                    ? 'Sent ✓'
-                    : testStatus === 'error'
-                      ? 'Failed'
-                      : 'Send'}
+                Send test
               </button>
-              <button
-                type="button"
-                className="btn btn-ghost btn-sm"
-                onClick={() => {
-                  setShowTestField(false)
-                  setTestStatus('idle')
-                }}
-              >
-                <Icon name="x" size={12} />
-              </button>
-            </>
-          ) : (
+            )}
             <button
               type="button"
-              className="btn btn-secondary btn-sm"
-              onClick={() => setShowTestField(true)}
+              className="btn btn-primary btn-sm"
+              onClick={() => triggerSave(true)}
             >
-              <Icon name="send" size={12} />
-              Send test
+              <Icon name="check" size={12} />
+              Save & update sequence
             </button>
-          )}
-          <button
-            type="button"
-            className="btn btn-primary btn-sm"
-            onClick={() => triggerSave(true)}
-          >
-            <Icon name="check" size={12} />
-            Save & update sequence
-          </button>
+          </div>
         </div>
-      </div>
 
-      <div
-        style={{
-          flex: 1,
-          overflow: 'auto',
-          background: '#f0f0f3',
-          padding: '24px 24px 48px',
-        }}
-      >
-        <div style={{ maxWidth: 1200, margin: '0 auto' }}>
-          <BroadcastEditor
-            embedded
-            doc={doc}
-            setDoc={setDoc}
-            uploadImage={async (file) => (await upload.mutateAsync(file)).url}
-            sender={{
-              name: step.value.fromName,
-              email: step.value.fromEmail,
-            }}
-            subject={subject}
-            onSubjectChange={setSubject}
-            previewText={preview}
-            onPreviewTextChange={setPreview}
-          />
+        <div
+          style={{
+            flex: 1,
+            overflow: 'auto',
+            background: '#f0f0f3',
+            padding: '24px 24px 48px',
+          }}
+        >
+          <div style={{ maxWidth: 1200, margin: '0 auto' }}>
+            <BroadcastEditor
+              embedded
+              doc={doc}
+              setDoc={setDoc}
+              uploadImage={async (file) => (await upload.mutateAsync(file)).url}
+              sender={{
+                name: step.value.fromName,
+                email: step.value.fromEmail,
+              }}
+              subject={subject}
+              onSubjectChange={setSubject}
+              previewText={preview}
+              onPreviewTextChange={setPreview}
+            />
+          </div>
         </div>
       </div>
-    </div>
     </div>,
     document.body,
   )
@@ -2479,6 +2497,9 @@ type StepListProps = {
   draggingId: string | null
   productOptions: { id: string; label: string }[]
   sequenceOptions: { id: string; label: string }[]
+  lessonOptions: { id: string; label: string }[]
+  moduleOptions: { id: string; label: string }[]
+  courseMode: boolean
   setEditingEmailId: (id: string | null) => void
   setExpandedId: (id: string | null) => void
   setDraggingId: (id: string | null) => void
@@ -2509,6 +2530,9 @@ const StepList = (props: StepListProps) => {
     draggingId,
     productOptions,
     sequenceOptions,
+    lessonOptions,
+    moduleOptions,
+    courseMode,
     setEditingEmailId,
     setExpandedId,
     setDraggingId,
@@ -2535,9 +2559,7 @@ const StepList = (props: StepListProps) => {
               title={stepTitle(step)}
               summary={stepSummary(step)}
               expanded={expanded}
-              onToggleExpand={() =>
-                setExpandedId(expanded ? null : step.id)
-              }
+              onToggleExpand={() => setExpandedId(expanded ? null : step.id)}
               onRemove={() => removeStep(step.id)}
               onDuplicate={() => duplicateStep(step.id)}
               onMove={(dir) => moveStep(step.id, dir)}
@@ -2568,6 +2590,9 @@ const StepList = (props: StepListProps) => {
                     updateStep(step.id, 'branch', v as BranchStepValue)
                   }
                   productOptions={productOptions}
+                  lessonOptions={lessonOptions}
+                  moduleOptions={moduleOptions}
+                  courseMode={courseMode}
                 />
               )}
               {step.type === 'action' && (

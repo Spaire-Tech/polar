@@ -145,21 +145,22 @@ class PlatformBillingService:
         session: AsyncSession,
         organization: Organization,
     ) -> Subscription | None:
-        """Convenience wrapper for the org-creation hook.
+        """Convenience wrapper called from the org-creation hook.
 
         Starts a 14-day Pro trial. The Pro product carries the trial
         configuration (trial_interval=day, count=14) and `_create_subscription`
         promotes that to a `trialing` status with `trial_end` set 14 days
-        from now. After the trial expires the subscription needs to convert
-        through checkout (to capture a payment method) or it lapses.
+        from now. After the trial expires the platform.expire_trials
+        cron lapses the sub and re-subscribes the org to Legacy unless
+        the creator has converted via upgrade-checkout (which captures
+        a payment method and supersedes this auto-trial with a fresh
+        Stripe-managed subscription on the chosen tier).
 
-        NOTE: This is only called from operator scripts now (grandfather
-        migrations). The org-creation hook no longer pre-attaches a trial
-        because Polar's checkout `subscription_id` only accepts FREE
-        subscriptions for upgrade — a pre-attached Pro trial would block
-        the upgrade-checkout flow. Stripe handles the 14-day trial
-        natively via the Product's `trial_interval`, so the trial still
-        works end-to-end without us pre-creating a subscription.
+        Pre-attaching this trial is what gives a freshly created org a
+        real Pro tier from the first dashboard hit — without it,
+        EntitlementsService.get_tier silently falls back to Legacy
+        (unlimited everything), which is the exact bypass the PRICING.md
+        rollout is supposed to close.
         """
         return await self.ensure_subscription(
             session, organization, tier=TierKey.pro, managed_by="trial"

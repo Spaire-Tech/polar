@@ -9,12 +9,14 @@ import {
 } from '@/components/Customization/Storefront/StorefrontSidebar/utils'
 import { toast } from '@/components/Toast/use-toast'
 import { useProducts, useUpdateOrganization } from '@/hooks/queries'
+import { useSpaireSubscription } from '@/hooks/queries/spaireTier'
 import { OrganizationContext } from '@/providers/maintainerOrganization'
+import { api } from '@/utils/client'
 import { schemas } from '@spaire/client'
 import Button from '@spaire/ui/components/atoms/Button'
 import { Form } from '@spaire/ui/components/ui/form'
-import { useRouter } from 'next/navigation'
-import { useCallback, useContext, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { useCallback, useContext, useEffect, useRef, useState } from 'react'
 import { useForm } from 'react-hook-form'
 
 type SocialLink = schemas['OrganizationSocialLink']
@@ -22,8 +24,42 @@ type SocialLink = schemas['OrganizationSocialLink']
 export default function ReviewPage() {
   const { organization } = useContext(OrganizationContext)
   const router = useRouter()
+  const searchParams = useSearchParams()
   const updateOrganization = useUpdateOrganization()
   const [publishing, setPublishing] = useState(false)
+
+  // When Polar redirects back here with ?upgraded=1, verify the
+  // checkout actually completed. Until §1d, this page trusted the
+  // query param blindly — a creator who started checkout, closed the
+  // tab, and browser-back'd here could publish without ever paying.
+  // The platform-subscription endpoint exposes `is_default_trial`,
+  // which stays True as long as the active sub is the auto-created
+  // trial from organization.created. Flip the flag and we know
+  // Stripe minted a new subscription on the chosen tier.
+  const cameFromCheckout = searchParams.get('upgraded') === '1'
+  const subscriptionQuery = useSpaireSubscription(organization.id)
+  const checkoutCompleted = cameFromCheckout
+    ? subscriptionQuery.data
+      ? !subscriptionQuery.data.is_default_trial
+      : null
+    : true
+  const subscriptionWarnedRef = useRef(false)
+  useEffect(() => {
+    if (
+      cameFromCheckout &&
+      subscriptionQuery.data &&
+      subscriptionQuery.data.is_default_trial &&
+      !subscriptionWarnedRef.current
+    ) {
+      subscriptionWarnedRef.current = true
+      toast({
+        title: 'Finish picking your plan',
+        description:
+          "Looks like the Spaire checkout didn't finish — pick a plan to keep going.",
+      })
+      router.push(`/dashboard/${organization.slug}/onboarding/plan`)
+    }
+  }, [cameFromCheckout, subscriptionQuery.data, router, organization.slug])
 
   const { data: productsData } = useProducts(organization.id, {
     is_archived: false,
@@ -45,6 +81,28 @@ export default function ReviewPage() {
 
   const handlePublish = useCallback(async () => {
     if (publishing) return
+    // If we landed here from a checkout return URL, hold the publish
+    // until the subscription verification has finished. Block entirely
+    // when verification proves the checkout never completed — the
+    // ?upgraded=1 query param is not enough proof.
+    if (cameFromCheckout) {
+      if (checkoutCompleted === null) {
+        toast({
+          title: 'One moment',
+          description: 'Verifying your subscription…',
+        })
+        return
+      }
+      if (checkoutCompleted === false) {
+        toast({
+          title: 'Plan not picked yet',
+          description:
+            'Pick a Spaire plan before publishing your Space Card.',
+        })
+        router.push(`/dashboard/${organization.slug}/onboarding/plan`)
+        return
+      }
+    }
     setPublishing(true)
 
     try {
@@ -101,6 +159,17 @@ export default function ReviewPage() {
         return
       }
 
+      // Stamp ai_onboarding_completed_at so the dashboard plan-gate
+      // releases. Idempotent server-side — the endpoint no-ops if the
+      // flag is already set (e.g. user already finished the assistant
+      // path). Failures here are non-fatal: the publish succeeded, and
+      // the assistant flow can still set the flag later.
+      await api
+        .POST('/v1/organizations/{id}/ai-onboarding-complete', {
+          params: { path: { id: organization.id } },
+        })
+        .catch(() => undefined)
+
       await revalidate(`organizations:${org.id}`)
       await revalidate(`organizations:${org.slug}`)
       await revalidate(`storefront:${org.slug}`)
@@ -113,7 +182,15 @@ export default function ReviewPage() {
       })
       setPublishing(false)
     }
-  }, [form, organization, updateOrganization, publishing, router])
+  }, [
+    form,
+    organization,
+    updateOrganization,
+    publishing,
+    router,
+    cameFromCheckout,
+    checkoutCompleted,
+  ])
 
   return (
     <Form {...form}>

@@ -87,6 +87,22 @@ export default function CourseEditor({
               : 'outline'
   const [activeTab, setActiveTab] = useState<TabId>(initialTab)
   const [selectedLessonId, setSelectedLessonId] = useState<string | null>(null)
+  // LessonDetail reports its dirty state up here so the host can guard
+  // navigation (lesson swap, outline click) against silently dropping
+  // the user's unsaved typing.
+  const [lessonDirty, setLessonDirty] = useState(false)
+  const confirmLeaveDirty = (): boolean => {
+    if (!lessonDirty) return true
+    return window.confirm(
+      'This lesson has unsaved changes. Leave without saving?',
+    )
+  }
+  const guardedSetSelectedLessonId = (next: string | null) => {
+    if (next === selectedLessonId) return
+    if (!confirmLeaveDirty()) return
+    setLessonDirty(false)
+    setSelectedLessonId(next)
+  }
   const [isSaving, setIsSaving] = useState(false)
   const [isGenerating, setIsGenerating] = useState(false)
   const abortRef = useRef<AbortController | null>(null)
@@ -253,10 +269,7 @@ export default function CourseEditor({
           description: edits.description || null,
           content_type: contentType,
           content: Object.keys(nextContent).length > 0 ? nextContent : null,
-          video_asset_id:
-            edits.media === 'video' ? edits.videoUrl || null : null,
           published: edits.published,
-          thumbnail_object_position: edits.thumbnailObjectPosition,
           comments_mode: edits.commentsMode,
         },
       })
@@ -354,8 +367,12 @@ export default function CourseEditor({
   }
 
   const handleTabChange = (tab: TabId) => {
+    if (tab !== activeTab && !confirmLeaveDirty()) return
     setActiveTab(tab)
-    if (tab !== 'outline') setSelectedLessonId(null)
+    if (tab !== 'outline') {
+      setSelectedLessonId(null)
+      setLessonDirty(false)
+    }
   }
 
   const handleAddContent = async () => {
@@ -403,6 +420,7 @@ export default function CourseEditor({
             organizationSlug={organization.slug}
             onSave={handleSaveLesson}
             onDelete={() => handleDeleteLesson(selectedLessonInfo.lesson)}
+            onDirtyChange={setLessonDirty}
             isSaving={isSaving}
             onGenerateAI={handleGenerateAI}
             isGenerating={isGenerating}
@@ -415,7 +433,7 @@ export default function CourseEditor({
           course={course}
           organizationSlug={organization.slug}
           selectedLessonId={selectedLessonId}
-          onSelectLesson={setSelectedLessonId}
+          onSelectLesson={guardedSetSelectedLessonId}
           onAddLesson={(mod, ct) => handleAddLesson(mod, ct)}
           onUpdateLesson={handleUpdateLessonOptions}
           onDeleteLesson={handleDeleteLesson}

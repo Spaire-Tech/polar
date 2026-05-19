@@ -52,6 +52,13 @@ router = APIRouter(
     tags=["courses", APITag.private],
 )
 
+# Conservative projected duration used when reserving quota at upload-
+# initiate time. Mux returns the real duration in the webhook later;
+# this number is just a guard against "upload-initiate always passes
+# because we passed requested_storage_units=0". 10 minutes sits at the
+# 95th percentile of lesson length we see in practice.
+_ESTIMATED_LESSON_SECONDS = 600
+
 
 def _lesson_read(lesson) -> CourseLessonRead:
     return CourseLessonRead(
@@ -447,6 +454,125 @@ async def reorder_lessons(
 
 
 @router.post(
+    "/staging/mux-upload",
+    response_model=MuxUploadRead,
+    status_code=201,
+    summary="Create Staged Mux Direct Upload",
+)
+async def create_staged_mux_upload(
+    auth_subject: auth.CoursesWrite,
+    organization_id: UUID,
+    session: AsyncSession = Depends(get_db_session),
+) -> MuxUploadRead:
+    """Create a Mux direct upload that isn't yet attached to a lesson.
+
+    Used by the create-course wizard so video upload can start the moment
+    the user picks a file, before the course / lessons exist. The returned
+    `upload_id` is later passed in `CourseLessonCreate.mux_upload_id` so the
+    Mux webhook can attach the asset to the new lesson once it processes.
+    """
+    from polar.config import settings
+
+    if not settings.MUX_TOKEN_ID or not settings.MUX_TOKEN_SECRET:
+        raise HTTPException(status_code=503, detail="Mux not configured")
+
+    # Org membership check — staging endpoint isn't gated by a course row
+    # since no course exists yet.
+    if is_organization(auth_subject):
+        if auth_subject.subject.id != organization_id:
+            raise HTTPException(status_code=403, detail="Forbidden")
+    elif is_user(auth_subject):
+        if not await _user_in_org(
+            session, auth_subject.subject.id, organization_id
+        ):
+            raise HTTPException(status_code=403, detail="Forbidden")
+
+    # Same quota gate as the per-lesson endpoint — duration isn't known
+    # until Mux processes the asset, so refuse new uploads outright once
+    # the org's existing total exceeds the limit.
+    org_repo = OrganizationRepository.from_session(session)
+    organization = await org_repo.get_by_id(organization_id)
+    if organization is not None:
+        try:
+            await enforce(
+                session,
+                organization,
+                QuotaKey.video_hours_hosted,
+                requested_storage_units=0,
+            )
+        except QuotaExceededError as exc:
+            raise HTTPException(status_code=402, detail=exc.message) from exc
+
+    try:
+        result = await mux_client.create_direct_upload()
+    except Exception as e:
+        log.error("Staged Mux upload creation failed: %s", e)
+        raise HTTPException(status_code=502, detail="Failed to create upload")
+
+    return MuxUploadRead(
+        upload_id=result["upload_id"],
+        upload_url=result["upload_url"],
+    )
+
+
+@router.post(
+    "/staging/media",
+    summary="Upload Staging Media (returns URL only)",
+)
+async def upload_staged_media(
+    auth_subject: auth.CoursesWrite,
+    organization_id: UUID,
+    file: UploadFile = File(...),
+    session: AsyncSession = Depends(get_db_session),
+) -> dict[str, str]:
+    """Upload an image or video to S3 before the course exists.
+
+    Returns `{url, kind}`. Used by the create-course wizard for course
+    thumbnail / trailer / landing slot media so upload can start the
+    moment the user picks a file. The returned URL is then passed into
+    the course-create payload (thumbnail_url, trailer_url, or stored on
+    landing_overrides.media).
+    """
+    from polar.config import settings
+    from polar.integrations.aws.s3 import S3Service
+
+    if is_organization(auth_subject):
+        if auth_subject.subject.id != organization_id:
+            raise HTTPException(status_code=403, detail="Forbidden")
+    elif is_user(auth_subject):
+        if not await _user_in_org(
+            session, auth_subject.subject.id, organization_id
+        ):
+            raise HTTPException(status_code=403, detail="Forbidden")
+
+    content_type = file.content_type or "application/octet-stream"
+    is_image = content_type.startswith("image/")
+    is_video = content_type.startswith("video/")
+    if not (is_image or is_video):
+        raise HTTPException(
+            status_code=400, detail="File must be an image or video"
+        )
+
+    data = await file.read()
+    max_bytes = (500 if is_video else 10) * 1024 * 1024
+    if len(data) > max_bytes:
+        raise HTTPException(
+            status_code=413,
+            detail=f"File must be under {max_bytes // (1024 * 1024)} MB",
+        )
+
+    ext = (file.filename or "").rsplit(".", 1)[-1].lower()
+    if not ext or "/" in ext:
+        ext = "mp4" if is_video else "jpg"
+
+    path = f"course-staging/{organization_id}/{uuid4().hex}.{ext}"
+    s3 = S3Service(bucket=settings.S3_FILES_PUBLIC_BUCKET_NAME)
+    s3.upload(data, path, content_type)
+    public_url = s3.get_public_url(path)
+    return {"url": public_url, "kind": "video" if is_video else "image"}
+
+
+@router.post(
     "/lessons/{lesson_id}/mux-upload",
     response_model=MuxUploadRead,
     status_code=201,
@@ -472,11 +598,15 @@ async def create_mux_upload(
     if lesson is None:
         raise HTTPException(status_code=404, detail="Lesson not found")
 
-    # Block new uploads if the org is already at its video-hours cap.
-    # Duration is unknown until Mux processes the asset, so we can't
-    # check projected usage precisely — we instead refuse new uploads
-    # outright once the existing total exceeds the limit. Creators can
-    # delete old lessons to make room.
+    # Block new uploads if the org would exceed its video-hours cap.
+    # The actual duration isn't known until Mux processes the asset, so
+    # we project against a conservative 10-minute estimate — that's at
+    # the upper end of a typical short lesson and ensures the cap holds
+    # for normal content. Once Mux reports the real duration in the
+    # webhook handler we run the check again with the precise value
+    # and flip the lesson to `quota_exceeded` if it pushes past the
+    # grace ceiling, so a single oversized upload can't blow through
+    # the limit either.
     organization_id = await lesson_repo.get_organization_id_for_lesson(lesson.id)
     if organization_id is not None:
         org_repo = OrganizationRepository.from_session(session)
@@ -487,7 +617,7 @@ async def create_mux_upload(
                     session,
                     organization,
                     QuotaKey.video_hours_hosted,
-                    requested_storage_units=0,
+                    requested_storage_units=_ESTIMATED_LESSON_SECONDS,
                 )
             except QuotaExceededError as exc:
                 raise HTTPException(
@@ -898,27 +1028,66 @@ async def mux_webhook(
                 # Only emit on first transition to ready, so retried
                 # webhooks don't double-count the same asset.
                 previously_ready = lesson.mux_status == "ready"
+                organization_id = (
+                    await lesson_repo.get_organization_id_for_lesson(lesson.id)
+                    if not previously_ready and duration
+                    else None
+                )
+
+                # Post-completion quota check: now that Mux has told us
+                # the real duration, see if adding it would push the org
+                # past their video-hours grace ceiling. The upload-
+                # initiate check was a conservative estimate; this is
+                # the definitive value. If it exceeds, flip the lesson
+                # to `quota_exceeded` instead of `ready` and skip the
+                # count emit — the asset stays on Mux but the
+                # customer-portal playback-url endpoint will refuse to
+                # mint a URL for it until the creator upgrades or
+                # deletes other content.
+                target_status = "ready"
+                if organization_id is not None:
+                    org_repo = OrganizationRepository.from_session(session)
+                    organization = await org_repo.get_by_id(organization_id)
+                    if organization is not None:
+                        from polar.quotas.service import quotas as _quotas
+
+                        check = await _quotas.check(
+                            session,
+                            organization.id,
+                            QuotaKey.video_hours_hosted,
+                            requested_storage_units=int(duration),
+                        )
+                        if not check.allowed:
+                            target_status = "quota_exceeded"
+                            log.warning(
+                                "course.upload.over_quota",
+                                organization_id=str(organization.id),
+                                lesson_id=str(lesson.id),
+                                duration_seconds=int(duration),
+                                used=check.used,
+                                limit=check.limit,
+                            )
+
                 update: dict = {
                     "mux_asset_id": asset_id,
                     "mux_playback_id": playback_id,
-                    "mux_status": "ready",
+                    "mux_status": target_status,
                 }
                 if duration:
                     update["duration_seconds"] = int(duration)
                 await lesson_repo.update(lesson, update_dict=update)
 
-                if not previously_ready and duration:
-                    organization_id = (
-                        await lesson_repo.get_organization_id_for_lesson(
-                            lesson.id
-                        )
+                if (
+                    not previously_ready
+                    and duration
+                    and organization_id is not None
+                    and target_status == "ready"
+                ):
+                    emit_video_uploaded(
+                        session,
+                        organization_id=organization_id,
+                        duration_seconds=int(duration),
                     )
-                    if organization_id is not None:
-                        emit_video_uploaded(
-                            session,
-                            organization_id=organization_id,
-                            duration_seconds=int(duration),
-                        )
 
     elif event_type in ("video.upload.errored", "video.asset.errored"):
         upload_id = data.get("upload_id") or data.get("id")

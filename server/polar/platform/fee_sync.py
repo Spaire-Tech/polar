@@ -21,6 +21,7 @@ from polar.account.repository import AccountRepository
 from polar.customer.repository import CustomerRepository
 from polar.entitlements.service import entitlements as entitlements_service
 from polar.entitlements.tiers import TierKey
+from polar.enums import RateLimitGroup
 from polar.exceptions import PolarError
 from polar.models import Organization, Subscription
 from polar.organization.repository import OrganizationRepository
@@ -61,27 +62,69 @@ class PlatformFeeSyncService:
         subscription state change, including ones where the org doesn't
         have a Stripe Account yet (sync will run when the account is set).
         """
-        if organization.account_id is None:
-            return _SyncResult(changed=False, reason="no_account")
-
-        account_repository = AccountRepository.from_session(session)
-        account = await account_repository.get_by_id(organization.account_id)
-        if account is None:
-            return _SyncResult(changed=False, reason="account_missing")
-
-        if account.platform_fee_locked_at is not None and not force:
-            return _SyncResult(changed=False, reason="locked")
-
         tier_entitlements = await entitlements_service.get_for_organization(
             session, organization.id
         )
 
-        # Legacy tier: leave the Account columns as-is — the global default
-        # already kicks in via Account.platform_fee fallback. Writing the
+        # Rate-limit group is independent of Account state — it lives on
+        # the Organization row itself and is read by the API middleware
+        # on every request. Sync it first so a creator without an Account
+        # yet still gets bumped from `default` to `elevated` when they
+        # land on Pro/Studio/Scale. Legacy maps back to `default`.
+        try:
+            target_rate_limit_group = RateLimitGroup(
+                tier_entitlements.rate_limit_group
+            )
+        except ValueError:
+            log.warning(
+                "platform.fee_sync.invalid_rate_limit_group",
+                organization_id=str(organization.id),
+                tier=tier_entitlements.tier.value,
+                value=tier_entitlements.rate_limit_group,
+            )
+            target_rate_limit_group = organization.rate_limit_group
+        rate_limit_changed = (
+            organization.rate_limit_group != target_rate_limit_group
+        )
+        if rate_limit_changed:
+            organization.rate_limit_group = target_rate_limit_group
+            log.info(
+                "platform.fee_sync.rate_limit_group_updated",
+                organization_id=str(organization.id),
+                tier=tier_entitlements.tier.value,
+                rate_limit_group=target_rate_limit_group.value,
+            )
+
+        if organization.account_id is None:
+            return _SyncResult(
+                changed=rate_limit_changed,
+                reason="rate_limit_only" if rate_limit_changed else "no_account",
+            )
+
+        account_repository = AccountRepository.from_session(session)
+        account = await account_repository.get_by_id(organization.account_id)
+        if account is None:
+            return _SyncResult(
+                changed=rate_limit_changed,
+                reason="rate_limit_only" if rate_limit_changed else "account_missing",
+            )
+
+        if account.platform_fee_locked_at is not None and not force:
+            return _SyncResult(
+                changed=rate_limit_changed,
+                reason="rate_limit_only" if rate_limit_changed else "locked",
+            )
+
+        # Legacy tier: leave the Account fee columns as-is — the global
+        # default kicks in via Account.platform_fee fallback. Writing the
         # global default values explicitly would be lossy (we'd no longer
         # be able to tell "never synced" from "synced to global default").
+        # Rate-limit group was already synced above.
         if tier_entitlements.tier == TierKey.legacy:
-            return _SyncResult(changed=False, reason="legacy_tier")
+            return _SyncResult(
+                changed=rate_limit_changed,
+                reason="rate_limit_only" if rate_limit_changed else "legacy_tier",
+            )
 
         target_percent = tier_entitlements.transaction_fee.percent_basis_points
         target_fixed = tier_entitlements.transaction_fee.fixed_cents
@@ -90,7 +133,10 @@ class PlatformFeeSyncService:
             account._platform_fee_percent == target_percent
             and account._platform_fee_fixed == target_fixed
         ):
-            return _SyncResult(changed=False, reason="up_to_date")
+            return _SyncResult(
+                changed=rate_limit_changed,
+                reason="rate_limit_only" if rate_limit_changed else "up_to_date",
+            )
 
         previous_percent = account._platform_fee_percent
         previous_fixed = account._platform_fee_fixed

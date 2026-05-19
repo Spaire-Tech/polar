@@ -35,7 +35,6 @@ from polar.models.organization import (
     OrganizationNotificationSettings,
     OrganizationStatus,
     OrganizationSubscriptionSettings,
-    OrganizationStorefrontSettings as OrganizationStorefrontSettingsDict,
 )
 from polar.models.organization_review import OrganizationReview
 
@@ -121,7 +120,9 @@ class StorefrontLink(Schema):
         Field(max_length=200, description="Short description shown on the card"),
         EmptyStrToNoneValidator,
     ] = None
-    image_url: str | None = Field(None, description="Thumbnail image URL for the link card")
+    image_url: str | None = Field(
+        None, description="Thumbnail image URL for the link card"
+    )
     type: Literal["standard", "embedded"] = Field("standard", description="Link type")
     platform: str | None = Field(
         None,
@@ -155,11 +156,10 @@ class OrganizationStorefrontSettings(Schema):
         EmptyStrToNoneValidator,
     ] = None
     skills: list[str] = Field(
-        default_factory=list, description="Skill/expertise tags displayed on the profile"
+        default_factory=list,
+        description="Skill/expertise tags displayed on the profile",
     )
-    languages: list[str] = Field(
-        default_factory=list, description="Languages spoken"
-    )
+    languages: list[str] = Field(default_factory=list, description="Languages spoken")
     available_for_work: bool = Field(
         False, description="Show 'Available for work' badge on the profile"
     )
@@ -245,9 +245,7 @@ class OrganizationSubscribePromoteSettings(Schema):
 
 
 class OrganizationDetails(Schema):
-    about: str = Field(
-        "", description="Brief information about you and your business."
-    )
+    about: str = Field("", description="Brief information about you and your business.")
     product_description: str = Field(
         ..., description="Description of digital products being sold."
     )
@@ -459,6 +457,7 @@ class OrganizationPublicBase(OrganizationBase):
         BeforeValidator(LegacyOrganizationStatus.from_status),
     ]
     details_submitted_at: SkipJsonSchema[datetime | None]
+    ai_onboarding_completed_at: SkipJsonSchema[datetime | None] = None
 
     feature_settings: SkipJsonSchema[OrganizationFeatureSettings | None]
     subscription_settings: SkipJsonSchema[OrganizationSubscriptionSettings]
@@ -475,6 +474,15 @@ class Organization(OrganizationBase):
     status: OrganizationStatus = Field(description="Current organization status")
     details_submitted_at: datetime | None = Field(
         description="When the business details were submitted.",
+    )
+    ai_onboarding_completed_at: datetime | None = Field(
+        default=None,
+        description=(
+            "When the creator finished the onboarding flow (plan + review "
+            "+ assistant). Until this is set, the dashboard layout redirects "
+            "the creator back to /onboarding/plan to prevent skipping the "
+            "plan-selection step."
+        ),
     )
 
     default_presentment_currency: PresentmentCurrency = Field(

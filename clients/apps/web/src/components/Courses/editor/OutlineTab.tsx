@@ -170,6 +170,12 @@ function LessonCard({
             <LockOutlined sx={{ fontSize: 10 }} className="text-white" />
           </div>
         )}
+        {lesson.published && !locked && (
+          <span className="absolute top-[7px] right-2 inline-flex items-center gap-1 rounded-full bg-green-100 px-1.5 py-0.5 text-[9px] font-semibold tracking-[0.05em] text-green-700 uppercase">
+            <span className="h-1 w-1 rounded-full bg-green-500" />
+            Live
+          </span>
+        )}
         {(lesson.is_free_preview ||
           lesson.drip_days != null ||
           lesson.release_at) && (

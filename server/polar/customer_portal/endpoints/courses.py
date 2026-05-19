@@ -74,7 +74,13 @@ def _serialize_lesson(
         base["content"] = lesson.content
         playback_id = getattr(lesson, "mux_playback_id", None)
         base["mux_playback_id"] = playback_id
-        base["mux_playback_url"] = mux_client.playback_url(playback_id)
+        # Do NOT inline a signed mux_playback_url here. The customer-
+        # portal player must call POST /playback-url for each play so
+        # the video_views_monthly quota is actually enforced (and the
+        # view is counted). Returning a URL up-front meant the
+        # enforcement endpoint was dead code: every view passed through
+        # the public Mux URL embedded in the course-read response.
+        base["mux_playback_url"] = None
         base["mux_status"] = getattr(lesson, "mux_status", None)
     else:
         base["description"] = None
@@ -513,6 +519,18 @@ async def mint_lesson_playback_url(
     if not playback_id:
         raise HTTPException(
             status_code=404, detail="Lesson video is not available yet"
+        )
+    if getattr(lesson, "mux_status", None) == "quota_exceeded":
+        # The creator's video-hours quota was already exceeded when this
+        # asset finished processing; the course/endpoints.py webhook
+        # handler refused to count it. Refuse to mint a playback URL too
+        # — otherwise we'd serve the video for free past the cap.
+        raise HTTPException(
+            status_code=402,
+            detail=(
+                "This lesson is unavailable because the course owner's "
+                "video-hours quota was exceeded when it was uploaded."
+            ),
         )
 
     lesson_repo = CourseLessonRepository.from_session(session)

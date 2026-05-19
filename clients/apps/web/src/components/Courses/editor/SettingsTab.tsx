@@ -1,6 +1,11 @@
 'use client'
 
-import { CourseRead, useUploadCourseThumbnail } from '@/hooks/queries/courses'
+import {
+  CourseRead,
+  useUpdateCourse,
+  useUploadCourseThumbnail,
+} from '@/hooks/queries/courses'
+import { toast } from '../../Toast/use-toast'
 import ImageOutlined from '@mui/icons-material/ImageOutlined'
 import InfoOutlined from '@mui/icons-material/InfoOutlined'
 import LockOutlined from '@mui/icons-material/LockOutlined'
@@ -51,6 +56,26 @@ export function SettingsTab({
   )
   const thumbnailInputRef = useRef<HTMLInputElement>(null)
   const uploadThumbnail = useUploadCourseThumbnail()
+  const updateCourse = useUpdateCourse()
+
+  const handleRemoveThumbnail = async () => {
+    try {
+      // Send `thumbnail_url: null` so the server clears the column.
+      // CourseUpdate uses exclude_unset so an explicit null persists.
+      await updateCourse.mutateAsync({
+        courseId: course.id,
+        body: { thumbnail_url: null, thumbnail_object_position: null },
+      })
+      setThumbnailUrl(null)
+      setThumbnailPosition(null)
+      toast({ title: 'Thumbnail removed' })
+    } catch (err) {
+      toast({
+        title: 'Failed to remove thumbnail',
+        description: err instanceof Error ? err.message : undefined,
+      })
+    }
+  }
 
   useEffect(() => {
     setTitle(course.title ?? '')
@@ -272,7 +297,15 @@ export function SettingsTab({
               Drag the image to choose the focal point shown on the landing page
               hero.
             </p>
-            <div className="flex justify-end">
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                disabled={updateCourse.isPending || uploadThumbnail.isPending}
+                onClick={handleRemoveThumbnail}
+                className="rounded-full border border-gray-300 px-4 py-2 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-50"
+              >
+                {updateCourse.isPending ? 'Removing…' : 'Remove'}
+              </button>
               <button
                 type="button"
                 disabled={uploadThumbnail.isPending}

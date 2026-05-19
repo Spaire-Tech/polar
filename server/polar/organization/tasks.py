@@ -16,8 +16,10 @@ from polar.exceptions import PolarTaskError
 from polar.held_balance.service import held_balance as held_balance_service
 from polar.integrations.plain.service import plain as plain_service
 from polar.models import Organization
-from polar.models.organization import OrganizationStatus
-from polar.platform.billing import platform_billing
+from polar.platform.billing import (
+    TierProductMissing,
+    platform_billing,
+)
 from polar.platform.fee_sync import enqueue_sync as enqueue_platform_fee_sync
 from polar.user.repository import UserRepository
 from polar.worker import AsyncSessionMaker, TaskPriority, actor
@@ -68,14 +70,33 @@ async def organization_created(organization_id: uuid.UUID) -> None:
         if organization is None:
             raise OrganizationDoesNotExist(organization_id)
 
-        # Create the platform-org Customer row for this creator so the
-        # upgrade-checkout endpoint has a customer_id to attach. We do
-        # NOT pre-create a Spaire subscription — the 14-day trial is
-        # initiated by Stripe at checkout (via Product.trial_interval),
-        # which keeps the platform DB clean of orphan trial subs and
-        # avoids tripping Polar's "only free subscriptions can be
-        # upgraded" guard inside CheckoutProductCreate.
-        await platform_billing.ensure_platform_customer(session, organization)
+        # Start the new creator org on a 14-day Pro trial so they land
+        # on real Pro entitlements (capped limits, real tier) from the
+        # moment the dashboard opens — instead of silently falling
+        # through EntitlementsService's "no subscription -> legacy"
+        # branch, which used to grant unlimited everything until a
+        # human noticed.
+        #
+        # The trial-expiry cron (platform.tasks.platform_expire_trials)
+        # lapses this sub at day 14 if the creator hasn't converted via
+        # upgrade-checkout, then platform.resubscribe_to_legacy takes
+        # over and the org drops to Legacy ($0, no enforcement). That
+        # is the documented PRICING.md flow.
+        #
+        # If the platform org isn't configured yet, or its tier products
+        # haven't been seeded, we log and continue — the org should
+        # still be creatable in dev / single-tenant setups.
+        try:
+            await platform_billing.ensure_pro_trial_subscription(session, organization)
+        except TierProductMissing as exc:
+            log.warning(
+                "organization.created.pro_trial_skipped",
+                organization_id=str(organization_id),
+                reason=exc.message,
+            )
+            # Still ensure the platform Customer row exists so the
+            # upgrade-checkout endpoint has something to attach to.
+            await platform_billing.ensure_platform_customer(session, organization)
 
 
 @actor(actor_name="organization.account_set", priority=TaskPriority.LOW)
@@ -111,9 +132,7 @@ async def organization_under_review(organization_id: uuid.UUID) -> None:
         if organization is None:
             raise OrganizationDoesNotExist(organization_id)
 
-        await plain_service.create_organization_review_thread(
-            session, organization
-        )
+        await plain_service.create_organization_review_thread(session, organization)
 
         admin_user = await repository.get_admin_user(session, organization)
         if admin_user:

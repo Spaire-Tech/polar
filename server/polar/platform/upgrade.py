@@ -18,7 +18,9 @@ from polar.checkout.schemas import CheckoutProductCreate
 from polar.checkout.service import checkout as checkout_service
 from polar.entitlements.tiers import TierKey
 from polar.exceptions import PolarError
+from polar.kit.utils import utc_now
 from polar.models import Checkout, Organization
+from polar.models.subscription import SubscriptionStatus
 from polar.platform.billing import platform_billing
 from polar.platform.repository import (
     platform_customer_repository,
@@ -121,9 +123,7 @@ class PlatformUpgradeService:
             platform_org.id, organization.id
         )
         if customer is None:
-            await platform_billing.ensure_platform_customer(
-                session, organization
-            )
+            await platform_billing.ensure_platform_customer(session, organization)
             customer = await customer_repo.get_for_creator_org(
                 platform_org.id, organization.id
             )
@@ -144,10 +144,10 @@ class PlatformUpgradeService:
         # from free to paid" hook — it only accepts subscriptions whose
         # prices are all free. So we pass it ONLY when the creator is on
         # the Legacy ($0) product (grandfathered orgs upgrading for the
-        # first time). For everyone else we leave it None: Polar's
-        # checkout will create a fresh subscription, and Stripe handles
-        # the 14-day trial via the Product's trial_interval. No
-        # platform-side trial sub means no orphan rows.
+        # first time). For paid trialing subs we instead revoke the
+        # auto-trial inline (see below) — Polar's checkout uniqueness
+        # check would otherwise reject the new checkout with
+        # AlreadyActiveSubscriptionError.
         subscription_repo = platform_subscription_repository(session)
         existing_sub = await subscription_repo.get_active_for_customer(customer.id)
 
@@ -158,22 +158,52 @@ class PlatformUpgradeService:
                 if existing_sub.product is not None
                 else None
             )
+            managed_by = (existing_sub.user_metadata or {}).get("managed_by")
             if existing_tier == TierKey.legacy.value:
                 # Legacy is the only $0 product we ship; safe to pass to
                 # Polar's upgrade-from-free path.
                 existing_subscription_id = existing_sub.id
+            elif existing_sub.trialing and managed_by == "trial":
+                # Auto-attached Pro trial from organization.created. The
+                # Pro product is billable, so Polar's checkout-side
+                # `_validate_subscription_uniqueness` will refuse to
+                # create another billable subscription for this customer.
+                # We can't pass `subscription_id` to upgrade-from either
+                # — that only accepts $0 subs. Revoke the trial in
+                # place so the customer's slate is clean before checkout
+                # creates a fresh, payment-method-backed subscription on
+                # the chosen tier. If checkout never completes the
+                # creator simply lands on no platform sub (Legacy
+                # fallback) and the dashboard plan-gate bounces them
+                # back to /onboarding/plan to retry.
+                now = utc_now()
+                existing_sub.status = SubscriptionStatus.canceled
+                existing_sub.canceled_at = now
+                existing_sub.ended_at = now
+                existing_sub.cancel_at_period_end = False
+                await session.flush()
+                log.info(
+                    "platform.upgrade_checkout.revoked_auto_trial",
+                    organization_id=str(organization.id),
+                    subscription_id=str(existing_sub.id),
+                    target_tier=tier.value,
+                )
+            elif existing_sub.trialing:
+                # Trialing on a paid product that wasn't auto-attached
+                # (rare — e.g. a creator who already converted once and
+                # is now on a fresh Stripe-managed trial). Fall through
+                # and let Polar's uniqueness check decide; we don't
+                # want to revoke a real Stripe-managed subscription
+                # from under the user.
+                pass
             elif existing_tier == tier.value:
-                # Already on the requested paid tier — surface as 409.
+                # Active (non-trialing) on the same paid tier — already
+                # paid for it, no upgrade to perform.
                 raise AlreadyOnPaidTier()
-            elif not existing_sub.trialing:
-                # Paid sub on a different tier → use switch_plan, not
-                # upgrade-checkout.
+            else:
+                # Active on a different paid tier → use switch_plan,
+                # not upgrade-checkout.
                 raise AlreadyOnPaidTier()
-            # Trialing on a paid product: fall through with
-            # existing_subscription_id=None. Polar will create a fresh
-            # paid subscription on the chosen product (with Stripe-side
-            # trial). The old platform trial sub becomes inactive once
-            # the new sub is the most-recent active one on the customer.
 
         # Use model_validate so pydantic coerces success_url (a plain str)
         # into the HttpUrl-shaped SuccessUrl type the schema requires.

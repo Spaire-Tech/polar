@@ -209,6 +209,8 @@ export function CustomizeTab({
     // it onto course.thumbnail_object_position before dropping the slot
     // so the customer portal, course list, etc. see the same crop.
     const heroBackdrop = persistedMedia['hero.backdrop']
+    const heroTrailer = persistedMedia['hero.trailer']
+    const trailerVideo = persistedMedia['trailer.video']
     const heroBackdropPosition =
       heroBackdrop && heroBackdrop.kind === 'image'
         ? heroBackdrop.objectPosition
@@ -230,6 +232,25 @@ export function CustomizeTab({
     // (the common case after the page loads) never persisted.
     if (heroBackdropPosition) {
       body.thumbnail_object_position = heroBackdropPosition
+    }
+    // Mirror "user removed media" back to the canonical course columns.
+    // If the slot is gone from the editor state AND the course still has
+    // a URL on file, the user cleared it — PATCH the column to null so
+    // the public landing actually drops the asset.
+    const heroImageGone =
+      !heroBackdrop ||
+      (heroBackdrop.kind === 'image' && !heroBackdrop.url) ||
+      heroBackdrop.kind !== 'image'
+    if (heroImageGone && course.thumbnail_url) {
+      body.thumbnail_url = null
+      body.thumbnail_object_position = null
+    }
+    const trailerGone =
+      !trailerVideo &&
+      !(heroTrailer && heroTrailer.kind === 'video') &&
+      !(heroBackdrop && heroBackdrop.kind === 'video')
+    if (trailerGone && course.trailer_url) {
+      body.trailer_url = null
     }
     // Surface what's being sent so the user can confirm in the network
     // tab that their edits made it into the PATCH payload.

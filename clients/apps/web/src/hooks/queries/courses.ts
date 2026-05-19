@@ -268,6 +268,13 @@ export const useCreateCourse = () =>
           title: string
           content_type: string
           position: number
+          // Pre-staged uploads from the wizard: when the user picked a
+          // file before the lesson row existed we already started the
+          // upload, and pass the resulting identifiers here so the
+          // lesson is created already pointing at them.
+          mux_upload_id?: string | null
+          thumbnail_url?: string | null
+          description?: string | null
         }[]
       }[]
     }) =>
@@ -402,6 +409,7 @@ export const useUpdateCourseLesson = () =>
         published?: boolean
         release_at?: string | null
         drip_days?: number | null
+        thumbnail_url?: string | null
         thumbnail_object_position?: string | null
         comments_mode?: 'visible' | 'hidden' | 'locked'
       }
@@ -701,6 +709,43 @@ export const useCreateMuxUpload = () =>
       ),
   })
 
+// Wizard-only: create a Mux direct upload that isn't attached to a lesson
+// yet. Returned upload_id later rides on CourseLessonCreate.mux_upload_id
+// so the webhook can attach the Mux asset once it finishes processing.
+export const useStageMuxUpload = () =>
+  useMutation({
+    mutationFn: (organizationId: string) =>
+      courseApiFetch<MuxUploadRead>(
+        `/v1/courses/staging/mux-upload?organization_id=${organizationId}`,
+        { method: 'POST' },
+      ),
+  })
+
+// Wizard-only: upload an image / video to S3 before the course exists.
+// Returns {url, kind}; the URL is passed into the course-create payload.
+export const useStageOrgMedia = () =>
+  useMutation({
+    mutationFn: async ({
+      organizationId,
+      file,
+    }: {
+      organizationId: string
+      file: File
+    }) => {
+      const form = new FormData()
+      form.append('file', file)
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/v1/courses/staging/media?organization_id=${organizationId}`,
+        { method: 'POST', body: form, credentials: 'include' },
+      )
+      if (!res.ok) {
+        const text = await res.text().catch(() => '')
+        throw new Error(`API ${res.status}: ${text}`)
+      }
+      return res.json() as Promise<{ url: string; kind: 'image' | 'video' }>
+    },
+  })
+
 export const usePreviewAccess = () =>
   useMutation({
     mutationFn: (courseId: string) =>
@@ -911,6 +956,29 @@ export const useMarkLessonComplete = (
         queryKey: ['customer-courses', token, courseId],
       })
     },
+  })
+
+// Mint a signed Mux playback URL for a lesson. Called when the player
+// transitions to "playing" so the server can enforce the
+// video_views_monthly quota and count the view. The course-read
+// response intentionally no longer inlines the URL — bypassing this
+// endpoint would also bypass quota enforcement.
+export type LessonPlaybackUrlResponse = {
+  mux_playback_id: string | null
+  mux_playback_url: string | null
+}
+
+export const useMintLessonPlaybackUrl = (
+  token: string | null | undefined,
+  courseId: string | undefined,
+) =>
+  useMutation<LessonPlaybackUrlResponse, Error, string>({
+    mutationFn: (lessonId: string) =>
+      portalApiFetch<LessonPlaybackUrlResponse>(
+        `/v1/customer-portal/courses/${courseId}/lessons/${lessonId}/playback-url`,
+        token!,
+        { method: 'POST' },
+      ),
   })
 
 // --- Lesson comments (customer portal) ---
