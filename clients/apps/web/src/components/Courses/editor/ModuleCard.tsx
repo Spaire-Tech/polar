@@ -17,6 +17,7 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import ArticleOutlined from '@mui/icons-material/ArticleOutlined'
+import CheckCircleOutlined from '@mui/icons-material/CheckCircleOutlined'
 import DeleteOutlined from '@mui/icons-material/DeleteOutlined'
 import DescriptionOutlined from '@mui/icons-material/DescriptionOutlined'
 import DragIndicatorOutlined from '@mui/icons-material/DragIndicatorOutlined'
@@ -423,12 +424,17 @@ function LessonRow({
         </span>
       </button>
 
-      {/* Published indicator */}
-      {lesson.published ? (
+      {/* Published indicator (Live badge only on free preview lessons) */}
+      {lesson.is_free_preview ? (
         <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-green-100 px-1.5 py-0.5 text-[9px] font-semibold tracking-[0.05em] text-green-700 uppercase">
           <span className="h-1 w-1 rounded-full bg-green-500" />
           Live
         </span>
+      ) : lesson.published ? (
+        <CheckCircleOutlined
+          className="shrink-0 text-green-500"
+          sx={{ fontSize: 14 }}
+        />
       ) : (
         <DescriptionOutlined
           className="shrink-0 text-gray-300"
