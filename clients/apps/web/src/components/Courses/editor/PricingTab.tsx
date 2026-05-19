@@ -11,7 +11,7 @@ import EditOutlined from '@mui/icons-material/EditOutlined'
 import { schemas } from '@spaire/client'
 import Button from '@spaire/ui/components/atoms/Button'
 import Link from 'next/link'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { PaywallIcon } from './PaywallIcon'
 import { CourseSettingsEdits } from './SettingsTab'
 
@@ -30,20 +30,38 @@ export function PricingTab({
   const { data: product } = useProduct(course.product_id)
 
   const [enabled, setEnabled] = useState(course.paywall_enabled)
-  const [position, setPosition] = useState<number | null>(
-    course.paywall_position ?? null,
-  )
 
   // Flatten lessons from all modules
   const allLessons = course.modules.flatMap((m) => m.lessons)
 
+  // Free preview count = positional cutoff PLUS any lesson after the
+  // cutoff explicitly marked is_free_preview via the lesson options menu.
+  // The input mirrors this combined count so it stays in sync with the
+  // OutlineTab's Free Preview section.
+  const derivedFreePreviewCount = useMemo(() => {
+    const positional = Math.min(
+      course.paywall_position ?? 0,
+      allLessons.length,
+    )
+    const flaggedAfter = allLessons
+      .slice(positional)
+      .filter((l) => l.is_free_preview).length
+    return positional + flaggedAfter
+  }, [allLessons, course.paywall_position])
+  const flaggedAfterPaywall =
+    derivedFreePreviewCount - (course.paywall_position ?? 0)
+
+  const [position, setPosition] = useState<number | null>(
+    derivedFreePreviewCount,
+  )
+
   useEffect(() => {
     setEnabled(course.paywall_enabled)
-    setPosition(course.paywall_position)
-  }, [course.id, course.paywall_enabled, course.paywall_position])
+    setPosition(derivedFreePreviewCount)
+  }, [course.id, course.paywall_enabled, derivedFreePreviewCount])
 
   const dirty =
-    enabled !== course.paywall_enabled || position !== course.paywall_position
+    enabled !== course.paywall_enabled || position !== derivedFreePreviewCount
 
   const lockedCount =
     enabled && position != null
@@ -170,6 +188,13 @@ export function PricingTab({
                 of {allLessons.length} lessons visible
               </span>
             </div>
+            {flaggedAfterPaywall > 0 && (
+              <p className="mt-2 text-xs text-gray-500">
+                Includes {flaggedAfterPaywall} lesson
+                {flaggedAfterPaywall === 1 ? '' : 's'} marked as free preview
+                from the lesson menu.
+              </p>
+            )}
 
             {allLessons.length > 0 && position != null && (
               <div className="mt-4 flex flex-col gap-1">
