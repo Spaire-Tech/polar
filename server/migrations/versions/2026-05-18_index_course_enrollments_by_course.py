@@ -17,7 +17,7 @@ is created.
 from alembic import op
 
 revision = "1f3a55e2b610"
-down_revision = "e76d1c4a82b9"
+down_revision = "7c8d3e2f9a01"
 branch_labels: tuple[str] | None = None
 depends_on: tuple[str] | None = None
 
