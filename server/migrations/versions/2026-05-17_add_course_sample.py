@@ -17,11 +17,13 @@ renders as a sub-hero on series landings. Shape:
 NULL means the block is hidden. The column is nullable on both formats
 (course / series) but the editor UI only exposes it for series.
 
+Idempotent: same orphaned-migration situation as 08c3effbf1a2 — the
+force-pushed predecessor of this migration likely added the column on
+production already. Using ADD COLUMN IF NOT EXISTS so this is safe to
+run against either state.
 """
 
-import sqlalchemy as sa
 from alembic import op
-from sqlalchemy.dialects.postgresql import JSONB
 
 revision = "6f4a9d2c1b08"
 down_revision = "08c3effbf1a2"
@@ -30,11 +32,8 @@ depends_on: tuple[str] | None = None
 
 
 def upgrade() -> None:
-    op.add_column(
-        "courses",
-        sa.Column("sample", JSONB, nullable=True),
-    )
+    op.execute("ALTER TABLE courses ADD COLUMN IF NOT EXISTS sample JSONB")
 
 
 def downgrade() -> None:
-    op.drop_column("courses", "sample")
+    op.execute("ALTER TABLE courses DROP COLUMN IF EXISTS sample")

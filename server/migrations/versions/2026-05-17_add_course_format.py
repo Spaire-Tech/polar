@@ -10,9 +10,12 @@ was a structured Course → Modules → Lessons by definition. The new
 "series" value flags a flat, episode-based narrative format that renders
 with a different AI prompt, landing layout, and portal viewer.
 
+Idempotent: uses ADD COLUMN IF NOT EXISTS because the orphaned migration
+7c8d3e2f9a01 that was force-pushed out of history added this same
+column in production. Fresh dev databases still get the column the
+first time; production silently skips.
 """
 
-import sqlalchemy as sa
 from alembic import op
 
 revision = "08c3effbf1a2"
@@ -22,16 +25,12 @@ depends_on: tuple[str] | None = None
 
 
 def upgrade() -> None:
-    op.add_column(
-        "courses",
-        sa.Column(
-            "format",
-            sa.String(length=50),
-            nullable=False,
-            server_default="course",
-        ),
+    op.execute(
+        "ALTER TABLE courses "
+        "ADD COLUMN IF NOT EXISTS format VARCHAR(50) "
+        "DEFAULT 'course' NOT NULL"
     )
 
 
 def downgrade() -> None:
-    op.drop_column("courses", "format")
+    op.execute("ALTER TABLE courses DROP COLUMN IF EXISTS format")
