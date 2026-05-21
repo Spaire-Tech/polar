@@ -2231,13 +2231,36 @@ function RealLessonEpisodeThumb({
     [],
   )
 
-  // Drive the hover-triggered peek. Re-evaluate when `hovered` flips.
+  // Suppress the peek for a beat after any scroll. The cursor can drift
+  // across multiple tiles mid-scroll and we don't want every one of them
+  // firing a 10s playback just because the user passed by.
+  const [scrollSuppressed, setScrollSuppressed] = useState(false)
+  const scrollSuppressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const onScroll = () => {
+      setScrollSuppressed(true)
+      if (scrollSuppressTimer.current) clearTimeout(scrollSuppressTimer.current)
+      scrollSuppressTimer.current = setTimeout(
+        () => setScrollSuppressed(false),
+        400,
+      )
+    }
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => {
+      window.removeEventListener('scroll', onScroll)
+      if (scrollSuppressTimer.current) clearTimeout(scrollSuppressTimer.current)
+    }
+  }, [])
+
+  // Drive the hover-triggered peek. Re-evaluate when `hovered` flips or
+  // we go in / out of the scroll-suppression window.
   useEffect(() => {
     if (peekTimerRef.current) {
       clearTimeout(peekTimerRef.current)
       peekTimerRef.current = null
     }
-    if (hovered && hasPeekVideo) {
+    if (hovered && hasPeekVideo && !scrollSuppressed) {
       setPeekActive(true)
       peekTimerRef.current = setTimeout(
         () => setPeekActive(false),
@@ -2249,7 +2272,7 @@ function RealLessonEpisodeThumb({
     return () => {
       if (peekTimerRef.current) clearTimeout(peekTimerRef.current)
     }
-  }, [hovered, hasPeekVideo])
+  }, [hovered, hasPeekVideo, scrollSuppressed])
 
   const onPickThumb = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
