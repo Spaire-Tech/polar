@@ -281,6 +281,7 @@ function CourseLandingShell({
       <EditableCourseLandingView
         course={fakeCourse}
         organizationName={organization.name}
+        organizationAvatarUrl={organization.avatar_url}
         flatLessons={flatLessons}
         product={product as unknown as schemas['Product']}
       />

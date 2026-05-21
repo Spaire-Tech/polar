@@ -71,6 +71,14 @@ export const landingSchema = z.object({
   lessons_heading: z.string(),
   lessons_subheading: z.string(),
 
+  // Created by — author intro section. The eyebrow renders the creator's
+  // name; the headline is a one-sentence credentials line; the bio is one
+  // or two paragraphs (a single \n splits paragraphs).
+  created_by_eyebrow: z.string(),
+  created_by_quote: z.string(),
+  created_by_headline: z.string(),
+  created_by_bio: z.string(),
+
   // Instructor
   instructor_label: z.string(),
   instructor_pull_quote: z.string(),
@@ -88,6 +96,30 @@ export const landingSchema = z.object({
       name: z.string(),
       role: z.string(),
       text: z.string(),
+    }),
+  ),
+
+  // What you'll learn — outcomes strip. Two-column numbered grid (6 items).
+  // Title splits across two lines via `learn_title` + `learn_title_em`
+  // (lighter weight / colour for the em half).
+  learn_eyebrow: z.string(),
+  learn_title: z.string(),
+  learn_title_em: z.string(),
+  learn_items: z.array(
+    z.object({
+      title: z.string(),
+      description: z.string(),
+    }),
+  ),
+
+  // FAQ — minimal accordion right before the final CTA. 7 items.
+  faq_eyebrow: z.string(),
+  faq_title: z.string(),
+  faq_title_em: z.string(),
+  faq_items: z.array(
+    z.object({
+      question: z.string(),
+      answer: z.string(),
     }),
   ),
 

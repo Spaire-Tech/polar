@@ -350,6 +350,7 @@ function CustomizeCanvas({
       course={course}
       organizationName={organization.name}
       organizationSlug={organization.slug}
+      organizationAvatarUrl={organization.avatar_url}
       flatLessons={flatLessons}
       product={product}
       lessonHandlers={lessonHandlers}

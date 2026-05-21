@@ -47,6 +47,12 @@ Lessons heading: "The full arc." (1-3 words, ends with period)
 Lessons subheading (paywall on): "The first three lessons are free to preview. Enroll to unlock the remaining nineteen."
 Lessons subheading (paywall off): "Every lesson is open. Watch in any order."
 
+Created by — author intro section that sits above the instructor pull-quote. Reads like the inside jacket of a book.
+- "created_by_eyebrow": uppercase eyebrow, 2-6 words, starts with "CREATED BY " followed by the instructor's name as given. Example: "CREATED BY DR. LENA MARCHETTI". If no instructor name was provided, default to "CREATED BY THE TEAM".
+- "created_by_quote": one sentence in the instructor's actual voice (≤ 200 chars). It should sound like the reason they made THIS course — not generic. Example: "I built this course to give you the writing tools I wish I'd had as a young lawyer — and to share the craft I found later as a novelist."
+- "created_by_headline": one sentence (≤ 220 chars) that names what the instructor is known for. Concrete credentials, publications, roles. Example: "Award-winning novelist and former litigator. NYT best-selling author of The Quiet Argument. Host of the Plain Words podcast on writing that actually moves people."
+- "created_by_bio": one to two short paragraphs (220-500 chars total). Separate paragraphs with a single \\n. First paragraph: their working life — where they came from, what they did, the places their work has appeared. Second paragraph: tie it directly to this course — what the learner spends time inside, framed in the instructor's working method. Reference the real lesson count by number. Example: "Lena spent twelve years as a litigator before publishing her first novel. Her work has appeared in The Atlantic, n+1, and The New Yorker. She now teaches at a graduate writing program and consults on speeches, op-eds, and closing arguments that need to do real work in the world.\\nWith this course, you'll spend 22 lessons in Lena's working method — the same one she uses to draft, cut, and rebuild every piece of writing that leaves her desk."
+
 Instructor label: "YOUR INSTRUCTOR"
 Instructor pull-quote (one sentence, ≤ 180 chars, plausible thing the instructor would actually say): "Persuasion isn't convincing. It's giving someone a way to change their mind without losing face."
 Instructor credentials (2-3 items, "number" is short like "3" or "12+", "label" is 1-3 words): {"3", "Published novels"}, {"12", "Years in court"}, {"2", "Spaire courses"}
@@ -88,9 +94,31 @@ CONSTRAINTS PER FIELD
 - "sections": array length MUST equal the input "Total modules". Every entry's "title" rewrites that module's title in the brand voice (do NOT echo the user's raw module titles verbatim; tighten and editorialize).
 - "final_cta_guarantees": array of exactly 4 short strings (1-3 words each).
 
+WHAT YOU'LL LEARN — outcomes strip. Two-column numbered grid of six concrete outcomes.
+- "learn_eyebrow": "What you'll learn" (title-case sentence, NOT all caps — the UI renders it uppercase if it wants to).
+- "learn_title": first line of the section heading. Editorial. Example: "Six things you'll be able to do".
+- "learn_title_em": SECOND line of the heading, rendered with a lighter weight / colour. Example: "by the end of the course." (ends with period).
+- "learn_items": EXACTLY six entries. Each "title" is the concrete outcome — an action the learner will be able to do, not a topic ("Write a first sentence people can't put down." not "First sentences"). Title 4-10 words, ends with a period. Each "description" is one sentence (≤ 130 chars) naming the move or the structure that delivers the outcome. Be specific. Examples of the shape (do not copy verbatim):
+  - {"title": "Write a first sentence people can't put down.", "description": "Three patterns Lena uses to make a reader commit to the next paragraph."}
+  - {"title": "Build the three-beat argument.", "description": "Claim, concede, return — a structure that holds up under cross-examination."}
+
+FAQ — minimal accordion before the final CTA. Seven items.
+- "faq_eyebrow": "Questions, answered" (title case).
+- "faq_title": first line of the FAQ heading. Example: "Everything you might want to know".
+- "faq_title_em": second line, lighter weight. Example: "before enrolling." (ends with period).
+- "faq_items": EXACTLY seven entries, each with "question" and "answer". Cover the seven angles below in order, tailored to THIS course's subject, audience, and paywall setting. Questions read like a real person, not a marketer (no "Is this the right course for me?" — write "Who is this course for?"). Answers are 1-3 sentences, 120-380 chars, plain string, no markdown.
+  1. Who the course is for (audience + level).
+  2. Time commitment — how long, how much per week, lifetime access.
+  3. Whether the learner gets feedback (workshops / cohorts / instructor reply).
+  4. Whether there is a certificate.
+  5. Refund policy — concrete window in days, how to claim.
+  6. Devices / offline / captions.
+  7. How this is different from a book, a YouTube series, or the obvious cheaper alternative for this subject.
+
 PAYWALL AWARENESS
 - If paywall is enabled, you may reference free preview lessons, "enroll to unlock", and frame the final CTA around a free start. Never name a price.
 - If paywall is disabled (free course), do NOT mention paywalls, locks, previews, or pricing anywhere. Frame the course as openly available. The lessons subheading should not say "free preview".
+- In the FAQ refund question, if paywall is OFF, reframe — the course is free, so the refund question becomes "Why is this free?" or similar. Keep tone honest.
 
 GROUNDING
 - Stay strictly grounded in the course title, description, instructor name, and instructor bio you receive. Do not invent unrelated subject matter, fake credentials, or facts that contradict the bio.
@@ -154,6 +182,12 @@ EPISODE LIST
   - paywall on: name the free preview count by number, call them episodes. Example: "The first two episodes are open. The rest unlocks when you join."
   - paywall off: "Every episode is open. Watch in any order."
 
+CREATED BY — author intro section that sits above the instructor pull-quote. For a series this reads like the inside flap of a documentary press kit. Same fields as the course version, same length budgets — different framing.
+- "created_by_eyebrow": uppercase, 2-6 words, starts with "CREATED BY " followed by the creator's name as given. Example: "CREATED BY ANNA MORENO". If no creator name was provided, default to "CREATED BY THE FILMMAKERS".
+- "created_by_quote": one sentence in the creator's actual voice (≤ 200 chars). Should sound like the reason they made THIS series — observational, personal, not didactic. Examples of the shape: "I wanted to film the week no one ever films — the seven days before the race, when everything you've trained for is already done." / "Every interview gets cut. I wanted to show what the cuts leave out."
+- "created_by_headline": one sentence (≤ 220 chars) that names who the creator is — concrete credits, championships, roles, bodies of work. No "passionate", no "expert". Just the facts. Example: "Two-time Olympic 400m runner. World silver medalist. The first woman to break 49 seconds on a flat indoor track."
+- "created_by_bio": one to two short paragraphs (220-500 chars total). Separate paragraphs with a single \\n. First paragraph: the world the creator works in — places, weeks, opponents, decisions, rooms. Second paragraph: tie it directly to this series — what the viewer spends time inside, framed in the creator's voice. Reference the real episode count by number.
+
 INSTRUCTOR — reframe as the creator/subject
 - "instructor_label": "ABOUT THE CREATOR" or "WHO YOU'RE WATCHING". Never "YOUR INSTRUCTOR".
 - "instructor_pull_quote": ≤ 180 chars. One sentence in the creator's actual voice, grounded in their bio. Personal, observational, not didactic. NOT "I'll teach you" / "I want to show you". Something they would actually say at a dinner.
@@ -162,6 +196,27 @@ INSTRUCTOR — reframe as the creator/subject
 REVIEWS
 - "reviews_label": "FROM EARLY VIEWERS" or "WHAT PEOPLE ARE SAYING". Never "FROM STUDENTS".
 - "reviews": 2-3 items. Names plausible and varied. Roles match the audience (peers, fans, fellow creators, journalists, coaches, founders — whoever would watch). 200-380 chars each. Each one must reference something concrete — an episode beat, a tone, a single line — not generic praise.
+
+WHAT YOU'LL LEARN — reframe as what the viewer will SEE, not learn.
+- "learn_eyebrow": "What you'll watch" or "What you'll see" (title case, NOT all caps).
+- "learn_title": first line of the heading. Editorial, not instructional. Example: "Six things you'll watch happen".
+- "learn_title_em": second line, lighter colour. Example: "across the season." (ends with period).
+- "learn_items": EXACTLY six entries. Each "title" is a concrete moment / scene / question the season opens — written as something the viewer will WITNESS, not learn. 4-10 words, ends with a period. Each "description" (≤ 130 chars) names the texture — the room, the week, the opponent, the decision. NO "you'll learn", NO "you'll master". Use "you'll see", "you'll spend time inside", "you'll sit with". Examples of the shape (do not copy):
+  - {"title": "The week before the final.", "description": "Seven days from check-in to call room — food, calls home, the things she says to herself."}
+  - {"title": "A practice no one films.", "description": "The Tuesday session, the one she does alone, two months out from a major."}
+
+FAQ — minimal accordion before the final CTA. Seven items.
+- "faq_eyebrow": "Questions, answered" (title case).
+- "faq_title": first line of the FAQ heading. Example: "Everything you might want to know".
+- "faq_title_em": second line, lighter weight. Example: "before you join." (ends with period).
+- "faq_items": EXACTLY seven entries, each with "question" and "answer". Cover the seven angles below in order, tailored to THIS series's creator and subject. Questions read like a real person. Answers are 1-3 sentences, 120-380 chars, plain string, no markdown. Frame everything around watching, not learning.
+  1. Who the series is for (the audience — fans, peers, fellow creators).
+  2. Format & runtime — total runtime, episode lengths, how long it takes to watch.
+  3. Future episodes — whether new episodes land in the library, included or extra.
+  4. Whether the creator shows up beyond the screen — comments, Q&A, anything.
+  5. Refund / cancellation policy — concrete window in days.
+  6. Devices / offline / captions.
+  7. How this is different from the obvious cheaper alternative for this subject — a podcast, a documentary, an interview.
 
 PAYWALL CARD
 - "paywall_eyebrow": "MEMBERS ONLY" or "JOIN TO WATCH". Uppercase, 1-3 words.
