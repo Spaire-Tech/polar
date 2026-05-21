@@ -3186,11 +3186,11 @@ function LockedItemLockIcon() {
 
 // ── Created by (light) ──────────────────────────────────────────────────────
 
-// Author-intro section that sits above the Instructor pull-quote. Reads like
-// the inside flap of a book: small avatar + CREATED BY [NAME] eyebrow, a
-// one-sentence quote, the creator's name, a credentials headline, and a
-// short bio. Layout is text-left / image-right (the opposite of Instructor)
-// so the two sections visually balance each other when both are shown.
+// Author-intro section that sits right under the hero. Mirrors the v2 design
+// 1:1 — frosted pill eyebrow on top, a large headline quote that spans the
+// width, then a two-column grid (1fr 1.05fr) with the bio on the left and a
+// cinematic still on the right. The right tile keeps the blue placeholder
+// the user picked, swappable through EditMedia like every other landing slot.
 function CreatedBy({
   course,
   organizationAvatarUrl,
@@ -3203,42 +3203,98 @@ function CreatedBy({
   const defaultEyebrow = instructorName
     ? `CREATED BY ${instructorName.toUpperCase()}`
     : 'CREATED BY THE TEAM'
-  // First sentence of the bio becomes a passable quote default so the section
-  // is presentable even before the AI fills the dedicated created_by_quote
-  // field (older courses, hand-created courses, etc.).
   const bioFirstSentence =
     course.instructor_bio?.split(/(?<=\.)\s+/)[0]?.trim() ?? ''
-  const defaultQuote = bioFirstSentence ? `“${bioFirstSentence}”` : ''
-  // Avatar slot: the visible image is the override if set, otherwise the
-  // organization avatar. We don't pre-seed the override (so swapping the org
-  // avatar still flows through) — we just render avatar_url as the placeholder
-  // background.
+  const defaultQuote = bioFirstSentence
+    ? `“${bioFirstSentence}”`
+    : '“I built this course to share the work I wish I’d had when I started.”'
   const avatarMedia = ed.m('createdBy.avatar')
   const avatarSrc = avatarMedia?.url ?? organizationAvatarUrl ?? null
 
   return (
     <section
       style={{
-        padding: '72px 32px 80px',
+        padding: '88px 32px 64px',
         maxWidth: 1320,
         margin: '0 auto',
         fontFamily: FONT_VAR,
       }}
     >
+      {/* Eyebrow pill */}
+      <div
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 8,
+          padding: '8px 16px',
+          borderRadius: 999,
+          background: 'oklch(0.94 0.003 250 / 0.7)',
+          color: 'oklch(0.40 0.008 250)',
+          border: '1px solid oklch(0.88 0.004 250)',
+          backdropFilter: 'blur(20px) saturate(160%)',
+          WebkitBackdropFilter: 'blur(20px) saturate(160%)',
+          boxShadow:
+            'inset 0 1px 0 rgba(255,255,255,0.7), 0 1px 2px rgba(0,0,0,0.04)',
+          marginBottom: 28,
+          whiteSpace: 'nowrap',
+        }}
+      >
+        <span
+          aria-hidden
+          style={{
+            width: 6,
+            height: 6,
+            borderRadius: '50%',
+            background: 'oklch(0.55 0.008 250)',
+            boxShadow: '0 0 8px oklch(0.55 0.008 250 / 0.4)',
+          }}
+        />
+        <EditText
+          path="createdBy.eyebrow"
+          defaultValue={defaultEyebrow}
+          style={{
+            fontSize: 11,
+            fontWeight: 700,
+            letterSpacing: '0.16em',
+          }}
+        />
+      </div>
+
+      {/* Headline quote */}
+      <EditText
+        as="h2"
+        path="createdBy.quote"
+        defaultValue={defaultQuote}
+        multiline
+        style={{
+          fontSize: 'calc(clamp(28px, 3.4vw, 48px) * var(--type-scale, 1))',
+          fontWeight: 'var(--h-weight, 600)',
+          letterSpacing: 'calc(var(--h-tracking, 0em) - 0.035em)',
+          lineHeight: 1.08,
+          color: 'oklch(0.18 0.008 280)',
+          maxWidth: 980,
+          margin: '0 0 64px',
+          textWrap: 'balance',
+          fontFamily: HEADING_VAR,
+        }}
+      />
+
+      {/* Two columns: bio (left) · cinematic still (right) */}
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: '1fr 0.85fr',
-          gap: 64,
-          alignItems: 'center',
+          gridTemplateColumns: '1fr 1.05fr',
+          gap: 56,
+          alignItems: 'start',
         }}
       >
-        <div>
+        {/* LEFT — bio */}
+        <div style={{ paddingTop: 8 }}>
           <div
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: 12,
+              gap: 20,
               marginBottom: 28,
             }}
           >
@@ -3247,12 +3303,14 @@ function CreatedBy({
               label="creator avatar"
               style={{
                 position: 'relative',
-                width: 28,
-                height: 28,
+                flexShrink: 0,
+                width: 88,
+                height: 88,
                 borderRadius: '50%',
                 overflow: 'hidden',
-                flexShrink: 0,
-                background: 'oklch(0.92 0.003 280)',
+                border: '1px solid oklch(0.92 0.003 280)',
+                boxShadow:
+                  '0 1px 2px rgba(0,0,0,0.06), 0 8px 22px rgba(0,0,0,0.10)',
               }}
               placeholder={
                 avatarSrc ? (
@@ -3269,98 +3327,113 @@ function CreatedBy({
                     }}
                   />
                 ) : (
-                  <div
-                    style={{
-                      position: 'absolute',
-                      inset: 0,
-                      background:
-                        'linear-gradient(160deg, oklch(0.42 0.09 35), oklch(0.18 0.05 65))',
-                    }}
-                  />
+                  <>
+                    <div
+                      style={{
+                        position: 'absolute',
+                        inset: 0,
+                        background:
+                          'radial-gradient(circle at 50% 30%, oklch(0.46 0.10 40) 0%, oklch(0.22 0.05 50) 80%)',
+                      }}
+                    />
+                    <div
+                      style={{
+                        position: 'absolute',
+                        left: '50%',
+                        top: '14%',
+                        transform: 'translateX(-50%)',
+                        width: '40%',
+                        aspectRatio: '1',
+                        background:
+                          'linear-gradient(180deg, oklch(0.55 0.05 35), oklch(0.36 0.04 35))',
+                        borderRadius: '50%',
+                      }}
+                    />
+                    <div
+                      style={{
+                        position: 'absolute',
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        height: '52%',
+                        background:
+                          'linear-gradient(180deg, oklch(0.32 0.04 30), oklch(0.16 0.02 30))',
+                        clipPath: 'polygon(20% 0, 80% 0, 100% 100%, 0% 100%)',
+                        borderRadius: '50% 50% 0 0',
+                      }}
+                    />
+                  </>
                 )
               }
             />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              {instructorName && (
+                <div
+                  style={{
+                    fontSize: 20,
+                    fontWeight: 600,
+                    letterSpacing: '-0.02em',
+                    color: 'oklch(0.18 0.008 280)',
+                    marginBottom: 6,
+                    lineHeight: 1.1,
+                    fontFamily: HEADING_VAR,
+                  }}
+                >
+                  {instructorName}
+                </div>
+              )}
+              <EditText
+                as="div"
+                path="createdBy.headline"
+                defaultValue={course.instructor_bio ?? ''}
+                multiline
+                style={{
+                  fontSize: 13.5,
+                  color: 'oklch(0.32 0.008 280)',
+                  lineHeight: 1.55,
+                  textWrap: 'pretty',
+                }}
+              />
+            </div>
+          </div>
+
+          <div
+            style={{
+              paddingTop: 24,
+              borderTop: '1px solid oklch(0.92 0.003 280)',
+            }}
+          >
             <EditText
-              path="createdBy.eyebrow"
-              defaultValue={defaultEyebrow}
+              as="p"
+              path="createdBy.bio"
+              defaultValue=""
+              multiline
               style={{
-                fontSize: 11,
-                letterSpacing: '0.18em',
-                fontWeight: 600,
-                color: 'oklch(0.66 0.006 280)',
-                textTransform: 'uppercase',
+                fontSize: 15,
+                lineHeight: 1.7,
+                color: 'oklch(0.32 0.008 280)',
+                margin: 0,
+                textWrap: 'pretty',
+                maxWidth: 540,
+                whiteSpace: 'pre-line',
               }}
             />
           </div>
-          <EditText
-            as="blockquote"
-            path="createdBy.quote"
-            defaultValue={defaultQuote}
-            multiline
-            style={{
-              fontSize: 'calc(clamp(22px, 2.6vw, 34px) * var(--type-scale, 1))',
-              fontWeight: 'var(--h-weight, 500)',
-              fontStyle: 'var(--h-italic, normal)',
-              letterSpacing: 'calc(var(--h-tracking, 0em) - 0.022em)',
-              lineHeight: 1.2,
-              margin: '0 0 22px',
-              color: 'oklch(0.18 0.008 280)',
-              fontFamily: HEADING_VAR,
-            }}
-          />
-          {instructorName && (
-            <div
-              style={{
-                fontSize: 18,
-                fontWeight: 600,
-                letterSpacing: '-0.015em',
-                color: 'oklch(0.18 0.008 280)',
-                marginBottom: 10,
-                fontFamily: HEADING_VAR,
-              }}
-            >
-              {instructorName}
-            </div>
-          )}
-          <EditText
-            as="p"
-            path="createdBy.headline"
-            defaultValue={course.instructor_bio ?? ''}
-            multiline
-            style={{
-              fontSize: 15,
-              lineHeight: 1.6,
-              color: 'oklch(0.32 0.008 280)',
-              margin: '0 0 18px',
-              maxWidth: 560,
-            }}
-          />
-          <EditText
-            as="p"
-            path="createdBy.bio"
-            defaultValue=""
-            multiline
-            style={{
-              fontSize: 14.5,
-              lineHeight: 1.7,
-              color: 'oklch(0.42 0.008 280)',
-              margin: 0,
-              maxWidth: 560,
-              whiteSpace: 'pre-line',
-            }}
-          />
         </div>
 
+        {/* RIGHT — cinematic still */}
         <EditMedia
           id="createdBy.image"
-          label="creator photo"
+          label="creator still"
           style={{
             position: 'relative',
-            aspectRatio: '4 / 5',
-            borderRadius: 'calc(28px * var(--radius-mul, 1))',
+            width: '100%',
+            aspectRatio: '16 / 11',
+            borderRadius: 'calc(24px * var(--radius-mul, 1))',
             overflow: 'hidden',
+            border: '1px solid oklch(0.92 0.003 280)',
             boxShadow:
-              '0 2px 6px rgba(0,0,0,0.06), 0 24px 60px rgba(0,0,0,0.12)',
+              '0 2px 6px oklch(0 0 0 / 0.06), 0 24px 60px oklch(0 0 0 / 0.12)',
           }}
           placeholder={
             <>
@@ -3376,14 +3449,15 @@ function CreatedBy({
                 style={{
                   position: 'absolute',
                   left: 16,
-                  top: 16,
-                  fontFamily: 'ui-monospace, monospace',
+                  bottom: 14,
+                  fontFamily: 'ui-monospace, "SF Mono", monospace',
                   fontSize: 10,
-                  color: 'rgba(255,255,255,0.32)',
-                  zIndex: 3,
+                  letterSpacing: '0.06em',
+                  color: 'rgba(255,255,255,0.30)',
+                  zIndex: 5,
                 }}
               >
-                add a photo
+                creator still · placeholder
               </div>
             </>
           }
