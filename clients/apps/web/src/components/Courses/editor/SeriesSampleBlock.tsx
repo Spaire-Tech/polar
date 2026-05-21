@@ -980,14 +980,9 @@ function SamplePlayerFrame({
   // time the block enters view — after that, the animation stays settled.
   const [muted, setMuted] = useState(true)
   const [ended, setEnded] = useState(false)
-  const [hovered, setHovered] = useState(false)
   // Touch-device autoplay falls back to a tap-to-play poster overlay.
   const [isTouchUA, setIsTouchUA] = useState(false)
   const [tapPlayed, setTapPlayed] = useState(false)
-  // Scroll-stop: any scroll movement pauses + mutes the sample until the
-  // user comes back to it. Mirrors the trailer behavior on the hero.
-  const [scrollSuppressed, setScrollSuppressed] = useState(false)
-  const scrollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -998,6 +993,9 @@ function SamplePlayerFrame({
 
   // Intersection observer with threshold + rootMargin (the global hook is
   // threshold=0, which would fire on the smallest sliver of overlap).
+  // The sample plays the moment the frame is meaningfully on-screen and
+  // pauses as soon as you scroll past — exactly the "play when you
+  // reach it, stop when you scroll past" behavior the creator asked for.
   useEffect(() => {
     if (typeof IntersectionObserver === 'undefined') return
     const node = frameRef.current
@@ -1019,24 +1017,6 @@ function SamplePlayerFrame({
     return () => obs.disconnect()
   }, [])
 
-  // Scroll listener — pause + mute on any scroll, clear the suppression
-  // once the user has been still for a moment. Also re-mute right away so
-  // background audio never trails the viewport.
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-    const onScroll = () => {
-      setScrollSuppressed(true)
-      setMuted(true)
-      if (scrollTimerRef.current) clearTimeout(scrollTimerRef.current)
-      scrollTimerRef.current = setTimeout(() => setScrollSuppressed(false), 450)
-    }
-    window.addEventListener('scroll', onScroll, { passive: true })
-    return () => {
-      window.removeEventListener('scroll', onScroll)
-      if (scrollTimerRef.current) clearTimeout(scrollTimerRef.current)
-    }
-  }, [])
-
   // Mute on any click outside the volume toggle — matches the hero
   // trailer behavior so the user can silence playback by clicking the
   // page instead of hunting for the speaker icon.
@@ -1051,15 +1031,11 @@ function SamplePlayerFrame({
     return () => window.removeEventListener('click', onClick, true)
   }, [muted])
 
-  // Desktop autoplay requires (a) in view, (b) not mid-scroll, and (c)
-  // the cursor sitting on or near the frame. Without (c) the sample
-  // would start any time you happen to scroll it into the middle of the
-  // viewport, which the team flagged as too aggressive. Touch devices
-  // keep the tap-to-play path.
-  const playing =
-    !ended &&
-    !scrollSuppressed &&
-    (isTouchUA ? tapPlayed && inView : inView && hovered)
+  // Desktop autoplay only needs (a) "in view" — scrolling past the frame
+  // takes us out of view and the IntersectionObserver flips inView off,
+  // which is the entire stop-on-scroll-past story. Touch devices keep
+  // the tap-to-play path.
+  const playing = !ended && (isTouchUA ? tapPlayed && inView : inView)
 
   const handleReplay = () => {
     setEnded(false)
@@ -1076,11 +1052,6 @@ function SamplePlayerFrame({
   return (
     <div
       ref={frameRef}
-      onPointerEnter={(e) => {
-        if (e.pointerType === 'touch') return
-        setHovered(true)
-      }}
-      onPointerLeave={() => setHovered(false)}
       style={{
         position: 'relative',
         width: '100%',
