@@ -206,6 +206,38 @@ export function WizardLandingEditor({
         }
       })
     }
+    if (typeof text.learn_eyebrow === 'string')
+      merged.text['learn.eyebrow'] = text.learn_eyebrow
+    if (typeof text.learn_title === 'string')
+      merged.text['learn.title'] = text.learn_title
+    if (typeof text.learn_title_em === 'string')
+      merged.text['learn.titleEm'] = text.learn_title_em
+    if (Array.isArray(text.learn_items)) {
+      ;(text.learn_items as unknown[]).slice(0, 6).forEach((item, i) => {
+        if (!item || typeof item !== 'object') return
+        const it = item as { title?: unknown; description?: unknown }
+        if (typeof it.title === 'string')
+          merged.text[`learn.item${i + 1}.title`] = it.title
+        if (typeof it.description === 'string')
+          merged.text[`learn.item${i + 1}.desc`] = it.description
+      })
+    }
+    if (typeof text.faq_eyebrow === 'string')
+      merged.text['faq.eyebrow'] = text.faq_eyebrow
+    if (typeof text.faq_title === 'string')
+      merged.text['faq.title'] = text.faq_title
+    if (typeof text.faq_title_em === 'string')
+      merged.text['faq.titleEm'] = text.faq_title_em
+    if (Array.isArray(text.faq_items)) {
+      ;(text.faq_items as unknown[]).slice(0, 7).forEach((item, i) => {
+        if (!item || typeof item !== 'object') return
+        const it = item as { question?: unknown; answer?: unknown }
+        if (typeof it.question === 'string')
+          merged.text[`faq.item${i + 1}.q`] = it.question
+        if (typeof it.answer === 'string')
+          merged.text[`faq.item${i + 1}.a`] = it.answer
+      })
+    }
     if (draft.name) merged.text['hero.instructor'] = draft.name
     if (initialThumbFile) {
       const url = URL.createObjectURL(initialThumbFile)

@@ -169,6 +169,7 @@ export const DEFAULT_THEME: LandingTheme = {
 export const SECTION_ORDER_DEFAULT = [
   'hero',
   'createdBy',
+  'learn',
   'sample',
   'sections',
   'value',
@@ -177,6 +178,7 @@ export const SECTION_ORDER_DEFAULT = [
   'lessons',
   'instructor',
   'reviews',
+  'faq',
   'finalCta',
 ] as const
 
@@ -199,8 +201,10 @@ export const DEFAULT_OVERRIDES: ResolvedOverrides = {
     sections: true,
     lessons: true,
     createdBy: true,
+    learn: true,
     instructor: true,
     reviews: true,
+    faq: true,
     finalCta: true,
   },
   order: [...SECTION_ORDER_DEFAULT],

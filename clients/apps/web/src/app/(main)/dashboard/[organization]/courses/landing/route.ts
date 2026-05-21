@@ -94,9 +94,31 @@ CONSTRAINTS PER FIELD
 - "sections": array length MUST equal the input "Total modules". Every entry's "title" rewrites that module's title in the brand voice (do NOT echo the user's raw module titles verbatim; tighten and editorialize).
 - "final_cta_guarantees": array of exactly 4 short strings (1-3 words each).
 
+WHAT YOU'LL LEARN — outcomes strip. Two-column numbered grid of six concrete outcomes.
+- "learn_eyebrow": "What you'll learn" (title-case sentence, NOT all caps — the UI renders it uppercase if it wants to).
+- "learn_title": first line of the section heading. Editorial. Example: "Six things you'll be able to do".
+- "learn_title_em": SECOND line of the heading, rendered with a lighter weight / colour. Example: "by the end of the course." (ends with period).
+- "learn_items": EXACTLY six entries. Each "title" is the concrete outcome — an action the learner will be able to do, not a topic ("Write a first sentence people can't put down." not "First sentences"). Title 4-10 words, ends with a period. Each "description" is one sentence (≤ 130 chars) naming the move or the structure that delivers the outcome. Be specific. Examples of the shape (do not copy verbatim):
+  - {"title": "Write a first sentence people can't put down.", "description": "Three patterns Lena uses to make a reader commit to the next paragraph."}
+  - {"title": "Build the three-beat argument.", "description": "Claim, concede, return — a structure that holds up under cross-examination."}
+
+FAQ — minimal accordion before the final CTA. Seven items.
+- "faq_eyebrow": "Questions, answered" (title case).
+- "faq_title": first line of the FAQ heading. Example: "Everything you might want to know".
+- "faq_title_em": second line, lighter weight. Example: "before enrolling." (ends with period).
+- "faq_items": EXACTLY seven entries, each with "question" and "answer". Cover the seven angles below in order, tailored to THIS course's subject, audience, and paywall setting. Questions read like a real person, not a marketer (no "Is this the right course for me?" — write "Who is this course for?"). Answers are 1-3 sentences, 120-380 chars, plain string, no markdown.
+  1. Who the course is for (audience + level).
+  2. Time commitment — how long, how much per week, lifetime access.
+  3. Whether the learner gets feedback (workshops / cohorts / instructor reply).
+  4. Whether there is a certificate.
+  5. Refund policy — concrete window in days, how to claim.
+  6. Devices / offline / captions.
+  7. How this is different from a book, a YouTube series, or the obvious cheaper alternative for this subject.
+
 PAYWALL AWARENESS
 - If paywall is enabled, you may reference free preview lessons, "enroll to unlock", and frame the final CTA around a free start. Never name a price.
 - If paywall is disabled (free course), do NOT mention paywalls, locks, previews, or pricing anywhere. Frame the course as openly available. The lessons subheading should not say "free preview".
+- In the FAQ refund question, if paywall is OFF, reframe — the course is free, so the refund question becomes "Why is this free?" or similar. Keep tone honest.
 
 GROUNDING
 - Stay strictly grounded in the course title, description, instructor name, and instructor bio you receive. Do not invent unrelated subject matter, fake credentials, or facts that contradict the bio.
@@ -174,6 +196,27 @@ INSTRUCTOR — reframe as the creator/subject
 REVIEWS
 - "reviews_label": "FROM EARLY VIEWERS" or "WHAT PEOPLE ARE SAYING". Never "FROM STUDENTS".
 - "reviews": 2-3 items. Names plausible and varied. Roles match the audience (peers, fans, fellow creators, journalists, coaches, founders — whoever would watch). 200-380 chars each. Each one must reference something concrete — an episode beat, a tone, a single line — not generic praise.
+
+WHAT YOU'LL LEARN — reframe as what the viewer will SEE, not learn.
+- "learn_eyebrow": "What you'll watch" or "What you'll see" (title case, NOT all caps).
+- "learn_title": first line of the heading. Editorial, not instructional. Example: "Six things you'll watch happen".
+- "learn_title_em": second line, lighter colour. Example: "across the season." (ends with period).
+- "learn_items": EXACTLY six entries. Each "title" is a concrete moment / scene / question the season opens — written as something the viewer will WITNESS, not learn. 4-10 words, ends with a period. Each "description" (≤ 130 chars) names the texture — the room, the week, the opponent, the decision. NO "you'll learn", NO "you'll master". Use "you'll see", "you'll spend time inside", "you'll sit with". Examples of the shape (do not copy):
+  - {"title": "The week before the final.", "description": "Seven days from check-in to call room — food, calls home, the things she says to herself."}
+  - {"title": "A practice no one films.", "description": "The Tuesday session, the one she does alone, two months out from a major."}
+
+FAQ — minimal accordion before the final CTA. Seven items.
+- "faq_eyebrow": "Questions, answered" (title case).
+- "faq_title": first line of the FAQ heading. Example: "Everything you might want to know".
+- "faq_title_em": second line, lighter weight. Example: "before you join." (ends with period).
+- "faq_items": EXACTLY seven entries, each with "question" and "answer". Cover the seven angles below in order, tailored to THIS series's creator and subject. Questions read like a real person. Answers are 1-3 sentences, 120-380 chars, plain string, no markdown. Frame everything around watching, not learning.
+  1. Who the series is for (the audience — fans, peers, fellow creators).
+  2. Format & runtime — total runtime, episode lengths, how long it takes to watch.
+  3. Future episodes — whether new episodes land in the library, included or extra.
+  4. Whether the creator shows up beyond the screen — comments, Q&A, anything.
+  5. Refund / cancellation policy — concrete window in days.
+  6. Devices / offline / captions.
+  7. How this is different from the obvious cheaper alternative for this subject — a podcast, a documentary, an interview.
 
 PAYWALL CARD
 - "paywall_eyebrow": "MEMBERS ONLY" or "JOIN TO WATCH". Uppercase, 1-3 words.

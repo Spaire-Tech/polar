@@ -99,6 +99,30 @@ export const landingSchema = z.object({
     }),
   ),
 
+  // What you'll learn — outcomes strip. Two-column numbered grid (6 items).
+  // Title splits across two lines via `learn_title` + `learn_title_em`
+  // (lighter weight / colour for the em half).
+  learn_eyebrow: z.string(),
+  learn_title: z.string(),
+  learn_title_em: z.string(),
+  learn_items: z.array(
+    z.object({
+      title: z.string(),
+      description: z.string(),
+    }),
+  ),
+
+  // FAQ — minimal accordion right before the final CTA. 7 items.
+  faq_eyebrow: z.string(),
+  faq_title: z.string(),
+  faq_title_em: z.string(),
+  faq_items: z.array(
+    z.object({
+      question: z.string(),
+      answer: z.string(),
+    }),
+  ),
+
   // Final CTA
   final_cta_label: z.string(),
   final_cta_title: z.string(),

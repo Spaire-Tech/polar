@@ -1665,6 +1665,159 @@ export function MobileCreatedBy({
   )
 }
 
+// ── What you'll learn ──────────────────────────────────────────────────────
+
+const MOBILE_LEARN_DEFAULTS: { title: string; desc: string }[] = [
+  {
+    title: "Write a first sentence people can't put down.",
+    desc: 'Three patterns the instructor uses to make a reader commit to the next paragraph.',
+  },
+  {
+    title: 'Build the three-beat argument.',
+    desc: 'Claim, concede, return — a structure that holds up under cross-examination.',
+  },
+  {
+    title: 'Cut a draft by 30% without losing the meaning.',
+    desc: 'Three editing passes you’ll run on every piece. Most writing problems are length problems.',
+  },
+  {
+    title: 'Use concession to make your point harder to refute.',
+    desc: 'When to give ground, what to concede, and how to return stronger.',
+  },
+  {
+    title: 'Find a voice that sounds like you on a good day.',
+    desc: 'Not professional voice. Not literary voice. Yours, edited.',
+  },
+  {
+    title: 'Write the thing you’ve been avoiding.',
+    desc: 'A working method for finishing the hard email, the op-ed, the toast.',
+  },
+]
+
+export function MobileWhatYoullLearn() {
+  return (
+    <section
+      style={{
+        padding: '56px 20px 24px',
+        background: 'var(--bg-0, white)',
+        fontFamily: FONT_VAR,
+      }}
+    >
+      <EditText
+        path="learn.eyebrow"
+        defaultValue="What you'll learn"
+        style={{
+          display: 'block',
+          fontSize: 10,
+          fontWeight: 600,
+          letterSpacing: '0.22em',
+          textTransform: 'uppercase',
+          color: 'var(--fg-3, oklch(0.66 0.006 280))',
+          marginBottom: 12,
+        }}
+      />
+      <h2
+        style={{
+          fontSize: 28,
+          fontWeight: 600,
+          letterSpacing: '-0.035em',
+          lineHeight: 1.08,
+          margin: '0 0 36px',
+          color: 'var(--fg-0, oklch(0.18 0.008 280))',
+          textWrap: 'balance',
+          fontFamily: HEADING_VAR,
+        }}
+      >
+        <EditText
+          as="span"
+          path="learn.title"
+          defaultValue="Six things you'll be able to do"
+          multiline
+        />
+        <br />
+        <EditText
+          as="span"
+          path="learn.titleEm"
+          defaultValue="by the end of the course."
+          multiline
+          style={{
+            color: 'var(--fg-2, oklch(0.42 0.008 280))',
+            fontWeight: 500,
+          }}
+        />
+      </h2>
+      <div
+        style={{
+          borderTop: '1px solid oklch(0.92 0.003 280)',
+        }}
+      >
+        {MOBILE_LEARN_DEFAULTS.map((it, i) => (
+          <div
+            key={i}
+            style={{
+              display: 'grid',
+              gridTemplateColumns: '40px 1fr',
+              gap: 16,
+              alignItems: 'baseline',
+              padding: '22px 0',
+              borderBottom: '1px solid oklch(0.92 0.003 280)',
+            }}
+          >
+            <div
+              style={{
+                fontFamily: 'ui-monospace, "SF Mono", Menlo, monospace',
+                fontSize: 12,
+                fontWeight: 500,
+                color: 'var(--fg-3, oklch(0.66 0.006 280))',
+                letterSpacing: '0.04em',
+                lineHeight: 1.4,
+                paddingTop: 4,
+              }}
+            >
+              {String(i + 1).padStart(2, '0')}
+            </div>
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 6,
+              }}
+            >
+              <EditText
+                as="div"
+                path={`learn.item${i + 1}.title`}
+                defaultValue={it.title}
+                multiline
+                style={{
+                  fontSize: 16,
+                  fontWeight: 600,
+                  letterSpacing: '-0.02em',
+                  lineHeight: 1.25,
+                  color: 'var(--fg-0, oklch(0.18 0.008 280))',
+                  textWrap: 'balance',
+                  fontFamily: HEADING_VAR,
+                }}
+              />
+              <EditText
+                as="div"
+                path={`learn.item${i + 1}.desc`}
+                defaultValue={it.desc}
+                multiline
+                style={{
+                  fontSize: 13,
+                  color: 'var(--fg-2, oklch(0.42 0.008 280))',
+                  lineHeight: 1.55,
+                  textWrap: 'pretty',
+                }}
+              />
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  )
+}
+
 export function MobileInstructor({ course }: { course: CourseRead }) {
   if (!course.instructor_name && !course.instructor_bio) return null
   return (
@@ -1824,6 +1977,218 @@ function InstructorPortraitFallback() {
         }}
       />
     </div>
+  )
+}
+
+// ── FAQ ───────────────────────────────────────────────────────────────────
+
+const MOBILE_FAQ_DEFAULTS: { q: string; a: string }[] = [
+  {
+    q: 'Who is this course for?',
+    a: 'Anyone whose work depends on writing that gets read. No prior craft experience required.',
+  },
+  {
+    q: 'How much time should I plan for?',
+    a: 'Around four hours of video plus three writing assignments. Most students finish across two or three weeks at an hour a day.',
+  },
+  {
+    q: 'Do I get feedback on what I write?',
+    a: 'Yes — three of the lessons include a workshop assignment read by a small, moderated peer group.',
+  },
+  {
+    q: 'Is there a certificate?',
+    a: 'A shareable certificate is issued when you complete all three workshop assignments.',
+  },
+  {
+    q: 'What if it’s not for me?',
+    a: 'Full refund within 30 days, no questions, no forms.',
+  },
+  {
+    q: 'Will I be able to watch on my phone?',
+    a: 'Yes — the player works on any device. Downloads for offline viewing are included on mobile.',
+  },
+  {
+    q: 'How is this different from a writing book?',
+    a: 'Books teach you what good writing looks like. This course teaches you the moves — concrete, named, replicable.',
+  },
+]
+
+export function MobileFaq() {
+  const ed = useEditor()
+  const isEdit = ed.mode === 'edit'
+  const [open, setOpen] = useState(0)
+
+  return (
+    <section
+      style={{
+        padding: '56px 20px 24px',
+        background: 'var(--bg-0, white)',
+        fontFamily: FONT_VAR,
+      }}
+    >
+      <EditText
+        path="faq.eyebrow"
+        defaultValue="Questions, answered"
+        style={{
+          display: 'block',
+          fontSize: 10,
+          fontWeight: 600,
+          letterSpacing: '0.22em',
+          textTransform: 'uppercase',
+          color: 'var(--fg-3, oklch(0.66 0.006 280))',
+          marginBottom: 12,
+        }}
+      />
+      <h2
+        style={{
+          fontSize: 28,
+          fontWeight: 600,
+          letterSpacing: '-0.035em',
+          lineHeight: 1.08,
+          margin: '0 0 36px',
+          color: 'var(--fg-0, oklch(0.18 0.008 280))',
+          textWrap: 'balance',
+          fontFamily: HEADING_VAR,
+        }}
+      >
+        <EditText
+          as="span"
+          path="faq.title"
+          defaultValue="Everything you might want to know"
+          multiline
+        />
+        <br />
+        <EditText
+          as="span"
+          path="faq.titleEm"
+          defaultValue="before enrolling."
+          multiline
+          style={{
+            color: 'var(--fg-2, oklch(0.42 0.008 280))',
+            fontWeight: 500,
+          }}
+        />
+      </h2>
+
+      <div style={{ borderTop: '1px solid oklch(0.92 0.003 280)' }}>
+        {MOBILE_FAQ_DEFAULTS.map((it, i) => {
+          const isOpen = isEdit || open === i
+          return (
+            <div
+              key={i}
+              style={{
+                borderBottom: '1px solid oklch(0.92 0.003 280)',
+              }}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 16,
+                  padding: '20px 2px',
+                }}
+              >
+                <EditText
+                  as="span"
+                  path={`faq.item${i + 1}.q`}
+                  defaultValue={it.q}
+                  multiline
+                  style={{
+                    fontSize: 15.5,
+                    fontWeight: 600,
+                    letterSpacing: '-0.015em',
+                    color: 'var(--fg-0, oklch(0.18 0.008 280))',
+                    lineHeight: 1.35,
+                    textWrap: 'balance',
+                    flex: 1,
+                    minWidth: 0,
+                    fontFamily: HEADING_VAR,
+                  }}
+                />
+                {!isEdit && (
+                  <button
+                    type="button"
+                    onClick={() => setOpen(isOpen ? -1 : i)}
+                    aria-expanded={isOpen}
+                    aria-label={isOpen ? 'Collapse' : 'Expand'}
+                    style={{
+                      flexShrink: 0,
+                      width: 26,
+                      height: 26,
+                      borderRadius: '50%',
+                      border: '1px solid oklch(0.92 0.003 280)',
+                      background: isOpen
+                        ? 'oklch(0.18 0.008 280)'
+                        : 'oklch(0.97 0.003 280)',
+                      color: isOpen ? 'white' : 'oklch(0.32 0.008 280)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer',
+                      transition:
+                        'transform 220ms cubic-bezier(0.34, 1.3, 0.64, 1), background 150ms ease, border-color 150ms ease',
+                      transform: isOpen ? 'rotate(45deg)' : 'rotate(0deg)',
+                      borderColor: isOpen
+                        ? 'oklch(0.18 0.008 280)'
+                        : 'oklch(0.92 0.003 280)',
+                    }}
+                  >
+                    <svg
+                      width="12"
+                      height="12"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <line
+                        x1="12"
+                        y1="5"
+                        x2="12"
+                        y2="19"
+                        style={{
+                          opacity: isOpen ? 0 : 1,
+                          transition: 'opacity 200ms ease',
+                        }}
+                      />
+                      <line x1="5" y1="12" x2="19" y2="12" />
+                    </svg>
+                  </button>
+                )}
+              </div>
+              <div
+                style={{
+                  overflow: 'hidden',
+                  maxHeight: isOpen ? '500px' : '0',
+                  opacity: isOpen ? 1 : 0,
+                  paddingBottom: isOpen ? 22 : 0,
+                  transition:
+                    'max-height 320ms cubic-bezier(0.32, 0.72, 0, 1), opacity 220ms ease, padding 220ms ease',
+                }}
+              >
+                <EditText
+                  as="p"
+                  path={`faq.item${i + 1}.a`}
+                  defaultValue={it.a}
+                  multiline
+                  style={{
+                    fontSize: 13.5,
+                    lineHeight: 1.65,
+                    color: 'var(--fg-2, oklch(0.42 0.008 280))',
+                    margin: 0,
+                    padding: '0 2px',
+                    textWrap: 'pretty',
+                  }}
+                />
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </section>
   )
 }
 
