@@ -308,6 +308,33 @@ class CourseService:
         lesson_repo = CourseLessonRepository.from_session(session)
         return await lesson_repo.get_by_id(lesson_id)
 
+    async def clear_lesson_video(
+        self, session: AsyncSession, lesson: CourseLesson
+    ) -> CourseLesson:
+        """Detach any video asset from a lesson and reset its content state.
+
+        Fires the asset-cleanup job idempotently so a half-uploaded or
+        ready asset is removed from the provider even if the user immediately
+        re-uploads — the worker tolerates 404s on subsequent attempts.
+        """
+        from polar.worker import enqueue_job
+
+        asset_id = getattr(lesson, "mux_asset_id", None)
+        if asset_id:
+            enqueue_job("course.mux_delete_asset", asset_id=asset_id)
+
+        lesson_repo = CourseLessonRepository.from_session(session)
+        return await lesson_repo.update(
+            lesson,
+            update_dict={
+                "mux_upload_id": None,
+                "mux_asset_id": None,
+                "mux_playback_id": None,
+                "mux_status": None,
+                "duration_seconds": None,
+            },
+        )
+
     async def delete_lesson(
         self, session: AsyncSession, lesson: CourseLesson
     ) -> None:

@@ -707,6 +707,24 @@ export const useCreateMuxUpload = () =>
           method: 'POST',
         },
       ),
+    // The server flips the lesson to `mux_status='waiting'` the moment
+    // this endpoint runs. Invalidate immediately so the dashboard sees
+    // the new status (and the polling loop kicks in) instead of holding
+    // onto a stale 'ready' state while the upload is still in flight —
+    // without this, replace-video on a previously-ready lesson briefly
+    // shows the old video and no progress UI between XHR finishing and
+    // the next ambient refetch.
+    onSuccess: invalidateCourseQueries,
+  })
+
+export const useRemoveLessonVideo = () =>
+  useMutation({
+    mutationFn: (lessonId: string) =>
+      courseApiFetch<CourseLessonRead>(
+        `/v1/courses/lessons/${lessonId}/video`,
+        { method: 'DELETE' },
+      ),
+    onSuccess: invalidateCourseQueries,
   })
 
 // Wizard-only: create a Mux direct upload that isn't attached to a lesson
@@ -1088,7 +1106,9 @@ export const useLessonNote = (
 ) => {
   const { data, isLoading } = useCourseNotes(token, courseId)
   const note =
-    data && lessonId ? (data.find((n) => n.lesson_id === lessonId) ?? null) : null
+    data && lessonId
+      ? (data.find((n) => n.lesson_id === lessonId) ?? null)
+      : null
   return { data: data ? note : undefined, isLoading }
 }
 
