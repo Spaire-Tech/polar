@@ -198,6 +198,12 @@ async def create_newsletter(
     try:
         newsletter = await newsletter_service.create(session, newsletter_create)
         return _newsletter_read(newsletter)
+    except NewsletterError as exc:
+        # Pre-checked uniqueness failures (and other typed service
+        # errors) surface as 409 with the message verbatim so the
+        # wizard can show a meaningful prompt rather than a generic
+        # "Internal server error".
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     except Exception:
         log.exception(
             "newsletter.create failed",

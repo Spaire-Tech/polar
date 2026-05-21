@@ -11,7 +11,7 @@ import Button from '@spaire/ui/components/atoms/Button'
 import { schemas } from '@spaire/client'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Icon } from '../../email-marketing/_components/Icon'
 
 // Newsletter "home". Surfaces the brand chrome, a single primary
@@ -102,6 +102,8 @@ export function NewsletterDetailScreen({
       >
         <Icon name="arrow-left" size={13} /> All newsletters
       </Link>
+
+      <PaymentsPendingBanner organizationSlug={organization.slug} />
 
       <header className="mb-8 flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0 flex-1">
@@ -536,3 +538,63 @@ function PostDate({ post }: { post: NewsletterPostRow }) {
   )
 }
 
+
+// Banner shown when the wizard finished creating the newsletter but
+// the paid-tier setup deferred (most commonly: the org has no
+// connected payments account, so the Product create downstream
+// returns 422). The wizard redirects to `#payments-pending` to
+// trigger this — once the user wires up payments they can re-run
+// setup from the settings page.
+
+function PaymentsPendingBanner({
+  organizationSlug,
+}: {
+  organizationSlug: string
+}) {
+  const [show, setShow] = useState(false)
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    if (window.location.hash === '#payments-pending') {
+      setShow(true)
+      // Strip the hash so a refresh doesn't loop the banner forever.
+      const url = new URL(window.location.href)
+      url.hash = ''
+      window.history.replaceState({}, '', url.toString())
+    }
+  }, [])
+  if (!show) return null
+  return (
+    <div className="mb-6 flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+      <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-amber-100 text-amber-700">
+        <Icon name="info" size={14} />
+      </div>
+      <div className="flex-1">
+        <div className="text-sm font-medium text-amber-900">
+          Newsletter created — connect payments to enable the paid tier
+        </div>
+        <p className="mt-1 text-xs text-amber-700">
+          Your newsletter is live as a free publication. To start charging
+          subscribers, finish setting up payments in the organisation
+          settings and we&apos;ll wire the paid tier up automatically.
+        </p>
+        <div className="mt-3">
+          <Link
+            href={`/dashboard/${organizationSlug}/finance/account`}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-amber-300 bg-white px-3 py-1.5 text-xs font-medium text-amber-900 hover:bg-amber-100"
+          >
+            Connect payments
+            <Icon name="arrow-right" size={11} />
+          </Link>
+        </div>
+      </div>
+      <button
+        type="button"
+        onClick={() => setShow(false)}
+        aria-label="Dismiss"
+        className="text-amber-700 hover:text-amber-900"
+      >
+        <Icon name="x" size={13} />
+      </button>
+    </div>
+  )
+}

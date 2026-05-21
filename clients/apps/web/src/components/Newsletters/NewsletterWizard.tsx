@@ -54,25 +54,55 @@ export default function NewsletterWizard({
   const finalize = async () => {
     setCreateError(null)
     setStep('creating')
-    try {
-      const slug = slugify(info.name)
-      // Create the newsletter first so we have an id to point the
-      // Product's newsletter_access benefit at.
-      const newsletter = await createNewsletter.mutateAsync({
-        organization_id: organization.id,
-        name: info.name.trim(),
-        slug,
-        masthead: info.name.trim().toUpperCase(),
-        description: info.desc.trim() || null,
-      })
 
-      // For paid + both modes, stand up the linked Product +
-      // newsletter_access benefit in one server-side swing. Server
-      // logic is in newsletter_service.setup_paid_access — clients
-      // can't construct the benefit directly because the public
-      // BenefitCreate union doesn't expose newsletter_access (it's
-      // an internal grant type managed by the strategy).
-      if (pricing.mode !== 'free') {
+    // Two retry attempts on the create step. The slug derived from
+    // the name is deterministic, so a collision (the user submitted
+    // a newsletter named "Daily Brief" twice — happens on retries
+    // after a previous wizard run failed mid-flight) returns a 409
+    // from the server. The first retry appends a short nonce, the
+    // second appends a timestamp to all but guarantee uniqueness.
+    let newsletter: { id: string } | undefined
+    const baseSlug = slugify(info.name)
+    for (const attempt of [0, 1, 2]) {
+      const slug =
+        attempt === 0
+          ? baseSlug
+          : attempt === 1
+            ? `${baseSlug}-${shortNonce()}`
+            : `${baseSlug}-${Date.now().toString(36).slice(-6)}`
+      try {
+        newsletter = await createNewsletter.mutateAsync({
+          organization_id: organization.id,
+          name: info.name.trim(),
+          slug,
+          masthead: info.name.trim().toUpperCase(),
+          description: info.desc.trim() || null,
+        })
+        break
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : ''
+        const isConflict = /409|already exists|slug/i.test(msg)
+        if (!isConflict || attempt === 2) {
+          setCreateError(
+            msg ||
+              "Couldn't create newsletter. Try a different name or check your connection.",
+          )
+          setStep('pricing')
+          return
+        }
+        // 409 + attempt < 2 → loop with a fresh slug
+      }
+    }
+    if (!newsletter) return
+
+    // Paid tier setup is a SEPARATE try block so a failure here
+    // doesn't roll back the newsletter we just created. The most
+    // common failure mode is the org not having a connected payments
+    // account yet (the 422 the user hit), which is recoverable: the
+    // newsletter still exists, the user can connect payments and
+    // re-run setup from the settings page later.
+    if (pricing.mode !== 'free') {
+      try {
         await setupPaidAccess.mutateAsync({
           newsletterId: newsletter.id,
           productName: info.name.trim(),
@@ -80,17 +110,23 @@ export default function NewsletterWizard({
           currency: pricing.currency,
           recurringInterval: pricing.paidInterval,
         })
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : ''
+        // Send the user to the detail page with a hash that the
+        // detail screen can read to render a "connect payments"
+        // banner. The newsletter is already created; this is a
+        // soft failure.
+        router.push(
+          `/dashboard/${organization.slug}/newsletters/${newsletter.id}#payments-pending`,
+        )
+        console.warn('Newsletter created; paid tier setup deferred:', msg)
+        return
       }
-
-      router.push(
-        `/dashboard/${organization.slug}/newsletters/${newsletter.id}`,
-      )
-    } catch (e) {
-      setCreateError(
-        e instanceof Error ? e.message : 'Failed to create newsletter',
-      )
-      setStep('pricing')
     }
+
+    router.push(
+      `/dashboard/${organization.slug}/newsletters/${newsletter.id}`,
+    )
   }
 
   const exit = () =>
@@ -152,6 +188,13 @@ function CreatingScreen() {
       </div>
     </div>
   )
+}
+
+// Short random suffix used to bust slug collisions on retry. 4 chars
+// from the base36 alphabet is ~1.6M values, plenty when the wizard
+// only retries twice.
+function shortNonce(): string {
+  return Math.random().toString(36).slice(2, 6)
 }
 
 // Lowercase + collapse non-alphanumerics into dashes. Lives here

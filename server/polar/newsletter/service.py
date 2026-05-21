@@ -121,6 +121,22 @@ class NewsletterService:
         self, session: AsyncSession, create_schema: NewsletterCreate
     ) -> Newsletter:
         repo = NewsletterRepository.from_session(session)
+
+        # Defensive uniqueness check BEFORE the insert. The table has
+        # a (organization_id, slug) unique constraint that would raise
+        # an IntegrityError otherwise — which FastAPI surfaces as a
+        # raw 500. By pre-checking we can raise a typed error the
+        # endpoint maps to 409, and the wizard can suggest a fresh
+        # slug instead of looping the user on a generic failure.
+        existing = await repo.get_by_slug(
+            create_schema.organization_id, create_schema.slug
+        )
+        if existing is not None:
+            raise NewsletterError(
+                f"A newsletter with slug '{create_schema.slug}' already exists "
+                "in this organization. Pick a different slug."
+            )
+
         newsletter = Newsletter(
             organization_id=create_schema.organization_id,
             product_id=create_schema.product_id,
