@@ -71,6 +71,14 @@ export const landingSchema = z.object({
   lessons_heading: z.string(),
   lessons_subheading: z.string(),
 
+  // Created by — author intro section. The eyebrow renders the creator's
+  // name; the headline is a one-sentence credentials line; the bio is one
+  // or two paragraphs (a single \n splits paragraphs).
+  created_by_eyebrow: z.string(),
+  created_by_quote: z.string(),
+  created_by_headline: z.string(),
+  created_by_bio: z.string(),
+
   // Instructor
   instructor_label: z.string(),
   instructor_pull_quote: z.string(),

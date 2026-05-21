@@ -1426,6 +1426,186 @@ function LockedLessonRow({
 
 // ── Instructor ────────────────────────────────────────────────────────────
 
+// ── Created by ────────────────────────────────────────────────────────────
+
+// Author-intro section that mirrors the desktop CreatedBy. On mobile the
+// large editable photo stacks above the text so the eyebrow + quote + bio
+// read in one column without a side-by-side fight for width.
+export function MobileCreatedBy({
+  course,
+  organizationAvatarUrl,
+}: {
+  course: CourseRead
+  organizationAvatarUrl: string | null
+}) {
+  const ed = useEditor()
+  const instructorName = course.instructor_name?.trim() || ''
+  const defaultEyebrow = instructorName
+    ? `CREATED BY ${instructorName.toUpperCase()}`
+    : 'CREATED BY THE TEAM'
+  const bioFirstSentence =
+    course.instructor_bio?.split(/(?<=\.)\s+/)[0]?.trim() ?? ''
+  const defaultQuote = bioFirstSentence ? `“${bioFirstSentence}”` : ''
+  const avatarMedia = ed.m('createdBy.avatar')
+  const avatarSrc = avatarMedia?.url ?? organizationAvatarUrl ?? null
+
+  return (
+    <section
+      style={{
+        padding: '48px 20px 40px',
+        background: 'var(--bg-0, white)',
+        fontFamily: FONT_VAR,
+      }}
+    >
+      <EditMedia
+        id="createdBy.image"
+        label="creator photo"
+        style={{
+          position: 'relative',
+          aspectRatio: '4 / 5',
+          width: '100%',
+          borderRadius: 22,
+          overflow: 'hidden',
+          marginBottom: 22,
+          boxShadow:
+            '0 2px 6px oklch(0 0 0 / 0.06), 0 18px 40px oklch(0 0 0 / 0.12)',
+        }}
+        placeholder={
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              background:
+                'linear-gradient(160deg, oklch(0.62 0.06 250), oklch(0.22 0.04 280))',
+            }}
+          />
+        }
+      />
+
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 10,
+          marginBottom: 16,
+        }}
+      >
+        <EditMedia
+          id="createdBy.avatar"
+          label="creator avatar"
+          style={{
+            position: 'relative',
+            width: 24,
+            height: 24,
+            borderRadius: '50%',
+            overflow: 'hidden',
+            flexShrink: 0,
+            background: 'oklch(0.92 0.003 280)',
+          }}
+          placeholder={
+            avatarSrc ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={avatarSrc}
+                alt=""
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'cover',
+                }}
+              />
+            ) : (
+              <div
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  background:
+                    'linear-gradient(160deg, oklch(0.42 0.09 35), oklch(0.18 0.05 65))',
+                }}
+              />
+            )
+          }
+        />
+        <EditText
+          path="createdBy.eyebrow"
+          defaultValue={defaultEyebrow}
+          style={{
+            fontSize: 10,
+            letterSpacing: '0.22em',
+            fontWeight: 600,
+            color: 'var(--fg-3, oklch(0.66 0.006 280))',
+            textTransform: 'uppercase',
+          }}
+        />
+      </div>
+
+      <blockquote
+        style={{
+          fontSize: 21,
+          fontWeight: 500,
+          letterSpacing: '-0.022em',
+          lineHeight: 1.22,
+          margin: '0 0 12px',
+          color: 'var(--fg-0, oklch(0.18 0.008 280))',
+          textWrap: 'pretty',
+          fontFamily: HEADING_VAR,
+        }}
+      >
+        <EditText
+          path="createdBy.quote"
+          defaultValue={defaultQuote}
+          multiline
+        />
+      </blockquote>
+
+      {instructorName && (
+        <div
+          style={{
+            fontSize: 15.5,
+            fontWeight: 600,
+            letterSpacing: '-0.012em',
+            color: 'var(--fg-0, oklch(0.18 0.008 280))',
+            marginBottom: 10,
+          }}
+        >
+          {instructorName}
+        </div>
+      )}
+
+      <p
+        style={{
+          fontSize: 13.5,
+          lineHeight: 1.65,
+          color: 'var(--fg-1, oklch(0.32 0.008 280))',
+          margin: '0 0 14px',
+          textWrap: 'pretty',
+        }}
+      >
+        <EditText
+          path="createdBy.headline"
+          defaultValue={course.instructor_bio ?? ''}
+          multiline
+        />
+      </p>
+
+      <p
+        style={{
+          fontSize: 13,
+          lineHeight: 1.7,
+          color: 'var(--fg-2, oklch(0.42 0.008 280))',
+          margin: 0,
+          whiteSpace: 'pre-line',
+          textWrap: 'pretty',
+        }}
+      >
+        <EditText path="createdBy.bio" defaultValue="" multiline />
+      </p>
+    </section>
+  )
+}
+
 export function MobileInstructor({ course }: { course: CourseRead }) {
   if (!course.instructor_name && !course.instructor_bio) return null
   return (

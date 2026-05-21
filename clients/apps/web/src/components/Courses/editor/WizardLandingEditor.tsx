@@ -166,6 +166,14 @@ export function WizardLandingEditor({
       merged.text['lessons.subheading'] = text.lessons_subheading
     if (typeof text.instructor_pull_quote === 'string')
       merged.text['instructor.quote'] = text.instructor_pull_quote
+    if (typeof text.created_by_eyebrow === 'string')
+      merged.text['createdBy.eyebrow'] = text.created_by_eyebrow
+    if (typeof text.created_by_quote === 'string')
+      merged.text['createdBy.quote'] = text.created_by_quote
+    if (typeof text.created_by_headline === 'string')
+      merged.text['createdBy.headline'] = text.created_by_headline
+    if (typeof text.created_by_bio === 'string')
+      merged.text['createdBy.bio'] = text.created_by_bio
     if (typeof text.sections_label === 'string')
       merged.text['sections.eyebrow'] = text.sections_label
     if (typeof text.sections_heading === 'string')
@@ -586,6 +594,7 @@ export function WizardLandingEditor({
             course={fakeCourse}
             organizationName={organization.name}
             organizationSlug={organization.slug}
+            organizationAvatarUrl={organization.avatar_url}
             flatLessons={flatLessons}
             product={fakeProduct}
             lessonHandlers={wizardLessonHandlers}

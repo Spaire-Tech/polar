@@ -20,6 +20,7 @@ import { createPortal } from 'react-dom'
 import { toast } from '../../Toast/use-toast'
 import { HlsVideo } from '../HlsVideo'
 import {
+  MobileCreatedBy,
   MobileEpisodes,
   MobileFinalCta,
   MobileFooter,
@@ -110,6 +111,9 @@ export type EditableLandingProps = {
   course: CourseRead
   organizationName: string
   organizationSlug?: string
+  /** Org avatar URL — seeds the small avatar circle in the Created-by
+   *  section's eyebrow when the creator hasn't uploaded one explicitly. */
+  organizationAvatarUrl?: string | null
   flatLessons: CourseLessonRead[]
   product?: schemas['Product']
   lessonHandlers?: LessonHandlers
@@ -150,6 +154,7 @@ export function EditableCourseLandingView({
   course,
   organizationName,
   organizationSlug,
+  organizationAvatarUrl,
   flatLessons,
   product,
   lessonHandlers,
@@ -231,6 +236,15 @@ export function EditableCourseLandingView({
               />
             ),
           },
+          createdBy: {
+            label: 'Created by',
+            node: (
+              <MobileCreatedBy
+                course={course}
+                organizationAvatarUrl={organizationAvatarUrl ?? null}
+              />
+            ),
+          },
           instructor: {
             label: 'Instructor',
             node: <MobileInstructor course={course} />,
@@ -295,6 +309,15 @@ export function EditableCourseLandingView({
                 enrolling={enrolling}
                 canEnroll={canEnroll}
                 lessonHandlers={lessonHandlers}
+              />
+            ),
+          },
+          createdBy: {
+            label: 'Created by',
+            node: (
+              <CreatedBy
+                course={course}
+                organizationAvatarUrl={organizationAvatarUrl ?? null}
               />
             ),
           },
@@ -3158,6 +3181,215 @@ function LockedItemLockIcon() {
       <rect x="3.25" y="7" width="9.5" height="6.5" rx="1.3" />
       <path d="M5.25 7V5a2.75 2.75 0 015.5 0v2" />
     </svg>
+  )
+}
+
+// ── Created by (light) ──────────────────────────────────────────────────────
+
+// Author-intro section that sits above the Instructor pull-quote. Reads like
+// the inside flap of a book: small avatar + CREATED BY [NAME] eyebrow, a
+// one-sentence quote, the creator's name, a credentials headline, and a
+// short bio. Layout is text-left / image-right (the opposite of Instructor)
+// so the two sections visually balance each other when both are shown.
+function CreatedBy({
+  course,
+  organizationAvatarUrl,
+}: {
+  course: CourseRead
+  organizationAvatarUrl: string | null
+}) {
+  const ed = useEditor()
+  const instructorName = course.instructor_name?.trim() || ''
+  const defaultEyebrow = instructorName
+    ? `CREATED BY ${instructorName.toUpperCase()}`
+    : 'CREATED BY THE TEAM'
+  // First sentence of the bio becomes a passable quote default so the section
+  // is presentable even before the AI fills the dedicated created_by_quote
+  // field (older courses, hand-created courses, etc.).
+  const bioFirstSentence =
+    course.instructor_bio?.split(/(?<=\.)\s+/)[0]?.trim() ?? ''
+  const defaultQuote = bioFirstSentence ? `“${bioFirstSentence}”` : ''
+  // Avatar slot: the visible image is the override if set, otherwise the
+  // organization avatar. We don't pre-seed the override (so swapping the org
+  // avatar still flows through) — we just render avatar_url as the placeholder
+  // background.
+  const avatarMedia = ed.m('createdBy.avatar')
+  const avatarSrc = avatarMedia?.url ?? organizationAvatarUrl ?? null
+
+  return (
+    <section
+      style={{
+        padding: '72px 32px 80px',
+        maxWidth: 1320,
+        margin: '0 auto',
+        fontFamily: FONT_VAR,
+      }}
+    >
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: '1fr 0.85fr',
+          gap: 64,
+          alignItems: 'center',
+        }}
+      >
+        <div>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 12,
+              marginBottom: 28,
+            }}
+          >
+            <EditMedia
+              id="createdBy.avatar"
+              label="creator avatar"
+              style={{
+                position: 'relative',
+                width: 28,
+                height: 28,
+                borderRadius: '50%',
+                overflow: 'hidden',
+                flexShrink: 0,
+                background: 'oklch(0.92 0.003 280)',
+              }}
+              placeholder={
+                avatarSrc ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={avatarSrc}
+                    alt=""
+                    style={{
+                      position: 'absolute',
+                      inset: 0,
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'cover',
+                    }}
+                  />
+                ) : (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      inset: 0,
+                      background:
+                        'linear-gradient(160deg, oklch(0.42 0.09 35), oklch(0.18 0.05 65))',
+                    }}
+                  />
+                )
+              }
+            />
+            <EditText
+              path="createdBy.eyebrow"
+              defaultValue={defaultEyebrow}
+              style={{
+                fontSize: 11,
+                letterSpacing: '0.18em',
+                fontWeight: 600,
+                color: 'oklch(0.66 0.006 280)',
+                textTransform: 'uppercase',
+              }}
+            />
+          </div>
+          <EditText
+            as="blockquote"
+            path="createdBy.quote"
+            defaultValue={defaultQuote}
+            multiline
+            style={{
+              fontSize: 'calc(clamp(22px, 2.6vw, 34px) * var(--type-scale, 1))',
+              fontWeight: 'var(--h-weight, 500)',
+              fontStyle: 'var(--h-italic, normal)',
+              letterSpacing: 'calc(var(--h-tracking, 0em) - 0.022em)',
+              lineHeight: 1.2,
+              margin: '0 0 22px',
+              color: 'oklch(0.18 0.008 280)',
+              fontFamily: HEADING_VAR,
+            }}
+          />
+          {instructorName && (
+            <div
+              style={{
+                fontSize: 18,
+                fontWeight: 600,
+                letterSpacing: '-0.015em',
+                color: 'oklch(0.18 0.008 280)',
+                marginBottom: 10,
+                fontFamily: HEADING_VAR,
+              }}
+            >
+              {instructorName}
+            </div>
+          )}
+          <EditText
+            as="p"
+            path="createdBy.headline"
+            defaultValue={course.instructor_bio ?? ''}
+            multiline
+            style={{
+              fontSize: 15,
+              lineHeight: 1.6,
+              color: 'oklch(0.32 0.008 280)',
+              margin: '0 0 18px',
+              maxWidth: 560,
+            }}
+          />
+          <EditText
+            as="p"
+            path="createdBy.bio"
+            defaultValue=""
+            multiline
+            style={{
+              fontSize: 14.5,
+              lineHeight: 1.7,
+              color: 'oklch(0.42 0.008 280)',
+              margin: 0,
+              maxWidth: 560,
+              whiteSpace: 'pre-line',
+            }}
+          />
+        </div>
+
+        <EditMedia
+          id="createdBy.image"
+          label="creator photo"
+          style={{
+            position: 'relative',
+            aspectRatio: '4 / 5',
+            borderRadius: 'calc(28px * var(--radius-mul, 1))',
+            overflow: 'hidden',
+            boxShadow:
+              '0 2px 6px rgba(0,0,0,0.06), 0 24px 60px rgba(0,0,0,0.12)',
+          }}
+          placeholder={
+            <>
+              <div
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  background:
+                    'linear-gradient(160deg, oklch(0.62 0.06 250), oklch(0.22 0.04 280))',
+                }}
+              />
+              <div
+                style={{
+                  position: 'absolute',
+                  left: 16,
+                  top: 16,
+                  fontFamily: 'ui-monospace, monospace',
+                  fontSize: 10,
+                  color: 'rgba(255,255,255,0.32)',
+                  zIndex: 3,
+                }}
+              >
+                add a photo
+              </div>
+            </>
+          }
+        />
+      </div>
+    </section>
   )
 }
 

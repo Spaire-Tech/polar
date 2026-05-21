@@ -47,6 +47,12 @@ Lessons heading: "The full arc." (1-3 words, ends with period)
 Lessons subheading (paywall on): "The first three lessons are free to preview. Enroll to unlock the remaining nineteen."
 Lessons subheading (paywall off): "Every lesson is open. Watch in any order."
 
+Created by — author intro section that sits above the instructor pull-quote. Reads like the inside jacket of a book.
+- "created_by_eyebrow": uppercase eyebrow, 2-6 words, starts with "CREATED BY " followed by the instructor's name as given. Example: "CREATED BY DR. LENA MARCHETTI". If no instructor name was provided, default to "CREATED BY THE TEAM".
+- "created_by_quote": one sentence in the instructor's actual voice (≤ 200 chars). It should sound like the reason they made THIS course — not generic. Example: "I built this course to give you the writing tools I wish I'd had as a young lawyer — and to share the craft I found later as a novelist."
+- "created_by_headline": one sentence (≤ 220 chars) that names what the instructor is known for. Concrete credentials, publications, roles. Example: "Award-winning novelist and former litigator. NYT best-selling author of The Quiet Argument. Host of the Plain Words podcast on writing that actually moves people."
+- "created_by_bio": one to two short paragraphs (220-500 chars total). Separate paragraphs with a single \\n. First paragraph: their working life — where they came from, what they did, the places their work has appeared. Second paragraph: tie it directly to this course — what the learner spends time inside, framed in the instructor's working method. Reference the real lesson count by number. Example: "Lena spent twelve years as a litigator before publishing her first novel. Her work has appeared in The Atlantic, n+1, and The New Yorker. She now teaches at a graduate writing program and consults on speeches, op-eds, and closing arguments that need to do real work in the world.\\nWith this course, you'll spend 22 lessons in Lena's working method — the same one she uses to draft, cut, and rebuild every piece of writing that leaves her desk."
+
 Instructor label: "YOUR INSTRUCTOR"
 Instructor pull-quote (one sentence, ≤ 180 chars, plausible thing the instructor would actually say): "Persuasion isn't convincing. It's giving someone a way to change their mind without losing face."
 Instructor credentials (2-3 items, "number" is short like "3" or "12+", "label" is 1-3 words): {"3", "Published novels"}, {"12", "Years in court"}, {"2", "Spaire courses"}
@@ -153,6 +159,12 @@ EPISODE LIST
 - "lessons_subheading":
   - paywall on: name the free preview count by number, call them episodes. Example: "The first two episodes are open. The rest unlocks when you join."
   - paywall off: "Every episode is open. Watch in any order."
+
+CREATED BY — author intro section that sits above the instructor pull-quote. For a series this reads like the inside flap of a documentary press kit. Same fields as the course version, same length budgets — different framing.
+- "created_by_eyebrow": uppercase, 2-6 words, starts with "CREATED BY " followed by the creator's name as given. Example: "CREATED BY ANNA MORENO". If no creator name was provided, default to "CREATED BY THE FILMMAKERS".
+- "created_by_quote": one sentence in the creator's actual voice (≤ 200 chars). Should sound like the reason they made THIS series — observational, personal, not didactic. Examples of the shape: "I wanted to film the week no one ever films — the seven days before the race, when everything you've trained for is already done." / "Every interview gets cut. I wanted to show what the cuts leave out."
+- "created_by_headline": one sentence (≤ 220 chars) that names who the creator is — concrete credits, championships, roles, bodies of work. No "passionate", no "expert". Just the facts. Example: "Two-time Olympic 400m runner. World silver medalist. The first woman to break 49 seconds on a flat indoor track."
+- "created_by_bio": one to two short paragraphs (220-500 chars total). Separate paragraphs with a single \\n. First paragraph: the world the creator works in — places, weeks, opponents, decisions, rooms. Second paragraph: tie it directly to this series — what the viewer spends time inside, framed in the creator's voice. Reference the real episode count by number.
 
 INSTRUCTOR — reframe as the creator/subject
 - "instructor_label": "ABOUT THE CREATOR" or "WHO YOU'RE WATCHING". Never "YOUR INSTRUCTOR".
