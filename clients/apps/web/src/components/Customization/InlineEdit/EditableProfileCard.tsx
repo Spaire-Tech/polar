@@ -23,7 +23,7 @@ import CloseOutlined from '@mui/icons-material/CloseOutlined'
 import EditOutlined from '@mui/icons-material/EditOutlined'
 import TranslateOutlined from '@mui/icons-material/TranslateOutlined'
 import Verified from '@mui/icons-material/Verified'
-import { schemas } from '@spaire/client'
+import { isValidationError, schemas } from '@spaire/client'
 import Avatar from '@spaire/ui/components/atoms/Avatar'
 import Switch from '@spaire/ui/components/atoms/Switch'
 import {
@@ -49,6 +49,28 @@ import { useUpdateOrganization } from '@/hooks/queries'
 import { AvatarCropModal } from './AvatarCropModal'
 import { Editable } from './Editable'
 import { EditPopover } from './EditPopover'
+
+// Best-effort: turn a PATCH /v1/organizations/{id} error into a short,
+// readable string. Validation errors (422) have a structured `detail`
+// list — surface the offending fields so users aren't left guessing
+// when an auto-save silently rejects an upload.
+const formatOrgUpdateError = (
+  error: { detail?: unknown },
+  fallback: string,
+): string => {
+  const detail = error.detail
+  if (isValidationError(detail)) {
+    return detail
+      .slice(0, 2)
+      .map((e) => {
+        const field = e.loc.slice(1).join('.') || 'value'
+        return `${field}: ${e.msg}`
+      })
+      .join('; ')
+  }
+  if (typeof detail === 'string') return detail
+  return fallback
+}
 
 // Draggable thumbnail used in the highlights strip. The remove (×)
 // button is a sibling element so its pointer events never trigger the
@@ -305,7 +327,10 @@ export const EditableProfileCard = ({
         if (error) {
           toast({
             title: 'Cover save failed',
-            description: 'Your cover uploaded but couldn’t be saved. Try again.',
+            description: formatOrgUpdateError(
+              error,
+              'Your cover uploaded but couldn’t be saved. Try again.',
+            ),
           })
           return
         }
@@ -371,7 +396,10 @@ export const EditableProfileCard = ({
         if (error) {
           toast({
             title: 'Avatar save failed',
-            description: 'Your avatar uploaded but couldn’t be saved. Try again.',
+            description: formatOrgUpdateError(
+              error,
+              'Your avatar uploaded but couldn’t be saved. Try again.',
+            ),
           })
           return
         }

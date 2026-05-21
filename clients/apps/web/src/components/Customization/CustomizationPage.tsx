@@ -243,7 +243,26 @@ const Customization = ({
 
       if (error) {
         if (isValidationError(error.detail)) {
+          // Attach errors to the form (helps any registered FormField),
+          // BUT also surface them as a toast — the Space card uses inline
+          // contentEditable elements that aren't registered with
+          // react-hook-form, so setError alone produces no visible UI.
           setValidationErrors(error.detail, form.setError)
+          const summary = error.detail
+            .slice(0, 3)
+            .map((e) => {
+              const field = e.loc.slice(1).join('.') || 'value'
+              return `${field}: ${e.msg}`
+            })
+            .join('\n')
+          toast({
+            title: 'Publish Failed',
+            description:
+              summary +
+              (error.detail.length > 3
+                ? `\n…and ${error.detail.length - 3} more.`
+                : ''),
+          })
         } else {
           // Stringify safely so the toast never shows "[object Object]".
           const detail =

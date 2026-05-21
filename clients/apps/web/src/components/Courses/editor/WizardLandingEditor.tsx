@@ -513,7 +513,7 @@ export function WizardLandingEditor({
           // exists.
         }
       },
-      uploadVideo: async (lessonId, file) => {
+      uploadVideo: async (lessonId, file, onProgress) => {
         const url = URL.createObjectURL(file)
         objectUrlsRef.current.push(url)
         updateLessonEdit(lessonId, {
@@ -521,23 +521,29 @@ export function WizardLandingEditor({
           videoObjectUrl: url,
           uploading: true,
         })
-        // Start the Mux upload immediately. The lesson row doesn't
-        // exist yet, so we use the staging endpoint which mints a Mux
-        // direct upload that isn't tied to any lesson; the upload_id
-        // rides along on CourseLessonCreate so the webhook attaches
-        // the asset once Mux finishes.
+        // Seed the progress callback at 0% so the lesson tile shows
+        // its uploading affordance the moment the file is picked —
+        // matches the dashboard editor behaviour where the bar appears
+        // immediately rather than after the first XHR progress event.
+        onProgress?.(0)
+        // Stage a direct upload that isn't tied to any lesson; the
+        // upload_id rides along on CourseLessonCreate so the webhook
+        // attaches the asset once transcoding finishes.
         try {
           const { upload_id, upload_url } = await stageMux.mutateAsync(
             organization.id,
           )
           await new Promise<void>((resolve, reject) => {
             const xhr = new XMLHttpRequest()
+            xhr.upload.onprogress = (ev) => {
+              if (ev.lengthComputable)
+                onProgress?.(Math.round((ev.loaded / ev.total) * 100))
+            }
             xhr.onload = () =>
               xhr.status >= 200 && xhr.status < 300
                 ? resolve()
                 : reject(new Error(`Upload failed (${xhr.status})`))
-            xhr.onerror = () =>
-              reject(new Error('Network error during upload'))
+            xhr.onerror = () => reject(new Error('Network error during upload'))
             xhr.open('PUT', upload_url)
             xhr.send(file)
           })

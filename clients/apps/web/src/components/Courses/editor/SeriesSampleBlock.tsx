@@ -17,15 +17,10 @@
 //                              text/media override stack.
 
 import { Sheet, SheetContent } from '@spaire/ui/components/ui/sheet'
-import {
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
-import { useUpdateCourse } from '@/hooks/queries/courses'
 import type { CourseLessonRead, CourseRead } from '@/hooks/queries/courses'
+import { useUpdateCourse } from '@/hooks/queries/courses'
 import { useIsMobile } from '@/utils/mobile'
 import { useEditor } from './EditorContext'
 
@@ -96,6 +91,17 @@ type HlsInstance = {
   on: (event: string, handler: (...args: unknown[]) => void) => void
 }
 
+// Mirrors HlsVideo's tuning — see comment there. Keeps audio/video in
+// sync for VOD playback by buffering ahead before frames hit the screen.
+const SAMPLE_HLS_CONFIG = {
+  enableWorker: true,
+  lowLatencyMode: false,
+  backBufferLength: 30,
+  maxBufferLength: 30,
+  maxMaxBufferLength: 60,
+  startFragPrefetch: true,
+}
+
 function SampleHlsPlayer({
   playbackId,
   playbackUrl,
@@ -146,15 +152,15 @@ function SampleHlsPlayer({
         videoRef.current.src = src
         return
       }
-      const instance = new Hls() as unknown as HlsInstance
+      const instance = new (Hls as unknown as new (
+        config: typeof SAMPLE_HLS_CONFIG,
+      ) => HlsInstance)(SAMPLE_HLS_CONFIG)
       instance.loadSource(src)
       instance.attachMedia(videoRef.current)
       instance.on(
         (Hls as unknown as { Events: { ERROR: string } }).Events.ERROR,
         (...args: unknown[]) => {
-          const data = args[1] as
-            | { fatal?: boolean; type?: string }
-            | undefined
+          const data = args[1] as { fatal?: boolean; type?: string } | undefined
           if (!data?.fatal) return
           const ErrorTypes = (
             Hls as unknown as {
@@ -290,7 +296,8 @@ function SampleSettingsPopover({
       allLessons.filter(
         ({ lesson }) =>
           (lesson.mux_status ?? '').toLowerCase() === 'ready' &&
-          (lesson.mux_playback_id || (lesson as { mux_playback_url?: string }).mux_playback_url),
+          (lesson.mux_playback_id ||
+            (lesson as { mux_playback_url?: string }).mux_playback_url),
       ),
     [allLessons],
   )
@@ -325,10 +332,7 @@ function SampleSettingsPopover({
     [playableLessons, lessonId],
   )
   const selectedLessonDuration = selectedLesson?.duration_seconds ?? 0
-  const maxStart = Math.max(
-    0,
-    selectedLessonDuration - MIN_DURATION_SEC,
-  )
+  const maxStart = Math.max(0, selectedLessonDuration - MIN_DURATION_SEC)
   const maxDurationForLesson = Math.min(
     MAX_DURATION_SEC,
     Math.max(MIN_DURATION_SEC, selectedLessonDuration - startSeconds),
@@ -394,7 +398,7 @@ function SampleSettingsPopover({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="right"
-        className="w-[420px] sm:max-w-[420px] overflow-y-auto bg-white p-0"
+        className="w-[420px] overflow-y-auto bg-white p-0 sm:max-w-[420px]"
       >
         <div
           style={{
@@ -435,8 +439,8 @@ function SampleSettingsPopover({
                 lineHeight: 1.5,
               }}
             >
-              No episodes are ready to play yet. Upload at least one video to
-              an episode, then come back here.
+              No episodes are ready to play yet. Upload at least one video to an
+              episode, then come back here.
             </p>
           ) : (
             <>
@@ -572,15 +576,27 @@ function SampleSettingsPopover({
                       alignItems: 'center',
                       justifyContent: 'center',
                     }}
-                    aria-label={previewPlaying ? 'Pause preview' : 'Play preview'}
+                    aria-label={
+                      previewPlaying ? 'Pause preview' : 'Play preview'
+                    }
                   >
                     {previewPlaying ? (
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                      <svg
+                        width="12"
+                        height="12"
+                        viewBox="0 0 24 24"
+                        fill="currentColor"
+                      >
                         <rect x="6" y="5" width="4" height="14" rx="1" />
                         <rect x="14" y="5" width="4" height="14" rx="1" />
                       </svg>
                     ) : (
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+                      <svg
+                        width="13"
+                        height="13"
+                        viewBox="0 0 24 24"
+                        fill="currentColor"
+                      >
                         <path d="M8 5v14l11-7z" />
                       </svg>
                     )}
@@ -800,9 +816,7 @@ export function SeriesSampleBlock({
         {hasUsableSample && sample ? (
           <SamplePlayerFrame
             course={course}
-            lessonTitle={
-              sample.lesson_title ?? lesson?.title ?? 'Sample'
-            }
+            lessonTitle={sample.lesson_title ?? lesson?.title ?? 'Sample'}
             lessonThumbnailUrl={
               sample.thumbnail_url ?? lesson?.thumbnail_url ?? null
             }
@@ -922,8 +936,8 @@ function SampleEmptyState({
           maxWidth: 420,
         }}
       >
-        Pick an episode, pick a moment, and a clip of that moment plays here
-        on the public page when someone scrolls past.
+        Pick an episode, pick a moment, and a clip of that moment plays here on
+        the public page when someone scrolls past.
       </p>
       <button
         type="button"
@@ -977,6 +991,7 @@ function SamplePlayerFrame({
 }) {
   const frameRef = useRef<HTMLDivElement | null>(null)
   const videoRef = useRef<HTMLVideoElement | null>(null)
+  const volumeBtnRef = useRef<HTMLButtonElement | null>(null)
   const [inView, setInView] = useState(false)
   const [hasShown, setHasShown] = useState(false)
   // hasShown drives the fade-in animation. We only flip it true the first
@@ -989,11 +1004,16 @@ function SamplePlayerFrame({
 
   useEffect(() => {
     if (typeof window === 'undefined') return
-    setIsTouchUA(window.matchMedia('(hover: none) and (pointer: coarse)').matches)
+    setIsTouchUA(
+      window.matchMedia('(hover: none) and (pointer: coarse)').matches,
+    )
   }, [])
 
   // Intersection observer with threshold + rootMargin (the global hook is
   // threshold=0, which would fire on the smallest sliver of overlap).
+  // The sample plays the moment the frame is meaningfully on-screen and
+  // pauses as soon as you scroll past — exactly the "play when you
+  // reach it, stop when you scroll past" behavior the creator asked for.
   useEffect(() => {
     if (typeof IntersectionObserver === 'undefined') return
     const node = frameRef.current
@@ -1015,8 +1035,24 @@ function SamplePlayerFrame({
     return () => obs.disconnect()
   }, [])
 
-  // On touch devices we don't autoplay — wait for the tap before flipping
-  // the "playing" flag.
+  // Mute on any click outside the volume toggle — matches the hero
+  // trailer behavior so the user can silence playback by clicking the
+  // page instead of hunting for the speaker icon.
+  useEffect(() => {
+    if (muted) return
+    const onClick = (e: MouseEvent) => {
+      const target = e.target as Node | null
+      if (target && volumeBtnRef.current?.contains(target)) return
+      setMuted(true)
+    }
+    window.addEventListener('click', onClick, true)
+    return () => window.removeEventListener('click', onClick, true)
+  }, [muted])
+
+  // Desktop autoplay only needs (a) "in view" — scrolling past the frame
+  // takes us out of view and the IntersectionObserver flips inView off,
+  // which is the entire stop-on-scroll-past story. Touch devices keep
+  // the tap-to-play path.
   const playing = !ended && (isTouchUA ? tapPlayed && inView : inView)
 
   const handleReplay = () => {
@@ -1096,8 +1132,12 @@ function SamplePlayerFrame({
         {/* Mute / unmute toggle, bottom-right */}
         {!ended && (
           <button
+            ref={volumeBtnRef}
             type="button"
-            onClick={() => setMuted((m) => !m)}
+            onClick={(e) => {
+              e.stopPropagation()
+              setMuted((m) => !m)
+            }}
             aria-label={muted ? 'Unmute sample' : 'Mute sample'}
             style={{
               position: 'absolute',
@@ -1119,11 +1159,21 @@ function SamplePlayerFrame({
             }}
           >
             {muted ? (
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+              >
                 <path d="M5 9v6h4l5 5V4L9 9H5zm12.59 3l2.7-2.7-1.42-1.42-2.7 2.71-2.71-2.71-1.41 1.42 2.7 2.7-2.7 2.7 1.41 1.42 2.71-2.71 2.7 2.71 1.42-1.42-2.7-2.7z" />
               </svg>
             ) : (
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+              >
                 <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3a4.5 4.5 0 0 0-2.5-4.03v8.06A4.5 4.5 0 0 0 16.5 12zM14 3.23v2.06a7 7 0 0 1 0 13.42v2.06a9 9 0 0 0 0-17.54z" />
               </svg>
             )}
@@ -1163,7 +1213,12 @@ function SamplePlayerFrame({
                 justifyContent: 'center',
               }}
             >
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+              <svg
+                width="22"
+                height="22"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+              >
                 <path d="M8 5v14l11-7z" />
               </svg>
             </div>
