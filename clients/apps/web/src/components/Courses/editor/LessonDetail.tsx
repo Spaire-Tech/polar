@@ -8,6 +8,7 @@ import {
   useCreateMuxUpload,
   useDeleteLessonAttachment,
   usePreviewAccess,
+  useRemoveLessonVideo,
   useUpdateCourseLesson,
   useUploadLessonAttachment,
   useUploadLessonThumbnail,
@@ -22,9 +23,9 @@ import VisibilityOutlined from '@mui/icons-material/VisibilityOutlined'
 import { schemas } from '@spaire/client'
 import { cn } from '@spaire/ui/lib/utils'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { AutomationsPanel } from './AutomationsPanel'
 import { toast } from '../../Toast/use-toast'
 import { HlsVideo } from '../HlsVideo'
+import { AutomationsPanel } from './AutomationsPanel'
 import { RichTextEditor } from './RichTextEditor'
 import { ThumbnailPositioner } from './ThumbnailPositioner'
 
@@ -124,28 +125,38 @@ export function LessonDetail({
   const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(
     lesson.thumbnail_url ?? null,
   )
-  // Local object URL for the just-uploaded video file. Mux takes ~30s to
-  // transcode and surface a `mux_playback_id`; until then we render the raw
-  // file via a <video src=blob:…> so the creator sees what they uploaded
-  // instead of an empty processing card.
+  // Local object URL for the just-uploaded video file. Transcoding takes
+  // ~30s to surface a `mux_playback_id`; until then we render the raw file
+  // via a <video src=blob:…> so the creator sees what they uploaded instead
+  // of an empty processing card.
   const [localVideoUrl, setLocalVideoUrl] = useState<string | null>(null)
+  // Snapshot of the playback id that was already on the lesson the moment
+  // the user picked a new file. We only drop the local preview when the
+  // server starts returning a *different* playback id — otherwise the
+  // brief window before the refetch (where the lesson still says
+  // `status='ready'` with the OLD playback id) would clear the local URL
+  // and flash the old video back at the user.
+  const previousPlaybackIdRef = useRef<string | null>(
+    lesson.mux_playback_id ?? null,
+  )
   useEffect(
     () => () => {
       if (localVideoUrl) URL.revokeObjectURL(localVideoUrl)
     },
     [localVideoUrl],
   )
-  // Once Mux finishes processing, drop the local preview so the HLS player
-  // takes over.
+  // Once a new playback id is ready, swap the local preview out for the
+  // HLS player. Comparing against the snapshot taken at upload-time
+  // avoids the race where the lesson still reports the old playback as
+  // "ready" while the new upload is mid-flight.
   useEffect(() => {
-    if (
-      lesson.mux_playback_id &&
-      lesson.mux_status === 'ready' &&
-      localVideoUrl
-    ) {
-      URL.revokeObjectURL(localVideoUrl)
-      setLocalVideoUrl(null)
-    }
+    if (!localVideoUrl) return
+    if (lesson.mux_status !== 'ready') return
+    if (!lesson.mux_playback_id) return
+    if (lesson.mux_playback_id === previousPlaybackIdRef.current) return
+    URL.revokeObjectURL(localVideoUrl)
+    setLocalVideoUrl(null)
+    previousPlaybackIdRef.current = lesson.mux_playback_id
   }, [lesson.mux_playback_id, lesson.mux_status, localVideoUrl])
   const attachmentInputRef = useRef<HTMLInputElement>(null)
   const initialAttachments =
@@ -157,6 +168,7 @@ export function LessonDetail({
   const updateLessonMut = useUpdateCourseLesson()
   const uploadAttachment = useUploadLessonAttachment()
   const deleteAttachment = useDeleteLessonAttachment()
+  const removeVideo = useRemoveLessonVideo()
 
   // Persist the thumbnail position the moment the user releases the drag,
   // so every other site that shows the lesson (outline grid, landing
@@ -199,6 +211,7 @@ export function LessonDetail({
     setAttachments(
       (lesson.content?.attachments as LessonAttachment[] | undefined) ?? [],
     )
+    previousPlaybackIdRef.current = lesson.mux_playback_id ?? null
   }, [lesson.id, module.id])
 
   // Warn before the user navigates away from a dirty lesson via a
@@ -303,7 +316,10 @@ export function LessonDetail({
     update('textContent', '')
     try {
       await onGenerateAI(edits, (chunk) =>
-        setEdits((prev) => ({ ...prev, textContent: prev.textContent + chunk })),
+        setEdits((prev) => ({
+          ...prev,
+          textContent: prev.textContent + chunk,
+        })),
       )
     } catch (error) {
       // Restore the previous content if generation fails so the user
@@ -319,9 +335,19 @@ export function LessonDetail({
     const file = e.target.files?.[0]
     if (!file) return
     // Show the file immediately via an object URL so the editor doesn't
-    // look empty while Mux transcodes. Revoked once Mux is ready.
+    // look empty while the upload + transcode runs. Revoked once playback
+    // is ready.
     if (localVideoUrl) URL.revokeObjectURL(localVideoUrl)
+    // Capture the current playback id (if any) so the clear-on-ready
+    // effect can tell a fresh server-side playback from the stale one
+    // we're replacing.
+    previousPlaybackIdRef.current = lesson.mux_playback_id ?? null
     setLocalVideoUrl(URL.createObjectURL(file))
+    // Seed progress at 0 right away so the bar shows up the moment the
+    // user picks a file — without this it stays hidden until the first
+    // XHR progress event fires, which on fast networks can feel like the
+    // upload silently did nothing.
+    setUploadProgress(0)
     try {
       const { upload_url } = await createMuxUpload.mutateAsync(lesson.id)
       await new Promise<void>((resolve, reject) => {
@@ -338,12 +364,36 @@ export function LessonDetail({
         xhr.open('PUT', upload_url)
         xhr.send(file)
       })
-      toast({ title: 'Video uploaded — Mux is now processing' })
+      toast({ title: 'Video uploaded — processing now' })
     } catch {
       setUploadProgress(null)
       toast({ title: 'Video upload failed' })
     }
     e.target.value = ''
+  }
+
+  const handleRemoveVideo = async () => {
+    if (typeof window !== 'undefined') {
+      const ok = window.confirm(
+        'Remove the video from this lesson? This cannot be undone.',
+      )
+      if (!ok) return
+    }
+    if (localVideoUrl) {
+      URL.revokeObjectURL(localVideoUrl)
+      setLocalVideoUrl(null)
+    }
+    setUploadProgress(null)
+    previousPlaybackIdRef.current = null
+    try {
+      await removeVideo.mutateAsync(lesson.id)
+      toast({ title: 'Video removed' })
+    } catch (err) {
+      toast({
+        title: 'Failed to remove video',
+        description: err instanceof Error ? err.message : undefined,
+      })
+    }
   }
 
   const titleError = edits.title.trim().length === 0
@@ -472,117 +522,16 @@ export function LessonDetail({
               </div>
 
               {edits.media === 'video' && (
-                <div className="mb-5">
-                  <label className="mb-2 block text-sm font-bold text-gray-900">
-                    Video
-                  </label>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="video/*"
-                    className="hidden"
-                    onChange={handleVideoFileChange}
-                  />
-                  {lesson.mux_playback_id && lesson.mux_status === 'ready' ? (
-                    <div className="flex flex-col gap-3">
-                      <div className="aspect-video overflow-hidden rounded-xl bg-black">
-                        <HlsVideo playbackId={lesson.mux_playback_id} />
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => fileInputRef.current?.click()}
-                        className="w-fit rounded-full border border-gray-300 px-4 py-2 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-50"
-                      >
-                        Replace video
-                      </button>
-                    </div>
-                  ) : localVideoUrl ? (
-                    <div className="flex flex-col gap-3">
-                      <div className="aspect-video overflow-hidden rounded-xl bg-black">
-                        {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
-                        <video
-                          src={localVideoUrl}
-                          controls
-                          playsInline
-                          className="h-full w-full"
-                        />
-                      </div>
-                      {uploadProgress !== null ? (
-                        <div className="flex flex-col gap-1.5">
-                          <div className="flex items-center justify-between text-xs text-indigo-700">
-                            <span className="flex items-center gap-2">
-                              <div className="h-3 w-3 animate-spin rounded-full border-2 border-indigo-500 border-t-transparent" />
-                              Uploading…
-                            </span>
-                            <span className="tabular-nums">
-                              {uploadProgress}%
-                            </span>
-                          </div>
-                          <div className="h-1 w-full overflow-hidden rounded-full bg-indigo-100">
-                            <div
-                              className="h-full rounded-full bg-indigo-500 transition-[width] duration-150"
-                              style={{ width: `${uploadProgress}%` }}
-                            />
-                          </div>
-                        </div>
-                      ) : lesson.mux_status &&
-                        lesson.mux_status !== 'ready' &&
-                        lesson.mux_status !== 'errored' ? (
-                        <div className="flex items-center gap-2 text-xs text-indigo-700">
-                          <div className="h-3 w-3 animate-spin rounded-full border-2 border-indigo-500 border-t-transparent" />
-                          Mux is processing — playback will switch to HLS once
-                          ready.
-                        </div>
-                      ) : (
-                        <p className="text-xs text-gray-400">
-                          Local preview — Mux will take over once processing
-                          finishes.
-                        </p>
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => fileInputRef.current?.click()}
-                        className="w-fit rounded-full border border-gray-300 px-4 py-2 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-50"
-                      >
-                        Replace video
-                      </button>
-                    </div>
-                  ) : lesson.mux_status && lesson.mux_status !== 'errored' ? (
-                    <div className="flex items-center gap-3 rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm text-indigo-700">
-                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-indigo-500 border-t-transparent" />
-                      {uploadProgress !== null
-                        ? `Uploading… ${uploadProgress}%`
-                        : 'Processing video…'}
-                    </div>
-                  ) : (
-                    <div className="flex flex-col gap-3">
-                      {lesson.mux_status === 'errored' && (
-                        <p className="text-xs text-red-600">
-                          Upload failed — try again.
-                        </p>
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => fileInputRef.current?.click()}
-                        disabled={
-                          createMuxUpload.isPending || uploadProgress !== null
-                        }
-                        className="flex items-center gap-2 rounded-xl border-2 border-dashed border-gray-300 px-6 py-8 text-sm font-medium text-gray-500 transition-colors hover:border-gray-400 hover:text-gray-700 disabled:opacity-50"
-                      >
-                        <OndemandVideoOutlined fontSize="small" />
-                        {uploadProgress !== null
-                          ? `Uploading… ${uploadProgress}%`
-                          : createMuxUpload.isPending
-                            ? 'Preparing…'
-                            : 'Upload video file'}
-                      </button>
-                      <p className="text-xs text-gray-400">
-                        MP4, MOV, or WebM. Mux will transcode and deliver via
-                        HLS.
-                      </p>
-                    </div>
-                  )}
-                </div>
+                <LessonVideoBlock
+                  lesson={lesson}
+                  fileInputRef={fileInputRef}
+                  localVideoUrl={localVideoUrl}
+                  uploadProgress={uploadProgress}
+                  isPreparing={createMuxUpload.isPending}
+                  isRemoving={removeVideo.isPending}
+                  onPickFile={handleVideoFileChange}
+                  onRemove={handleRemoveVideo}
+                />
               )}
 
               <RichTextEditor
@@ -995,6 +944,167 @@ function Field({
         {label}
       </label>
       {children}
+    </div>
+  )
+}
+
+// One canonical layout for every video state — empty, uploading, processing,
+// ready. Replace always routes through the same uploading state so the user
+// gets the same bar + percentage they saw on first upload (no silent "did
+// anything happen?" gap while we swap from the old playback to the new one).
+function LessonVideoBlock({
+  lesson,
+  fileInputRef,
+  localVideoUrl,
+  uploadProgress,
+  isPreparing,
+  isRemoving,
+  onPickFile,
+  onRemove,
+}: {
+  lesson: CourseLessonRead
+  fileInputRef: React.RefObject<HTMLInputElement | null>
+  localVideoUrl: string | null
+  uploadProgress: number | null
+  isPreparing: boolean
+  isRemoving: boolean
+  onPickFile: (e: React.ChangeEvent<HTMLInputElement>) => void
+  onRemove: () => void
+}) {
+  const uploading = uploadProgress !== null || isPreparing
+  const processing =
+    !uploading &&
+    !!lesson.mux_status &&
+    lesson.mux_status !== 'ready' &&
+    lesson.mux_status !== 'errored'
+  // Render order matters: while uploading or processing, the local preview
+  // wins over a stale ready playback so the user actually sees the new file
+  // they just picked. Once mux_status flips back to 'ready' (and the local
+  // URL has been cleared) we fall through to the HLS player.
+  const showLocalPreview = !!localVideoUrl && (uploading || processing)
+  const showHlsPlayer =
+    !showLocalPreview &&
+    lesson.mux_playback_id != null &&
+    lesson.mux_status === 'ready'
+  const hasVideo = showHlsPlayer || showLocalPreview || processing
+  const errored = lesson.mux_status === 'errored' && !uploading
+
+  return (
+    <div className="mb-5">
+      <label className="mb-2 block text-sm font-bold text-gray-900">
+        Video
+      </label>
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="video/*"
+        className="hidden"
+        onChange={onPickFile}
+      />
+      {hasVideo ? (
+        <div className="flex flex-col gap-3">
+          <div className="aspect-video overflow-hidden rounded-xl bg-black">
+            {showHlsPlayer ? (
+              <HlsVideo playbackId={lesson.mux_playback_id!} />
+            ) : showLocalPreview ? (
+              // eslint-disable-next-line jsx-a11y/media-has-caption
+              <video
+                src={localVideoUrl!}
+                controls
+                playsInline
+                className="h-full w-full"
+              />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center text-sm text-white/70">
+                <div className="flex items-center gap-2">
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+                  Processing video…
+                </div>
+              </div>
+            )}
+          </div>
+          {(uploading || processing) && (
+            <VideoUploadBar
+              progress={uploadProgress}
+              label={uploading ? 'Uploading' : 'Processing'}
+              tone={uploading ? 'upload' : 'processing'}
+            />
+          )}
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading || isRemoving}
+              className="w-fit rounded-full border border-gray-300 px-4 py-2 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-50"
+            >
+              Replace video
+            </button>
+            <button
+              type="button"
+              onClick={onRemove}
+              disabled={uploading || isRemoving}
+              className="w-fit rounded-full border border-red-200 px-4 py-2 text-xs font-medium text-red-600 transition-colors hover:bg-red-50 disabled:opacity-50"
+            >
+              {isRemoving ? 'Removing…' : 'Remove video'}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-3">
+          {errored && (
+            <p className="text-xs text-red-600">Upload failed — try again.</p>
+          )}
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading}
+            className="flex items-center gap-2 rounded-xl border-2 border-dashed border-gray-300 px-6 py-8 text-sm font-medium text-gray-500 transition-colors hover:border-gray-400 hover:text-gray-700 disabled:opacity-50"
+          >
+            <OndemandVideoOutlined fontSize="small" />
+            Upload video file
+          </button>
+          <p className="text-xs text-gray-400">
+            MP4, MOV, or WebM. We'll optimize it for fast playback
+            automatically.
+          </p>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function VideoUploadBar({
+  progress,
+  label,
+  tone,
+}: {
+  progress: number | null
+  label: string
+  tone: 'upload' | 'processing'
+}) {
+  // Processing has no determinate percentage (the provider just tells us
+  // when it's done), so we render an indeterminate striped bar instead of
+  // pretending we know progress. Upload uses the real XHR percentage.
+  const indeterminate = tone === 'processing' || progress === null
+  const pct = indeterminate ? 100 : Math.max(0, Math.min(100, progress!))
+  return (
+    <div className="flex flex-col gap-1.5">
+      <div className="flex items-center justify-between text-xs text-indigo-700">
+        <span className="flex items-center gap-2">
+          <div className="h-3 w-3 animate-spin rounded-full border-2 border-indigo-500 border-t-transparent" />
+          {label}…
+        </span>
+        {!indeterminate && <span className="tabular-nums">{pct}%</span>}
+      </div>
+      <div className="h-1 w-full overflow-hidden rounded-full bg-indigo-100">
+        <div
+          className={cn(
+            'h-full rounded-full bg-indigo-500 transition-[width] duration-150',
+            indeterminate && 'animate-pulse',
+          )}
+          style={{ width: `${pct}%` }}
+        />
+      </div>
     </div>
   )
 }

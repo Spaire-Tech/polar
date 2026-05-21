@@ -163,8 +163,7 @@ export function EditableCourseLandingView({
   // non-default device so the desktop preview stays available at any width.
   const viewportIsMobile = useIsMobile().isMobile
   const isMobile =
-    ed.device === 'mobile' ||
-    (ed.device === 'desktop' && viewportIsMobile)
+    ed.device === 'mobile' || (ed.device === 'desktop' && viewportIsMobile)
 
   const paywallAt =
     course.paywall_enabled && course.paywall_position != null
@@ -277,9 +276,7 @@ export function EditableCourseLandingView({
           },
           sections: {
             label: 'Sections',
-            node: (
-              <CourseSections course={course} flatLessons={flatLessons} />
-            ),
+            node: <CourseSections course={course} flatLessons={flatLessons} />,
           },
           lessons: {
             label: 'Free preview',
@@ -781,7 +778,9 @@ function HeroMediaSurface({
   const imageObjectPosition =
     (heroImage && heroImage.kind === 'image'
       ? heroImage.objectPosition
-      : null) ?? fallbackImageObjectPosition ?? null
+      : null) ??
+    fallbackImageObjectPosition ??
+    null
   const trailerUrl =
     heroTrailer && heroTrailer.kind === 'video'
       ? heroTrailer.url
@@ -911,108 +910,108 @@ function HeroMediaControls() {
           gap: 8,
         }}
       >
-      <input
-        ref={imageInputRef}
-        type="file"
-        accept="image/*"
-        hidden
-        onChange={onImage}
-      />
-      <input
-        ref={trailerInputRef}
-        type="file"
-        accept="video/*"
-        hidden
-        onChange={onTrailer}
-      />
-      <button
-        type="button"
-        onClick={() => imageInputRef.current?.click()}
-        disabled={busyImage}
-        style={pillBtn(busyImage)}
-      >
-        {busyImage
-          ? 'Uploading image…'
-          : hasImage
-            ? '↺ Replace image'
-            : '＋ Add image'}
-      </button>
-      {hasImage && (
+        <input
+          ref={imageInputRef}
+          type="file"
+          accept="image/*"
+          hidden
+          onChange={onImage}
+        />
+        <input
+          ref={trailerInputRef}
+          type="file"
+          accept="video/*"
+          hidden
+          onChange={onTrailer}
+        />
         <button
           type="button"
-          onClick={() => setReposMode(true)}
-          style={pillBtn(false)}
-          title="Drag to reposition the hero image. Saves automatically."
+          onClick={() => imageInputRef.current?.click()}
+          disabled={busyImage}
+          style={pillBtn(busyImage)}
         >
-          ⤧ Reposition
+          {busyImage
+            ? 'Uploading image…'
+            : hasImage
+              ? '↺ Replace image'
+              : '＋ Add image'}
         </button>
-      )}
-      <button
-        type="button"
-        onClick={() => trailerInputRef.current?.click()}
-        disabled={busyTrailer}
-        style={pillBtn(busyTrailer)}
-      >
-        {busyTrailer
-          ? 'Uploading trailer…'
-          : hasTrailer
-            ? '↺ Replace trailer'
-            : '＋ Add trailer'}
-      </button>
-      <div style={{ position: 'relative' }}>
+        {hasImage && (
+          <button
+            type="button"
+            onClick={() => setReposMode(true)}
+            style={pillBtn(false)}
+            title="Drag to reposition the hero image. Saves automatically."
+          >
+            ⤧ Reposition
+          </button>
+        )}
         <button
           type="button"
-          aria-label="How hero media works"
-          onClick={() => setTipOpen((p) => !p)}
-          onMouseEnter={() => setTipOpen(true)}
-          onMouseLeave={() => setTipOpen(false)}
-          style={{
-            width: 26,
-            height: 26,
-            borderRadius: '50%',
-            background: 'rgba(255,255,255,0.14)',
-            border: '1px solid rgba(255,255,255,0.20)',
-            color: 'white',
-            fontSize: 12,
-            fontWeight: 700,
-            cursor: 'help',
-            fontFamily: 'inherit',
-          }}
+          onClick={() => trailerInputRef.current?.click()}
+          disabled={busyTrailer}
+          style={pillBtn(busyTrailer)}
         >
-          ?
+          {busyTrailer
+            ? 'Uploading trailer…'
+            : hasTrailer
+              ? '↺ Replace trailer'
+              : '＋ Add trailer'}
         </button>
-        {tipOpen && (
-          <div
-            role="tooltip"
+        <div style={{ position: 'relative' }}>
+          <button
+            type="button"
+            aria-label="How hero media works"
+            onClick={() => setTipOpen((p) => !p)}
+            onMouseEnter={() => setTipOpen(true)}
+            onMouseLeave={() => setTipOpen(false)}
             style={{
-              position: 'absolute',
-              right: 0,
-              top: 34,
-              width: 260,
-              padding: 12,
-              borderRadius: 10,
-              background: 'rgba(20,20,22,0.95)',
+              width: 26,
+              height: 26,
+              borderRadius: '50%',
+              background: 'rgba(255,255,255,0.14)',
+              border: '1px solid rgba(255,255,255,0.20)',
               color: 'white',
-              fontSize: 11.5,
-              lineHeight: 1.5,
-              border: '1px solid rgba(255,255,255,0.10)',
-              boxShadow: '0 12px 40px rgba(0,0,0,0.45)',
-              fontFamily: 'Inter, system-ui, sans-serif',
-              zIndex: 10,
+              fontSize: 12,
+              fontWeight: 700,
+              cursor: 'help',
+              fontFamily: 'inherit',
             }}
           >
-            <strong style={{ fontSize: 11, letterSpacing: '0.06em' }}>
-              UPLOAD A TRAILER + IMAGE
-            </strong>
-            <div style={{ marginTop: 6, color: 'rgba(255,255,255,0.78)' }}>
-              Like Netflix or YouTube — when both are set, the hero plays the
-              first ~10 seconds of the trailer as a peek, then settles on the
-              cover image. One of them works on its own too.
+            ?
+          </button>
+          {tipOpen && (
+            <div
+              role="tooltip"
+              style={{
+                position: 'absolute',
+                right: 0,
+                top: 34,
+                width: 260,
+                padding: 12,
+                borderRadius: 10,
+                background: 'rgba(20,20,22,0.95)',
+                color: 'white',
+                fontSize: 11.5,
+                lineHeight: 1.5,
+                border: '1px solid rgba(255,255,255,0.10)',
+                boxShadow: '0 12px 40px rgba(0,0,0,0.45)',
+                fontFamily: 'Inter, system-ui, sans-serif',
+                zIndex: 10,
+              }}
+            >
+              <strong style={{ fontSize: 11, letterSpacing: '0.06em' }}>
+                UPLOAD A TRAILER + IMAGE
+              </strong>
+              <div style={{ marginTop: 6, color: 'rgba(255,255,255,0.78)' }}>
+                Like Netflix or YouTube — when both are set, the hero plays the
+                first ~10 seconds of the trailer as a peek, then settles on the
+                cover image. One of them works on its own too.
+              </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
-    </div>
     </>
   )
 }
@@ -1129,7 +1128,8 @@ function SectionCard({
         display: 'flex',
         flexDirection: 'column',
         cursor: onClick ? 'pointer' : 'default',
-        transition: 'transform 220ms cubic-bezier(0.2, 0.9, 0.3, 1.1), box-shadow 220ms ease',
+        transition:
+          'transform 220ms cubic-bezier(0.2, 0.9, 0.3, 1.1), box-shadow 220ms ease',
       }}
     >
       {isAbove && thumb}
@@ -1318,11 +1318,11 @@ function SectionZigzagRow({
               }}
             >
               <SectionCard
-              module={mod}
-              index={absoluteIndex}
-              pointer="top"
-              onClick={onOpen ? () => onOpen(absoluteIndex) : undefined}
-            />
+                module={mod}
+                index={absoluteIndex}
+                pointer="top"
+                onClick={onOpen ? () => onOpen(absoluteIndex) : undefined}
+              />
             </div>
           ) : (
             <div key={mod.id} />
@@ -2060,7 +2060,7 @@ function EpisodeThumb({
   // lesson ids are placeholders), fall back to the original slot-based
   // EditMedia tile so authors can still drop in a thumbnail. Preview mode
   // always uses the real-lesson display so the public landing renders the
-  // actual thumbnail + Mux peek video.
+  // actual thumbnail + video peek.
   if (ed.mode === 'edit' && !lessonHandlers) {
     return (
       <EditMedia
@@ -2157,7 +2157,7 @@ function EpisodeThumbBadges({
 }
 
 // Episode thumb wired to the actual lesson record. Owns:
-//   • Thumbnail + Mux video peek (fade in muted on hover, max 10s)
+//   • Thumbnail + video peek (fade in muted on hover, max 10s)
 //   • Click-to-open lightbox (in preview mode only)
 //   • Edit affordances (Replace thumbnail / Replace video) in edit mode
 function RealLessonEpisodeThumb({
@@ -2278,7 +2278,7 @@ function RealLessonEpisodeThumb({
       )
       toast({
         title: 'Video uploaded',
-        description: 'Mux is processing — preview will appear shortly.',
+        description: 'Processing — preview will appear shortly.',
       })
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
@@ -2505,22 +2505,89 @@ function RealLessonEpisodeThumb({
               onDone={() => setReposMode(false)}
             />
           )}
-          {lesson.mux_upload_id && !playbackId && (
+          {/* Upload + processing progress overlay. Stays mounted across the
+              hand-off from "uploading" → "processing" so the user always
+              sees feedback and never wonders if the replace did anything. */}
+          {(videoBusy || (lesson.mux_upload_id && !playbackId)) && (
             <div
               style={{
                 position: 'absolute',
                 left: 10,
+                right: 10,
                 bottom: 10,
                 zIndex: 6,
-                fontSize: 10.5,
-                fontWeight: 600,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 6,
+                padding: '8px 10px',
+                background: 'rgba(0,0,0,0.62)',
+                borderRadius: 10,
                 color: 'white',
-                background: 'rgba(0,0,0,0.6)',
-                padding: '4px 8px',
-                borderRadius: 999,
+                fontFamily: 'Inter, system-ui, sans-serif',
               }}
             >
-              ◐ Processing video…
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  fontSize: 10.5,
+                  fontWeight: 600,
+                  letterSpacing: '0.02em',
+                }}
+              >
+                <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span
+                    style={{
+                      width: 10,
+                      height: 10,
+                      borderRadius: '50%',
+                      border: '1.5px solid rgba(255,255,255,0.7)',
+                      borderTopColor: 'transparent',
+                      animation: 'lesson-tile-spin 800ms linear infinite',
+                      display: 'inline-block',
+                    }}
+                  />
+                  {videoBusy ? 'Uploading' : 'Processing'}
+                </span>
+                {videoBusy && videoProgress != null && (
+                  <span style={{ fontVariantNumeric: 'tabular-nums' }}>
+                    {videoProgress}%
+                  </span>
+                )}
+              </div>
+              <div
+                style={{
+                  height: 3,
+                  width: '100%',
+                  borderRadius: 999,
+                  background: 'rgba(255,255,255,0.18)',
+                  overflow: 'hidden',
+                }}
+              >
+                <div
+                  style={{
+                    height: '100%',
+                    borderRadius: 999,
+                    background: videoBusy
+                      ? 'rgba(255,255,255,0.95)'
+                      : 'rgba(255,255,255,0.5)',
+                    width:
+                      videoBusy && videoProgress != null
+                        ? `${videoProgress}%`
+                        : '100%',
+                    transition: 'width 150ms ease',
+                    opacity: !videoBusy ? 0.85 : 1,
+                  }}
+                />
+              </div>
+              <style jsx>{`
+                @keyframes lesson-tile-spin {
+                  to {
+                    transform: rotate(360deg);
+                  }
+                }
+              `}</style>
             </div>
           )}
         </>
@@ -2572,8 +2639,14 @@ function ImageReposOverlay({
     const el = containerRef.current
     if (!el) return
     const rect = el.getBoundingClientRect()
-    const x = Math.min(100, Math.max(0, ((clientX - rect.left) / rect.width) * 100))
-    const y = Math.min(100, Math.max(0, ((clientY - rect.top) / rect.height) * 100))
+    const x = Math.min(
+      100,
+      Math.max(0, ((clientX - rect.left) / rect.width) * 100),
+    )
+    const y = Math.min(
+      100,
+      Math.max(0, ((clientY - rect.top) / rect.height) * 100),
+    )
     setPos({ x, y })
     onChange(`${x.toFixed(1)}% ${y.toFixed(1)}%`)
   }
@@ -3100,7 +3173,9 @@ function LockedGlassItem({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            color: coverUrl ? 'rgba(255,255,255,0.92)' : 'oklch(0.45 0.012 280)',
+            color: coverUrl
+              ? 'rgba(255,255,255,0.92)'
+              : 'oklch(0.45 0.012 280)',
           }}
           aria-hidden
         >

@@ -342,6 +342,25 @@ async def delete_lesson(
     await course_service.delete_lesson(session, lesson)
 
 
+@router.delete(
+    "/lessons/{lesson_id}/video",
+    response_model=CourseLessonRead,
+    summary="Remove Lesson Video",
+)
+async def remove_lesson_video(
+    lesson_id: UUID,
+    auth_subject: auth.CoursesWrite,
+    session: AsyncSession = Depends(get_db_session),
+) -> CourseLessonRead:
+    """Detach the video asset from a lesson without deleting the lesson itself."""
+    lesson_repo = CourseLessonRepository.from_session(session)
+    lesson = await lesson_repo.get_readable_by_id(lesson_id, auth_subject)
+    if lesson is None:
+        raise HTTPException(status_code=404, detail="Lesson not found")
+    lesson = await course_service.clear_lesson_video(session, lesson)
+    return _lesson_read(lesson)
+
+
 @router.get(
     "/{course_id}/enrollments",
     response_model=ListResource[CourseEnrollmentRead],

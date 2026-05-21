@@ -12,6 +12,22 @@ type HlsInstance = {
   on: (event: string, handler: (...args: unknown[]) => void) => void
 }
 
+// Tuned for VOD lessons rather than live streams: a generous forward
+// buffer lets the demuxer keep audio + video frames aligned even when
+// the network jitters mid-segment, which was the root cause of the
+// "sound a step behind the picture" reports.
+const HLS_CONFIG = {
+  enableWorker: true,
+  lowLatencyMode: false,
+  backBufferLength: 30,
+  maxBufferLength: 30,
+  maxMaxBufferLength: 60,
+  // Don't start playback the instant the first fragment lands — wait
+  // for a real buffer cushion so audio + video have aligned samples
+  // before frames hit the screen.
+  startFragPrefetch: true,
+}
+
 export const HlsVideo = ({
   playbackId,
   playbackUrl,
@@ -65,7 +81,9 @@ export const HlsVideo = ({
         videoRef.current.src = src
         return
       }
-      const instance = new Hls() as unknown as HlsInstance
+      const instance = new (Hls as unknown as new (
+        config: typeof HLS_CONFIG,
+      ) => HlsInstance)(HLS_CONFIG)
       instance.loadSource(src)
       instance.attachMedia(videoRef.current)
       // Recover from transient errors automatically; surface fatal ones so
@@ -78,7 +96,9 @@ export const HlsVideo = ({
             | undefined
           if (!data?.fatal) return
           const ErrorTypes = (
-            Hls as unknown as { ErrorTypes: { NETWORK_ERROR: string; MEDIA_ERROR: string } }
+            Hls as unknown as {
+              ErrorTypes: { NETWORK_ERROR: string; MEDIA_ERROR: string }
+            }
           ).ErrorTypes
           if (data.type === ErrorTypes.NETWORK_ERROR) {
             instance.startLoad()

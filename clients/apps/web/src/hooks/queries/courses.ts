@@ -709,6 +709,16 @@ export const useCreateMuxUpload = () =>
       ),
   })
 
+export const useRemoveLessonVideo = () =>
+  useMutation({
+    mutationFn: (lessonId: string) =>
+      courseApiFetch<CourseLessonRead>(
+        `/v1/courses/lessons/${lessonId}/video`,
+        { method: 'DELETE' },
+      ),
+    onSuccess: invalidateCourseQueries,
+  })
+
 // Wizard-only: create a Mux direct upload that isn't attached to a lesson
 // yet. Returned upload_id later rides on CourseLessonCreate.mux_upload_id
 // so the webhook can attach the Mux asset once it finishes processing.
@@ -1088,7 +1098,9 @@ export const useLessonNote = (
 ) => {
   const { data, isLoading } = useCourseNotes(token, courseId)
   const note =
-    data && lessonId ? (data.find((n) => n.lesson_id === lessonId) ?? null) : null
+    data && lessonId
+      ? (data.find((n) => n.lesson_id === lessonId) ?? null)
+      : null
   return { data: data ? note : undefined, isLoading }
 }
 

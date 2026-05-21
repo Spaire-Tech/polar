@@ -1,10 +1,11 @@
 'use client'
 
-// HeroMedia — Netflix/YouTube-style preview. If a trailer URL is set, plays
-// the first `peekSeconds` of it, then fades AND pauses, settling on the
-// still image. Audio only kicks in on the public landing (preview mode)
-// — the studio's customize canvas always stays muted so the creator
-// isn't blasted with sound while editing.
+// HeroMedia — hover-triggered trailer peek. The trailer only starts playing
+// when the user actually hovers (or taps, on touch) the hero. It pauses on
+// any scroll, mutes on any click outside the volume toggle, and fades back
+// to the still image after `peekSeconds`. Audio only kicks in on the public
+// landing (preview mode) — the studio's customize canvas always stays
+// muted so the creator isn't blasted with sound while editing.
 
 import { useEffect, useRef, useState } from 'react'
 import { useEditor } from './EditorContext'
@@ -26,22 +27,37 @@ export function HeroMedia({
   // soundtrack starting up every time they switch tabs.
   const audioAllowed = ed.mode === 'preview'
 
+  const containerRef = useRef<HTMLDivElement | null>(null)
   const videoRef = useRef<HTMLVideoElement | null>(null)
-  const [phase, setPhase] = useState<'video' | 'image'>(
-    trailerUrl ? 'video' : 'image',
-  )
-  // Default muted (autoplay requires it). When `audioAllowed` is true a
-  // user gesture flips this to false; we also flip it back to true when
-  // the peek ends so the audio stops cleanly.
+  const volumeBtnRef = useRef<HTMLButtonElement | null>(null)
+  // Phase drives which layer is visible:
+  //   'image' — still poster, no playback
+  //   'video' — trailer playing, peek countdown running
+  const [phase, setPhase] = useState<'video' | 'image'>('image')
   const [muted, setMuted] = useState(true)
+  const [hovered, setHovered] = useState(false)
 
+  // Reset to the image whenever the trailer URL changes (e.g. uploading a
+  // new trailer in the editor). The hover handler will retrigger playback.
   useEffect(() => {
-    setPhase(trailerUrl ? 'video' : 'image')
+    setPhase('image')
+    setMuted(true)
   }, [trailerUrl])
 
-  // Peek timer — once the trailer has buffered, schedule the fade back
-  // to the still image. The cleanup also runs when the trailer URL
-  // changes or the component unmounts, so timers never leak.
+  // Start the peek as soon as the user hovers. Scrolling, leaving the
+  // hero, or hitting the end of the peek window all snap us back to the
+  // still image.
+  useEffect(() => {
+    if (!trailerUrl) return
+    if (!hovered) {
+      setPhase('image')
+      return
+    }
+    setPhase('video')
+  }, [hovered, trailerUrl])
+
+  // Peek countdown — runs only while the trailer is actually playing, and
+  // bails out cleanly on phase / hover changes so timers never leak.
   useEffect(() => {
     if (phase !== 'video') return
     const v = videoRef.current
@@ -57,9 +73,9 @@ export function HeroMedia({
     }
   }, [phase, peekSeconds, trailerUrl])
 
-  // Stop the trailer when the peek ends — pause the element AND
-  // re-mute it. Pausing alone usually stops audio in modern browsers,
-  // but resetting `muted` keeps the audio guaranteed-silent even if
+  // Stop the trailer when the peek ends or the user moves away — pause the
+  // element AND re-mute it. Pausing alone usually stops audio in modern
+  // browsers, but resetting `muted` keeps it guaranteed-silent even if
   // some browser keeps decoding in the background.
   useEffect(() => {
     const v = videoRef.current
@@ -70,29 +86,49 @@ export function HeroMedia({
       } catch {
         // ignore — non-interactive .pause() never throws but be safe
       }
+      // Rewind so the next hover starts from the top instead of resuming
+      // from wherever we paused — a partial peek that picks up halfway
+      // through feels broken.
+      try {
+        v.currentTime = 0
+      } catch {
+        /* noop */
+      }
       setMuted(true)
     }
   }, [phase])
 
-  // First-gesture auto-unmute — only on the public landing, only while
-  // the peek is still showing. After the peek ends the effect above
-  // re-mutes us, and this listener doesn't refire.
+  // Pause + collapse the trailer on any scroll. The user explicitly
+  // asked for this: glancing at the page shouldn't leave audio playing
+  // somewhere off-screen.
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const onScroll = () => {
+      // Hover is implicitly broken by scroll too (the cursor isn't tracked
+      // mid-scroll), but we reset both pieces of state explicitly so the
+      // image snap-back is immediate instead of waiting for the next
+      // mouseleave event.
+      setHovered(false)
+      setPhase('image')
+    }
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
+
+  // Mute on any click outside the volume toggle. Lets the user silence
+  // the trailer just by clicking the page rather than hunting for the
+  // tiny speaker button.
   useEffect(() => {
     if (!audioAllowed) return
-    if (!trailerUrl) return
-    if (phase !== 'video') return
-    if (!muted) return
-    const tryUnmute = () => setMuted(false)
-    const opts = { once: true, capture: true } as const
-    window.addEventListener('pointerdown', tryUnmute, opts)
-    window.addEventListener('keydown', tryUnmute, opts)
-    window.addEventListener('touchstart', tryUnmute, opts)
-    return () => {
-      window.removeEventListener('pointerdown', tryUnmute, opts)
-      window.removeEventListener('keydown', tryUnmute, opts)
-      window.removeEventListener('touchstart', tryUnmute, opts)
+    if (muted) return
+    const onClick = (e: MouseEvent) => {
+      const target = e.target as Node | null
+      if (target && volumeBtnRef.current?.contains(target)) return
+      setMuted(true)
     }
-  }, [audioAllowed, trailerUrl, phase, muted])
+    window.addEventListener('click', onClick, true)
+    return () => window.removeEventListener('click', onClick, true)
+  }, [audioAllowed, muted])
 
   // Reflect the muted state onto the actual <video>. When transitioning
   // from muted → unmuted some browsers pause the stream; re-issue
@@ -106,15 +142,40 @@ export function HeroMedia({
     }
   }, [muted, phase])
 
+  // Kick playback when the video phase starts. We don't use autoPlay on
+  // the element itself — that would race with the hover gate and start
+  // streaming on mount, defeating the whole "only on hover" intent.
+  useEffect(() => {
+    const v = videoRef.current
+    if (!v) return
+    if (phase === 'video') {
+      v.play().catch(() => {
+        // Autoplay blocked even though we're muted (rare). The peek
+        // window will just expire to the image and the user can hover
+        // again to retry.
+      })
+    }
+  }, [phase])
+
   if (!trailerUrl && !imageUrl) return null
 
   return (
-    <div style={{ position: 'absolute', inset: 0, zIndex: 1 }}>
+    <div
+      ref={containerRef}
+      onPointerEnter={(e) => {
+        // Ignore touch — tapping the hero on mobile shouldn't kick a
+        // peek before the user can read the page. Pointer events from
+        // touch report pointerType 'touch'.
+        if (e.pointerType === 'touch') return
+        if (trailerUrl) setHovered(true)
+      }}
+      onPointerLeave={() => setHovered(false)}
+      style={{ position: 'absolute', inset: 0, zIndex: 1 }}
+    >
       {trailerUrl && (
         <video
           ref={videoRef}
           src={trailerUrl}
-          autoPlay
           muted={muted}
           playsInline
           preload="auto"
@@ -163,6 +224,7 @@ export function HeroMedia({
       )}
       {audioAllowed && trailerUrl && phase === 'video' && (
         <button
+          ref={volumeBtnRef}
           type="button"
           onClick={(e) => {
             e.stopPropagation()
