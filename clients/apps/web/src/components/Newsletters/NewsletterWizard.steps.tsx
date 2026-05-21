@@ -4,7 +4,13 @@ import {
   SpaireOnboardingStyles as SharedStyles,
   StepShell,
 } from '../Courses/CourseWizard.steps'
+import { Label } from '@spaire/ui/components/ui/label'
+import {
+  RadioGroup,
+  RadioGroupItem,
+} from '@spaire/ui/components/ui/radio-group'
 import { useEffect, useState } from 'react'
+import { twMerge } from 'tailwind-merge'
 
 // Re-export the shared CSS so NewsletterWizard.tsx only has to import
 // one symbol. The styles are global (style jsx global) and scoped via
@@ -189,12 +195,15 @@ export function StepInfo({
   )
 }
 
+
 // ─── Step 2: Pricing ─────────────────────────────────────────────────
 //
-// Three modes. UI ports the course wizard's pricing language but
-// drops the checkout preview + comparison features per the design
-// brief. The choice persists on the wizard state — Phase 9 wires it
-// to a Product + newsletter_access benefit.
+// Mirrors the course wizard's pricing step (StepPricingWizard in
+// CourseWizard.steps.tsx) — same `wide` StepShell, same PFSection
+// eyebrow/title/description pattern, same RadioGroup with Label
+// cards, same colour tokens. We deliberately DROP the live checkout
+// preview pane the course step has (per the brief "minus the
+// preview"), so the form column gets the full width.
 
 export function StepPricing({
   pricing,
@@ -211,276 +220,300 @@ export function StepPricing({
   onClose: () => void
   error?: string | null
 }) {
-  const showPriceRow = pricing.mode !== 'free'
   return (
     <StepShell
       step={2}
       total={2}
-      title="How should subscribers pay?"
       onNext={onNext}
       onBack={onBack}
       onClose={onClose}
       nextLabel="Create newsletter"
+      wide
     >
-      <div className="so-pricing-modes">
-        <ModeCard
-          active={pricing.mode === 'free'}
-          onPick={() => onChange({ ...pricing, mode: 'free' })}
-          title="Free"
-          desc="Anyone with an email can subscribe. No paywall."
-        />
-        <ModeCard
-          active={pricing.mode === 'both'}
-          onPick={() => onChange({ ...pricing, mode: 'both' })}
-          title="Free + Paid"
-          desc="Free issues for everyone; paid issues + paywall blocks for subscribers."
-          recommended
-        />
-        <ModeCard
-          active={pricing.mode === 'paid'}
-          onPick={() => onChange({ ...pricing, mode: 'paid' })}
-          title="Paid only"
-          desc="Every issue requires a paid subscription to read."
-        />
-      </div>
-
-      {showPriceRow && (
-        <div className="so-price-row">
-          <div className="so-price-label">Paid tier</div>
-          <div className="so-price-controls">
-            <div className="so-price-input">
-              <span className="so-price-currency">
-                {pricing.currency.toUpperCase()}
-              </span>
-              <input
-                type="number"
-                min={1}
-                step={0.5}
-                value={(pricing.paidAmount / 100).toString()}
-                onChange={(e) => {
-                  const v = parseFloat(e.target.value)
-                  if (!Number.isNaN(v)) {
-                    onChange({
-                      ...pricing,
-                      paidAmount: Math.round(v * 100),
-                    })
-                  }
-                }}
-              />
-            </div>
-            <select
-              className="so-price-interval"
-              value={pricing.paidInterval ?? 'one-time'}
-              onChange={(e) => {
-                const v = e.target.value
-                onChange({
-                  ...pricing,
-                  paidInterval:
-                    v === 'one-time' ? null : (v as 'month' | 'year'),
-                })
-              }}
+      <div className="spaire-wizard-pricing-nl">
+        <main className="pf-main-nl">
+          <div className="pf-form-col-nl">
+            {/* PRICING TIER */}
+            <PFSection
+              eyebrow="Pricing"
+              title="Free or paid?"
+              description="Spaire newsletters can be free for everyone, paid behind a subscription, or a mix of both. You can change this any time from settings."
             >
-              <option value="month">per month</option>
-              <option value="year">per year</option>
-              <option value="one-time">one-time</option>
-            </select>
-          </div>
-          <div className="so-price-hint">
-            Subscribers pay this through Polar checkout. You can change
-            it or add other currencies later.
-          </div>
-        </div>
-      )}
+              <RadioGroup
+                value={pricing.mode}
+                onValueChange={(v) =>
+                  onChange({ ...pricing, mode: v as PricingState['mode'] })
+                }
+                className="grid grid-cols-1 gap-4 md:grid-cols-3"
+              >
+                {(
+                  [
+                    {
+                      value: 'free',
+                      title: 'Free',
+                      desc: 'Anyone with an email can subscribe. No paywall, no checkout.',
+                    },
+                    {
+                      value: 'both',
+                      title: 'Free + Paid',
+                      desc: "Free issues for everyone; paid issues + paywalled posts for subscribers. Substack's model.",
+                      recommended: true,
+                    },
+                    {
+                      value: 'paid',
+                      title: 'Paid only',
+                      desc: 'Every issue requires a paid subscription to read.',
+                    },
+                  ] as const
+                ).map((opt) => (
+                  <Label
+                    key={opt.value}
+                    htmlFor={`pf-mode-${opt.value}`}
+                    className={twMerge(
+                      'flex cursor-pointer flex-col gap-3 rounded-2xl border border-[1.5px] p-5 font-normal transition-colors',
+                      pricing.mode === opt.value
+                        ? 'border-[oklch(0.62_0.21_265)] bg-gray-50'
+                        : 'border-gray-100 text-gray-500 hover:border-gray-200',
+                    )}
+                  >
+                    <div className="flex items-center gap-2.5 font-medium">
+                      <RadioGroupItem
+                        value={opt.value}
+                        id={`pf-mode-${opt.value}`}
+                      />
+                      {opt.title}
+                      {'recommended' in opt && opt.recommended && (
+                        <span className="ml-auto rounded-md bg-gray-100 px-1.5 py-0.5 font-mono text-[10px] font-medium uppercase tracking-wider text-gray-500">
+                          Recommended
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-sm text-gray-500">{opt.desc}</p>
+                  </Label>
+                ))}
+              </RadioGroup>
+            </PFSection>
 
-      {error && (
-        <div
-          style={{
-            marginTop: 18,
-            padding: '10px 12px',
-            borderRadius: 10,
-            background: 'oklch(0.96 0.04 25)',
-            color: 'oklch(0.4 0.16 25)',
-            fontSize: 13,
-          }}
-        >
-          {error}
-        </div>
-      )}
+            {/* PAID DETAILS — only revealed for paid / both. Same
+                billing-cycle radio cards as the course wizard, then a
+                price input + currency display. */}
+            {pricing.mode !== 'free' && (
+              <PFSection
+                eyebrow="Paid tier"
+                title="How much, how often"
+                description="Subscribers pay this through Polar checkout. Recurring is the norm for newsletters; one-time is for limited-run series or lifetime access."
+              >
+                <div className="flex w-full flex-col gap-10">
+                  <RadioGroup
+                    value={pricing.paidInterval === null ? 'onetime' : 'recurring'}
+                    onValueChange={(v) => {
+                      if (v === 'onetime') {
+                        onChange({ ...pricing, paidInterval: null })
+                      } else if (pricing.paidInterval === null) {
+                        onChange({ ...pricing, paidInterval: 'month' })
+                      }
+                    }}
+                    className="grid grid-cols-2 gap-4"
+                  >
+                    {(
+                      [
+                        {
+                          value: 'recurring',
+                          title: 'Recurring',
+                          desc: 'Charge subscribers on a regular schedule.',
+                        },
+                        {
+                          value: 'onetime',
+                          title: 'Pay once',
+                          desc: 'One-time fee for ongoing access.',
+                        },
+                      ] as const
+                    ).map((opt) => {
+                      const active =
+                        opt.value === 'onetime'
+                          ? pricing.paidInterval === null
+                          : pricing.paidInterval !== null
+                      return (
+                        <Label
+                          key={opt.value}
+                          htmlFor={`pf-cycle-${opt.value}`}
+                          className={twMerge(
+                            'flex cursor-pointer flex-col gap-3 rounded-2xl border border-[1.5px] p-5 font-normal transition-colors',
+                            active
+                              ? 'border-[oklch(0.62_0.21_265)] bg-gray-50'
+                              : 'border-gray-100 text-gray-500 hover:border-gray-200',
+                          )}
+                        >
+                          <div className="flex items-center gap-2.5 font-medium">
+                            <RadioGroupItem
+                              value={opt.value}
+                              id={`pf-cycle-${opt.value}`}
+                            />
+                            {opt.title}
+                          </div>
+                          <p className="text-sm text-gray-500">{opt.desc}</p>
+                        </Label>
+                      )
+                    })}
+                  </RadioGroup>
+
+                  <div className="flex flex-col gap-3 rounded-2xl border border-gray-200 p-4">
+                    <div className="flex items-center gap-3">
+                      <div className="flex flex-1 items-center rounded-xl border border-gray-200 bg-white px-3">
+                        <span className="font-mono text-xs font-semibold uppercase text-gray-500">
+                          {pricing.currency.toUpperCase()}
+                        </span>
+                        <input
+                          type="number"
+                          min={1}
+                          step={0.5}
+                          value={(pricing.paidAmount / 100).toString()}
+                          onChange={(e) => {
+                            const v = parseFloat(e.target.value)
+                            if (!Number.isNaN(v)) {
+                              onChange({
+                                ...pricing,
+                                paidAmount: Math.round(v * 100),
+                              })
+                            }
+                          }}
+                          className="ml-3 h-11 flex-1 border-0 bg-transparent text-base text-gray-900 outline-none"
+                        />
+                      </div>
+                      {pricing.paidInterval !== null && (
+                        <select
+                          value={pricing.paidInterval}
+                          onChange={(e) =>
+                            onChange({
+                              ...pricing,
+                              paidInterval: e.target.value as 'month' | 'year',
+                            })
+                          }
+                          className="h-11 rounded-xl border border-gray-200 bg-white px-4 text-sm text-gray-900 outline-none"
+                        >
+                          <option value="month">per month</option>
+                          <option value="year">per year</option>
+                        </select>
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-500">
+                      You can adjust the price or add other currencies from
+                      the newsletter&apos;s settings later.
+                    </p>
+                  </div>
+                </div>
+              </PFSection>
+            )}
+
+            {error && (
+              <div className="mx-0 mt-8 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+                {error}
+              </div>
+            )}
+          </div>
+        </main>
+      </div>
 
       <PricingStyles />
     </StepShell>
   )
 }
 
-function ModeCard({
-  active,
-  onPick,
+// Local copy of the PFSection primitive from CourseWizard.steps. The
+// course wizard doesn't export it; mirroring rather than refactoring
+// keeps the courses module untouched and the two flows visually
+// identical.
+function PFSection({
+  eyebrow,
   title,
-  desc,
-  recommended,
+  description,
+  children,
 }: {
-  active: boolean
-  onPick: () => void
+  eyebrow?: string
   title: string
-  desc: string
-  recommended?: boolean
+  description?: string
+  children: React.ReactNode
 }) {
   return (
-    <button
-      type="button"
-      onClick={onPick}
-      className={`so-mode ${active ? 'so-mode--active' : ''}`}
-    >
-      <div className="so-mode-head">
-        <span className="so-mode-title">{title}</span>
-        {recommended && (
-          <span className="so-mode-rec">Recommended</span>
-        )}
+    <section className="pf-section">
+      <div className="pf-section-head">
+        {eyebrow && <div className="pf-eyebrow">{eyebrow}</div>}
+        <h2 className="pf-title">{title}</h2>
+        {description && <p className="pf-desc">{description}</p>}
       </div>
-      <div className="so-mode-desc">{desc}</div>
-    </button>
+      <div>{children}</div>
+    </section>
   )
 }
 
+// CSS block ported from CourseWizard.steps's StepPricingWizard. Same
+// design tokens, same .pf-main / .pf-section / .pf-eyebrow / .pf-title
+// / .pf-desc / .pf-form-col scaffolding so the step proportions match
+// the course flow byte-for-byte. We namespace under
+// `.spaire-wizard-pricing-nl` to avoid clashing with the course
+// version's classes when both screens happen to mount in the same
+// session.
 function PricingStyles() {
   return (
     <style jsx global>{`
-      .so-pricing-modes {
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
+      .spaire-wizard-pricing-nl {
+        --bg: oklch(0.995 0.002 80);
+        --surface: #ffffff;
+        --surface-2: oklch(0.975 0.004 270);
+        --ink: oklch(0.18 0.012 270);
+        --ink-2: oklch(0.36 0.012 270);
+        --muted: oklch(0.56 0.014 270);
+        --muted-2: oklch(0.72 0.012 270);
+        --hair: oklch(0.92 0.006 270);
+        --accent: oklch(0.62 0.21 265);
+        font-family: 'Poppins', system-ui, sans-serif;
+        color: var(--ink);
+      }
+      .spaire-wizard-pricing-nl,
+      .spaire-wizard-pricing-nl * {
+        font-family: 'Poppins', system-ui, sans-serif;
+      }
+      .pf-main-nl {
+        max-width: 760px;
+        margin: 0 auto;
+        padding: 12px 0 32px;
+      }
+      .pf-form-col-nl {
+        min-width: 0;
+      }
+      .pf-main-nl .pf-section {
+        padding-block: 36px;
+        border-top: 1px solid var(--hair);
+      }
+      .pf-main-nl .pf-section:first-of-type {
+        border-top: none;
+        padding-top: 0;
+      }
+      .pf-main-nl .pf-section-head {
         margin-bottom: 24px;
       }
-      .so-mode {
-        text-align: left;
-        padding: 16px 18px;
-        background: var(--so-white, #fff);
-        border: 1.5px solid var(--so-gray2, #e8e8e8);
-        border-radius: 12px;
-        cursor: pointer;
-        font-family: inherit;
-        color: var(--so-black, #0a0a0a);
-        transition:
-          border-color 0.15s,
-          background 0.15s,
-          box-shadow 0.15s;
-      }
-      .so-mode:hover {
-        border-color: #c8c8c8;
-      }
-      .so-mode--active {
-        border-color: var(--so-black, #0a0a0a);
-        box-shadow: 0 0 0 3px rgba(10, 10, 10, 0.07);
-      }
-      .so-mode-head {
-        display: flex;
-        align-items: center;
-        gap: 10px;
+      .pf-main-nl .pf-eyebrow {
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 1.2px;
+        text-transform: uppercase;
+        color: var(--muted-2);
         margin-bottom: 6px;
       }
-      .so-mode-title {
-        font-size: 15px;
+      .pf-main-nl .pf-title {
+        font-size: 22px;
         font-weight: 600;
-      }
-      .so-mode-rec {
-        font-size: 10px;
-        text-transform: uppercase;
-        letter-spacing: 0.08em;
-        color: var(--so-gray4, #6a6a6a);
-        background: var(--so-gray1, #f4f4f4);
-        padding: 2px 7px;
-        border-radius: 4px;
-      }
-      .so-mode-desc {
-        font-size: 13px;
-        line-height: 1.45;
-        color: var(--so-gray4, #6a6a6a);
-      }
-
-      .so-price-row {
-        padding: 16px 18px;
-        background: var(--so-gray1, #f4f4f4);
-        border-radius: 12px;
-        margin-bottom: 8px;
-      }
-      .so-price-label {
-        font-size: 12px;
-        text-transform: uppercase;
-        letter-spacing: 0.08em;
-        color: var(--so-gray4, #6a6a6a);
-        margin-bottom: 10px;
-      }
-      .so-price-controls {
-        display: flex;
-        gap: 8px;
-        align-items: stretch;
-      }
-      .so-price-input {
-        flex: 1;
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        background: var(--so-white, #fff);
-        border: 1.5px solid var(--so-gray2, #e8e8e8);
-        border-radius: 10px;
-        padding: 0 12px;
-      }
-      .so-price-input:focus-within {
-        border-color: oklch(0.62 0.21 265);
-      }
-      .so-price-currency {
-        font-size: 12px;
-        font-weight: 600;
-        color: var(--so-gray4, #6a6a6a);
-        letter-spacing: 0.04em;
-      }
-      .so-price-input input {
-        flex: 1;
-        height: 44px;
-        border: none;
-        outline: none;
-        background: transparent;
-        font-family: inherit;
-        font-size: 15px;
-        color: var(--so-black, #0a0a0a);
-        -webkit-appearance: none;
-        appearance: none;
-      }
-      .so-price-input input::-webkit-outer-spin-button,
-      .so-price-input input::-webkit-inner-spin-button {
-        -webkit-appearance: none;
         margin: 0;
+        letter-spacing: -0.3px;
+        color: var(--ink);
       }
-      .so-price-interval {
-        height: 44px;
-        padding: 0 14px;
-        background: var(--so-white, #fff);
-        border: 1.5px solid var(--so-gray2, #e8e8e8);
-        border-radius: 10px;
-        font-family: inherit;
-        font-size: 14px;
-        color: var(--so-black, #0a0a0a);
-        cursor: pointer;
-        -webkit-appearance: none;
-        appearance: none;
-        padding-right: 28px;
-        background-image:
-          url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath fill='%236a6a6a' d='M5 6L0 0h10z'/%3E%3C/svg%3E");
-        background-repeat: no-repeat;
-        background-position: right 12px center;
-        background-size: 8px;
-      }
-      .so-price-hint {
-        margin-top: 10px;
-        font-size: 12px;
-        color: var(--so-gray4, #6a6a6a);
-        line-height: 1.45;
+      .pf-main-nl .pf-desc {
+        font-size: 13.5px;
+        color: var(--muted);
+        margin: 6px 0 0;
+        max-width: 560px;
+        line-height: 1.5;
       }
     `}</style>
   )
 }
-
-// Re-export StepShell for callers that want it. Currently unused
-// outside this file but kept for parity with the courses module's
-// export surface.
-export { StepShell }

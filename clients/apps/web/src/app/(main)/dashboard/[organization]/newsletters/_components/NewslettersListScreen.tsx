@@ -4,21 +4,28 @@ import {
   NewsletterRow,
   useNewsletters,
 } from '@/hooks/queries/newsletters'
-import Button from '@spaire/ui/components/atoms/Button'
+import { DashboardBody } from '@/components/Layout/DashboardLayout'
 import { schemas } from '@spaire/client'
 import ArrowBackOutlined from '@mui/icons-material/ArrowBackOutlined'
+import ArticleOutlined from '@mui/icons-material/ArticleOutlined'
+import Button from '@spaire/ui/components/atoms/Button'
+import { List, ListItem } from '@spaire/ui/components/atoms/List'
+import Pill from '@spaire/ui/components/atoms/Pill'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Icon } from '../../email-marketing/_components/Icon'
 
 const FONT_VAR = 'var(--font-body, "Poppins", system-ui, sans-serif)'
 const HEADING_VAR = `var(--font-heading, ${FONT_VAR})`
 
-// Top-level entry point for the newsletter feature. When the org has
-// no newsletters yet we take over the screen with a full-bleed hero
-// card — same structure the courses index uses for its empty state.
-// Once any newsletters exist, the page returns to a normal grid with a
-// "New newsletter" CTA in the top right.
+// Two states:
+//
+//   1. No newsletters in the org yet → full-bleed hero card (same
+//      structure as CoursesEmptyHero — fixed inset overlay, big
+//      cover image, dark gradient, glass chip, single white pill
+//      CTA).
+//   2. At least one newsletter → DashboardBody + List + ListItem,
+//      the same primitives the courses list and products list use.
+//      No bespoke card grid.
 
 export function NewslettersListScreen({
   organization,
@@ -29,53 +36,123 @@ export function NewslettersListScreen({
   const { data: newsletters, isLoading, error } = useNewsletters(organization.id)
   const hasAny = (newsletters?.length ?? 0) > 0
 
+  const handleCreate = () =>
+    router.push(`/dashboard/${organization.slug}/newsletters/new`)
+  const handleBackToDashboard = () =>
+    router.push(`/dashboard/${organization.slug}`)
+
   if (!isLoading && !hasAny && !error) {
     return (
       <NewslettersEmptyHero
-        onBack={() => router.push(`/dashboard/${organization.slug}`)}
-        onStart={() =>
-          router.push(`/dashboard/${organization.slug}/newsletters/new`)
-        }
+        onBack={handleBackToDashboard}
+        onStart={handleCreate}
       />
     )
   }
 
   return (
-    <div className="mx-auto max-w-5xl px-6 py-8">
-      <header className="mb-8 flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-semibold tracking-tight text-gray-900">
-            Newsletters
-          </h1>
-          <p className="mt-1.5 text-sm text-gray-500">
-            Publish editorial issues to email subscribers and the web
-            archive in one flow.
-          </p>
-        </div>
-        <Link href={`/dashboard/${organization.slug}/newsletters/new`}>
-          <Button>
-            <Icon name="plus" size={14} /> New newsletter
+    <DashboardBody>
+      <div className="flex flex-col gap-y-8">
+        <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight text-gray-900">
+              Newsletters
+            </h1>
+            <p className="mt-1 text-sm text-gray-500">
+              Publish editorial issues to subscribers by email and on
+              the web.
+            </p>
+          </div>
+          <Button
+            wrapperClassNames="md:w-fit"
+            className="w-full md:w-fit"
+            onClick={handleCreate}
+          >
+            <span>New</span>
           </Button>
-        </Link>
-      </header>
+        </div>
 
-      {isLoading ? (
-        <LoadingGrid />
-      ) : error ? (
-        <ErrorState
-          message={error instanceof Error ? error.message : String(error)}
-        />
-      ) : (
-        <NewslettersGrid
-          organizationSlug={organization.slug}
-          newsletters={newsletters!}
-        />
-      )}
-    </div>
+        {isLoading ? (
+          <List size="small">
+            {[1, 2, 3].map((i) => (
+              <div
+                key={i}
+                className="h-16 animate-pulse rounded-xl bg-gray-100"
+              />
+            ))}
+          </List>
+        ) : error ? (
+          <div className="rounded-xl bg-red-50 p-4 text-red-600">
+            {error instanceof Error ? error.message : String(error)}
+          </div>
+        ) : (
+          <List size="small">
+            {(newsletters ?? []).map((n) => (
+              <NewsletterRowItem
+                key={n.id}
+                newsletter={n}
+                organization={organization}
+              />
+            ))}
+          </List>
+        )}
+      </div>
+    </DashboardBody>
   )
 }
 
-// ── Hero empty state — clones the structure used by courses ──────────
+// One row, structured the same way ProductListItem renders — Link
+// wrapping a ListItem with a left identity column and right meta
+// column. No custom cards, no shadow grids; just the platform's
+// primitives so it sits next to courses + products without looking
+// out of place.
+
+function NewsletterRowItem({
+  newsletter,
+  organization,
+}: {
+  newsletter: NewsletterRow
+  organization: schemas['Organization']
+}) {
+  const href = `/dashboard/${organization.slug}/newsletters/${newsletter.id}`
+  return (
+    <Link href={href}>
+      <ListItem className="flex flex-row items-center justify-between gap-x-6">
+        <div className="flex min-w-0 grow flex-row items-center gap-x-4 text-sm">
+          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-gray-100 text-gray-500">
+            <ArticleOutlined fontSize="small" />
+          </div>
+          <div className="flex min-w-0 flex-col gap-y-0.5">
+            <span className="truncate text-sm font-medium text-gray-900">
+              {newsletter.name}
+            </span>
+            {newsletter.masthead && (
+              <span className="truncate font-mono text-[10.5px] uppercase tracking-wider text-gray-500">
+                {newsletter.masthead}
+              </span>
+            )}
+          </div>
+        </div>
+        <div className="flex shrink-0 flex-row items-center gap-x-3 md:gap-x-4">
+          {newsletter.product_id ? (
+            <Pill color="blue" className="shrink-0 px-2 py-0.5 text-xs">
+              Paid
+            </Pill>
+          ) : (
+            <Pill color="gray" className="shrink-0 px-2 py-0.5 text-xs">
+              Free
+            </Pill>
+          )}
+          <span className="hidden font-mono text-xs text-gray-500 md:inline">
+            /{newsletter.slug}
+          </span>
+        </div>
+      </ListItem>
+    </Link>
+  )
+}
+
+// ── Empty hero — clone of CoursesEmptyHero structure ────────────────
 
 function NewslettersEmptyHero({
   onBack,
@@ -154,18 +231,14 @@ function NewslettersEmptyHero({
                 '0 2px 6px rgba(0,0,0,0.06), 0 24px 60px rgba(0,0,0,0.10)',
             }}
           >
-            {/* Hero image. /assets/newsletters-empty-hero.jpg is the
-                asset we should commission to match the courses card;
-                until it lands, the gradient + masthead layer below is
-                a deliberate fallback so the screen still ships. */}
+            {/* Hero image. Drop /assets/newsletters-empty-hero.jpg into
+                public/assets to match the courses card exactly. */}
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src="/assets/newsletters-empty-hero.jpg"
               alt=""
               aria-hidden="true"
               onError={(e) => {
-                // Hide a missing asset cleanly — the gradient + headline
-                // background still reads.
                 ;(e.target as HTMLImageElement).style.display = 'none'
               }}
               style={{
@@ -177,8 +250,7 @@ function NewslettersEmptyHero({
               }}
             />
 
-            {/* Fallback typographic backdrop. Sits behind the real image
-                so when the asset arrives it occludes this. */}
+            {/* Fallback backdrop until the asset lands. */}
             <div
               aria-hidden="true"
               style={{
@@ -307,7 +379,7 @@ function NewslettersEmptyHero({
                   fontFamily: HEADING_VAR,
                 }}
               >
-                Publish a newsletter people read
+                Write your own publication
               </h1>
 
               <div
@@ -320,7 +392,7 @@ function NewslettersEmptyHero({
                   lineHeight: 1.5,
                 }}
               >
-                Spaire turns long-form writing into a publication you
+                Spaire turns long-form writing into a newsletter you
                 own — email, web archive, free and paid tiers, and a
                 clean editorial canvas. Bring your audience, keep your
                 voice.
@@ -353,90 +425,5 @@ function NewslettersEmptyHero({
         </div>
       </div>
     </>
-  )
-}
-
-// ── Grid ─────────────────────────────────────────────────────────────
-
-function NewslettersGrid({
-  organizationSlug,
-  newsletters,
-}: {
-  organizationSlug: string
-  newsletters: NewsletterRow[]
-}) {
-  return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      {newsletters.map((n) => (
-        <NewsletterCard
-          key={n.id}
-          newsletter={n}
-          organizationSlug={organizationSlug}
-        />
-      ))}
-    </div>
-  )
-}
-
-function NewsletterCard({
-  organizationSlug,
-  newsletter,
-}: {
-  organizationSlug: string
-  newsletter: NewsletterRow
-}) {
-  return (
-    <Link
-      href={`/dashboard/${organizationSlug}/newsletters/${newsletter.id}`}
-      className="group block rounded-xl border border-gray-200 bg-white p-5 transition-shadow hover:shadow-md"
-    >
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0 flex-1">
-          <div className="truncate text-base font-medium text-gray-900">
-            {newsletter.name}
-          </div>
-          {newsletter.masthead && (
-            <div className="mt-1 truncate font-mono text-[11px] uppercase tracking-wider text-gray-500">
-              {newsletter.masthead}
-            </div>
-          )}
-        </div>
-        {newsletter.product_id && (
-          <span
-            title="Paid newsletter"
-            className="inline-flex items-center gap-1 rounded-md border border-gray-200 bg-gray-50 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-gray-600"
-          >
-            Paid
-          </span>
-        )}
-      </div>
-      {newsletter.description && (
-        <p className="mt-3 line-clamp-2 text-sm text-gray-500">
-          {newsletter.description}
-        </p>
-      )}
-      <div className="mt-4 flex items-center gap-2 text-xs text-gray-500">
-        <span className="font-mono">/{newsletter.slug}</span>
-      </div>
-    </Link>
-  )
-}
-
-function LoadingGrid() {
-  return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      {[0, 1, 2].map((i) => (
-        <div
-          key={i}
-          className="h-32 animate-pulse rounded-xl bg-gray-100"
-        />
-      ))}
-    </div>
-  )
-}
-
-function ErrorState({ message }: { message: string }) {
-  return (
-    <div className="rounded-xl bg-red-50 p-4 text-red-600">{message}</div>
   )
 }
