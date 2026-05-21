@@ -972,21 +972,30 @@ function LessonVideoBlock({
   onRemove: () => void
 }) {
   const uploading = uploadProgress !== null || isPreparing
-  const processing =
-    !uploading &&
+  const processingOnServer =
     !!lesson.mux_status &&
     lesson.mux_status !== 'ready' &&
     lesson.mux_status !== 'errored'
-  // Render order matters: while uploading or processing, the local preview
-  // wins over a stale ready playback so the user actually sees the new file
-  // they just picked. Once mux_status flips back to 'ready' (and the local
-  // URL has been cleared) we fall through to the HLS player.
-  const showLocalPreview = !!localVideoUrl && (uploading || processing)
+  // The local preview stays visible the entire time we hold a blob URL —
+  // not just while the XHR is in flight. The previous gate (`uploading
+  // || processing`) hid the preview during the race where XHR finishes
+  // before the server's "waiting" status has refetched, which made the
+  // freshly uploaded video appear to vanish until processing finally
+  // landed. The clear-on-ready effect in the parent drops `localVideoUrl`
+  // the moment a *new* playback id arrives, so this can't outstay its
+  // welcome.
+  const showLocalPreview = !!localVideoUrl
   const showHlsPlayer =
     !showLocalPreview &&
     lesson.mux_playback_id != null &&
     lesson.mux_status === 'ready'
-  const hasVideo = showHlsPlayer || showLocalPreview || processing
+  // While we hold a local preview but the server hasn't yet acknowledged
+  // the new upload, the spinner+bar still need to render so the user
+  // sees "this is uploading / processing" rather than "the video is
+  // mysteriously here with no status."
+  const stillSettling = !!localVideoUrl && !showHlsPlayer && !uploading
+  const showStatusBar = uploading || processingOnServer || stillSettling
+  const hasVideo = showHlsPlayer || showLocalPreview || processingOnServer
   const errored = lesson.mux_status === 'errored' && !uploading
 
   return (
@@ -1023,7 +1032,7 @@ function LessonVideoBlock({
               </div>
             )}
           </div>
-          {(uploading || processing) && (
+          {showStatusBar && (
             <VideoUploadBar
               progress={uploadProgress}
               label={uploading ? 'Uploading' : 'Processing'}
