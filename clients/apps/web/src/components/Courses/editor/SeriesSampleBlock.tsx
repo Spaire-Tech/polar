@@ -26,6 +26,7 @@ import {
 
 import { useUpdateCourse } from '@/hooks/queries/courses'
 import type { CourseLessonRead, CourseRead } from '@/hooks/queries/courses'
+import { useIsMobile } from '@/utils/mobile'
 import { useEditor } from './EditorContext'
 
 const MIN_DURATION_SEC = 5
@@ -747,6 +748,13 @@ export function SeriesSampleBlock({
 }) {
   const editor = useEditor()
   const inEditMode = editor.mode === 'edit'
+  // Match hero's mobile-detection logic — studio toggle wins, otherwise fall
+  // back to the actual viewport. The player frame uses a taller aspect ratio
+  // on mobile so the sample reads as substantial as the hero above it.
+  const viewportIsMobile = useIsMobile().isMobile
+  const isMobile =
+    editor.device === 'mobile' ||
+    (editor.device === 'desktop' && viewportIsMobile)
 
   // Editor settings popover. Always available in edit mode, regardless of
   // whether the sample is configured yet.
@@ -779,15 +787,13 @@ export function SeriesSampleBlock({
   return (
     <section
       style={{
-        padding: '24px 32px 8px',
-        maxWidth: 1480,
+        padding: '20px 20px 8px',
         margin: '0 auto',
         fontFamily: FONT_VAR,
       }}
     >
       <div
         style={{
-          maxWidth: 880,
           margin: '0 auto',
         }}
       >
@@ -807,9 +813,13 @@ export function SeriesSampleBlock({
             onEnroll={onEnroll}
             canEnroll={canEnroll}
             enrolling={enrolling}
+            isMobile={isMobile}
           />
         ) : (
-          <SampleEmptyState onConfigure={() => setSettingsOpen(true)} />
+          <SampleEmptyState
+            onConfigure={() => setSettingsOpen(true)}
+            isMobile={isMobile}
+          />
         )}
 
         {inEditMode && hasUsableSample && (
@@ -854,14 +864,20 @@ export function SeriesSampleBlock({
   )
 }
 
-function SampleEmptyState({ onConfigure }: { onConfigure: () => void }) {
+function SampleEmptyState({
+  onConfigure,
+  isMobile,
+}: {
+  onConfigure: () => void
+  isMobile: boolean
+}) {
   return (
     <div
       style={{
         position: 'relative',
         width: '100%',
-        aspectRatio: '16 / 9',
-        borderRadius: 20,
+        aspectRatio: isMobile ? '4 / 5' : '16 / 9',
+        borderRadius: 'calc(28px * var(--radius-mul, 1))',
         border: '1px dashed oklch(0.86 0.003 280)',
         background:
           'linear-gradient(180deg, oklch(0.985 0.003 280) 0%, oklch(0.96 0.003 280) 100%)',
@@ -945,6 +961,7 @@ function SamplePlayerFrame({
   onEnroll,
   canEnroll,
   enrolling,
+  isMobile,
 }: {
   course: CourseRead
   lessonTitle: string
@@ -956,6 +973,7 @@ function SamplePlayerFrame({
   onEnroll: () => void
   canEnroll: boolean
   enrolling: boolean
+  isMobile: boolean
 }) {
   const frameRef = useRef<HTMLDivElement | null>(null)
   const videoRef = useRef<HTMLVideoElement | null>(null)
@@ -1054,12 +1072,12 @@ function SamplePlayerFrame({
         style={{
           position: 'relative',
           width: '100%',
-          aspectRatio: '16 / 9',
-          borderRadius: 20,
+          aspectRatio: isMobile ? '4 / 5' : '16 / 9',
+          borderRadius: 'calc(28px * var(--radius-mul, 1))',
           overflow: 'hidden',
           background: '#000',
           boxShadow:
-            '0 1px 2px rgba(0,0,0,0.05), 0 18px 44px rgba(0,0,0,0.16)',
+            '0 2px 6px rgba(0,0,0,0.06), 0 24px 60px rgba(0,0,0,0.10)',
           border: '1px solid oklch(0.92 0.003 280)',
         }}
       >
