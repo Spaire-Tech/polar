@@ -1369,11 +1369,7 @@ export function StepCourse({
               onChange({ ...data, differentiator: e.target.value })
             }
           />
-          <span className="so-label">
-            {isSeries
-              ? 'Why this series over anything else on this topic?'
-              : 'Why this course over anything else on this topic?'}
-          </span>
+          <span className="so-label">What makes your approach unique?</span>
         </label>
         <p className="so-hint">
           The last two fields are optional — but the more you share, the more
