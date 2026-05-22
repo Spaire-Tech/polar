@@ -5,6 +5,8 @@ import { ProductCard } from '@/components/Products/ProductCard'
 import { schemas } from '@spaire/client'
 import Link from 'next/link'
 import { useMemo } from 'react'
+import { CATEGORY_LABELS } from './categoryLabels'
+import { SectionLabel } from './SectionLabel'
 import {
   LinksLayout,
   StorefrontLinkItem,
@@ -15,11 +17,14 @@ import { resolveSpaceItems, type ResolvedSpaceItem } from './spaceItems'
 // Render the public Space.
 //
 // Order is driven by `space_items` (see ./spaceItems.ts) — products and
-// links interleave in whatever sequence the creator chose. We preserve
-// the existing 2-column product grid by walking the resolved list and
-// chunking runs of consecutive products together; runs of links render
-// in the creator's chosen layout. Single mixed items just sit in their
-// own row.
+// links interleave in whatever sequence the creator chose. The product
+// 2-column grid and per-category labels are preserved by chunking
+// adjacent items at every (kind, category) transition: a run of
+// consecutive products of the SAME category becomes one labelled grid;
+// a category change (or a link in between) starts a fresh section. So
+// ebook → course → ebook renders as three labelled sections — the
+// second eBooks header reappears below the course, exactly the way
+// the creator placed them.
 export const Storefront = ({
   organization,
   products,
@@ -56,44 +61,46 @@ export const Storefront = ({
     return <SpaceEmptyHero />
   }
 
-  // Walk the resolved list and group runs of consecutive same-kind
-  // items into chunks. Each chunk renders together so products keep
-  // their 2-col grid while links keep their chosen layout — both
-  // possible without losing the interleaved order.
-  const chunks = chunkByKind(items)
+  const chunks = chunkByKindAndCategory(items)
 
   return (
     <div className="flex w-full flex-col gap-12">
       {chunks.map((chunk, idx) => {
         if (chunk.kind === 'product') {
           return (
-            <div
+            <section
               key={`p-${idx}`}
-              className="grid w-full grid-cols-1 gap-6 md:grid-cols-2"
+              id={`section-${chunk.category}-${idx}`}
+              className="flex scroll-mt-24 flex-col gap-6"
             >
-              {chunk.items.map((entry) =>
-                preview ? (
-                  <div key={entry.id}>
-                    <ProductCard
-                      product={entry.product}
-                      showDetails={showDetails}
-                      thumbnailSize={thumbnailSize}
-                    />
-                  </div>
-                ) : (
-                  <Link
-                    key={entry.id}
-                    href={`/${organization.slug}/products/${entry.product.id}`}
-                  >
-                    <ProductCard
-                      product={entry.product}
-                      showDetails={showDetails}
-                      thumbnailSize={thumbnailSize}
-                    />
-                  </Link>
-                ),
-              )}
-            </div>
+              <SectionLabel count={chunk.items.length}>
+                {CATEGORY_LABELS[chunk.category] ?? CATEGORY_LABELS.other}
+              </SectionLabel>
+              <div className="grid w-full grid-cols-1 gap-6 md:grid-cols-2">
+                {chunk.items.map((entry) =>
+                  preview ? (
+                    <div key={entry.id}>
+                      <ProductCard
+                        product={entry.product}
+                        showDetails={showDetails}
+                        thumbnailSize={thumbnailSize}
+                      />
+                    </div>
+                  ) : (
+                    <Link
+                      key={entry.id}
+                      href={`/${organization.slug}/products/${entry.product.id}`}
+                    >
+                      <ProductCard
+                        product={entry.product}
+                        showDetails={showDetails}
+                        thumbnailSize={thumbnailSize}
+                      />
+                    </Link>
+                  ),
+                )}
+              </div>
+            </section>
           )
         }
         return (
@@ -109,8 +116,21 @@ export const Storefront = ({
   )
 }
 
+// Category bucket used when a product has no category, or one we don't
+// have a label for. Keeps it consistent with the legacy renderer.
+const FALLBACK_CATEGORY = 'other'
+
+const categoryOf = (
+  entry: Extract<ResolvedSpaceItem, { kind: 'product' }>,
+): string => {
+  const cat = entry.product.category
+  if (cat && cat in CATEGORY_LABELS) return cat
+  return FALLBACK_CATEGORY
+}
+
 type ProductChunk = {
   kind: 'product'
+  category: string
   items: Extract<ResolvedSpaceItem, { kind: 'product' }>[]
 }
 type LinkChunk = {
@@ -119,27 +139,30 @@ type LinkChunk = {
 }
 type Chunk = ProductChunk | LinkChunk
 
-const chunkByKind = (items: ResolvedSpaceItem[]): Chunk[] => {
+// Walk the resolved list and start a new chunk every time the (kind,
+// category) signature changes. Two ebooks in a row → one labelled
+// chunk. Ebook, course, ebook → three chunks, the eBooks label
+// rendered twice.
+const chunkByKindAndCategory = (items: ResolvedSpaceItem[]): Chunk[] => {
   const out: Chunk[] = []
   for (const item of items) {
-    const tail = out[out.length - 1]
-    if (tail && tail.kind === item.kind) {
-      // TS can't narrow inside the same branch without a redundant
-      // type guard, so we push by kind on a fresh push below when the
-      // tail kind differs. Here, tail.kind === item.kind, so the cast
-      // is safe by construction.
-      if (item.kind === 'product') {
-        (tail as ProductChunk).items.push(item)
-      } else {
-        (tail as LinkChunk).items.push(item)
-      }
-      continue
-    }
     if (item.kind === 'product') {
-      out.push({ kind: 'product', items: [item] })
+      const cat = categoryOf(item)
+      const tail = out[out.length - 1]
+      if (tail && tail.kind === 'product' && tail.category === cat) {
+        tail.items.push(item)
+        continue
+      }
+      out.push({ kind: 'product', category: cat, items: [item] })
     } else {
+      const tail = out[out.length - 1]
+      if (tail && tail.kind === 'link') {
+        tail.items.push(item)
+        continue
+      }
       out.push({ kind: 'link', items: [item] })
     }
   }
   return out
 }
+

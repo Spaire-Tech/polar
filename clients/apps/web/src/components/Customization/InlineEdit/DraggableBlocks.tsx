@@ -1,6 +1,8 @@
 'use client'
 
 import { ProductCard } from '@/components/Products/ProductCard'
+import { CATEGORY_LABELS } from '@/components/Profile/categoryLabels'
+import { SectionLabel } from '@/components/Profile/SectionLabel'
 import {
   EmbedCard,
   type LinksLayout,
@@ -173,8 +175,22 @@ const LinkRow = ({
   return <UrlLink link={link} layout={embedded ? 'card' : layout} preview />
 }
 
+// Category bucket used when a product has no category, or one we don't
+// have a label for. Same fallback the public storefront uses so the
+// editor and the live page agree at the section-label layer too.
+const FALLBACK_CATEGORY = 'other'
+
+const categoryOf = (
+  entry: Extract<ResolvedSpaceItem, { kind: 'product' }>,
+): string => {
+  const cat = entry.product.category
+  if (cat && cat in CATEGORY_LABELS) return cat
+  return FALLBACK_CATEGORY
+}
+
 type ProductChunk = {
   kind: 'product'
+  category: string
   items: Extract<ResolvedSpaceItem, { kind: 'product' }>[]
 }
 type LinkChunk = {
@@ -183,21 +199,28 @@ type LinkChunk = {
 }
 type Chunk = ProductChunk | LinkChunk
 
-const chunkByKind = (items: ResolvedSpaceItem[]): Chunk[] => {
+// Same chunking rule the public Storefront uses: start a new chunk on
+// every (kind, category) transition. Two ebooks in a row → one chunk.
+// Ebook, course, ebook → three chunks, "eBooks" label rendered twice.
+// This is what keeps WYSIWYG between the editor canvas and the live
+// page when the creator drags items across categories.
+const chunkByKindAndCategory = (items: ResolvedSpaceItem[]): Chunk[] => {
   const out: Chunk[] = []
   for (const item of items) {
-    const tail = out[out.length - 1]
-    if (tail && tail.kind === item.kind) {
-      if (item.kind === 'product') {
-        (tail as ProductChunk).items.push(item)
-      } else {
-        (tail as LinkChunk).items.push(item)
-      }
-      continue
-    }
     if (item.kind === 'product') {
-      out.push({ kind: 'product', items: [item] })
+      const cat = categoryOf(item)
+      const tail = out[out.length - 1]
+      if (tail && tail.kind === 'product' && tail.category === cat) {
+        tail.items.push(item)
+        continue
+      }
+      out.push({ kind: 'product', category: cat, items: [item] })
     } else {
+      const tail = out[out.length - 1]
+      if (tail && tail.kind === 'link') {
+        tail.items.push(item)
+        continue
+      }
       out.push({ kind: 'link', items: [item] })
     }
   }
@@ -320,7 +343,7 @@ export const DraggableBlocks = ({
     )
   }
 
-  const chunks = chunkByKind(items)
+  const chunks = chunkByKindAndCategory(items)
   const hasAnyLinks = items.some((i) => i.kind === 'link')
 
   return (
@@ -352,10 +375,14 @@ export const DraggableBlocks = ({
           {chunks.map((chunk, idx) => {
             if (chunk.kind === 'product') {
               return (
-                <div
+                <section
                   key={`p-${idx}`}
-                  className="canvas-card grid w-full grid-cols-1 gap-6 md:grid-cols-2"
+                  className="canvas-card flex scroll-mt-24 flex-col gap-6"
                 >
+                  <SectionLabel count={chunk.items.length}>
+                    {CATEGORY_LABELS[chunk.category] ?? CATEGORY_LABELS.other}
+                  </SectionLabel>
+                  <div className="grid w-full grid-cols-1 gap-6 md:grid-cols-2">
                   {chunk.items.map((entry) => (
                     <SortableItem key={itemKey(entry)} id={itemKey(entry)}>
                       {({ listeners, attributes }) => (
@@ -388,7 +415,8 @@ export const DraggableBlocks = ({
                       )}
                     </SortableItem>
                   ))}
-                </div>
+                  </div>
+                </section>
               )
             }
             // Link chunk
