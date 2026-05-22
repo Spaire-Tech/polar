@@ -1269,8 +1269,8 @@ export function StepInstructor({
         </label>
         <span className="so-hint">
           Your background, experience, and what makes you the right person to
-          teach this. The more you share, the more personalized your landing
-          page will be.
+          teach this. The more you share, the more personalized your experience
+          will be.
         </span>
       </div>
     </StepShell>
