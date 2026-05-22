@@ -158,6 +158,18 @@ export type LandingMedia = {
   objectPosition?: string
 }
 
+// Per-element text formatting. Keyed by the same `path` EditText uses, so
+// every editable text on the landing can carry its own size + style overrides
+// without touching the value of the text itself. All fields are optional —
+// when absent, the parent's inline style (the template's intent) wins.
+export type LandingTextFormat = {
+  // Multiplier on the element's base font-size. 1 = no change.
+  size?: number
+  bold?: boolean
+  italic?: boolean
+  underline?: boolean
+}
+
 export type LandingTheme = {
   fontHeading: string
   fontBody: string
@@ -172,6 +184,10 @@ export type LandingTheme = {
   headingLeading: number
   density: 'compact' | 'comfortable' | 'spacious'
   cornerStyle: 'sharp' | 'rounded' | 'pill'
+  // Global motion intensity for section entry animations. Applied uniformly
+  // so the landing feels cohesive — per-section motion mixing tends to look
+  // accidental rather than designed. Defaulted in DEFAULT_THEME.
+  motion?: 'none' | 'subtle' | 'pronounced'
 }
 
 export type LandingOverrides = {
@@ -180,6 +196,15 @@ export type LandingOverrides = {
   visible?: Record<string, boolean>
   order?: string[]
   theme?: Partial<LandingTheme>
+  // Per-text-element formatting overrides, keyed by EditText path. Applied
+  // on top of the parent component's inline style so the template's intent
+  // is preserved when no override exists.
+  textFormat?: Record<string, LandingTextFormat>
+  // Per-section "extra gap before this section". Keyed by section id. Value
+  // is in pixels. Default treatment when missing: 0 (no extra gap, sections
+  // stack flush as the template intends). Driven by the inter-section drag
+  // handles on the canvas.
+  spacingBefore?: Record<string, number>
   // The full AI-generated landing payload, stored here so the human-facing
   // description stays clean.
   ai_landing?: Record<string, unknown> | null
