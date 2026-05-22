@@ -17,6 +17,13 @@ import {
   SOCIAL_PLATFORMS,
   getSocialIcon,
 } from '@/components/Profile/socialPlatforms'
+import { StorefrontLinkItem } from '@/components/Profile/StorefrontLinks'
+import {
+  removeSpaceItem,
+  reorderSpaceItem,
+  resolveSpaceItems,
+  type ResolvedSpaceItem,
+} from '@/components/Profile/spaceItems'
 import { toast } from '@/components/Toast/use-toast'
 import AddOutlined from '@mui/icons-material/AddOutlined'
 import CloseOutlined from '@mui/icons-material/CloseOutlined'
@@ -35,7 +42,6 @@ import {
   useSensors,
 } from '@dnd-kit/core'
 import {
-  arrayMove,
   horizontalListSortingStrategy,
   SortableContext,
   useSortable,
@@ -815,110 +821,77 @@ export const EditableProfileCard = ({
           </button>
         </div>
 
-        {/* Highlights — scoped to in-Space products, draggable to
-            reorder. Writes back to featured_product_ids, the same
-            ranking hint the canvas drag uses. */}
+        {/* Highlights — the strip of product thumbnails on the profile
+            card. Scoped to product items currently on the Space (per
+            the shared resolver) so hidden products, removed products,
+            and items dropped via Arrange don't leak in. Drag reorders
+            within the strip and writes back to `space_items`. */}
         {(() => {
           const showCardProducts = settings?.show_card_products ?? true
           if (!showCardProducts) return null
-          const featuredMode =
-            (settings?.featured_mode as 'all' | 'curated' | undefined) ??
-            'curated'
-          const featuredIds = (settings?.featured_product_ids ?? []) as string[]
-          const scoped =
-            featuredMode === 'curated'
-              ? products.filter((p) => featuredIds.includes(p.id))
-              : products
-          let ordered = scoped
-          if (featuredIds.length > 0) {
-            const rank = new Map(featuredIds.map((id, i) => [id, i]))
-            const ranked = scoped
-              .filter((p) => rank.has(p.id))
-              .sort((a, b) => rank.get(a.id)! - rank.get(b.id)!)
-            const unranked = scoped.filter((p) => !rank.has(p.id))
-            ordered = [...ranked, ...unranked]
-          }
-          const withImages = ordered.filter((p) => p.medias.length > 0)
+          const resolved = resolveSpaceItems({
+            settings,
+            products,
+            links: (settings?.storefront_links ?? []) as StorefrontLinkItem[],
+          })
+          const productItems = resolved.filter(
+            (i): i is Extract<ResolvedSpaceItem, { kind: 'product' }> =>
+              i.kind === 'product',
+          )
+          const withImages = productItems.filter(
+            (i) => i.product.medias.length > 0,
+          )
           if (withImages.length === 0) return null
 
           const handleDragEnd = (event: DragEndEvent) => {
             const { active, over } = event
             if (!over || active.id === over.id) return
-            const aId = String(active.id)
-            const bId = String(over.id)
-            // Reorder ONLY within the already-visible carousel set. We
-            // must never expand featured_product_ids with products that
-            // weren't already in the Space — in curated mode that field
-            // doubles as the visibility list, so adding ids un-curates
-            // hidden products. (The bug: dragging used to dump every
-            // product id into featured_product_ids.)
-            const visibleIds = withImages.map((p) => p.id)
-            const from = visibleIds.indexOf(aId)
-            const to = visibleIds.indexOf(bId)
-            if (from < 0 || to < 0) return
-            const newVisibleOrder = arrayMove(visibleIds, from, to)
-            const visibleSet = new Set(visibleIds)
-            // Walk featuredIds, swapping visible slots with the new
-            // order in turn. Non-image curated items keep their slots.
-            const queue = [...newVisibleOrder]
-            const woven: string[] = []
-            for (const id of featuredIds) {
-              if (visibleSet.has(id)) {
-                const next = queue.shift()
-                if (next) woven.push(next)
-              } else {
-                woven.push(id)
-              }
-            }
-            // Any visible ids not previously in featuredIds (e.g.
-            // 'all' mode with an empty ranking hint) get appended in
-            // their new order. Hidden / non-Space products are NEVER
-            // added.
-            for (const id of queue) woven.push(id)
-            // Defense: drop any ids that no longer correspond to a
-            // real product (archived / deleted) so the carousel can
-            // never resurrect them.
-            const valid = new Set(products.map((p) => p.id))
-            const clean = woven.filter((id) => valid.has(id))
-
+            // The SortableContext uses raw product ids (it's a
+            // product-only carousel), so we wrap each into a Space
+            // item key — `product:<id>` — before asking the resolver
+            // to apply the reorder.
+            const patch = reorderSpaceItem({
+              settings,
+              products,
+              links: (settings?.storefront_links ?? []) as StorefrontLinkItem[],
+              fromId: `product:${String(active.id)}`,
+              toId: `product:${String(over.id)}`,
+            })
+            if (!patch) return
             setValue(
               'storefront_settings',
               {
                 ...(settings ?? {}),
-                featured_product_ids: clean,
+                ...patch,
               } as schemas['OrganizationStorefrontSettings'],
               { shouldDirty: true },
             )
           }
 
           const handleRemove = (productId: string) => {
-            if (featuredMode === 'curated') {
-              setValue(
-                'storefront_settings',
-                {
-                  ...(settings ?? {}),
-                  featured_product_ids: featuredIds.filter(
-                    (id) => id !== productId,
-                  ),
-                } as schemas['OrganizationStorefrontSettings'],
-                { shouldDirty: true },
-              )
-            } else {
-              // 'all' mode (legacy): removing one item means switching
-              // to curated with everything else preserved.
-              const remaining = withImages
-                .filter((p) => p.id !== productId)
-                .map((p) => p.id)
-              setValue(
-                'storefront_settings',
-                {
-                  ...(settings ?? {}),
-                  featured_mode: 'curated',
-                  featured_product_ids: remaining,
-                } as schemas['OrganizationStorefrontSettings'],
-                { shouldDirty: true },
-              )
-            }
+            // Highlights' (×) means "take this off the Space," same as
+            // the Remove button on the canvas. Drop the item from
+            // space_items AND from featured_product_ids so the legacy
+            // carousel-scoping path can't resurrect it.
+            const links = (settings?.storefront_links ?? []) as StorefrontLinkItem[]
+            const removePatch = removeSpaceItem({
+              settings,
+              products,
+              links,
+              key: `product:${productId}`,
+            })
+            const featuredIds = (settings?.featured_product_ids ?? []) as string[]
+            setValue(
+              'storefront_settings',
+              {
+                ...(settings ?? {}),
+                ...removePatch,
+                featured_product_ids: featuredIds.filter(
+                  (id) => id !== productId,
+                ),
+              } as schemas['OrganizationStorefrontSettings'],
+              { shouldDirty: true },
+            )
           }
 
           return (
@@ -928,14 +901,14 @@ export const EditableProfileCard = ({
               onDragEnd={handleDragEnd}
             >
               <SortableContext
-                items={withImages.map((p) => p.id)}
+                items={withImages.map((entry) => entry.product.id)}
                 strategy={horizontalListSortingStrategy}
               >
                 <div className="mt-5 flex flex-row gap-2 overflow-x-auto pb-1">
-                  {withImages.map((product) => (
+                  {withImages.map((entry) => (
                     <DraggableHighlight
-                      key={product.id}
-                      product={product}
+                      key={entry.product.id}
+                      product={entry.product}
                       onRemove={handleRemove}
                     />
                   ))}

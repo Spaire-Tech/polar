@@ -21,7 +21,11 @@ from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import Mapped, declared_attr, mapped_column, relationship
 
 from polar.config import settings
-from polar.enums import InvoiceNumbering, SubscriptionProrationBehavior, TaxBehaviorOption
+from polar.enums import (
+    InvoiceNumbering,
+    SubscriptionProrationBehavior,
+    TaxBehaviorOption,
+)
 from polar.kit.currency import PresentmentCurrency
 from polar.kit.db.models import RateLimitGroupMixin, RecordModel
 from polar.kit.extensions.sqlalchemy import StringEnum
@@ -38,6 +42,17 @@ if TYPE_CHECKING:
 class OrganizationSocials(TypedDict):
     platform: str
     url: str
+
+
+class SpaceItem(TypedDict, total=False):
+    # Discriminator: 'product' references a ProductStorefront by id;
+    # 'link' references a StorefrontLink dict by its id (already kept
+    # inside storefront_links).
+    kind: str  # "product" | "link"
+    id: str
+    hidden: bool  # default False; lets creators take items off the Space
+    # without deleting them. Products restore from the
+    # picker; links restore by toggling the flag back.
 
 
 class OrganizationStorefrontSettings(TypedDict, total=False):
@@ -59,10 +74,19 @@ class OrganizationStorefrontSettings(TypedDict, total=False):
     featured_product_ids: list[str]
     show_card_products: bool
     storefront_links: list[dict]  # list of StorefrontLink dicts
-    links_position: str  # "before_products" | "after_products" — DEPRECATED, see block_order
+    links_position: (
+        str  # "before_products" | "after_products" — DEPRECATED, see block_order
+    )
     block_order: list[str]  # explicit ordering, e.g. ["products", "links", "forms"]
     links_layout: str  # "classic" | "carousel" | "image_grid" | "card"
     header_focal_point: str | None  # e.g. "50% 30%"
+    # New flat-ordering model. When non-empty, this is the single source
+    # of truth for what shows on the Space and in what order — products
+    # and links can interleave freely (a link between two products,
+    # etc.). Empty → renderers fall back to deriving from
+    # featured_product_ids + storefront_links + block_order so existing
+    # rows keep rendering identically until a creator hits Arrange.
+    space_items: list[SpaceItem]
 
 
 _default_storefront_settings: OrganizationStorefrontSettings = {
