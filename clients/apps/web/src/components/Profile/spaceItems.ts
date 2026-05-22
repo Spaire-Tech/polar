@@ -85,13 +85,18 @@ export type ResolvedSpaceItem =
 //   • Prefer the persisted `space_items` order.
 //   • Fall back to legacy ordering (featured_product_ids +
 //     storefront_links + block_order) when `space_items` is empty.
-//   • Append any product or link that exists in the catalog/link list
-//     but is missing from `space_items` (e.g. a freshly created
-//     product the creator hasn't placed yet). Position-wise these are
-//     parked at the end so they're visible but obviously "new."
 //   • Drop ids that no longer resolve (archived products, deleted
-//     links) — the persisted order keeps them around but the renderer
-//     should never see them.
+//     links). The persisted order keeps them around (so unarchiving
+//     restores the slot) but the renderer never sees them.
+//
+// What we *don't* do: auto-append catalog rows that aren't in
+// `space_items`. An earlier version did, on the theory that
+// freshly-created products should auto-appear on the Space — but it
+// made removal impossible (anything you removed from space_items just
+// floated to the bottom on the next render). The Space is now strictly
+// opt-in: new products show up via the picker (which writes to
+// space_items), and newly added links go through the link panel's
+// addLink → appendSpaceItem path. Removal sticks.
 //
 // `includeHidden` is for editor surfaces (the Arrange panel) that need
 // to render hidden rows in a muted state so the creator can flip the
@@ -139,24 +144,6 @@ export const resolveSpaceItems = ({
       if (hidden && !includeHidden) continue
       resolved.push({ kind: 'link', id: item.id, hidden, link })
     }
-  }
-
-  // Append any catalog/link rows that aren't in the persisted order
-  // yet. This is the "newly created product just appeared" case —
-  // without this branch a brand-new product would be invisible until
-  // the creator opened Arrange and dropped it somewhere.
-  for (const product of products) {
-    if (seenProducts.has(product.id)) continue
-    resolved.push({
-      kind: 'product',
-      id: product.id,
-      hidden: false,
-      product,
-    })
-  }
-  for (const link of links) {
-    if (seenLinks.has(link.id)) continue
-    resolved.push({ kind: 'link', id: link.id, hidden: false, link })
   }
 
   return resolved
