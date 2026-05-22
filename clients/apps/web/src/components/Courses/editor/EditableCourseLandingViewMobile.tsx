@@ -127,7 +127,10 @@ export function MobileHero({
         />
       </EditMedia>
 
-      {/* Vignette */}
+      {/* Vignette — darker at the very top so the transition from the
+          black status-bar / overscroll area into the image is a smooth
+          gradient instead of a hard line. The bottom darkness is what
+          makes the title text readable over the artwork. */}
       <div
         style={{
           position: 'absolute',
@@ -135,7 +138,7 @@ export function MobileHero({
           zIndex: 2,
           pointerEvents: 'none',
           background:
-            'linear-gradient(180deg, oklch(0 0 0 / 0.45) 0%, oklch(0 0 0 / 0.05) 22%, oklch(0 0 0 / 0) 40%, oklch(0 0 0 / 0.55) 75%, oklch(0 0 0 / 0.92) 100%)',
+            'linear-gradient(180deg, oklch(0 0 0 / 0.95) 0%, oklch(0 0 0 / 0.65) 6%, oklch(0 0 0 / 0.25) 14%, oklch(0 0 0 / 0.05) 24%, oklch(0 0 0 / 0) 38%, oklch(0 0 0 / 0.55) 75%, oklch(0 0 0 / 0.92) 100%)',
         }}
       />
 
