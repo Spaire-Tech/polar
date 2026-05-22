@@ -83,16 +83,16 @@ export function MobileHero({
     <section
       style={{
         position: 'relative',
-        // Apple-TV-style card: small breathing room on all four sides
-        // so the 28px corners are visible top + bottom, not just
-        // bottom. Still phone-native — the hero hugs the viewport
-        // with the smallest gutter that lets the corner radius read.
-        margin: '12px 12px 0',
-        height: 600,
+        // Full-bleed hero: no gutter, no rounded corners. Matches Apple TV
+        // app behavior where the cover extends to all four screen edges.
+        // The bottom content stack handles its own padding; the top tag
+        // adds env(safe-area-inset-top) so it clears the status bar / notch
+        // when rendered on a real device.
+        height: '100svh',
+        minHeight: 560,
         overflow: 'hidden',
         background: '#000',
         isolation: 'isolate',
-        borderRadius: 28,
       }}
     >
       <EditMedia
@@ -124,12 +124,12 @@ export function MobileHero({
         }}
       />
 
-      {/* Top tag */}
+      {/* Top tag — pushed below the status bar / notch on real devices */}
       <div
         style={{
           position: 'absolute',
           left: 24,
-          top: 24,
+          top: 'calc(env(safe-area-inset-top, 0px) + 18px)',
           zIndex: 3,
           display: 'flex',
           alignItems: 'center',
@@ -153,14 +153,16 @@ export function MobileHero({
         <EditText path="hero.eyebrow" defaultValue="SPAIRE ORIGINAL" />
       </div>
 
-      {/* Bottom content stack */}
+      {/* Bottom content stack — bottom padding includes the home-indicator
+          inset so the CTA isn't hidden behind it on a real device */}
       <div
         style={{
           position: 'absolute',
           left: 0,
           right: 0,
           bottom: 0,
-          padding: '24px 22px 30px',
+          padding:
+            '24px 22px calc(env(safe-area-inset-bottom, 0px) + 30px)',
           color: 'white',
           zIndex: 3,
           fontFamily: FONT_VAR,
