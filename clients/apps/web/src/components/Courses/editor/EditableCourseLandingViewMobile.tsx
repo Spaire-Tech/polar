@@ -83,13 +83,28 @@ export function MobileHero({
     <section
       style={{
         position: 'relative',
-        // Full-bleed hero: no gutter, no rounded corners. Matches Apple TV
-        // app behavior where the cover extends to all four screen edges.
-        // The bottom content stack handles its own padding; the top tag
-        // adds env(safe-area-inset-top) so it clears the status bar / notch
-        // when rendered on a real device.
-        height: '100svh',
-        minHeight: 560,
+        // Apple-TV-app-style hero: cover artwork extends to every edge of
+        // the screen including BEHIND the status bar at the top.
+        //
+        // The page sits inside a wrapper (`PublicLayout`) that adds
+        // `px-4 py-4` on mobile, so to actually reach the screen edges we
+        // break out of that wrapper with viewport-relative values:
+        //   - width: 100vw + marginLeft: calc(50% - 50vw) → ignores the
+        //     wrapper's 16px horizontal padding and any max-width / center
+        //     constraints.
+        //   - marginTop pulls up by the wrapper's 16px top padding PLUS
+        //     env(safe-area-inset-top) so the image extends behind the
+        //     iOS status bar (the route's layout sets viewportFit=cover so
+        //     Safari actually allows this).
+        // Height is a reasonable portion of the viewport — NOT 100svh —
+        // so the rest of the page (CTAs, description, FAQ, etc.) still
+        // sits below in the natural document flow, mirroring Apple TV's
+        // "image + title overlay above, dark content section below"
+        // structure.
+        width: '100vw',
+        marginLeft: 'calc(50% - 50vw)',
+        marginTop: 'calc(-1 * (env(safe-area-inset-top, 0px) + 16px))',
+        height: 'clamp(440px, 70svh, 620px)',
         overflow: 'hidden',
         background: '#000',
         isolation: 'isolate',
