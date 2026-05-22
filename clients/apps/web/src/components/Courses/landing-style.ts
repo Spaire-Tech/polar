@@ -46,7 +46,9 @@ Cadence
 
 Cardinality (enforced by the renderer — do not violate)
 - sections: exactly 4 entries for a course, exactly 0 for a series.
-- learn_items: exactly 6 entries.
+- learn_items: exactly 4 entries. Each one is a moment / outcome / scene the
+  card surfaces; the description sits behind a "Read more" tap, so titles
+  must work on their own as a one-line headline.
 - faq_items: exactly 7 entries.
 - final_cta_guarantees: exactly 4 short strings (1-3 words each).
 - value_props: exactly 4 entries.
@@ -63,7 +65,7 @@ const CADENCE_REGISTERS: { register: string; rules: string[] }[] = [
     rules: [
       'Tagline: 5-8 words, no period. Names what the learner will be able to do or how their thinking will shift. Starts with a strong verb that is NOT "build", "master", "unlock", or "transform".',
       'Description: 2 sentences, 200-360 chars. First sentence names the instructor in one specific phrase (role + signature credit). Second sentence names what the course sits inside — a body of work, a domain, a recurring problem — and references the real lesson count by number.',
-      'Outcome (learn_item.title): one short sentence ending in a period. Names a concrete thing the learner will be able to DO, not a topic. 4-10 words.',
+      'Outcome (learn_item.title): one short sentence ending in a period. Names a concrete thing the learner will be able to DO, not a topic. 4-9 words. The title shows alone on a card by default — it must work as a standalone headline.',
       'FAQ answer: 1-3 sentences, 120-380 chars. Names a specific number, format detail, or device when possible. No marketing voice.',
     ],
   },
@@ -72,7 +74,7 @@ const CADENCE_REGISTERS: { register: string; rules: string[] }[] = [
     rules: [
       'Tagline: 5-9 words, no period. Evocative, in the creator\'s voice. Not instructional. Not a question. Names the feeling, the week, the territory — not what you\'ll learn.',
       'Description: 2 sentences, 200-360 chars. First sentence names the creator in one specific phrase (role + credit). Second sentence names what the season sits inside — a moment, a year, a body of work — and references the real episode count by number.',
-      'Watch-item (learn_item.title): one short sentence ending in a period. Names a moment the viewer will witness, not a skill they\'ll acquire. 4-10 words.',
+      'Watch-item (learn_item.title): one short sentence ending in a period. Names a moment the viewer will witness, not a skill they\'ll acquire. 4-9 words. The title shows alone on a card by default — it must work as a standalone headline.',
       'FAQ answer: 1-3 sentences, 120-380 chars. Concrete runtime, episode count, format. Frame around watching, never learning.',
     ],
   },
@@ -129,7 +131,7 @@ export function normalizeLandingCardinality(
   const out: Record<string, unknown> = { ...landing }
 
   out.value_props = clampArray(out.value_props, 4, { ...PLACEHOLDER_VALUE_PROP })
-  out.learn_items = clampArray(out.learn_items, 6, { ...PLACEHOLDER_LEARN })
+  out.learn_items = clampArray(out.learn_items, 4, { ...PLACEHOLDER_LEARN })
   out.faq_items = clampArray(out.faq_items, 7, { ...PLACEHOLDER_FAQ })
 
   const guarantees = Array.isArray(out.final_cta_guarantees)

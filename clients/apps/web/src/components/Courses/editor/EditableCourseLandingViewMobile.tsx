@@ -11,6 +11,7 @@ import { useMemo, useState } from 'react'
 import { TrailerModal } from './EditableCourseLandingView'
 import { useEditor } from './EditorContext'
 import { EditMedia, EditText } from './EditPrimitives'
+import { LearnItemSheet } from './LearnItemSheet'
 import { SectionModuleSheet } from './SectionModuleSheet'
 
 const FONT_VAR = 'var(--font-body, "Poppins", system-ui, sans-serif)'
@@ -1667,34 +1668,37 @@ export function MobileCreatedBy({
 
 // ── What you'll learn ──────────────────────────────────────────────────────
 
+// Four cards on a vertical spine — mobile mirror of the desktop zigzag.
+// Spine runs down the left edge with nodes; title-only cards on the right
+// open a sheet with the description on tap.
 const MOBILE_LEARN_DEFAULTS: { title: string; desc: string }[] = [
   {
-    title: "Write a first sentence people can't put down.",
-    desc: 'Three patterns the instructor uses to make a reader commit to the next paragraph.',
+    title: 'The robot that started a career.',
+    desc: 'Sit with the moment a side project turned into the work — the early build, the room it was made in, what changed after.',
   },
   {
-    title: 'Build the three-beat argument.',
-    desc: 'Claim, concede, return — a structure that holds up under cross-examination.',
+    title: 'The week the work nearly broke.',
+    desc: 'The decisions made under pressure. What was kept, what was cut, what came back later.',
   },
   {
-    title: 'Cut a draft by 30% without losing the meaning.',
-    desc: 'Three editing passes you’ll run on every piece. Most writing problems are length problems.',
+    title: 'A practice no one talks about.',
+    desc: 'The small ritual that holds the whole thing together. Twenty minutes, every day, that nobody films.',
   },
   {
-    title: 'Use concession to make your point harder to refute.',
-    desc: 'When to give ground, what to concede, and how to return stronger.',
-  },
-  {
-    title: 'Find a voice that sounds like you on a good day.',
-    desc: 'Not professional voice. Not literary voice. Yours, edited.',
-  },
-  {
-    title: 'Write the thing you’ve been avoiding.',
-    desc: 'A working method for finishing the hard email, the op-ed, the toast.',
+    title: 'What the work means now.',
+    desc: 'Where the story sits today — and what the next chapter actually looks like from the inside.',
   },
 ]
 
+const MOBILE_LEARN_HUES = [195, 35, 285, 145]
+
 export function MobileWhatYoullLearn() {
+  const ed = useEditor()
+  const [openIdx, setOpenIdx] = useState<number | null>(null)
+  const items = MOBILE_LEARN_DEFAULTS.map((d, i) => ({
+    title: ed.t(`learn.item${i + 1}.title`, d.title),
+    desc: ed.t(`learn.item${i + 1}.desc`, d.desc),
+  }))
   return (
     <section
       style={{
@@ -1722,7 +1726,7 @@ export function MobileWhatYoullLearn() {
           fontWeight: 600,
           letterSpacing: '-0.035em',
           lineHeight: 1.08,
-          margin: '0 0 36px',
+          margin: '0 0 32px',
           color: 'var(--fg-0, oklch(0.18 0.008 280))',
           textWrap: 'balance',
           fontFamily: HEADING_VAR,
@@ -1731,14 +1735,14 @@ export function MobileWhatYoullLearn() {
         <EditText
           as="span"
           path="learn.title"
-          defaultValue="Six things you'll be able to do"
+          defaultValue="Four moments worth seeing"
           multiline
         />
         <br />
         <EditText
           as="span"
           path="learn.titleEm"
-          defaultValue="by the end of the course."
+          defaultValue="across the course."
           multiline
           style={{
             color: 'var(--fg-2, oklch(0.42 0.008 280))',
@@ -1746,74 +1750,129 @@ export function MobileWhatYoullLearn() {
           }}
         />
       </h2>
-      <div
-        style={{
-          borderTop: '1px solid oklch(0.92 0.003 280)',
-        }}
-      >
-        {MOBILE_LEARN_DEFAULTS.map((it, i) => (
-          <div
-            key={i}
-            style={{
-              display: 'grid',
-              gridTemplateColumns: '40px 1fr',
-              gap: 16,
-              alignItems: 'baseline',
-              padding: '22px 0',
-              borderBottom: '1px solid oklch(0.92 0.003 280)',
-            }}
-          >
+      <div style={{ position: 'relative', paddingLeft: 28 }}>
+        <div
+          style={{
+            position: 'absolute',
+            left: 5,
+            top: 14,
+            bottom: 14,
+            width: 1.5,
+            background: 'oklch(0.92 0.003 280)',
+          }}
+        />
+        {MOBILE_LEARN_DEFAULTS.map((d, i) => {
+          const hue = MOBILE_LEARN_HUES[i % MOBILE_LEARN_HUES.length]
+          return (
             <div
+              key={i}
               style={{
-                fontFamily: 'ui-monospace, "SF Mono", Menlo, monospace',
-                fontSize: 12,
-                fontWeight: 500,
-                color: 'var(--fg-3, oklch(0.66 0.006 280))',
-                letterSpacing: '0.04em',
-                lineHeight: 1.4,
-                paddingTop: 4,
+                position: 'relative',
+                marginBottom: i === MOBILE_LEARN_DEFAULTS.length - 1 ? 0 : 14,
               }}
             >
-              {String(i + 1).padStart(2, '0')}
-            </div>
-            <div
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 6,
-              }}
-            >
-              <EditText
-                as="div"
-                path={`learn.item${i + 1}.title`}
-                defaultValue={it.title}
-                multiline
+              <div
                 style={{
-                  fontSize: 16,
-                  fontWeight: 600,
-                  letterSpacing: '-0.02em',
-                  lineHeight: 1.25,
-                  color: 'var(--fg-0, oklch(0.18 0.008 280))',
-                  textWrap: 'balance',
-                  fontFamily: HEADING_VAR,
+                  position: 'absolute',
+                  left: -28,
+                  top: 18,
+                  width: 12,
+                  height: 12,
+                  borderRadius: '50%',
+                  background: 'var(--bg-0, #fff)',
+                  border: '1.5px solid oklch(0.66 0.006 280)',
                 }}
               />
-              <EditText
-                as="div"
-                path={`learn.item${i + 1}.desc`}
-                defaultValue={it.desc}
-                multiline
-                style={{
-                  fontSize: 13,
-                  color: 'var(--fg-2, oklch(0.42 0.008 280))',
-                  lineHeight: 1.55,
-                  textWrap: 'pretty',
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={() => setOpenIdx(i)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    setOpenIdx(i)
+                  }
                 }}
-              />
+                style={{
+                  cursor: 'pointer',
+                  background: 'white',
+                  border: '1px solid oklch(0.945 0.003 280)',
+                  borderRadius: 14,
+                  padding: '14px 16px 16px',
+                  boxShadow: '0 1px 2px rgba(0,0,0,0.04), 0 8px 22px rgba(0,0,0,0.06)',
+                }}
+              >
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    marginBottom: 8,
+                  }}
+                >
+                  <span
+                    style={{
+                      display: 'inline-block',
+                      width: 7,
+                      height: 7,
+                      borderRadius: '50%',
+                      background: `oklch(0.58 0.12 ${hue})`,
+                    }}
+                  />
+                  <span
+                    style={{
+                      fontFamily: 'ui-monospace, "SF Mono", Menlo, monospace',
+                      fontSize: 10.5,
+                      fontWeight: 500,
+                      color: 'var(--fg-3, oklch(0.52 0.008 280))',
+                      letterSpacing: '0.10em',
+                      textTransform: 'uppercase',
+                    }}
+                  >
+                    {String(i + 1).padStart(2, '0')}
+                  </span>
+                </div>
+                <EditText
+                  as="div"
+                  path={`learn.item${i + 1}.title`}
+                  defaultValue={d.title}
+                  multiline
+                  style={{
+                    fontSize: 15,
+                    fontWeight: 600,
+                    letterSpacing: '-0.018em',
+                    lineHeight: 1.28,
+                    color: 'var(--fg-0, oklch(0.18 0.008 280))',
+                    textWrap: 'balance',
+                    fontFamily: HEADING_VAR,
+                  }}
+                />
+                <div
+                  style={{
+                    marginTop: 12,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    fontSize: 11.5,
+                    color: 'var(--fg-3, oklch(0.52 0.008 280))',
+                  }}
+                >
+                  <span>Read more</span>
+                  <span style={{ fontSize: 12, lineHeight: 1 }}>→</span>
+                </div>
+              </div>
             </div>
-          </div>
-        ))}
+          )
+        })}
       </div>
+      {openIdx !== null && (
+        <LearnItemSheet
+          index={openIdx}
+          title={items[openIdx].title}
+          description={items[openIdx].desc}
+          onClose={() => setOpenIdx(null)}
+        />
+      )}
     </section>
   )
 }

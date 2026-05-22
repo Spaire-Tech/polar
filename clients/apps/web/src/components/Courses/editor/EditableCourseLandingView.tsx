@@ -33,6 +33,7 @@ import {
 import { useEditor } from './EditorContext'
 import { EditBlock, EditMedia, EditText } from './EditPrimitives'
 import { HeroMedia } from './HeroMedia'
+import { LearnItemSheet } from './LearnItemSheet'
 import { SectionModuleSheet } from './SectionModuleSheet'
 import { SeriesSampleBlock } from './SeriesSampleBlock'
 
@@ -3585,37 +3586,294 @@ function CreatedBy({
 
 // ── What you'll learn ──────────────────────────────────────────────────────
 
-// Six numbered outcomes in a two-column grid. The eyebrow is a small label,
-// the title splits across two lines (the second line is rendered lighter via
-// `learn.titleEm`). Each row has a monospaced index and a stacked title/desc.
+// Four cards on a zigzag spine — mirrors the course-sections roadmap so the
+// page has one visual language for "progression". Each card shows only the
+// title; clicking opens a sheet with the description, so the page reads
+// quickly on first scroll but a curious visitor can dig.
 const LEARN_DEFAULTS: { title: string; desc: string }[] = [
   {
-    title: "Write a first sentence people can't put down.",
-    desc: "Three patterns the instructor uses to make a reader commit to the next paragraph.",
+    title: 'The robot that started a career.',
+    desc: 'Sit with the moment a side project turned into the work — the early build, the room it was made in, what changed after.',
   },
   {
-    title: 'Build the three-beat argument.',
-    desc: 'Claim, concede, return — a structure that holds up under cross-examination.',
+    title: 'The week the work nearly broke.',
+    desc: 'The decisions made under pressure. What was kept, what was cut, what came back later.',
   },
   {
-    title: 'Cut a draft by 30% without losing the meaning.',
-    desc: 'Three editing passes you’ll run on every piece. Most writing problems are length problems.',
+    title: 'A practice no one talks about.',
+    desc: 'The small ritual that holds the whole thing together. Twenty minutes, every day, that nobody films.',
   },
   {
-    title: 'Use concession to make your point harder to refute.',
-    desc: 'When to give ground, what to concede, and how to return stronger.',
-  },
-  {
-    title: 'Find a voice that sounds like you on a good day.',
-    desc: 'Not professional voice. Not literary voice. Yours, edited.',
-  },
-  {
-    title: 'Write the thing you’ve been avoiding.',
-    desc: 'A working method for finishing the hard email, the op-ed, the toast.',
+    title: 'What the work means now.',
+    desc: 'Where the story sits today — and what the next chapter actually looks like from the inside.',
   },
 ]
 
+function LearnHueFor(index: number): number {
+  return [195, 35, 285, 145][index % 4]
+}
+
+function LearnCard({
+  index,
+  pointer,
+  title,
+  onClick,
+}: {
+  index: number
+  pointer: 'top' | 'bottom'
+  title: React.ReactNode
+  onClick: () => void
+}) {
+  const isAbove = pointer === 'bottom'
+  const hue = LearnHueFor(index)
+  return (
+    <div
+      onClick={onClick}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          onClick()
+        }
+      }}
+      style={{
+        position: 'relative',
+        width: '100%',
+        background: 'white',
+        borderRadius: 16,
+        overflow: 'visible',
+        boxShadow: '0 1px 2px rgba(0,0,0,0.04), 0 12px 32px rgba(0,0,0,0.08)',
+        border: '1px solid oklch(0.945 0.003 280)',
+        display: 'flex',
+        flexDirection: 'column',
+        cursor: 'pointer',
+        transition:
+          'transform 220ms cubic-bezier(0.2, 0.9, 0.3, 1.1), box-shadow 220ms ease',
+      }}
+    >
+      <div style={{ padding: '22px 24px 22px' }}>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+            marginBottom: 12,
+          }}
+        >
+          <span
+            style={{
+              display: 'inline-block',
+              width: 8,
+              height: 8,
+              borderRadius: '50%',
+              background: `oklch(0.58 0.12 ${hue})`,
+            }}
+          />
+          <span
+            style={{
+              fontFamily: 'ui-monospace, "SF Mono", Menlo, monospace',
+              fontSize: 11,
+              fontWeight: 500,
+              color: 'oklch(0.52 0.008 280)',
+              letterSpacing: '0.10em',
+              textTransform: 'uppercase',
+            }}
+          >
+            {String(index + 1).padStart(2, '0')}
+          </span>
+        </div>
+        <div
+          style={{
+            fontSize: 17,
+            fontWeight: 700,
+            letterSpacing: '-0.018em',
+            color: 'oklch(0.18 0.008 280)',
+            lineHeight: 1.28,
+            fontFamily: HEADING_VAR,
+            textWrap: 'balance',
+            minHeight: 48,
+          }}
+        >
+          {title}
+        </div>
+        <div
+          style={{
+            marginTop: 18,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+            fontSize: 12,
+            color: 'oklch(0.52 0.008 280)',
+            letterSpacing: '-0.005em',
+          }}
+        >
+          <span>Read more</span>
+          <span style={{ fontSize: 13, lineHeight: 1 }}>→</span>
+        </div>
+      </div>
+      <div
+        style={{
+          position: 'absolute',
+          left: 36,
+          width: 0,
+          height: 0,
+          borderLeft: '9px solid transparent',
+          borderRight: '9px solid transparent',
+          filter: 'drop-shadow(0 1px 0 oklch(0.945 0.003 280))',
+          ...(isAbove
+            ? {
+                bottom: -9,
+                top: 'auto',
+                borderTop: '9px solid white',
+                borderBottom: 'none',
+              }
+            : {
+                top: -9,
+                bottom: 'auto',
+                borderBottom: '9px solid white',
+                borderTop: 'none',
+              }),
+        }}
+      />
+    </div>
+  )
+}
+
+function LearnZigzag({
+  items,
+  onOpen,
+}: {
+  items: { title: React.ReactNode }[]
+  onOpen: (i: number) => void
+}) {
+  const columns = items.length
+  const halfCol = 100 / columns / 2
+  return (
+    <div style={{ position: 'relative' }}>
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
+          gap: 20,
+          minHeight: 200,
+          alignItems: 'end',
+        }}
+      >
+        {items.map((it, i) =>
+          i % 2 === 0 ? (
+            <div
+              key={`top-${i}`}
+              style={{
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'flex-end',
+              }}
+            >
+              <LearnCard
+                index={i}
+                pointer="bottom"
+                title={it.title}
+                onClick={() => onOpen(i)}
+              />
+            </div>
+          ) : (
+            <div key={`top-empty-${i}`} />
+          ),
+        )}
+      </div>
+
+      <div
+        style={{
+          position: 'relative',
+          display: 'grid',
+          gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
+          gap: 20,
+          height: 24,
+          alignItems: 'center',
+          margin: '6px 0',
+        }}
+      >
+        <div
+          style={{
+            position: 'absolute',
+            left: `calc(${halfCol}% - 6px)`,
+            right: `calc(${halfCol}% - 6px)`,
+            top: '50%',
+            transform: 'translateY(-50%)',
+            height: 1.5,
+            background: 'oklch(0.92 0.003 280)',
+          }}
+        />
+        {items.map((_, i) => (
+          <div
+            key={`dot-${i}`}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              position: 'relative',
+              zIndex: 1,
+            }}
+          >
+            <div
+              style={{
+                width: 12,
+                height: 12,
+                borderRadius: '50%',
+                background: 'var(--bg-0, #fff)',
+                border: '1.5px solid oklch(0.66 0.006 280)',
+              }}
+            />
+          </div>
+        ))}
+      </div>
+
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
+          gap: 20,
+          minHeight: 200,
+          alignItems: 'start',
+        }}
+      >
+        {items.map((it, i) =>
+          i % 2 !== 0 ? (
+            <div
+              key={`bot-${i}`}
+              style={{
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'flex-start',
+              }}
+            >
+              <LearnCard
+                index={i}
+                pointer="top"
+                title={it.title}
+                onClick={() => onOpen(i)}
+              />
+            </div>
+          ) : (
+            <div key={`bot-empty-${i}`} />
+          ),
+        )}
+      </div>
+    </div>
+  )
+}
+
 function WhatYoullLearn() {
+  const ed = useEditor()
+  const [openIdx, setOpenIdx] = useState<number | null>(null)
+  // Read the live edited text for the sheet — the cards themselves still
+  // render through EditText (so titles stay click-to-edit on hover), but
+  // the sheet needs plain strings.
+  const items = LEARN_DEFAULTS.map((d, i) => ({
+    title: ed.t(`learn.item${i + 1}.title`, d.title),
+    desc: ed.t(`learn.item${i + 1}.desc`, d.desc),
+  }))
   return (
     <section
       style={{
@@ -3654,14 +3912,14 @@ function WhatYoullLearn() {
           <EditText
             as="span"
             path="learn.title"
-            defaultValue="Six things you'll be able to do"
+            defaultValue="Four moments worth seeing"
             multiline
           />
           <br />
           <EditText
             as="span"
             path="learn.titleEm"
-            defaultValue="by the end of the course."
+            defaultValue="across the course."
             multiline
             style={{
               color: 'oklch(0.42 0.008 280)',
@@ -3671,78 +3929,28 @@ function WhatYoullLearn() {
         </h2>
       </div>
 
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(2, 1fr)',
-          columnGap: 56,
-          rowGap: 0,
-          borderTop: '1px solid oklch(0.92 0.003 280)',
-        }}
-      >
-        {LEARN_DEFAULTS.map((it, i) => (
-          <div
-            key={i}
-            style={{
-              display: 'grid',
-              gridTemplateColumns: '56px 1fr',
-              gap: 24,
-              alignItems: 'baseline',
-              padding: '28px 4px',
-              borderBottom: '1px solid oklch(0.92 0.003 280)',
-            }}
-          >
-            <div
-              style={{
-                fontFamily: 'ui-monospace, "SF Mono", Menlo, monospace',
-                fontSize: 13,
-                fontWeight: 500,
-                color: 'oklch(0.66 0.006 280)',
-                letterSpacing: '0.04em',
-                lineHeight: 1.5,
-                paddingTop: 4,
-              }}
-            >
-              {String(i + 1).padStart(2, '0')}
-            </div>
-            <div
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 8,
-              }}
-            >
-              <EditText
-                as="div"
-                path={`learn.item${i + 1}.title`}
-                defaultValue={it.title}
-                multiline
-                style={{
-                  fontSize: 19,
-                  fontWeight: 600,
-                  letterSpacing: '-0.022em',
-                  lineHeight: 1.25,
-                  color: 'oklch(0.18 0.008 280)',
-                  textWrap: 'balance',
-                  fontFamily: HEADING_VAR,
-                }}
-              />
-              <EditText
-                as="div"
-                path={`learn.item${i + 1}.desc`}
-                defaultValue={it.desc}
-                multiline
-                style={{
-                  fontSize: 14,
-                  color: 'oklch(0.42 0.008 280)',
-                  lineHeight: 1.55,
-                  textWrap: 'pretty',
-                }}
-              />
-            </div>
-          </div>
-        ))}
-      </div>
+      <LearnZigzag
+        items={LEARN_DEFAULTS.map((d, i) => ({
+          title: (
+            <EditText
+              as="span"
+              path={`learn.item${i + 1}.title`}
+              defaultValue={d.title}
+              multiline
+            />
+          ),
+        }))}
+        onOpen={(i) => setOpenIdx(i)}
+      />
+
+      {openIdx !== null && (
+        <LearnItemSheet
+          index={openIdx}
+          title={items[openIdx].title}
+          description={items[openIdx].desc}
+          onClose={() => setOpenIdx(null)}
+        />
+      )}
     </section>
   )
 }

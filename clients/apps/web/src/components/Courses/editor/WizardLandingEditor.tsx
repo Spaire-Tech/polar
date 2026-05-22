@@ -213,7 +213,7 @@ export function WizardLandingEditor({
     if (typeof text.learn_title_em === 'string')
       merged.text['learn.titleEm'] = text.learn_title_em
     if (Array.isArray(text.learn_items)) {
-      ;(text.learn_items as unknown[]).slice(0, 6).forEach((item, i) => {
+      ;(text.learn_items as unknown[]).slice(0, 4).forEach((item, i) => {
         if (!item || typeof item !== 'object') return
         const it = item as { title?: unknown; description?: unknown }
         if (typeof it.title === 'string')
