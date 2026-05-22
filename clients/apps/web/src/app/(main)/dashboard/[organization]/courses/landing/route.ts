@@ -9,30 +9,17 @@ import { getAuthenticatedUser } from '@/utils/user'
 import { anthropic } from '@ai-sdk/anthropic'
 import { streamObject } from 'ai'
 
-// The landing page is one streamed call, but the schema's first field is a
-// "_brief" object. Because property order in the Zod schema drives streaming
-// order, the model writes its voice + lexicon + textures FIRST and then
-// generates the copy beneath that brief. Every subsequent field is
-// conditioned on its own pre-written brief — which is what gives a pasta
-// course a different voice from a litigation course, instead of both
-// converging on the model's house voice.
-
 const courseSystemPrompt = `You are the lead editorial copywriter for Spaire — a premium creator marketplace whose course landings read like Apple TV product pages: cinematic, declarative, quietly confident. You write the entire landing page for ONE course at a time. Nothing is templated.
 
 ${SHARED_STYLEBOOK}
 
-BRIEF FIRST — non-negotiable
-Before writing any copy, fill in the "_brief" object. The fields below are not metadata; the rest of the page MUST follow them.
-- _brief.voice: 4-10 words naming the register. Choose along these axes and combine: warmth (cool ↔ warm), density (sparse ↔ dense), pace (slow ↔ crisp), posture (observational ↔ instructional). Examples: "cool, sparse, crisp, instructional" / "warm, dense, slow, conversational" / "neutral, sparse, crisp, observational".
-- _brief.emotional_pull: one sentence naming the single feeling the learner wants from this course. Not "they want to learn X" — the feeling beneath the wanting. Example: "the quiet confidence of someone who knows their first sentence will hold."
-- _brief.textures: 3-5 concrete nouns / places / objects / rituals taken straight from the instructor bio and course description. These are the props you'll keep returning to throughout the page. Never invent textures the bio doesn't license. If the bio is thin, ground in the field itself.
-- _brief.use_lexicon: 4-6 words or short phrases unique to this subject that you WILL use across multiple fields. They should sound like something the instructor would actually say.
-- _brief.avoid_lexicon: 4-6 abstractions or trade clichés you WILL NOT use, even though they'd be plausible. Pick the boring ones a competitor would default to.
+GROUNDING — before you write any field, internally name:
+- The single emotional pull of this course in one sentence.
+- 3-5 concrete textures from the instructor's bio (places, rituals, objects, weeks, decisions). These are the props you'll return to across the page.
+- 4-6 words / phrases the instructor would actually use (the lexicon of this subject). Use them across multiple fields so the voice is consistent.
+- 4-6 abstractions / trade clichés a competitor would default to. You will NOT use any of them.
 
-After the brief, every long-form field must:
-- use at least one word from use_lexicon, OR a texture from _brief.textures, OR a proper noun / specific number from the input;
-- avoid every word in avoid_lexicon;
-- match the voice declared in _brief.voice.
+Hold that voice across every field. Every long-form field must contain at least one of: a proper noun from the inputs, a specific number, or a texture from the bio. If you can't ground a sentence, write a shorter one — do not pad with abstractions.
 
 PAGE STRUCTURE
 - Hero: eyebrow, series_label, tagline, description, level.
@@ -52,10 +39,6 @@ PAYWALL AWARENESS
 - Paywall on: you may reference free preview lessons and "enroll to unlock"; frame the final CTA around a free start. Never name a price.
 - Paywall off: do NOT mention paywalls, locks, previews, or pricing anywhere. The lessons subheading should not say "free preview". The FAQ refund question becomes "Why is this free?" with an honest answer.
 
-GROUNDING
-- Stay strictly grounded in the course title, description, target audience, differentiator, instructor name, instructor bio, module titles, and lesson titles you receive. Do not invent unrelated subject matter or fake credentials.
-- The lesson and module counts are real — reference them by number.
-
 Return the JSON object now and stop.`
 
 const seriesSystemPrompt = `You are the lead editorial copywriter for Spaire — a premium creator marketplace whose series landing pages read like Apple TV+ documentary detail pages: cinematic, restrained, narrative-first. You write the entire landing for ONE series at a time.
@@ -67,18 +50,13 @@ A SERIES IS NOT A COURSE
 - Episodes are self-contained. No order requirement. No prerequisites.
 - The pull is emotional and narrative — mindset, story, identity, behind-the-scenes — not skills acquisition.
 
-BRIEF FIRST — non-negotiable
-Before writing any copy, fill in the "_brief" object.
-- _brief.voice: 4-10 words. Pick along (warmth, density, pace, posture). Documentary registers usually run cool-sparse-slow-observational, but match the creator. Examples: "warm, sparse, slow, observational" / "cool, dense, crisp, confessional".
-- _brief.emotional_pull: one sentence. What does the viewer feel walking in? What do they want from this creator that they can't get from a podcast appearance or an interview?
-- _brief.textures: 3-5 concrete worlds, places, weeks, opponents, decisions, rooms, or rituals from the creator's bio that the season will sit inside. If the bio is thin, invent restrained, plausible texture grounded in the field — never exaggerations.
-- _brief.use_lexicon: 4-6 phrases the creator would actually say. These appear across the page.
-- _brief.avoid_lexicon: 4-6 didactic / marketing / course-coded words you WILL NOT use. Include at least: "learn", "master", "curriculum", "outcomes".
+GROUNDING — before you write any field, internally name:
+- The single feeling the viewer wants from this creator that they cannot get from a podcast appearance or an interview.
+- 3-5 concrete worlds, places, weeks, opponents, decisions, rooms, or rituals from the creator's bio. If the bio is thin, invent restrained, plausible texture grounded in the field — never exaggerations.
+- 4-6 phrases the creator would actually say. Use them across the page.
+- 4-6 didactic / marketing / course-coded words you WILL NOT use. Include at least: "learn", "master", "curriculum", "outcomes".
 
-After the brief, every long-form field must:
-- use at least one word from use_lexicon, OR a texture from _brief.textures, OR a proper noun / specific number from the input;
-- avoid every word in avoid_lexicon;
-- hold the voice from _brief.voice across every section. Do not switch tone between fields.
+Hold one voice across every field — do not switch tone between fields. Every long-form field must contain at least one of: a proper noun from the inputs, a specific number, or a texture from the bio.
 
 SECTIONS ARRAY IS EMPTY — STRUCTURAL
 A series has no four-module zigzag, so:
@@ -98,10 +76,6 @@ PAGE STRUCTURE
 - FAQ: exactly 7 entries, framed around watching — (1) who the series is for, (2) format + runtime + episode lengths, (3) future episodes / library access, (4) whether the creator shows up beyond the screen, (5) refund / cancellation with a concrete day window, (6) devices / offline / captions, (7) how this differs from a podcast / documentary / interview. Questions read like a real person. Answers 1-3 sentences, 120-380 chars.
 - Final CTA: label ≤ 3 words uppercase ("READY TO WATCH" / "PRESS PLAY"); title ≤ 70 chars (may include \\n); subtitle ≤ 140 chars; primary + secondary buttons (1-2 words each); 4 guarantee pills.
 - reviews: ALWAYS return [].
-
-GROUNDING
-- Stay strictly grounded in the series title, description, creator name, creator bio, and episode titles you receive. Do not invent unrelated subject matter or fake credentials.
-- Episode count is real — reference it by number.
 
 Return the JSON object now. Remember: sections is [], sections_label / sections_heading / sections_subheading are "".`
 
@@ -168,7 +142,7 @@ export async function POST(req: Request) {
           .join('\n')}`
       : null,
     Array.isArray(lessonTitles) && lessonTitles.length > 0
-      ? `${isSeries ? 'Episode' : 'Lesson'} titles (in order — you may reference these by name in learn_items and FAQ answers when they fit naturally; never echo the full list):\n${(lessonTitles as string[])
+      ? `${isSeries ? 'Episode' : 'Lesson'} titles (in order — you may reference these by name in learn_items and FAQ answers when they fit naturally):\n${(lessonTitles as string[])
           .map((t, i) => `  ${i + 1}. ${t}`)
           .join('\n')}`
       : null,
@@ -197,8 +171,8 @@ export async function POST(req: Request) {
   ]
 
   const intro = isSeries
-    ? `Write the entire landing page for this series. Fill _brief first, then condition every field on it. The voice should match this specific creator and subject — not a generic documentary voice.`
-    : `Write the entire landing page for this course. Fill _brief first, then condition every field on it. The voice should match this specific instructor and subject — not a generic course voice.`
+    ? `Write the entire landing page for this series. Every section label, heading, subheading, and body string must be original — do not echo my examples verbatim. The voice should match this specific creator and subject.`
+    : `Write the entire landing page for this course. Every section label, heading, subheading, and body string must be original — do not echo my examples verbatim. The voice should match this specific instructor and subject.`
 
   const userPrompt = [
     intro,
@@ -210,14 +184,23 @@ export async function POST(req: Request) {
     'Return the JSON object now and stop. Do not add any prose after the JSON.',
   ].join('\n')
 
-  const result = streamObject({
-    model: anthropic('claude-opus-4-7'),
-    schema: landingSchema,
-    system: systemPrompt,
-    temperature: 0.85,
-    maxOutputTokens: 4000,
-    prompt: userPrompt,
-  })
+  try {
+    const result = streamObject({
+      model: anthropic('claude-opus-4-7'),
+      schema: landingSchema,
+      system: systemPrompt,
+      maxOutputTokens: 2400,
+      prompt: userPrompt,
+      onError: ({ error }) => {
+        // Surface Anthropic-side errors in server logs so a future stall
+        // isn't silent again.
+        console.error('[landing] streamObject error:', error)
+      },
+    })
 
-  return result.toTextStreamResponse()
+    return result.toTextStreamResponse()
+  } catch (e) {
+    console.error('[landing] streamObject threw:', e)
+    return new Response('AI generation failed', { status: 500 })
+  }
 }

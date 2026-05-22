@@ -6,9 +6,9 @@ import { anthropic } from '@ai-sdk/anthropic'
 import { streamText } from 'ai'
 
 // Per-field rewrite. Inherits the same editorial stylebook the main
-// landing generator uses, plus the page's voice brief (if available) and
-// a snapshot of nearby fields, so a rewrite holds the original voice
-// instead of dropping into a generic copywriter persona.
+// landing generator uses, plus a snapshot of nearby fields, so a rewrite
+// holds the original voice instead of dropping into a generic copywriter
+// persona.
 
 const REWRITE_SYSTEM = `You are the lead editorial copywriter for Spaire. You are rewriting a single field on a landing page that already exists. Match the voice and lexicon of the surrounding fields — do not introduce a new register.
 
@@ -22,33 +22,10 @@ type RewriteContext = {
   lessonTitle?: string | null
   lessonIndex?: number | null
   format?: 'course' | 'series' | null
-  // The landing's voice brief, if the page was AI-generated. Lets a
-  // rewrite hold the same voice across edits.
-  brief?: {
-    voice?: string
-    emotional_pull?: string
-    textures?: string[]
-    use_lexicon?: string[]
-    avoid_lexicon?: string[]
-  } | null
   // A small snapshot of the surrounding fields the creator can see — the
   // hero tagline, description, instructor pull-quote, etc. Caller picks
   // whichever are relevant; we just paste them as context.
   nearbyFields?: Record<string, string> | null
-}
-
-function formatBrief(brief: RewriteContext['brief']): string | null {
-  if (!brief) return null
-  const parts: string[] = []
-  if (brief.voice) parts.push(`Voice: ${brief.voice}`)
-  if (brief.emotional_pull) parts.push(`Emotional pull: ${brief.emotional_pull}`)
-  if (brief.textures?.length)
-    parts.push(`Textures to use: ${brief.textures.join(', ')}`)
-  if (brief.use_lexicon?.length)
-    parts.push(`Use lexicon: ${brief.use_lexicon.join(', ')}`)
-  if (brief.avoid_lexicon?.length)
-    parts.push(`Avoid lexicon: ${brief.avoid_lexicon.join(', ')}`)
-  return parts.length ? `Page voice brief:\n${parts.join('\n')}` : null
 }
 
 function formatNearby(nearby: RewriteContext['nearbyFields']): string | null {
@@ -82,7 +59,6 @@ export async function POST(req: Request) {
   }
 
   const isSeries = context?.format === 'series'
-  const briefBlock = formatBrief(context?.brief)
   const nearbyBlock = formatNearby(context?.nearbyFields)
 
   let prompt: string
@@ -101,9 +77,8 @@ export async function POST(req: Request) {
           ? `${isSeries ? 'Episode' : 'Lesson'} title: "${context.lessonTitle}"`
           : null,
       current ? `Current draft: "${current}"` : null,
-      briefBlock,
       nearbyBlock,
-      `Style: 1-2 sentences, concrete, ground in a texture from the brief if one fits. No hype. No quotes around the output.`,
+      `Style: 1-2 sentences, concrete, grounded in a specific detail from the inputs. No hype. No quotes around the output.`,
       intent ? `Direction: ${intent}` : null,
       ``,
       `Description:`,
@@ -113,9 +88,8 @@ export async function POST(req: Request) {
     const lines: (string | null)[] = [
       `Field: ${hint ?? 'landing page copy'}`,
       `Current: "${current}"`,
-      briefBlock,
       nearbyBlock,
-      `Goal: ${intent ?? 'Make it punchier, 5-9 words. Ground it in a texture or use_lexicon word from the brief.'}`,
+      `Goal: ${intent ?? 'Make it punchier, 5-9 words. Ground it in a specific detail from the surrounding fields.'}`,
       ``,
       `Rewrite:`,
     ]
@@ -125,7 +99,6 @@ export async function POST(req: Request) {
   const result = streamText({
     model: anthropic('claude-opus-4-7'),
     system: REWRITE_SYSTEM,
-    temperature: 0.7,
     prompt,
   })
 

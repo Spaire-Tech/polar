@@ -8,10 +8,11 @@
 //   pushes the model into the next tier of clichés. Requiring a proper
 //   noun / number / concrete object per long-form field is what produces
 //   specificity.
-// - The voice brief lives in the schema as a real field (`_brief`) so the
-//   model emits it FIRST and conditions the rest of the stream on its own
-//   pre-written voice. That makes "think before you write" structural
-//   instead of aspirational.
+// - The grounding step ("internally name the textures and the lexicon")
+//   lives in the prompt as a thinking instruction, not as a separate
+//   schema field — Anthropic's tool-call output doesn't honor schema
+//   property order, and making the brief a required field stalls
+//   `experimental_useObject` on partial streams.
 // - Cardinality is normalized post-stream because Zod min/max stalls
 //   `useObject` on partial JSON. The shape is enforced in the prompt and
 //   then padded/sliced once the stream completes.
@@ -29,12 +30,11 @@ Voice
 Specificity (this is the rule that matters most)
 - Every long-form field (description, value_prop.description, learn_item.description,
   faq answer, instructor_pull_quote, created_by_quote, created_by_bio, review.text)
-  must contain at least one of: a proper noun from the brief, a specific number,
-  or a concrete physical object/place/ritual named in the bio or the brief's
-  textures. If you can't ground it, write a shorter sentence — don't pad with
-  abstractions.
-- Use the brief's "use_lexicon" words across the page so the voice is consistent
-  across sections. Avoid every word in the brief's "avoid_lexicon".
+  must contain at least one of: a proper noun from the inputs, a specific number,
+  or a concrete physical object / place / ritual named in the bio. If you can't
+  ground it, write a shorter sentence — don't pad with abstractions.
+- Reuse the same 4-6 subject-specific words and phrases across multiple fields so
+  the voice is consistent. Skip the abstractions a competitor would default to.
 - One concrete detail beats five abstractions. If you wrote a sentence that
   would still make sense for a different subject, rewrite it.
 
@@ -97,7 +97,7 @@ const CADENCE_DEMOS: { subject: string; lines: string[] }[] = [
 
 // Pick a 2-demo subset by keyword overlap with the course/series subject so
 // the model sees cadence in a register that's at least adjacent to the
-// subject — not always "writing teacher Lena".
+// subject — not always the same fictional persona.
 export function pickCadenceDemos(
   title: string,
   description: string,
