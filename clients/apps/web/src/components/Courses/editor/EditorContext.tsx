@@ -277,6 +277,12 @@ type EditorContextValue = {
   /** Per-slot override (lets host map specific slots to different endpoints). */
   uploaderForSlot?: (slotId: string) => Uploader
   reset: () => void
+  /**
+   * Replace the entire overrides blob in a single history frame. Used by
+   * "Discard changes" to restore the snapshot the editor was seeded with,
+   * without exploding the undo stack into one frame per field.
+   */
+  restore: (target: ResolvedOverrides) => void
   undo: () => void
   redo: () => void
   canUndo: boolean
@@ -423,6 +429,15 @@ export function EditorProvider({
     apply({ ...DEFAULT_OVERRIDES })
   }, [apply])
 
+  const restore = useCallback(
+    (target: ResolvedOverrides) => {
+      // Deep-clone so callers can't accidentally mutate the snapshot through
+      // their own reference once it's in the history stack.
+      apply(JSON.parse(JSON.stringify(target)) as ResolvedOverrides)
+    },
+    [apply],
+  )
+
   const undo = useCallback(() => {
     const h = history.current
     if (h.idx <= 0) return
@@ -554,6 +569,7 @@ export function EditorProvider({
       uploadMedia,
       uploaderForSlot,
       reset,
+      restore,
       undo,
       redo,
       canUndo: history.current.idx > 0,
@@ -576,6 +592,7 @@ export function EditorProvider({
       uploadMedia,
       uploaderForSlot,
       reset,
+      restore,
       undo,
       redo,
       isUploading,
