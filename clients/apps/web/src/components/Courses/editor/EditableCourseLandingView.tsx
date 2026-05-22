@@ -49,6 +49,7 @@ import {
 import { useEditor } from './EditorContext'
 import { EditBlock, EditMedia, EditText } from './EditPrimitives'
 import { HeroMedia } from './HeroMedia'
+import { MotionSection } from './MotionSection'
 import { SectionModuleSheet } from './SectionModuleSheet'
 import { SeriesSampleBlock } from './SeriesSampleBlock'
 
@@ -419,7 +420,9 @@ export function EditableCourseLandingView({
             const s = sectionMap[id]
             return (
               <EditBlock key={id} id={id} label={s.label}>
-                {s.node}
+                <MotionSection level={ed.overrides.theme.motion}>
+                  {s.node}
+                </MotionSection>
               </EditBlock>
             )
           })}

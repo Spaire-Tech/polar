@@ -25,6 +25,7 @@ import {
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from '../../Toast/use-toast'
 import { CoursePhoneFrame } from './CoursePhoneFrame'
+import { CustomizeCommandPalette } from './CustomizeCommandPalette'
 import {
   EditableCourseLandingView,
   type LessonHandlers,
@@ -495,6 +496,16 @@ function CustomizeBar({
           {saving ? 'Saving…' : dirty ? 'Save & publish' : 'Republish'}
         </button>
       </div>
+      {/* Radix-portaled dialog — DOM location is purely organizational. The
+          palette owns its ⌘K listener and open state internally. */}
+      <CustomizeCommandPalette
+        initialSnapshot={initialSnapshot}
+        dirty={dirty}
+        saving={saving}
+        onSave={onSave}
+        previewHref={previewHref}
+        onDiscarded={onDiscarded}
+      />
     </div>
   )
 }
@@ -743,6 +754,29 @@ function DesignPopover() {
                   ].join(' ')}
                 >
                   {c}
+                </button>
+              )
+            })}
+          </div>
+        </DesignField>
+
+        <DesignField label="Motion">
+          <div className="flex gap-1">
+            {(['none', 'subtle', 'pronounced'] as const).map((m) => {
+              const active = (theme.motion ?? 'subtle') === m
+              return (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => ed.setTheme({ motion: m })}
+                  className={[
+                    'flex-1 rounded-md border px-2 py-1 text-[11px] font-medium capitalize transition-colors',
+                    active
+                      ? 'border-gray-900 bg-gray-900 text-white'
+                      : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50',
+                  ].join(' ')}
+                >
+                  {m}
                 </button>
               )
             })}

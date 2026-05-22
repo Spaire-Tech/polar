@@ -164,6 +164,9 @@ export const DEFAULT_THEME: LandingTheme = {
   headingLeading: 1.0,
   density: 'comfortable',
   cornerStyle: 'rounded',
+  // 'subtle' fade+rise on viewport entry — light enough that nothing feels
+  // gimmicky, present enough that the page doesn't feel static.
+  motion: 'subtle',
 }
 
 export const SECTION_ORDER_DEFAULT = [

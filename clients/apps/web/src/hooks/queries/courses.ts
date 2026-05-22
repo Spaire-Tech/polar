@@ -172,6 +172,10 @@ export type LandingTheme = {
   headingLeading: number
   density: 'compact' | 'comfortable' | 'spacious'
   cornerStyle: 'sharp' | 'rounded' | 'pill'
+  // Global motion intensity for section entry animations. Applied uniformly
+  // so the landing feels cohesive — per-section motion mixing tends to look
+  // accidental rather than designed. Defaulted in DEFAULT_THEME.
+  motion?: 'none' | 'subtle' | 'pronounced'
 }
 
 export type LandingOverrides = {
