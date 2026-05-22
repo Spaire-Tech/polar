@@ -199,8 +199,14 @@ export default function CourseWizard({
   } = useObject({
     api: `/dashboard/${organization.slug}/courses/landing`,
     schema: landingSchema,
-    onFinish: () => setScreen('preview'),
-    onError: () => {
+    onFinish: ({ error }) => {
+      if (error) {
+        console.error('[CourseWizard] landing onFinish validation error:', error)
+      }
+      setScreen('preview')
+    },
+    onError: (error) => {
+      console.error('[CourseWizard] landing stream error:', error)
       // Non-fatal — drop the user into the preview anyway with placeholders.
       setScreen('preview')
     },

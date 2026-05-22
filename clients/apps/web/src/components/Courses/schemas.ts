@@ -25,18 +25,24 @@ export type CourseOutline = z.infer<typeof outlineSchema>
 // strict cardinality on a streaming partial commonly stalls it. Cardinality
 // is enforced in the prompt instead.
 export const landingSchema = z.object({
-  // Voice brief — emitted FIRST so the model conditions every subsequent
-  // field on its own pre-written voice and lexicon. The renderer ignores
-  // these fields; they exist to make "think before you write" structural
-  // rather than aspirational. The brief is persisted alongside the landing
-  // and used as context by the per-field rewrite endpoint.
-  _brief: z.object({
-    voice: z.string(),
-    emotional_pull: z.string(),
-    textures: z.array(z.string()),
-    use_lexicon: z.array(z.string()),
-    avoid_lexicon: z.array(z.string()),
-  }),
+  // Voice brief — the prompt asks the model to fill this; the renderer
+  // ignores it but the per-field rewrite endpoint reads it for context.
+  //
+  // CRITICAL: every field is optional. `experimental_useObject` only fires
+  // onFinish once the full streamed JSON validates against this schema.
+  // Anthropic's tool-call output does NOT honor schema property order, so
+  // a required _brief stuck somewhere mid-stream would stall validation
+  // forever and the wizard would sit on "generating..." indefinitely. The
+  // normalizer fills safe defaults at save time.
+  _brief: z
+    .object({
+      voice: z.string().optional(),
+      emotional_pull: z.string().optional(),
+      textures: z.array(z.string()).optional(),
+      use_lexicon: z.array(z.string()).optional(),
+      avoid_lexicon: z.array(z.string()).optional(),
+    })
+    .optional(),
 
   // Hero
   eyebrow: z.string(),
