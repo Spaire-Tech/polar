@@ -1,3 +1,5 @@
+import { resolveSpaceItems } from '@/components/Profile/spaceItems'
+import { StorefrontLinkItem } from '@/components/Profile/StorefrontLinks'
 import { getServerSideAPI } from '@/utils/client/serverside'
 import { getStorefrontOrNotFound } from '@/utils/storefront'
 import type { Metadata } from 'next'
@@ -70,29 +72,21 @@ export default async function Page(props: {
   }
 
   // "More from <org>" must respect the Space curation — only show
-  // products the creator has actually allowed on their Space. In
-  // 'curated' mode, featured_product_ids is the visibility list; in
-  // 'all' mode every active product is implicitly allowed. The list
-  // is also sorted by featured_product_ids when set, so the "more"
-  // strip matches the order on the Space landing page.
+  // products the creator has put on their Space, in the order they
+  // chose. The shared resolver handles both the new `space_items`
+  // model and the legacy `featured_product_ids`/`featured_mode`
+  // fallback, so we get the same list (and same order) the Space
+  // landing page renders, without re-implementing the precedence
+  // rules here.
   const settings = organization.storefront_settings
-  const featuredMode = settings?.featured_mode ?? 'curated'
-  const featuredIds = settings?.featured_product_ids ?? []
-  const scoped =
-    featuredMode === 'curated'
-      ? products.filter((p) => featuredIds.includes(p.id))
-      : products
-  const ranked = featuredIds.length
-    ? (() => {
-        const rank = new Map(featuredIds.map((id, i) => [id, i]))
-        const inRank = scoped
-          .filter((p) => rank.has(p.id))
-          .sort((a, b) => rank.get(a.id)! - rank.get(b.id)!)
-        const outRank = scoped.filter((p) => !rank.has(p.id))
-        return [...inRank, ...outRank]
-      })()
-    : scoped
-  const otherProducts = ranked.filter((p) => p.id !== product.id)
+  const resolved = resolveSpaceItems({
+    settings,
+    products,
+    links: (settings?.storefront_links ?? []) as StorefrontLinkItem[],
+  })
+  const otherProducts = resolved
+    .filter((entry) => entry.kind === 'product' && entry.id !== product.id)
+    .map((entry) => (entry as Extract<typeof entry, { kind: 'product' }>).product)
 
   return (
     <ProductLandingPage

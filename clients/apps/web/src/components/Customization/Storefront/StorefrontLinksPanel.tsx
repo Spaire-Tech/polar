@@ -3,6 +3,7 @@
 import { Upload } from '@/components/FileUpload/Upload'
 import { ConfirmModal } from '@/components/Modal/ConfirmModal'
 import { StorefrontLinkItem } from '@/components/Profile/StorefrontLinks'
+import { readSpaceItems } from '@/components/Profile/spaceItems'
 import AddOutlined from '@mui/icons-material/AddOutlined'
 import AddPhotoAlternateOutlined from '@mui/icons-material/AddPhotoAlternateOutlined'
 import ArrowBackOutlined from '@mui/icons-material/ArrowBackOutlined'
@@ -416,9 +417,35 @@ export const StorefrontLinksPanel = ({
     setFetchingId(id)
     setExpandedIds((prev) => new Set([...prev, id]))
 
-    const current =
-      (getValues('storefront_settings') as any)?.storefront_links ?? []
-    setLinks([...current, newLink])
+    const currentSettings =
+      (getValues('storefront_settings') as any) ?? {}
+    const current = (currentSettings.storefront_links ?? []) as StorefrontLinkItem[]
+    // Also stitch the new link into space_items so it actually shows
+    // on the Space. We deliberately do NOT auto-append "unseen" link
+    // ids in the resolver anymore (see Profile/spaceItems.ts — that
+    // path made removal impossible), so every add path has to write
+    // space_items itself. For Spaces still on the legacy model
+    // (space_items empty), the renderer derives from storefront_links
+    // anyway, so we leave space_items empty in that case.
+    const persistedItems = readSpaceItems(currentSettings)
+    const spaceItemsPatch =
+      persistedItems.length > 0
+        ? {
+            space_items: [
+              ...persistedItems,
+              { kind: 'link' as const, id: newLink.id },
+            ],
+          }
+        : {}
+    setValue(
+      'storefront_settings',
+      {
+        ...currentSettings,
+        storefront_links: [...current, newLink],
+        ...spaceItemsPatch,
+      } as any,
+      { shouldDirty: true },
+    )
 
     // Scroll the panel back to the top so the user sees the full flow
     // and the fresh entry sliding into the list below.
@@ -465,16 +492,39 @@ export const StorefrontLinksPanel = ({
 
   const removeLink = useCallback(
     (id: string) => {
-      const current =
-        (getValues('storefront_settings') as any)?.storefront_links ?? []
-      setLinks((current as StorefrontLinkItem[]).filter((l) => l.id !== id))
+      const currentSettings =
+        (getValues('storefront_settings') as any) ?? {}
+      const current = (currentSettings.storefront_links ?? []) as StorefrontLinkItem[]
+      // Drop the link from storefront_links AND from space_items so
+      // the renderer can't resurrect it from the materialised order.
+      // Same caveat as addLink: only patch space_items when it's
+      // already populated; legacy-mode Spaces let it stay empty so
+      // the resolver keeps deriving from storefront_links.
+      const persistedItems = readSpaceItems(currentSettings)
+      const spaceItemsPatch =
+        persistedItems.length > 0
+          ? {
+              space_items: persistedItems.filter(
+                (i) => !(i.kind === 'link' && i.id === id),
+              ),
+            }
+          : {}
+      setValue(
+        'storefront_settings',
+        {
+          ...currentSettings,
+          storefront_links: current.filter((l) => l.id !== id),
+          ...spaceItemsPatch,
+        } as any,
+        { shouldDirty: true },
+      )
       setExpandedIds((prev) => {
         const next = new Set(prev)
         next.delete(id)
         return next
       })
     },
-    [getValues, setLinks],
+    [getValues, setValue],
   )
 
   // Confirm before removing a link. The delete button (h-7 w-7 next to

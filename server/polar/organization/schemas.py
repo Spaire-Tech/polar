@@ -130,6 +130,31 @@ class StorefrontLink(Schema):
     )
 
 
+class SpaceItem(Schema):
+    """A single entry in the Space's ordered list. The Space renders
+    items in the order they appear in `space_items`; products and links
+    can interleave freely (e.g. link → product → link → course → link).
+    `kind` discriminates against ProductStorefront (`product`) vs a
+    StorefrontLink already stored in `storefront_links` (`link`).
+    `hidden` lets creators take an item off the Space without losing
+    the item itself — products restore via the picker, links by
+    flipping the flag.
+    """
+
+    kind: Literal["product", "link"] = Field(
+        description="What `id` refers to: a product, or a storefront_links entry."
+    )
+    id: str = Field(description="Identifier of the referenced product or link.")
+    hidden: bool = Field(
+        False,
+        description=(
+            "If true, the renderer skips this item. Lets creators hide "
+            "an item without removing it from the Space's order or "
+            "deleting it outright."
+        ),
+    )
+
+
 class OrganizationStorefrontSettings(Schema):
     enabled: bool = Field(False, description="Whether the storefront is enabled")
     show_header: bool = Field(True, description="Show the storefront header/banner")
@@ -221,6 +246,18 @@ class OrganizationStorefrontSettings(Schema):
     header_focal_point: str | None = Field(
         None,
         description="CSS object-position value for the cover image focal point (e.g. '50% 30%')",
+    )
+    space_items: list[SpaceItem] = Field(
+        default_factory=list,
+        description=(
+            "Flat ordered list of everything on the Space. When non-"
+            "empty this is the single source of truth for the Space's "
+            "render order — products and links interleave freely. When "
+            "empty, the renderer falls back to deriving order from "
+            "featured_product_ids + storefront_links + block_order for "
+            "backwards compatibility with Spaces created before this "
+            "model existed."
+        ),
     )
 
     @field_validator("contact_url")

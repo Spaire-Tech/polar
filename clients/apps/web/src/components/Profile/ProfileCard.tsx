@@ -2,6 +2,11 @@
 
 import { useStorefrontSubscribe } from '@/hooks/queries/emailMarketing'
 import { focalPointToObjectPosition } from '@/components/Customization/Storefront/StorefrontSidebar/utils'
+import {
+  resolveSpaceItems,
+  type ResolvedSpaceItem,
+} from '@/components/Profile/spaceItems'
+import { StorefrontLinkItem } from '@/components/Profile/StorefrontLinks'
 import { schemas } from '@spaire/client'
 import Avatar from '@spaire/ui/components/atoms/Avatar'
 import {
@@ -103,28 +108,24 @@ export const ProfileCard = ({
 
   const MAX_VISIBLE_SKILLS = 4
 
-  // Carousel of products in the user's Space. Scoped exactly like the
-  // canvas: 'curated' mode filters to featured_product_ids, otherwise
-  // all active products show up. featured_product_ids is also the
-  // ranking hint, so the strip honors the order the creator set when
-  // dragging. Only products with images are shown.
-  const featuredMode: 'all' | 'curated' = settings?.featured_mode ?? 'curated'
-  const featuredIds = settings?.featured_product_ids ?? []
+  // Carousel of products in the user's Space. Scoping + ordering come
+  // from the shared resolver, so this strip and the main Space below
+  // always agree: hide a product via Arrange and it disappears here
+  // too, drop it into a new slot and the carousel reorders to match.
+  // Only products with images render in the strip.
   const highlights = (() => {
     if (!showCardProducts) return []
-    const scoped =
-      featuredMode === 'curated'
-        ? products.filter((p) => featuredIds.includes(p.id))
-        : products
-    if (featuredIds.length > 0) {
-      const rank = new Map(featuredIds.map((id, i) => [id, i]))
-      const ranked = scoped
-        .filter((p) => rank.has(p.id))
-        .sort((a, b) => rank.get(a.id)! - rank.get(b.id)!)
-      const unranked = scoped.filter((p) => !rank.has(p.id))
-      return [...ranked, ...unranked].filter((p) => p.medias.length > 0)
-    }
-    return scoped.filter((p) => p.medias.length > 0)
+    const resolved = resolveSpaceItems({
+      settings,
+      products,
+      links: (settings?.storefront_links ?? []) as StorefrontLinkItem[],
+    })
+    return resolved
+      .filter(
+        (i): i is Extract<ResolvedSpaceItem, { kind: 'product' }> =>
+          i.kind === 'product' && i.product.medias.length > 0,
+      )
+      .map((i) => i.product)
   })()
 
   return (

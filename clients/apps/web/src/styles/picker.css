@@ -108,6 +108,10 @@
   align-items: center;
   justify-content: space-between;
   padding: 4px 8px 12px;
+  /* Lock the header height in the flex column so a long body can never
+     compress it. Without this, tall content in .wg-body (which has
+     flex: 1) could push the header out of frame on Safari. */
+  flex-shrink: 0;
 }
 
 .pk-library .wg-title {
@@ -146,9 +150,7 @@
   padding: 4px;
   margin-top: 18px;
   /* Solid cream so body content scrolling underneath can never bleed
-     through the (otherwise barely-there) 4% tint we used to have.
-     Sticky so it parks at the top of the picker even when the body
-     scrolls; z-index keeps it above hovered tile shadows. */
+     through the (otherwise barely-there) 4% tint we used to have. */
   background: rgba(248, 246, 242, 0.96);
   border-radius: 999px;
   border: 1px solid rgba(255, 255, 255, 0.6);
@@ -157,8 +159,19 @@
     0 1px 0 rgba(255, 255, 255, 0.7) inset;
   align-self: stretch;
   overflow-x: auto;
-  position: sticky;
-  top: 0;
+  /* Hold the pill bar's natural height in the flex column. Default
+     flex-shrink: 1 let tall bodies (URL with a long description, the
+     Catalog tab with many tiles before .wg-body's internal scroll
+     engaged) squeeze the pills into a half-row that the user had to
+     scroll past to read. Position relative + z-index keeps it above
+     hovered tile shadows in the body below.
+
+     We don't use position: sticky here — the scrolling ancestor is
+     .wg-body (a sibling), so sticky has nothing to anchor against.
+     The flex layout (head + tabs natural-height, body flex:1 +
+     internal scroll) keeps the pills parked at the top by itself. */
+  flex-shrink: 0;
+  position: relative;
   z-index: 2;
 }
 

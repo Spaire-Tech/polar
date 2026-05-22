@@ -6,6 +6,10 @@ import { detectPlatform } from '@/components/Profile/linkPlatforms'
 import { ProfileCard } from '@/components/Profile/ProfileCard'
 import { Storefront } from '@/components/Profile/Storefront'
 import { StorefrontLinkItem } from '@/components/Profile/StorefrontLinks'
+import {
+  appendSpaceItem,
+  reconcileSpaceProducts,
+} from '@/components/Profile/spaceItems'
 import { toast } from '@/components/Toast/use-toast'
 import { useUpdateOrganization } from '@/hooks/queries'
 import { useStorefront } from '@/hooks/queries/storefront'
@@ -97,9 +101,20 @@ const Customization = ({
         ((settings as { storefront_links?: StorefrontLinkItem[] })
           .storefront_links ?? []).slice()
       links.push(link)
+      // Also append to space_items so the new link shows up at the end
+      // of the Space's flat order. appendSpaceItem materialises the
+      // current order if it's still legacy-derived, so this is also
+      // the first write that "locks in" the new ordering model for
+      // Spaces still on the legacy fields.
+      const itemPatch = appendSpaceItem({
+        settings: settings as schemas['OrganizationStorefrontSettings'],
+        products: storefrontData?.products ?? [],
+        links,
+        item: { kind: 'link', id: link.id },
+      })
       form.setValue(
         'storefront_settings',
-        { ...settings, storefront_links: links },
+        { ...settings, storefront_links: links, ...itemPatch },
         { shouldDirty: true },
       )
       toast({
@@ -107,7 +122,7 @@ const Customization = ({
         description: link.title || link.url,
       })
     },
-    [form],
+    [form, storefrontData],
   )
 
   const pickerCallbacks: AddToSpacePickerCallbacks = {
@@ -146,24 +161,40 @@ const Customization = ({
       })
     },
     onChangeProducts: (addIds, removeIds) => {
-      // Diff-based update. The picker shows already-featured products
-      // pre-selected; toggling them off becomes a `removeIds` entry.
+      // Diff-based update. The picker shows products that are
+      // currently on the Space as pre-selected; toggling them off
+      // becomes a `removeIds` entry. We update both `space_items`
+      // (the new source of truth — appends adds at the end, drops
+      // removes in place) and `featured_product_ids` (kept in sync
+      // so older client builds + the carousel scoping in the profile
+      // card don't see a stale list).
       const settings = form.getValues('storefront_settings') ?? {}
       const typed = settings as {
         featured_product_ids?: string[]
-        featured_mode?: 'all' | 'curated'
+        storefront_links?: StorefrontLinkItem[]
       }
       const existing = typed.featured_product_ids ?? []
       const removed = new Set(removeIds)
-      const next = Array.from(
+      const nextFeatured = Array.from(
         new Set([
           ...existing.filter((id) => !removed.has(id)),
           ...addIds,
         ]),
       )
+      const itemPatch = reconcileSpaceProducts({
+        settings: settings as schemas['OrganizationStorefrontSettings'],
+        products: storefrontData?.products ?? [],
+        links: typed.storefront_links ?? [],
+        addIds,
+        removeIds,
+      })
       form.setValue(
         'storefront_settings',
-        { ...settings, featured_product_ids: next },
+        {
+          ...settings,
+          featured_product_ids: nextFeatured,
+          ...itemPatch,
+        },
         { shouldDirty: true },
       )
       const parts: string[] = []

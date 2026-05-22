@@ -23,15 +23,10 @@ export const StorefrontLivePreview = ({
   const allProducts =
     useProducts(organization.id, { is_archived: false }).data?.items ?? []
 
-  // Honor featured_mode: 'all' shows every product, 'curated' shows only
-  // the IDs the user has explicitly selected.
-  const featuredMode = organization.storefront_settings?.featured_mode ?? 'curated'
-  const featuredIds =
-    organization.storefront_settings?.featured_product_ids ?? []
-  const products =
-    featuredMode === 'curated'
-      ? allProducts.filter((p) => featuredIds.includes(p.id))
-      : allProducts
-
-  return <ProfileCard organization={organization} products={products} preview />
+  // Scoping happens inside ProfileCard via the shared resolver — pass
+  // every active product so the resolver can filter to whatever the
+  // creator has actually placed on their Space.
+  return (
+    <ProfileCard organization={organization} products={allProducts} preview />
+  )
 }

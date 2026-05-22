@@ -137,17 +137,16 @@ export const SpaceSettingsPanel = ({
       </div>
 
       <div className="sp-body">
-        {/* ── Visibility ─────────────────────────────────────────── */}
+        {/* The "Visibility" h3 and the "Make your storefront visible
+            to the public" sub-line were redundant — the toggle sits
+            in the Space editor's Settings panel, which is itself the
+            "make it public" affordance. Single label on the row is
+            enough; the URL row + share buttons below explain what
+            "enabled" unlocks. */}
         <section className="sp-section">
-          <h3>Visibility</h3>
           <div className="sp-section-stack">
             <div className="sp-row">
-              <div>
-                <div className="lbl">Enable your Space</div>
-                <div className="sub">
-                  Make your storefront visible to the public.
-                </div>
-              </div>
+              <div className="lbl">Enable your Space</div>
               <button
                 type="button"
                 className="sp-toggle"
@@ -215,15 +214,15 @@ export const SpaceSettingsPanel = ({
           </div>
         </section>
 
-        {/* ── Available for work ─────────────────────────────────── */}
+        {/* Same trim as Visibility above — the section header
+            "Available for work" and the "A green pill on your Space
+            card" sub-line just restated what the toggle obviously
+            does. The contact-URL input below appears when the toggle
+            is on and is self-explanatory in context. */}
         <section className="sp-section">
-          <h3>Available for work</h3>
           <div className="sp-section-stack">
             <div className="sp-row">
-              <div>
-                <div className="lbl">Show the badge</div>
-                <div className="sub">A green pill on your Space card.</div>
-              </div>
+              <div className="lbl">Available for work</div>
               <button
                 type="button"
                 className="sp-toggle"
