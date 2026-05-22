@@ -123,7 +123,14 @@ const DraggableHighlight = ({
           e.stopPropagation()
           onRemove(product.id)
         }}
-        className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-gray-900 text-white opacity-0 shadow transition-opacity hover:bg-black focus:opacity-100 group-hover:opacity-100"
+        // Center the 20px button on the image's top-right corner so it
+        // reads as a "remove badge" sitting on the corner, not as a
+        // chip pasted inside the image. -10px (h-5 / 2) is the magic
+        // number. The carousel wrapper's pt-2 pr-2 (below) gives this
+        // overhang room — without that padding the overflow-x scroll
+        // container clips the badge back inside the image, which is
+        // the bug the user was seeing.
+        className="absolute -right-2.5 -top-2.5 flex h-5 w-5 items-center justify-center rounded-full bg-gray-900 text-white opacity-0 shadow transition-opacity hover:bg-black focus:opacity-100 group-hover:opacity-100"
         aria-label={`Remove ${product.name} from carousel`}
       >
         <CloseOutlined style={{ fontSize: 12 }} />
@@ -904,7 +911,14 @@ export const EditableProfileCard = ({
                 items={withImages.map((entry) => entry.product.id)}
                 strategy={horizontalListSortingStrategy}
               >
-                <div className="mt-5 flex flex-row gap-2 overflow-x-auto pb-1">
+                {/* pt-2 / pr-2 give the corner-anchored remove badge
+                    room to overhang the top-right of each thumbnail
+                    without getting clipped by the horizontal scroll
+                    container's vertical-axis clipping (overflow-x:
+                    auto turns overflow-y into effectively auto, so the
+                    badge needs intrinsic clearance — there is no
+                    "overflow visible on one axis only" in CSS). */}
+                <div className="mt-5 flex flex-row gap-2 overflow-x-auto pt-2 pr-2 pb-1">
                   {withImages.map((entry) => (
                     <DraggableHighlight
                       key={entry.product.id}
