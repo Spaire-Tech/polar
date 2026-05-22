@@ -1692,6 +1692,56 @@ const MOBILE_LEARN_DEFAULTS: { title: string; desc: string }[] = [
 
 const MOBILE_LEARN_HUES = [195, 35, 285, 145]
 
+function MobileLearnThumbPlaceholder({ hue, n }: { hue: number; n: number }) {
+  return (
+    <>
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          background: `linear-gradient(135deg, oklch(0.32 0.06 ${hue}) 0%, oklch(0.18 0.04 ${(hue + 30) % 360}) 100%)`,
+        }}
+      />
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          backgroundImage:
+            'repeating-linear-gradient(45deg, rgba(255,255,255,0.04) 0 8px, transparent 8px 16px)',
+        }}
+      />
+      <div
+        style={{
+          position: 'absolute',
+          left: '15%',
+          top: '10%',
+          width: '55%',
+          height: '70%',
+          background: `radial-gradient(ellipse, oklch(0.85 0.06 ${hue} / 0.18), transparent 70%)`,
+          filter: 'blur(20px)',
+        }}
+      />
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontFamily: 'ui-monospace, "SF Mono", Menlo, monospace',
+          fontSize: 9,
+          letterSpacing: '0.10em',
+          textTransform: 'uppercase',
+          color: 'rgba(255,255,255,0.50)',
+          fontWeight: 500,
+        }}
+      >
+        moment · §{n}
+      </div>
+    </>
+  )
+}
+
 export function MobileWhatYoullLearn() {
   const ed = useEditor()
   const [openIdx, setOpenIdx] = useState<number | null>(null)
@@ -1798,67 +1848,80 @@ export function MobileWhatYoullLearn() {
                   background: 'white',
                   border: '1px solid oklch(0.945 0.003 280)',
                   borderRadius: 14,
-                  padding: '14px 16px 16px',
+                  overflow: 'hidden',
                   boxShadow: '0 1px 2px rgba(0,0,0,0.04), 0 8px 22px rgba(0,0,0,0.06)',
                 }}
               >
-                <div
+                <EditMedia
+                  id={`learn.item${i + 1}.image`}
+                  label={`Moment ${i + 1} image`}
                   style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 8,
-                    marginBottom: 8,
+                    position: 'relative',
+                    aspectRatio: '16 / 9',
+                    overflow: 'hidden',
+                    background: '#111',
                   }}
-                >
-                  <span
+                  placeholder={<MobileLearnThumbPlaceholder hue={hue} n={i + 1} />}
+                />
+                <div style={{ padding: '14px 16px 16px' }}>
+                  <div
                     style={{
-                      display: 'inline-block',
-                      width: 7,
-                      height: 7,
-                      borderRadius: '50%',
-                      background: `oklch(0.58 0.12 ${hue})`,
-                    }}
-                  />
-                  <span
-                    style={{
-                      fontFamily: 'ui-monospace, "SF Mono", Menlo, monospace',
-                      fontSize: 10.5,
-                      fontWeight: 500,
-                      color: 'var(--fg-3, oklch(0.52 0.008 280))',
-                      letterSpacing: '0.10em',
-                      textTransform: 'uppercase',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      marginBottom: 8,
                     }}
                   >
-                    {String(i + 1).padStart(2, '0')}
-                  </span>
-                </div>
-                <EditText
-                  as="div"
-                  path={`learn.item${i + 1}.title`}
-                  defaultValue={d.title}
-                  multiline
-                  style={{
-                    fontSize: 15,
-                    fontWeight: 600,
-                    letterSpacing: '-0.018em',
-                    lineHeight: 1.28,
-                    color: 'var(--fg-0, oklch(0.18 0.008 280))',
-                    textWrap: 'balance',
-                    fontFamily: HEADING_VAR,
-                  }}
-                />
-                <div
-                  style={{
-                    marginTop: 12,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 6,
-                    fontSize: 11.5,
-                    color: 'var(--fg-3, oklch(0.52 0.008 280))',
-                  }}
-                >
-                  <span>Read more</span>
-                  <span style={{ fontSize: 12, lineHeight: 1 }}>→</span>
+                    <span
+                      style={{
+                        display: 'inline-block',
+                        width: 7,
+                        height: 7,
+                        borderRadius: '50%',
+                        background: `oklch(0.58 0.12 ${hue})`,
+                      }}
+                    />
+                    <span
+                      style={{
+                        fontFamily: 'ui-monospace, "SF Mono", Menlo, monospace',
+                        fontSize: 10.5,
+                        fontWeight: 500,
+                        color: 'var(--fg-3, oklch(0.52 0.008 280))',
+                        letterSpacing: '0.10em',
+                        textTransform: 'uppercase',
+                      }}
+                    >
+                      Moment {String(i + 1).padStart(2, '0')}
+                    </span>
+                  </div>
+                  <EditText
+                    as="div"
+                    path={`learn.item${i + 1}.title`}
+                    defaultValue={d.title}
+                    multiline
+                    style={{
+                      fontSize: 15,
+                      fontWeight: 600,
+                      letterSpacing: '-0.018em',
+                      lineHeight: 1.28,
+                      color: 'var(--fg-0, oklch(0.18 0.008 280))',
+                      textWrap: 'balance',
+                      fontFamily: HEADING_VAR,
+                    }}
+                  />
+                  <div
+                    style={{
+                      marginTop: 12,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      fontSize: 11.5,
+                      color: 'var(--fg-3, oklch(0.52 0.008 280))',
+                    }}
+                  >
+                    <span>Read more</span>
+                    <span style={{ fontSize: 12, lineHeight: 1 }}>→</span>
+                  </div>
                 </div>
               </div>
             </div>

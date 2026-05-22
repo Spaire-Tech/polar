@@ -26,6 +26,11 @@ export function LearnItemSheet({
   const ed = useEditor()
   const hue = HUES[index % HUES.length]
   const compact = ed.device === 'mobile'
+  // Reuse the same image slot the card's EditMedia writes to, so a
+  // creator who uploads a thumb sees it again in the sheet.
+  const slot = ed.m(`learn.item${index + 1}.image`)
+  const coverUrl = slot && slot.kind === 'image' ? slot.url : null
+  const coverPosition = slot?.objectPosition ?? '50% 50%'
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -70,15 +75,27 @@ export function LearnItemSheet({
         </button>
 
         <div className="lis-cover">
-          <div
-            className="lis-cover-bg"
-            style={{
-              background: `linear-gradient(135deg, oklch(0.32 0.06 ${hue}) 0%, oklch(0.18 0.04 ${(hue + 30) % 360}) 100%)`,
-            }}
-          />
-          <div className="lis-cover-pattern" />
+          {coverUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={coverUrl}
+              alt=""
+              className="lis-cover-img"
+              style={{ objectPosition: coverPosition }}
+            />
+          ) : (
+            <>
+              <div
+                className="lis-cover-bg"
+                style={{
+                  background: `linear-gradient(135deg, oklch(0.32 0.06 ${hue}) 0%, oklch(0.18 0.04 ${(hue + 30) % 360}) 100%)`,
+                }}
+              />
+              <div className="lis-cover-pattern" />
+            </>
+          )}
           <div className="lis-cover-eyebrow">
-            {String(index + 1).padStart(2, '0')}
+            Moment {String(index + 1).padStart(2, '0')}
           </div>
         </div>
 
@@ -158,6 +175,13 @@ export function LearnItemSheet({
           position: absolute;
           inset: 0;
         }
+        .lis-cover-img {
+          position: absolute;
+          inset: 0;
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+        }
         .lis-cover-pattern {
           position: absolute;
           inset: 0;
@@ -175,7 +199,9 @@ export function LearnItemSheet({
           font-size: 11px;
           letter-spacing: 0.18em;
           text-transform: uppercase;
-          color: rgba(255, 255, 255, 0.78);
+          color: rgba(255, 255, 255, 0.88);
+          text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
+          z-index: 1;
         }
         .lis-body {
           padding: 28px 28px 32px;

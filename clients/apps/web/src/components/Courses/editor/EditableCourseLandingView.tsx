@@ -3613,6 +3613,58 @@ function LearnHueFor(index: number): number {
   return [195, 35, 285, 145][index % 4]
 }
 
+// Per-item thumb placeholder — same gradient + scribbled pattern + index
+// label as SectionThumbPlaceholder so the two roadmaps share one look.
+function LearnThumbPlaceholder({ hue, n }: { hue: number; n: number }) {
+  return (
+    <>
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          background: `linear-gradient(135deg, oklch(0.32 0.06 ${hue}) 0%, oklch(0.18 0.04 ${(hue + 30) % 360}) 100%)`,
+        }}
+      />
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          backgroundImage:
+            'repeating-linear-gradient(45deg, rgba(255,255,255,0.04) 0 8px, transparent 8px 16px)',
+        }}
+      />
+      <div
+        style={{
+          position: 'absolute',
+          left: '15%',
+          top: '10%',
+          width: '55%',
+          height: '70%',
+          background: `radial-gradient(ellipse, oklch(0.85 0.06 ${hue} / 0.18), transparent 70%)`,
+          filter: 'blur(20px)',
+        }}
+      />
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontFamily: 'ui-monospace, "SF Mono", Menlo, monospace',
+          fontSize: 9.5,
+          letterSpacing: '0.10em',
+          textTransform: 'uppercase',
+          color: 'rgba(255,255,255,0.50)',
+          fontWeight: 500,
+        }}
+      >
+        moment · §{n}
+      </div>
+    </>
+  )
+}
+
 function LearnCard({
   index,
   pointer,
@@ -3626,6 +3678,21 @@ function LearnCard({
 }) {
   const isAbove = pointer === 'bottom'
   const hue = LearnHueFor(index)
+  const thumbRadius = isAbove ? '13px 13px 0 0' : '0 0 13px 13px'
+  const thumb = (
+    <EditMedia
+      id={`learn.item${index + 1}.image`}
+      label={`Moment ${index + 1} image`}
+      style={{
+        position: 'relative',
+        aspectRatio: '4 / 3',
+        overflow: 'hidden',
+        borderRadius: thumbRadius,
+        background: '#111',
+      }}
+      placeholder={<LearnThumbPlaceholder hue={hue} n={index + 1} />}
+    />
+  )
   return (
     <div
       onClick={onClick}
@@ -3652,13 +3719,14 @@ function LearnCard({
           'transform 220ms cubic-bezier(0.2, 0.9, 0.3, 1.1), box-shadow 220ms ease',
       }}
     >
-      <div style={{ padding: '22px 24px 22px' }}>
+      {isAbove && thumb}
+      <div style={{ padding: '20px 24px 22px' }}>
         <div
           style={{
             display: 'flex',
             alignItems: 'center',
             gap: 10,
-            marginBottom: 12,
+            marginBottom: 10,
           }}
         >
           <span
@@ -3680,7 +3748,7 @@ function LearnCard({
               textTransform: 'uppercase',
             }}
           >
-            {String(index + 1).padStart(2, '0')}
+            Moment {String(index + 1).padStart(2, '0')}
           </span>
         </div>
         <div
@@ -3692,14 +3760,14 @@ function LearnCard({
             lineHeight: 1.28,
             fontFamily: HEADING_VAR,
             textWrap: 'balance',
-            minHeight: 48,
+            minHeight: 44,
           }}
         >
           {title}
         </div>
         <div
           style={{
-            marginTop: 18,
+            marginTop: 16,
             display: 'flex',
             alignItems: 'center',
             gap: 6,
@@ -3712,6 +3780,7 @@ function LearnCard({
           <span style={{ fontSize: 13, lineHeight: 1 }}>→</span>
         </div>
       </div>
+      {!isAbove && thumb}
       <div
         style={{
           position: 'absolute',
@@ -3756,7 +3825,7 @@ function LearnZigzag({
           display: 'grid',
           gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
           gap: 20,
-          minHeight: 200,
+          minHeight: 340,
           alignItems: 'end',
         }}
       >
@@ -3834,7 +3903,7 @@ function LearnZigzag({
           display: 'grid',
           gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
           gap: 20,
-          minHeight: 200,
+          minHeight: 340,
           alignItems: 'start',
         }}
       >
