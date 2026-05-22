@@ -50,7 +50,12 @@ type WizardStep =
   | 'creating'
 
 type InstructorState = { name: string; bio: string }
-type CourseState = { title: string; desc: string }
+type CourseState = {
+  title: string
+  desc: string
+  targetAudience: string
+  differentiator: string
+}
 type DraftState = {
   name: string
   courseTitle: string
@@ -116,7 +121,12 @@ export default function CourseWizard({
     name: organization.name ?? '',
     bio: '',
   })
-  const [course, setCourse] = useState<CourseState>({ title: '', desc: '' })
+  const [course, setCourse] = useState<CourseState>({
+    title: '',
+    desc: '',
+    targetAudience: '',
+    differentiator: '',
+  })
   // Pricing/currency/billing-cycle live exclusively on the form below — same
   // primitives as the regular product create flow. The wizard tracks only the
   // course-specific paywall toggle + free preview lesson count.
@@ -212,7 +222,8 @@ export default function CourseWizard({
     submitOutline({
       title: draft.courseTitle || course.title,
       description: draft.desc || course.desc || '',
-      targetAudience: '',
+      targetAudience: course.targetAudience || null,
+      differentiator: course.differentiator || null,
       instructorName: instructor.name || null,
       instructorBio: instructor.bio || null,
       paywallEnabled: paywall.paywallEnabled,
@@ -239,6 +250,8 @@ export default function CourseWizard({
     submitLanding({
       title: draft.courseTitle || course.title,
       description: draft.desc || course.desc || '',
+      targetAudience: course.targetAudience || null,
+      differentiator: course.differentiator || null,
       instructorName: instructor.name || null,
       instructorBio: instructor.bio || null,
       moduleCount: outline?.modules?.length ?? 0,

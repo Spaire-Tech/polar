@@ -248,6 +248,8 @@ export async function POST(req: Request) {
   const {
     title,
     description,
+    targetAudience,
+    differentiator,
     instructorName,
     instructorBio,
     moduleCount,
@@ -271,6 +273,10 @@ export async function POST(req: Request) {
     isSeries ? `Series title: ${title}` : `Course title: ${title}`,
     description
       ? `${isSeries ? 'Series' : 'Course'} description: ${description}`
+      : null,
+    targetAudience ? `Target audience: ${targetAudience}` : null,
+    differentiator
+      ? `What makes this ${isSeries ? 'series' : 'course'} different: ${differentiator}`
       : null,
     instructorName
       ? `${isSeries ? 'Creator' : 'Instructor'} name: ${instructorName}`
