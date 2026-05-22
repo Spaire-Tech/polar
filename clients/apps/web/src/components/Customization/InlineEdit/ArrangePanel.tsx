@@ -1,6 +1,7 @@
 'use client'
 
 import { StorefrontLinkItem } from '@/components/Profile/StorefrontLinks'
+import { CATEGORY_LABELS } from '@/components/Profile/categoryLabels'
 import {
   itemKey,
   removeSpaceItem,
@@ -106,8 +107,25 @@ const Grip = ({
   </button>
 )
 
+// Resolve the chip label shown on the right side of a product row.
+// Mirrors the category that the public Space renders as the section
+// header (eBooks, Courses, Templates, …) so the creator never has to
+// guess what kind of product they're looking at. Falls back to
+// "Product" when the product has no category or one we don't have a
+// label for — preferable to a blank chip on a row that's clearly a
+// product.
+const productCategoryLabel = (
+  product: { category?: string | null },
+): string => {
+  const cat = product.category
+  if (cat && cat in CATEGORY_LABELS) return CATEGORY_LABELS[cat]
+  return 'Product'
+}
+
 // What to render for each item kind — image thumbnail + name for
-// products, an icon + title (or URL) for links and embeds.
+// products, an icon + title (or URL) for links and embeds. The
+// right-side chip shows the category (for products) or the kind
+// (Embed / Link) so every row is self-describing.
 const ItemRowBody = ({ item }: { item: ResolvedSpaceItem }) => {
   if (item.kind === 'product') {
     const { product } = item
@@ -126,7 +144,7 @@ const ItemRowBody = ({ item }: { item: ResolvedSpaceItem }) => {
         <span className="ap-row-name" title={product.name}>
           {product.name}
         </span>
-        <span className="ap-row-kind">Product</span>
+        <span className="ap-row-kind">{productCategoryLabel(product)}</span>
       </>
     )
   }
