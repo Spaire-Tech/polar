@@ -103,8 +103,8 @@ export function MobileHero({
         // structure.
         width: '100vw',
         marginLeft: 'calc(50% - 50vw)',
-        marginTop: 'calc(-1 * (env(safe-area-inset-top, 0px) + 16px))',
-        height: 'clamp(440px, 70svh, 620px)',
+        marginTop: 'calc(-1 * (env(safe-area-inset-top, 0px) + 24px))',
+        height: 'clamp(560px, 82svh, 760px)',
         overflow: 'hidden',
         background: '#000',
         isolation: 'isolate',
