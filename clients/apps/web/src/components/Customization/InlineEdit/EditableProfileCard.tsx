@@ -918,7 +918,7 @@ export const EditableProfileCard = ({
                     auto turns overflow-y into effectively auto, so the
                     badge needs intrinsic clearance — there is no
                     "overflow visible on one axis only" in CSS). */}
-                <div className="mt-5 flex flex-row gap-2 overflow-x-auto pt-2 pr-2 pb-1">
+                <div className="mt-5 flex flex-row gap-2 overflow-x-auto pt-3 pr-3 pb-1">
                   {withImages.map((entry) => (
                     <DraggableHighlight
                       key={entry.product.id}
