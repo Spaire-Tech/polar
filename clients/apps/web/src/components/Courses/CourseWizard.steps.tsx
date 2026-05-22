@@ -1254,19 +1254,21 @@ export function StepInstructor({
             {isSeries ? 'Creator name' : 'Instructor name'}
           </span>
         </label>
-        <label className="so-field so-field--multiline">
-          <textarea
-            className="so-textarea"
-            rows={5}
-            placeholder=" "
-            style={{ resize: 'vertical' }}
-            value={data.bio}
-            onChange={(e) => onChange({ ...data, bio: e.target.value })}
-          />
-          <span className="so-label">
-            {isSeries ? 'About you' : 'About you'}
+        <div>
+          <span style={{ display: 'block', fontSize: 11, fontWeight: 500, color: 'var(--so-gray4)', marginBottom: 6, paddingLeft: 2 }}>
+            About you
           </span>
-        </label>
+          <label className="so-field">
+            <textarea
+              className="so-textarea"
+              rows={5}
+              placeholder=""
+              style={{ padding: '14px 16px', resize: 'vertical' }}
+              value={data.bio}
+              onChange={(e) => onChange({ ...data, bio: e.target.value })}
+            />
+          </label>
+        </div>
         <span className="so-hint">
           Your background, experience, and what makes you the right person to
           teach this. The more you share, the more personalized your experience
@@ -1332,45 +1334,55 @@ export function StepCourse({
             {isSeries ? 'Series title' : 'Course title'}
           </span>
         </label>
-        <label className="so-field so-field--multiline">
-          <textarea
-            className="so-textarea"
-            rows={5}
-            placeholder=" "
-            style={{ resize: 'vertical' }}
-            value={data.desc}
-            onChange={(e) => onChange({ ...data, desc: e.target.value })}
-          />
-          <span className="so-label">
+        <div>
+          <span style={{ display: 'block', fontSize: 11, fontWeight: 500, color: 'var(--so-gray4)', marginBottom: 6, paddingLeft: 2 }}>
             {isSeries ? 'What is this series about?' : 'What is this course about?'}
           </span>
-        </label>
-        <label className="so-field so-field--multiline">
-          <textarea
-            className="so-textarea"
-            rows={3}
-            placeholder=" "
-            style={{ resize: 'vertical' }}
-            value={data.targetAudience}
-            onChange={(e) =>
-              onChange({ ...data, targetAudience: e.target.value })
-            }
-          />
-          <span className="so-label">Who is this for?</span>
-        </label>
-        <label className="so-field so-field--multiline">
-          <textarea
-            className="so-textarea"
-            rows={3}
-            placeholder=" "
-            style={{ resize: 'vertical' }}
-            value={data.differentiator}
-            onChange={(e) =>
-              onChange({ ...data, differentiator: e.target.value })
-            }
-          />
-          <span className="so-label">What makes your approach unique?</span>
-        </label>
+          <label className="so-field">
+            <textarea
+              className="so-textarea"
+              rows={5}
+              placeholder=""
+              style={{ padding: '14px 16px', resize: 'vertical' }}
+              value={data.desc}
+              onChange={(e) => onChange({ ...data, desc: e.target.value })}
+            />
+          </label>
+        </div>
+        <div>
+          <span style={{ display: 'block', fontSize: 11, fontWeight: 500, color: 'var(--so-gray4)', marginBottom: 6, paddingLeft: 2 }}>
+            Who is this for?
+          </span>
+          <label className="so-field">
+            <textarea
+              className="so-textarea"
+              rows={3}
+              placeholder=""
+              style={{ padding: '14px 16px', resize: 'vertical' }}
+              value={data.targetAudience}
+              onChange={(e) =>
+                onChange({ ...data, targetAudience: e.target.value })
+              }
+            />
+          </label>
+        </div>
+        <div>
+          <span style={{ display: 'block', fontSize: 11, fontWeight: 500, color: 'var(--so-gray4)', marginBottom: 6, paddingLeft: 2 }}>
+            What makes your approach unique?
+          </span>
+          <label className="so-field">
+            <textarea
+              className="so-textarea"
+              rows={3}
+              placeholder=""
+              style={{ padding: '14px 16px', resize: 'vertical' }}
+              value={data.differentiator}
+              onChange={(e) =>
+                onChange({ ...data, differentiator: e.target.value })
+              }
+            />
+          </label>
+        </div>
         <p className="so-hint">
           The last two fields are optional — but the more you share, the more
           personalized your landing page and curriculum will be.
