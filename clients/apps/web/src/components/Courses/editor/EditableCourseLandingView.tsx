@@ -3720,13 +3720,13 @@ function LearnCard({
       }}
     >
       {isAbove && thumb}
-      <div style={{ padding: '20px 24px 22px' }}>
+      <div style={{ padding: '24px 28px 26px' }}>
         <div
           style={{
             display: 'flex',
             alignItems: 'center',
             gap: 10,
-            marginBottom: 10,
+            marginBottom: 12,
           }}
         >
           <span
@@ -3741,7 +3741,7 @@ function LearnCard({
           <span
             style={{
               fontFamily: 'ui-monospace, "SF Mono", Menlo, monospace',
-              fontSize: 11,
+              fontSize: 11.5,
               fontWeight: 500,
               color: 'oklch(0.52 0.008 280)',
               letterSpacing: '0.10em',
@@ -3753,25 +3753,25 @@ function LearnCard({
         </div>
         <div
           style={{
-            fontSize: 17,
+            fontSize: 20,
             fontWeight: 700,
-            letterSpacing: '-0.018em',
+            letterSpacing: '-0.02em',
             color: 'oklch(0.18 0.008 280)',
-            lineHeight: 1.28,
+            lineHeight: 1.26,
             fontFamily: HEADING_VAR,
             textWrap: 'balance',
-            minHeight: 44,
+            minHeight: 52,
           }}
         >
           {title}
         </div>
         <div
           style={{
-            marginTop: 16,
+            marginTop: 18,
             display: 'flex',
             alignItems: 'center',
             gap: 6,
-            fontSize: 12,
+            fontSize: 12.5,
             color: 'oklch(0.52 0.008 280)',
             letterSpacing: '-0.005em',
           }}
@@ -3825,7 +3825,7 @@ function LearnZigzag({
           display: 'grid',
           gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
           gap: 20,
-          minHeight: 340,
+          minHeight: 420,
           alignItems: 'end',
         }}
       >
@@ -3903,7 +3903,7 @@ function LearnZigzag({
           display: 'grid',
           gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
           gap: 20,
-          minHeight: 340,
+          minHeight: 420,
           alignItems: 'start',
         }}
       >
@@ -3947,7 +3947,7 @@ function WhatYoullLearn() {
     <section
       style={{
         padding: '88px 32px 24px',
-        maxWidth: 1180,
+        maxWidth: 1480,
         margin: '0 auto',
         fontFamily: FONT_VAR,
       }}
