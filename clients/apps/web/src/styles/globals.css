@@ -217,22 +217,3 @@ pre.shiki {
     background-color: var(--color-gray-100) !important;
   }
 }
-
-
-/* Mobile course landing — solid darkest-black band over the top region
-   of the editor wrapper so the area behind/around the hero (especially
-   the iOS status-bar strip) is dark while the rest of the page stays
-   light. Applies wherever EditableCourseLandingView renders: the public
-   product landing, the wizard preview, and the studio customize tab.
-   The hero image's own faint top vignette handles the blend into this
-   band. */
-@media (max-width: 767px) {
-  [data-spaire-editor] {
-    background: linear-gradient(
-      180deg,
-      #000 0px,
-      #000 720px,
-      var(--bg-0, #fff) 720px
-    ) !important;
-  }
-}

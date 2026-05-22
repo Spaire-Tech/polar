@@ -127,10 +127,7 @@ export function MobileHero({
         />
       </EditMedia>
 
-      {/* Vignette — faint linear at the very top so the hero image
-          blends into the solid-black wrapper above it. Bottom darkness
-          stays heavy because that's what makes the title legible over
-          the artwork. */}
+      {/* Vignette */}
       <div
         style={{
           position: 'absolute',
@@ -138,7 +135,7 @@ export function MobileHero({
           zIndex: 2,
           pointerEvents: 'none',
           background:
-            'linear-gradient(180deg, oklch(0 0 0 / 0.55) 0%, oklch(0 0 0 / 0.22) 8%, oklch(0 0 0 / 0.05) 18%, oklch(0 0 0 / 0) 30%, oklch(0 0 0 / 0.55) 75%, oklch(0 0 0 / 0.92) 100%)',
+            'linear-gradient(180deg, oklch(0 0 0 / 0.45) 0%, oklch(0 0 0 / 0.05) 22%, oklch(0 0 0 / 0) 40%, oklch(0 0 0 / 0.55) 75%, oklch(0 0 0 / 0.92) 100%)',
         }}
       />
 
