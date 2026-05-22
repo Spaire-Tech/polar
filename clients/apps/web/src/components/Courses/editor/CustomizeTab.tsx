@@ -33,36 +33,12 @@ import {
   ACCENT_PRESETS,
   EditorProvider,
   FONT_PAIRS,
+  SECTION_LABELS,
   SURFACE_MODES,
   mergeOverrides,
   useEditor,
   type ResolvedOverrides,
 } from './EditorContext'
-
-// Section ids and their user-facing labels for the "hidden sections" pill.
-// The labels mirror what EditableCourseLandingView shows in the EditBlock hover
-// chip, but we intentionally duplicate them here instead of importing — the
-// view's labels live inside section maps tangled with React nodes, and lifting
-// them would require a refactor we don't want for Phase 0. Keep this list in
-// sync if a new section is added to the landing.
-const SECTION_LABELS: Record<string, string> = {
-  hero: 'Hero',
-  sample: 'Episode sample',
-  sections: 'Sections',
-  lessons: 'Free preview',
-  createdBy: 'Created by',
-  learn: "What you'll learn",
-  instructor: 'Instructor',
-  reviews: 'Reviews',
-  faq: 'FAQ',
-  finalCta: 'Final CTA',
-  // Legacy ids that exist in DEFAULT_OVERRIDES.visible but are no longer
-  // rendered by the canvas — listed so a stale `visible[id]=false` from an
-  // older save still produces a readable label if the user surfaces it.
-  value: "What's included",
-  trailer: 'Trailer',
-  curriculum: 'Curriculum',
-}
 
 export function CustomizeTab({
   course,

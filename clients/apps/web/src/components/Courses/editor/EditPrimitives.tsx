@@ -8,6 +8,8 @@
 // affordances. So the same component tree is used for both modes.
 
 import type { LandingMedia } from '@/hooks/queries/courses'
+import { useSortable } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import {
   forwardRef,
   useEffect,
@@ -19,6 +21,7 @@ import {
   type ReactNode,
 } from 'react'
 import { createPortal } from 'react-dom'
+import { ToastAction } from '../../Toast'
 import { toast } from '../../Toast/use-toast'
 import { useEditor } from './EditorContext'
 
@@ -769,25 +772,58 @@ export function EditBlock({
   const [hover, setHover] = useState(false)
   const visible = ed.isVisible(id)
 
+  // useSortable must be called unconditionally (hook rules). We branch on
+  // ed.mode AFTER the hook call below so preview/edit switches don't change
+  // hook order on an unmount.
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id })
+
   if (!visible && ed.mode === 'preview') return null
   if (ed.mode !== 'edit') return <>{children}</>
 
+  const onDelete = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    ed.deleteSection(id)
+    toast({
+      title: `${label} removed`,
+      description: 'Use Undo to bring it back, or add it from the catalog.',
+      action: (
+        <ToastAction altText="Undo" onClick={() => ed.undo()}>
+          Undo
+        </ToastAction>
+      ),
+    })
+  }
+
   return (
     <div
+      ref={setNodeRef}
       style={{
         position: 'relative',
-        outline: hover
-          ? '1px solid rgba(99,102,241,0.55)'
-          : '1px solid transparent',
+        outline:
+          hover && !isDragging
+            ? '1px solid rgba(99,102,241,0.55)'
+            : '1px solid transparent',
         borderRadius: 6,
-        opacity: visible ? 1 : 0.35,
-        transition: 'outline-color 150ms ease',
+        opacity: isDragging ? 0.45 : visible ? 1 : 0.35,
+        transition:
+          // dnd-kit drives the transform transition; keep our own ease on the
+          // outline color so hover still feels snappy.
+          [transition, 'outline-color 150ms ease'].filter(Boolean).join(', '),
+        transform: CSS.Transform.toString(transform),
+        zIndex: isDragging ? 50 : undefined,
       }}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
       data-spaire-edit-block={id}
     >
-      {hover && (
+      {hover && !isDragging && (
         <div
           style={{
             position: 'absolute',
@@ -800,11 +836,36 @@ export function EditBlock({
             background: 'rgba(20,20,22,0.9)',
             color: 'white',
             borderRadius: 999,
-            padding: '5px 8px 5px 12px',
+            padding: '5px 8px 5px 8px',
             boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
             fontFamily: 'Inter, system-ui, sans-serif',
           }}
         >
+          <button
+            type="button"
+            aria-label="Drag to reorder"
+            title="Drag to reorder"
+            // Listeners + attributes are passed to the HANDLE only, not the
+            // whole block — that way clicking anywhere else in the section
+            // (text fields, images) never accidentally starts a drag.
+            {...attributes}
+            {...listeners}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: 22,
+              height: 22,
+              borderRadius: '50%',
+              background: 'rgba(255,255,255,0.10)',
+              color: 'white',
+              border: '1px solid rgba(255,255,255,0.12)',
+              cursor: 'grab',
+              touchAction: 'none',
+            }}
+          >
+            <BlockDragIcon />
+          </button>
           <span
             style={{
               fontSize: 10,
@@ -812,6 +873,7 @@ export function EditBlock({
               letterSpacing: '0.12em',
               textTransform: 'uppercase',
               fontFamily: 'ui-monospace, monospace',
+              padding: '0 4px',
             }}
           >
             {label}
@@ -822,23 +884,82 @@ export function EditBlock({
               e.stopPropagation()
               ed.setVisible(id, !visible)
             }}
-            style={{
-              width: 26,
-              height: 26,
-              borderRadius: '50%',
-              background: 'rgba(255,255,255,0.10)',
-              color: 'white',
-              border: '1px solid rgba(255,255,255,0.12)',
-              cursor: 'pointer',
-              fontSize: 11,
-            }}
+            style={blockPillBtn}
             title={visible ? 'Hide section' : 'Show section'}
           >
             {visible ? '👁' : '⊘'}
+          </button>
+          <button
+            type="button"
+            onClick={onDelete}
+            style={blockPillBtn}
+            title="Delete section"
+            aria-label="Delete section"
+          >
+            <BlockTrashIcon />
           </button>
         </div>
       )}
       {children}
     </div>
+  )
+}
+
+const blockPillBtn: CSSProperties = {
+  width: 22,
+  height: 22,
+  borderRadius: '50%',
+  background: 'rgba(255,255,255,0.10)',
+  color: 'white',
+  border: '1px solid rgba(255,255,255,0.12)',
+  cursor: 'pointer',
+  fontSize: 11,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  padding: 0,
+}
+
+function BlockDragIcon() {
+  return (
+    <svg
+      width="10"
+      height="10"
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.7"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <circle cx="6" cy="4" r="0.6" fill="currentColor" />
+      <circle cx="10" cy="4" r="0.6" fill="currentColor" />
+      <circle cx="6" cy="8" r="0.6" fill="currentColor" />
+      <circle cx="10" cy="8" r="0.6" fill="currentColor" />
+      <circle cx="6" cy="12" r="0.6" fill="currentColor" />
+      <circle cx="10" cy="12" r="0.6" fill="currentColor" />
+    </svg>
+  )
+}
+
+function BlockTrashIcon() {
+  return (
+    <svg
+      width="11"
+      height="11"
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.4"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M3 4h10" />
+      <path d="M6.5 4V2.5h3V4" />
+      <path d="M4.5 4l.6 8.5a1.2 1.2 0 0 0 1.2 1.1h3.4a1.2 1.2 0 0 0 1.2-1.1L11.5 4" />
+      <path d="M7 6.5v5M9 6.5v5" />
+    </svg>
   )
 }

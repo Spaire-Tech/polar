@@ -182,6 +182,43 @@ export const SECTION_ORDER_DEFAULT = [
   'finalCta',
 ] as const
 
+// Labels for every section id the editor knows about. The hover pill on the
+// canvas, the hidden-sections popover, the add-section catalog, and the
+// undo-toast all read from here so labels stay in sync. If a new section is
+// added to the landing render, add its id + label here.
+export const SECTION_LABELS: Record<string, string> = {
+  hero: 'Hero',
+  sample: 'Episode sample',
+  sections: 'Sections',
+  lessons: 'Free preview',
+  createdBy: 'Created by',
+  learn: "What you'll learn",
+  instructor: 'Instructor',
+  reviews: 'Reviews',
+  faq: 'FAQ',
+  finalCta: 'Final CTA',
+  // Legacy ids still present in DEFAULT_OVERRIDES.visible but no longer
+  // rendered by the canvas. Labelled defensively for old saved states.
+  value: "What's included",
+  trailer: 'Trailer',
+  curriculum: 'Curriculum',
+}
+
+// Sections that can be re-inserted from the add-section catalog. Excludes
+// the legacy ids above so the catalog doesn't surface dead options.
+export const ADDABLE_SECTION_IDS: readonly string[] = [
+  'hero',
+  'sample',
+  'sections',
+  'lessons',
+  'createdBy',
+  'learn',
+  'instructor',
+  'reviews',
+  'faq',
+  'finalCta',
+]
+
 export type ResolvedOverrides = {
   text: Record<string, string>
   media: Record<string, NonNullable<LandingOverrides['media']>[string]>
@@ -272,6 +309,19 @@ type EditorContextValue = {
   isVisible: (id: string) => boolean
   setVisible: (id: string, visible: boolean) => void
   setOrder: (order: string[]) => void
+  /**
+   * Remove a section so it stops rendering entirely. We drop the id from
+   * `order` AND set `visible[id]=false` defensively so a stale `visible=true`
+   * doesn't make the section re-appear if the id ever lands back in `order`.
+   * Single history frame — `undo()` restores both fields together.
+   */
+  deleteSection: (id: string) => void
+  /**
+   * Add a section back into `order`. Inserts at `atIndex` (default: append)
+   * and flips `visible[id]=true` so the user actually sees it. Single history
+   * frame.
+   */
+  insertSection: (id: string, atIndex?: number) => void
   setTheme: (patch: Partial<LandingTheme>) => void
   uploadMedia: Uploader
   /** Per-slot override (lets host map specific slots to different endpoints). */
@@ -411,6 +461,45 @@ export function EditorProvider({
   const setOrder = useCallback(
     (order: string[]) => {
       apply({ ...overrides, order })
+    },
+    [apply, overrides],
+  )
+
+  const deleteSection = useCallback(
+    (id: string) => {
+      const nextOrder = overrides.order.filter((x) => x !== id)
+      if (
+        nextOrder.length === overrides.order.length &&
+        overrides.visible[id] === false
+      ) {
+        // Already absent and already hidden — nothing to do.
+        return
+      }
+      apply({
+        ...overrides,
+        order: nextOrder,
+        visible: { ...overrides.visible, [id]: false },
+      })
+    },
+    [apply, overrides],
+  )
+
+  const insertSection = useCallback(
+    (id: string, atIndex?: number) => {
+      // Strip any existing occurrence first so we never end up with the same
+      // id twice in `order` (which would break dnd-kit's SortableContext key
+      // uniqueness and cause React key warnings).
+      const without = overrides.order.filter((x) => x !== id)
+      const idx =
+        atIndex == null
+          ? without.length
+          : Math.max(0, Math.min(without.length, atIndex))
+      const nextOrder = [...without.slice(0, idx), id, ...without.slice(idx)]
+      apply({
+        ...overrides,
+        order: nextOrder,
+        visible: { ...overrides.visible, [id]: true },
+      })
     },
     [apply, overrides],
   )
@@ -565,6 +654,8 @@ export function EditorProvider({
       isVisible,
       setVisible,
       setOrder,
+      deleteSection,
+      insertSection,
       setTheme,
       uploadMedia,
       uploaderForSlot,
@@ -588,6 +679,8 @@ export function EditorProvider({
       isVisible,
       setVisible,
       setOrder,
+      deleteSection,
+      insertSection,
       setTheme,
       uploadMedia,
       uploaderForSlot,
