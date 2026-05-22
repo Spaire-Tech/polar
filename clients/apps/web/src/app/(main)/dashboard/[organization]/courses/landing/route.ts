@@ -171,8 +171,8 @@ export async function POST(req: Request) {
   ]
 
   const intro = isSeries
-    ? `Write the entire landing page for this series. Every section label, heading, subheading, and body string must be original — do not echo my examples verbatim. The voice should match this specific creator and subject.`
-    : `Write the entire landing page for this course. Every section label, heading, subheading, and body string must be original — do not echo my examples verbatim. The voice should match this specific instructor and subject.`
+    ? `Write the entire landing page for this series. Every section label, heading, subheading, and body string must be original to THIS series's creator and subject — do not output any phrase that would still make sense for a different creator. Treat the cadence rules below as a description of shape, never as a phrase library. If the cadence rule shows a structural pattern, follow the pattern; never reuse the example words.`
+    : `Write the entire landing page for this course. Every section label, heading, subheading, and body string must be original to THIS course's instructor and subject — do not output any phrase that would still make sense for a different course. Treat the cadence rules below as a description of shape, never as a phrase library. Never use the phrase "Build arguments that move people" or any close paraphrase; if a similar tagline comes to mind, write a different one entirely.`
 
   const userPrompt = [
     intro,

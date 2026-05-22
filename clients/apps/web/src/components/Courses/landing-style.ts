@@ -53,75 +53,50 @@ Cardinality (enforced by the renderer — do not violate)
 - reviews: ALWAYS return an empty array []. The creator adds their own.
 `.trim()
 
-// Compact cadence demos across multiple subjects. Rotated so the model
-// doesn't pattern-match to a single persona. Each demo shows only the
-// cadence — never full templates.
-const CADENCE_DEMOS: { subject: string; lines: string[] }[] = [
+// Cadence rules — describe the SHAPE of each field, never show a copyable
+// phrase. Concrete example strings here would leak into output verbatim
+// (models follow examples harder than they follow rules). Two registers
+// are offered so the model can lean into the one that fits the subject.
+const CADENCE_REGISTERS: { register: string; rules: string[] }[] = [
   {
-    subject: 'persuasive writing',
-    lines: [
-      'Tagline shape: "Build arguments that move people."',
-      'Description shape: "A working novelist and former litigator on the structures, sentences, and habits behind writing that changes minds."',
-      'Outcome shape: "Write a first sentence people can\'t put down."',
-      'FAQ-answer shape: "Three real writing projects with feedback. Submit at your own pace. Lifetime access, on any device, with captions."',
+    register: 'instructional (a course teaching a craft)',
+    rules: [
+      'Tagline: 5-8 words, no period. Names what the learner will be able to do or how their thinking will shift. Starts with a strong verb that is NOT "build", "master", "unlock", or "transform".',
+      'Description: 2 sentences, 200-360 chars. First sentence names the instructor in one specific phrase (role + signature credit). Second sentence names what the course sits inside — a body of work, a domain, a recurring problem — and references the real lesson count by number.',
+      'Outcome (learn_item.title): one short sentence ending in a period. Names a concrete thing the learner will be able to DO, not a topic. 4-10 words.',
+      'FAQ answer: 1-3 sentences, 120-380 chars. Names a specific number, format detail, or device when possible. No marketing voice.',
     ],
   },
   {
-    subject: 'cooking',
-    lines: [
-      'Tagline shape: "Eight weeks at the back of the restaurant."',
-      'Description shape: "A line cook from a Roman trattoria walks through the four pasta shapes she rolls every Tuesday — the dough by feel, the cuts by eye."',
-      'Outcome shape: "Roll cavatelli without weighing the flour."',
-      'FAQ-answer shape: "Each lesson runs eleven to fourteen minutes. You can finish a section between dinner and bed."',
-    ],
-  },
-  {
-    subject: 'indie software',
-    lines: [
-      'Tagline shape: "Ship the thing you keep almost building."',
-      'Description shape: "A solo founder takes you through the six decisions that shape a small SaaS — pricing, billing, onboarding, support, retention, the part you actually want to build."',
-      'Outcome shape: "Wire Stripe, webhooks, and a refund flow that doesn\'t need babysitting."',
-      'FAQ-answer shape: "Code samples ship in TypeScript with a Next.js example app. Port it to Remix or Svelte in an afternoon."',
-    ],
-  },
-  {
-    subject: 'documentary series',
-    lines: [
-      'Tagline shape: "What pressure does to you, and what you do back."',
-      'Description shape: "A two-time Olympic 400m runner on the seven days before a final — the food, the calls home, the things she tells herself when the call room goes quiet. Six episodes, recorded the year after Paris."',
-      'Watch-item shape: "The week before the final."',
-      'FAQ-answer shape: "Six episodes, twenty-two minutes each. Watch in any order. Future episodes land in your library at no extra cost."',
+    register: 'observational (a series, an artist letting you in)',
+    rules: [
+      'Tagline: 5-9 words, no period. Evocative, in the creator\'s voice. Not instructional. Not a question. Names the feeling, the week, the territory — not what you\'ll learn.',
+      'Description: 2 sentences, 200-360 chars. First sentence names the creator in one specific phrase (role + credit). Second sentence names what the season sits inside — a moment, a year, a body of work — and references the real episode count by number.',
+      'Watch-item (learn_item.title): one short sentence ending in a period. Names a moment the viewer will witness, not a skill they\'ll acquire. 4-10 words.',
+      'FAQ answer: 1-3 sentences, 120-380 chars. Concrete runtime, episode count, format. Frame around watching, never learning.',
     ],
   },
 ]
 
-// Pick a 2-demo subset by keyword overlap with the course/series subject so
-// the model sees cadence in a register that's at least adjacent to the
-// subject — not always the same fictional persona.
+// Return both registers as cadence guidance. The model picks which to
+// lean into based on the format and the subject. We give STRUCTURE only —
+// no example phrases the model could copy verbatim.
 export function pickCadenceDemos(
-  title: string,
-  description: string,
-  bio: string,
+  _title: string,
+  _description: string,
+  _bio: string,
   format: 'course' | 'series',
 ): string {
-  const haystack = `${title} ${description} ${bio}`.toLowerCase()
-  const scored = CADENCE_DEMOS.map((d) => {
-    let score = 0
-    if (haystack.includes(d.subject.split(' ')[0])) score += 3
-    for (const word of d.subject.split(' ')) {
-      if (haystack.includes(word)) score += 1
-    }
-    if (format === 'series' && d.subject === 'documentary series') score += 5
-    return { ...d, score }
-  })
-  scored.sort((a, b) => b.score - a.score)
-  const picks = scored.slice(0, 2)
-  return picks
+  // Series leans observational; course leans instructional. We surface
+  // the matching register first but include both so the model can blend.
+  const ordered =
+    format === 'series'
+      ? [CADENCE_REGISTERS[1], CADENCE_REGISTERS[0]]
+      : [CADENCE_REGISTERS[0], CADENCE_REGISTERS[1]]
+  return ordered
     .map(
-      (d) =>
-        `CADENCE — ${d.subject} (study the rhythm, never copy the words):\n${d.lines
-          .map((l) => `  - ${l}`)
-          .join('\n')}`,
+      (r) =>
+        `CADENCE — ${r.register}:\n${r.rules.map((l) => `  - ${l}`).join('\n')}`,
     )
     .join('\n\n')
 }
