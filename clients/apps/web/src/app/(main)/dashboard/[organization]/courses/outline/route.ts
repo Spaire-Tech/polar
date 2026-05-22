@@ -46,6 +46,7 @@ export async function POST(req: Request) {
     title,
     description,
     targetAudience,
+    differentiator,
     instructorName,
     instructorBio,
     paywallEnabled,
@@ -64,6 +65,9 @@ export async function POST(req: Request) {
     `Title: ${title}`,
     description ? `Description: ${description}` : null,
     targetAudience ? `Target Audience: ${targetAudience}` : null,
+    differentiator
+      ? `What makes this ${isSeries ? 'series' : 'course'} different: ${differentiator}`
+      : null,
     instructorName ? `Instructor: ${instructorName}` : null,
     instructorBio ? `Instructor bio: ${instructorBio}` : null,
     typeof paywallEnabled === 'boolean'

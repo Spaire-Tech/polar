@@ -1257,14 +1257,21 @@ export function StepInstructor({
         <label className="so-field so-field--multiline">
           <textarea
             className="so-textarea"
-            rows={2}
+            rows={5}
             placeholder=" "
+            style={{ resize: 'vertical' }}
             value={data.bio}
             onChange={(e) => onChange({ ...data, bio: e.target.value })}
           />
-          <span className="so-label">Short bio</span>
+          <span className="so-label">
+            {isSeries ? 'About you' : 'About you'}
+          </span>
         </label>
-        <span className="so-hint">One sentence max.</span>
+        <span className="so-hint">
+          Your background, experience, and what makes you the right person to
+          teach this. The more you share, the more personalized your landing
+          page will be.
+        </span>
       </div>
     </StepShell>
   )
@@ -1280,8 +1287,18 @@ export function StepCourse({
   onClose,
   format = 'course',
 }: {
-  data: { title: string; desc: string }
-  onChange: (next: { title: string; desc: string }) => void
+  data: {
+    title: string
+    desc: string
+    targetAudience: string
+    differentiator: string
+  }
+  onChange: (next: {
+    title: string
+    desc: string
+    targetAudience: string
+    differentiator: string
+  }) => void
   onNext: () => void
   onBack: () => void
   onClose: () => void
@@ -1318,13 +1335,50 @@ export function StepCourse({
         <label className="so-field so-field--multiline">
           <textarea
             className="so-textarea"
-            rows={3}
+            rows={5}
             placeholder=" "
+            style={{ resize: 'vertical' }}
             value={data.desc}
             onChange={(e) => onChange({ ...data, desc: e.target.value })}
           />
-          <span className="so-label">Short description</span>
+          <span className="so-label">
+            {isSeries ? 'What is this series about?' : 'What is this course about?'}
+          </span>
         </label>
+        <label className="so-field so-field--multiline">
+          <textarea
+            className="so-textarea"
+            rows={3}
+            placeholder=" "
+            style={{ resize: 'vertical' }}
+            value={data.targetAudience}
+            onChange={(e) =>
+              onChange({ ...data, targetAudience: e.target.value })
+            }
+          />
+          <span className="so-label">Who is this for?</span>
+        </label>
+        <label className="so-field so-field--multiline">
+          <textarea
+            className="so-textarea"
+            rows={3}
+            placeholder=" "
+            style={{ resize: 'vertical' }}
+            value={data.differentiator}
+            onChange={(e) =>
+              onChange({ ...data, differentiator: e.target.value })
+            }
+          />
+          <span className="so-label">
+            {isSeries
+              ? 'Why this series over anything else on this topic?'
+              : 'Why this course over anything else on this topic?'}
+          </span>
+        </label>
+        <p className="so-hint">
+          The last two fields are optional — but the more you share, the more
+          personalized your landing page and curriculum will be.
+        </p>
       </div>
     </StepShell>
   )
