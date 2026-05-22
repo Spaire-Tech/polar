@@ -28,11 +28,8 @@ import {
 } from '@spaire/ui/components/ui/command'
 import { useEffect, useMemo, useState } from 'react'
 import {
-  ACCENT_PRESETS,
   ADDABLE_SECTION_IDS,
-  FONT_PAIRS,
   SECTION_LABELS,
-  SURFACE_MODES,
   useEditor,
   type ResolvedOverrides,
 } from './EditorContext'
@@ -116,8 +113,6 @@ export function CustomizeCommandPalette({
     [ed.overrides.visible],
   )
 
-  const theme = ed.overrides.theme
-
   return (
     <CommandDialog open={open} onOpenChange={setOpen}>
       <CommandInput placeholder="Search actions — sections, design, history…" />
@@ -164,94 +159,6 @@ export function CustomizeCommandPalette({
             </CommandGroup>
           </>
         ) : null}
-
-        <CommandSeparator />
-        <CommandGroup heading="Design">
-          {FONT_PAIRS.map((f) => (
-            <CommandItem
-              key={`font-${f.id}`}
-              value={`font ${f.label}`}
-              onSelect={run(() =>
-                ed.setTheme({ fontHeading: f.id, fontBody: f.id }),
-              )}
-            >
-              <span>Font: {f.label}</span>
-              {theme.fontHeading === f.id ? (
-                <CommandShortcut>current</CommandShortcut>
-              ) : null}
-            </CommandItem>
-          ))}
-          {ACCENT_PRESETS.map((a) => (
-            <CommandItem
-              key={`accent-${a.id}`}
-              value={`accent ${a.label}`}
-              onSelect={run(() => ed.setTheme({ accentId: a.id }))}
-            >
-              <span
-                aria-hidden
-                style={{
-                  display: 'inline-block',
-                  width: 12,
-                  height: 12,
-                  borderRadius: 999,
-                  background: `linear-gradient(135deg, ${a.accent} 0%, ${a.accent2} 100%)`,
-                }}
-              />
-              <span>Accent: {a.label}</span>
-              {theme.accentId === a.id ? (
-                <CommandShortcut>current</CommandShortcut>
-              ) : null}
-            </CommandItem>
-          ))}
-          {SURFACE_MODES.map((s) => (
-            <CommandItem
-              key={`surface-${s.id}`}
-              value={`surface ${s.label}`}
-              onSelect={run(() => ed.setTheme({ surfaceId: s.id }))}
-            >
-              <span>Surface: {s.label}</span>
-              {theme.surfaceId === s.id ? (
-                <CommandShortcut>current</CommandShortcut>
-              ) : null}
-            </CommandItem>
-          ))}
-          {(['compact', 'comfortable', 'spacious'] as const).map((d) => (
-            <CommandItem
-              key={`density-${d}`}
-              value={`density ${d}`}
-              onSelect={run(() => ed.setTheme({ density: d }))}
-            >
-              <span>Density: {d}</span>
-              {(theme.density ?? 'comfortable') === d ? (
-                <CommandShortcut>current</CommandShortcut>
-              ) : null}
-            </CommandItem>
-          ))}
-          {(['sharp', 'rounded', 'pill'] as const).map((c) => (
-            <CommandItem
-              key={`corners-${c}`}
-              value={`corners ${c}`}
-              onSelect={run(() => ed.setTheme({ cornerStyle: c }))}
-            >
-              <span>Corners: {c}</span>
-              {(theme.cornerStyle ?? 'rounded') === c ? (
-                <CommandShortcut>current</CommandShortcut>
-              ) : null}
-            </CommandItem>
-          ))}
-          {(['none', 'subtle', 'pronounced'] as const).map((m) => (
-            <CommandItem
-              key={`motion-${m}`}
-              value={`motion ${m}`}
-              onSelect={run(() => ed.setTheme({ motion: m }))}
-            >
-              <span>Motion: {m}</span>
-              {(theme.motion ?? 'subtle') === m ? (
-                <CommandShortcut>current</CommandShortcut>
-              ) : null}
-            </CommandItem>
-          ))}
-        </CommandGroup>
 
         <CommandSeparator />
         <CommandGroup heading="History">

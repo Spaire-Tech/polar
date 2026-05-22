@@ -31,11 +31,8 @@ import {
   type LessonHandlers,
 } from './EditableCourseLandingView'
 import {
-  ACCENT_PRESETS,
   EditorProvider,
-  FONT_PAIRS,
   SECTION_LABELS,
-  SURFACE_MODES,
   mergeOverrides,
   useEditor,
   type ResolvedOverrides,
@@ -464,8 +461,7 @@ function CustomizeBar({
         <HiddenSectionsPill />
       </div>
       <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-        <div className="pointer-events-auto flex items-center gap-2">
-          <DesignPopover />
+        <div className="pointer-events-auto">
           <DeviceToggle />
         </div>
       </div>
@@ -625,182 +621,6 @@ function HiddenSectionsPill() {
         ) : null}
       </PopoverContent>
     </Popover>
-  )
-}
-
-// Surfaces the design tokens that the EditorProvider has been wiring through
-// CSS vars all along. Each change goes through ed.setTheme(), which pushes a
-// single history frame and is fully undoable.
-function DesignPopover() {
-  const ed = useEditor()
-  const theme = ed.overrides.theme
-  return (
-    <Popover>
-      <PopoverTrigger asChild>
-        <button
-          type="button"
-          aria-label="Design"
-          className="flex items-center gap-1.5 rounded-md border border-gray-200 bg-white px-2.5 py-1 text-[11.5px] font-medium text-gray-700 transition-colors hover:bg-gray-50"
-        >
-          <DesignIcon />
-          <span>Design</span>
-          <ChevronDownIcon />
-        </button>
-      </PopoverTrigger>
-      <PopoverContent align="center" className="w-72 p-3">
-        <DesignField label="Font">
-          <select
-            value={theme.fontHeading}
-            onChange={(e) => {
-              const id = e.target.value
-              ed.setTheme({ fontHeading: id, fontBody: id })
-            }}
-            className="w-full rounded-md border border-gray-200 bg-white px-2 py-1.5 text-[12px] text-gray-900 transition-colors hover:border-gray-300 focus:border-gray-400 focus:outline-none"
-          >
-            {FONT_PAIRS.map((f) => (
-              <option key={f.id} value={f.id}>
-                {f.label}
-              </option>
-            ))}
-          </select>
-        </DesignField>
-
-        <DesignField label="Accent">
-          <div className="flex flex-wrap gap-1.5">
-            {ACCENT_PRESETS.map((a) => {
-              const active = theme.accentId === a.id
-              return (
-                <button
-                  key={a.id}
-                  type="button"
-                  aria-label={a.label}
-                  title={a.label}
-                  onClick={() => ed.setTheme({ accentId: a.id })}
-                  className={[
-                    'h-6 w-6 rounded-full transition-shadow',
-                    active
-                      ? 'ring-2 ring-gray-900 ring-offset-1'
-                      : 'ring-1 ring-gray-200 hover:ring-gray-400',
-                  ].join(' ')}
-                  style={{
-                    background: `linear-gradient(135deg, ${a.accent} 0%, ${a.accent2} 100%)`,
-                  }}
-                />
-              )
-            })}
-          </div>
-        </DesignField>
-
-        <DesignField label="Surface">
-          <div className="flex flex-wrap gap-1">
-            {SURFACE_MODES.map((s) => {
-              const active = theme.surfaceId === s.id
-              return (
-                <button
-                  key={s.id}
-                  type="button"
-                  onClick={() => ed.setTheme({ surfaceId: s.id })}
-                  className={[
-                    'flex-1 rounded-md border px-2 py-1 text-[11px] font-medium transition-colors',
-                    active
-                      ? 'border-gray-900 bg-gray-900 text-white'
-                      : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50',
-                  ].join(' ')}
-                >
-                  {s.label}
-                </button>
-              )
-            })}
-          </div>
-        </DesignField>
-
-        <DesignField label="Density">
-          <div className="flex gap-1">
-            {(['compact', 'comfortable', 'spacious'] as const).map((d) => {
-              const active = (theme.density ?? 'comfortable') === d
-              return (
-                <button
-                  key={d}
-                  type="button"
-                  onClick={() => ed.setTheme({ density: d })}
-                  className={[
-                    'flex-1 rounded-md border px-2 py-1 text-[11px] font-medium capitalize transition-colors',
-                    active
-                      ? 'border-gray-900 bg-gray-900 text-white'
-                      : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50',
-                  ].join(' ')}
-                >
-                  {d}
-                </button>
-              )
-            })}
-          </div>
-        </DesignField>
-
-        <DesignField label="Corners">
-          <div className="flex gap-1">
-            {(['sharp', 'rounded', 'pill'] as const).map((c) => {
-              const active = (theme.cornerStyle ?? 'rounded') === c
-              return (
-                <button
-                  key={c}
-                  type="button"
-                  onClick={() => ed.setTheme({ cornerStyle: c })}
-                  className={[
-                    'flex-1 rounded-md border px-2 py-1 text-[11px] font-medium capitalize transition-colors',
-                    active
-                      ? 'border-gray-900 bg-gray-900 text-white'
-                      : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50',
-                  ].join(' ')}
-                >
-                  {c}
-                </button>
-              )
-            })}
-          </div>
-        </DesignField>
-
-        <DesignField label="Motion">
-          <div className="flex gap-1">
-            {(['none', 'subtle', 'pronounced'] as const).map((m) => {
-              const active = (theme.motion ?? 'subtle') === m
-              return (
-                <button
-                  key={m}
-                  type="button"
-                  onClick={() => ed.setTheme({ motion: m })}
-                  className={[
-                    'flex-1 rounded-md border px-2 py-1 text-[11px] font-medium capitalize transition-colors',
-                    active
-                      ? 'border-gray-900 bg-gray-900 text-white'
-                      : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50',
-                  ].join(' ')}
-                >
-                  {m}
-                </button>
-              )
-            })}
-          </div>
-        </DesignField>
-      </PopoverContent>
-    </Popover>
-  )
-}
-
-function DesignField({
-  label,
-  children,
-}: {
-  label: string
-  children: React.ReactNode
-}) {
-  return (
-    <div className="mb-2.5 last:mb-0">
-      <div className="mb-1 text-[10.5px] font-medium tracking-wide text-gray-500 uppercase">
-        {label}
-      </div>
-      {children}
-    </div>
   )
 }
 
@@ -1020,45 +840,6 @@ function EyeOffIcon() {
       <path d="M14 8s-2.5 4.5-6 4.5c-1.3 0-2.4-.4-3.3-1" />
       <path d="M6.6 6.6a2 2 0 0 0 2.8 2.8" />
       <path d="M2.5 2.5 13.5 13.5" />
-    </svg>
-  )
-}
-
-function DesignIcon() {
-  return (
-    <svg
-      width="12"
-      height="12"
-      viewBox="0 0 16 16"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <circle cx="5" cy="5" r="2.2" />
-      <circle cx="11" cy="11" r="2.2" />
-      <path d="M5 7.2v6.3" />
-      <path d="M11 2.5v6.3" />
-    </svg>
-  )
-}
-
-function ChevronDownIcon() {
-  return (
-    <svg
-      width="10"
-      height="10"
-      viewBox="0 0 16 16"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d="M4 6l4 4 4-4" />
     </svg>
   )
 }

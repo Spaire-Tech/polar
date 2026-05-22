@@ -15,6 +15,7 @@
 import type {
   LandingMedia,
   LandingOverrides,
+  LandingTextFormat,
   LandingTheme,
 } from '@/hooks/queries/courses'
 import {
@@ -228,6 +229,8 @@ export type ResolvedOverrides = {
   visible: Record<string, boolean>
   order: string[]
   theme: LandingTheme
+  textFormat: Record<string, LandingTextFormat>
+  spacingBefore: Record<string, number>
 }
 
 export const DEFAULT_OVERRIDES: ResolvedOverrides = {
@@ -249,6 +252,8 @@ export const DEFAULT_OVERRIDES: ResolvedOverrides = {
   },
   order: [...SECTION_ORDER_DEFAULT],
   theme: { ...DEFAULT_THEME },
+  textFormat: {},
+  spacingBefore: {},
 }
 
 export function mergeOverrides(
@@ -290,6 +295,11 @@ export function mergeOverrides(
     visible: { ...DEFAULT_OVERRIDES.visible, ...(ov?.visible ?? {}) },
     order: cleaned,
     theme: { ...DEFAULT_THEME, ...(ov?.theme ?? {}) },
+    textFormat: { ...DEFAULT_OVERRIDES.textFormat, ...(ov?.textFormat ?? {}) },
+    spacingBefore: {
+      ...DEFAULT_OVERRIDES.spacingBefore,
+      ...(ov?.spacingBefore ?? {}),
+    },
   }
 }
 
@@ -312,6 +322,15 @@ type EditorContextValue = {
   isVisible: (id: string) => boolean
   setVisible: (id: string, visible: boolean) => void
   setOrder: (order: string[]) => void
+  // Per-text-element formatting. Patch-style: pass only the fields you want
+  // to change. Pass `null` for the entire format to clear all overrides for
+  // that path (the toolbar Reset button uses this).
+  setTextFormat: (
+    path: string,
+    patch: Partial<LandingTextFormat> | null,
+  ) => void
+  // Per-section "extra gap before" in pixels. Pass `null` to clear.
+  setSpacingBefore: (id: string, value: number | null) => void
   /**
    * Remove a section so it stops rendering entirely. We drop the id from
    * `order` AND set `visible[id]=false` defensively so a stale `visible=true`
@@ -517,6 +536,45 @@ export function EditorProvider({
     [apply, overrides],
   )
 
+  const setTextFormat = useCallback(
+    (path: string, patch: Partial<LandingTextFormat> | null) => {
+      const nextMap = { ...overrides.textFormat }
+      if (patch === null) {
+        delete nextMap[path]
+      } else {
+        const current = overrides.textFormat[path] ?? {}
+        const merged: LandingTextFormat = { ...current, ...patch }
+        // Strip undefined-valued keys so cleared toggles don't linger in the
+        // saved payload — keeps landing_overrides small and behaviour
+        // explicit ("absent === inherit from template").
+        const cleaned: LandingTextFormat = {}
+        for (const [k, v] of Object.entries(merged)) {
+          if (v !== undefined) (cleaned as Record<string, unknown>)[k] = v
+        }
+        if (Object.keys(cleaned).length === 0) {
+          delete nextMap[path]
+        } else {
+          nextMap[path] = cleaned
+        }
+      }
+      apply({ ...overrides, textFormat: nextMap })
+    },
+    [apply, overrides],
+  )
+
+  const setSpacingBefore = useCallback(
+    (id: string, value: number | null) => {
+      const nextMap = { ...overrides.spacingBefore }
+      if (value === null || value === 0) {
+        delete nextMap[id]
+      } else {
+        nextMap[id] = value
+      }
+      apply({ ...overrides, spacingBefore: nextMap })
+    },
+    [apply, overrides],
+  )
+
   const reset = useCallback(() => {
     apply({ ...DEFAULT_OVERRIDES })
   }, [apply])
@@ -660,6 +718,8 @@ export function EditorProvider({
       deleteSection,
       insertSection,
       setTheme,
+      setTextFormat,
+      setSpacingBefore,
       uploadMedia,
       uploaderForSlot,
       reset,
@@ -685,6 +745,8 @@ export function EditorProvider({
       deleteSection,
       insertSection,
       setTheme,
+      setTextFormat,
+      setSpacingBefore,
       uploadMedia,
       uploaderForSlot,
       reset,

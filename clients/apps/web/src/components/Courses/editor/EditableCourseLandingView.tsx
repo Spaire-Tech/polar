@@ -30,7 +30,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import type { schemas } from '@spaire/client'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { Fragment, useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { toast } from '../../Toast/use-toast'
 import { HlsVideo } from '../HlsVideo'
@@ -52,6 +52,7 @@ import { HeroMedia } from './HeroMedia'
 import { MotionSection } from './MotionSection'
 import { SectionModuleSheet } from './SectionModuleSheet'
 import { SeriesSampleBlock } from './SeriesSampleBlock'
+import { SpacingHandle } from './SpacingHandle'
 
 // Imperative handlers wired by the host (CustomizeTab) so episode tiles can
 // persist edits to the actual course lesson — title, description, thumbnail
@@ -416,14 +417,32 @@ export function EditableCourseLandingView({
           items={renderedIds}
           strategy={verticalListSortingStrategy}
         >
-          {renderedIds.map((id) => {
+          {renderedIds.map((id, i) => {
             const s = sectionMap[id]
+            // Saved extra spacing before this section. Applied in BOTH edit
+            // mode (via SpacingHandle's own size) and preview mode (here, as
+            // marginTop). We render the handle for every section after the
+            // first; in preview mode it returns null so visitors see only
+            // the gap.
+            const extra = ed.overrides.spacingBefore[id] ?? 0
             return (
-              <EditBlock key={id} id={id} label={s.label}>
-                <MotionSection level={ed.overrides.theme.motion}>
-                  {s.node}
-                </MotionSection>
-              </EditBlock>
+              <Fragment key={id}>
+                {i > 0 && ed.mode === 'edit' ? (
+                  <SpacingHandle nextId={id} />
+                ) : null}
+                <EditBlock
+                  id={id}
+                  label={s.label}
+                  // marginTop only applies in non-edit mode. In edit mode
+                  // the SpacingHandle's own height absorbs the gap so we
+                  // don't double-count it.
+                  marginTop={ed.mode === 'edit' ? 0 : extra}
+                >
+                  <MotionSection level={ed.overrides.theme.motion}>
+                    {s.node}
+                  </MotionSection>
+                </EditBlock>
+              </Fragment>
             )
           })}
         </SortableContext>

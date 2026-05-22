@@ -24,6 +24,7 @@ import { createPortal } from 'react-dom'
 import { ToastAction } from '../../Toast'
 import { toast } from '../../Toast/use-toast'
 import { useEditor } from './EditorContext'
+import { applyTextFormatStyle, TextFormatToolbar } from './TextFormatToolbar'
 
 // ── EditText ────────────────────────────────────────────────────────────────
 
@@ -45,8 +46,19 @@ export function EditText({
   const ed = useEditor()
   const ref = useRef<HTMLElement>(null)
   const [editing, setEditing] = useState(false)
-  const value = ed.t(path, defaultValue)
+  // Read the raw stored text (may be empty if the user cleared it). The
+  // empty-state branch below decides whether to fall back to defaultValue or
+  // show the "+ Add" stub.
+  const stored = ed.overrides.text[path]
+  const value = stored ?? defaultValue
+  const isEmpty = stored === ''
+  const fmt = ed.overrides.textFormat[path]
   const Tag = as as ElementType
+
+  // Merge user-applied formatting on top of the parent's inline style. Order
+  // matters: the parent style sets the template's intent, the format
+  // overrides ride on top.
+  const mergedStyle = applyTextFormatStyle(style, fmt)
 
   // Keep DOM in sync with value when not editing (avoids React tripping over
   // contentEditable).
@@ -58,10 +70,42 @@ export function EditText({
   }, [value, editing])
 
   if (ed.mode !== 'edit') {
+    // Preview / public rendering. Empty stored value means the user
+    // deliberately removed this text — render nothing so the layout reflows
+    // and there's no ghost of the original element.
+    if (isEmpty) return null
     return (
-      <Tag style={style} className={className}>
+      <Tag style={mergedStyle} className={className}>
         {value}
       </Tag>
+    )
+  }
+
+  // Edit mode, but the text has been cleared. Render a small "+ Add" stub
+  // in its place so the user can bring the text back. Doesn't try to
+  // reproduce the parent's layout — it's intentionally small so the rest of
+  // the section visibly reflows around the absence.
+  if (isEmpty && !editing) {
+    return (
+      <EmptyTextSlot
+        onRestore={() => {
+          // Restore the template default AND enter editing in the same
+          // event so React batches into a single render; deferring focus
+          // to the next tick lets the Tag attach to ref before we focus.
+          ed.setText(path, defaultValue)
+          setEditing(true)
+          setTimeout(() => {
+            ref.current?.focus()
+            if (!ref.current) return
+            const range = document.createRange()
+            range.selectNodeContents(ref.current)
+            range.collapse(false)
+            const sel = window.getSelection()
+            sel?.removeAllRanges()
+            sel?.addRange(range)
+          }, 0)
+        }}
+      />
     )
   }
 
@@ -72,49 +116,97 @@ export function EditText({
   }
 
   return (
-    <Tag
-      ref={ref as React.Ref<HTMLElement>}
-      style={{
-        ...style,
-        outline: editing ? '2px solid #6366f1' : undefined,
-        outlineOffset: 2,
-        borderRadius: 3,
-        cursor: editing ? 'text' : 'pointer',
-        transition: 'outline-color 120ms ease',
-      }}
-      className={className}
-      contentEditable={editing}
-      suppressContentEditableWarning
-      data-spaire-edit-text=""
-      onClick={(e: React.MouseEvent<HTMLElement>) => {
-        if (editing) return
+    <>
+      <Tag
+        ref={ref as React.Ref<HTMLElement>}
+        style={{
+          ...mergedStyle,
+          outline: editing ? '2px solid #6366f1' : undefined,
+          outlineOffset: 2,
+          borderRadius: 3,
+          cursor: editing ? 'text' : 'pointer',
+          transition: 'outline-color 120ms ease',
+        }}
+        className={className}
+        contentEditable={editing}
+        suppressContentEditableWarning
+        data-spaire-edit-text=""
+        onClick={(e: React.MouseEvent<HTMLElement>) => {
+          if (editing) return
+          e.stopPropagation()
+          setEditing(true)
+          setTimeout(() => {
+            ref.current?.focus()
+            // Place caret at end
+            const range = document.createRange()
+            range.selectNodeContents(ref.current!)
+            range.collapse(false)
+            const sel = window.getSelection()
+            sel?.removeAllRanges()
+            sel?.addRange(range)
+          }, 0)
+        }}
+        onBlur={onBlur}
+        onKeyDown={(e: React.KeyboardEvent) => {
+          if (!multiline && e.key === 'Enter') {
+            e.preventDefault()
+            ;(e.target as HTMLElement).blur()
+          }
+          if (e.key === 'Escape') {
+            e.preventDefault()
+            ;(e.target as HTMLElement).blur()
+          }
+        }}
+      >
+        {value}
+      </Tag>
+      {editing ? (
+        <TextFormatToolbar
+          path={path}
+          anchor={ref.current as HTMLElement | null}
+        />
+      ) : null}
+    </>
+  )
+}
+
+// Replacement chrome for a cleared EditText. Reads as "this text was removed
+// — bring it back" without trying to mimic the original element's heading or
+// body styling (which would imply the original is still there). The button is
+// inline-block so it lays out wherever the original sat without forcing a
+// full-width row.
+function EmptyTextSlot({ onRestore }: { onRestore: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={(e) => {
         e.stopPropagation()
-        setEditing(true)
-        setTimeout(() => {
-          ref.current?.focus()
-          // Place caret at end
-          const range = document.createRange()
-          range.selectNodeContents(ref.current!)
-          range.collapse(false)
-          const sel = window.getSelection()
-          sel?.removeAllRanges()
-          sel?.addRange(range)
-        }, 0)
+        onRestore()
       }}
-      onBlur={onBlur}
-      onKeyDown={(e: React.KeyboardEvent) => {
-        if (!multiline && e.key === 'Enter') {
-          e.preventDefault()
-          ;(e.target as HTMLElement).blur()
-        }
-        if (e.key === 'Escape') {
-          e.preventDefault()
-          ;(e.target as HTMLElement).blur()
-        }
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 4,
+        padding: '2px 8px',
+        background: 'rgba(99,102,241,0.08)',
+        color: 'rgba(99,102,241,0.95)',
+        border: '1px dashed rgba(99,102,241,0.4)',
+        borderRadius: 999,
+        fontSize: 10.5,
+        fontWeight: 600,
+        letterSpacing: '0.04em',
+        textTransform: 'uppercase',
+        fontFamily: 'Inter, system-ui, sans-serif',
+        cursor: 'pointer',
+        lineHeight: 1.4,
+        verticalAlign: 'middle',
       }}
     >
-      {value}
-    </Tag>
+      <span aria-hidden style={{ fontSize: 12 }}>
+        +
+      </span>
+      <span>Add text</span>
+    </button>
   )
 }
 
@@ -763,10 +855,16 @@ export function EditBlock({
   id,
   label,
   children,
+  marginTop = 0,
 }: {
   id: string
   label: string
   children: ReactNode
+  // Extra gap above this section, driven by overrides.spacingBefore. Applied
+  // in preview/public render only — in edit mode the inter-section
+  // SpacingHandle owns the gap so the handle stays interactive at the
+  // boundary.
+  marginTop?: number
 }) {
   const ed = useEditor()
   const [hover, setHover] = useState(false)
@@ -785,7 +883,16 @@ export function EditBlock({
   } = useSortable({ id })
 
   if (!visible && ed.mode === 'preview') return null
-  if (ed.mode !== 'edit') return <>{children}</>
+  if (ed.mode !== 'edit') {
+    // Wrap in a thin marginTop div so the saved inter-section spacing
+    // applies to the public render too. When marginTop is 0 this is a
+    // no-op wrapper — semantically identical to the previous Fragment.
+    return marginTop > 0 ? (
+      <div style={{ marginTop }}>{children}</div>
+    ) : (
+      <>{children}</>
+    )
+  }
 
   const onDelete = (e: React.MouseEvent) => {
     e.stopPropagation()
