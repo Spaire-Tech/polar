@@ -124,6 +124,11 @@ export type CourseRead = {
   slug: string | null
   course_type: string
   format: CourseFormat
+  /** UI pacing hint — drives the Week N / unlock-pill rendering on
+   *  the student portal and the "Apply weekly schedule" button on
+   *  the creator side. See server/polar/models/course.py for the
+   *  full semantics. */
+  pacing_mode: 'self_paced' | 'paced_weekly' | 'all_unlocked'
   paywall_enabled: boolean
   paywall_lesson_id: string | null
   paywall_position: number | null
@@ -321,6 +326,7 @@ export const useUpdateCourse = () =>
         slug?: string | null
         course_type?: string
         format?: CourseFormat
+        pacing_mode?: 'self_paced' | 'paced_weekly' | 'all_unlocked'
         paywall_enabled?: boolean
         paywall_position?: number | null
         description?: string | null

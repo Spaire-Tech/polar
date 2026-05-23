@@ -4,8 +4,11 @@ import {
   CourseLessonRead,
   CourseModuleRead,
   CourseRead,
+  useUpdateCourse,
+  useUpdateCourseModule,
   usePreviewAccess,
 } from '@/hooks/queries/courses'
+import { useQueryClient } from '@tanstack/react-query'
 import {
   DndContext,
   DragEndEvent,
@@ -415,6 +418,13 @@ export function OutlineTab({
         </button>
       </div>
 
+      {/* Pacing strip — picks how the course unlocks for students.
+          Self-paced is the default (nothing changes); Weekly turns on
+          the "Apply weekly schedule" affordance which batch-sets the
+          drip_days on each module to 0 / 7 / 14 / 21 … so students
+          see "Week 1 / Week 2 / …" labels on the portal. */}
+      <PacingStrip course={course} />
+
       {showEmptyCourseState ? (
         <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-gray-200 bg-white px-6 py-16 text-center">
           <p className="text-[15px] font-semibold text-gray-900">
@@ -772,6 +782,145 @@ function LessonGrid({ children }: { children: React.ReactNode }) {
   return (
     <div className="mb-1 grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-4">
       {children}
+    </div>
+  )
+}
+
+// ── Pacing strip ──────────────────────────────────────────────────────
+//
+// Renders the Self-paced / Weekly / All-unlocked toggle above the
+// module list, plus the "Apply weekly schedule" affordance when
+// paced_weekly is selected.
+
+const PACING_OPTIONS: {
+  value: 'self_paced' | 'paced_weekly' | 'all_unlocked'
+  label: string
+  hint: string
+}[] = [
+  {
+    value: 'self_paced',
+    label: 'Self-paced',
+    hint: 'Lessons unlock the moment students enroll.',
+  },
+  {
+    value: 'paced_weekly',
+    label: 'Weekly',
+    hint: 'Modules unlock on a 7-day cadence — Week 1, 2, 3, …',
+  },
+  {
+    value: 'all_unlocked',
+    label: 'All unlocked',
+    hint: 'Everything available immediately. Best for binge-style series.',
+  },
+]
+
+function PacingStrip({ course }: { course: CourseRead }) {
+  const updateCourse = useUpdateCourse()
+  const updateModule = useUpdateCourseModule()
+  const qc = useQueryClient()
+  // Sort modules so the weekly schedule applies 0, 7, 14, 21 in the
+  // order the creator sees them on the page rather than DB insert
+  // order. Defensive copy — the parent passes a CourseRead whose
+  // modules array we shouldn't mutate.
+  const sortedModules = [...(course.modules ?? [])].sort(
+    (a, b) => a.position - b.position,
+  )
+  const currentMode = course.pacing_mode ?? 'self_paced'
+  const active = PACING_OPTIONS.find((o) => o.value === currentMode)
+  const [applying, setApplying] = useState(false)
+
+  const setMode = (value: typeof PACING_OPTIONS[number]['value']) => {
+    if (value === currentMode || updateCourse.isPending) return
+    updateCourse.mutate(
+      { courseId: course.id, body: { pacing_mode: value } },
+      {
+        onSuccess: () => {
+          qc.invalidateQueries({ queryKey: ['courses', { courseId: course.id }] })
+        },
+      },
+    )
+  }
+
+  // Auto-fill drip_days across modules in their visible order:
+  // module[0] → day 0, module[1] → day 7, module[2] → day 14, etc.
+  // Sequential await so a transient failure stops mid-way instead of
+  // leaving the schedule half-applied behind successful PATCHes.
+  const applyWeeklySchedule = async () => {
+    if (applying || sortedModules.length === 0) return
+    setApplying(true)
+    try {
+      for (let i = 0; i < sortedModules.length; i++) {
+        await updateModule.mutateAsync({
+          moduleId: sortedModules[i].id,
+          body: { drip_days: i * 7 },
+        })
+      }
+      qc.invalidateQueries({ queryKey: ['courses', { courseId: course.id }] })
+    } finally {
+      setApplying(false)
+    }
+  }
+
+  return (
+    <div className="mb-5 rounded-2xl border border-gray-200 bg-white p-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <ScheduleOutlined
+              sx={{ fontSize: 16 }}
+              className="text-gray-500"
+            />
+            <span className="text-[12px] font-semibold uppercase tracking-wider text-gray-500">
+              Pacing
+            </span>
+          </div>
+          {active && (
+            <p className="mt-1 text-[12.5px] text-gray-500">{active.hint}</p>
+          )}
+        </div>
+        <div className="inline-flex shrink-0 rounded-full border border-gray-200 bg-gray-50 p-1 text-[12px] font-medium">
+          {PACING_OPTIONS.map((opt) => {
+            const isActive = opt.value === currentMode
+            return (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => setMode(opt.value)}
+                disabled={updateCourse.isPending}
+                className={
+                  isActive
+                    ? 'rounded-full bg-gray-900 px-3 py-1.5 text-white'
+                    : 'rounded-full px-3 py-1.5 text-gray-600 hover:bg-white'
+                }
+              >
+                {opt.label}
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
+      {currentMode === 'paced_weekly' && sortedModules.length > 0 && (
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-gray-100 bg-gray-50 px-3.5 py-2.5">
+          <p className="text-[12.5px] text-gray-600">
+            Set <span className="font-semibold">drip_days</span> to{' '}
+            {sortedModules
+              .map((_, i) => (i === 0 ? 'day 0' : `day ${i * 7}`))
+              .join(' · ')}{' '}
+            across the {sortedModules.length} module
+            {sortedModules.length === 1 ? '' : 's'}. Edit individual
+            modules afterward.
+          </p>
+          <button
+            type="button"
+            onClick={applyWeeklySchedule}
+            disabled={applying}
+            className="shrink-0 rounded-md bg-gray-900 px-3.5 py-[7px] text-[12px] font-semibold text-white transition-colors hover:bg-gray-800 disabled:opacity-50"
+          >
+            {applying ? 'Applying…' : 'Apply weekly schedule'}
+          </button>
+        </div>
+      )}
     </div>
   )
 }
