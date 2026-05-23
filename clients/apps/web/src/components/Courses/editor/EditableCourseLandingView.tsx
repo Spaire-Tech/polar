@@ -259,23 +259,13 @@ export function EditableCourseLandingView({
               />
             ),
           },
-          createdBy: {
-            label: 'Created by',
-            node: (
-              <MobileCreatedBy
-                course={course}
-                organizationAvatarUrl={organizationAvatarUrl ?? null}
-              />
-            ),
-          },
+          // createdBy + instructor sections removed from the template.
+          createdBy: { label: 'Created by', node: null },
           learn: {
             label: "What you'll learn",
             node: <MobileWhatYoullLearn />,
           },
-          instructor: {
-            label: 'Instructor',
-            node: <MobileInstructor course={course} />,
-          },
+          instructor: { label: 'Instructor', node: null },
           faq: {
             label: 'FAQ',
             node: <MobileFaq />,
@@ -342,23 +332,16 @@ export function EditableCourseLandingView({
               />
             ),
           },
-          createdBy: {
-            label: 'Created by',
-            node: (
-              <CreatedBy
-                course={course}
-                organizationAvatarUrl={organizationAvatarUrl ?? null}
-              />
-            ),
-          },
+          // createdBy + instructor sections removed from the template.
+          // They stay in the section map as null nodes so older courses
+          // whose saved `order` still references these ids don't crash —
+          // the filter below drops null entries.
+          createdBy: { label: 'Created by', node: null },
           learn: {
             label: "What you'll learn",
             node: <WhatYoullLearn />,
           },
-          instructor: {
-            label: 'Instructor',
-            node: <Instructor course={course} />,
-          },
+          instructor: { label: 'Instructor', node: null },
           faq: {
             label: 'FAQ',
             node: <Faq />,
@@ -380,7 +363,10 @@ export function EditableCourseLandingView({
   // Ids that have a renderable section under the current device tree. dnd-kit
   // works on these only — any legacy ids in the saved `order` (e.g. `value`)
   // are intentionally excluded so the user can't drag invisible things.
-  const renderedIds = ed.overrides.order.filter((id) => sectionMap[id])
+  // Skip ids whose section was removed from the template (node === null).
+  const renderedIds = ed.overrides.order.filter(
+    (id) => sectionMap[id] && sectionMap[id].node !== null,
+  )
 
   const sensors = useSensors(
     // 6px activation distance: prevents stray drags when the user is trying
@@ -3929,7 +3915,7 @@ function LearnZigzag({
         style={{
           display: 'grid',
           gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
-          gap: 20,
+          gap: 14,
           minHeight: 420,
           alignItems: 'end',
         }}
@@ -3962,7 +3948,7 @@ function LearnZigzag({
           position: 'relative',
           display: 'grid',
           gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
-          gap: 20,
+          gap: 14,
           height: 24,
           alignItems: 'center',
           margin: '6px 0',
@@ -4007,7 +3993,7 @@ function LearnZigzag({
         style={{
           display: 'grid',
           gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
-          gap: 20,
+          gap: 14,
           minHeight: 420,
           alignItems: 'start',
         }}
@@ -4051,8 +4037,12 @@ function WhatYoullLearn() {
   return (
     <section
       style={{
-        padding: '88px 32px 24px',
-        maxWidth: 1480,
+        // Wider canvas + tighter horizontal padding so each of the 4
+        // zigzag cards gets meaningfully more width. The row min-height
+        // and the 14px gap below also help the cards breathe instead of
+        // sitting tight against each other.
+        padding: '88px 16px 24px',
+        maxWidth: 1820,
         margin: '0 auto',
         fontFamily: FONT_VAR,
       }}
