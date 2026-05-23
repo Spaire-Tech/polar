@@ -220,9 +220,16 @@ class CourseService:
         course: Course,
     ) -> list[CourseModule]:
         """Set drip_days = position*7 on every (non-deleted) module of a
-        course in a single transaction. Replaces N sequential client-side
-        PATCHes — one round-trip, all-or-nothing semantics so the schedule
-        can't end up half-applied if anything fails mid-loop."""
+        course in a single transaction, and flip the course's pacing_mode
+        to 'paced_weekly' so the student-portal UI side-effect (Week N
+        labels, unlock pills) stays consistent with the drip schedule.
+
+        Without the pacing_mode update, calling this endpoint directly
+        on a self_paced course set drip_days but the portal still
+        rendered as self-paced — half-applied. Doing both in one
+        transaction means the schedule and its UI representation always
+        agree."""
+        course_repo = CourseRepository.from_session(session)
         module_repo = CourseModuleRepository.from_session(session)
         modules = sorted(
             [m for m in course.modules if m.deleted_at is None],
@@ -230,6 +237,10 @@ class CourseService:
         )
         for i, module in enumerate(modules):
             await module_repo.update(module, update_dict={"drip_days": i * 7})
+        if course.pacing_mode != "paced_weekly":
+            await course_repo.update(
+                course, update_dict={"pacing_mode": "paced_weekly"}
+            )
         return modules
 
     async def get_module_by_id(

@@ -12,7 +12,7 @@ from fastapi import Depends
 from pydantic import Field
 
 from polar.course.repository import CourseRepository
-from polar.exceptions import ResourceNotFound, SpaireRequestValidationError
+from polar.exceptions import ResourceNotFound
 from polar.kit.schemas import Schema
 from polar.models.course_broadcast import CourseBroadcast
 from polar.openapi import APITag
@@ -216,27 +216,11 @@ async def schedule_broadcast(
     auth_subject: auth.CoursesWrite,
     session: AsyncSession = Depends(get_db_session),
 ) -> BroadcastRead:
-    from datetime import datetime as _dt, timezone as _tz
-
-    now = _dt.now(_tz.utc)
-    target = payload.scheduled_at
-    # Pydantic accepts naive datetimes too; treat them as UTC so the
-    # comparison below is meaningful.
-    if target.tzinfo is None:
-        target = target.replace(tzinfo=_tz.utc)
-    if target <= now:
-        raise SpaireRequestValidationError(
-            [
-                {
-                    "loc": ("body", "scheduled_at"),
-                    "msg": "scheduled_at must be in the future.",
-                    "type": "value_error",
-                    "input": payload.scheduled_at.isoformat(),
-                }
-            ]
-        )
+    # Future-time validation lives in BroadcastService._ensure_future
+    # so this endpoint and PATCH share one guardrail and one error
+    # shape — no duplicated past/future check on the endpoint level.
     b = await _load_writable(broadcast_id, auth_subject, session)
-    b = await broadcast_service.schedule(session, b, target)
+    b = await broadcast_service.schedule(session, b, payload.scheduled_at)
     name_by_id = await broadcast_service.resolve_author_names(session, [b])
     return _to_read(
         b,

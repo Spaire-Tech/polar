@@ -3,7 +3,7 @@ from uuid import UUID
 
 from polar.auth.models import AuthSubject, Organization, User, is_user
 from polar.course.repository import CourseRepository
-from polar.exceptions import ResourceNotFound
+from polar.exceptions import ResourceNotFound, SpaireRequestValidationError
 from polar.models.course import Course
 from polar.models.course_broadcast import CourseBroadcast
 from polar.postgres import AsyncSession
@@ -11,6 +11,31 @@ from polar.worker import enqueue_job
 
 from .repository import BroadcastRepository
 from .schemas import BroadcastCreate, BroadcastUpdate
+
+
+def _ensure_future(value: datetime, field: str) -> datetime:
+    """Return `value` normalized to a tz-aware UTC datetime, raising a
+    422 SpaireRequestValidationError if it's not strictly in the future.
+
+    Pydantic accepts naive datetimes too; treat them as UTC so the
+    comparison is unambiguous. Used by both the dedicated /schedule
+    endpoint and the PATCH path so a creator can't backdate
+    scheduled_at via either entry point.
+    """
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=timezone.utc)
+    if value <= datetime.now(timezone.utc):
+        raise SpaireRequestValidationError(
+            [
+                {
+                    "loc": ("body", field),
+                    "msg": f"{field} must be in the future.",
+                    "type": "value_error",
+                    "input": value.isoformat(),
+                }
+            ]
+        )
+    return value
 
 
 class BroadcastService:
@@ -59,6 +84,31 @@ class BroadcastService:
             auth_subject.subject.id if is_user(auth_subject) else None
         )
 
+        # `publish` and `scheduled_at` are mutually exclusive: publishing
+        # is immediate, scheduling is "publish later". Reject the
+        # combination explicitly rather than silently dropping one — the
+        # client's intent is ambiguous and we'd rather it fix the call.
+        if create_schema.publish and create_schema.scheduled_at is not None:
+            raise SpaireRequestValidationError(
+                [
+                    {
+                        "loc": ("body", "scheduled_at"),
+                        "msg": (
+                            "Cannot both publish=true and supply a "
+                            "scheduled_at. Pick one."
+                        ),
+                        "type": "value_error",
+                        "input": create_schema.scheduled_at.isoformat(),
+                    }
+                ]
+            )
+
+        scheduled_at = (
+            _ensure_future(create_schema.scheduled_at, "scheduled_at")
+            if create_schema.scheduled_at is not None
+            else None
+        )
+
         broadcast = CourseBroadcast(
             course_id=course.id,
             created_by_user_id=author_user_id,
@@ -67,6 +117,7 @@ class BroadcastService:
             image_url=create_schema.image_url,
             week_number=create_schema.week_number,
             notify_on_publish=create_schema.notify_on_publish,
+            scheduled_at=scheduled_at,
             published_at=(
                 datetime.now(timezone.utc) if create_schema.publish else None
             ),
@@ -85,6 +136,14 @@ class BroadcastService:
         # as "clear the image" only when explicitly sent — not when the
         # client omits the field entirely.
         data = update_schema.model_dump(exclude_unset=True)
+        # Same future-time guardrail the /schedule endpoint enforces, so
+        # a creator can't backdate scheduled_at via PATCH and slip a row
+        # past the periodic worker on the next tick. Clearing the
+        # schedule (scheduled_at: None) is explicitly allowed.
+        if "scheduled_at" in data and data["scheduled_at"] is not None:
+            data["scheduled_at"] = _ensure_future(
+                data["scheduled_at"], "scheduled_at"
+            )
         for key, value in data.items():
             setattr(broadcast, key, value)
         await session.flush()
@@ -100,10 +159,23 @@ class BroadcastService:
         it when the time arrives. Already-published broadcasts can't be
         scheduled — the creator should unpublish first."""
         if broadcast.published_at is not None:
-            raise ResourceNotFound(
-                "Cannot schedule an already-published broadcast"
+            # 422 — the broadcast exists, the request is just invalid
+            # for the broadcast's current state. ResourceNotFound (404)
+            # would mislead the caller into thinking the row is gone.
+            raise SpaireRequestValidationError(
+                [
+                    {
+                        "loc": ("path", "broadcast_id"),
+                        "msg": (
+                            "Cannot schedule an already-published "
+                            "broadcast. Unpublish it first."
+                        ),
+                        "type": "value_error",
+                        "input": str(broadcast.id),
+                    }
+                ]
             )
-        broadcast.scheduled_at = scheduled_at
+        broadcast.scheduled_at = _ensure_future(scheduled_at, "scheduled_at")
         await session.flush()
         return broadcast
 
