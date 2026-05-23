@@ -67,11 +67,21 @@ class BroadcastRepository(
     ) -> Select[tuple[CourseBroadcast]]:
         """Scheduled drafts whose scheduled_at has passed. Drives the
         periodic publish-due worker — matches the partial index in the
-        migration so the planner uses it instead of a seq scan."""
-        return self.get_base_statement().where(
-            CourseBroadcast.published_at.is_(None),
-            CourseBroadcast.scheduled_at.is_not(None),
-            CourseBroadcast.scheduled_at <= now,
+        migration so the planner uses it instead of a seq scan.
+
+        Joined to Course so a soft-deleted course can't keep auto-
+        publishing pending broadcasts after the creator pulled it.
+        Keeps the cron consistent with the audit-fix #16 soft-delete
+        propagation everywhere else."""
+        return (
+            self.get_base_statement()
+            .join(Course, CourseBroadcast.course_id == Course.id)
+            .where(
+                CourseBroadcast.published_at.is_(None),
+                CourseBroadcast.scheduled_at.is_not(None),
+                CourseBroadcast.scheduled_at <= now,
+                Course.deleted_at.is_(None),
+            )
         )
 
     async def get_readable_by_id(
