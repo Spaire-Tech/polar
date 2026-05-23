@@ -2,10 +2,12 @@
 
 // HeroMedia — hover-triggered trailer peek. The trailer only starts playing
 // when the user actually hovers (or taps, on touch) the hero. It pauses on
-// any scroll, mutes on any click outside the volume toggle, and fades back
-// to the still image after `peekSeconds`. Audio only kicks in on the public
-// landing (preview mode) — the studio's customize canvas always stays
-// muted so the creator isn't blasted with sound while editing.
+// any scroll and fades back to the still image after `peekSeconds`. Audio
+// kicks in automatically on the public landing whenever the trailer is
+// playing — the speaker button is still there as an escape hatch, but the
+// default behavior is "sound on while you hover, silent when you move
+// away". The studio's customize canvas always stays muted so the creator
+// isn't blasted with sound while editing.
 
 import { useEffect, useRef, useState } from 'react'
 import { useEditor } from './EditorContext'
@@ -46,7 +48,11 @@ export function HeroMedia({
 
   // Start the peek as soon as the user hovers. Scrolling, leaving the
   // hero, or hitting the end of the peek window all snap us back to the
-  // still image.
+  // still image. On the public landing, also auto-unmute so the viewer
+  // hears the trailer the moment it starts — `v.play()` in the muted/phase
+  // effect below will reject and fall back to muted if the browser blocks
+  // unmuted autoplay (no prior gesture), but every subsequent hover after
+  // any click on the page will succeed.
   useEffect(() => {
     if (!trailerUrl) return
     if (!hovered) {
@@ -54,7 +60,8 @@ export function HeroMedia({
       return
     }
     setPhase('video')
-  }, [hovered, trailerUrl])
+    if (audioAllowed) setMuted(false)
+  }, [hovered, trailerUrl, audioAllowed])
 
   // Peek countdown — runs only while the trailer is actually playing, and
   // bails out cleanly on phase / hover changes so timers never leak.
@@ -115,20 +122,14 @@ export function HeroMedia({
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
 
-  // Mute on any click outside the volume toggle. Lets the user silence
-  // the trailer just by clicking the page rather than hunting for the
-  // tiny speaker button.
-  useEffect(() => {
-    if (!audioAllowed) return
-    if (muted) return
-    const onClick = (e: MouseEvent) => {
-      const target = e.target as Node | null
-      if (target && volumeBtnRef.current?.contains(target)) return
-      setMuted(true)
-    }
-    window.addEventListener('click', onClick, true)
-    return () => window.removeEventListener('click', onClick, true)
-  }, [audioAllowed, muted])
+  // Note: previously a "click outside the volume toggle → mute" handler
+  // lived here, but it actively fought the desired behavior — the viewer
+  // would hover, hear sound briefly, accidentally click elsewhere, then
+  // get muted with no way to re-enable audio without finding the speaker
+  // button. The volume toggle (`volumeBtnRef`) is still rendered so the
+  // viewer can mute manually if they want; the move-cursor-away action
+  // already pauses the trailer and resets to muted via the phase effect
+  // above.
 
   // Reflect the muted state onto the actual <video>. When transitioning
   // from muted → unmuted some browsers pause the stream; re-issue

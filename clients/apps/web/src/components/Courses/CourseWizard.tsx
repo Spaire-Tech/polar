@@ -35,6 +35,7 @@ import {
   WizardLandingEditor,
   type WizardFinalizationData,
 } from './editor/WizardLandingEditor'
+import { normalizeLandingCardinality } from './landing-style'
 import { landingSchema, outlineSchema } from './schemas'
 
 type WizardStep =
@@ -198,8 +199,14 @@ export default function CourseWizard({
   } = useObject({
     api: `/dashboard/${organization.slug}/courses/landing`,
     schema: landingSchema,
-    onFinish: () => setScreen('preview'),
-    onError: () => {
+    onFinish: ({ error }) => {
+      if (error) {
+        console.error('[CourseWizard] landing onFinish validation error:', error)
+      }
+      setScreen('preview')
+    },
+    onError: (error) => {
+      console.error('[CourseWizard] landing stream error:', error)
       // Non-fatal — drop the user into the preview anyway with placeholders.
       setScreen('preview')
     },
@@ -259,6 +266,17 @@ export default function CourseWizard({
         outline?.modules
           ?.map((m) => (m?.title ?? '').trim())
           .filter((t): t is string => !!t) ?? [],
+      // Pass lesson titles too — the landing prompt uses them to ground
+      // learn_items and FAQ answers in real subject matter instead of
+      // generic outcomes.
+      lessonTitles:
+        outline?.modules
+          ?.flatMap(
+            (m) =>
+              m?.lessons
+                ?.map((l) => (l?.title ?? '').trim())
+                .filter((t): t is string => !!t) ?? [],
+          ) ?? [],
       lessonCount,
       paywallEnabled: paywall.paywallEnabled,
       freePreviewLessons: paywall.paywallEnabled
@@ -323,8 +341,15 @@ export default function CourseWizard({
 
       // The AI-generated landing payload is persisted in the course's
       // landing_overrides.ai_landing field. The human description stays clean.
+      // Cardinality is enforced here (not in Zod) because min/max stalls
+      // useObject on streamed partial JSON — so the prompt requests N items
+      // and the renderer is guaranteed N items by padding/slicing at save.
+      const normalizedLanding = normalizeLandingCardinality(
+        partialLanding as Record<string, unknown> | null | undefined,
+        format,
+      )
       const landingForStorage = {
-        ...(partialLanding as object | null | undefined),
+        ...normalizedLanding,
         // Snapshot the editable surface bits the user might have changed in
         // the preview (instructor name, course title, description) so the
         // saved landing matches what they saw.

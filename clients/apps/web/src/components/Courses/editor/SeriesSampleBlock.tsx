@@ -993,9 +993,6 @@ function SamplePlayerFrame({
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const volumeBtnRef = useRef<HTMLButtonElement | null>(null)
   const [inView, setInView] = useState(false)
-  const [hasShown, setHasShown] = useState(false)
-  // hasShown drives the fade-in animation. We only flip it true the first
-  // time the block enters view — after that, the animation stays settled.
   const [muted, setMuted] = useState(true)
   const [ended, setEnded] = useState(false)
   // Touch-device autoplay falls back to a tap-to-play poster overlay.
@@ -1024,7 +1021,6 @@ function SamplePlayerFrame({
         if (!entry) return
         if (entry.isIntersecting && entry.intersectionRatio >= 0.6) {
           setInView(true)
-          setHasShown(true)
         } else if (entry.intersectionRatio < 0.3) {
           setInView(false)
         }
@@ -1073,10 +1069,6 @@ function SamplePlayerFrame({
       style={{
         position: 'relative',
         width: '100%',
-        opacity: hasShown ? 1 : 0,
-        transform: hasShown ? 'translateY(0)' : 'translateY(12px)',
-        transition:
-          'opacity 280ms cubic-bezier(0.22, 1, 0.36, 1), transform 320ms cubic-bezier(0.22, 1, 0.36, 1)',
       }}
     >
       <div
