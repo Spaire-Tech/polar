@@ -97,6 +97,40 @@ async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
 
 // ── Image upload helper ────────────────────────────────────────────────
 
+/** Two-step thumbnail upload for a challenge cover (creator-side).
+ *  Same shape as uploadSubmissionImage but hits the creator-scoped
+ *  presign endpoint and a different S3 prefix. Returns the public
+ *  URL the creator persists on the challenge row via PATCH. */
+export async function uploadChallengeThumbnail(file: File): Promise<string> {
+  const MAX_BYTES = 10 * 1024 * 1024
+  if (file.size > MAX_BYTES) {
+    throw new Error('Thumbnail is larger than 10MB.')
+  }
+  if (!file.type.startsWith('image/')) {
+    throw new Error('Only image files can be uploaded.')
+  }
+  const presigned = await fetchJson<{
+    upload_url: string
+    public_url: string
+  }>('/v1/courses/challenges/thumbnail-uploads', {
+    method: 'POST',
+    body: JSON.stringify({
+      filename: file.name,
+      content_type: file.type,
+      content_length: file.size,
+    }),
+  })
+  const putRes = await fetch(presigned.upload_url, {
+    method: 'PUT',
+    body: file,
+    headers: { 'Content-Type': file.type },
+  })
+  if (!putRes.ok) {
+    throw new Error(`Upload failed (S3 ${putRes.status})`)
+  }
+  return presigned.public_url
+}
+
 /** Two-step image upload for challenge submissions:
  *    1. Presign a single-shot PUT URL on the public bucket.
  *    2. PUT the file bytes to that URL with the matching content-type.

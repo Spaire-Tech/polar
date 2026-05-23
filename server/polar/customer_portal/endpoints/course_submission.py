@@ -109,6 +109,8 @@ async def _challenge_to_read_student(
         due_after_days=challenge.due_after_days,
         published=challenge.published,
         ai_generated=challenge.ai_generated,
+        thumbnail_url=challenge.thumbnail_url,
+        thumbnail_object_position=challenge.thumbnail_object_position,
         created_at=challenge.created_at,
         modified_at=challenge.modified_at,
         submission_count=await repo.count_submissions(challenge.id),

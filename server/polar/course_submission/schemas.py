@@ -38,6 +38,8 @@ class ChallengeUpdate(Schema):
     due_after_days: int | None = Field(default=None, ge=0, le=365)
     published: bool | None = None
     position: int | None = Field(default=None, ge=0)
+    thumbnail_url: str | None = Field(default=None, max_length=2048)
+    thumbnail_object_position: str | None = Field(default=None, max_length=32)
 
 
 class ChallengeRead(TimestampedSchema, ChallengeBase):
@@ -48,6 +50,8 @@ class ChallengeRead(TimestampedSchema, ChallengeBase):
     module_id: UUID4
     position: int
     ai_generated: bool
+    thumbnail_url: str | None = None
+    thumbnail_object_position: str | None = None
     # Aggregate stats only — not embedding the submission rows here.
     submission_count: int = 0
     # The current authenticated student's own submission for this

@@ -98,6 +98,16 @@ class CourseChallenge(RecordModel):
         Boolean, nullable=False, default=False
     )
 
+    # Optional per-challenge cover image. Drives the thumbnail on each
+    # zigzag card on the landing's Challenges section. Same column shape
+    # as course_lesson.thumbnail_url + thumbnail_object_position.
+    thumbnail_url: Mapped[str | None] = mapped_column(
+        String(2048), nullable=True, default=None
+    )
+    thumbnail_object_position: Mapped[str | None] = mapped_column(
+        String(32), nullable=True, default=None
+    )
+
     @declared_attr
     def course(cls) -> Mapped["Course"]:
         return relationship("Course", lazy="raise")

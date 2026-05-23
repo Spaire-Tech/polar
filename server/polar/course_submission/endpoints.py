@@ -71,6 +71,8 @@ async def _challenge_to_read(
         due_after_days=challenge.due_after_days,
         published=challenge.published,
         ai_generated=challenge.ai_generated,
+        thumbnail_url=challenge.thumbnail_url,
+        thumbnail_object_position=challenge.thumbnail_object_position,
         created_at=challenge.created_at,
         modified_at=challenge.modified_at,
         submission_count=await repo.count_submissions(challenge.id),
@@ -335,4 +337,90 @@ async def clear_creator_reaction(
         raise ResourceNotFound("Submission not found")
     await reaction_service.clear_creator_reaction(
         session, submission, auth_subject.subject.id
+    )
+
+
+# ── Creator thumbnail upload presign ────────────────────────────────────
+#
+# Mirrors the customer-portal /submission-uploads endpoint but scoped
+# to creators (CoursesWrite) and writes to a separate S3 path so
+# thumbnails are easy to lifecycle independently of student submissions.
+
+import uuid as _uuid  # noqa: E402
+
+from fastapi import HTTPException  # noqa: E402
+from pydantic import Field as _Field  # noqa: E402
+
+from polar.config import settings as _settings  # noqa: E402
+from polar.file.s3 import S3_SERVICES as _S3_SERVICES  # noqa: E402
+from polar.kit.schemas import Schema as _Schema  # noqa: E402
+from polar.models.file import FileServiceTypes as _FileServiceTypes  # noqa: E402
+
+
+_ALLOWED_THUMBNAIL_TYPES = {
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+}
+_MAX_THUMBNAIL_BYTES = 10 * 1024 * 1024  # 10MB matches course staging.
+
+
+class ChallengeThumbnailUploadRequest(_Schema):
+    filename: str = _Field(min_length=1, max_length=200)
+    content_type: str
+    content_length: int = _Field(ge=1, le=_MAX_THUMBNAIL_BYTES)
+
+
+class ChallengeThumbnailUploadResponse(_Schema):
+    upload_url: str
+    public_url: str
+
+
+@router.post(
+    "/challenges/thumbnail-uploads",
+    response_model=ChallengeThumbnailUploadResponse,
+    summary="Presign Challenge Thumbnail Upload",
+)
+async def create_challenge_thumbnail_upload_url(
+    payload: ChallengeThumbnailUploadRequest,
+    auth_subject: auth.CoursesWrite,
+) -> ChallengeThumbnailUploadResponse:
+    """Single-shot presigned PUT for a creator-uploaded challenge
+    thumbnail. Same shape as the customer-portal submission-upload
+    endpoint — different auth, different S3 path, smaller size cap
+    (10MB vs 50MB) because thumbnails are display-only.
+
+    Returned `public_url` is what the creator persists on the
+    challenge row via PATCH /v1/courses/challenges/{id}.
+    """
+    if payload.content_type not in _ALLOWED_THUMBNAIL_TYPES:
+        raise HTTPException(
+            status_code=400,
+            detail="Only JPEG, PNG, and WebP thumbnails are supported.",
+        )
+
+    ext = (
+        payload.filename.rsplit(".", 1)[-1].lower()
+        if "." in payload.filename
+        else "bin"
+    )[:8]
+
+    # The challenge id isn't in the path because the creator may upload
+    # a thumbnail before deciding which challenge to attach it to (and
+    # tests show the picker UX often re-uses an upload across edits).
+    # Scope by a fresh uuid; we treat the URL as immutable after PUT.
+    key = f"course-challenge-thumbs/{_uuid.uuid4()}.{ext}"
+
+    s3 = _S3_SERVICES[_FileServiceTypes.product_media]
+    upload_url: str = s3.client.generate_presigned_url(
+        "put_object",
+        Params={
+            "Bucket": s3.bucket,
+            "Key": key,
+            "ContentType": payload.content_type,
+        },
+        ExpiresIn=_settings.S3_FILES_PRESIGN_TTL,
+    )
+    return ChallengeThumbnailUploadResponse(
+        upload_url=upload_url, public_url=s3.get_public_url(key)
     )

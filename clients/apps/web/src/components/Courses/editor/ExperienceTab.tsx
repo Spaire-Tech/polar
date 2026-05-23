@@ -1,23 +1,31 @@
 'use client'
 
-// ExperienceTab — creator-side dashboard surface for the Phase 1 v0.1
-// submission loop.
+// ExperienceTab — creator-side dashboard surface for the Phase 1
+// submission loop. Two views, toggle at top:
 //
-// v0.1 ships the "Challenges" view only: list AI-generated /
-// creator-edited challenges, edit title + prompt inline. The
-// "Submissions inbox" view ships next.
+//   Challenges — list, edit title + prompt + thumbnail per challenge,
+//                regenerate via AI from the original outline data.
+//   Submissions — newest-first feed of student submissions; emoji
+//                react, hide / unhide, see media inline.
 //
-// Data layer: small inline hooks against the existing creator
-// endpoints (/v1/courses/{id}/challenges). No SDK regen needed; same
-// fetch helper the rest of the courses hooks use.
+// Visual language inherits from SettingsTab: rounded-2xl card shells,
+// p-6 padding, header icons in a chip, gray-900 primary actions.
 
+import { uploadChallengeThumbnail } from '@/hooks/queries/challenges'
 import { CourseRead } from '@/hooks/queries/courses'
+import AutoAwesomeOutlined from '@mui/icons-material/AutoAwesomeOutlined'
+import ChatBubbleOutlineOutlined from '@mui/icons-material/ChatBubbleOutlineOutlined'
+import CollectionsBookmarkOutlined from '@mui/icons-material/CollectionsBookmarkOutlined'
+import ImageOutlined from '@mui/icons-material/ImageOutlined'
+import VisibilityOffOutlined from '@mui/icons-material/VisibilityOffOutlined'
+import { experimental_useObject as useObject } from '@ai-sdk/react'
 import {
   useMutation,
   useQuery,
   useQueryClient,
 } from '@tanstack/react-query'
-import { useState } from 'react'
+import { outlineSchema } from '@/components/Courses/schemas'
+import { useRef, useState } from 'react'
 
 type ChallengeRead = {
   id: string
@@ -32,6 +40,8 @@ type ChallengeRead = {
   due_after_days: number | null
   published: boolean
   ai_generated: boolean
+  thumbnail_url: string | null
+  thumbnail_object_position: string | null
   created_at: string
   modified_at: string | null
   submission_count: number
@@ -45,6 +55,8 @@ type ChallengeUpdate = {
   accepts_text?: boolean
   due_after_days?: number | null
   published?: boolean
+  thumbnail_url?: string | null
+  thumbnail_object_position?: string | null
 }
 
 // Direct fetch — the @spaire/client SDK doesn't include the new
@@ -184,12 +196,19 @@ function useSetVisibility(courseId: string) {
 
 type ExperienceView = 'challenges' | 'submissions'
 
-export function ExperienceTab({ course }: { course: CourseRead }) {
+export function ExperienceTab({
+  course,
+  organization,
+}: {
+  course: CourseRead
+  organization: { slug: string; name: string }
+}) {
   const [view, setView] = useState<ExperienceView>('challenges')
   const challengesQ = useCourseChallenges(course.id)
   const challenges = challengesQ.data ?? []
   const submissionsQ = useCourseSubmissions(course.id)
   const submissions = submissionsQ.data ?? []
+  const updateChallenge = useUpdateChallenge(course.id)
 
   // Order by the underlying module's position so the list reads in the
   // same order the student sees on the landing — server response is
@@ -197,6 +216,50 @@ export function ExperienceTab({ course }: { course: CourseRead }) {
   const modulesById = Object.fromEntries(
     (course.modules ?? []).map((m) => [m.id, m]),
   )
+
+  // Regenerate via AI: hits the existing outline route, then PATCHes
+  // each existing challenge's title + prompt from the streamed result.
+  // We orchestrate from the frontend (rather than a new backend route)
+  // because the AI SDK lives on the Next.js side; this also lets us
+  // show live progress to the creator via useObject.object as the
+  // stream arrives.
+  const regen = useObject({
+    api: `/dashboard/${organization.slug}/courses/outline`,
+    schema: outlineSchema,
+    onFinish: async ({ object }) => {
+      if (!object) return
+      const newChallenges = object.challenges ?? []
+      // Order existing challenges the same way the server does
+      // (module position, then position) so the mapping by index is
+      // stable across regen calls.
+      const ordered = [...challenges].sort((a, b) => {
+        const ma = modulesById[a.module_id]?.position ?? 0
+        const mb = modulesById[b.module_id]?.position ?? 0
+        if (ma !== mb) return ma - mb
+        return a.position - b.position
+      })
+      for (let i = 0; i < ordered.length && i < newChallenges.length; i++) {
+        const nc = newChallenges[i]
+        if (!nc?.title) continue
+        await updateChallenge.mutateAsync({
+          challengeId: ordered[i].id,
+          patch: { title: nc.title, prompt: nc.prompt ?? '' },
+        })
+      }
+    },
+  })
+
+  const handleRegenerate = () => {
+    if (regen.isLoading) return
+    regen.submit({
+      title: course.title ?? '',
+      description: course.description ?? null,
+      instructorName: course.instructor_name ?? null,
+      instructorBio: course.instructor_bio ?? null,
+      paywallEnabled: course.paywall_enabled ?? false,
+      format: course.format ?? 'course',
+    })
+  }
 
   return (
     <div className="mx-auto w-full max-w-5xl px-6 py-8">
@@ -241,20 +304,52 @@ export function ExperienceTab({ course }: { course: CourseRead }) {
 
       {view === 'challenges' && (
         <>
+          {/* Regenerate strip — matches the SettingsTab card-with-icon
+              header pattern (rounded-2xl, p-6, icon chip on the left)
+              so the Experience tab reads as a sibling of the others. */}
+          <section className="mb-4 rounded-2xl border border-gray-200 bg-white p-6">
+            <div className="flex items-start gap-3">
+              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
+                <AutoAwesomeOutlined sx={{ fontSize: 18 }} />
+              </span>
+              <div className="flex-1">
+                <h3 className="text-base font-bold text-gray-900">
+                  Regenerate from outline
+                </h3>
+                <p className="mt-0.5 text-sm text-gray-500">
+                  Replays the outline AI on the course&apos;s current
+                  title, description, and instructor bio, then
+                  overwrites each challenge&apos;s title and prompt in
+                  place. Thumbnails stay.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleRegenerate}
+                disabled={regen.isLoading || challenges.length === 0}
+                className="rounded-md bg-gray-900 px-3.5 py-[7px] text-[12px] font-semibold text-white transition-colors hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {regen.isLoading ? 'Regenerating…' : 'Regenerate'}
+              </button>
+            </div>
+          </section>
+
           {challengesQ.isLoading && (
-            <div className="h-32 animate-pulse rounded-xl bg-gray-100" />
+            <div className="h-32 animate-pulse rounded-2xl bg-gray-100" />
           )}
 
           {!challengesQ.isLoading && challenges.length === 0 && (
             <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-gray-200 bg-gray-50 py-12 text-center">
-              <p className="text-sm text-gray-700">
+              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-gray-400 shadow-sm">
+                <CollectionsBookmarkOutlined sx={{ fontSize: 20 }} />
+              </span>
+              <p className="text-sm font-medium text-gray-900">
                 No challenges yet for this course.
               </p>
               <p className="max-w-md text-xs text-gray-500">
-                New courses generate four challenges automatically
-                during the AI outline step. Older courses need them
-                added by hand — the “Regenerate from outline”
-                affordance lands in the next pass.
+                New courses get four challenges automatically during the
+                AI outline step. To bring them in for an existing
+                course, hit Regenerate above.
               </p>
             </div>
           )}
@@ -301,10 +396,12 @@ function ChallengeRow({
   // Local edit buffer — only flushed to the server when the creator
   // hits Save. Server-side changes (regenerate / cross-tab edit) reset
   // the buffer via the key prop on this component in the parent (see
-  // the map's key), not via a useEffect resync — keeps the component
-  // pure and skirts the set-state-in-effect anti-pattern.
+  // the map's key), not via a useEffect resync.
   const [title, setTitle] = useState(challenge.title)
   const [prompt, setPrompt] = useState(challenge.prompt)
+  const [uploading, setUploading] = useState(false)
+  const [uploadError, setUploadError] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
   const update = useUpdateChallenge(courseId)
 
   const dirty =
@@ -319,61 +416,155 @@ function ChallengeRow({
     })
   }
 
+  // Two-step thumbnail upload — same shape as the customer-side
+  // submission picker but writes directly to the challenge row via
+  // PATCH on success. Errors are surfaced inline so the creator sees
+  // exactly why an upload failed (size cap, mime, S3 5xx).
+  const onPickThumbnail = async (file: File) => {
+    setUploadError(null)
+    setUploading(true)
+    try {
+      const url = await uploadChallengeThumbnail(file)
+      await update.mutateAsync({
+        challengeId: challenge.id,
+        patch: { thumbnail_url: url, thumbnail_object_position: null },
+      })
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Upload failed.'
+      setUploadError(msg)
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  const onRemoveThumbnail = () => {
+    update.mutate({
+      challengeId: challenge.id,
+      patch: { thumbnail_url: null, thumbnail_object_position: null },
+    })
+  }
+
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white p-5">
-      <div className="mb-3 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2 text-xs font-medium text-gray-500">
-          <span className="rounded-full bg-gray-100 px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-gray-600">
-            Challenge {String(index + 1).padStart(2, '0')}
-          </span>
-          <span className="text-gray-400">·</span>
-          <span>Module: {moduleTitle}</span>
-          {challenge.ai_generated && (
-            <>
-              <span className="text-gray-400">·</span>
+    <section className="rounded-2xl border border-gray-200 bg-white p-6">
+      <div className="mb-4 flex items-start gap-3">
+        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gray-100 text-gray-600">
+          <CollectionsBookmarkOutlined sx={{ fontSize: 18 }} />
+        </span>
+        <div className="flex-1 min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="text-base font-bold text-gray-900">
+              {challenge.title || `Challenge ${index + 1}`}
+            </h3>
+            {challenge.ai_generated && (
               <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-600">
                 AI suggested
               </span>
-            </>
-          )}
-          {!challenge.published && (
-            <>
-              <span className="text-gray-400">·</span>
+            )}
+            {!challenge.published && (
               <span className="rounded-full bg-yellow-50 px-2 py-0.5 text-[10px] font-semibold text-yellow-700">
                 Draft
               </span>
-            </>
-          )}
+            )}
+          </div>
+          <p className="mt-0.5 truncate text-sm text-gray-500">
+            Challenge {String(index + 1).padStart(2, '0')} · {moduleTitle}
+          </p>
         </div>
-        <div className="text-xs text-gray-400">
+        <div className="shrink-0 text-xs text-gray-400">
           {challenge.submission_count} submission
           {challenge.submission_count === 1 ? '' : 's'}
         </div>
       </div>
 
-      <div className="flex flex-col gap-3">
-        <label className="flex flex-col gap-1">
-          <span className="text-xs font-medium text-gray-600">Title</span>
+      <div className="flex flex-col gap-4 md:flex-row">
+        {/* Thumbnail picker — left rail on desktop, stacks on
+            narrower viewports so the form below it gets full width. */}
+        <div className="md:w-40 md:shrink-0">
+          <span className="mb-1.5 block text-xs font-medium text-gray-600">
+            Cover
+          </span>
           <input
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            className="rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none"
-            placeholder="What should the student do?"
+            ref={fileInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0]
+              if (f) onPickThumbnail(f)
+              e.target.value = ''
+            }}
           />
-        </label>
-        <label className="flex flex-col gap-1">
-          <span className="text-xs font-medium text-gray-600">Prompt</span>
-          <textarea
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            rows={3}
-            className="resize-y rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none"
-            placeholder="One or two sentences. Name what they capture and how they submit it."
-          />
-        </label>
+          {challenge.thumbnail_url ? (
+            <div className="relative">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={challenge.thumbnail_url}
+                alt=""
+                className="aspect-[3/2] w-full rounded-xl border border-gray-200 object-cover"
+              />
+              <div className="mt-2 flex gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploading || update.isPending}
+                  className="flex-1 rounded-lg border border-gray-200 bg-white px-2.5 py-1 text-[11px] font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                >
+                  Replace
+                </button>
+                <button
+                  type="button"
+                  onClick={onRemoveThumbnail}
+                  disabled={uploading || update.isPending}
+                  className="rounded-lg border border-gray-200 bg-white px-2.5 py-1 text-[11px] font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
+                  title="Remove cover"
+                >
+                  Remove
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading || update.isPending}
+              className="flex aspect-[3/2] w-full flex-col items-center justify-center gap-1.5 rounded-xl border border-dashed border-gray-300 bg-gray-50 text-gray-500 transition-colors hover:bg-gray-100 disabled:opacity-50"
+            >
+              <ImageOutlined sx={{ fontSize: 22 }} />
+              <span className="text-[11px] font-medium">
+                {uploading ? 'Uploading…' : 'Add cover'}
+              </span>
+            </button>
+          )}
+          {uploadError && (
+            <p className="mt-2 text-[11px] text-red-600">{uploadError}</p>
+          )}
+        </div>
+
+        {/* Title + prompt on the right. */}
+        <div className="flex flex-1 flex-col gap-3">
+          <label className="flex flex-col gap-1">
+            <span className="text-xs font-medium text-gray-600">Title</span>
+            <input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+              placeholder="What should the student do?"
+            />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-xs font-medium text-gray-600">Prompt</span>
+            <textarea
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              rows={3}
+              className="resize-y rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+              placeholder="One or two sentences. Name what they capture and how they submit it."
+            />
+          </label>
+        </div>
       </div>
 
-      <div className="mt-4 flex items-center justify-end gap-2">
+      <div className="mt-5 flex items-center justify-end gap-2 border-t border-gray-100 pt-4">
         {dirty && (
           <button
             type="button"
@@ -381,7 +572,7 @@ function ChallengeRow({
               setTitle(challenge.title)
               setPrompt(challenge.prompt)
             }}
-            className="rounded-lg px-3 py-1.5 text-xs font-medium text-gray-500 hover:bg-gray-100"
+            className="rounded-md px-3 py-[7px] text-[12px] font-medium text-gray-500 hover:bg-gray-100"
           >
             Discard
           </button>
@@ -390,12 +581,12 @@ function ChallengeRow({
           type="button"
           disabled={!canSave || update.isPending}
           onClick={onSave}
-          className="rounded-lg bg-gray-900 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-40"
+          className="rounded-md bg-gray-900 px-3.5 py-[7px] text-[12px] font-semibold text-white transition-colors hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-40"
         >
           {update.isPending ? 'Saving…' : 'Save'}
         </button>
       </div>
-    </div>
+    </section>
   )
 }
 
@@ -415,12 +606,17 @@ function SubmissionsInbox({
   challengesById: Record<string, ChallengeRead>
 }) {
   if (isLoading) {
-    return <div className="h-32 animate-pulse rounded-xl bg-gray-100" />
+    return <div className="h-32 animate-pulse rounded-2xl bg-gray-100" />
   }
   if (submissions.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-gray-200 bg-gray-50 py-12 text-center">
-        <p className="text-sm text-gray-700">No submissions yet.</p>
+        <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-gray-400 shadow-sm">
+          <ChatBubbleOutlineOutlined sx={{ fontSize: 20 }} />
+        </span>
+        <p className="text-sm font-medium text-gray-900">
+          No submissions yet.
+        </p>
         <p className="max-w-md text-xs text-gray-500">
           Once enrolled students start posting their work, you’ll see
           every submission here — newest first. React with an emoji or
@@ -463,21 +659,21 @@ function SubmissionRow({
   const isHidden = submission.status === 'hidden'
 
   return (
-    <div
+    <section
       className={
-        'rounded-2xl border border-gray-200 bg-white p-5' +
+        'rounded-2xl border border-gray-200 bg-white p-6' +
         (isHidden ? ' opacity-70' : '')
       }
     >
-      <div className="mb-3 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2 text-xs text-gray-500">
-          <span className="text-sm font-semibold text-gray-900">
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-2 text-xs text-gray-500">
+          <span className="truncate text-sm font-semibold text-gray-900">
             {submission.author.display_name}
           </span>
-          <span className="text-gray-400">·</span>
-          <span>{challengeTitle}</span>
-          <span className="text-gray-400">·</span>
-          <span>
+          <span className="text-gray-300">·</span>
+          <span className="truncate">{challengeTitle}</span>
+          <span className="text-gray-300">·</span>
+          <span className="shrink-0">
             {submission.submitted_at
               ? new Date(submission.submitted_at).toLocaleDateString(undefined, {
                   month: 'short',
@@ -486,12 +682,9 @@ function SubmissionRow({
               : '—'}
           </span>
           {isHidden && (
-            <>
-              <span className="text-gray-400">·</span>
-              <span className="rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-semibold text-red-700">
-                Hidden
-              </span>
-            </>
+            <span className="ml-1 inline-flex shrink-0 items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-semibold text-red-700">
+              <VisibilityOffOutlined sx={{ fontSize: 11 }} /> Hidden
+            </span>
           )}
         </div>
         <button
@@ -502,7 +695,7 @@ function SubmissionRow({
               hidden: !isHidden,
             })
           }
-          className="rounded-lg px-3 py-1.5 text-xs font-medium text-gray-500 hover:bg-gray-100"
+          className="shrink-0 rounded-md border border-gray-200 bg-white px-3 py-[7px] text-[12px] font-medium text-gray-600 transition-colors hover:bg-gray-50 disabled:opacity-50"
           disabled={setVisibility.isPending}
         >
           {isHidden ? 'Unhide' : 'Hide'}
@@ -564,6 +757,6 @@ function SubmissionRow({
           </span>
         )}
       </div>
-    </div>
+    </section>
   )
 }

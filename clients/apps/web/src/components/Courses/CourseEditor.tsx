@@ -451,7 +451,9 @@ export default function CourseEditor({
   } else if (activeTab === 'customize') {
     mainContent = <CustomizeTab course={course} organization={organization} />
   } else if (activeTab === 'experience') {
-    mainContent = <ExperienceTab course={course} />
+    mainContent = (
+      <ExperienceTab course={course} organization={organization} />
+    )
   } else if (activeTab === 'automations') {
     mainContent = (
       <div className="mx-auto w-full max-w-5xl px-6 py-8">
