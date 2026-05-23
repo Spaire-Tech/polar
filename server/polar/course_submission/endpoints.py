@@ -18,10 +18,7 @@ from polar.openapi import APITag
 from polar.postgres import AsyncSession, get_db_session
 from polar.routing import APIRouter
 
-from polar.course.repository import (
-    CourseEnrollmentRepository,
-    CourseRepository,
-)
+from polar.course.repository import CourseRepository
 
 from . import auth
 from .repository import (
@@ -141,9 +138,7 @@ async def _submission_to_read(
         course_id=submission.course_id,
         enrollment_id=submission.enrollment_id,
         status=submission.status,
-        submitted_at=(
-            submission.submitted_at.isoformat() if submission.submitted_at else None
-        ),
+        submitted_at=submission.submitted_at,
         caption=submission.caption,
         media=media,
         reactions=reactions,

@@ -98,18 +98,35 @@ class SubmissionRepository(
     def get_by_challenge_statement(
         self, challenge_id: UUID, *, only_visible: bool = True
     ) -> Select[tuple[CourseSubmission]]:
-        """Statement for the public gallery — submitted + non-hidden.
+        """Statement for the public gallery (submitted + non-hidden) or
+        the creator-side view of a single challenge's submissions
+        (`only_visible=False`, which also includes hidden rows).
 
-        Pass `only_visible=False` on the creator side so hidden
-        submissions still show up in the inbox.
+        Joined to `course_challenges` so a soft-deleted challenge
+        suppresses its submissions automatically — the relationship's
+        primaryjoin filter only checks the submission's own deleted_at,
+        not the parent's.
         """
-        statement = self.get_base_statement().where(
-            CourseSubmission.challenge_id == challenge_id,
-            CourseSubmission.status == SUBMISSION_STATUS_SUBMITTED,
+        statement = (
+            self.get_base_statement()
+            .join(
+                CourseChallenge,
+                CourseSubmission.challenge_id == CourseChallenge.id,
+            )
+            .where(
+                CourseSubmission.challenge_id == challenge_id,
+                CourseChallenge.deleted_at.is_(None),
+            )
         )
         if only_visible:
             statement = statement.where(
-                CourseSubmission.status != SUBMISSION_STATUS_HIDDEN
+                CourseSubmission.status == SUBMISSION_STATUS_SUBMITTED
+            )
+        else:
+            statement = statement.where(
+                CourseSubmission.status.in_(
+                    (SUBMISSION_STATUS_SUBMITTED, SUBMISSION_STATUS_HIDDEN)
+                )
             )
         return statement.order_by(CourseSubmission.submitted_at.desc())
 
@@ -118,12 +135,18 @@ class SubmissionRepository(
     ) -> Select[tuple[CourseSubmission]]:
         """Creator inbox feed — every submission across the course,
         newest first. Includes hidden so the creator can unhide.
+        Excludes submissions whose parent challenge is soft-deleted.
         """
         return (
             self.get_base_statement()
+            .join(
+                CourseChallenge,
+                CourseSubmission.challenge_id == CourseChallenge.id,
+            )
             .where(
                 CourseSubmission.course_id == course_id,
                 CourseSubmission.submitted_at.is_not(None),
+                CourseChallenge.deleted_at.is_(None),
             )
             .order_by(CourseSubmission.submitted_at.desc())
         )

@@ -15,8 +15,6 @@ ships emoji-only on the creator side; threaded comments come in Phase
 
 """
 
-from collections.abc import Sequence
-
 import sqlalchemy as sa
 from alembic import op
 
@@ -139,13 +137,17 @@ def upgrade() -> None:
         postgresql_where=sa.text("deleted_at IS NULL"),
     )
     # Creator inbox feed — newest submitted_at first, course-scoped.
+    # Matches the postgresql_ops syntax used by the existing
+    # ix_course_enrollments_course_active index — keeps alembic
+    # autogenerate diffs clean against the model declaration.
     op.create_index(
         "ix_course_submissions_course_submitted_at",
         "course_submissions",
-        ["course_id", sa.text("submitted_at DESC")],
+        ["course_id", "submitted_at"],
         postgresql_where=sa.text(
             "deleted_at IS NULL AND submitted_at IS NOT NULL"
         ),
+        postgresql_ops={"submitted_at": "DESC"},
     )
 
     # ── course_submission_media ─────────────────────────────────────────

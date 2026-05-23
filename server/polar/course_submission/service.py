@@ -6,7 +6,6 @@ from polar.exceptions import PolarRequestValidationError, ResourceNotFound
 from polar.models.course import Course
 from polar.models.course_challenge import CourseChallenge
 from polar.models.course_enrollment import CourseEnrollment
-from polar.models.course_module import CourseModule
 from polar.models.course_submission import (
     SUBMISSION_STATUS_DRAFT,
     SUBMISSION_STATUS_HIDDEN,
@@ -24,7 +23,6 @@ from polar.models.course_submission_reaction import (
 from polar.postgres import AsyncSession
 
 from polar.course.repository import (
-    CourseEnrollmentRepository,
     CourseModuleRepository,
     CourseRepository,
 )

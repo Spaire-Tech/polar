@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from pydantic import UUID4, Field
 
 from polar.kit.schemas import Schema, TimestampedSchema
@@ -109,7 +111,10 @@ class SubmissionRead(TimestampedSchema):
     course_id: UUID4
     enrollment_id: UUID4
     status: str  # "draft" | "submitted" | "hidden"
-    submitted_at: str | None  # ISO timestamp — Pydantic will coerce datetime
+    # Pydantic serializes datetime → ISO 8601 automatically. Keeping the
+    # native type means callers (e.g. the inbox feed) can sort/filter
+    # server-side without manually parsing strings.
+    submitted_at: datetime | None
     caption: str
     media: list[SubmissionMediaRead]
     reactions: list[ReactionRead]
