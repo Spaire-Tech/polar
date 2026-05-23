@@ -7,6 +7,7 @@
 // to mobile or when the page is viewed on a real phone.
 
 import type { CourseLessonRead, CourseRead } from '@/hooks/queries/courses'
+import type { schemas } from '@spaire/client'
 import { useMemo, useState } from 'react'
 import { TrailerModal } from './EditableCourseLandingView'
 import { useEditor } from './EditorContext'
@@ -731,6 +732,7 @@ function SectionThumbFallback({ hue, n }: { hue: number; n: number }) {
 
 export function MobileEpisodes({
   course,
+  product,
   freeLessons,
   paidLessons,
   lockedCount,
@@ -743,6 +745,7 @@ export function MobileEpisodes({
   courseThumbnailObjectPosition,
 }: {
   course: CourseRead
+  product?: schemas['Product']
   freeLessons: CourseLessonRead[]
   paidLessons: CourseLessonRead[]
   lockedCount: number
@@ -955,6 +958,7 @@ export function MobileEpisodes({
       {course.format === 'series' && lockedCount > 0 && (
         <EpisodeCarousel
           course={course}
+          product={product}
           paidLessons={paidLessons}
           priceLabel={priceLabel}
           onEnroll={onEnroll}

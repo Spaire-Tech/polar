@@ -244,6 +244,7 @@ export function EditableCourseLandingView({
             node: (
               <MobileEpisodes
                 course={course}
+                product={product}
                 freeLessons={freeLessons}
                 paidLessons={paidLessons}
                 lockedCount={lockedCount}
@@ -328,6 +329,7 @@ export function EditableCourseLandingView({
             node: (
               <EpisodeGrid
                 course={course}
+                product={product}
                 freeLessons={freeLessons}
                 paidLessons={paidLessons}
                 lockedCount={lockedCount}
@@ -1592,6 +1594,7 @@ function CourseSections({
 
 function EpisodeGrid({
   course,
+  product,
   freeLessons,
   paidLessons,
   lockedCount,
@@ -1603,6 +1606,7 @@ function EpisodeGrid({
   lessonHandlers,
 }: {
   course: CourseRead
+  product?: schemas['Product']
   freeLessons: CourseLessonRead[]
   paidLessons: CourseLessonRead[]
   lockedCount: number
@@ -1724,6 +1728,7 @@ function EpisodeGrid({
         lockedCount > 0 && (
           <EpisodeCarousel
             course={course}
+            product={product}
             paidLessons={paidLessons}
             priceLabel={priceLabel}
             onEnroll={onEnroll}

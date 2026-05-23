@@ -2,18 +2,112 @@
 
 // EnrollToWatchSheet — opens when a viewer taps a locked episode card
 // in the series carousel. Reuses the EXACT live-checkout-preview
-// component that the creator already sees in onboarding Step 3
+// component the creator already saw in onboarding Step 3
 // (PFCheckoutPreview from CourseWizard.steps.tsx). Same CTA color
 // (var(--ink)), same hero ratio, same card shell. The cover image is
 // the course thumbnail (set during onboarding) so the modal stays in
 // continuity with what the creator picked.
+//
+// CTA + price line are subscription-aware: a recurring product shows
+// "Subscribe · $X / month", a one-time shows "Enroll · $X", a free
+// product shows "Enroll for free" — same logic as the live preview.
 
 import type { CourseLessonRead, CourseRead } from '@/hooks/queries/courses'
+import type { schemas } from '@spaire/client'
 import { useEffect } from 'react'
 import { createPortal } from 'react-dom'
 
+type ProductPrice = schemas['Product']['prices'][number]
+
+// Pull out the primary "fixed" price (or detect free / pay-what-you-want)
+// from the product, plus whatever recurring metadata it carries. Mirrors
+// what PFCheckoutPreview consumes for its CTA + amount line.
+function readPricing(product: schemas['Product'] | undefined): {
+  amount: string
+  cycleLabel: string
+  isFree: boolean
+  isRecurring: boolean
+  ctaLabel: string
+} {
+  if (!product) {
+    return {
+      amount: 'Free',
+      cycleLabel: '',
+      isFree: true,
+      isRecurring: false,
+      ctaLabel: 'Enroll to watch',
+    }
+  }
+  const prices: ProductPrice[] = product.prices ?? []
+  const free = prices.find(
+    (p: ProductPrice) => p.amount_type === 'free',
+  )
+  const custom = prices.find(
+    (p: ProductPrice) => p.amount_type === 'custom',
+  )
+  const fixed = prices.find(
+    (p: ProductPrice) => p.amount_type === 'fixed',
+  ) as
+    | (ProductPrice & {
+        price_amount?: number
+        price_currency?: string
+        recurring_interval?: string | null
+      })
+    | undefined
+
+  if (free && !fixed) {
+    return {
+      amount: 'Free',
+      cycleLabel: '',
+      isFree: true,
+      isRecurring: false,
+      ctaLabel: 'Enroll for free',
+    }
+  }
+  if (custom && !fixed) {
+    return {
+      amount: 'Pay what you want',
+      cycleLabel: '',
+      isFree: false,
+      isRecurring: false,
+      ctaLabel: 'Choose & enroll',
+    }
+  }
+  if (!fixed || typeof fixed.price_amount !== 'number') {
+    return {
+      amount: 'Free',
+      cycleLabel: '',
+      isFree: true,
+      isRecurring: false,
+      ctaLabel: 'Enroll for free',
+    }
+  }
+  const cents = fixed.price_amount
+  const currency = (fixed.price_currency ?? 'usd').toLowerCase()
+  const symbol = currency === 'usd' ? '$' : currency === 'eur' ? '€' : ''
+  const dollars = cents / 100
+  const formatted =
+    dollars === Math.floor(dollars)
+      ? `${symbol}${dollars.toFixed(0)}`
+      : `${symbol}${dollars.toFixed(2)}`
+  const interval = fixed.recurring_interval ?? null
+  const isRecurring = !!interval
+  const cycleLabel = isRecurring ? ` / ${interval}` : ''
+  const ctaLabel = isRecurring
+    ? `Subscribe · ${formatted}${cycleLabel}`
+    : `Enroll · ${formatted}`
+  return {
+    amount: formatted,
+    cycleLabel,
+    isFree: false,
+    isRecurring,
+    ctaLabel,
+  }
+}
+
 export function EnrollToWatchSheet({
   course,
+  product,
   lesson,
   priceLabel,
   onEnroll,
@@ -22,6 +116,7 @@ export function EnrollToWatchSheet({
   onClose,
 }: {
   course: CourseRead
+  product?: schemas['Product']
   lesson: CourseLessonRead
   priceLabel: string | null
   onEnroll: () => void
@@ -54,11 +149,18 @@ export function EnrollToWatchSheet({
     )
   })()
 
+  const pricing = readPricing(product)
+  // priceLabel from the parent already includes "/month" for subscription
+  // products via the page header label; readPricing recomputes for the
+  // modal so we control formatting here. Fall back to priceLabel if
+  // pricing came back empty (no product).
   const ctaLabel = enrolling
     ? 'Loading…'
-    : priceLabel
-      ? `Enroll · ${priceLabel}`
-      : 'Enroll to watch'
+    : product
+      ? pricing.ctaLabel
+      : priceLabel
+        ? `Enroll · ${priceLabel}`
+        : 'Enroll to watch'
 
   const handleEnroll = () => {
     if (!canEnroll || enrolling) return
@@ -119,7 +221,10 @@ export function EnrollToWatchSheet({
               they land.
             </p>
             <div className="pf-preview-price">
-              <span className="pf-preview-amount">{priceLabel ?? 'Free'}</span>
+              <span className="pf-preview-amount">{pricing.amount}</span>
+              {pricing.cycleLabel && (
+                <span className="pf-preview-cycle">{pricing.cycleLabel}</span>
+              )}
             </div>
             <button
               type="button"
@@ -166,7 +271,7 @@ export function EnrollToWatchSheet({
         .ews-backdrop {
           position: absolute;
           inset: 0;
-          background: oklch(0.18 0.012 270 / 0.42);
+          background: oklch(0.18 0.012 270 / 0.5);
           backdrop-filter: blur(6px);
           -webkit-backdrop-filter: blur(6px);
           border: none;
@@ -174,7 +279,7 @@ export function EnrollToWatchSheet({
         }
         .ews-wrap {
           position: relative;
-          width: min(420px, 100%);
+          width: min(600px, 100%);
           max-height: calc(100vh - 48px);
           overflow-y: auto;
           animation: ewsPopIn 0.22s cubic-bezier(0.2, 0.9, 0.3, 1.1);
@@ -202,11 +307,12 @@ export function EnrollToWatchSheet({
 
         /* ── PFCheckoutPreview styles, copied verbatim from
               CourseWizard.steps.tsx so the modal renders identical to
-              the onboarding live preview. ── */
+              the onboarding live preview. Type scales slightly larger
+              for the modal context. ── */
         .pf-preview-card {
           background: #fff;
           border: 1px solid var(--hair);
-          border-radius: 16px;
+          border-radius: 18px;
           overflow: hidden;
           box-shadow: var(--shadow-md);
         }
@@ -231,18 +337,18 @@ export function EnrollToWatchSheet({
           letter-spacing: 0.5px;
         }
         .pf-preview-body {
-          padding: 18px;
+          padding: 26px 28px 24px;
         }
         .pf-preview-meta {
-          font-size: 11px;
+          font-size: 11.5px;
           font-weight: 600;
           color: var(--muted-2);
           letter-spacing: 0.6px;
           text-transform: uppercase;
-          margin-bottom: 6px;
+          margin-bottom: 8px;
         }
         .pf-preview-title {
-          font-size: 18px;
+          font-size: 22px;
           font-weight: 600;
           margin: 0;
           line-height: 1.3;
@@ -250,34 +356,38 @@ export function EnrollToWatchSheet({
           color: var(--ink);
         }
         .pf-preview-desc {
-          font-size: 12.5px;
+          font-size: 14px;
           color: var(--muted);
-          margin: 6px 0 0;
-          line-height: 1.5;
+          margin: 8px 0 0;
+          line-height: 1.55;
         }
         .pf-preview-price {
           display: flex;
           align-items: baseline;
           gap: 6px;
-          margin-top: 18px;
-          margin-bottom: 16px;
+          margin-top: 22px;
+          margin-bottom: 18px;
         }
         .pf-preview-amount {
-          font-size: 26px;
+          font-size: 30px;
           font-weight: 600;
           color: var(--ink);
           letter-spacing: -0.6px;
           font-variant-numeric: tabular-nums;
         }
+        .pf-preview-cycle {
+          font-size: 14px;
+          color: var(--muted);
+        }
         .pf-preview-cta {
           width: 100%;
-          padding: 13px 16px;
-          font-size: 14px;
+          padding: 14px 16px;
+          font-size: 15px;
           font-weight: 600;
           background: var(--ink);
           color: #fff;
           border: none;
-          border-radius: 10px;
+          border-radius: 12px;
           cursor: pointer;
           transition: opacity 0.15s ease, transform 0.15s ease;
         }
@@ -292,13 +402,13 @@ export function EnrollToWatchSheet({
           cursor: not-allowed;
         }
         .pf-preview-footer {
-          margin-top: 12px;
-          padding-top: 12px;
+          margin-top: 14px;
+          padding-top: 14px;
           border-top: 1px solid var(--hair);
           display: flex;
           align-items: center;
           justify-content: space-between;
-          font-size: 11px;
+          font-size: 11.5px;
           color: var(--muted);
         }
 

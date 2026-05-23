@@ -17,6 +17,7 @@
 // existing checkout flow.
 
 import type { CourseLessonRead, CourseRead } from '@/hooks/queries/courses'
+import type { schemas } from '@spaire/client'
 import { useEffect, useRef, useState } from 'react'
 import { EnrollToWatchSheet } from './EnrollToWatchSheet'
 import { useEditor } from './EditorContext'
@@ -43,6 +44,7 @@ function fmtDuration(secs?: number | null): string | null {
 
 export function EpisodeCarousel({
   course,
+  product,
   paidLessons,
   priceLabel,
   onEnroll,
@@ -51,6 +53,7 @@ export function EpisodeCarousel({
   variant = 'desktop',
 }: {
   course: CourseRead
+  product?: schemas['Product']
   paidLessons: CourseLessonRead[]
   priceLabel: string | null
   onEnroll: () => void
@@ -122,6 +125,15 @@ export function EpisodeCarousel({
               course.thumbnail_object_position ??
               null
             const duration = fmtDuration(lesson.duration_seconds)
+            // AI-generated per-episode description lives at
+            // `episode.<i>.desc` (written by WizardLandingEditor when
+            // the landing payload arrives). Fall back to the lesson's
+            // own description so the carousel reads on the public
+            // landing even if the AI didn't emit one.
+            const description = ed.t(
+              `episode.${i}.desc`,
+              lesson.description ?? '',
+            )
             return (
               <article key={lesson.id} className="epcs-card">
                 <button
@@ -138,14 +150,18 @@ export function EpisodeCarousel({
                   }
                   aria-label={`Episode ${i + 1}: ${lesson.title || 'Untitled'}`}
                 >
+                  {/* Frosted-glass blur strip behind the text block —
+                      backdrop-filter blurs whatever's behind, giving the
+                      glassy look the design calls for. */}
+                  <div className="epcs-blur" aria-hidden />
                   <div className="epcs-scrim" aria-hidden />
                   <div className="epcs-body">
                     <p className="epcs-ep">Episode {i + 1}</p>
                     <h3 className="epcs-title">
                       {lesson.title || `Episode ${i + 1}`}
                     </h3>
-                    {lesson.description && (
-                      <p className="epcs-desc">{lesson.description}</p>
+                    {description && (
+                      <p className="epcs-desc">{description}</p>
                     )}
                     <div className="epcs-foot">
                       <span className="epcs-dur">{duration ?? '—'}</span>
@@ -207,6 +223,7 @@ export function EpisodeCarousel({
       {openLesson && (
         <EnrollToWatchSheet
           course={course}
+          product={product}
           lesson={openLesson}
           priceLabel={priceLabel}
           onEnroll={onEnroll}
@@ -218,16 +235,21 @@ export function EpisodeCarousel({
 
       <style jsx>{`
         .epcs-root {
+          /* Align with the same edge the sample / sections strip use
+             (20px gutter) so the carousel doesn't visually shift right
+             relative to the rest of the landing. Card width still
+             scales to the viewport — the design's wider side-pad was
+             for a standalone study, not inside a page wrapper. */
           --gap: 20px;
-          --side-pad: clamp(120px, 22vw, 440px);
-          --card-w: clamp(320px, 38vw, 760px);
-          padding: 80px 0 90px;
+          --side-pad: 20px;
+          --card-w: clamp(320px, 38vw, 620px);
+          padding: 60px 0 80px;
           font-family: ${FONT_VAR};
         }
         .epcs-root.epcs-mobile {
           --side-pad: 20px;
           --card-w: clamp(260px, 78vw, 360px);
-          padding: 48px 0 56px;
+          padding: 36px 0 48px;
         }
         .epcs-carousel {
           position: relative;
@@ -274,10 +296,38 @@ export function EpisodeCarousel({
           background: linear-gradient(
             180deg,
             rgba(0, 0, 0, 0) 38%,
-            rgba(0, 0, 0, 0.55) 72%,
-            rgba(0, 0, 0, 0.88) 100%
+            rgba(0, 0, 0, 0.45) 72%,
+            rgba(0, 0, 0, 0.78) 100%
           );
           pointer-events: none;
+          z-index: 1;
+        }
+        /* Frosted-glass strip behind the bottom text — backdrop-filter
+           blurs whatever's behind, so the artwork softens into the
+           text instead of just darkening. Lives under the scrim so the
+           gradient still tints it dark for legibility. */
+        .epcs-blur {
+          position: absolute;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          height: 52%;
+          backdrop-filter: blur(18px) saturate(120%);
+          -webkit-backdrop-filter: blur(18px) saturate(120%);
+          mask-image: linear-gradient(
+            180deg,
+            rgba(0, 0, 0, 0) 0%,
+            rgba(0, 0, 0, 0.5) 22%,
+            rgba(0, 0, 0, 1) 55%
+          );
+          -webkit-mask-image: linear-gradient(
+            180deg,
+            rgba(0, 0, 0, 0) 0%,
+            rgba(0, 0, 0, 0.5) 22%,
+            rgba(0, 0, 0, 1) 55%
+          );
+          pointer-events: none;
+          z-index: 1;
         }
         .epcs-body {
           position: absolute;

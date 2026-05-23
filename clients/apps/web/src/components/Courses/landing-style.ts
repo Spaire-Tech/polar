@@ -154,5 +154,15 @@ export function normalizeLandingCardinality(
   // Reviews always normalized to empty — never ship fabricated testimonials.
   out.reviews = []
 
+  // episode_descriptions varies in length by the series' episode count,
+  // so we don't clamp to a fixed size. Just ensure it's an array of
+  // strings — the carousel reads by index and falls back to
+  // lesson.description if a slot is missing.
+  out.episode_descriptions = Array.isArray(out.episode_descriptions)
+    ? (out.episode_descriptions as unknown[]).map((s) =>
+        typeof s === 'string' ? s : '',
+      )
+    : []
+
   return out
 }
