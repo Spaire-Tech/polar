@@ -626,6 +626,7 @@ export type CustomerCourseDetail = {
     instructor_name_bold?: boolean
     instructor_name_uppercase?: boolean
     course_type: string
+    pacing_mode?: 'self_paced' | 'paced_weekly' | 'all_unlocked'
     paywall_enabled: boolean
     paywall_position: number | null
     landing_overrides?: LandingOverrides | null

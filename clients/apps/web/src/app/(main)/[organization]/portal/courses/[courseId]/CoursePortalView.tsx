@@ -170,6 +170,30 @@ function pickContinueLesson(modules: CustomerModuleRead[]): ContinueState {
   return null
 }
 
+// ── Helper: format an unlock pill label for a locked module/lesson ─────────
+// • Already past → null (UI shouldn't call it for unlocked rows anyway)
+// • <24h → "Unlocks today"
+// • <7d  → "Unlocks Tuesday"
+// • ≥7d  → "Unlocks Mar 15"
+function formatUnlockLabel(lockedUntilISO: string): string | null {
+  const target = new Date(lockedUntilISO)
+  if (Number.isNaN(target.getTime())) return null
+  const now = new Date()
+  const diffMs = target.getTime() - now.getTime()
+  if (diffMs <= 0) return null
+  const oneDay = 24 * 60 * 60 * 1000
+  if (diffMs < oneDay) return 'Unlocks today'
+  if (diffMs < 7 * oneDay) {
+    const day = target.toLocaleDateString(undefined, { weekday: 'long' })
+    return `Unlocks ${day}`
+  }
+  const md = target.toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+  })
+  return `Unlocks ${md}`
+}
+
 // ── Styles (translated 1:1 from the design) ────────────────────────────────
 const heroStyles: Record<string, React.CSSProperties> = {
   wrap: {
@@ -420,6 +444,29 @@ const modStyles: Record<string, React.CSSProperties> = {
     color: C.fg1,
   },
   rowProg: { color: 'oklch(0.55 0.18 25)' },
+  rowEyebrow: {
+    fontSize: 10,
+    fontWeight: 600,
+    letterSpacing: '0.18em',
+    textTransform: 'uppercase',
+    color: C.fg3,
+    margin: 0,
+    marginBottom: 6,
+  },
+  lockedPill: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 5,
+    marginLeft: 10,
+    padding: '2px 8px',
+    borderRadius: 999,
+    border: `1px solid ${C.line}`,
+    fontSize: 11,
+    fontWeight: 500,
+    color: '#fb923c',
+    background: 'transparent',
+    fontVariantNumeric: 'tabular-nums',
+  },
   rowGrid: {
     display: 'grid',
     gridTemplateColumns: 'repeat(4, 1fr)',
@@ -1074,6 +1121,8 @@ function ModuleRow({
   inProgressLessonId,
   fallbackThumbnailUrl,
   fallbackObjectPosition,
+  pacingMode,
+  courseFormat,
   onSelectLesson,
 }: {
   module: CustomerModuleRead
@@ -1082,6 +1131,8 @@ function ModuleRow({
   inProgressLessonId: string | null
   fallbackThumbnailUrl: string | null
   fallbackObjectPosition: string | null
+  pacingMode: 'self_paced' | 'paced_weekly' | 'all_unlocked'
+  courseFormat: string
   onSelectLesson: (lesson: CustomerLessonRead) => void
 }) {
   const hue = moduleHue(moduleIndex)
@@ -1092,8 +1143,20 @@ function ModuleRow({
     (l) => !l.completed && l.id === inProgressLessonId,
   )
 
+  const showWeekly = pacingMode === 'paced_weekly'
+  const eyebrow = showWeekly
+    ? courseFormat === 'series'
+      ? `Episode ${moduleIndex + 1}`
+      : `Week ${moduleIndex + 1}`
+    : null
+  const unlockLabel =
+    module.locked && module.locked_until
+      ? formatUnlockLabel(module.locked_until)
+      : null
+
   return (
     <div style={modStyles.row}>
+      {eyebrow && <div style={modStyles.rowEyebrow}>{eyebrow}</div>}
       <div style={modStyles.rowHeader}>
         <h2 style={modStyles.rowTitle}>{module.title}</h2>
         <IconChevronRight size={18} style={{ color: C.fg1 }} />
@@ -1112,6 +1175,7 @@ function ModuleRow({
             </span>
           )}
         </span>
+        {unlockLabel && <span style={modStyles.lockedPill}>{unlockLabel}</span>}
       </div>
 
       <div style={modStyles.rowGrid}>
@@ -1250,6 +1314,8 @@ function CoursePortalViewDesktop({
             inProgressLessonId={inProgressLessonId}
             fallbackThumbnailUrl={course.thumbnail_url ?? null}
             fallbackObjectPosition={course.thumbnail_object_position ?? null}
+            pacingMode={course.pacing_mode ?? 'self_paced'}
+            courseFormat={course.course_type}
             onSelectLesson={onSelectLesson}
           />
         ))}
@@ -1403,6 +1469,8 @@ function CoursePortalViewMobile({
           positionToGlobalIndex={positionToGlobalIndex}
           fallbackThumbnailUrl={course.thumbnail_url ?? null}
           fallbackObjectPosition={course.thumbnail_object_position ?? null}
+          pacingMode={course.pacing_mode ?? 'self_paced'}
+          courseFormat={course.course_type}
           onSelectLesson={onSelectLesson}
         />
       ))}
@@ -1759,6 +1827,8 @@ function MobileModuleRow({
   positionToGlobalIndex,
   fallbackThumbnailUrl,
   fallbackObjectPosition,
+  pacingMode,
+  courseFormat,
   onSelectLesson,
 }: {
   module: CustomerModuleRead
@@ -1766,6 +1836,8 @@ function MobileModuleRow({
   positionToGlobalIndex: Map<string, number>
   fallbackThumbnailUrl: string | null
   fallbackObjectPosition: string | null
+  pacingMode: 'self_paced' | 'paced_weekly' | 'all_unlocked'
+  courseFormat: string
   onSelectLesson: (lesson: CustomerLessonRead) => void
 }) {
   const hue = moduleHue(moduleIndex)
@@ -1774,8 +1846,32 @@ function MobileModuleRow({
   const allDone = total > 0 && watched === total
   const inProg = !allDone && watched > 0
 
+  const showWeekly = pacingMode === 'paced_weekly'
+  const eyebrow = showWeekly
+    ? courseFormat === 'series'
+      ? `Episode ${moduleIndex + 1}`
+      : `Week ${moduleIndex + 1}`
+    : null
+  const unlockLabel =
+    mod.locked && mod.locked_until ? formatUnlockLabel(mod.locked_until) : null
+
   return (
     <div style={{ marginTop: 32 }}>
+      {eyebrow && (
+        <div
+          style={{
+            padding: '0 20px',
+            marginBottom: 4,
+            fontSize: 10,
+            fontWeight: 600,
+            letterSpacing: '0.18em',
+            textTransform: 'uppercase',
+            color: C.fg3,
+          }}
+        >
+          {eyebrow}
+        </div>
+      )}
       <div
         style={{
           display: 'flex',
@@ -1783,6 +1879,7 @@ function MobileModuleRow({
           gap: 8,
           padding: '0 20px',
           marginBottom: 12,
+          flexWrap: 'wrap',
         }}
       >
         <h2
@@ -1832,6 +1929,23 @@ function MobileModuleRow({
             </span>
           )}
         </span>
+        {unlockLabel && (
+          <span
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              padding: '2px 8px',
+              borderRadius: 999,
+              border: `1px solid ${C.line}`,
+              fontSize: 10,
+              fontWeight: 500,
+              color: '#fb923c',
+              fontVariantNumeric: 'tabular-nums',
+            }}
+          >
+            {unlockLabel}
+          </span>
+        )}
       </div>
       <div
         className="m-hscroll"
