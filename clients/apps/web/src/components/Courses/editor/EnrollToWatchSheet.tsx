@@ -1,16 +1,16 @@
 'use client'
 
-// EnrollToWatchSheet — appears when a viewer taps a locked episode card
-// in the series carousel. Mirrors the Apple TV "Continue with Email"
-// modal aesthetic (centered white card, X close, logo lockup, sub-copy,
-// blue primary CTA) but the action is to enroll into the whole series
-// rather than to sign in. The CTA hands off to the same checkout flow
-// the rest of the landing already uses.
+// EnrollToWatchSheet — opens when a viewer taps a locked episode card
+// in the series carousel. Reuses the EXACT live-checkout-preview
+// component that the creator already sees in onboarding Step 3
+// (PFCheckoutPreview from CourseWizard.steps.tsx). Same CTA color
+// (var(--ink)), same hero ratio, same card shell. The cover image is
+// the course thumbnail (set during onboarding) so the modal stays in
+// continuity with what the creator picked.
 
 import type { CourseLessonRead, CourseRead } from '@/hooks/queries/courses'
 import { useEffect } from 'react'
 import { createPortal } from 'react-dom'
-import { useEditor } from './EditorContext'
 
 export function EnrollToWatchSheet({
   course,
@@ -29,9 +29,6 @@ export function EnrollToWatchSheet({
   canEnroll: boolean
   onClose: () => void
 }) {
-  const ed = useEditor()
-  const compact = ed.device === 'mobile'
-
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose()
@@ -47,8 +44,16 @@ export function EnrollToWatchSheet({
 
   if (typeof document === 'undefined') return null
 
-  const seriesTitle = course.title || 'this series'
-  const episodeTitle = lesson.title || 'this episode'
+  const coverUrl = course.thumbnail_url ?? null
+  const coverPos = course.thumbnail_object_position ?? '50% 50%'
+  const totalLessons = (() => {
+    if (!course.modules) return 0
+    return course.modules.reduce(
+      (acc, m) => acc + (m.lessons?.length ?? 0),
+      0,
+    )
+  })()
+
   const ctaLabel = enrolling
     ? 'Loading…'
     : priceLabel
@@ -61,12 +66,7 @@ export function EnrollToWatchSheet({
   }
 
   const node = (
-    <div
-      className={compact ? 'ews-overlay ews-compact' : 'ews-overlay'}
-      role="dialog"
-      aria-modal="true"
-      aria-label="Enroll to watch this episode"
-    >
+    <div className="ews-root" role="dialog" aria-modal="true">
       <button
         type="button"
         className="ews-backdrop"
@@ -74,7 +74,7 @@ export function EnrollToWatchSheet({
         onClick={onClose}
       />
       <div
-        className="ews-modal"
+        className="ews-wrap"
         onClick={(e) => e.stopPropagation()}
         role="document"
       >
@@ -87,64 +87,70 @@ export function EnrollToWatchSheet({
           ✕
         </button>
 
-        <div className="ews-logo" aria-hidden>
-          <svg
-            width="28"
-            height="28"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
+        <div className="pf-preview-card">
+          <div
+            className="pf-preview-hero"
+            style={
+              coverUrl
+                ? {
+                    background: `center / cover no-repeat url(${coverUrl})`,
+                    backgroundPosition: coverPos,
+                  }
+                : undefined
+            }
           >
-            <rect x="4" y="11" width="16" height="10" rx="2" />
-            <path d="M8 11V8a4 4 0 1 1 8 0v3" />
-          </svg>
+            {!coverUrl && (
+              <div className="pf-preview-placeholder">cover · 16:9</div>
+            )}
+          </div>
+          <div className="pf-preview-body">
+            <div className="pf-preview-meta">
+              Series ·{' '}
+              {totalLessons > 0
+                ? `${totalLessons} ${
+                    totalLessons === 1 ? 'episode' : 'episodes'
+                  }`
+                : 'multiple episodes'}
+            </div>
+            <h3 className="pf-preview-title">{course.title}</h3>
+            <p className="pf-preview-desc">
+              “{lesson.title || 'This episode'}” is part of {course.title}.
+              Enroll once and watch every episode — including new ones as
+              they land.
+            </p>
+            <div className="pf-preview-price">
+              <span className="pf-preview-amount">{priceLabel ?? 'Free'}</span>
+            </div>
+            <button
+              type="button"
+              className="pf-preview-cta"
+              onClick={handleEnroll}
+              disabled={!canEnroll || enrolling}
+            >
+              {ctaLabel}
+            </button>
+            <div className="pf-preview-footer">
+              <span>Secure checkout</span>
+              <span>Powered by spaire</span>
+            </div>
+          </div>
         </div>
-
-        <h2 className="ews-title">Enroll to watch this episode</h2>
-        <p className="ews-sub">
-          “{episodeTitle}” is part of {seriesTitle}. Enroll once and get
-          every episode — including the ones that come next.
-        </p>
-
-        <div className="ews-handshake" aria-hidden>
-          <svg
-            width="40"
-            height="20"
-            viewBox="0 0 40 20"
-            fill="none"
-            stroke="oklch(0.58 0.14 235)"
-            strokeWidth="1.6"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <circle cx="8" cy="10" r="3.2" />
-            <path d="M2 18 c2 -3 4 -4 6 -4 s4 1 6 4" />
-            <circle cx="32" cy="10" r="3.2" />
-            <path d="M26 18 c2 -3 4 -4 6 -4 s4 1 6 4" />
-          </svg>
-        </div>
-
-        <p className="ews-fine">
-          You’re enrolling for the full series — lifetime access, every
-          episode, on any device. You can request a refund within 30
-          days if it isn’t what you expected.{' '}
-        </p>
-
-        <button
-          type="button"
-          className="ews-cta"
-          onClick={handleEnroll}
-          disabled={!canEnroll || enrolling}
-        >
-          {ctaLabel}
-        </button>
       </div>
 
       <style jsx>{`
-        .ews-overlay {
+        .ews-root {
+          /* Same design tokens used by PFCheckoutPreview in
+             CourseWizard.steps.tsx so the card renders identical to
+             the live preview the creator saw in onboarding Step 3. */
+          --surface: #ffffff;
+          --surface-3: oklch(0.955 0.006 270);
+          --ink: oklch(0.18 0.012 270);
+          --muted: oklch(0.56 0.014 270);
+          --muted-2: oklch(0.72 0.012 270);
+          --hair: oklch(0.92 0.006 270);
+          --shadow-md:
+            0 0px 15px rgba(0, 0, 0, 0.04), 0 0px 2px rgba(0, 0, 0, 0.06);
+
           position: fixed;
           inset: 0;
           z-index: 1000;
@@ -152,8 +158,10 @@ export function EnrollToWatchSheet({
           align-items: center;
           justify-content: center;
           padding: 24px;
+          font-family:
+            -apple-system, BlinkMacSystemFont, 'SF Pro Display',
+            'SF Pro Text', 'Helvetica Neue', Helvetica, Arial, sans-serif;
           animation: ewsFadeIn 0.18s ease;
-          font-family: var(--font-body, 'Poppins', system-ui, sans-serif);
         }
         .ews-backdrop {
           position: absolute;
@@ -164,120 +172,136 @@ export function EnrollToWatchSheet({
           border: none;
           cursor: pointer;
         }
-        .ews-modal {
+        .ews-wrap {
           position: relative;
-          width: min(440px, 100%);
+          width: min(420px, 100%);
           max-height: calc(100vh - 48px);
           overflow-y: auto;
-          background: white;
-          border: 1px solid oklch(0.92 0.006 270);
-          border-radius: 22px;
-          box-shadow:
-            0 4px 12px oklch(0.2 0.02 270 / 0.08),
-            0 24px 64px oklch(0.2 0.02 270 / 0.22);
-          padding: 56px 32px 30px;
-          text-align: center;
           animation: ewsPopIn 0.22s cubic-bezier(0.2, 0.9, 0.3, 1.1);
         }
         .ews-close {
           position: absolute;
-          top: 14px;
-          left: 14px;
+          top: -42px;
+          right: 0;
           width: 32px;
           height: 32px;
           border-radius: 999px;
-          background: oklch(0.94 0.005 280);
-          border: none;
+          background: rgba(255, 255, 255, 0.92);
+          border: 1px solid rgba(255, 255, 255, 0.4);
           display: flex;
           align-items: center;
           justify-content: center;
-          color: oklch(0.36 0.012 270);
+          color: #1d1d1f;
           cursor: pointer;
           font-size: 13px;
           line-height: 1;
         }
         .ews-close:hover {
-          color: oklch(0.18 0.012 270);
-          background: oklch(0.9 0.005 280);
+          background: #fff;
         }
-        .ews-logo {
-          width: 52px;
-          height: 52px;
-          margin: 0 auto 22px;
-          border-radius: 14px;
-          background: #000;
-          color: white;
+
+        /* ── PFCheckoutPreview styles, copied verbatim from
+              CourseWizard.steps.tsx so the modal renders identical to
+              the onboarding live preview. ── */
+        .pf-preview-card {
+          background: #fff;
+          border: 1px solid var(--hair);
+          border-radius: 16px;
+          overflow: hidden;
+          box-shadow: var(--shadow-md);
+        }
+        .pf-preview-hero {
+          aspect-ratio: 16 / 9;
+          background: repeating-linear-gradient(
+            45deg,
+            oklch(0.94 0.01 270) 0 12px,
+            oklch(0.96 0.01 270) 12px 24px
+          );
+          position: relative;
+        }
+        .pf-preview-placeholder {
+          position: absolute;
+          inset: 0;
           display: flex;
           align-items: center;
           justify-content: center;
-          box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
+          color: oklch(0.55 0.02 270);
+          font-size: 11px;
+          font-family: ui-monospace, monospace;
+          letter-spacing: 0.5px;
         }
-        .ews-title {
-          margin: 0 0 12px;
-          font-family: var(
-            --font-heading,
-            var(--font-body, 'Poppins', system-ui, sans-serif)
-          );
-          font-size: 22px;
+        .pf-preview-body {
+          padding: 18px;
+        }
+        .pf-preview-meta {
+          font-size: 11px;
           font-weight: 600;
-          letter-spacing: -0.022em;
-          line-height: 1.2;
-          color: oklch(0.14 0.008 280);
-          text-wrap: balance;
+          color: var(--muted-2);
+          letter-spacing: 0.6px;
+          text-transform: uppercase;
+          margin-bottom: 6px;
         }
-        .ews-sub {
-          margin: 0 0 22px;
-          font-size: 14.5px;
-          line-height: 1.55;
-          color: oklch(0.4 0.008 280);
-          text-wrap: pretty;
+        .pf-preview-title {
+          font-size: 18px;
+          font-weight: 600;
+          margin: 0;
+          line-height: 1.3;
+          letter-spacing: -0.2px;
+          color: var(--ink);
         }
-        .ews-handshake {
-          margin: 6px auto 14px;
-          display: flex;
-          justify-content: center;
-        }
-        .ews-fine {
-          margin: 0 0 22px;
+        .pf-preview-desc {
           font-size: 12.5px;
-          line-height: 1.55;
-          color: oklch(0.5 0.006 280);
-          text-wrap: pretty;
+          color: var(--muted);
+          margin: 6px 0 0;
+          line-height: 1.5;
         }
-        .ews-cta {
-          width: 100%;
-          height: 48px;
-          border-radius: 999px;
-          border: none;
-          background: oklch(0.58 0.14 235);
-          color: white;
-          font-size: 15px;
+        .pf-preview-price {
+          display: flex;
+          align-items: baseline;
+          gap: 6px;
+          margin-top: 18px;
+          margin-bottom: 16px;
+        }
+        .pf-preview-amount {
+          font-size: 26px;
           font-weight: 600;
-          letter-spacing: -0.005em;
+          color: var(--ink);
+          letter-spacing: -0.6px;
+          font-variant-numeric: tabular-nums;
+        }
+        .pf-preview-cta {
+          width: 100%;
+          padding: 13px 16px;
+          font-size: 14px;
+          font-weight: 600;
+          background: var(--ink);
+          color: #fff;
+          border: none;
+          border-radius: 10px;
           cursor: pointer;
-          transition: background 160ms ease, transform 160ms ease;
+          transition: opacity 0.15s ease, transform 0.15s ease;
         }
-        .ews-cta:hover:not(:disabled) {
-          background: oklch(0.52 0.14 235);
+        .pf-preview-cta:hover:not(:disabled) {
+          opacity: 0.92;
         }
-        .ews-cta:active:not(:disabled) {
+        .pf-preview-cta:active:not(:disabled) {
           transform: scale(0.985);
         }
-        .ews-cta:disabled {
+        .pf-preview-cta:disabled {
           opacity: 0.55;
           cursor: not-allowed;
         }
-        .ews-compact .ews-modal {
-          width: min(360px, 100%);
-          padding: 50px 24px 24px;
-          border-radius: 20px;
+        .pf-preview-footer {
+          margin-top: 12px;
+          padding-top: 12px;
+          border-top: 1px solid var(--hair);
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          font-size: 11px;
+          color: var(--muted);
         }
-        .ews-compact .ews-title {
-          font-size: 19px;
-        }
-        .ews-compact .ews-sub {
-          font-size: 13.5px;
-        }
+
         @keyframes ewsFadeIn {
           from {
             opacity: 0;
