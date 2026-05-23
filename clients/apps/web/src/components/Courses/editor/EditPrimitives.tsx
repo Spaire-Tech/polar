@@ -266,6 +266,10 @@ export const EditMedia = forwardRef<
   const [popoverOpen, setPopoverOpen] = useState(false)
   const [busy, setBusy] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
+  // When the fallbackImageUrl (e.g. a challenge thumbnail seeded from a
+  // sibling upload flow) is unreachable, fall back to the placeholder
+  // so the slot doesn't render a broken-image icon.
+  const [fallbackFailed, setFallbackFailed] = useState(false)
   // When true, an inline draggable overlay lets the user reposition the
   // image's object-position. The result persists to `m.objectPosition`
   // through ed.setMedia and propagates to every other render site that
@@ -414,15 +418,17 @@ export const EditMedia = forwardRef<
           over the placeholder when set: it lets a sibling upload flow
           (e.g. challenge.thumbnail_url) seed the slot without forcing
           the creator to re-upload here. */}
-      {!m && fallbackImageUrl && (
+      {!m && fallbackImageUrl && !fallbackFailed && (
         // eslint-disable-next-line @next/next/no-img-element
         <img
+          key={fallbackImageUrl}
           src={fallbackImageUrl}
           alt=""
           style={cover}
+          onError={() => setFallbackFailed(true)}
         />
       )}
-      {!m && !fallbackImageUrl && placeholder}
+      {!m && (!fallbackImageUrl || fallbackFailed) && placeholder}
       {/* Uploaded media — host can render its own */}
       {m &&
         (renderMedia ? (

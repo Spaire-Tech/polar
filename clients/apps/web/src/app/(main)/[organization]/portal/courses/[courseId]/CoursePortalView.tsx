@@ -1258,6 +1258,8 @@ function CoursePortalViewDesktop({
     cont && cont.kind !== 'complete' ? cont.lesson : null
   const continueModuleTitle =
     cont && cont.kind !== 'complete' ? cont.module.title : null
+  const continueModuleId =
+    cont && cont.kind !== 'complete' ? cont.module.id : null
   const continueLessonNumber = continueLesson
     ? (positionToGlobalIndex.get(continueLesson.id) ?? null)
     : null
@@ -1324,6 +1326,7 @@ function CoursePortalViewDesktop({
       <WeeklyContextStrip
         pacingMode={course.pacing_mode ?? 'self_paced'}
         modules={modules}
+        continueModuleId={continueModuleId}
         continueModuleTitle={continueModuleTitle}
         layout="desktop"
       />
@@ -1500,8 +1503,11 @@ function CoursePortalViewMobile({
       <WeeklyContextStrip
         pacingMode={course.pacing_mode ?? 'self_paced'}
         modules={modules}
+        continueModuleId={
+          cont && cont.kind !== 'complete' ? cont.module.id : null
+        }
         continueModuleTitle={
-          (cont && cont.kind !== 'complete' ? cont.module.title : null) ?? null
+          cont && cont.kind !== 'complete' ? cont.module.title : null
         }
         layout="mobile"
       />
@@ -2310,8 +2316,18 @@ function BroadcastsFeed({
 
   // Per-broadcast attribution — show the author resolved from the
   // server when present (handles co-instructors), otherwise fall back
-  // to the course's headline instructor.
+  // to the course's headline instructor. If the visible broadcasts
+  // come from more than one distinct author, switch to a plural
+  // eyebrow so the section header doesn't claim everything is from
+  // one person (audit B17).
   const latestAuthor = latest.author_display_name ?? instructorName
+  const distinctAuthors = new Set(
+    broadcasts
+      .map((b) => b.author_display_name)
+      .filter((n): n is string => !!n),
+  )
+  const eyebrowLabel =
+    distinctAuthors.size > 1 ? 'From your instructors' : `From ${latestAuthor}`
 
   return (
     <section style={wrapStyle}>
@@ -2325,7 +2341,7 @@ function BroadcastsFeed({
           marginBottom: 10,
         }}
       >
-        From {latestAuthor}
+        {eyebrowLabel}
       </div>
 
       <BroadcastCard broadcast={latest} pinned isMobile={isMobile} />
@@ -2481,21 +2497,22 @@ function BroadcastCard({
 function WeeklyContextStrip({
   pacingMode,
   modules,
+  continueModuleId,
   continueModuleTitle,
   layout,
 }: {
   pacingMode: 'self_paced' | 'paced_weekly' | 'all_unlocked'
   modules: CustomerModuleRead[]
+  continueModuleId: string | null
   continueModuleTitle: string | null
   layout: 'desktop' | 'mobile'
 }) {
   if (pacingMode !== 'paced_weekly') return null
-  if (!continueModuleTitle) return null
+  if (!continueModuleId || !continueModuleTitle) return null
 
-  // Compute which week the continue-module sits at — index in the
-  // visible module list. Falls back to no week label if the title
-  // doesn't match (shouldn't happen, but safe).
-  const idx = modules.findIndex((m) => m.title === continueModuleTitle)
+  // Match by id, not title — two modules with identical titles would
+  // otherwise both match the first occurrence (audit B7).
+  const idx = modules.findIndex((m) => m.id === continueModuleId)
   if (idx === -1) return null
   const weekLabel = `Week ${idx + 1}`
 

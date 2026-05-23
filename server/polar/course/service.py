@@ -231,9 +231,15 @@ class CourseService:
         agree."""
         course_repo = CourseRepository.from_session(session)
         module_repo = CourseModuleRepository.from_session(session)
-        modules = sorted(
-            [m for m in course.modules if m.deleted_at is None],
-            key=lambda m: m.position,
+        # Re-query modules in SQL order rather than relying on the
+        # lazy relationship + Python sort. Same result for fresh
+        # sessions, but the SQL path is the canonical "what the DB
+        # would currently return" so the schedule lands on the right
+        # weeks regardless of relationship caching state (audit B13).
+        modules = list(
+            await module_repo.get_all(
+                module_repo.get_by_course_ordered_statement(course.id)
+            )
         )
         for i, module in enumerate(modules):
             await module_repo.update(module, update_dict={"drip_days": i * 7})

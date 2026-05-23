@@ -91,6 +91,21 @@ async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
   return res.json()
 }
 
+// Format a server-side UTC ISO ("2026-06-01T22:00:00Z") as the
+// "YYYY-MM-DDTHH:mm" string a <input type="datetime-local"> expects,
+// in the user's LOCAL timezone. Previous implementation used
+// toISOString().slice(0,16) which is always UTC; on a value displayed
+// in a local-time picker that read as the wrong wall clock (audit B6).
+function isoToDatetimeLocal(iso: string): string {
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ''
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return (
+    `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}` +
+    `T${pad(d.getHours())}:${pad(d.getMinutes())}`
+  )
+}
+
 function useCourseChallenges(courseId: string) {
   return useQuery<ChallengeRead[]>({
     queryKey: ['course-challenges', courseId],
@@ -932,6 +947,7 @@ function BroadcastComposerForm({
     week_number: number | null
     notify_on_publish: boolean
     publish: boolean
+    scheduled_at: string | null
   }) => Promise<void>
   onUpdate: (
     id: string,
@@ -970,11 +986,14 @@ function BroadcastComposerForm({
   // Local string state for the datetime-local input. Stored separately
   // from the scheduledAt prop so the input edits stay local until the
   // creator hits Schedule (no thrashing PATCHes on every keystroke).
-  // Format: "YYYY-MM-DDTHH:mm" — what <input type="datetime-local">
-  // emits and accepts.
+  // Format: "YYYY-MM-DDTHH:mm" in the user's LOCAL timezone — what
+  // <input type="datetime-local"> emits and accepts. The previous
+  // implementation used `.toISOString().slice(0,16)` which is UTC; on
+  // a server-side ISO timestamp that landed displayed as the wrong
+  // wall-clock time in the picker (off-by-timezone bug).
   const [scheduledAt, setScheduledAt] = useState<string>(
     editing?.scheduled_at
-      ? new Date(editing.scheduled_at).toISOString().slice(0, 16)
+      ? isoToDatetimeLocal(editing.scheduled_at)
       : '',
   )
   const [uploading, setUploading] = useState(false)
@@ -1006,13 +1025,17 @@ function BroadcastComposerForm({
   // Create + update paths take different shapes (`publish` only exists
   // on the create schema). Splitting buildInput keeps each call site
   // sending exactly what the server's Pydantic model accepts.
-  const buildCreateInput = (publish: boolean) => ({
+  const buildCreateInput = (
+    publish: boolean,
+    scheduledAtISO: string | null = null,
+  ) => ({
     title: title.trim(),
     body: body.trim(),
     image_url: imageUrl,
     week_number: weekNumber.trim() ? Number(weekNumber) : null,
     notify_on_publish: notify,
     publish,
+    scheduled_at: scheduledAtISO,
   })
   const buildUpdatePatch = () => ({
     title: title.trim(),
@@ -1045,15 +1068,13 @@ function BroadcastComposerForm({
     if (isEditing && editing) {
       await onSchedule(editing.id, buildUpdatePatch(), iso)
     } else {
-      // Schedule path for new broadcasts: create a draft first, then
-      // schedule it. We don't expose a one-shot "create + schedule" on
-      // the server because draft visibility is useful between the two
-      // calls (creator can preview before the schedule kicks in).
-      await onCreate(buildCreateInput(false))
-      // The freshly-created broadcast id isn't in scope here; we just
-      // close the form and let the creator schedule it from the row's
-      // Edit menu. Acceptable trade-off vs threading a return value
-      // through onCreate's contract.
+      // Schedule path for new broadcasts: create the row WITH
+      // scheduled_at set so the periodic worker picks it up. Previously
+      // this path silently dropped the schedule and saved a plain
+      // draft — the button said "Schedule" but did "save draft" (audit
+      // bug B1/B2). The server's BroadcastCreate now accepts and
+      // persists scheduled_at, so one create call is enough.
+      await onCreate(buildCreateInput(false, iso))
       resetForm()
     }
   }
@@ -1063,7 +1084,7 @@ function BroadcastComposerForm({
     if (isEditing && editing) {
       await onUpdate(editing.id, buildUpdatePatch(), false)
     } else {
-      await onCreate(buildCreateInput(false))
+      await onCreate(buildCreateInput(false, null))
       resetForm()
     }
   }
@@ -1084,7 +1105,9 @@ function BroadcastComposerForm({
     if (isEditing && editing) {
       await onUpdate(editing.id, buildUpdatePatch(), true)
     } else {
-      await onCreate(buildCreateInput(true))
+      // Publish on create: scheduled_at MUST be null — the server
+      // rejects publish=true with a scheduled_at as ambiguous intent.
+      await onCreate(buildCreateInput(true, null))
       resetForm()
     }
   }

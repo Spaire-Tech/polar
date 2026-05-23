@@ -36,6 +36,7 @@ export type BroadcastCreateInput = {
   week_number?: number | null
   notify_on_publish?: boolean
   publish?: boolean
+  scheduled_at?: string | null
 }
 
 export type BroadcastUpdateInput = {

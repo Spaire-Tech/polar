@@ -754,6 +754,30 @@ export type CourseBroadcastStudentRead = {
   author_display_name: string | null
 }
 
+// Creator-side challenge list for a course. Drives the CustomizeTab
+// preview (so uploaded thumbnails actually render) and any other
+// dashboard surface that needs the persisted set. Goes through the
+// shared courseApiFetch helper so it inherits the same auth + error
+// behavior as the rest of the creator endpoints.
+export type CreatorCourseChallengeSummary = {
+  id: string
+  title: string
+  prompt: string
+  position: number
+  thumbnail_url: string | null
+  thumbnail_object_position: string | null
+}
+
+export const useCreatorCourseChallenges = (courseId: string | undefined) =>
+  useQuery<CreatorCourseChallengeSummary[]>({
+    queryKey: ['course-challenges', courseId],
+    queryFn: () =>
+      courseApiFetch<CreatorCourseChallengeSummary[]>(
+        `/v1/courses/${courseId}/challenges`,
+      ),
+    enabled: !!courseId,
+  })
+
 export const useEnrolledCourseBroadcasts = (
   token: string | null | undefined,
   courseId: string | undefined,

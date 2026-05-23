@@ -86,6 +86,17 @@ class CourseModuleRepository(
     def get_by_course_statement(self, course_id: UUID):
         return self.get_base_statement().where(CourseModule.course_id == course_id)
 
+    def get_by_course_ordered_statement(self, course_id: UUID):
+        """Modules for a course ordered by position. Drives the bulk
+        weekly-pacing endpoint so drip_days computation walks rows in
+        their canonical order, not whatever the lazy relationship's
+        in-memory sort produced (audit B13)."""
+        return (
+            self.get_base_statement()
+            .where(CourseModule.course_id == course_id)
+            .order_by(CourseModule.position)
+        )
+
     async def get_readable_by_id(
         self,
         module_id: UUID,
