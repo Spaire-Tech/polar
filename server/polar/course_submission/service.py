@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 from uuid import UUID
 
 from polar.auth.models import AuthSubject, Organization, User
-from polar.exceptions import PolarRequestValidationError, ResourceNotFound
+from polar.exceptions import ResourceNotFound, SpaireRequestValidationError
 from polar.models.course import Course
 from polar.models.course_challenge import CourseChallenge
 from polar.models.course_enrollment import CourseEnrollment
@@ -72,12 +72,13 @@ class ChallengeService:
             create_schema.module_id, auth_subject
         )
         if module is None or module.course_id != course.id:
-            raise PolarRequestValidationError(
+            raise SpaireRequestValidationError(
                 [
                     {
                         "loc": ("body", "module_id"),
                         "msg": "Module does not belong to this course.",
                         "type": "value_error",
+                        "input": str(create_schema.module_id),
                     }
                 ]
             )
@@ -188,12 +189,13 @@ class SubmissionService:
         Reaches `status="submitted"` via the separate `submit()` action.
         """
         if enrollment.course_id != challenge.course_id:
-            raise PolarRequestValidationError(
+            raise SpaireRequestValidationError(
                 [
                     {
                         "loc": ("path", "challenge_id"),
                         "msg": "Enrollment does not match challenge's course.",
                         "type": "value_error",
+                        "input": str(challenge.id),
                     }
                 ]
             )
@@ -216,7 +218,7 @@ class SubmissionService:
             # Only allow caption edits if the submission isn't hidden —
             # a creator-hidden post stays frozen from the student side.
             if existing.status == SUBMISSION_STATUS_HIDDEN:
-                raise PolarRequestValidationError(
+                raise SpaireRequestValidationError(
                     [
                         {
                             "loc": ("path", "submission_id"),
@@ -225,6 +227,7 @@ class SubmissionService:
                                 "can't be edited."
                             ),
                             "type": "value_error",
+                            "input": str(existing.id),
                         }
                     ]
                 )
@@ -279,12 +282,13 @@ class SubmissionService:
         the student); we'd get there only via a buggy client call.
         """
         if submission.status == SUBMISSION_STATUS_DRAFT:
-            raise PolarRequestValidationError(
+            raise SpaireRequestValidationError(
                 [
                     {
                         "loc": ("path", "submission_id"),
                         "msg": "Drafts can't be hidden — there's nothing public to hide.",
                         "type": "value_error",
+                        "input": str(submission.id),
                     }
                 ]
             )
