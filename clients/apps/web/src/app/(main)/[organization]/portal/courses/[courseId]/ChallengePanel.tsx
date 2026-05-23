@@ -174,9 +174,16 @@ function Composer({
 }) {
   const [caption, setCaption] = useState(existing?.caption ?? '')
   // Pre-populate from the existing submission's media so editing an
-  // already-submitted post doesn't drop its photo.
-  const [imageUrl, setImageUrl] = useState<string | null>(
-    existing?.media.find((m) => m.kind === 'image')?.url ?? null,
+  // already-submitted post doesn't drop its photos. Multi-image now —
+  // the data model + endpoint always supported it; this lifts the
+  // composer from the v0.1 single-image cap (audit B16). Order by
+  // `position` so the carousel reads the way the student saved it.
+  const [imageUrls, setImageUrls] = useState<string[]>(
+    () =>
+      (existing?.media ?? [])
+        .filter((m) => m.kind === 'image' && m.url)
+        .sort((a, b) => a.position - b.position)
+        .map((m) => m.url as string),
   )
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
@@ -185,13 +192,23 @@ function Composer({
   const submit = useSubmitSubmission(courseId, challengeId)
   const busy = upsert.isPending || submit.isPending || uploading
 
+  // Cap matches the IG carousel + the 6-emoji react palette earlier
+  // in the experience. Beyond ~6 the carousel becomes tedious to
+  // browse; server-side cap (Pass 5 backend change) is the source of
+  // truth — this is just the UX guardrail.
+  const MAX_IMAGES = 6
+  const hasImages = imageUrls.length > 0
+  const canAct = (caption.trim().length > 0 || hasImages) && !busy
+
   const buildMedia = () =>
-    imageUrl
-      ? [{ kind: 'image' as const, url: imageUrl, position: 0 }]
-      : []
+    imageUrls.map((url, i) => ({
+      kind: 'image' as const,
+      url,
+      position: i,
+    }))
 
   const onSubmit = async () => {
-    if (!caption.trim() && !imageUrl) return
+    if (!caption.trim() && !hasImages) return
     const created = await upsert.mutateAsync({
       challengeId,
       payload: { caption: caption.trim(), media: buildMedia() },
@@ -200,19 +217,33 @@ function Composer({
   }
 
   const onSaveDraft = async () => {
-    if (!caption.trim() && !imageUrl) return
+    if (!caption.trim() && !hasImages) return
     await upsert.mutateAsync({
       challengeId,
       payload: { caption: caption.trim(), media: buildMedia() },
     })
   }
 
-  const onPickFile = async (file: File) => {
+  const onPickFiles = async (files: FileList) => {
     setUploadError(null)
+    const remaining = MAX_IMAGES - imageUrls.length
+    if (remaining <= 0) {
+      setUploadError(`You can attach up to ${MAX_IMAGES} photos.`)
+      return
+    }
+    const picked = Array.from(files).slice(0, remaining)
     setUploading(true)
     try {
-      const url = await uploadSubmissionImage(file)
-      setImageUrl(url)
+      // Sequential to keep error attribution clean — one failed file
+      // shouldn't drop the upload state for the others, but parallel
+      // uploads from the same browser tab often collide on the
+      // signed-PUT TTL window.
+      const uploaded: string[] = []
+      for (const f of picked) {
+        const url = await uploadSubmissionImage(f)
+        uploaded.push(url)
+      }
+      setImageUrls((prev) => [...prev, ...uploaded])
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Upload failed.'
       setUploadError(msg)
@@ -221,8 +252,9 @@ function Composer({
     }
   }
 
-  const canAct =
-    (caption.trim().length > 0 || imageUrl !== null) && !busy
+  const removeImageAt = (i: number) => {
+    setImageUrls((prev) => prev.filter((_, idx) => idx !== i))
+  }
 
   return (
     <div
@@ -279,56 +311,94 @@ function Composer({
         ref={fileInputRef}
         type="file"
         accept="image/jpeg,image/png,image/webp,image/gif"
+        multiple
         style={{ display: 'none' }}
         onChange={(e) => {
-          const f = e.target.files?.[0]
-          if (f) onPickFile(f)
+          if (e.target.files && e.target.files.length > 0) {
+            void onPickFiles(e.target.files)
+          }
           e.target.value = ''
         }}
       />
 
-      {imageUrl ? (
-        <div style={{ marginTop: 12, position: 'relative' }}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={imageUrl}
-            alt="Your submission"
-            style={{
-              display: 'block',
-              maxWidth: '100%',
-              maxHeight: 360,
-              borderRadius: 10,
-              border: `1px solid ${COLORS.line}`,
-              background: 'white',
-              objectFit: 'cover',
-            }}
-          />
-          <button
-            type="button"
-            onClick={() => setImageUrl(null)}
-            disabled={busy}
-            style={{
-              position: 'absolute',
-              top: 8,
-              right: 8,
-              width: 28,
-              height: 28,
-              borderRadius: 999,
-              border: 'none',
-              background: 'rgba(20,20,22,0.65)',
-              color: 'white',
-              fontSize: 14,
-              cursor: busy ? 'not-allowed' : 'pointer',
-              backdropFilter: 'blur(8px)',
-              WebkitBackdropFilter: 'blur(8px)',
-            }}
-            aria-label="Remove photo"
-            title="Remove photo"
-          >
-            ✕
-          </button>
+      {hasImages && (
+        <div
+          style={{
+            marginTop: 12,
+            display: 'grid',
+            gridTemplateColumns:
+              imageUrls.length === 1
+                ? '1fr'
+                : 'repeat(auto-fill, minmax(120px, 1fr))',
+            gap: 8,
+          }}
+        >
+          {imageUrls.map((url, i) => (
+            <div key={`${i}-${url}`} style={{ position: 'relative' }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={url}
+                alt={`Submission photo ${i + 1}`}
+                style={{
+                  display: 'block',
+                  width: '100%',
+                  aspectRatio: imageUrls.length === 1 ? undefined : '1 / 1',
+                  maxHeight: imageUrls.length === 1 ? 360 : undefined,
+                  borderRadius: 10,
+                  border: `1px solid ${COLORS.line}`,
+                  background: 'white',
+                  objectFit: 'cover',
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => removeImageAt(i)}
+                disabled={busy}
+                style={{
+                  position: 'absolute',
+                  top: 6,
+                  right: 6,
+                  width: 26,
+                  height: 26,
+                  borderRadius: 999,
+                  border: 'none',
+                  background: 'rgba(20,20,22,0.65)',
+                  color: 'white',
+                  fontSize: 13,
+                  cursor: busy ? 'not-allowed' : 'pointer',
+                  backdropFilter: 'blur(8px)',
+                  WebkitBackdropFilter: 'blur(8px)',
+                }}
+                aria-label={`Remove photo ${i + 1}`}
+                title="Remove photo"
+              >
+                ✕
+              </button>
+              {i === 0 && imageUrls.length > 1 && (
+                <span
+                  style={{
+                    position: 'absolute',
+                    bottom: 6,
+                    left: 6,
+                    padding: '2px 8px',
+                    borderRadius: 999,
+                    background: 'rgba(20,20,22,0.65)',
+                    color: 'white',
+                    fontSize: 10,
+                    fontWeight: 600,
+                    letterSpacing: '0.06em',
+                    textTransform: 'uppercase',
+                    backdropFilter: 'blur(8px)',
+                    WebkitBackdropFilter: 'blur(8px)',
+                  }}
+                >
+                  Cover
+                </span>
+              )}
+            </div>
+          ))}
         </div>
-      ) : null}
+      )}
 
       {uploadError && (
         <p
@@ -355,7 +425,7 @@ function Composer({
         <button
           type="button"
           onClick={() => fileInputRef.current?.click()}
-          disabled={busy}
+          disabled={busy || imageUrls.length >= MAX_IMAGES}
           style={{
             border: `1px solid ${COLORS.line}`,
             background: 'white',
@@ -376,9 +446,11 @@ function Composer({
           </span>
           {uploading
             ? 'Uploading…'
-            : imageUrl
-              ? 'Replace photo'
-              : 'Add photo'}
+            : imageUrls.length === 0
+              ? 'Add photos'
+              : imageUrls.length >= MAX_IMAGES
+                ? `${MAX_IMAGES}/${MAX_IMAGES} photos`
+                : `Add more (${imageUrls.length}/${MAX_IMAGES})`}
         </button>
         <div style={{ display: 'flex', gap: 8 }}>
           <button
@@ -545,25 +617,61 @@ function SubmissionView({
         </div>
       </div>
       {(() => {
-        const image = submission.media.find(
-          (m) => m.kind === 'image' && m.url,
-        )
-        if (!image?.url) return null
+        const images = submission.media
+          .filter((m) => m.kind === 'image' && m.url)
+          .sort((a, b) => a.position - b.position)
+        if (images.length === 0) return null
+        if (images.length === 1) {
+          return (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={images[0].url as string}
+              alt=""
+              style={{
+                display: 'block',
+                width: '100%',
+                maxHeight: 480,
+                borderRadius: 10,
+                border: `1px solid ${COLORS.lineSoft}`,
+                objectFit: 'cover',
+                marginBottom: 12,
+              }}
+            />
+          )
+        }
+        // Horizontal scroll carousel — same shape as the IG-style
+        // gallery layouts elsewhere in the portal. Snap-x so a
+        // touch-flick lands cleanly on each photo.
         return (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={image.url}
-            alt=""
+          <div
             style={{
-              display: 'block',
-              width: '100%',
-              maxHeight: 480,
-              borderRadius: 10,
-              border: `1px solid ${COLORS.lineSoft}`,
-              objectFit: 'cover',
+              display: 'flex',
+              gap: 8,
+              overflowX: 'auto',
+              scrollSnapType: 'x mandatory',
+              WebkitOverflowScrolling: 'touch',
               marginBottom: 12,
+              borderRadius: 10,
             }}
-          />
+          >
+            {images.map((m, i) => (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                key={m.id}
+                src={m.url as string}
+                alt={`Photo ${i + 1}`}
+                style={{
+                  flex: '0 0 auto',
+                  maxHeight: 480,
+                  maxWidth: '100%',
+                  borderRadius: 10,
+                  border: `1px solid ${COLORS.lineSoft}`,
+                  objectFit: 'cover',
+                  scrollSnapAlign: 'start',
+                }}
+              />
+            ))}
+          </div>
         )
       })()}
       <p
@@ -704,25 +812,56 @@ function Gallery({ submissions }: { submissions: SubmissionRead[] }) {
                 )}
               </div>
               {(() => {
-                const image = s.media.find(
-                  (m) => m.kind === 'image' && m.url,
-                )
-                if (!image?.url) return null
+                // Gallery card: show the cover image with a "+N" badge
+                // when there are more photos. Tapping the card opens
+                // the submission so the full carousel is one step
+                // away without ballooning the gallery layout.
+                const images = s.media
+                  .filter((m) => m.kind === 'image' && m.url)
+                  .sort((a, b) => a.position - b.position)
+                if (images.length === 0) return null
+                const extra = images.length - 1
                 return (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={image.url}
-                    alt=""
+                  <div
                     style={{
-                      display: 'block',
-                      width: '100%',
-                      maxHeight: 320,
-                      borderRadius: 8,
-                      border: `1px solid ${COLORS.lineSoft}`,
-                      objectFit: 'cover',
+                      position: 'relative',
                       marginBottom: 8,
                     }}
-                  />
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={images[0].url as string}
+                      alt=""
+                      style={{
+                        display: 'block',
+                        width: '100%',
+                        maxHeight: 320,
+                        borderRadius: 8,
+                        border: `1px solid ${COLORS.lineSoft}`,
+                        objectFit: 'cover',
+                      }}
+                    />
+                    {extra > 0 && (
+                      <span
+                        style={{
+                          position: 'absolute',
+                          top: 8,
+                          right: 8,
+                          padding: '4px 9px',
+                          borderRadius: 999,
+                          background: 'rgba(20,20,22,0.7)',
+                          color: 'white',
+                          fontSize: 11,
+                          fontWeight: 600,
+                          backdropFilter: 'blur(8px)',
+                          WebkitBackdropFilter: 'blur(8px)',
+                          fontVariantNumeric: 'tabular-nums',
+                        }}
+                      >
+                        +{extra}
+                      </span>
+                    )}
+                  </div>
                 )
               })()}
               <p

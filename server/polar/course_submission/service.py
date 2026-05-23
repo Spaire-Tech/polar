@@ -186,6 +186,11 @@ class SubmissionService:
         repo = SubmissionRepository.from_session(session)
         return await repo.get_for_enrollment(challenge.id, enrollment_id)
 
+    # Server-side cap on media items per submission. The composer UI
+    # enforces the same number; this is the source of truth so a buggy
+    # client (or someone hitting the API directly) can't blow past it.
+    MAX_MEDIA_ITEMS = 6
+
     async def upsert_for_enrollment(
         self,
         session: AsyncSession,
@@ -208,6 +213,21 @@ class SubmissionService:
                         "msg": "Enrollment does not match challenge's course.",
                         "type": "value_error",
                         "input": str(challenge.id),
+                    }
+                ]
+            )
+
+        if len(payload.media) > self.MAX_MEDIA_ITEMS:
+            raise SpaireRequestValidationError(
+                [
+                    {
+                        "loc": ("body", "media"),
+                        "msg": (
+                            f"At most {self.MAX_MEDIA_ITEMS} media items "
+                            f"per submission. Got {len(payload.media)}."
+                        ),
+                        "type": "value_error",
+                        "input": len(payload.media),
                     }
                 ]
             )
