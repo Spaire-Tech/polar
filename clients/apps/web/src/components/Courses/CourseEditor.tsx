@@ -23,6 +23,7 @@ import { AutomationsPanel } from './editor/AutomationsPanel'
 import { CourseHeader, TabId } from './editor/CourseHeader'
 import { CustomersTab } from './editor/CustomersTab'
 import { CustomizeTab } from './editor/CustomizeTab'
+import { ExperienceTab } from './editor/ExperienceTab'
 import { LessonDetail, LessonEdits } from './editor/LessonDetail'
 import { LessonContentType } from './editor/ModuleCard'
 import { OutlineTab } from './editor/OutlineTab'
@@ -76,15 +77,17 @@ export default function CourseEditor({
   const initialTab: TabId =
     (searchParams.get('tab') as TabId) === 'customize'
       ? 'customize'
-      : (searchParams.get('tab') as TabId) === 'automations'
-        ? 'automations'
-        : (searchParams.get('tab') as TabId) === 'settings'
-          ? 'settings'
-          : (searchParams.get('tab') as TabId) === 'pricing'
-            ? 'pricing'
-            : (searchParams.get('tab') as TabId) === 'customers'
-              ? 'customers'
-              : 'outline'
+      : (searchParams.get('tab') as TabId) === 'experience'
+        ? 'experience'
+        : (searchParams.get('tab') as TabId) === 'automations'
+          ? 'automations'
+          : (searchParams.get('tab') as TabId) === 'settings'
+            ? 'settings'
+            : (searchParams.get('tab') as TabId) === 'pricing'
+              ? 'pricing'
+              : (searchParams.get('tab') as TabId) === 'customers'
+                ? 'customers'
+                : 'outline'
   const [activeTab, setActiveTab] = useState<TabId>(initialTab)
   const [selectedLessonId, setSelectedLessonId] = useState<string | null>(null)
   // LessonDetail reports its dirty state up here so the host can guard
@@ -447,6 +450,8 @@ export default function CourseEditor({
     }
   } else if (activeTab === 'customize') {
     mainContent = <CustomizeTab course={course} organization={organization} />
+  } else if (activeTab === 'experience') {
+    mainContent = <ExperienceTab course={course} />
   } else if (activeTab === 'automations') {
     mainContent = (
       <div className="mx-auto w-full max-w-5xl px-6 py-8">

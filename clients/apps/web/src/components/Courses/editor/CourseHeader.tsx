@@ -8,14 +8,20 @@ import { cn } from '@spaire/ui/lib/utils'
 export type TabId =
   | 'outline'
   | 'customize'
+  | 'experience'
   | 'automations'
   | 'settings'
   | 'pricing'
   | 'customers'
 
+// "Experience" sits between Customize (look + feel of the landing) and
+// Automations (event-driven flows) because that's its natural fit
+// conceptually: shaping the participation surface (challenges, submissions,
+// reactions) happens after the page exists, before the automations fire.
 const TABS: { id: TabId; label: string }[] = [
   { id: 'outline', label: 'Outline' },
   { id: 'customize', label: 'Customize' },
+  { id: 'experience', label: 'Experience' },
   { id: 'automations', label: 'Automations' },
   { id: 'settings', label: 'Settings' },
   { id: 'pricing', label: 'Pricing' },
