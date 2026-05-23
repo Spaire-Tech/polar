@@ -139,6 +139,23 @@ export type EditableLandingProps = {
   flatLessons: CourseLessonRead[]
   product?: schemas['Product']
   lessonHandlers?: LessonHandlers
+  /** AI-generated (or creator-edited) challenges for the course. Drives
+   *  the Challenges section in place of the old "What you'll learn"
+   *  strip — same visual treatment (4-card zigzag with thumbnails),
+   *  different data source. Empty / undefined → the cards fall back to
+   *  placeholder defaults so the section never reads as broken. */
+  challenges?: LandingChallenge[]
+}
+
+/** Minimal challenge shape consumed by the Challenges section. Each host
+ *  (wizard preview, customize tab, public landing) resolves these from
+ *  its own data source — wizard from the streamed outline, the others
+ *  from the API once that wiring lands in day 4. */
+export type LandingChallenge = {
+  id: string
+  title: string
+  prompt: string
+  position: number
 }
 
 // Trigger checkout for the course product. Mirrors ProductDetailPage.handleBuy
@@ -180,6 +197,7 @@ export function EditableCourseLandingView({
   flatLessons,
   product,
   lessonHandlers,
+  challenges,
 }: EditableLandingProps) {
   const ed = useEditor()
   const priceLabel = formatProductPrice(product)
@@ -269,9 +287,14 @@ export function EditableCourseLandingView({
               />
             ),
           },
+          // The old "What you'll learn" strip became the Challenges
+          // section in Phase 1 — same 4-card zigzag layout, but each
+          // card is now an actual challenge the student does + submits.
+          // Section id stays as `learn` so saved orders on existing
+          // courses don't drop the section from their layout.
           learn: {
-            label: "What you'll learn",
-            node: <MobileWhatYoullLearn />,
+            label: 'Challenges',
+            node: <MobileWhatYoullLearn challenges={challenges ?? []} />,
           },
           instructor: { label: 'Instructor', node: null },
           faq: {
@@ -350,9 +373,12 @@ export function EditableCourseLandingView({
               />
             ),
           },
+          // See the mobile-side comment above — same section, swapped
+          // from passive "what you'll learn" copy to the active
+          // challenges loop. Visual treatment unchanged.
           learn: {
-            label: "What you'll learn",
-            node: <WhatYoullLearn />,
+            label: 'Challenges',
+            node: <WhatYoullLearn challenges={challenges ?? []} />,
           },
           instructor: { label: 'Instructor', node: null },
           faq: {
@@ -3654,22 +3680,27 @@ function CreatedBy({
 // page has one visual language for "progression". Each card shows only the
 // title; clicking opens a sheet with the description, so the page reads
 // quickly on first scroll but a curious visitor can dig.
-const LEARN_DEFAULTS: { title: string; desc: string }[] = [
+// Placeholder challenges rendered when no AI-generated / creator-edited
+// challenges are wired through yet — same shape as a real LandingChallenge,
+// just without an id. Action-oriented copy that matches the Challenges
+// loop's "make and submit" framing instead of the old passive "watch and
+// notice" learn-strip wording.
+const CHALLENGE_DEFAULTS: { title: string; desc: string }[] = [
   {
-    title: 'The robot that started a career.',
-    desc: 'Sit with the moment a side project turned into the work — the early build, the room it was made in, what changed after.',
+    title: 'Ship your first attempt.',
+    desc: 'Take what the first module covered and post one photo of your result — even if it didn’t go to plan.',
   },
   {
-    title: 'The week the work nearly broke.',
-    desc: 'The decisions made under pressure. What was kept, what was cut, what came back later.',
+    title: 'Try the harder version.',
+    desc: 'Push past the basics with the technique from module two. Capture it on video and share what changed.',
   },
   {
-    title: 'A practice no one talks about.',
-    desc: 'The small ritual that holds the whole thing together. Twenty minutes, every day, that nobody films.',
+    title: 'Make it your own.',
+    desc: 'Combine the moves from module three into something only you would make. One image, one paragraph on the choices.',
   },
   {
-    title: 'What the work means now.',
-    desc: 'Where the story sits today — and what the next chapter actually looks like from the inside.',
+    title: 'Show the finished piece.',
+    desc: 'Post the final result from module four — plated, packaged, shipped, whatever finished looks like for you.',
   },
 ]
 
@@ -3723,7 +3754,7 @@ function LearnThumbPlaceholder({ hue, n }: { hue: number; n: number }) {
           fontWeight: 500,
         }}
       >
-        moment · §{n}
+        challenge · §{n}
       </div>
     </>
   )
@@ -3746,7 +3777,7 @@ function LearnCard({
   const thumb = (
     <EditMedia
       id={`learn.item${index + 1}.image`}
-      label={`Moment ${index + 1} image`}
+      label={`Challenge ${index + 1} image`}
       style={{
         position: 'relative',
         aspectRatio: '4 / 3',
@@ -3812,7 +3843,7 @@ function LearnCard({
               textTransform: 'uppercase',
             }}
           >
-            Moment {String(index + 1).padStart(2, '0')}
+            Challenge {String(index + 1).padStart(2, '0')}
           </span>
         </div>
         <div
@@ -3997,16 +4028,25 @@ function LearnZigzag({
   )
 }
 
-function WhatYoullLearn() {
+function WhatYoullLearn({
+  challenges = [],
+}: {
+  challenges?: LandingChallenge[]
+}) {
   const ed = useEditor()
   const [openIdx, setOpenIdx] = useState<number | null>(null)
-  // Read the live edited text for the sheet — the cards themselves still
-  // render through EditText (so titles stay click-to-edit on hover), but
-  // the sheet needs plain strings.
-  const items = LEARN_DEFAULTS.map((d, i) => ({
-    title: ed.t(`learn.item${i + 1}.title`, d.title),
-    desc: ed.t(`learn.item${i + 1}.desc`, d.desc),
-  }))
+  // Resolve the 4 visible cards. AI-generated / creator-edited
+  // challenges take precedence; missing slots fall back to the
+  // CHALLENGE_DEFAULTS placeholders so the section always reads as
+  // populated even on courses that pre-date this section change.
+  const items = Array.from({ length: 4 }, (_, i) => {
+    const ch = challenges[i]
+    const fallback = CHALLENGE_DEFAULTS[i]
+    return {
+      title: ed.t(`learn.item${i + 1}.title`, ch?.title ?? fallback.title),
+      desc: ed.t(`learn.item${i + 1}.desc`, ch?.prompt ?? fallback.desc),
+    }
+  })
   return (
     <section
       style={{
@@ -4023,7 +4063,7 @@ function WhatYoullLearn() {
       <div style={{ marginBottom: 56, maxWidth: 720 }}>
         <EditText
           path="learn.eyebrow"
-          defaultValue="What you'll learn"
+          defaultValue="Challenges"
           style={{
             display: 'block',
             fontSize: 11,
@@ -4049,14 +4089,14 @@ function WhatYoullLearn() {
           <EditText
             as="span"
             path="learn.title"
-            defaultValue="Four moments worth seeing"
+            defaultValue="Four things you’ll actually make,"
             multiline
           />
           <br />
           <EditText
             as="span"
             path="learn.titleEm"
-            defaultValue="across the course."
+            defaultValue="and share with the class."
             multiline
             style={{
               color: 'oklch(0.42 0.008 280)',
@@ -4067,12 +4107,12 @@ function WhatYoullLearn() {
       </div>
 
       <LearnZigzag
-        items={LEARN_DEFAULTS.map((d, i) => ({
+        items={items.map((it, i) => ({
           title: (
             <EditText
               as="span"
               path={`learn.item${i + 1}.title`}
-              defaultValue={d.title}
+              defaultValue={it.title}
               multiline
             />
           ),

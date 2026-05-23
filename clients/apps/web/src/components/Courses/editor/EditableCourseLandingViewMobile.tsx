@@ -1670,22 +1670,27 @@ export function MobileCreatedBy({
 // Four cards on a vertical spine — mobile mirror of the desktop zigzag.
 // Spine runs down the left edge with nodes; title-only cards on the right
 // open a sheet with the description on tap.
+// Placeholder challenge titles + prompts shown when no real
+// AI-generated / creator-written challenges have flowed in yet. Same
+// shape + slot path as their desktop counterpart (see
+// CHALLENGE_DEFAULTS in EditableCourseLandingView.tsx) — keeping the
+// strings parallel keeps the section consistent across breakpoints.
 const MOBILE_LEARN_DEFAULTS: { title: string; desc: string }[] = [
   {
-    title: 'The robot that started a career.',
-    desc: 'Sit with the moment a side project turned into the work — the early build, the room it was made in, what changed after.',
+    title: 'Ship your first attempt.',
+    desc: 'Take what the first module covered and post one photo of your result — even if it didn’t go to plan.',
   },
   {
-    title: 'The week the work nearly broke.',
-    desc: 'The decisions made under pressure. What was kept, what was cut, what came back later.',
+    title: 'Try the harder version.',
+    desc: 'Push past the basics with the technique from module two. Capture it on video and share what changed.',
   },
   {
-    title: 'A practice no one talks about.',
-    desc: 'The small ritual that holds the whole thing together. Twenty minutes, every day, that nobody films.',
+    title: 'Make it your own.',
+    desc: 'Combine the moves from module three into something only you would make. One image, one paragraph on the choices.',
   },
   {
-    title: 'What the work means now.',
-    desc: 'Where the story sits today — and what the next chapter actually looks like from the inside.',
+    title: 'Show the finished piece.',
+    desc: 'Post the final result from module four — plated, packaged, shipped, whatever finished looks like for you.',
   },
 ]
 
@@ -1735,19 +1740,32 @@ function MobileLearnThumbPlaceholder({ hue, n }: { hue: number; n: number }) {
           fontWeight: 500,
         }}
       >
-        moment · §{n}
+        challenge · §{n}
       </div>
     </>
   )
 }
 
-export function MobileWhatYoullLearn() {
+export function MobileWhatYoullLearn({
+  challenges = [],
+}: {
+  /** Same shape as LandingChallenge in EditableCourseLandingView —
+   *  re-typed locally to avoid a circular import between the desktop +
+   *  mobile views. */
+  challenges?: { id: string; title: string; prompt: string; position: number }[]
+}) {
   const ed = useEditor()
   const [openIdx, setOpenIdx] = useState<number | null>(null)
-  const items = MOBILE_LEARN_DEFAULTS.map((d, i) => ({
-    title: ed.t(`learn.item${i + 1}.title`, d.title),
-    desc: ed.t(`learn.item${i + 1}.desc`, d.desc),
-  }))
+  // 4 cards, AI-first with placeholder fallbacks — mirrors the desktop
+  // WhatYoullLearn resolution exactly.
+  const items = Array.from({ length: 4 }, (_, i) => {
+    const ch = challenges[i]
+    const fallback = MOBILE_LEARN_DEFAULTS[i]
+    return {
+      title: ed.t(`learn.item${i + 1}.title`, ch?.title ?? fallback.title),
+      desc: ed.t(`learn.item${i + 1}.desc`, ch?.prompt ?? fallback.desc),
+    }
+  })
   return (
     <section
       style={{
@@ -1758,7 +1776,7 @@ export function MobileWhatYoullLearn() {
     >
       <EditText
         path="learn.eyebrow"
-        defaultValue="What you'll learn"
+        defaultValue="Challenges"
         style={{
           display: 'block',
           fontSize: 10,
@@ -1784,14 +1802,14 @@ export function MobileWhatYoullLearn() {
         <EditText
           as="span"
           path="learn.title"
-          defaultValue="Four moments worth seeing"
+          defaultValue="Four things you’ll actually make,"
           multiline
         />
         <br />
         <EditText
           as="span"
           path="learn.titleEm"
-          defaultValue="across the course."
+          defaultValue="and share with the class."
           multiline
           style={{
             color: 'var(--fg-2, oklch(0.42 0.008 280))',
@@ -1810,14 +1828,14 @@ export function MobileWhatYoullLearn() {
             background: 'oklch(0.92 0.003 280)',
           }}
         />
-        {MOBILE_LEARN_DEFAULTS.map((d, i) => {
+        {items.map((d, i) => {
           const hue = MOBILE_LEARN_HUES[i % MOBILE_LEARN_HUES.length]
           return (
             <div
               key={i}
               style={{
                 position: 'relative',
-                marginBottom: i === MOBILE_LEARN_DEFAULTS.length - 1 ? 0 : 14,
+                marginBottom: i === items.length - 1 ? 0 : 14,
               }}
             >
               <div
@@ -1890,7 +1908,7 @@ export function MobileWhatYoullLearn() {
                         textTransform: 'uppercase',
                       }}
                     >
-                      Moment {String(i + 1).padStart(2, '0')}
+                      Challenge {String(i + 1).padStart(2, '0')}
                     </span>
                   </div>
                   <EditText

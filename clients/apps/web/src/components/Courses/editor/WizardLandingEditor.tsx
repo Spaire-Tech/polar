@@ -76,6 +76,18 @@ export type WizardEditorOutline = {
     | null
     | undefined
   >
+  /** AI-generated challenges, one per module for courses, all anchored to
+   *  module_index=0 for series. Streamed in alongside modules; rendered in
+   *  the Challenges section on the preview before the wizard persists. */
+  challenges?: Array<
+    | {
+        title?: string
+        prompt?: string
+        module_index?: number
+      }
+    | null
+    | undefined
+  >
 }
 
 export type WizardEditorDraft = {
@@ -643,6 +655,21 @@ export function WizardLandingEditor({
             flatLessons={flatLessons}
             product={fakeProduct}
             lessonHandlers={wizardLessonHandlers}
+            // The outline stream carries `challenges` alongside modules.
+            // Surface them in the Challenges section live during the
+            // preview — they get persisted to the DB when the creator
+            // hits Create.
+            challenges={(outline.challenges ?? [])
+              .filter(
+                (c): c is { title: string; prompt?: string; module_index?: number } =>
+                  !!c && typeof c.title === 'string',
+              )
+              .map((c, i) => ({
+                id: `pending-${i}`,
+                title: c.title,
+                prompt: c.prompt ?? '',
+                position: i,
+              }))}
           />
         </div>
       </div>

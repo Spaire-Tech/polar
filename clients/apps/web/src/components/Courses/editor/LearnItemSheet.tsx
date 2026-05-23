@@ -95,7 +95,7 @@ export function LearnItemSheet({
             </>
           )}
           <div className="lis-cover-eyebrow">
-            Moment {String(index + 1).padStart(2, '0')}
+            Challenge {String(index + 1).padStart(2, '0')}
           </div>
         </div>
 
