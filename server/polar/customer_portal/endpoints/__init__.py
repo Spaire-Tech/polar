@@ -1,6 +1,7 @@
 from polar.routing import APIRouter
 
 from .benefit_grant import router as benefit_grant_router
+from .course_broadcast import router as course_broadcast_router
 from .course_submission import router as course_submission_router
 from .courses import router as courses_router
 from .customer import router as customer_router
@@ -25,6 +26,8 @@ router.include_router(courses_router)
 # own file so the courses module's customer-portal endpoints stay
 # focused on enrollment + lesson progress.
 router.include_router(course_submission_router)
+# Read-only broadcast feed (Phase 3) — published-only, enrollment-gated.
+router.include_router(course_broadcast_router)
 router.include_router(customer_router)
 router.include_router(customer_meter_router)
 router.include_router(customer_seat_router)

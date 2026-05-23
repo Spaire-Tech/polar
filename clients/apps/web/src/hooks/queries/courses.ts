@@ -730,6 +730,32 @@ export const useCustomerCourse = (
     enabled: !!token && !!courseId,
   })
 
+// Phase 3 — published cohort broadcasts for an enrolled course. Returns
+// newest-first; the server filters out drafts + soft-deleted rows so the
+// student never sees them.
+export type CourseBroadcastStudentRead = {
+  id: string
+  title: string
+  body: string
+  image_url: string | null
+  week_number: number | null
+  published_at: string
+}
+
+export const useEnrolledCourseBroadcasts = (
+  token: string | null | undefined,
+  courseId: string | undefined,
+) =>
+  useQuery<CourseBroadcastStudentRead[]>({
+    queryKey: ['customer-course-broadcasts', token, courseId],
+    queryFn: () =>
+      portalApiFetch<CourseBroadcastStudentRead[]>(
+        `/v1/customer-portal/courses/${courseId}/broadcasts`,
+        token!,
+      ),
+    enabled: !!token && !!courseId,
+  })
+
 export const useCreateMuxUpload = () =>
   useMutation({
     mutationFn: (lessonId: string) =>

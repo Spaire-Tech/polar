@@ -208,6 +208,7 @@ const LessonViewerPage = ({
     <CoursePortalView
       data={data}
       organizationName={organization.name}
+      customerSessionToken={customerSessionToken}
       onSelectLesson={handleSelectCustomerLesson}
     />
   )

@@ -1,10 +1,12 @@
 'use client'
 
 import type {
+  CourseBroadcastStudentRead,
   CustomerCourseDetail,
   CustomerLessonRead,
   CustomerModuleRead,
 } from '@/hooks/queries/courses'
+import { useEnrolledCourseBroadcasts } from '@/hooks/queries/courses'
 import { useIsMobile } from '@/utils/mobile'
 import { useState } from 'react'
 
@@ -1200,6 +1202,10 @@ function ModuleRow({
 export interface CoursePortalViewProps {
   data: CustomerCourseDetail
   organizationName: string
+  // Passed through so the in-portal community feed can call the
+  // enrollment-gated /v1/customer-portal/courses/{id}/broadcasts endpoint
+  // with the same token the rest of the portal already uses.
+  customerSessionToken: string | null | undefined
   onSelectLesson: (lesson: CustomerLessonRead) => void
 }
 
@@ -1215,9 +1221,15 @@ export function CoursePortalView(props: CoursePortalViewProps) {
 function CoursePortalViewDesktop({
   data,
   organizationName,
+  customerSessionToken,
   onSelectLesson,
 }: CoursePortalViewProps) {
   const course = data.course
+  const broadcastsQ = useEnrolledCourseBroadcasts(
+    customerSessionToken,
+    course.id,
+  )
+  const broadcasts = broadcastsQ.data ?? []
   const modules: CustomerModuleRead[] = course.modules
 
   // Build a position-by-id map so each lesson card can render its global
@@ -1304,6 +1316,12 @@ function CoursePortalViewDesktop({
         }}
       />
 
+      <BroadcastsFeed
+        broadcasts={broadcasts}
+        instructorName={course.instructor_name ?? organizationName}
+        layout="desktop"
+      />
+
       <section style={modStyles.wrap}>
         {modules.map((m, i) => (
           <ModuleRow
@@ -1383,9 +1401,15 @@ function CoursePortalViewDesktop({
 function CoursePortalViewMobile({
   data,
   organizationName,
+  customerSessionToken,
   onSelectLesson,
 }: CoursePortalViewProps) {
   const course = data.course
+  const broadcastsQ = useEnrolledCourseBroadcasts(
+    customerSessionToken,
+    course.id,
+  )
+  const broadcasts = broadcastsQ.data ?? []
   const modules: CustomerModuleRead[] = course.modules
 
   const positionToGlobalIndex = new Map<string, number>()
@@ -1460,6 +1484,12 @@ function CoursePortalViewMobile({
       />
 
       <div style={{ height: 8 }} />
+
+      <BroadcastsFeed
+        broadcasts={broadcasts}
+        instructorName={course.instructor_name ?? organizationName}
+        layout="mobile"
+      />
 
       {modules.map((m, i) => (
         <MobileModuleRow
@@ -2209,5 +2239,209 @@ function MobileLessonCard({
         </div>
       </div>
     </button>
+  )
+}
+
+// ── Broadcasts feed ──────────────────────────────────────────────────────
+//
+// Cohort-wide creator notes. Renders nothing when there are no published
+// broadcasts (the empty state lives in the creator dashboard, not here —
+// students shouldn't see "creator hasn't posted yet" framing).
+//
+// Layout:
+//   • Latest broadcast pinned at the top, expanded inline
+//   • If there are more, an "Earlier this cohort" expandable list
+
+function formatBroadcastDate(iso: string): string {
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ''
+  const now = new Date()
+  const diffMs = now.getTime() - d.getTime()
+  const oneDay = 24 * 60 * 60 * 1000
+  if (diffMs < oneDay) return 'today'
+  if (diffMs < 2 * oneDay) return 'yesterday'
+  if (diffMs < 7 * oneDay) {
+    const days = Math.floor(diffMs / oneDay)
+    return `${days} days ago`
+  }
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+}
+
+function BroadcastsFeed({
+  broadcasts,
+  instructorName,
+  layout,
+}: {
+  broadcasts: CourseBroadcastStudentRead[]
+  instructorName: string
+  layout: 'desktop' | 'mobile'
+}) {
+  const [expanded, setExpanded] = useState(false)
+  if (broadcasts.length === 0) return null
+  const [latest, ...rest] = broadcasts
+  if (!latest) return null
+
+  const isMobile = layout === 'mobile'
+  const wrapStyle: React.CSSProperties = isMobile
+    ? {
+        padding: '20px 20px 0',
+        marginTop: 12,
+      }
+    : {
+        maxWidth: 1320,
+        margin: '0 auto',
+        padding: '40px 32px 0',
+      }
+
+  return (
+    <section style={wrapStyle}>
+      <div
+        style={{
+          fontSize: 10,
+          fontWeight: 600,
+          letterSpacing: '0.18em',
+          textTransform: 'uppercase',
+          color: C.fg3,
+          marginBottom: 10,
+        }}
+      >
+        From {instructorName}
+      </div>
+
+      <BroadcastCard broadcast={latest} pinned isMobile={isMobile} />
+
+      {rest.length > 0 && (
+        <>
+          <button
+            type="button"
+            onClick={() => setExpanded((x) => !x)}
+            style={{
+              marginTop: 12,
+              padding: '8px 14px',
+              background: 'transparent',
+              border: `1px solid ${C.line}`,
+              borderRadius: 999,
+              color: C.fg1,
+              fontFamily: FONT,
+              fontSize: 12,
+              fontWeight: 500,
+              cursor: 'pointer',
+            }}
+          >
+            {expanded
+              ? 'Hide earlier notes'
+              : `Earlier this cohort · ${rest.length}`}
+          </button>
+
+          {expanded && (
+            <div
+              style={{
+                marginTop: 12,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 10,
+              }}
+            >
+              {rest.map((b) => (
+                <BroadcastCard
+                  key={b.id}
+                  broadcast={b}
+                  pinned={false}
+                  isMobile={isMobile}
+                />
+              ))}
+            </div>
+          )}
+        </>
+      )}
+    </section>
+  )
+}
+
+function BroadcastCard({
+  broadcast,
+  pinned,
+  isMobile,
+}: {
+  broadcast: CourseBroadcastStudentRead
+  pinned: boolean
+  isMobile: boolean
+}) {
+  const dateLabel = formatBroadcastDate(broadcast.published_at)
+  return (
+    <article
+      style={{
+        background: C.bg2,
+        border: `1px solid ${C.line}`,
+        borderRadius: 16,
+        padding: isMobile ? 16 : 20,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 10,
+        fontFamily: FONT,
+      }}
+    >
+      {broadcast.image_url && (
+        <img
+          src={broadcast.image_url}
+          alt=""
+          style={{
+            width: '100%',
+            maxHeight: pinned ? 220 : 140,
+            objectFit: 'cover',
+            borderRadius: 12,
+            display: 'block',
+          }}
+        />
+      )}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'baseline',
+          flexWrap: 'wrap',
+          gap: 8,
+        }}
+      >
+        {broadcast.week_number != null && (
+          <span
+            style={{
+              fontSize: 10,
+              fontWeight: 600,
+              letterSpacing: '0.18em',
+              textTransform: 'uppercase',
+              color: C.fg3,
+            }}
+          >
+            Week {broadcast.week_number}
+          </span>
+        )}
+        <h3
+          style={{
+            fontSize: pinned ? 20 : 16,
+            fontWeight: 600,
+            letterSpacing: '-0.02em',
+            color: C.fg0,
+            margin: 0,
+            lineHeight: 1.2,
+          }}
+        >
+          {broadcast.title}
+        </h3>
+        <span style={{ fontSize: 11, color: C.fg3 }}>· {dateLabel}</span>
+      </div>
+      {broadcast.body && (
+        <p
+          style={{
+            whiteSpace: 'pre-wrap',
+            color: C.fg1,
+            fontSize: 14,
+            lineHeight: 1.55,
+            margin: 0,
+          }}
+        >
+          {broadcast.body}
+        </p>
+      )}
+    </article>
   )
 }
