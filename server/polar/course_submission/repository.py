@@ -32,15 +32,18 @@ class ChallengeRepository(
     model = CourseChallenge
 
     def get_by_course_statement(self, course_id: UUID) -> Select[tuple[CourseChallenge]]:
-        # Joined to modules so the caller can order by module.position
-        # then challenge.position — gives a stable "Week 1 challenge, Week
-        # 2 challenge" ordering even when modules reorder.
+        # Joined to modules + course so soft-deleted parents suppress
+        # their children. Ordered by module.position then challenge
+        # position for a stable "Week 1 challenge, Week 2 challenge"
+        # read across module reorders.
         return (
             self.get_base_statement()
             .join(CourseModule, CourseChallenge.module_id == CourseModule.id)
+            .join(Course, CourseChallenge.course_id == Course.id)
             .where(
                 CourseChallenge.course_id == course_id,
                 CourseModule.deleted_at.is_(None),
+                Course.deleted_at.is_(None),
             )
             .order_by(CourseModule.position, CourseChallenge.position)
         )
@@ -75,6 +78,21 @@ class ChallengeRepository(
         )
         last = (await self.session.execute(statement)).scalar_one()
         return last + 1
+
+    async def get_titles_by_ids(
+        self, challenge_ids: list[UUID]
+    ) -> dict[UUID, str]:
+        """Single-query batch lookup — one IN scan instead of N round-trips.
+        Drives the creator inbox so we can show "<challenge title>" next
+        to each submission without paying N+1 on the lazy-loaded
+        relationship."""
+        if not challenge_ids:
+            return {}
+        statement = self.get_base_statement().where(
+            CourseChallenge.id.in_(set(challenge_ids))
+        )
+        rows = await self.get_all(statement)
+        return {c.id: c.title for c in rows}
 
     async def count_submissions(self, challenge_id: UUID) -> int:
         """Number of submitted (non-draft, non-deleted) submissions for a
@@ -113,9 +131,11 @@ class SubmissionRepository(
                 CourseChallenge,
                 CourseSubmission.challenge_id == CourseChallenge.id,
             )
+            .join(Course, CourseSubmission.course_id == Course.id)
             .where(
                 CourseSubmission.challenge_id == challenge_id,
                 CourseChallenge.deleted_at.is_(None),
+                Course.deleted_at.is_(None),
             )
         )
         if only_visible:
@@ -143,10 +163,12 @@ class SubmissionRepository(
                 CourseChallenge,
                 CourseSubmission.challenge_id == CourseChallenge.id,
             )
+            .join(Course, CourseSubmission.course_id == Course.id)
             .where(
                 CourseSubmission.course_id == course_id,
                 CourseSubmission.submitted_at.is_not(None),
                 CourseChallenge.deleted_at.is_(None),
+                Course.deleted_at.is_(None),
             )
             .order_by(CourseSubmission.submitted_at.desc())
         )

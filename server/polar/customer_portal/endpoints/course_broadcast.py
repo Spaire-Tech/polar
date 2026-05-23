@@ -16,6 +16,7 @@ from fastapi import Depends, HTTPException
 from polar.course.service import course_service
 from polar.course_broadcast.repository import BroadcastRepository
 from polar.course_broadcast.schemas import BroadcastStudentRead
+from polar.course_broadcast.service import broadcast as broadcast_service
 from polar.models.course_broadcast import CourseBroadcast
 from polar.openapi import APITag
 from polar.postgres import AsyncSession, get_db_session
@@ -30,7 +31,11 @@ router = APIRouter(
 )
 
 
-def _to_student_read(b: CourseBroadcast) -> BroadcastStudentRead:
+def _to_student_read(
+    b: CourseBroadcast,
+    *,
+    author_display_name: str | None = None,
+) -> BroadcastStudentRead:
     # `published_at` is guaranteed non-NULL here because the repository
     # statement filters on `published_at IS NOT NULL`. Type-safe cast
     # because BroadcastStudentRead declares it non-optional.
@@ -42,6 +47,7 @@ def _to_student_read(b: CourseBroadcast) -> BroadcastStudentRead:
         image_url=b.image_url,
         week_number=b.week_number,
         published_at=b.published_at,
+        author_display_name=author_display_name,
     )
 
 
@@ -70,4 +76,17 @@ async def list_enrolled_broadcasts(
             repo.get_by_course_statement(course_id, only_published=True)
         )
     )
-    return [_to_student_read(b) for b in broadcasts]
+    name_by_id = await broadcast_service.resolve_author_names(
+        session, broadcasts
+    )
+    return [
+        _to_student_read(
+            b,
+            author_display_name=(
+                name_by_id.get(b.created_by_user_id)
+                if b.created_by_user_id
+                else None
+            ),
+        )
+        for b in broadcasts
+    ]

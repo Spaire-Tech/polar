@@ -24,6 +24,14 @@ class PartialNotification(BaseModel):
 
 
 class NotificationsService:
+    # NOTE: every dispatch path on this service targets a User (creator
+    # / teammate). Customers don't have a notifications bell in the
+    # customer portal — Spaire's student-facing real-time channel is
+    # email (via polar.email_sequence.events.fire_event) plus the
+    # in-portal feed surfaces (lesson cards, broadcasts feed). A
+    # student-side notifications surface is intentionally deferred —
+    # if/when it lands it should reuse the EmailSubscriber identity
+    # already in place, not bolt onto this creator-scoped table.
     async def get(self, session: AsyncSession, id: UUID) -> Notification | None:
         stmt = (
             sql.select(Notification)

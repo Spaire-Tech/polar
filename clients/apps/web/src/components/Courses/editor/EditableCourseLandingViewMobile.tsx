@@ -1752,7 +1752,14 @@ export function MobileWhatYoullLearn({
   /** Same shape as LandingChallenge in EditableCourseLandingView —
    *  re-typed locally to avoid a circular import between the desktop +
    *  mobile views. */
-  challenges?: { id: string; title: string; prompt: string; position: number }[]
+  challenges?: {
+    id: string
+    title: string
+    prompt: string
+    position: number
+    thumbnail_url?: string | null
+    thumbnail_object_position?: string | null
+  }[]
 }) {
   const ed = useEditor()
   const [openIdx, setOpenIdx] = useState<number | null>(null)
@@ -1764,6 +1771,7 @@ export function MobileWhatYoullLearn({
     return {
       title: ed.t(`learn.item${i + 1}.title`, ch?.title ?? fallback.title),
       desc: ed.t(`learn.item${i + 1}.desc`, ch?.prompt ?? fallback.desc),
+      thumbnailUrl: ch?.thumbnail_url ?? null,
     }
   })
   return (
@@ -1879,6 +1887,7 @@ export function MobileWhatYoullLearn({
                     background: '#111',
                   }}
                   placeholder={<MobileLearnThumbPlaceholder hue={hue} n={i + 1} />}
+                  fallbackImageUrl={d.thumbnailUrl}
                 />
                 <div style={{ padding: '14px 16px 16px' }}>
                   <div

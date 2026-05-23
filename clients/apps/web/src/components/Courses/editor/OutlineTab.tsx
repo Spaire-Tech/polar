@@ -5,7 +5,6 @@ import {
   CourseModuleRead,
   CourseRead,
   useUpdateCourse,
-  useUpdateCourseModule,
   usePreviewAccess,
 } from '@/hooks/queries/courses'
 import { useQueryClient } from '@tanstack/react-query'
@@ -816,7 +815,6 @@ const PACING_OPTIONS: {
 
 function PacingStrip({ course }: { course: CourseRead }) {
   const updateCourse = useUpdateCourse()
-  const updateModule = useUpdateCourseModule()
   const qc = useQueryClient()
   // Sort modules so the weekly schedule applies 0, 7, 14, 21 in the
   // order the creator sees them on the page rather than DB insert
@@ -841,19 +839,21 @@ function PacingStrip({ course }: { course: CourseRead }) {
     )
   }
 
-  // Auto-fill drip_days across modules in their visible order:
-  // module[0] → day 0, module[1] → day 7, module[2] → day 14, etc.
-  // Sequential await so a transient failure stops mid-way instead of
-  // leaving the schedule half-applied behind successful PATCHes.
+  // Bulk-apply the weekly schedule in a single request. The server
+  // updates every (non-deleted) module in one transaction, so the
+  // schedule can't end up half-applied if anything fails mid-loop —
+  // replaces the per-module PATCH loop this previously did.
   const applyWeeklySchedule = async () => {
     if (applying || sortedModules.length === 0) return
     setApplying(true)
     try {
-      for (let i = 0; i < sortedModules.length; i++) {
-        await updateModule.mutateAsync({
-          moduleId: sortedModules[i].id,
-          body: { drip_days: i * 7 },
-        })
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/v1/courses/${course.id}/apply-weekly-pacing`,
+        { method: 'POST', credentials: 'include' },
+      )
+      if (!res.ok) {
+        const text = await res.text().catch(() => '')
+        throw new Error(`Apply failed (${res.status}): ${text}`)
       }
       qc.invalidateQueries({ queryKey: ['courses', { courseId: course.id }] })
     } finally {

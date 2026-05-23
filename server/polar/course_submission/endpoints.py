@@ -240,17 +240,13 @@ async def list_course_submissions(
         raise ResourceNotFound("Course not found")
     subs = await submission_service.list_for_course_inbox(session, course)
 
-    # Batch-load challenge titles so the inbox can show "<title>" next
-    # to each submission card without hitting the lazy="raise" guard on
-    # submission.challenge. One query for the set of challenge ids in
-    # the page; lookup by id from the resulting dict.
+    # Single IN scan so a 200-submission inbox doesn't pay N challenge
+    # round-trips; the lazy="raise" guard on submission.challenge means
+    # we have to resolve titles separately.
     challenge_repo = ChallengeRepository.from_session(session)
-    challenge_ids = {s.challenge_id for s in subs}
-    title_by_id: dict[UUID, str] = {}
-    for cid in challenge_ids:
-        c = await challenge_repo.get_by_id(cid)
-        if c is not None:
-            title_by_id[c.id] = c.title
+    title_by_id = await challenge_repo.get_titles_by_ids(
+        list({s.challenge_id for s in subs})
+    )
 
     return [
         await _submission_to_read(

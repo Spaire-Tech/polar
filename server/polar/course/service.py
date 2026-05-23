@@ -214,6 +214,24 @@ class CourseService:
         update_dict = update_schema.model_dump(exclude_unset=True)
         return await module_repo.update(module, update_dict=update_dict)
 
+    async def apply_weekly_pacing(
+        self,
+        session: AsyncSession,
+        course: Course,
+    ) -> list[CourseModule]:
+        """Set drip_days = position*7 on every (non-deleted) module of a
+        course in a single transaction. Replaces N sequential client-side
+        PATCHes — one round-trip, all-or-nothing semantics so the schedule
+        can't end up half-applied if anything fails mid-loop."""
+        module_repo = CourseModuleRepository.from_session(session)
+        modules = sorted(
+            [m for m in course.modules if m.deleted_at is None],
+            key=lambda m: m.position,
+        )
+        for i, module in enumerate(modules):
+            await module_repo.update(module, update_dict={"drip_days": i * 7})
+        return modules
+
     async def get_module_by_id(
         self, session: AsyncSession, module_id: UUID
     ) -> CourseModule | None:

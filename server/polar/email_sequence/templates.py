@@ -659,6 +659,62 @@ TEMPLATES: list[SequenceTemplate] = [
             ),
         ],
     },
+    {
+        "slug": "course_submission_reacted_to_by_creator",
+        "name": "Creator Reacted to Submission",
+        "description": (
+            "Fires when the creator emoji-reacts to a student's "
+            "challenge submission. A short nudge that the creator "
+            "noticed the work — keeps cohort momentum."
+        ),
+        "category": "Course",
+        "trigger_type": EmailSequenceTriggerType.on_purchase,
+        "trigger_config": {},
+        "steps": [
+            _step(
+                delay_hours=0,
+                subject="Your instructor reacted to your post",
+                sender_name="Course Team",
+                blocks=[
+                    _heading("Someone noticed."),
+                    _para(
+                        "Your instructor just reacted to your latest "
+                        "challenge submission. Pop back into the course "
+                        "to see it — and maybe drop the next one."
+                    ),
+                    _button("Open the course", "https://example.com/course"),
+                ],
+            ),
+        ],
+    },
+    {
+        "slug": "course_broadcast_published",
+        "name": "Cohort Broadcast",
+        "description": (
+            "Fires when the creator publishes a cohort broadcast (week "
+            "kickoff, wrap-up, encouragement). Lets you mirror the post "
+            "into email so students who haven't opened the portal still "
+            "see it."
+        ),
+        "category": "Course",
+        "trigger_type": EmailSequenceTriggerType.on_purchase,
+        "trigger_config": {},
+        "steps": [
+            _step(
+                delay_hours=0,
+                subject="A new note from your instructor",
+                sender_name="Course Team",
+                blocks=[
+                    _heading("Fresh note in your course."),
+                    _para(
+                        "Your instructor just posted a cohort-wide note. "
+                        "Read it in the portal — it's pinned at the top."
+                    ),
+                    _button("Read the note", "https://example.com/course"),
+                ],
+            ),
+        ],
+    },
 ]
 
 

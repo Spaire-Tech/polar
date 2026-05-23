@@ -289,6 +289,7 @@ function CourseLandingShell({
         organizationAvatarUrl={organization.avatar_url}
         flatLessons={flatLessons}
         product={product as unknown as schemas['Product']}
+        challenges={landing.challenges ?? []}
       />
     </EditorProvider>
   )

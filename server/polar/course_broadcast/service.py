@@ -2,13 +2,12 @@ from datetime import datetime, timezone
 from uuid import UUID
 
 from polar.auth.models import AuthSubject, Organization, User, is_user
-from polar.course.repository import CourseEnrollmentRepository, CourseRepository
-from polar.email_sequence.events import fire_event
-from polar.email_subscriber.repository import EmailSubscriberRepository
+from polar.course.repository import CourseRepository
 from polar.exceptions import ResourceNotFound
 from polar.models.course import Course
 from polar.models.course_broadcast import CourseBroadcast
 from polar.postgres import AsyncSession
+from polar.worker import enqueue_job
 
 from .repository import BroadcastRepository
 from .schemas import BroadcastCreate, BroadcastUpdate
@@ -27,6 +26,19 @@ class BroadcastService:
             course.id, only_published=only_published
         )
         return list(await repo.get_all(statement))
+
+    async def resolve_author_names(
+        self,
+        session: AsyncSession,
+        broadcasts: list[CourseBroadcast],
+    ) -> dict[UUID, str]:
+        """Batch-load author display names for a page of broadcasts so
+        the serializer can populate `author_display_name` without
+        paying N+1. Empty page → empty dict."""
+        repo = BroadcastRepository.from_session(session)
+        return await repo.get_author_names_by_ids(
+            [b.created_by_user_id for b in broadcasts if b.created_by_user_id]
+        )
 
     async def create(
         self,
@@ -78,63 +90,52 @@ class BroadcastService:
         await session.flush()
         return broadcast
 
+    async def schedule(
+        self,
+        session: AsyncSession,
+        broadcast: CourseBroadcast,
+        scheduled_at: datetime,
+    ) -> CourseBroadcast:
+        """Set `scheduled_at` on a draft. The periodic worker publishes
+        it when the time arrives. Already-published broadcasts can't be
+        scheduled — the creator should unpublish first."""
+        if broadcast.published_at is not None:
+            raise ResourceNotFound(
+                "Cannot schedule an already-published broadcast"
+            )
+        broadcast.scheduled_at = scheduled_at
+        await session.flush()
+        return broadcast
+
     async def publish(
         self,
         session: AsyncSession,
         broadcast: CourseBroadcast,
     ) -> CourseBroadcast:
         """Stamp the publish timestamp, then (when notify_on_publish is
-        set) fan out a `course.broadcast_published` event per enrolled
-        student. The event wakes any email-sequence node the creator has
-        wired in the automations editor — same dispatch model as the
-        Phase 1 `course.submission_reacted_to_by_creator` event.
+        set) enqueue the fanout task. Fanout itself happens in
+        `course_broadcast.fanout_publish` so a 5000-student cohort
+        doesn't time out the publish request.
 
         Re-publishing a published broadcast updates `published_at` to
-        "now" so it bubbles to the top of the feed, and fans out the
-        event again — by design, this is the "resend" lever.
+        "now" so it bubbles to the top of the feed, and re-enqueues
+        fanout — by design, the "resend" lever.
         """
-        was_silent = not broadcast.notify_on_publish
+        should_notify = broadcast.notify_on_publish
         broadcast.published_at = datetime.now(timezone.utc)
+        # Once published, any prior scheduled_at is meaningless — clear
+        # it so the periodic worker doesn't try to "publish-due" the row
+        # again on the next tick (no-op in practice but keeps the index
+        # clean).
+        broadcast.scheduled_at = None
         await session.flush()
 
-        if was_silent:
-            return broadcast
-
-        await self._fanout_publish_event(session, broadcast)
+        if should_notify:
+            enqueue_job(
+                "course_broadcast.fanout_publish",
+                broadcast_id=broadcast.id,
+            )
         return broadcast
-
-    async def _fanout_publish_event(
-        self,
-        session: AsyncSession,
-        broadcast: CourseBroadcast,
-    ) -> None:
-        course = await session.get(Course, broadcast.course_id)
-        if course is None:
-            return
-
-        enrollment_repo = CourseEnrollmentRepository.from_session(session)
-        enrollments = list(
-            await enrollment_repo.get_all(
-                enrollment_repo.get_by_course_statement(course.id)
-            )
-        )
-        subscriber_repo = EmailSubscriberRepository.from_session(session)
-        for enrollment in enrollments:
-            subscriber = await subscriber_repo.get_by_customer_and_organization(
-                enrollment.customer_id, course.organization_id
-            )
-            if subscriber is None:
-                # Student isn't on the org's email list. The course-portal
-                # feed will still pick up the broadcast on next render; we
-                # just don't send them an email.
-                continue
-            await fire_event(
-                session,
-                organization_id=course.organization_id,
-                subscriber_id=subscriber.id,
-                event_name="course.broadcast_published",
-                course_id=course.id,
-            )
 
     async def unpublish(
         self,

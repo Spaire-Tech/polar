@@ -11,6 +11,7 @@ log = logging.getLogger(__name__)
 from polar.auth.models import is_customer, is_member
 from polar.course import mux as mux_client
 from polar.course.repository import CourseLessonRepository
+from polar.course_submission.repository import ChallengeRepository
 from polar.organization.repository import OrganizationRepository
 from polar.quotas.definitions import QuotaKey
 from polar.quotas.exceptions import QuotaExceededError
@@ -89,6 +90,31 @@ def _serialize_lesson(
         base["mux_playback_url"] = None
         base["mux_status"] = None
     return base
+
+
+async def _published_challenges_payload(
+    session: AsyncSession, course_id: UUID
+) -> list[dict]:
+    """Per-course published challenges shaped for the public landing's
+    WhatYoullLearn strip. Drafts (`published=False`) are excluded so the
+    creator can stage challenges in the dashboard without exposing them
+    on the storefront."""
+    repo = ChallengeRepository.from_session(session)
+    challenges = list(
+        await repo.get_all(repo.get_by_course_statement(course_id))
+    )
+    return [
+        {
+            "id": str(c.id),
+            "title": c.title,
+            "prompt": c.prompt,
+            "position": c.position,
+            "thumbnail_url": c.thumbnail_url,
+            "thumbnail_object_position": c.thumbnail_object_position,
+        }
+        for c in challenges
+        if c.published
+    ]
 
 
 def _build_module_list(course, paywall_position, enrolled_at, now, completed_ids):
@@ -822,6 +848,12 @@ async def get_course_landing(
         "paywall_position": course.paywall_position,
         "has_access": has_access,
         "sample": sample_payload,
+        # Public-landing challenge strip — title + prompt + thumbnail
+        # so the WhatYoullLearn section renders creator-uploaded cover
+        # images instead of always falling back to the placeholder.
+        # Only published challenges, ordered by module-position then
+        # challenge-position (repository default).
+        "challenges": await _published_challenges_payload(session, course.id),
     }
 
 

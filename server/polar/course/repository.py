@@ -179,17 +179,30 @@ class CourseEnrollmentRepository(
     def get_by_customer_and_course_statement(
         self, customer_id: UUID, course_id: UUID
     ):
-        return self.get_base_statement().where(
-            CourseEnrollment.customer_id == customer_id,
-            CourseEnrollment.course_id == course_id,
+        # Joined to Course so a soft-deleted course can't keep serving
+        # enrolled-customer endpoints (challenges, submissions,
+        # broadcasts all gate on this lookup).
+        return (
+            self.get_base_statement()
+            .join(Course, CourseEnrollment.course_id == Course.id)
+            .where(
+                CourseEnrollment.customer_id == customer_id,
+                CourseEnrollment.course_id == course_id,
+                Course.deleted_at.is_(None),
+            )
         )
 
     def get_by_course_statement(self, course_id: UUID):
         """Every (non-soft-deleted) enrollment for a course. Drives the
         Phase 3 broadcast fanout — we enumerate enrollments to fire the
         broadcast-published event per student EmailSubscriber."""
-        return self.get_base_statement().where(
-            CourseEnrollment.course_id == course_id
+        return (
+            self.get_base_statement()
+            .join(Course, CourseEnrollment.course_id == Course.id)
+            .where(
+                CourseEnrollment.course_id == course_id,
+                Course.deleted_at.is_(None),
+            )
         )
 
 

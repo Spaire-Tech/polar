@@ -90,6 +90,14 @@ class CourseBroadcast(RecordModel):
         TIMESTAMP(timezone=True), nullable=True, default=None
     )
 
+    # NULL = not scheduled. When set in the future, a periodic worker
+    # (`course_broadcast.publish_due`) flips the row to published at the
+    # right time. The scheduled flow only valid while published_at IS
+    # NULL — once a broadcast goes live, scheduling has no meaning.
+    scheduled_at: Mapped[datetime | None] = mapped_column(
+        TIMESTAMP(timezone=True), nullable=True, default=None
+    )
+
     # When True, publishing fires the cohort notification + email. Lets the
     # creator publish quietly (e.g. backfilling a missed week) without
     # spamming the cohort.

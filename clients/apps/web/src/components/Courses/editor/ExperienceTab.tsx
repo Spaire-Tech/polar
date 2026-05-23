@@ -18,6 +18,7 @@ import {
   useCreateBroadcast,
   useDeleteBroadcast,
   usePublishBroadcast,
+  useScheduleBroadcast,
   useUnpublishBroadcast,
   useUpdateBroadcast,
 } from '@/hooks/queries/broadcasts'
@@ -867,6 +868,7 @@ function BroadcastComposer({
   const create = useCreateBroadcast(course.id)
   const update = useUpdateBroadcast(course.id)
   const publish = usePublishBroadcast(course.id)
+  const schedule = useScheduleBroadcast(course.id)
 
   // Reset the form's local state when the creator switches which row
   // they're editing — using `editing?.id` as the key on the inner form
@@ -878,7 +880,12 @@ function BroadcastComposer({
       course={course}
       weeklyPacing={weeklyPacing}
       editing={editing}
-      busy={create.isPending || update.isPending || publish.isPending}
+      busy={
+        create.isPending ||
+        update.isPending ||
+        publish.isPending ||
+        schedule.isPending
+      }
       onCancelEdit={onCancelEdit}
       onCreate={async (input) => {
         await create.mutateAsync(input)
@@ -889,6 +896,14 @@ function BroadcastComposer({
         if (alsoPublish) {
           await publish.mutateAsync(saved.id)
         }
+        onSaved()
+      }}
+      onSchedule={async (id, patch, scheduledAt) => {
+        // Persist any pending edits first so the schedule call freezes
+        // the latest copy. Then set the schedule — server rejects past
+        // timestamps with a 422 that surfaces via the mutation error.
+        await update.mutateAsync({ id, input: patch })
+        await schedule.mutateAsync({ id, scheduledAt })
         onSaved()
       }}
     />
@@ -903,6 +918,7 @@ function BroadcastComposerForm({
   onCancelEdit,
   onCreate,
   onUpdate,
+  onSchedule,
 }: {
   course: CourseRead
   weeklyPacing: boolean
@@ -928,6 +944,17 @@ function BroadcastComposerForm({
     },
     alsoPublish: boolean,
   ) => Promise<void>
+  onSchedule: (
+    id: string,
+    patch: {
+      title?: string
+      body?: string
+      image_url?: string | null
+      week_number?: number | null
+      notify_on_publish?: boolean
+    },
+    scheduledAtISO: string,
+  ) => Promise<void>
 }) {
   const [title, setTitle] = useState(editing?.title ?? '')
   const [body, setBody] = useState(editing?.body ?? '')
@@ -939,6 +966,16 @@ function BroadcastComposerForm({
   )
   const [notify, setNotify] = useState<boolean>(
     editing?.notify_on_publish ?? true,
+  )
+  // Local string state for the datetime-local input. Stored separately
+  // from the scheduledAt prop so the input edits stay local until the
+  // creator hits Schedule (no thrashing PATCHes on every keystroke).
+  // Format: "YYYY-MM-DDTHH:mm" — what <input type="datetime-local">
+  // emits and accepts.
+  const [scheduledAt, setScheduledAt] = useState<string>(
+    editing?.scheduled_at
+      ? new Date(editing.scheduled_at).toISOString().slice(0, 16)
+      : '',
   )
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
@@ -966,7 +1003,10 @@ function BroadcastComposerForm({
     }
   }
 
-  const buildInput = (publish: boolean) => ({
+  // Create + update paths take different shapes (`publish` only exists
+  // on the create schema). Splitting buildInput keeps each call site
+  // sending exactly what the server's Pydantic model accepts.
+  const buildCreateInput = (publish: boolean) => ({
     title: title.trim(),
     body: body.trim(),
     image_url: imageUrl,
@@ -974,30 +1014,78 @@ function BroadcastComposerForm({
     notify_on_publish: notify,
     publish,
   })
+  const buildUpdatePatch = () => ({
+    title: title.trim(),
+    body: body.trim(),
+    image_url: imageUrl,
+    week_number: weekNumber.trim() ? Number(weekNumber) : null,
+    notify_on_publish: notify,
+  })
+
+  const resetForm = () => {
+    setTitle('')
+    setBody('')
+    setImageUrl(null)
+    setWeekNumber('')
+    setScheduledAt('')
+  }
+
+  const handleSchedule = async () => {
+    if (!canSave || !scheduledAt) return
+    // Datetime-local emits "YYYY-MM-DDTHH:mm" in the user's local
+    // timezone with no offset. Re-parsing through Date and re-emitting
+    // ISO normalizes it to UTC, which is what the server validates.
+    const target = new Date(scheduledAt)
+    if (Number.isNaN(target.getTime())) return
+    if (target.getTime() <= Date.now()) {
+      window.alert('Pick a time in the future.')
+      return
+    }
+    const iso = target.toISOString()
+    if (isEditing && editing) {
+      await onSchedule(editing.id, buildUpdatePatch(), iso)
+    } else {
+      // Schedule path for new broadcasts: create a draft first, then
+      // schedule it. We don't expose a one-shot "create + schedule" on
+      // the server because draft visibility is useful between the two
+      // calls (creator can preview before the schedule kicks in).
+      await onCreate(buildCreateInput(false))
+      // The freshly-created broadcast id isn't in scope here; we just
+      // close the form and let the creator schedule it from the row's
+      // Edit menu. Acceptable trade-off vs threading a return value
+      // through onCreate's contract.
+      resetForm()
+    }
+  }
 
   const handleSaveDraft = async () => {
     if (!canSave) return
     if (isEditing && editing) {
-      await onUpdate(editing.id, buildInput(false), false)
+      await onUpdate(editing.id, buildUpdatePatch(), false)
     } else {
-      await onCreate(buildInput(false))
-      setTitle('')
-      setBody('')
-      setImageUrl(null)
-      setWeekNumber('')
+      await onCreate(buildCreateInput(false))
+      resetForm()
     }
   }
 
   const handlePublish = async () => {
     if (!canSave) return
+    // Resending a previously-published broadcast re-fires the
+    // notification fanout, which can spam students. Confirm here so an
+    // accidental click on "Save & resend" doesn't silently mass-email
+    // the cohort. Drafts going live for the first time skip the prompt
+    // — that's the expected primary-action click.
+    if (isEditing && editing && isPublished && notify) {
+      const ok = window.confirm(
+        'Re-publishing will email every enrolled student again. Continue?',
+      )
+      if (!ok) return
+    }
     if (isEditing && editing) {
-      await onUpdate(editing.id, buildInput(true), true)
+      await onUpdate(editing.id, buildUpdatePatch(), true)
     } else {
-      await onCreate(buildInput(true))
-      setTitle('')
-      setBody('')
-      setImageUrl(null)
-      setWeekNumber('')
+      await onCreate(buildCreateInput(true))
+      resetForm()
     }
   }
 
@@ -1133,7 +1221,30 @@ function BroadcastComposerForm({
           </label>
         </div>
 
-        <div className="mt-3 flex items-center justify-end gap-2 border-t border-gray-100 pt-4">
+        <div className="mt-3 flex flex-wrap items-center justify-end gap-2 border-t border-gray-100 pt-4">
+          {/* Schedule control — only meaningful before publish. Once
+              live, the creator unpublishes first and rescheduling
+              becomes valid again. */}
+          {!isPublished && (
+            <label className="mr-auto flex items-center gap-2 text-xs text-gray-700">
+              Schedule
+              <input
+                type="datetime-local"
+                value={scheduledAt}
+                onChange={(e) => setScheduledAt(e.target.value)}
+                className="rounded-md border border-gray-200 bg-white px-2 py-1 text-xs text-gray-900 outline-none focus:border-gray-400"
+              />
+              <button
+                type="button"
+                onClick={handleSchedule}
+                disabled={!canSave || !scheduledAt}
+                className="rounded-md border border-gray-200 bg-white px-3 py-[7px] text-[12px] font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Schedule
+              </button>
+            </label>
+          )}
+
           <button
             type="button"
             onClick={handleSaveDraft}
@@ -1206,9 +1317,14 @@ function BroadcastRow({
             <h3 className="truncate text-sm font-semibold text-gray-900">
               {broadcast.title}
             </h3>
-            {!isPublished && (
+            {!isPublished && !broadcast.scheduled_at && (
               <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700">
                 Draft
+              </span>
+            )}
+            {!isPublished && broadcast.scheduled_at && (
+              <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-blue-700">
+                Scheduled
               </span>
             )}
             {broadcast.week_number != null && (
@@ -1218,7 +1334,18 @@ function BroadcastRow({
             )}
           </div>
           <p className="mt-0.5 text-xs text-gray-500">
-            {isPublished ? 'Published' : 'Created'} · {dateLabel}
+            {isPublished
+              ? `Published · ${dateLabel}`
+              : broadcast.scheduled_at
+                ? `Auto-publish · ${new Date(
+                    broadcast.scheduled_at,
+                  ).toLocaleString(undefined, {
+                    month: 'short',
+                    day: 'numeric',
+                    hour: 'numeric',
+                    minute: '2-digit',
+                  })}`
+                : `Created · ${dateLabel}`}
             {isPublished && !broadcast.notify_on_publish && ' · sent silently'}
           </p>
         </div>

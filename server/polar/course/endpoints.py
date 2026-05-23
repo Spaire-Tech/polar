@@ -284,6 +284,26 @@ async def update_module(
     return _module_read(module)
 
 
+@router.post(
+    "/{course_id}/apply-weekly-pacing",
+    response_model=list[CourseModuleRead],
+)
+async def apply_weekly_pacing(
+    course_id: UUID,
+    auth_subject: auth.CoursesWrite,
+    session: AsyncSession = Depends(get_db_session),
+) -> list[CourseModuleRead]:
+    """Bulk-set drip_days on every module: 0, 7, 14, 21 …. One request,
+    one transaction — replaces the per-module PATCH loop the frontend
+    used to do."""
+    course_repo = CourseRepository.from_session(session)
+    course = await course_repo.get_readable_by_id(course_id, auth_subject)
+    if course is None:
+        raise HTTPException(status_code=404, detail="Course not found")
+    modules = await course_service.apply_weekly_pacing(session, course)
+    return [_module_read(m) for m in modules]
+
+
 @router.delete("/modules/{module_id}", status_code=204)
 async def delete_module(
     module_id: UUID,

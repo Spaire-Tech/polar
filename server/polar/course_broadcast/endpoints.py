@@ -5,12 +5,15 @@ student-side feed lives separately under `polar/customer_portal/endpoints/`
 and is wired up in Day 3.
 """
 
+from datetime import datetime
 from uuid import UUID
 
 from fastapi import Depends
+from pydantic import Field
 
 from polar.course.repository import CourseRepository
-from polar.exceptions import ResourceNotFound
+from polar.exceptions import ResourceNotFound, SpaireRequestValidationError
+from polar.kit.schemas import Schema
 from polar.models.course_broadcast import CourseBroadcast
 from polar.openapi import APITag
 from polar.postgres import AsyncSession, get_db_session
@@ -30,7 +33,11 @@ router = APIRouter(
 # ── Serializers ─────────────────────────────────────────────────────────
 
 
-def _to_read(b: CourseBroadcast) -> BroadcastRead:
+def _to_read(
+    b: CourseBroadcast,
+    *,
+    author_display_name: str | None = None,
+) -> BroadcastRead:
     return BroadcastRead(
         id=b.id,
         course_id=b.course_id,
@@ -40,7 +47,9 @@ def _to_read(b: CourseBroadcast) -> BroadcastRead:
         image_url=b.image_url,
         week_number=b.week_number,
         notify_on_publish=b.notify_on_publish,
+        scheduled_at=b.scheduled_at,
         published_at=b.published_at,
+        author_display_name=author_display_name,
         created_at=b.created_at,
         modified_at=b.modified_at,
     )
@@ -64,7 +73,20 @@ async def list_broadcasts(
     if course is None:
         raise ResourceNotFound("Course not found")
     broadcasts = await broadcast_service.list_for_course(session, course)
-    return [_to_read(b) for b in broadcasts]
+    name_by_id = await broadcast_service.resolve_author_names(
+        session, broadcasts
+    )
+    return [
+        _to_read(
+            b,
+            author_display_name=(
+                name_by_id.get(b.created_by_user_id)
+                if b.created_by_user_id
+                else None
+            ),
+        )
+        for b in broadcasts
+    ]
 
 
 @router.post(
@@ -83,7 +105,15 @@ async def create_broadcast(
     # broadcast under a different course they can also read.
     payload = payload.model_copy(update={"course_id": course_id})
     b = await broadcast_service.create(session, auth_subject, payload)
-    return _to_read(b)
+    name_by_id = await broadcast_service.resolve_author_names(session, [b])
+    return _to_read(
+        b,
+        author_display_name=(
+            name_by_id.get(b.created_by_user_id)
+            if b.created_by_user_id
+            else None
+        ),
+    )
 
 
 async def _load_writable(
@@ -110,7 +140,15 @@ async def update_broadcast(
 ) -> BroadcastRead:
     b = await _load_writable(broadcast_id, auth_subject, session)
     b = await broadcast_service.update(session, b, payload)
-    return _to_read(b)
+    name_by_id = await broadcast_service.resolve_author_names(session, [b])
+    return _to_read(
+        b,
+        author_display_name=(
+            name_by_id.get(b.created_by_user_id)
+            if b.created_by_user_id
+            else None
+        ),
+    )
 
 
 @router.post(
@@ -124,7 +162,15 @@ async def publish_broadcast(
 ) -> BroadcastRead:
     b = await _load_writable(broadcast_id, auth_subject, session)
     b = await broadcast_service.publish(session, b)
-    return _to_read(b)
+    name_by_id = await broadcast_service.resolve_author_names(session, [b])
+    return _to_read(
+        b,
+        author_display_name=(
+            name_by_id.get(b.created_by_user_id)
+            if b.created_by_user_id
+            else None
+        ),
+    )
 
 
 @router.post(
@@ -138,7 +184,68 @@ async def unpublish_broadcast(
 ) -> BroadcastRead:
     b = await _load_writable(broadcast_id, auth_subject, session)
     b = await broadcast_service.unpublish(session, b)
-    return _to_read(b)
+    name_by_id = await broadcast_service.resolve_author_names(session, [b])
+    return _to_read(
+        b,
+        author_display_name=(
+            name_by_id.get(b.created_by_user_id)
+            if b.created_by_user_id
+            else None
+        ),
+    )
+
+
+class BroadcastScheduleRequest(Schema):
+    scheduled_at: datetime = Field(
+        description=(
+            "When the broadcast should auto-publish. Must be in the "
+            "future; values in the past are rejected with a 422 so the "
+            "creator gets an immediate error instead of silently "
+            "publishing at the next cron tick."
+        )
+    )
+
+
+@router.post(
+    "/broadcasts/{broadcast_id}/schedule",
+    response_model=BroadcastRead,
+)
+async def schedule_broadcast(
+    broadcast_id: UUID,
+    payload: BroadcastScheduleRequest,
+    auth_subject: auth.CoursesWrite,
+    session: AsyncSession = Depends(get_db_session),
+) -> BroadcastRead:
+    from datetime import datetime as _dt, timezone as _tz
+
+    now = _dt.now(_tz.utc)
+    target = payload.scheduled_at
+    # Pydantic accepts naive datetimes too; treat them as UTC so the
+    # comparison below is meaningful.
+    if target.tzinfo is None:
+        target = target.replace(tzinfo=_tz.utc)
+    if target <= now:
+        raise SpaireRequestValidationError(
+            [
+                {
+                    "loc": ("body", "scheduled_at"),
+                    "msg": "scheduled_at must be in the future.",
+                    "type": "value_error",
+                    "input": payload.scheduled_at.isoformat(),
+                }
+            ]
+        )
+    b = await _load_writable(broadcast_id, auth_subject, session)
+    b = await broadcast_service.schedule(session, b, target)
+    name_by_id = await broadcast_service.resolve_author_names(session, [b])
+    return _to_read(
+        b,
+        author_display_name=(
+            name_by_id.get(b.created_by_user_id)
+            if b.created_by_user_id
+            else None
+        ),
+    )
 
 
 @router.delete(

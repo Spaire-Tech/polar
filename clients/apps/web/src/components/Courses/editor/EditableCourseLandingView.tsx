@@ -156,6 +156,8 @@ export type LandingChallenge = {
   title: string
   prompt: string
   position: number
+  thumbnail_url?: string | null
+  thumbnail_object_position?: string | null
 }
 
 // Trigger checkout for the course product. Mirrors ProductDetailPage.handleBuy
@@ -3764,11 +3766,13 @@ function LearnCard({
   index,
   pointer,
   title,
+  fallbackImageUrl,
   onClick,
 }: {
   index: number
   pointer: 'top' | 'bottom'
   title: React.ReactNode
+  fallbackImageUrl?: string | null
   onClick: () => void
 }) {
   const isAbove = pointer === 'bottom'
@@ -3786,6 +3790,7 @@ function LearnCard({
         background: '#111',
       }}
       placeholder={<LearnThumbPlaceholder hue={hue} n={index + 1} />}
+      fallbackImageUrl={fallbackImageUrl}
     />
   )
   return (
@@ -3908,7 +3913,7 @@ function LearnZigzag({
   items,
   onOpen,
 }: {
-  items: { title: React.ReactNode }[]
+  items: { title: React.ReactNode; fallbackImageUrl?: string | null }[]
   onOpen: (i: number) => void
 }) {
   const columns = items.length
@@ -3938,6 +3943,7 @@ function LearnZigzag({
                 index={i}
                 pointer="bottom"
                 title={it.title}
+                fallbackImageUrl={it.fallbackImageUrl}
                 onClick={() => onOpen(i)}
               />
             </div>
@@ -4016,6 +4022,7 @@ function LearnZigzag({
                 index={i}
                 pointer="top"
                 title={it.title}
+                fallbackImageUrl={it.fallbackImageUrl}
                 onClick={() => onOpen(i)}
               />
             </div>
@@ -4045,6 +4052,12 @@ function WhatYoullLearn({
     return {
       title: ed.t(`learn.item${i + 1}.title`, ch?.title ?? fallback.title),
       desc: ed.t(`learn.item${i + 1}.desc`, ch?.prompt ?? fallback.desc),
+      // Challenge thumbnail uploaded via the Experience tab seeds the
+      // landing card's image slot. The creator can still override via
+      // EditMedia's Replace; this just ensures uploaded thumbnails
+      // actually render on the public landing instead of being
+      // dead-end uploads.
+      thumbnailUrl: ch?.thumbnail_url ?? null,
     }
   })
   return (
@@ -4116,6 +4129,7 @@ function WhatYoullLearn({
               multiline
             />
           ),
+          fallbackImageUrl: it.thumbnailUrl,
         }))}
         onOpen={(i) => setOpenIdx(i)}
       />

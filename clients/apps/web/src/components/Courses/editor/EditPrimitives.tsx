@@ -236,6 +236,14 @@ export const EditMedia = forwardRef<
      *  the host renders its own controls (e.g. the hero's add-image /
      *  add-trailer buttons) so they don't get duplicated. */
     chromeless?: boolean
+    /** Optional URL the host already has on hand (e.g. challenge.thumbnail_url,
+     *  uploaded via a sibling flow). Renders as the base layer when no
+     *  per-slot media override exists, ahead of the placeholder. The user
+     *  can still upload a per-slot override that takes precedence — the
+     *  fallback just keeps creator-uploaded thumbnails visible on the
+     *  public landing without forcing a separate Replace action.
+     */
+    fallbackImageUrl?: string | null
   }
 >(function EditMedia(
   {
@@ -248,6 +256,7 @@ export const EditMedia = forwardRef<
     children,
     renderMedia,
     chromeless,
+    fallbackImageUrl,
   },
   ref,
 ) {
@@ -401,8 +410,19 @@ export const EditMedia = forwardRef<
         />
       )}
       {/* Placeholder — hidden once media is uploaded so the upload is the
-          only visual at the base of the stack. */}
-      {!m && placeholder}
+          only visual at the base of the stack. fallbackImageUrl wins
+          over the placeholder when set: it lets a sibling upload flow
+          (e.g. challenge.thumbnail_url) seed the slot without forcing
+          the creator to re-upload here. */}
+      {!m && fallbackImageUrl && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={fallbackImageUrl}
+          alt=""
+          style={cover}
+        />
+      )}
+      {!m && !fallbackImageUrl && placeholder}
       {/* Uploaded media — host can render its own */}
       {m &&
         (renderMedia ? (

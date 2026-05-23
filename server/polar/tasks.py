@@ -3,6 +3,7 @@ from polar.benefit import tasks as benefit
 from polar.billing_entry import tasks as billing_entry
 from polar.checkout import tasks as checkout
 from polar.course import tasks as course
+from polar.course_broadcast import tasks as course_broadcast
 from polar.customer import tasks as customer
 from polar.customer_meter import tasks as customer_meter
 from polar.customer_seat import tasks as customer_seat
@@ -41,6 +42,7 @@ __all__ = [
     "chargeback_stop",
     "checkout",
     "course",
+    "course_broadcast",
     "customer",
     "customer_meter",
     "customer_seat",

@@ -22,6 +22,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@spaire/ui/components/ui/popover'
+import { useQuery } from '@tanstack/react-query'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from '../../Toast/use-toast'
 import { CoursePhoneFrame } from './CoursePhoneFrame'
@@ -357,6 +358,32 @@ function CustomizeCanvas({
   const ed = useEditor()
   const isMobileMode = ed.device === 'mobile'
 
+  // Fetch persisted challenges so the WhatYoullLearn strip's cards
+  // render creator-uploaded thumbnails in the customize preview. Same
+  // payload the public landing reads; we re-fetch here because the
+  // creator side doesn't go through /landing.
+  const challengesQ = useQuery<
+    {
+      id: string
+      title: string
+      prompt: string
+      position: number
+      thumbnail_url: string | null
+      thumbnail_object_position: string | null
+    }[]
+  >({
+    queryKey: ['course-challenges', course.id],
+    queryFn: async () => {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/v1/courses/${course.id}/challenges`,
+        { credentials: 'include' },
+      )
+      if (!res.ok) return []
+      return res.json()
+    },
+    enabled: !!course.id,
+  })
+
   const landing = (
     <EditableCourseLandingView
       course={course}
@@ -366,6 +393,7 @@ function CustomizeCanvas({
       flatLessons={flatLessons}
       product={product}
       lessonHandlers={lessonHandlers}
+      challenges={challengesQ.data ?? []}
     />
   )
 

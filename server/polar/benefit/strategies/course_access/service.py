@@ -100,11 +100,11 @@ class BenefitCourseAccessService(
     ) -> BenefitCourseAccessProperties:
         from polar.auth.models import is_organization, is_user
         from polar.course.service import course_service
-        from polar.exceptions import PolarRequestValidationError
+        from polar.exceptions import SpaireRequestValidationError
 
         course_id_raw = properties.get("course_id")
         if not course_id_raw:
-            raise PolarRequestValidationError(
+            raise SpaireRequestValidationError(
                 [
                     {
                         "type": "value_error",
@@ -117,7 +117,7 @@ class BenefitCourseAccessService(
         try:
             course_id = UUID(str(course_id_raw))
         except (TypeError, ValueError) as exc:
-            raise PolarRequestValidationError(
+            raise SpaireRequestValidationError(
                 [
                     {
                         "type": "value_error",
@@ -130,7 +130,7 @@ class BenefitCourseAccessService(
 
         course = await course_service.get_by_id(self.session, course_id)
         if course is None:
-            raise PolarRequestValidationError(
+            raise SpaireRequestValidationError(
                 [
                     {
                         "type": "value_error",
@@ -145,7 +145,7 @@ class BenefitCourseAccessService(
         # same organization (for User subjects, an org they belong to).
         if is_organization(auth_subject):
             if course.organization_id != auth_subject.subject.id:
-                raise PolarRequestValidationError(
+                raise SpaireRequestValidationError(
                     [
                         {
                             "type": "value_error",
@@ -167,7 +167,7 @@ class BenefitCourseAccessService(
             )
             result = await self.session.execute(stmt)
             if result.first() is None:
-                raise PolarRequestValidationError(
+                raise SpaireRequestValidationError(
                     [
                         {
                             "type": "value_error",

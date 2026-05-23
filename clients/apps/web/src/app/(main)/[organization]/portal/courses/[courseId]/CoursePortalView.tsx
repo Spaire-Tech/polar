@@ -1106,8 +1106,7 @@ function LessonCard({
           )}
           {isLocked && lesson.locked_until && (
             <span style={{ color: '#fb923c', marginLeft: 6 }}>
-              · Unlocks{' '}
-              {new Date(lesson.locked_until).toLocaleDateString()}
+              · {formatUnlockLabel(lesson.locked_until) ?? 'Locked'}
             </span>
           )}
         </div>
@@ -1322,6 +1321,13 @@ function CoursePortalViewDesktop({
         layout="desktop"
       />
 
+      <WeeklyContextStrip
+        pacingMode={course.pacing_mode ?? 'self_paced'}
+        modules={modules}
+        continueModuleTitle={continueModuleTitle}
+        layout="desktop"
+      />
+
       <section style={modStyles.wrap}>
         {modules.map((m, i) => (
           <ModuleRow
@@ -1488,6 +1494,15 @@ function CoursePortalViewMobile({
       <BroadcastsFeed
         broadcasts={broadcasts}
         instructorName={course.instructor_name ?? organizationName}
+        layout="mobile"
+      />
+
+      <WeeklyContextStrip
+        pacingMode={course.pacing_mode ?? 'self_paced'}
+        modules={modules}
+        continueModuleTitle={
+          (cont && cont.kind !== 'complete' ? cont.module.title : null) ?? null
+        }
         layout="mobile"
       />
 
@@ -2293,6 +2308,11 @@ function BroadcastsFeed({
         padding: '40px 32px 0',
       }
 
+  // Per-broadcast attribution — show the author resolved from the
+  // server when present (handles co-instructors), otherwise fall back
+  // to the course's headline instructor.
+  const latestAuthor = latest.author_display_name ?? instructorName
+
   return (
     <section style={wrapStyle}>
       <div
@@ -2305,7 +2325,7 @@ function BroadcastsFeed({
           marginBottom: 10,
         }}
       >
-        From {instructorName}
+        From {latestAuthor}
       </div>
 
       <BroadcastCard broadcast={latest} pinned isMobile={isMobile} />
@@ -2428,6 +2448,11 @@ function BroadcastCard({
           {broadcast.title}
         </h3>
         <span style={{ fontSize: 11, color: C.fg3 }}>· {dateLabel}</span>
+        {broadcast.author_display_name && !pinned && (
+          <span style={{ fontSize: 11, color: C.fg3 }}>
+            · {broadcast.author_display_name}
+          </span>
+        )}
       </div>
       {broadcast.body && (
         <p
@@ -2443,5 +2468,66 @@ function BroadcastCard({
         </p>
       )}
     </article>
+  )
+}
+
+// ── Weekly context strip ──────────────────────────────────────────────────
+//
+// Inline "THIS WEEK · {module title}" eyebrow that surfaces the current
+// unlocked module when pacing is paced_weekly. Independent of the
+// broadcasts feed — keeps the weekly framing legible even before the
+// creator has posted any broadcasts.
+
+function WeeklyContextStrip({
+  pacingMode,
+  modules,
+  continueModuleTitle,
+  layout,
+}: {
+  pacingMode: 'self_paced' | 'paced_weekly' | 'all_unlocked'
+  modules: CustomerModuleRead[]
+  continueModuleTitle: string | null
+  layout: 'desktop' | 'mobile'
+}) {
+  if (pacingMode !== 'paced_weekly') return null
+  if (!continueModuleTitle) return null
+
+  // Compute which week the continue-module sits at — index in the
+  // visible module list. Falls back to no week label if the title
+  // doesn't match (shouldn't happen, but safe).
+  const idx = modules.findIndex((m) => m.title === continueModuleTitle)
+  if (idx === -1) return null
+  const weekLabel = `Week ${idx + 1}`
+
+  const wrap: React.CSSProperties =
+    layout === 'mobile'
+      ? { padding: '14px 20px 0' }
+      : { maxWidth: 1320, margin: '0 auto', padding: '32px 32px 0' }
+
+  return (
+    <div style={wrap}>
+      <div
+        style={{
+          fontSize: 10,
+          fontWeight: 600,
+          letterSpacing: '0.18em',
+          textTransform: 'uppercase',
+          color: C.fg3,
+          marginBottom: 6,
+        }}
+      >
+        This week
+      </div>
+      <div
+        style={{
+          fontSize: layout === 'mobile' ? 16 : 18,
+          fontWeight: 600,
+          letterSpacing: '-0.015em',
+          color: C.fg0,
+        }}
+      >
+        {weekLabel} · {continueModuleTitle}
+      </div>
+    </div>
   )
 }

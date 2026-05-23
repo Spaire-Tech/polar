@@ -677,6 +677,14 @@ export type CourseLandingPageData = {
   paywall_enabled?: boolean
   paywall_position?: number | null
   has_access: boolean
+  challenges?: {
+    id: string
+    title: string
+    prompt: string
+    position: number
+    thumbnail_url: string | null
+    thumbnail_object_position: string | null
+  }[]
 }
 
 async function portalApiFetch<T>(
@@ -740,6 +748,10 @@ export type CourseBroadcastStudentRead = {
   image_url: string | null
   week_number: number | null
   published_at: string
+  // Resolved server-side from the broadcast's created_by user. Null
+  // for org-token-authored broadcasts; the feed falls back to the
+  // course's instructor_name in that case.
+  author_display_name: string | null
 }
 
 export const useEnrolledCourseBroadcasts = (
@@ -754,6 +766,13 @@ export const useEnrolledCourseBroadcasts = (
         token!,
       ),
     enabled: !!token && !!courseId,
+    // Broadcasts are time-sensitive — a creator publishing a "Week 2
+    // kickoff" while the student is mid-session shouldn't sit hidden
+    // until a full page reload. Refetch on focus and on mount keeps
+    // the feed close to live without polling.
+    staleTime: 0,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
   })
 
 export const useCreateMuxUpload = () =>

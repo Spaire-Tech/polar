@@ -22,7 +22,9 @@ export type BroadcastRead = {
   image_url: string | null
   week_number: number | null
   notify_on_publish: boolean
+  scheduled_at: string | null
   published_at: string | null
+  author_display_name: string | null
   created_at: string
   modified_at: string | null
 }
@@ -153,6 +155,24 @@ export function useUnpublishBroadcast(courseId: string) {
   return useMutation<BroadcastRead, Error, string>({
     mutationFn: (id) =>
       fetchJson(`/v1/courses/broadcasts/${id}/unpublish`, { method: 'POST' }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['course-broadcasts', courseId] })
+    },
+  })
+}
+
+export function useScheduleBroadcast(courseId: string) {
+  const qc = useQueryClient()
+  return useMutation<
+    BroadcastRead,
+    Error,
+    { id: string; scheduledAt: string }
+  >({
+    mutationFn: ({ id, scheduledAt }) =>
+      fetchJson(`/v1/courses/broadcasts/${id}/schedule`, {
+        method: 'POST',
+        body: JSON.stringify({ scheduled_at: scheduledAt }),
+      }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['course-broadcasts', courseId] })
     },
