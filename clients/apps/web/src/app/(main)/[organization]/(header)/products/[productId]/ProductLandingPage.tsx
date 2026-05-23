@@ -212,6 +212,11 @@ function CourseLandingShell({
     title: landing.title ?? product.name,
     slug: null,
     course_type: landing.course_type,
+    pacing_mode:
+      ((landing as { pacing_mode?: string }).pacing_mode as
+        | 'self_paced'
+        | 'paced_weekly'
+        | 'all_unlocked') ?? 'self_paced',
     format:
       ((landing as { format?: string }).format as 'course' | 'series') ??
       'course',
