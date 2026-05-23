@@ -57,6 +57,7 @@ from polar.payment.endpoints import router as payment_router
 from polar.payout.endpoints import router as payout_router
 from polar.platform.endpoints import router as platform_router
 from polar.course.endpoints import router as course_router
+from polar.course_submission.endpoints import router as course_submission_router
 from polar.personal_access_token.endpoints import router as pat_router
 from polar.product.endpoints import router as product_router
 from polar.product_review.endpoints import router as product_review_router
@@ -192,3 +193,6 @@ router.include_router(resend_router)
 router.include_router(chargeback_stop_router)
 # /courses
 router.include_router(course_router)
+# /courses (challenges + submissions live in their own module so the
+# main course endpoints file doesn't grow past 1200 lines)
+router.include_router(course_submission_router)

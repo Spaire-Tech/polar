@@ -1,0 +1,343 @@
+"""Creator-side endpoints for course challenges + submissions.
+
+Phase 1 v0.1 surface — only the routes the creator dashboard needs to
+manage challenges and review the submission inbox. Student-side
+endpoints live separately under `polar/customer_portal/endpoints/`
+(coming in the next slice).
+"""
+
+from uuid import UUID
+
+from fastapi import Depends, HTTPException
+
+from polar.auth.models import is_user
+from polar.exceptions import ResourceNotFound
+from polar.models.course_submission import CourseSubmission
+from polar.models.customer import Customer
+from polar.openapi import APITag
+from polar.postgres import AsyncSession, get_db_session
+from polar.routing import APIRouter
+
+from polar.course.repository import (
+    CourseEnrollmentRepository,
+    CourseRepository,
+)
+
+from . import auth
+from .repository import (
+    ChallengeRepository,
+    SubmissionRepository,
+)
+from .schemas import (
+    ChallengeCreate,
+    ChallengeRead,
+    ChallengeUpdate,
+    ReactionInput,
+    ReactionRead,
+    SubmissionAuthor,
+    SubmissionMediaRead,
+    SubmissionRead,
+    SubmissionUpdateVisibility,
+)
+from .service import (
+    challenge_service,
+    reaction_service,
+    submission_service,
+)
+
+router = APIRouter(
+    prefix="/courses",
+    tags=["course_submission", APITag.private],
+)
+
+
+# ── Serializers ─────────────────────────────────────────────────────────
+
+
+async def _challenge_to_read(
+    session: AsyncSession,
+    challenge,
+    *,
+    my_submission_id: UUID | None = None,
+) -> ChallengeRead:
+    repo = ChallengeRepository.from_session(session)
+    return ChallengeRead(
+        id=challenge.id,
+        course_id=challenge.course_id,
+        module_id=challenge.module_id,
+        position=challenge.position,
+        title=challenge.title,
+        prompt=challenge.prompt,
+        accepts_media=challenge.accepts_media,
+        accepts_video=challenge.accepts_video,
+        accepts_text=challenge.accepts_text,
+        due_after_days=challenge.due_after_days,
+        published=challenge.published,
+        ai_generated=challenge.ai_generated,
+        created_at=challenge.created_at,
+        modified_at=challenge.modified_at,
+        submission_count=await repo.count_submissions(challenge.id),
+        my_submission_id=my_submission_id,
+    )
+
+
+async def _submission_to_read(
+    session: AsyncSession,
+    submission: CourseSubmission,
+    *,
+    include_email: bool = False,
+    challenge_title: str | None = None,
+) -> SubmissionRead:
+    """Convert a CourseSubmission to the read schema.
+
+    Loads the enrollment + customer for the author block. The creator
+    inbox can opt into seeing the email (`include_email=True`) — the
+    public gallery doesn't. `challenge_title` is passed in by the
+    caller (resolved via a separate batched query) because the
+    submission.challenge relationship is `lazy="raise"` — the project-
+    wide anti-N+1 default.
+    """
+    # Resolve the enrollment via a plain session.get — the explicit
+    # one-statement read is the cheapest way to avoid hitting the
+    # lazy="raise" relationship guard on submission.enrollment while
+    # still keeping the serializer simple.
+    from polar.models.course_enrollment import CourseEnrollment
+
+    enrollment_obj = await session.get(CourseEnrollment, submission.enrollment_id)
+    display_name = "Student"
+    avatar_url: str | None = None
+    if enrollment_obj is not None:
+        customer = await session.get(Customer, enrollment_obj.customer_id)
+        if customer is not None:
+            display_name = (
+                customer.name
+                or (customer.email.split("@")[0] if include_email else "Student")
+                or "Student"
+            )
+
+    media = [
+        SubmissionMediaRead(
+            id=m.id,
+            kind=m.kind,
+            url=m.url,
+            mux_playback_id=m.mux_playback_id,
+            mux_status=m.mux_status,
+            position=m.position,
+        )
+        for m in submission.media
+    ]
+    reactions = [
+        ReactionRead(
+            id=r.id,
+            actor_type=r.actor_type,
+            actor_user_id=r.actor_user_id,
+            emoji=r.emoji,
+        )
+        for r in submission.reactions
+    ]
+    return SubmissionRead(
+        id=submission.id,
+        challenge_id=submission.challenge_id,
+        course_id=submission.course_id,
+        enrollment_id=submission.enrollment_id,
+        status=submission.status,
+        submitted_at=(
+            submission.submitted_at.isoformat() if submission.submitted_at else None
+        ),
+        caption=submission.caption,
+        media=media,
+        reactions=reactions,
+        author=SubmissionAuthor(
+            enrollment_id=submission.enrollment_id,
+            display_name=display_name,
+            avatar_url=avatar_url,
+        ),
+        challenge_title=challenge_title,
+        created_at=submission.created_at,
+        modified_at=submission.modified_at,
+    )
+
+
+# ── Challenges (creator CRUD) ────────────────────────────────────────────
+
+
+@router.get(
+    "/{course_id}/challenges",
+    response_model=list[ChallengeRead],
+)
+async def list_challenges(
+    course_id: UUID,
+    auth_subject: auth.CoursesRead,
+    session: AsyncSession = Depends(get_db_session),
+) -> list[ChallengeRead]:
+    course = await CourseRepository.from_session(session).get_readable_by_id(
+        course_id, auth_subject
+    )
+    if course is None:
+        raise ResourceNotFound("Course not found")
+    challenges = await challenge_service.list_for_course(session, course)
+    return [await _challenge_to_read(session, c) for c in challenges]
+
+
+@router.post(
+    "/{course_id}/challenges",
+    response_model=ChallengeRead,
+    status_code=201,
+)
+async def create_challenge(
+    course_id: UUID,
+    payload: ChallengeCreate,
+    auth_subject: auth.CoursesWrite,
+    session: AsyncSession = Depends(get_db_session),
+) -> ChallengeRead:
+    challenge = await challenge_service.create(
+        session, auth_subject, course_id, payload
+    )
+    return await _challenge_to_read(session, challenge)
+
+
+@router.patch(
+    "/challenges/{challenge_id}",
+    response_model=ChallengeRead,
+)
+async def update_challenge(
+    challenge_id: UUID,
+    payload: ChallengeUpdate,
+    auth_subject: auth.CoursesWrite,
+    session: AsyncSession = Depends(get_db_session),
+) -> ChallengeRead:
+    challenge = await challenge_service.update(
+        session, auth_subject, challenge_id, payload
+    )
+    return await _challenge_to_read(session, challenge)
+
+
+@router.delete(
+    "/challenges/{challenge_id}",
+    status_code=204,
+)
+async def delete_challenge(
+    challenge_id: UUID,
+    auth_subject: auth.CoursesWrite,
+    session: AsyncSession = Depends(get_db_session),
+) -> None:
+    await challenge_service.delete(session, auth_subject, challenge_id)
+
+
+# ── Submissions (creator inbox + moderation) ─────────────────────────────
+
+
+@router.get(
+    "/{course_id}/submissions",
+    response_model=list[SubmissionRead],
+)
+async def list_course_submissions(
+    course_id: UUID,
+    auth_subject: auth.CoursesRead,
+    session: AsyncSession = Depends(get_db_session),
+) -> list[SubmissionRead]:
+    course = await CourseRepository.from_session(session).get_readable_by_id(
+        course_id, auth_subject
+    )
+    if course is None:
+        raise ResourceNotFound("Course not found")
+    subs = await submission_service.list_for_course_inbox(session, course)
+
+    # Batch-load challenge titles so the inbox can show "<title>" next
+    # to each submission card without hitting the lazy="raise" guard on
+    # submission.challenge. One query for the set of challenge ids in
+    # the page; lookup by id from the resulting dict.
+    challenge_repo = ChallengeRepository.from_session(session)
+    challenge_ids = {s.challenge_id for s in subs}
+    title_by_id: dict[UUID, str] = {}
+    for cid in challenge_ids:
+        c = await challenge_repo.get_by_id(cid)
+        if c is not None:
+            title_by_id[c.id] = c.title
+
+    return [
+        await _submission_to_read(
+            session,
+            s,
+            include_email=True,
+            challenge_title=title_by_id.get(s.challenge_id),
+        )
+        for s in subs
+    ]
+
+
+@router.patch(
+    "/submissions/{submission_id}/visibility",
+    response_model=SubmissionRead,
+)
+async def set_submission_visibility(
+    submission_id: UUID,
+    payload: SubmissionUpdateVisibility,
+    auth_subject: auth.CoursesWrite,
+    session: AsyncSession = Depends(get_db_session),
+) -> SubmissionRead:
+    repo = SubmissionRepository.from_session(session)
+    submission = await repo.get_readable_by_id_creator(submission_id, auth_subject)
+    if submission is None:
+        raise ResourceNotFound("Submission not found")
+    await submission_service.set_visibility(session, submission, payload.hidden)
+    return await _submission_to_read(session, submission, include_email=True)
+
+
+# ── Creator reactions ────────────────────────────────────────────────────
+
+
+@router.put(
+    "/submissions/{submission_id}/reaction",
+    response_model=ReactionRead,
+)
+async def set_creator_reaction(
+    submission_id: UUID,
+    payload: ReactionInput,
+    auth_subject: auth.CoursesWrite,
+    session: AsyncSession = Depends(get_db_session),
+) -> ReactionRead:
+    if not is_user(auth_subject):
+        # Creator reactions require a real user actor (we record their
+        # user_id on the row). Org-scoped tokens have no human attached.
+        raise HTTPException(
+            status_code=403,
+            detail="Creator reactions require a user-scoped session.",
+        )
+    repo = SubmissionRepository.from_session(session)
+    submission = await repo.get_readable_by_id_creator(submission_id, auth_subject)
+    if submission is None:
+        raise ResourceNotFound("Submission not found")
+
+    reaction = await reaction_service.set_creator_reaction(
+        session, submission, auth_subject.subject.id, payload.emoji
+    )
+    return ReactionRead(
+        id=reaction.id,
+        actor_type=reaction.actor_type,
+        actor_user_id=reaction.actor_user_id,
+        emoji=reaction.emoji,
+    )
+
+
+@router.delete(
+    "/submissions/{submission_id}/reaction",
+    status_code=204,
+)
+async def clear_creator_reaction(
+    submission_id: UUID,
+    auth_subject: auth.CoursesWrite,
+    session: AsyncSession = Depends(get_db_session),
+) -> None:
+    if not is_user(auth_subject):
+        raise HTTPException(
+            status_code=403,
+            detail="Creator reactions require a user-scoped session.",
+        )
+    repo = SubmissionRepository.from_session(session)
+    submission = await repo.get_readable_by_id_creator(submission_id, auth_subject)
+    if submission is None:
+        raise ResourceNotFound("Submission not found")
+    await reaction_service.clear_creator_reaction(
+        session, submission, auth_subject.subject.id
+    )
