@@ -160,6 +160,9 @@ class CourseCreate(Schema):
     slug: str | None = None
     course_type: Literal["evergreen", "cohort"] = "evergreen"
     format: Literal["course", "series"] = "course"
+    pacing_mode: Literal[
+        "self_paced", "paced_weekly", "all_unlocked"
+    ] = "self_paced"
     paywall_enabled: bool = False
     paywall_lesson_id: UUID4 | None = None
     paywall_position: int | None = None
@@ -183,6 +186,9 @@ class CourseUpdate(Schema):
     slug: str | None = None
     course_type: Literal["evergreen", "cohort"] | None = None
     format: Literal["course", "series"] | None = None
+    pacing_mode: (
+        Literal["self_paced", "paced_weekly", "all_unlocked"] | None
+    ) = None
     paywall_enabled: bool | None = None
     paywall_lesson_id: UUID4 | None = None
     paywall_position: int | None = None
@@ -269,6 +275,10 @@ class CourseRead(TimestampedSchema):
     slug: str | None
     course_type: str
     format: str
+    # Pacing UI hint — see polar.models.course.Course.pacing_mode for
+    # the full semantics. Always populated; existing courses default
+    # to "self_paced" via the column's server_default.
+    pacing_mode: str = "self_paced"
     paywall_enabled: bool
     paywall_lesson_id: UUID4 | None
     paywall_position: int | None
@@ -301,6 +311,10 @@ class CourseLandingPageRead(TimestampedSchema):
     instructor_name_uppercase: bool = True
     course_type: str
     format: str
+    # Surfaced on the landing payload so the customer portal can branch
+    # its lesson-list rendering (Week N labels vs flat list) without a
+    # second API call.
+    pacing_mode: str = "self_paced"
     lesson_count: int
     total_duration_seconds: int
     lessons: list[CourseLessonPublicRead]

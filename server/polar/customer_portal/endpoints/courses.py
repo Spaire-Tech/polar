@@ -811,6 +811,7 @@ async def get_course_landing(
         "instructor_name_uppercase": course.instructor_name_uppercase,
         "course_type": course.course_type,
         "format": course.format,
+        "pacing_mode": course.pacing_mode,
         "lesson_count": len(flat_lessons),
         "total_duration_seconds": total_duration,
         "landing_overrides": course.landing_overrides,

@@ -57,6 +57,28 @@ class Course(RecordModel):
         server_default="course",
     )
 
+    # Pacing mode — how the course unlocks for enrolled students.
+    #   "self_paced"  — drip_days are ignored at the UI level; every
+    #                   lesson sits unlocked once a student enrolls
+    #                   (the customer-portal lock logic still respects
+    #                   per-module drip_days the creator set manually).
+    #   "paced_weekly" — modules render as "Week 1 / Week 2 / …" and
+    #                    are gated by drip_days (typically 0, 7, 14,
+    #                    21 — set by the "Apply weekly schedule"
+    #                    button on the creator side).
+    #   "all_unlocked" — explicit no-gating mode for series-style
+    #                    binge releases. Equivalent to self-paced
+    #                    today, but signals intent so the student UI
+    #                    can drop the "Week N" labeling entirely.
+    # Stored as a string (not an Enum) so adding a new mode in the
+    # future is a migration-free deploy.
+    pacing_mode: Mapped[str] = mapped_column(
+        String(20),
+        nullable=False,
+        default="self_paced",
+        server_default="self_paced",
+    )
+
     paywall_enabled: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False
     )
