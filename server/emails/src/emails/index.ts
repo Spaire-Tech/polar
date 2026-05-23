@@ -3,6 +3,7 @@ import { MarketingEmail } from './marketing_email'
 import { CustomerSessionCode } from './customer_session_code'
 import { EmailUpdate } from './email_update'
 import { LoginCode } from './login_code'
+import { NotificationCourseSubmissionReceived } from './notification_course_submission_received'
 import { NotificationCreateAccount } from './notification_create_account'
 import { NotificationCreditsGranted } from './notification_credits_granted'
 import { NotificationNewSale } from './notification_new_sale'
@@ -56,6 +57,7 @@ const TEMPLATES: Record<string, React.FC<any>> = {
   notification_create_account: NotificationCreateAccount,
   notification_credits_granted: NotificationCreditsGranted,
   notification_perks_unlocked: NotificationPerksUnlocked,
+  notification_course_submission_received: NotificationCourseSubmissionReceived,
 }
 
 export default TEMPLATES

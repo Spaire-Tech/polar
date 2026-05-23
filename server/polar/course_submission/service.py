@@ -2,10 +2,22 @@ from datetime import datetime, timezone
 from uuid import UUID
 
 from polar.auth.models import AuthSubject, Organization, User
+from polar.email_sequence.events import fire_event
+from polar.email_subscriber.repository import EmailSubscriberRepository
 from polar.exceptions import ResourceNotFound, SpaireRequestValidationError
 from polar.models.course import Course
 from polar.models.course_challenge import CourseChallenge
 from polar.models.course_enrollment import CourseEnrollment
+from polar.models.customer import Customer
+from polar.models.organization import Organization as OrganizationModel
+from polar.notifications.notification import (
+    MaintainerCourseSubmissionReceivedNotificationPayload,
+    NotificationType,
+)
+from polar.notifications.service import (
+    PartialNotification,
+    notifications as notifications_service,
+)
 from polar.models.course_submission import (
     SUBMISSION_STATUS_DRAFT,
     SUBMISSION_STATUS_HIDDEN,
@@ -263,12 +275,86 @@ class SubmissionService:
         is a no-op (doesn't bump submitted_at). Hidden submissions stay
         hidden but submitted_at is still set on the first submit so the
         inbox can sort them correctly.
+
+        Notification side-effect: ONLY fires on the actual draft →
+        submitted transition (not on re-submits), so a student tapping
+        Submit twice doesn't double-ping the creator. Failures in the
+        notification path are caught and logged so a flaky bell
+        dispatch never rolls back the status transition itself.
         """
-        if submission.status == SUBMISSION_STATUS_DRAFT:
-            submission.status = SUBMISSION_STATUS_SUBMITTED
-            submission.submitted_at = datetime.now(timezone.utc)
-            await session.flush()
+        if submission.status != SUBMISSION_STATUS_DRAFT:
+            return submission
+
+        submission.status = SUBMISSION_STATUS_SUBMITTED
+        submission.submitted_at = datetime.now(timezone.utc)
+        await session.flush()
+
+        try:
+            await self._notify_creator_on_submission(session, submission)
+        except Exception as e:  # noqa: BLE001
+            import logging
+
+            logging.getLogger(__name__).warning(
+                "course_submission.notify_failed",
+                extra={"submission_id": str(submission.id), "error": str(e)},
+            )
+
         return submission
+
+    async def _notify_creator_on_submission(
+        self,
+        session: AsyncSession,
+        submission: CourseSubmission,
+    ) -> None:
+        """Resolve the course's org members and ping each via the
+        existing maintainer-side notification path. Email is sent
+        automatically as part of NotificationsService.send_to_user;
+        in-app bell picks it up from the same notifications table.
+        """
+        challenge = await session.get(CourseChallenge, submission.challenge_id)
+        if challenge is None:
+            return
+        course = await session.get(Course, challenge.course_id)
+        if course is None:
+            return
+        organization = await session.get(
+            OrganizationModel, course.organization_id
+        )
+        if organization is None:
+            return
+
+        # Student display name resolution — match the public-gallery
+        # serializer's fallback chain so the creator's inbox row reads
+        # the same name the rest of the class sees.
+        enrollment = await session.get(CourseEnrollment, submission.enrollment_id)
+        student_name = "A student"
+        if enrollment is not None:
+            customer = await session.get(Customer, enrollment.customer_id)
+            if customer is not None and customer.name:
+                student_name = customer.name
+
+        # Truncate the caption preview at 160 chars so the bell row
+        # stays one line — the inbox shows the full caption + media.
+        caption = submission.caption.strip()
+        if len(caption) > 160:
+            caption = caption[:157] + "…"
+
+        await notifications_service.send_to_org_members(
+            session,
+            org_id=organization.id,
+            notif=PartialNotification(
+                type=NotificationType.maintainer_course_submission_received,
+                payload=MaintainerCourseSubmissionReceivedNotificationPayload(
+                    organization_name=organization.name,
+                    organization_slug=organization.slug,
+                    course_id=str(course.id),
+                    course_title=course.title or "your course",
+                    challenge_title=challenge.title,
+                    student_display_name=student_name,
+                    caption_preview=caption,
+                ),
+            ),
+        )
 
     async def set_visibility(
         self,
@@ -323,22 +409,75 @@ class ReactionService:
         Per v0.1: creator reactions are single-emoji. New emoji
         replaces any existing one. Students can leave multiple emoji
         later (Phase 4) — the schema's already there.
+
+        Side-effect: fire an email-sequence event so creators can wire
+        a "the creator just reacted to your submission" email through
+        the existing automations editor. We fire on both create AND
+        update so a creator changing their emoji is also a signal
+        worth sending — students rarely see two emoji notifications
+        in a row, and when they do, it's a stronger engagement cue,
+        not a bug. Errors in the event dispatch are caught + logged
+        so a flaky email path never rolls back the reaction itself.
         """
         repo = SubmissionReactionRepository.from_session(session)
         existing = await repo.get_creator_reaction(submission.id, actor_user_id)
         if existing is not None:
             existing.emoji = emoji
             await session.flush()
-            return existing
+            reaction = existing
+        else:
+            reaction = CourseSubmissionReaction(
+                submission_id=submission.id,
+                actor_type=REACTION_ACTOR_CREATOR,
+                actor_user_id=actor_user_id,
+                emoji=emoji,
+            )
+            await repo.create(reaction, flush=True)
 
-        reaction = CourseSubmissionReaction(
-            submission_id=submission.id,
-            actor_type=REACTION_ACTOR_CREATOR,
-            actor_user_id=actor_user_id,
-            emoji=emoji,
-        )
-        await repo.create(reaction, flush=True)
+        try:
+            await self._fire_student_reaction_event(session, submission)
+        except Exception as e:  # noqa: BLE001
+            import logging
+
+            logging.getLogger(__name__).warning(
+                "course_submission.reaction_event_failed",
+                extra={"submission_id": str(submission.id), "error": str(e)},
+            )
+
         return reaction
+
+    async def _fire_student_reaction_event(
+        self,
+        session: AsyncSession,
+        submission: CourseSubmission,
+    ) -> None:
+        """Wake any 'until-event' email sequence nodes the creator
+        has wired to `course.submission_reacted_to_by_creator` for
+        this course. Resolves the submission's owner customer →
+        EmailSubscriber the same way course/service.py's
+        _fire_course_event helper does for lesson-completion events.
+        """
+        enrollment = await session.get(CourseEnrollment, submission.enrollment_id)
+        if enrollment is None:
+            return
+        course = await session.get(Course, submission.course_id)
+        if course is None:
+            return
+
+        subscriber_repo = EmailSubscriberRepository.from_session(session)
+        subscriber = await subscriber_repo.get_by_customer_and_organization(
+            enrollment.customer_id, course.organization_id
+        )
+        if subscriber is None:
+            return
+
+        await fire_event(
+            session,
+            organization_id=course.organization_id,
+            subscriber_id=subscriber.id,
+            event_name="course.submission_reacted_to_by_creator",
+            course_id=course.id,
+        )
 
     async def clear_creator_reaction(
         self,

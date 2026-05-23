@@ -1,6 +1,7 @@
 import { useNotifications, useNotificationsMarkRead } from '@/hooks/queries'
 import { useOutsideClick } from '@/utils/useOutsideClick'
 import BoltOutlined from '@mui/icons-material/BoltOutlined'
+import CollectionsBookmarkOutlined from '@mui/icons-material/CollectionsBookmarkOutlined'
 import InfoOutlined from '@mui/icons-material/InfoOutlined'
 import ShoppingBagOutlined from '@mui/icons-material/ShoppingBagOutlined'
 import { schemas } from '@spaire/client'
@@ -279,6 +280,68 @@ const MaintainerAccountCreditsGranted = ({
   )
 }
 
+// Local payload shape until the @spaire/client SDK regenerates with the
+// new notification type. Mirrors
+// MaintainerCourseSubmissionReceivedNotificationPayload on the server.
+type MaintainerCourseSubmissionReceivedNotification = {
+  id: string
+  created_at: string
+  type: 'MaintainerCourseSubmissionReceivedNotification'
+  payload: {
+    organization_name: string
+    organization_slug: string | null
+    course_id: string
+    course_title: string
+    challenge_title: string
+    student_display_name: string
+    caption_preview: string
+    inbox_url: string | null
+  }
+}
+
+const MaintainerCourseSubmissionReceived = ({
+  n,
+}: {
+  n: MaintainerCourseSubmissionReceivedNotification
+}) => {
+  const { payload } = n
+  const href =
+    payload.organization_slug && payload.course_id
+      ? `/dashboard/${payload.organization_slug}/courses/${payload.course_id}?tab=experience`
+      : null
+  return (
+    <Item
+      // Cast back to the schema type for the surrounding Item shell —
+      // it only reads .created_at off the notification.
+      n={n as unknown as NotificationSchema}
+      iconClasses="bg-blue-100 text-blue-600"
+    >
+      {{
+        text: (
+          <>
+            <span className="font-bold">{payload.student_display_name}</span>{' '}
+            submitted to{' '}
+            {href ? (
+              <InternalLink href={href}>
+                <>{payload.challenge_title}</>
+              </InternalLink>
+            ) : (
+              <span className="font-bold">{payload.challenge_title}</span>
+            )}{' '}
+            in {payload.course_title}.
+            {payload.caption_preview ? (
+              <div className="mt-0.5 text-gray-500">
+                “{payload.caption_preview}”
+              </div>
+            ) : null}
+          </>
+        ),
+        icon: <CollectionsBookmarkOutlined fontSize="small" />,
+      }}
+    </Item>
+  )
+}
+
 export const Notification = ({
   n,
 }: {
@@ -297,6 +360,22 @@ export const Notification = ({
 
     case 'MaintainerAccountCreditsGrantedNotification':
       return <MaintainerAccountCreditsGranted n={n} />
+
+    // Local cast — the @spaire/client SDK doesn't carry this type yet.
+    // Falls through to render the new course-submission notification
+    // pulled from the same /v1/notifications feed.
+    default:
+      if (
+        (n as { type: string }).type ===
+        'MaintainerCourseSubmissionReceivedNotification'
+      ) {
+        return (
+          <MaintainerCourseSubmissionReceived
+            n={n as unknown as MaintainerCourseSubmissionReceivedNotification}
+          />
+        )
+      }
+      return null
   }
 }
 

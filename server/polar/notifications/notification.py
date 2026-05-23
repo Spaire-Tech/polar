@@ -19,6 +19,9 @@ class NotificationType(StrEnum):
     maintainer_create_account = "MaintainerCreateAccountNotification"
     maintainer_account_credits_granted = "MaintainerAccountCreditsGrantedNotification"
     maintainer_perks_unlocked = "MaintainerPerksUnlockedNotification"
+    maintainer_course_submission_received = (
+        "MaintainerCourseSubmissionReceivedNotification"
+    )
 
 
 class NotificationPayloadBase(BaseModel):
@@ -217,12 +220,57 @@ class MaintainerPerksUnlockedNotification(NotificationBase):
     payload: MaintainerPerksUnlockedNotificationPayload
 
 
+class MaintainerCourseSubmissionReceivedNotificationPayload(
+    NotificationPayloadBase
+):
+    """Sent to every member of the org that owns the course when a
+    student transitions a submission from draft to submitted. The
+    Experience tab's submissions inbox is where the creator acts on
+    these — we deep-link there from both the in-app bell and the
+    email body."""
+
+    organization_name: str
+    organization_slug: str | None
+    course_id: str
+    course_title: str
+    challenge_title: str
+    student_display_name: str
+    # Truncated client-side so the bell row doesn't stretch; full
+    # caption + image are visible once the creator opens the inbox.
+    caption_preview: str = ""
+
+    @computed_field
+    def inbox_url(self) -> str | None:
+        if not self.organization_slug:
+            return None
+        return (
+            f"{settings.FRONTEND_BASE_URL}/dashboard/"
+            f"{self.organization_slug}/courses/{self.course_id}?tab=experience"
+        )
+
+    def subject(self) -> str:
+        return (
+            f"{self.student_display_name} submitted to "
+            f"“{self.challenge_title}”"
+        )
+
+    @classmethod
+    def template_name(cls) -> str:
+        return "notification_course_submission_received"
+
+
+class MaintainerCourseSubmissionReceivedNotification(NotificationBase):
+    type: Literal[NotificationType.maintainer_course_submission_received]
+    payload: MaintainerCourseSubmissionReceivedNotificationPayload
+
+
 NotificationPayload = (
     MaintainerNewPaidSubscriptionNotificationPayload
     | MaintainerNewProductSaleNotificationPayload
     | MaintainerCreateAccountNotificationPayload
     | MaintainerAccountCreditsGrantedNotificationPayload
     | MaintainerPerksUnlockedNotificationPayload
+    | MaintainerCourseSubmissionReceivedNotificationPayload
 )
 
 Notification = Annotated[
@@ -230,6 +278,7 @@ Notification = Annotated[
     | MaintainerNewProductSaleNotification
     | MaintainerCreateAccountNotification
     | MaintainerAccountCreditsGrantedNotification
-    | MaintainerPerksUnlockedNotification,
+    | MaintainerPerksUnlockedNotification
+    | MaintainerCourseSubmissionReceivedNotification,
     Discriminator(discriminator="type"),
 ]

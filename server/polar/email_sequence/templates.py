@@ -730,6 +730,13 @@ def _flow_for(template: SequenceTemplate) -> dict:
         "course_first_lesson_completed": "course.first_lesson_completed",
         "course_mid_checkpoint": "course.mid_checkpoint",
         "course_completion": "course.completed",
+        # New for Phase 1 of "Spaire Experiences" — fires when the
+        # creator emoji-reacts to a student's challenge submission.
+        # Creators wire this in the automations editor to send a
+        # "the creator just reacted to your submission" email.
+        "course_submission_reacted_to_by_creator": (
+            "course.submission_reacted_to_by_creator"
+        ),
     }
     if slug in event_for_slug and steps_iter:
         return {
