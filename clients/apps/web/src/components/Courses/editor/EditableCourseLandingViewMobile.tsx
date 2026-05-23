@@ -1498,44 +1498,6 @@ export function MobileCreatedBy({
         fontFamily: FONT_VAR,
       }}
     >
-      {/* Eyebrow pill */}
-      <div
-        style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: 7,
-          padding: '7px 14px',
-          borderRadius: 999,
-          background: 'oklch(0.94 0.003 250 / 0.7)',
-          color: 'oklch(0.40 0.008 250)',
-          border: '1px solid oklch(0.88 0.004 250)',
-          backdropFilter: 'blur(20px) saturate(160%)',
-          WebkitBackdropFilter: 'blur(20px) saturate(160%)',
-          marginBottom: 22,
-          whiteSpace: 'nowrap',
-        }}
-      >
-        <span
-          aria-hidden
-          style={{
-            width: 6,
-            height: 6,
-            borderRadius: '50%',
-            background: 'oklch(0.55 0.008 250)',
-            boxShadow: '0 0 8px oklch(0.55 0.008 250 / 0.4)',
-          }}
-        />
-        <EditText
-          path="createdBy.eyebrow"
-          defaultValue={defaultEyebrow}
-          style={{
-            fontSize: 10,
-            fontWeight: 700,
-            letterSpacing: '0.18em',
-          }}
-        />
-      </div>
-
       {/* Headline quote */}
       <EditText
         as="h2"

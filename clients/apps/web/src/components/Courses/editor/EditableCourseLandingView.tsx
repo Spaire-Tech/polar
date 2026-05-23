@@ -259,8 +259,16 @@ export function EditableCourseLandingView({
               />
             ),
           },
-          // createdBy + instructor sections removed from the template.
-          createdBy: { label: 'Created by', node: null },
+          // Instructor section removed from the template; createdBy stays.
+          createdBy: {
+            label: 'Created by',
+            node: (
+              <MobileCreatedBy
+                course={course}
+                organizationAvatarUrl={organizationAvatarUrl ?? null}
+              />
+            ),
+          },
           learn: {
             label: "What you'll learn",
             node: <MobileWhatYoullLearn />,
@@ -332,11 +340,16 @@ export function EditableCourseLandingView({
               />
             ),
           },
-          // createdBy + instructor sections removed from the template.
-          // They stay in the section map as null nodes so older courses
-          // whose saved `order` still references these ids don't crash —
-          // the filter below drops null entries.
-          createdBy: { label: 'Created by', node: null },
+          // Instructor section removed from the template; createdBy stays.
+          createdBy: {
+            label: 'Created by',
+            node: (
+              <CreatedBy
+                course={course}
+                organizationAvatarUrl={organizationAvatarUrl ?? null}
+              />
+            ),
+          },
           learn: {
             label: "What you'll learn",
             node: <WhatYoullLearn />,
@@ -3428,46 +3441,6 @@ function CreatedBy({
         fontFamily: FONT_VAR,
       }}
     >
-      {/* Eyebrow pill */}
-      <div
-        style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: 8,
-          padding: '8px 16px',
-          borderRadius: 999,
-          background: 'oklch(0.94 0.003 250 / 0.7)',
-          color: 'oklch(0.40 0.008 250)',
-          border: '1px solid oklch(0.88 0.004 250)',
-          backdropFilter: 'blur(20px) saturate(160%)',
-          WebkitBackdropFilter: 'blur(20px) saturate(160%)',
-          boxShadow:
-            'inset 0 1px 0 rgba(255,255,255,0.7), 0 1px 2px rgba(0,0,0,0.04)',
-          marginBottom: 28,
-          whiteSpace: 'nowrap',
-        }}
-      >
-        <span
-          aria-hidden
-          style={{
-            width: 6,
-            height: 6,
-            borderRadius: '50%',
-            background: 'oklch(0.55 0.008 250)',
-            boxShadow: '0 0 8px oklch(0.55 0.008 250 / 0.4)',
-          }}
-        />
-        <EditText
-          path="createdBy.eyebrow"
-          defaultValue={defaultEyebrow}
-          style={{
-            fontSize: 11,
-            fontWeight: 700,
-            letterSpacing: '0.16em',
-          }}
-        />
-      </div>
-
       {/* Headline quote */}
       <EditText
         as="h2"
