@@ -13,6 +13,23 @@ export const outlineSchema = z.object({
       ),
     }),
   ),
+  // Per-module challenges for the "Spaire Experiences" submission loop.
+  // Always 4 total, regardless of format:
+  //   - Course (4 modules) → 1 challenge per module, module_index = 0..3
+  //   - Series (1 module / 6 episodes) → 4 challenges all anchored to
+  //     module_index = 0, spread thematically across the season.
+  // Optional + array-of-strings-style cardinality (no min/max on the zod
+  // schema) so `useObject` doesn't stall on a partial stream — same
+  // pattern as landingSchema's optional fields.
+  challenges: z
+    .array(
+      z.object({
+        title: z.string(),
+        prompt: z.string(),
+        module_index: z.number().int().nonnegative(),
+      }),
+    )
+    .optional(),
 })
 
 export type CourseOutline = z.infer<typeof outlineSchema>

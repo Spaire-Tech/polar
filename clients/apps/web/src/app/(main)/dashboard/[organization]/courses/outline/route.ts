@@ -14,7 +14,17 @@ Guidelines:
 - Mix content types: use "video" for demonstrations and walkthroughs, "text" for conceptual explanations and references
 - Start with foundational concepts and progress toward advanced application
 - Tailor the depth and pacing to the instructor's voice when an instructor bio is provided
-- When a paywall is enabled, the first module should land hard so free-preview lessons earn the upsell. When the course is free (no paywall), pace evenly and treat every lesson as core curriculum`
+- When a paywall is enabled, the first module should land hard so free-preview lessons earn the upsell. When the course is free (no paywall), pace evenly and treat every lesson as core curriculum
+
+CHALLENGES (Spaire Experiences submission loop)
+Also return EXACTLY 4 challenges in the "challenges" array — one per module, in module order (module_index = 0..3).
+Each challenge:
+- "title": 4-8 words, action-oriented. The student should know exactly what they're doing.
+  Good shape: "Bake a basic croissant", "Plate a three-course dinner", "Wire Stripe + a refund flow", "Ship a one-page memo".
+  Avoid: "Module 1 reflection", "Submit your work", "Complete the exercise".
+- "prompt": 1-2 sentences, 90-220 chars. Names what the student MAKES, SUBMITS, or CAPTURES — concrete artefact, not a journaling prompt. Tie the verb to the module's content.
+- Match the module's specificity. If the module covers lamination technique, the challenge submits a photo of a laminated dough cross-section, not "reflect on lamination".
+- Challenges are the participation layer of the course — they're how the student proves they did the work and how the creator sees students' progress. Every prompt must have a tangible deliverable.`
 
 // Series share the same JSON schema as Courses — they're stored as a Course
 // with format='series' and a single implicit "module" holding every episode.
@@ -34,7 +44,17 @@ Voice & structure
 - Names of things, places, people, moments. Concrete > generic. "The week before the final" beats "Handling pressure".
 - No exclamation points. No clichés ("level up", "mindset shift", "unlock"). No instructional verbs ("learn to", "master", "build").
 - Tailor pacing, voice, and subject grounding to the instructor's bio. If they're an athlete, name the sport, the rituals, the specific opponents or moments. If they're a founder, name the stage, the round, the decision. Series live or die by specificity.
-- When a paywall is enabled, the first 2-3 episodes should hook on their own — open with the most magnetic, story-driven episodes so the free preview earns the unlock. When free, pace evenly across the arc.`
+- When a paywall is enabled, the first 2-3 episodes should hook on their own — open with the most magnetic, story-driven episodes so the free preview earns the unlock. When free, pace evenly across the arc.
+
+CHALLENGES (Spaire Experiences participation layer)
+Also return EXACTLY 4 challenges in the "challenges" array. A series has one module — every challenge anchors to module_index = 0. The four challenges spread thematically across the season, not one per episode.
+Each challenge:
+- "title": 4-8 words, observational or invitational. Something the viewer DOES or NOTICES after watching, not something they "learn".
+  Good shape: "A pressure moment of your own", "Film your own pre-race ritual", "A morning that almost didn't happen".
+  Avoid: "Reflect on episode 1", "Share your thoughts", "What did you learn?".
+- "prompt": 1-2 sentences, 90-220 chars. Names what the viewer SHARES — a photo, a 60-second clip, a written moment. Concrete, low-friction.
+- Map roughly to the season's arc — first challenge maps to early episodes, fourth to the season finale. But they're not tied to specific episode positions; the viewer can submit at any time.
+- These are how the creator stays connected to the audience between episodes — every prompt should produce something the creator will WANT to react to.`
 
 export async function POST(req: Request) {
   const user = await getAuthenticatedUser()

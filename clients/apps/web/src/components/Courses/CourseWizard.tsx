@@ -482,6 +482,52 @@ export default function CourseWizard({
           }),
       })
 
+      // Persist AI-generated challenges. The outline schema now
+      // streams a top-level `challenges` array (one per module for
+      // courses, all four anchored to the single season-module for
+      // series). Map each challenge's module_index onto the
+      // just-persisted modules; skip silently on errors so a flaky
+      // challenge create doesn't fail the whole course creation.
+      const outlineChallenges =
+        (
+          outline as {
+            challenges?: Array<{
+              title?: string
+              prompt?: string
+              module_index?: number
+            }>
+          }
+        ).challenges ?? []
+      if (outlineChallenges.length > 0) {
+        const createdModules = [...(created.modules ?? [])].sort(
+          (a, b) => a.position - b.position,
+        )
+        for (const ch of outlineChallenges) {
+          if (!ch.title) continue
+          const idx = ch.module_index ?? 0
+          const mod = createdModules[idx] ?? createdModules[0]
+          if (!mod) continue
+          try {
+            await fetch(
+              `${process.env.NEXT_PUBLIC_API_URL}/v1/courses/${created.id}/challenges`,
+              {
+                method: 'POST',
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  module_id: mod.id,
+                  title: ch.title,
+                  prompt: ch.prompt ?? '',
+                  ai_generated: true,
+                }),
+              },
+            )
+          } catch (e) {
+            console.warn('[CourseWizard] challenge create failed:', e)
+          }
+        }
+      }
+
       // The create endpoint doesn't accept paywall_position; patch it in
       // immediately after if the wizard collected one.
       if (paywall.paywallEnabled && paywallPosition !== null) {
