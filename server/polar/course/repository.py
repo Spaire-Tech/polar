@@ -184,6 +184,14 @@ class CourseEnrollmentRepository(
             CourseEnrollment.course_id == course_id,
         )
 
+    def get_by_course_statement(self, course_id: UUID):
+        """Every (non-soft-deleted) enrollment for a course. Drives the
+        Phase 3 broadcast fanout — we enumerate enrollments to fire the
+        broadcast-published event per student EmailSubscriber."""
+        return self.get_base_statement().where(
+            CourseEnrollment.course_id == course_id
+        )
+
 
 class CourseLessonProgressRepository(
     RepositorySoftDeletionIDMixin[CourseLessonProgress, UUID],

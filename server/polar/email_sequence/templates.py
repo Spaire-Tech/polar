@@ -737,6 +737,10 @@ def _flow_for(template: SequenceTemplate) -> dict:
         "course_submission_reacted_to_by_creator": (
             "course.submission_reacted_to_by_creator"
         ),
+        # Phase 3 — fires per-enrollment when the creator publishes a
+        # cohort broadcast with notify_on_publish=True. Creators wire
+        # this to send the "new note from {instructor}" email.
+        "course_broadcast_published": "course.broadcast_published",
     }
     if slug in event_for_slug and steps_iter:
         return {

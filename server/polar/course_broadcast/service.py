@@ -2,7 +2,9 @@ from datetime import datetime, timezone
 from uuid import UUID
 
 from polar.auth.models import AuthSubject, Organization, User, is_user
-from polar.course.repository import CourseRepository
+from polar.course.repository import CourseEnrollmentRepository, CourseRepository
+from polar.email_sequence.events import fire_event
+from polar.email_subscriber.repository import EmailSubscriberRepository
 from polar.exceptions import ResourceNotFound
 from polar.models.course import Course
 from polar.models.course_broadcast import CourseBroadcast
@@ -81,14 +83,58 @@ class BroadcastService:
         session: AsyncSession,
         broadcast: CourseBroadcast,
     ) -> CourseBroadcast:
-        """Idempotent: re-publishing a published broadcast updates the
-        `published_at` to "now" so it bubbles to the top of the feed.
-        Notification + email dispatch is wired in Day 2 alongside the
-        creator publish UI — kept off this code path so Day 1 stays
-        narrowly about the CRUD surface."""
+        """Stamp the publish timestamp, then (when notify_on_publish is
+        set) fan out a `course.broadcast_published` event per enrolled
+        student. The event wakes any email-sequence node the creator has
+        wired in the automations editor — same dispatch model as the
+        Phase 1 `course.submission_reacted_to_by_creator` event.
+
+        Re-publishing a published broadcast updates `published_at` to
+        "now" so it bubbles to the top of the feed, and fans out the
+        event again — by design, this is the "resend" lever.
+        """
+        was_silent = not broadcast.notify_on_publish
         broadcast.published_at = datetime.now(timezone.utc)
         await session.flush()
+
+        if was_silent:
+            return broadcast
+
+        await self._fanout_publish_event(session, broadcast)
         return broadcast
+
+    async def _fanout_publish_event(
+        self,
+        session: AsyncSession,
+        broadcast: CourseBroadcast,
+    ) -> None:
+        course = await session.get(Course, broadcast.course_id)
+        if course is None:
+            return
+
+        enrollment_repo = CourseEnrollmentRepository.from_session(session)
+        enrollments = list(
+            await enrollment_repo.get_all(
+                enrollment_repo.get_by_course_statement(course.id)
+            )
+        )
+        subscriber_repo = EmailSubscriberRepository.from_session(session)
+        for enrollment in enrollments:
+            subscriber = await subscriber_repo.get_by_customer_and_organization(
+                enrollment.customer_id, course.organization_id
+            )
+            if subscriber is None:
+                # Student isn't on the org's email list. The course-portal
+                # feed will still pick up the broadcast on next render; we
+                # just don't send them an email.
+                continue
+            await fire_event(
+                session,
+                organization_id=course.organization_id,
+                subscriber_id=subscriber.id,
+                event_name="course.broadcast_published",
+                course_id=course.id,
+            )
 
     async def unpublish(
         self,

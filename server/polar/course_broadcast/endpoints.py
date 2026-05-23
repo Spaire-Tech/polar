@@ -152,3 +152,79 @@ async def delete_broadcast(
 ) -> None:
     b = await _load_writable(broadcast_id, auth_subject, session)
     await broadcast_service.delete(session, b)
+
+
+# ── Creator image upload presign ────────────────────────────────────────
+#
+# Mirrors the challenge-thumbnail presign: same shape, different prefix
+# so broadcasts lifecycle independently of challenge thumbnails. Image
+# is optional — text-only broadcasts skip this whole flow.
+
+import uuid as _uuid  # noqa: E402
+
+from fastapi import HTTPException  # noqa: E402
+from pydantic import Field as _Field  # noqa: E402
+
+from polar.config import settings as _settings  # noqa: E402
+from polar.file.s3 import S3_SERVICES as _S3_SERVICES  # noqa: E402
+from polar.kit.schemas import Schema as _Schema  # noqa: E402
+from polar.models.file import FileServiceTypes as _FileServiceTypes  # noqa: E402
+
+
+_ALLOWED_BROADCAST_TYPES = {
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+}
+_MAX_BROADCAST_BYTES = 10 * 1024 * 1024
+
+
+class BroadcastImageUploadRequest(_Schema):
+    filename: str = _Field(min_length=1, max_length=200)
+    content_type: str
+    content_length: int = _Field(ge=1, le=_MAX_BROADCAST_BYTES)
+
+
+class BroadcastImageUploadResponse(_Schema):
+    upload_url: str
+    public_url: str
+
+
+@router.post(
+    "/broadcasts/image-uploads",
+    response_model=BroadcastImageUploadResponse,
+    summary="Presign Broadcast Image Upload",
+)
+async def create_broadcast_image_upload_url(
+    payload: BroadcastImageUploadRequest,
+    auth_subject: auth.CoursesWrite,
+) -> BroadcastImageUploadResponse:
+    """Single-shot presigned PUT for the optional broadcast cover image.
+    Creator persists the returned `public_url` via PATCH /broadcasts/{id}.
+    """
+    if payload.content_type not in _ALLOWED_BROADCAST_TYPES:
+        raise HTTPException(
+            status_code=400,
+            detail="Only JPEG, PNG, and WebP images are supported.",
+        )
+
+    ext = (
+        payload.filename.rsplit(".", 1)[-1].lower()
+        if "." in payload.filename
+        else "bin"
+    )[:8]
+    key = f"course-broadcast-images/{_uuid.uuid4()}.{ext}"
+
+    s3 = _S3_SERVICES[_FileServiceTypes.product_media]
+    upload_url: str = s3.client.generate_presigned_url(
+        "put_object",
+        Params={
+            "Bucket": s3.bucket,
+            "Key": key,
+            "ContentType": payload.content_type,
+        },
+        ExpiresIn=_settings.S3_FILES_PRESIGN_TTL,
+    )
+    return BroadcastImageUploadResponse(
+        upload_url=upload_url, public_url=s3.get_public_url(key)
+    )

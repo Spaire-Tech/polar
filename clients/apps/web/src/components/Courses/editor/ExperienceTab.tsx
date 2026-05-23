@@ -11,9 +11,20 @@
 // Visual language inherits from SettingsTab: rounded-2xl card shells,
 // p-6 padding, header icons in a chip, gray-900 primary actions.
 
+import {
+  BroadcastRead,
+  uploadBroadcastImage,
+  useCourseBroadcasts,
+  useCreateBroadcast,
+  useDeleteBroadcast,
+  usePublishBroadcast,
+  useUnpublishBroadcast,
+  useUpdateBroadcast,
+} from '@/hooks/queries/broadcasts'
 import { uploadChallengeThumbnail } from '@/hooks/queries/challenges'
 import { CourseRead } from '@/hooks/queries/courses'
 import AutoAwesomeOutlined from '@mui/icons-material/AutoAwesomeOutlined'
+import CampaignOutlined from '@mui/icons-material/CampaignOutlined'
 import ChatBubbleOutlineOutlined from '@mui/icons-material/ChatBubbleOutlineOutlined'
 import CollectionsBookmarkOutlined from '@mui/icons-material/CollectionsBookmarkOutlined'
 import ImageOutlined from '@mui/icons-material/ImageOutlined'
@@ -194,7 +205,7 @@ function useSetVisibility(courseId: string) {
   })
 }
 
-type ExperienceView = 'challenges' | 'submissions'
+type ExperienceView = 'challenges' | 'submissions' | 'broadcasts'
 
 export function ExperienceTab({
   course,
@@ -300,6 +311,17 @@ export function ExperienceTab({
             {submissions.length}
           </span>
         </button>
+        <button
+          type="button"
+          onClick={() => setView('broadcasts')}
+          className={
+            view === 'broadcasts'
+              ? 'rounded-full bg-gray-900 px-3 py-1.5 text-white'
+              : 'rounded-full px-3 py-1.5 text-gray-600 hover:bg-gray-100'
+          }
+        >
+          Broadcasts
+        </button>
       </div>
 
       {view === 'challenges' && (
@@ -377,6 +399,10 @@ export function ExperienceTab({
             challenges.map((c) => [c.id, c]),
           )}
         />
+      )}
+
+      {view === 'broadcasts' && (
+        <BroadcastsPanel course={course} />
       )}
     </div>
   )
@@ -757,6 +783,482 @@ function SubmissionRow({
           </span>
         )}
       </div>
+    </section>
+  )
+}
+
+// ── Broadcasts ─────────────────────────────────────────────────────────
+//
+// Phase 3 — cohort-wide creator notes. Composer at the top, list of
+// past broadcasts below. The composer hosts both the create flow and
+// the edit-in-place flow for an existing row (selecting an existing
+// broadcast loads it into the same form).
+
+function BroadcastsPanel({ course }: { course: CourseRead }) {
+  const weeklyPacing =
+    (course as { pacing_mode?: string }).pacing_mode === 'paced_weekly'
+  const broadcastsQ = useCourseBroadcasts(course.id)
+  const broadcasts = broadcastsQ.data ?? []
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const editing = broadcasts.find((b) => b.id === editingId) ?? null
+
+  return (
+    <>
+      <BroadcastComposer
+        course={course}
+        weeklyPacing={weeklyPacing}
+        editing={editing}
+        onCancelEdit={() => setEditingId(null)}
+        onSaved={() => setEditingId(null)}
+      />
+
+      {broadcastsQ.isLoading && (
+        <div className="mt-4 h-32 animate-pulse rounded-2xl bg-gray-100" />
+      )}
+
+      {!broadcastsQ.isLoading && broadcasts.length === 0 && (
+        <div className="mt-4 flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-gray-200 bg-gray-50 py-12 text-center">
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-gray-400 shadow-sm">
+            <CampaignOutlined sx={{ fontSize: 20 }} />
+          </span>
+          <p className="text-sm font-medium text-gray-900">
+            No broadcasts yet.
+          </p>
+          <p className="max-w-md text-xs text-gray-500">
+            Drop a weekly note, a kickoff, or a wrap-up. Published
+            broadcasts surface in every enrolled student&apos;s portal
+            and (when notifications are on) trigger the
+            <span className="font-mono"> course.broadcast_published </span>
+            email event.
+          </p>
+        </div>
+      )}
+
+      {broadcasts.length > 0 && (
+        <div className="mt-6 flex flex-col gap-3">
+          {broadcasts.map((b) => (
+            <BroadcastRow
+              key={`${b.id}::${b.modified_at ?? b.created_at}`}
+              broadcast={b}
+              courseId={course.id}
+              onEdit={() => setEditingId(b.id)}
+              isEditing={editingId === b.id}
+            />
+          ))}
+        </div>
+      )}
+    </>
+  )
+}
+
+function BroadcastComposer({
+  course,
+  weeklyPacing,
+  editing,
+  onCancelEdit,
+  onSaved,
+}: {
+  course: CourseRead
+  weeklyPacing: boolean
+  editing: BroadcastRead | null
+  onCancelEdit: () => void
+  onSaved: () => void
+}) {
+  const create = useCreateBroadcast(course.id)
+  const update = useUpdateBroadcast(course.id)
+  const publish = usePublishBroadcast(course.id)
+
+  // Reset the form's local state when the creator switches which row
+  // they're editing — using `editing?.id` as the key on the inner form
+  // is cleaner than a useEffect resync and matches the ChallengeRow
+  // pattern earlier in this file.
+  return (
+    <BroadcastComposerForm
+      key={editing?.id ?? 'new'}
+      course={course}
+      weeklyPacing={weeklyPacing}
+      editing={editing}
+      busy={create.isPending || update.isPending || publish.isPending}
+      onCancelEdit={onCancelEdit}
+      onCreate={async (input) => {
+        await create.mutateAsync(input)
+        onSaved()
+      }}
+      onUpdate={async (id, patch, alsoPublish) => {
+        const saved = await update.mutateAsync({ id, input: patch })
+        if (alsoPublish) {
+          await publish.mutateAsync(saved.id)
+        }
+        onSaved()
+      }}
+    />
+  )
+}
+
+function BroadcastComposerForm({
+  course,
+  weeklyPacing,
+  editing,
+  busy,
+  onCancelEdit,
+  onCreate,
+  onUpdate,
+}: {
+  course: CourseRead
+  weeklyPacing: boolean
+  editing: BroadcastRead | null
+  busy: boolean
+  onCancelEdit: () => void
+  onCreate: (input: {
+    title: string
+    body: string
+    image_url: string | null
+    week_number: number | null
+    notify_on_publish: boolean
+    publish: boolean
+  }) => Promise<void>
+  onUpdate: (
+    id: string,
+    patch: {
+      title?: string
+      body?: string
+      image_url?: string | null
+      week_number?: number | null
+      notify_on_publish?: boolean
+    },
+    alsoPublish: boolean,
+  ) => Promise<void>
+}) {
+  const [title, setTitle] = useState(editing?.title ?? '')
+  const [body, setBody] = useState(editing?.body ?? '')
+  const [imageUrl, setImageUrl] = useState<string | null>(
+    editing?.image_url ?? null,
+  )
+  const [weekNumber, setWeekNumber] = useState<string>(
+    editing?.week_number != null ? String(editing.week_number) : '',
+  )
+  const [notify, setNotify] = useState<boolean>(
+    editing?.notify_on_publish ?? true,
+  )
+  const [uploading, setUploading] = useState(false)
+  const [uploadError, setUploadError] = useState<string | null>(null)
+  const fileRef = useRef<HTMLInputElement | null>(null)
+
+  const moduleCount = (course.modules ?? []).length
+  const weekOptions: number[] = weeklyPacing
+    ? Array.from({ length: Math.max(moduleCount, 1) }, (_, i) => i + 1)
+    : []
+
+  const canSave = title.trim().length > 0 && !busy
+  const isEditing = !!editing
+  const isPublished = !!editing?.published_at
+
+  const onPickImage = async (file: File) => {
+    setUploadError(null)
+    setUploading(true)
+    try {
+      const url = await uploadBroadcastImage(file)
+      setImageUrl(url)
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : 'Upload failed.')
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  const buildInput = (publish: boolean) => ({
+    title: title.trim(),
+    body: body.trim(),
+    image_url: imageUrl,
+    week_number: weekNumber.trim() ? Number(weekNumber) : null,
+    notify_on_publish: notify,
+    publish,
+  })
+
+  const handleSaveDraft = async () => {
+    if (!canSave) return
+    if (isEditing && editing) {
+      await onUpdate(editing.id, buildInput(false), false)
+    } else {
+      await onCreate(buildInput(false))
+      setTitle('')
+      setBody('')
+      setImageUrl(null)
+      setWeekNumber('')
+    }
+  }
+
+  const handlePublish = async () => {
+    if (!canSave) return
+    if (isEditing && editing) {
+      await onUpdate(editing.id, buildInput(true), true)
+    } else {
+      await onCreate(buildInput(true))
+      setTitle('')
+      setBody('')
+      setImageUrl(null)
+      setWeekNumber('')
+    }
+  }
+
+  return (
+    <section className="rounded-2xl border border-gray-200 bg-white p-6">
+      <div className="mb-5 flex items-start gap-3">
+        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
+          <CampaignOutlined sx={{ fontSize: 18 }} />
+        </span>
+        <div className="flex-1">
+          <h3 className="text-base font-bold text-gray-900">
+            {isEditing
+              ? isPublished
+                ? 'Edit published broadcast'
+                : 'Edit draft'
+              : 'New broadcast'}
+          </h3>
+          <p className="mt-0.5 text-sm text-gray-500">
+            Cohort-wide note from you. Drafts stay private until you hit
+            Publish; published broadcasts appear in every enrolled
+            student&apos;s portal.
+          </p>
+        </div>
+        {isEditing && (
+          <button
+            type="button"
+            onClick={onCancelEdit}
+            className="rounded-md border border-gray-200 bg-white px-3 py-[7px] text-[12px] font-semibold text-gray-700 transition-colors hover:bg-gray-50"
+          >
+            Cancel
+          </button>
+        )}
+      </div>
+
+      <div className="flex flex-col gap-3">
+        <input
+          type="text"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="Title — e.g. Week 2 kickoff"
+          maxLength={500}
+          className="w-full rounded-xl border border-gray-200 bg-white px-3.5 py-2.5 text-sm text-gray-900 placeholder-gray-400 outline-none focus:border-gray-400"
+        />
+
+        <textarea
+          value={body}
+          onChange={(e) => setBody(e.target.value)}
+          placeholder="What's this week about? Share the goal, point at a lesson, drop a prompt."
+          rows={6}
+          maxLength={20000}
+          className="w-full resize-y rounded-xl border border-gray-200 bg-white px-3.5 py-2.5 text-sm text-gray-900 placeholder-gray-400 outline-none focus:border-gray-400"
+        />
+
+        {/* Image picker — optional cover. Mirrors challenge thumbnail
+            UX so it reads as a sibling control. */}
+        <div className="flex items-center gap-3">
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0]
+              if (f) onPickImage(f)
+              e.target.value = ''
+            }}
+          />
+          {imageUrl ? (
+            <div className="flex items-center gap-3">
+              <img
+                src={imageUrl}
+                alt="Broadcast cover"
+                className="h-14 w-20 rounded-lg object-cover"
+              />
+              <button
+                type="button"
+                onClick={() => fileRef.current?.click()}
+                className="rounded-md border border-gray-200 bg-white px-3 py-[7px] text-[12px] font-semibold text-gray-700 transition-colors hover:bg-gray-50"
+              >
+                Replace
+              </button>
+              <button
+                type="button"
+                onClick={() => setImageUrl(null)}
+                className="text-[12px] font-medium text-gray-500 hover:text-gray-700"
+              >
+                Remove
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => fileRef.current?.click()}
+              disabled={uploading}
+              className="inline-flex items-center gap-2 rounded-md border border-gray-200 bg-white px-3 py-[7px] text-[12px] font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-50"
+            >
+              <ImageOutlined sx={{ fontSize: 14 }} />
+              {uploading ? 'Uploading…' : 'Add cover image (optional)'}
+            </button>
+          )}
+        </div>
+        {uploadError && (
+          <p className="text-xs text-red-600">{uploadError}</p>
+        )}
+
+        <div className="flex flex-wrap items-center gap-4 pt-1">
+          {weeklyPacing && (
+            <label className="flex items-center gap-2 text-xs text-gray-700">
+              Week
+              <select
+                value={weekNumber}
+                onChange={(e) => setWeekNumber(e.target.value)}
+                className="rounded-md border border-gray-200 bg-white px-2 py-1 text-xs text-gray-900 outline-none focus:border-gray-400"
+              >
+                <option value="">— none —</option>
+                {weekOptions.map((w) => (
+                  <option key={w} value={w}>
+                    Week {w}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+
+          <label className="flex items-center gap-2 text-xs text-gray-700">
+            <input
+              type="checkbox"
+              checked={notify}
+              onChange={(e) => setNotify(e.target.checked)}
+              className="h-3.5 w-3.5 rounded border-gray-300"
+            />
+            Email students on publish
+          </label>
+        </div>
+
+        <div className="mt-3 flex items-center justify-end gap-2 border-t border-gray-100 pt-4">
+          <button
+            type="button"
+            onClick={handleSaveDraft}
+            disabled={!canSave}
+            className="rounded-md border border-gray-200 bg-white px-3.5 py-[7px] text-[12px] font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {isEditing
+              ? isPublished
+                ? 'Save changes'
+                : 'Save draft'
+              : 'Save draft'}
+          </button>
+          <button
+            type="button"
+            onClick={handlePublish}
+            disabled={!canSave}
+            className="rounded-md bg-gray-900 px-3.5 py-[7px] text-[12px] font-semibold text-white transition-colors hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {isPublished ? 'Save & resend' : 'Publish'}
+          </button>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function BroadcastRow({
+  broadcast,
+  courseId,
+  onEdit,
+  isEditing,
+}: {
+  broadcast: BroadcastRead
+  courseId: string
+  onEdit: () => void
+  isEditing: boolean
+}) {
+  const unpublish = useUnpublishBroadcast(courseId)
+  const remove = useDeleteBroadcast(courseId)
+  const isPublished = !!broadcast.published_at
+  const isoDate = broadcast.published_at ?? broadcast.created_at
+  const dateLabel = new Date(isoDate).toLocaleString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  })
+
+  return (
+    <section
+      className={
+        'rounded-2xl border bg-white p-6 transition-colors ' +
+        (isEditing
+          ? 'border-gray-400'
+          : isPublished
+            ? 'border-gray-200'
+            : 'border-dashed border-gray-300')
+      }
+    >
+      <div className="mb-3 flex items-start gap-3">
+        {broadcast.image_url && (
+          <img
+            src={broadcast.image_url}
+            alt=""
+            className="h-12 w-16 flex-none rounded-lg object-cover"
+          />
+        )}
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <h3 className="truncate text-sm font-semibold text-gray-900">
+              {broadcast.title}
+            </h3>
+            {!isPublished && (
+              <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700">
+                Draft
+              </span>
+            )}
+            {broadcast.week_number != null && (
+              <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-gray-600">
+                Week {broadcast.week_number}
+              </span>
+            )}
+          </div>
+          <p className="mt-0.5 text-xs text-gray-500">
+            {isPublished ? 'Published' : 'Created'} · {dateLabel}
+            {isPublished && !broadcast.notify_on_publish && ' · sent silently'}
+          </p>
+        </div>
+        <div className="flex flex-none items-center gap-2">
+          <button
+            type="button"
+            onClick={onEdit}
+            className="rounded-md border border-gray-200 bg-white px-3 py-[7px] text-[12px] font-semibold text-gray-700 transition-colors hover:bg-gray-50"
+          >
+            Edit
+          </button>
+          {isPublished && (
+            <button
+              type="button"
+              onClick={() => unpublish.mutate(broadcast.id)}
+              disabled={unpublish.isPending}
+              className="rounded-md border border-gray-200 bg-white px-3 py-[7px] text-[12px] font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-50"
+            >
+              Unpublish
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => {
+              if (window.confirm('Delete this broadcast?')) {
+                remove.mutate(broadcast.id)
+              }
+            }}
+            className="rounded-md border border-gray-200 bg-white px-3 py-[7px] text-[12px] font-semibold text-red-600 transition-colors hover:bg-red-50"
+          >
+            Delete
+          </button>
+        </div>
+      </div>
+
+      {broadcast.body && (
+        <p className="whitespace-pre-wrap text-sm text-gray-700">
+          {broadcast.body}
+        </p>
+      )}
     </section>
   )
 }
