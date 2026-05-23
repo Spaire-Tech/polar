@@ -95,6 +95,53 @@ async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
   return res.json()
 }
 
+// ── Image upload helper ────────────────────────────────────────────────
+
+/** Two-step image upload for challenge submissions:
+ *    1. Presign a single-shot PUT URL on the public bucket.
+ *    2. PUT the file bytes to that URL with the matching content-type.
+ *  The returned `public_url` is what gets persisted on the submission
+ *  row's media[] array on the next upsert call.
+ *
+ *  Throws on either step failing — the caller surfaces a friendly
+ *  message to the student via the composer state. */
+export async function uploadSubmissionImage(file: File): Promise<string> {
+  // Cap a little above what the server enforces (50MB) so the
+  // friendly client-side error fires before we burn an upload-url
+  // round-trip on something the API will reject anyway.
+  const MAX_BYTES = 50 * 1024 * 1024
+  if (file.size > MAX_BYTES) {
+    throw new Error('Image is larger than 50MB.')
+  }
+  if (!file.type.startsWith('image/')) {
+    throw new Error('Only image files can be uploaded.')
+  }
+
+  const presigned = await fetchJson<{
+    upload_url: string
+    public_url: string
+  }>('/v1/customer-portal/courses/submission-uploads', {
+    method: 'POST',
+    body: JSON.stringify({
+      filename: file.name,
+      content_type: file.type,
+      content_length: file.size,
+    }),
+  })
+
+  const putRes = await fetch(presigned.upload_url, {
+    method: 'PUT',
+    body: file,
+    headers: {
+      'Content-Type': file.type,
+    },
+  })
+  if (!putRes.ok) {
+    throw new Error(`Upload failed (S3 ${putRes.status})`)
+  }
+  return presigned.public_url
+}
+
 // ── Student reads ──────────────────────────────────────────────────────
 
 export function useEnrolledCourseChallenges(courseId: string | undefined) {

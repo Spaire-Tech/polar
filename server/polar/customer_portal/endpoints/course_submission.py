@@ -12,14 +12,20 @@ writes. The Member subject covers the case where an org user is also
 a paying customer of their own course.
 """
 
+import uuid as _uuid
 from uuid import UUID
 
 from fastapi import Depends, HTTPException
+from pydantic import Field
 
+from polar.config import settings
 from polar.exceptions import ResourceNotFound
+from polar.file.s3 import S3_SERVICES
+from polar.kit.schemas import Schema
 from polar.models.course_enrollment import CourseEnrollment
 from polar.models.course_submission import CourseSubmission
 from polar.models.customer import Customer
+from polar.models.file import FileServiceTypes
 from polar.openapi import APITag
 from polar.postgres import AsyncSession, get_db_session
 from polar.routing import APIRouter
@@ -335,3 +341,98 @@ async def delete_own_submission(
     if submission.enrollment_id != enrollment.id:
         raise ResourceNotFound("Submission not found")
     await submission_service.delete_for_student(session, submission)
+
+
+# ── Image upload presign ────────────────────────────────────────────────
+
+
+# Tight allowlist for v0.1. Video submissions reuse Mux's direct-upload
+# pipeline later; until then only image PUTs go through this endpoint.
+_ALLOWED_IMAGE_TYPES = {
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+    "image/gif",
+}
+
+# 50MB cap matches the existing course staging image limit so a student
+# who can post a 50MB cover can also submit a 50MB challenge photo.
+_MAX_SUBMISSION_BYTES = 50 * 1024 * 1024
+
+
+class SubmissionUploadRequest(Schema):
+    filename: str = Field(min_length=1, max_length=200)
+    content_type: str
+    content_length: int = Field(ge=1, le=_MAX_SUBMISSION_BYTES)
+
+
+class SubmissionUploadResponse(Schema):
+    """Single-shot presigned upload payload for an image submission.
+
+    Flow:
+      1. Client POSTs filename + content_type + content_length here.
+      2. Server validates, generates a presigned PUT URL on the public
+         bucket, and returns it.
+      3. Client PUTs the file bytes directly to upload_url with the
+         declared content_type — the same one we presigned for.
+      4. After the PUT succeeds, client includes public_url in the
+         media[] payload on the next submission upsert.
+    """
+
+    upload_url: str
+    public_url: str
+
+
+@router.post(
+    "/submission-uploads",
+    response_model=SubmissionUploadResponse,
+    summary="Presign Submission Image Upload",
+)
+async def create_submission_upload_url(
+    payload: SubmissionUploadRequest,
+    auth_subject: auth.CustomerPortalUnionWrite,
+) -> SubmissionUploadResponse:
+    if payload.content_type not in _ALLOWED_IMAGE_TYPES:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Only JPEG, PNG, WebP, and GIF are supported for "
+                "challenge submissions in v0.1."
+            ),
+        )
+
+    customer_id = get_customer_id(auth_subject)
+
+    # The S3 key needs a usable extension so the served file's
+    # content-type is correctly inferred when the browser fetches it
+    # back from the public URL.
+    ext = (
+        payload.filename.rsplit(".", 1)[-1].lower()
+        if "." in payload.filename
+        else "bin"
+    )
+    # Defensive: cap the extension at 8 chars so a malicious filename
+    # (e.g. `"foo." + "x" * 200`) can't bloat the key.
+    ext = ext[:8]
+
+    key = f"course-submissions/{customer_id}/{_uuid.uuid4()}.{ext}"
+
+    # Reuse the public-bucket S3Service already wired up for product
+    # media — same bucket, same client config — instead of standing up
+    # a new one. The boto3 client on .client supports
+    # generate_presigned_url out of the box.
+    s3 = S3_SERVICES[FileServiceTypes.product_media]
+    upload_url: str = s3.client.generate_presigned_url(
+        "put_object",
+        Params={
+            "Bucket": s3.bucket,
+            "Key": key,
+            "ContentType": payload.content_type,
+        },
+        ExpiresIn=settings.S3_FILES_PRESIGN_TTL,
+    )
+    public_url = s3.get_public_url(key)
+
+    return SubmissionUploadResponse(
+        upload_url=upload_url, public_url=public_url
+    )

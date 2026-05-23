@@ -14,6 +14,7 @@
 // endpoint is in place.
 
 import {
+  uploadSubmissionImage,
   useChallengeGallery,
   useDeleteOwnSubmission,
   useEnrolledCourseChallenges,
@@ -23,7 +24,7 @@ import {
   type ChallengeRead,
   type SubmissionRead,
 } from '@/hooks/queries/challenges'
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 
 const fontStack = "'Poppins', var(--font-poppins), system-ui, sans-serif"
 
@@ -172,28 +173,56 @@ function Composer({
   existing: SubmissionRead | null
 }) {
   const [caption, setCaption] = useState(existing?.caption ?? '')
+  // Pre-populate from the existing submission's media so editing an
+  // already-submitted post doesn't drop its photo.
+  const [imageUrl, setImageUrl] = useState<string | null>(
+    existing?.media.find((m) => m.kind === 'image')?.url ?? null,
+  )
+  const [uploading, setUploading] = useState(false)
+  const [uploadError, setUploadError] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
   const upsert = useUpsertSubmission(courseId)
   const submit = useSubmitSubmission(courseId, challengeId)
-  const busy = upsert.isPending || submit.isPending
+  const busy = upsert.isPending || submit.isPending || uploading
+
+  const buildMedia = () =>
+    imageUrl
+      ? [{ kind: 'image' as const, url: imageUrl, position: 0 }]
+      : []
 
   const onSubmit = async () => {
-    if (!caption.trim()) return
+    if (!caption.trim() && !imageUrl) return
     const created = await upsert.mutateAsync({
       challengeId,
-      payload: { caption: caption.trim(), media: [] },
+      payload: { caption: caption.trim(), media: buildMedia() },
     })
     await submit.mutateAsync(created.id)
   }
 
   const onSaveDraft = async () => {
-    if (!caption.trim()) return
+    if (!caption.trim() && !imageUrl) return
     await upsert.mutateAsync({
       challengeId,
-      payload: { caption: caption.trim(), media: [] },
+      payload: { caption: caption.trim(), media: buildMedia() },
     })
   }
 
-  const canAct = caption.trim().length > 0 && !busy
+  const onPickFile = async (file: File) => {
+    setUploadError(null)
+    setUploading(true)
+    try {
+      const url = await uploadSubmissionImage(file)
+      setImageUrl(url)
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Upload failed.'
+      setUploadError(msg)
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  const canAct =
+    (caption.trim().length > 0 || imageUrl !== null) && !busy
 
   return (
     <div
@@ -242,17 +271,115 @@ function Composer({
           e.currentTarget.style.borderColor = COLORS.line
         }}
       />
+
+      {/* Image — picker, preview, error. Hidden <input> + a styled
+          button so the affordance fits the surrounding pill-button
+          system instead of a raw browser-chrome file input. */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp,image/gif"
+        style={{ display: 'none' }}
+        onChange={(e) => {
+          const f = e.target.files?.[0]
+          if (f) onPickFile(f)
+          e.target.value = ''
+        }}
+      />
+
+      {imageUrl ? (
+        <div style={{ marginTop: 12, position: 'relative' }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={imageUrl}
+            alt="Your submission"
+            style={{
+              display: 'block',
+              maxWidth: '100%',
+              maxHeight: 360,
+              borderRadius: 10,
+              border: `1px solid ${COLORS.line}`,
+              background: 'white',
+              objectFit: 'cover',
+            }}
+          />
+          <button
+            type="button"
+            onClick={() => setImageUrl(null)}
+            disabled={busy}
+            style={{
+              position: 'absolute',
+              top: 8,
+              right: 8,
+              width: 28,
+              height: 28,
+              borderRadius: 999,
+              border: 'none',
+              background: 'rgba(20,20,22,0.65)',
+              color: 'white',
+              fontSize: 14,
+              cursor: busy ? 'not-allowed' : 'pointer',
+              backdropFilter: 'blur(8px)',
+              WebkitBackdropFilter: 'blur(8px)',
+            }}
+            aria-label="Remove photo"
+            title="Remove photo"
+          >
+            ✕
+          </button>
+        </div>
+      ) : null}
+
+      {uploadError && (
+        <p
+          style={{
+            margin: '10px 0 0',
+            fontSize: 12.5,
+            color: 'oklch(0.5 0.18 25)',
+          }}
+        >
+          {uploadError}
+        </p>
+      )}
+
       <div
         style={{
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
           marginTop: 12,
+          gap: 12,
+          flexWrap: 'wrap',
         }}
       >
-        <span style={{ fontSize: 11.5, color: COLORS.fg3 }}>
-          Image and video uploads land in the next update — text-only for now.
-        </span>
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={busy}
+          style={{
+            border: `1px solid ${COLORS.line}`,
+            background: 'white',
+            color: COLORS.fg1,
+            fontSize: 12.5,
+            fontWeight: 500,
+            padding: '7px 13px',
+            borderRadius: 999,
+            cursor: busy ? 'not-allowed' : 'pointer',
+            opacity: busy ? 0.5 : 1,
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 6,
+          }}
+        >
+          <span style={{ fontSize: 14 }} aria-hidden>
+            📷
+          </span>
+          {uploading
+            ? 'Uploading…'
+            : imageUrl
+              ? 'Replace photo'
+              : 'Add photo'}
+        </button>
         <div style={{ display: 'flex', gap: 8 }}>
           <button
             type="button"
@@ -417,6 +544,28 @@ function SubmissionView({
           </button>
         </div>
       </div>
+      {(() => {
+        const image = submission.media.find(
+          (m) => m.kind === 'image' && m.url,
+        )
+        if (!image?.url) return null
+        return (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={image.url}
+            alt=""
+            style={{
+              display: 'block',
+              width: '100%',
+              maxHeight: 480,
+              borderRadius: 10,
+              border: `1px solid ${COLORS.lineSoft}`,
+              objectFit: 'cover',
+              marginBottom: 12,
+            }}
+          />
+        )
+      })()}
       <p
         style={{
           margin: 0,
@@ -554,6 +703,28 @@ function Gallery({ submissions }: { submissions: SubmissionRead[] }) {
                   </span>
                 )}
               </div>
+              {(() => {
+                const image = s.media.find(
+                  (m) => m.kind === 'image' && m.url,
+                )
+                if (!image?.url) return null
+                return (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={image.url}
+                    alt=""
+                    style={{
+                      display: 'block',
+                      width: '100%',
+                      maxHeight: 320,
+                      borderRadius: 8,
+                      border: `1px solid ${COLORS.lineSoft}`,
+                      objectFit: 'cover',
+                      marginBottom: 8,
+                    }}
+                  />
+                )
+              })()}
               <p
                 style={{
                   margin: 0,

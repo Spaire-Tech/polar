@@ -509,6 +509,20 @@ function SubmissionRow({
         </button>
       </div>
 
+      {(() => {
+        const image = submission.media.find(
+          (m) => m.kind === 'image' && m.url,
+        )
+        if (!image?.url) return null
+        return (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={image.url}
+            alt=""
+            className="mb-3 block max-h-96 w-full rounded-lg border border-gray-200 object-cover"
+          />
+        )
+      })()}
       <p className="mb-4 whitespace-pre-wrap text-sm leading-relaxed text-gray-800">
         {submission.caption || (
           <em className="text-gray-400">(no caption)</em>
