@@ -11,6 +11,7 @@ import { useMemo, useState } from 'react'
 import { TrailerModal } from './EditableCourseLandingView'
 import { useEditor } from './EditorContext'
 import { EditMedia, EditText } from './EditPrimitives'
+import { EpisodeCarousel } from './EpisodeCarousel'
 import { LearnItemSheet } from './LearnItemSheet'
 import { SectionModuleSheet } from './SectionModuleSheet'
 
@@ -729,6 +730,7 @@ function SectionThumbFallback({ hue, n }: { hue: number; n: number }) {
 // ── Episodes (free preview) + paywall ─────────────────────────────────────
 
 export function MobileEpisodes({
+  course,
   freeLessons,
   paidLessons,
   lockedCount,
@@ -740,6 +742,7 @@ export function MobileEpisodes({
   courseThumbnailUrl,
   courseThumbnailObjectPosition,
 }: {
+  course: CourseRead
   freeLessons: CourseLessonRead[]
   paidLessons: CourseLessonRead[]
   lockedCount: number
@@ -946,8 +949,21 @@ export function MobileEpisodes({
         </div>
       )}
 
-      {/* Paywall */}
-      {lockedCount > 0 && (
+      {/* Series replaces the members-only paywall card with a horizontal
+          carousel of the locked episodes (clicking a card opens the
+          enroll-to-watch modal). Courses keep the standard paywall card. */}
+      {course.format === 'series' && lockedCount > 0 && (
+        <EpisodeCarousel
+          course={course}
+          paidLessons={paidLessons}
+          priceLabel={priceLabel}
+          onEnroll={onEnroll}
+          enrolling={enrolling}
+          canEnroll={canEnroll}
+          variant="mobile"
+        />
+      )}
+      {course.format !== 'series' && lockedCount > 0 && (
         <div style={{ padding: '32px 16px 0' }}>
           <MobilePaywall
             paidLessons={paidLessons}

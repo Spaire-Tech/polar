@@ -49,6 +49,7 @@ import {
 import { useEditor } from './EditorContext'
 import { EditBlock, EditMedia, EditText } from './EditPrimitives'
 import { HeroMedia } from './HeroMedia'
+import { EpisodeCarousel } from './EpisodeCarousel'
 import { LearnItemSheet } from './LearnItemSheet'
 import { MotionSection } from './MotionSection'
 import { SectionModuleSheet } from './SectionModuleSheet'
@@ -242,6 +243,7 @@ export function EditableCourseLandingView({
             label: 'Free preview',
             node: (
               <MobileEpisodes
+                course={course}
                 freeLessons={freeLessons}
                 paidLessons={paidLessons}
                 lockedCount={lockedCount}
@@ -1714,8 +1716,27 @@ function EpisodeGrid({
         </div>
       )}
 
+      {/* Series replaces the members-only paywall card with a horizontal
+          carousel of the locked episodes. Clicking a card opens the
+          enroll-to-watch modal which routes to the same checkout flow. */}
+      {course.format === 'series' &&
+        course.paywall_enabled &&
+        lockedCount > 0 && (
+          <EpisodeCarousel
+            course={course}
+            paidLessons={paidLessons}
+            priceLabel={priceLabel}
+            onEnroll={onEnroll}
+            enrolling={enrolling}
+            canEnroll={canEnroll}
+            variant="desktop"
+          />
+        )}
+
       {/* Paywall — Apple liquid-glass card. Light, dimensional, glass-on-glass. */}
-      {course.paywall_enabled && lockedCount > 0 && (
+      {course.format !== 'series' &&
+        course.paywall_enabled &&
+        lockedCount > 0 && (
         <div
           style={{
             display: 'flex',
