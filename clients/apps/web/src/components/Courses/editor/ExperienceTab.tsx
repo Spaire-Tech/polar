@@ -95,9 +95,101 @@ function useUpdateChallenge(courseId: string) {
   })
 }
 
+// ── Submission inbox hooks ──────────────────────────────────────────────
+
+type ReactionRead = {
+  id: string
+  actor_type: 'creator' | 'student'
+  actor_user_id: string
+  emoji: string
+}
+
+type CreatorSubmissionRead = {
+  id: string
+  challenge_id: string
+  course_id: string
+  enrollment_id: string
+  status: 'draft' | 'submitted' | 'hidden'
+  submitted_at: string | null
+  caption: string
+  media: Array<{ id: string; kind: string; url: string | null }>
+  reactions: ReactionRead[]
+  author: { display_name: string; avatar_url: string | null }
+  challenge_title: string | null
+  created_at: string
+  modified_at: string | null
+}
+
+function useCourseSubmissions(courseId: string) {
+  return useQuery<CreatorSubmissionRead[]>({
+    queryKey: ['course-submissions', courseId],
+    queryFn: () => fetchJson(`/v1/courses/${courseId}/submissions`),
+    enabled: !!courseId,
+  })
+}
+
+function useSetReaction(courseId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({
+      submissionId,
+      emoji,
+    }: {
+      submissionId: string
+      emoji: string
+    }) =>
+      fetchJson<ReactionRead>(
+        `/v1/courses/submissions/${submissionId}/reaction`,
+        { method: 'PUT', body: JSON.stringify({ emoji }) },
+      ),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['course-submissions', courseId] })
+    },
+  })
+}
+
+function useClearReaction(courseId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (submissionId: string) =>
+      fetchJson<void>(
+        `/v1/courses/submissions/${submissionId}/reaction`,
+        { method: 'DELETE' },
+      ),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['course-submissions', courseId] })
+    },
+  })
+}
+
+function useSetVisibility(courseId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({
+      submissionId,
+      hidden,
+    }: {
+      submissionId: string
+      hidden: boolean
+    }) =>
+      fetchJson(
+        `/v1/courses/submissions/${submissionId}/visibility`,
+        { method: 'PATCH', body: JSON.stringify({ hidden }) },
+      ),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['course-submissions', courseId] })
+    },
+  })
+}
+
+type ExperienceView = 'challenges' | 'submissions'
+
 export function ExperienceTab({ course }: { course: CourseRead }) {
+  const [view, setView] = useState<ExperienceView>('challenges')
   const challengesQ = useCourseChallenges(course.id)
   const challenges = challengesQ.data ?? []
+  const submissionsQ = useCourseSubmissions(course.id)
+  const submissions = submissionsQ.data ?? []
 
   // Order by the underlying module's position so the list reads in the
   // same order the student sees on the landing — server response is
@@ -110,49 +202,87 @@ export function ExperienceTab({ course }: { course: CourseRead }) {
     <div className="mx-auto w-full max-w-5xl px-6 py-8">
       <div className="mb-6 flex flex-col gap-1">
         <h2 className="text-2xl font-bold tracking-tight text-gray-900">
-          Challenges
+          Experience
         </h2>
         <p className="text-sm text-gray-500">
-          One prompt per module. Students submit a photo or short text;
-          you react, comment, or hide. The list below is what your
-          enrolled students see in the Challenges section on the
-          landing.
+          Shape what students do alongside the lessons, and react to
+          what they share. The cards on the landing show the
+          challenges; the inbox shows every submission as it comes in.
         </p>
       </div>
 
-      {challengesQ.isLoading && (
-        <div className="h-32 animate-pulse rounded-xl bg-gray-100" />
-      )}
-
-      {!challengesQ.isLoading && challenges.length === 0 && (
-        <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-gray-200 bg-gray-50 py-12 text-center">
-          <p className="text-sm text-gray-700">
-            No challenges yet for this course.
-          </p>
-          <p className="max-w-md text-xs text-gray-500">
-            New courses generate four challenges automatically during
-            the AI outline step. Older courses need them added by hand
-            — the “Regenerate from outline” affordance lands in the
-            next pass.
-          </p>
-        </div>
-      )}
-
-      <div className="flex flex-col gap-3">
-        {challenges.map((c, i) => (
-          // Key off (id, modified_at) so a server-side update remounts
-          // the row and resets the local edit buffer — simpler than a
-          // useEffect resync, and matches React's "key is identity"
-          // contract.
-          <ChallengeRow
-            key={`${c.id}::${c.modified_at ?? c.created_at}`}
-            challenge={c}
-            index={i}
-            moduleTitle={modulesById[c.module_id]?.title ?? '—'}
-            courseId={course.id}
-          />
-        ))}
+      <div className="mb-6 inline-flex rounded-full border border-gray-200 bg-white p-1 text-xs font-medium">
+        <button
+          type="button"
+          onClick={() => setView('challenges')}
+          className={
+            view === 'challenges'
+              ? 'rounded-full bg-gray-900 px-3 py-1.5 text-white'
+              : 'rounded-full px-3 py-1.5 text-gray-600 hover:bg-gray-100'
+          }
+        >
+          Challenges
+        </button>
+        <button
+          type="button"
+          onClick={() => setView('submissions')}
+          className={
+            view === 'submissions'
+              ? 'rounded-full bg-gray-900 px-3 py-1.5 text-white'
+              : 'rounded-full px-3 py-1.5 text-gray-600 hover:bg-gray-100'
+          }
+        >
+          Submissions{' '}
+          <span className="font-mono text-[10px] opacity-60">
+            {submissions.length}
+          </span>
+        </button>
       </div>
+
+      {view === 'challenges' && (
+        <>
+          {challengesQ.isLoading && (
+            <div className="h-32 animate-pulse rounded-xl bg-gray-100" />
+          )}
+
+          {!challengesQ.isLoading && challenges.length === 0 && (
+            <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-gray-200 bg-gray-50 py-12 text-center">
+              <p className="text-sm text-gray-700">
+                No challenges yet for this course.
+              </p>
+              <p className="max-w-md text-xs text-gray-500">
+                New courses generate four challenges automatically
+                during the AI outline step. Older courses need them
+                added by hand — the “Regenerate from outline”
+                affordance lands in the next pass.
+              </p>
+            </div>
+          )}
+
+          <div className="flex flex-col gap-3">
+            {challenges.map((c, i) => (
+              <ChallengeRow
+                key={`${c.id}::${c.modified_at ?? c.created_at}`}
+                challenge={c}
+                index={i}
+                moduleTitle={modulesById[c.module_id]?.title ?? '—'}
+                courseId={course.id}
+              />
+            ))}
+          </div>
+        </>
+      )}
+
+      {view === 'submissions' && (
+        <SubmissionsInbox
+          courseId={course.id}
+          submissions={submissions}
+          isLoading={submissionsQ.isLoading}
+          challengesById={Object.fromEntries(
+            challenges.map((c) => [c.id, c]),
+          )}
+        />
+      )}
     </div>
   )
 }
@@ -264,6 +394,161 @@ function ChallengeRow({
         >
           {update.isPending ? 'Saving…' : 'Save'}
         </button>
+      </div>
+    </div>
+  )
+}
+
+// ── Submissions inbox ──────────────────────────────────────────────────
+
+const QUICK_EMOJI = ['❤️', '🔥', '👏', '🙌', '✨', '💯']
+
+function SubmissionsInbox({
+  courseId,
+  submissions,
+  isLoading,
+  challengesById,
+}: {
+  courseId: string
+  submissions: CreatorSubmissionRead[]
+  isLoading: boolean
+  challengesById: Record<string, ChallengeRead>
+}) {
+  if (isLoading) {
+    return <div className="h-32 animate-pulse rounded-xl bg-gray-100" />
+  }
+  if (submissions.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-gray-200 bg-gray-50 py-12 text-center">
+        <p className="text-sm text-gray-700">No submissions yet.</p>
+        <p className="max-w-md text-xs text-gray-500">
+          Once enrolled students start posting their work, you’ll see
+          every submission here — newest first. React with an emoji or
+          hide a post if it doesn’t fit.
+        </p>
+      </div>
+    )
+  }
+  return (
+    <div className="flex flex-col gap-3">
+      {submissions.map((s) => (
+        <SubmissionRow
+          key={s.id}
+          submission={s}
+          courseId={courseId}
+          challengeTitle={
+            challengesById[s.challenge_id]?.title ?? s.challenge_title ?? '—'
+          }
+        />
+      ))}
+    </div>
+  )
+}
+
+function SubmissionRow({
+  submission,
+  courseId,
+  challengeTitle,
+}: {
+  submission: CreatorSubmissionRead
+  courseId: string
+  challengeTitle: string
+}) {
+  const setReaction = useSetReaction(courseId)
+  const clearReaction = useClearReaction(courseId)
+  const setVisibility = useSetVisibility(courseId)
+  const creatorReaction = submission.reactions.find(
+    (r) => r.actor_type === 'creator',
+  )
+  const isHidden = submission.status === 'hidden'
+
+  return (
+    <div
+      className={
+        'rounded-2xl border border-gray-200 bg-white p-5' +
+        (isHidden ? ' opacity-70' : '')
+      }
+    >
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2 text-xs text-gray-500">
+          <span className="text-sm font-semibold text-gray-900">
+            {submission.author.display_name}
+          </span>
+          <span className="text-gray-400">·</span>
+          <span>{challengeTitle}</span>
+          <span className="text-gray-400">·</span>
+          <span>
+            {submission.submitted_at
+              ? new Date(submission.submitted_at).toLocaleDateString(undefined, {
+                  month: 'short',
+                  day: 'numeric',
+                })
+              : '—'}
+          </span>
+          {isHidden && (
+            <>
+              <span className="text-gray-400">·</span>
+              <span className="rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-semibold text-red-700">
+                Hidden
+              </span>
+            </>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={() =>
+            setVisibility.mutate({
+              submissionId: submission.id,
+              hidden: !isHidden,
+            })
+          }
+          className="rounded-lg px-3 py-1.5 text-xs font-medium text-gray-500 hover:bg-gray-100"
+          disabled={setVisibility.isPending}
+        >
+          {isHidden ? 'Unhide' : 'Hide'}
+        </button>
+      </div>
+
+      <p className="mb-4 whitespace-pre-wrap text-sm leading-relaxed text-gray-800">
+        {submission.caption || (
+          <em className="text-gray-400">(no caption)</em>
+        )}
+      </p>
+
+      <div className="flex flex-wrap items-center gap-2">
+        {QUICK_EMOJI.map((emoji) => {
+          const active = creatorReaction?.emoji === emoji
+          return (
+            <button
+              key={emoji}
+              type="button"
+              disabled={setReaction.isPending || clearReaction.isPending}
+              onClick={() => {
+                if (active) {
+                  clearReaction.mutate(submission.id)
+                } else {
+                  setReaction.mutate({
+                    submissionId: submission.id,
+                    emoji,
+                  })
+                }
+              }}
+              className={
+                active
+                  ? 'rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-base'
+                  : 'rounded-full border border-gray-200 bg-white px-3 py-1 text-base hover:border-gray-300'
+              }
+              title={active ? 'Remove your reaction' : `React with ${emoji}`}
+            >
+              {emoji}
+            </button>
+          )
+        })}
+        {creatorReaction && (
+          <span className="ml-2 text-xs text-gray-500">
+            You reacted with {creatorReaction.emoji}
+          </span>
+        )}
       </div>
     </div>
   )

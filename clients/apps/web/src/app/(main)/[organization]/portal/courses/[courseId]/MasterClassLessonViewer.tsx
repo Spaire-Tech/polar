@@ -19,6 +19,7 @@ import KeyboardArrowLeft from '@mui/icons-material/KeyboardArrowLeft'
 import PlayArrow from '@mui/icons-material/PlayArrow'
 import { useEffect, useRef, useState } from 'react'
 import { twMerge } from 'tailwind-merge'
+import { ChallengePanel } from './ChallengePanel'
 import { CommentThread } from './CommentThread'
 
 export interface MasterClassLessonViewerProps {
@@ -36,6 +37,10 @@ export interface MasterClassLessonViewerProps {
     content?: Record<string, unknown> | null
     comments_mode?: 'visible' | 'hidden' | 'locked'
     description?: string | null
+    /** Parent module id — drives the ChallengePanel lookup (one
+     *  challenge per module). Optional so the landing-mode preview
+     *  (which doesn't have a module assigned) doesn't break. */
+    module_id?: string | null
   }
   lessonIndex: number
   totalLessons: number
@@ -615,6 +620,20 @@ export const MasterClassLessonViewer = ({
                 margin: '12px 0 0',
               }}
             />
+
+            {/* Challenge for this lesson's module — sits between the
+                player and the comment thread so the student sees it
+                immediately after "Mark complete". Self-hides when the
+                module has no challenge attached. Only renders in
+                portal mode; the landing-preview mode has no
+                enrollment, so the customer-portal endpoints would
+                403 anyway. */}
+            {mode !== 'landing' && lesson.module_id && (
+              <ChallengePanel
+                courseId={courseId}
+                moduleId={lesson.module_id}
+              />
+            )}
 
             {/* Comments */}
             <CommentThread

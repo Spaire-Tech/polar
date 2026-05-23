@@ -29,6 +29,10 @@ interface FlatLesson {
   content_type: string
   content: Record<string, unknown> | null
   comments_mode?: 'visible' | 'hidden' | 'locked'
+  /** Used by ChallengePanel to resolve which challenge to render for
+   *  this lesson — challenges are scoped to modules, so the lesson
+   *  needs to know its parent module's id. */
+  module_id?: string | null
 }
 
 interface LessonViewerPageProps {
@@ -86,6 +90,10 @@ const LessonViewerPage = ({
           locked_until: m.locked_until,
           content_type: l.content_type ?? 'text',
           content: l.content ?? null,
+          // Carries the parent module's id down to the lesson viewer
+          // so ChallengePanel can look up the right per-module
+          // challenge without a separate API call.
+          module_id: m.id,
         })),
       ))
     : []
@@ -154,6 +162,7 @@ const LessonViewerPage = ({
           completed: currentLesson.completed,
           content: currentLesson.content,
           comments_mode: currentLesson.comments_mode,
+          module_id: currentLesson.module_id ?? null,
         }}
         lessonIndex={flatLessons.findIndex((l) => l.id === currentLesson.id)}
         totalLessons={flatLessons.length}
