@@ -15,6 +15,7 @@
 import type {
   LandingMedia,
   LandingOverrides,
+  LandingTextFormat,
   LandingTheme,
 } from '@/hooks/queries/courses'
 import {
@@ -164,6 +165,9 @@ export const DEFAULT_THEME: LandingTheme = {
   headingLeading: 1.0,
   density: 'comfortable',
   cornerStyle: 'rounded',
+  // 'subtle' fade+rise on viewport entry — light enough that nothing feels
+  // gimmicky, present enough that the page doesn't feel static.
+  motion: 'subtle',
 }
 
 export const SECTION_ORDER_DEFAULT = [
@@ -182,12 +186,51 @@ export const SECTION_ORDER_DEFAULT = [
   'finalCta',
 ] as const
 
+// Labels for every section id the editor knows about. The hover pill on the
+// canvas, the hidden-sections popover, the add-section catalog, and the
+// undo-toast all read from here so labels stay in sync. If a new section is
+// added to the landing render, add its id + label here.
+export const SECTION_LABELS: Record<string, string> = {
+  hero: 'Hero',
+  sample: 'Episode sample',
+  sections: 'Sections',
+  lessons: 'Free preview',
+  createdBy: 'Created by',
+  learn: "What you'll learn",
+  instructor: 'Instructor',
+  reviews: 'Reviews',
+  faq: 'FAQ',
+  finalCta: 'Final CTA',
+  // Legacy ids still present in DEFAULT_OVERRIDES.visible but no longer
+  // rendered by the canvas. Labelled defensively for old saved states.
+  value: "What's included",
+  trailer: 'Trailer',
+  curriculum: 'Curriculum',
+}
+
+// Sections that can be re-inserted from the add-section catalog. Excludes
+// the legacy ids above so the catalog doesn't surface dead options.
+export const ADDABLE_SECTION_IDS: readonly string[] = [
+  'hero',
+  'sample',
+  'sections',
+  'lessons',
+  'createdBy',
+  'learn',
+  'instructor',
+  'reviews',
+  'faq',
+  'finalCta',
+]
+
 export type ResolvedOverrides = {
   text: Record<string, string>
   media: Record<string, NonNullable<LandingOverrides['media']>[string]>
   visible: Record<string, boolean>
   order: string[]
   theme: LandingTheme
+  textFormat: Record<string, LandingTextFormat>
+  spacingBefore: Record<string, number>
 }
 
 export const DEFAULT_OVERRIDES: ResolvedOverrides = {
@@ -209,6 +252,8 @@ export const DEFAULT_OVERRIDES: ResolvedOverrides = {
   },
   order: [...SECTION_ORDER_DEFAULT],
   theme: { ...DEFAULT_THEME },
+  textFormat: {},
+  spacingBefore: {},
 }
 
 export function mergeOverrides(
@@ -250,6 +295,11 @@ export function mergeOverrides(
     visible: { ...DEFAULT_OVERRIDES.visible, ...(ov?.visible ?? {}) },
     order: cleaned,
     theme: { ...DEFAULT_THEME, ...(ov?.theme ?? {}) },
+    textFormat: { ...DEFAULT_OVERRIDES.textFormat, ...(ov?.textFormat ?? {}) },
+    spacingBefore: {
+      ...DEFAULT_OVERRIDES.spacingBefore,
+      ...(ov?.spacingBefore ?? {}),
+    },
   }
 }
 
@@ -272,11 +322,39 @@ type EditorContextValue = {
   isVisible: (id: string) => boolean
   setVisible: (id: string, visible: boolean) => void
   setOrder: (order: string[]) => void
+  // Per-text-element formatting. Patch-style: pass only the fields you want
+  // to change. Pass `null` for the entire format to clear all overrides for
+  // that path (the toolbar Reset button uses this).
+  setTextFormat: (
+    path: string,
+    patch: Partial<LandingTextFormat> | null,
+  ) => void
+  // Per-section "extra gap before" in pixels. Pass `null` to clear.
+  setSpacingBefore: (id: string, value: number | null) => void
+  /**
+   * Remove a section so it stops rendering entirely. We drop the id from
+   * `order` AND set `visible[id]=false` defensively so a stale `visible=true`
+   * doesn't make the section re-appear if the id ever lands back in `order`.
+   * Single history frame — `undo()` restores both fields together.
+   */
+  deleteSection: (id: string) => void
+  /**
+   * Add a section back into `order`. Inserts at `atIndex` (default: append)
+   * and flips `visible[id]=true` so the user actually sees it. Single history
+   * frame.
+   */
+  insertSection: (id: string, atIndex?: number) => void
   setTheme: (patch: Partial<LandingTheme>) => void
   uploadMedia: Uploader
   /** Per-slot override (lets host map specific slots to different endpoints). */
   uploaderForSlot?: (slotId: string) => Uploader
   reset: () => void
+  /**
+   * Replace the entire overrides blob in a single history frame. Used by
+   * "Discard changes" to restore the snapshot the editor was seeded with,
+   * without exploding the undo stack into one frame per field.
+   */
+  restore: (target: ResolvedOverrides) => void
   undo: () => void
   redo: () => void
   canUndo: boolean
@@ -409,6 +487,45 @@ export function EditorProvider({
     [apply, overrides],
   )
 
+  const deleteSection = useCallback(
+    (id: string) => {
+      const nextOrder = overrides.order.filter((x) => x !== id)
+      if (
+        nextOrder.length === overrides.order.length &&
+        overrides.visible[id] === false
+      ) {
+        // Already absent and already hidden — nothing to do.
+        return
+      }
+      apply({
+        ...overrides,
+        order: nextOrder,
+        visible: { ...overrides.visible, [id]: false },
+      })
+    },
+    [apply, overrides],
+  )
+
+  const insertSection = useCallback(
+    (id: string, atIndex?: number) => {
+      // Strip any existing occurrence first so we never end up with the same
+      // id twice in `order` (which would break dnd-kit's SortableContext key
+      // uniqueness and cause React key warnings).
+      const without = overrides.order.filter((x) => x !== id)
+      const idx =
+        atIndex == null
+          ? without.length
+          : Math.max(0, Math.min(without.length, atIndex))
+      const nextOrder = [...without.slice(0, idx), id, ...without.slice(idx)]
+      apply({
+        ...overrides,
+        order: nextOrder,
+        visible: { ...overrides.visible, [id]: true },
+      })
+    },
+    [apply, overrides],
+  )
+
   const setTheme = useCallback(
     (patch: Partial<LandingTheme>) => {
       apply({
@@ -419,9 +536,57 @@ export function EditorProvider({
     [apply, overrides],
   )
 
+  const setTextFormat = useCallback(
+    (path: string, patch: Partial<LandingTextFormat> | null) => {
+      const nextMap = { ...overrides.textFormat }
+      if (patch === null) {
+        delete nextMap[path]
+      } else {
+        const current = overrides.textFormat[path] ?? {}
+        const merged: LandingTextFormat = { ...current, ...patch }
+        // Strip undefined-valued keys so cleared toggles don't linger in the
+        // saved payload — keeps landing_overrides small and behaviour
+        // explicit ("absent === inherit from template").
+        const cleaned: LandingTextFormat = {}
+        for (const [k, v] of Object.entries(merged)) {
+          if (v !== undefined) (cleaned as Record<string, unknown>)[k] = v
+        }
+        if (Object.keys(cleaned).length === 0) {
+          delete nextMap[path]
+        } else {
+          nextMap[path] = cleaned
+        }
+      }
+      apply({ ...overrides, textFormat: nextMap })
+    },
+    [apply, overrides],
+  )
+
+  const setSpacingBefore = useCallback(
+    (id: string, value: number | null) => {
+      const nextMap = { ...overrides.spacingBefore }
+      if (value === null || value === 0) {
+        delete nextMap[id]
+      } else {
+        nextMap[id] = value
+      }
+      apply({ ...overrides, spacingBefore: nextMap })
+    },
+    [apply, overrides],
+  )
+
   const reset = useCallback(() => {
     apply({ ...DEFAULT_OVERRIDES })
   }, [apply])
+
+  const restore = useCallback(
+    (target: ResolvedOverrides) => {
+      // Deep-clone so callers can't accidentally mutate the snapshot through
+      // their own reference once it's in the history stack.
+      apply(JSON.parse(JSON.stringify(target)) as ResolvedOverrides)
+    },
+    [apply],
+  )
 
   const undo = useCallback(() => {
     const h = history.current
@@ -550,10 +715,15 @@ export function EditorProvider({
       isVisible,
       setVisible,
       setOrder,
+      deleteSection,
+      insertSection,
       setTheme,
+      setTextFormat,
+      setSpacingBefore,
       uploadMedia,
       uploaderForSlot,
       reset,
+      restore,
       undo,
       redo,
       canUndo: history.current.idx > 0,
@@ -572,10 +742,15 @@ export function EditorProvider({
       isVisible,
       setVisible,
       setOrder,
+      deleteSection,
+      insertSection,
       setTheme,
+      setTextFormat,
+      setSpacingBefore,
       uploadMedia,
       uploaderForSlot,
       reset,
+      restore,
       undo,
       redo,
       isUploading,

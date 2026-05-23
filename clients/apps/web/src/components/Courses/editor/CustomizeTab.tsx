@@ -17,15 +17,22 @@ import {
 } from '@/hooks/queries/courses'
 import { useProduct } from '@/hooks/queries/products'
 import { schemas } from '@spaire/client'
-import { useMemo, useRef, useState } from 'react'
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@spaire/ui/components/ui/popover'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from '../../Toast/use-toast'
 import { CoursePhoneFrame } from './CoursePhoneFrame'
+import { CustomizeCommandPalette } from './CustomizeCommandPalette'
 import {
   EditableCourseLandingView,
   type LessonHandlers,
 } from './EditableCourseLandingView'
 import {
   EditorProvider,
+  SECTION_LABELS,
   mergeOverrides,
   useEditor,
   type ResolvedOverrides,
@@ -51,7 +58,10 @@ export function CustomizeTab({
     () => ({
       updateLesson: async (lessonId, patch) => {
         // eslint-disable-next-line no-console
-        console.info('[CustomizeTab] lesson update → PATCH', { lessonId, patch })
+        console.info('[CustomizeTab] lesson update → PATCH', {
+          lessonId,
+          patch,
+        })
         try {
           const result = await updateLessonMut.mutateAsync({
             lessonId,
@@ -218,9 +228,7 @@ export function CustomizeTab({
     delete persistedMedia['hero.backdrop']
     delete persistedMedia['hero.trailer']
     delete persistedMedia['trailer.video']
-    const body: Parameters<
-      typeof updateCourse.mutateAsync
-    >[0]['body'] = {
+    const body: Parameters<typeof updateCourse.mutateAsync>[0]['body'] = {
       landing_overrides: {
         ...overridesRef.current,
         media: persistedMedia,
@@ -270,9 +278,11 @@ export function CustomizeTab({
             ?.text ?? {},
         ),
         media_keys: Object.keys(
-          (result.landing_overrides as {
-            media?: Record<string, unknown>
-          } | null)?.media ?? {},
+          (
+            result.landing_overrides as {
+              media?: Record<string, unknown>
+            } | null
+          )?.media ?? {},
         ),
       })
       setDirty(false)
@@ -311,6 +321,8 @@ export function CustomizeTab({
           dirty={dirty}
           saving={saving}
           onSave={handleSave}
+          initialSnapshot={initial}
+          onDiscarded={() => setDirty(false)}
         />
         <CustomizeCanvas
           course={course}
@@ -369,12 +381,52 @@ function CustomizeCanvas({
           alignItems: 'flex-start',
         }}
       >
+        <KeyboardShortcuts />
         <CoursePhoneFrame>{landing}</CoursePhoneFrame>
       </div>
     )
   }
 
-  return <div className="flex-1 overflow-y-auto">{landing}</div>
+  return (
+    <div className="flex-1 overflow-y-auto">
+      <KeyboardShortcuts />
+      {landing}
+    </div>
+  )
+}
+
+// Binds ⌘Z / Ctrl+Z to undo and ⌘⇧Z / ⌘Y / Ctrl+Y to redo. The listener is
+// scoped to the lifetime of the customize tab via the useEffect cleanup, so it
+// detaches the moment the user navigates to another tab. We intentionally fire
+// even when an EditText contentEditable is focused — the browser's native text
+// undo would only revert the visible DOM and leave our editor state stale.
+function KeyboardShortcuts() {
+  const ed = useEditor()
+  // The editor context's identity changes whenever overrides change, so we
+  // keep the latest reference in a ref and attach the window listener exactly
+  // once. Otherwise every keystroke (which mutates overrides via setText)
+  // would tear down and re-attach the listener.
+  const edRef = useRef(ed)
+  edRef.current = ed
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      const mod = e.metaKey || e.ctrlKey
+      if (!mod) return
+      const key = e.key.toLowerCase()
+      if (key === 'z' && !e.shiftKey) {
+        e.preventDefault()
+        edRef.current.undo()
+        return
+      }
+      if ((key === 'z' && e.shiftKey) || key === 'y') {
+        e.preventDefault()
+        edRef.current.redo()
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [])
+  return null
 }
 
 // Slim top bar — the only chrome in the customize page. No left rail, no
@@ -385,12 +437,16 @@ function CustomizeBar({
   dirty,
   saving,
   onSave,
+  initialSnapshot,
+  onDiscarded,
 }: {
   courseTitle: string
   previewHref: string
   dirty: boolean
   saving: boolean
   onSave: () => void
+  initialSnapshot: ResolvedOverrides
+  onDiscarded: () => void
 }) {
   return (
     <div className="relative flex h-12 flex-shrink-0 items-center justify-between gap-3 border-b border-gray-200 bg-white px-4">
@@ -400,6 +456,9 @@ function CustomizeBar({
         <span className="truncate text-[13px] font-medium text-gray-900">
           {courseTitle}
         </span>
+        <span className="mx-1 h-4 w-px bg-gray-200" aria-hidden="true" />
+        <UndoRedoButtons />
+        <HiddenSectionsPill />
       </div>
       <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
         <div className="pointer-events-auto">
@@ -410,6 +469,12 @@ function CustomizeBar({
         <span className="text-[11.5px] text-gray-400">
           {dirty ? 'Unsaved changes' : saving ? '' : 'All changes saved'}
         </span>
+        <DiscardButton
+          dirty={dirty}
+          saving={saving}
+          initialSnapshot={initialSnapshot}
+          onDiscarded={onDiscarded}
+        />
         <a
           href={previewHref}
           target="_blank"
@@ -427,7 +492,197 @@ function CustomizeBar({
           {saving ? 'Saving…' : dirty ? 'Save & publish' : 'Republish'}
         </button>
       </div>
+      {/* Radix-portaled dialog — DOM location is purely organizational. The
+          palette owns its ⌘K listener and open state internally. */}
+      <CustomizeCommandPalette
+        initialSnapshot={initialSnapshot}
+        dirty={dirty}
+        saving={saving}
+        onSave={onSave}
+        previewHref={previewHref}
+        onDiscarded={onDiscarded}
+      />
     </div>
+  )
+}
+
+// Undo / Redo. Icons match the inline-SVG style of the existing DesktopIcon /
+// PhoneIcon below. Buttons disable cleanly when the history stack has nothing
+// further in that direction. The keyboard shortcuts hook (KeyboardShortcuts)
+// covers ⌘Z / ⌘⇧Z without going through these.
+function UndoRedoButtons() {
+  const ed = useEditor()
+  return (
+    <div className="flex items-center gap-0.5">
+      <BarIconButton
+        label="Undo"
+        title="Undo (⌘Z)"
+        disabled={!ed.canUndo}
+        onClick={ed.undo}
+      >
+        <UndoIcon />
+      </BarIconButton>
+      <BarIconButton
+        label="Redo"
+        title="Redo (⌘⇧Z)"
+        disabled={!ed.canRedo}
+        onClick={ed.redo}
+      >
+        <RedoIcon />
+      </BarIconButton>
+    </div>
+  )
+}
+
+// Shared chrome for small 24×24 icon buttons in the bar. Mirrors the touch
+// targets used by DeviceButton but for non-toggle actions.
+function BarIconButton({
+  label,
+  title,
+  disabled,
+  onClick,
+  children,
+}: {
+  label: string
+  title?: string
+  disabled?: boolean
+  onClick: () => void
+  children: React.ReactNode
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      title={title ?? label}
+      onClick={onClick}
+      disabled={disabled}
+      className="flex h-7 w-7 items-center justify-center rounded text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-gray-600"
+    >
+      {children}
+    </button>
+  )
+}
+
+// Counts sections that the user has hidden (via the existing eye toggle in the
+// canvas EditBlock hover pill) and exposes a popover listing each one so they
+// can bring it back. Renders nothing when there are no hidden sections.
+function HiddenSectionsPill() {
+  const ed = useEditor()
+  const hiddenIds = Object.keys(ed.overrides.visible).filter(
+    (id) => ed.overrides.visible[id] === false,
+  )
+  if (hiddenIds.length === 0) return null
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className="ml-1 flex items-center gap-1.5 rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-[11px] font-medium text-amber-800 transition-colors hover:bg-amber-100"
+        >
+          <EyeOffIcon />
+          <span>
+            {hiddenIds.length}{' '}
+            {hiddenIds.length === 1 ? 'section hidden' : 'sections hidden'}
+          </span>
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-64 p-2">
+        <div className="px-1.5 pb-1.5 text-[11px] font-medium tracking-wide text-gray-500 uppercase">
+          Hidden sections
+        </div>
+        <ul className="flex flex-col gap-0.5">
+          {hiddenIds.map((id) => (
+            <li key={id}>
+              <button
+                type="button"
+                onClick={() => ed.setVisible(id, true)}
+                className="flex w-full items-center justify-between rounded px-2 py-1.5 text-left text-[12px] text-gray-700 transition-colors hover:bg-gray-100"
+              >
+                <span className="truncate">{SECTION_LABELS[id] ?? id}</span>
+                <span className="ml-3 text-[10.5px] font-medium tracking-wide text-gray-500 uppercase">
+                  Show
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+        {hiddenIds.length > 1 ? (
+          <div className="mt-1 border-t border-gray-100 pt-1">
+            <button
+              type="button"
+              onClick={() => {
+                for (const id of hiddenIds) ed.setVisible(id, true)
+              }}
+              className="flex w-full items-center justify-center rounded px-2 py-1.5 text-[11.5px] font-medium text-gray-700 transition-colors hover:bg-gray-100"
+            >
+              Show all
+            </button>
+          </div>
+        ) : null}
+      </PopoverContent>
+    </Popover>
+  )
+}
+
+// "Discard changes" — restores the snapshot the editor was seeded with on
+// mount, in a single undo-able history frame. After restore, the previous
+// state is still reachable via ⌘Z, so this isn't a destructive action. The
+// confirm step exists because the action affects the entire page at once.
+function DiscardButton({
+  dirty,
+  saving,
+  initialSnapshot,
+  onDiscarded,
+}: {
+  dirty: boolean
+  saving: boolean
+  initialSnapshot: ResolvedOverrides
+  onDiscarded: () => void
+}) {
+  const ed = useEditor()
+  const [open, setOpen] = useState(false)
+  if (!dirty) return null
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          disabled={saving}
+          className="rounded-md border border-gray-200 bg-white px-2.5 py-[6px] text-[12px] font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          Discard
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-64 p-3">
+        <div className="text-[12.5px] font-medium text-gray-900">
+          Discard unsaved changes?
+        </div>
+        <p className="mt-1 text-[11.5px] leading-snug text-gray-500">
+          Restores this page to what was last saved. You can still ⌘Z to bring
+          your edits back.
+        </p>
+        <div className="mt-3 flex justify-end gap-1.5">
+          <button
+            type="button"
+            onClick={() => setOpen(false)}
+            className="rounded-md border border-gray-200 bg-white px-2.5 py-[5px] text-[11.5px] font-medium text-gray-700 transition-colors hover:bg-gray-50"
+          >
+            Keep editing
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              ed.restore(initialSnapshot)
+              onDiscarded()
+              setOpen(false)
+            }}
+            className="rounded-md bg-gray-900 px-2.5 py-[5px] text-[11.5px] font-semibold text-white transition-colors hover:bg-gray-800"
+          >
+            Discard
+          </button>
+        </div>
+      </PopoverContent>
+    </Popover>
   )
 }
 
@@ -526,6 +781,65 @@ function PhoneIcon() {
     >
       <rect x="5" y="2" width="6" height="12" rx="1.4" />
       <path d="M7.25 12.5h1.5" />
+    </svg>
+  )
+}
+
+function UndoIcon() {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M3 8a4 4 0 0 1 4-4h5a3 3 0 0 1 0 6H8" />
+      <path d="M5.5 5.5 3 8l2.5 2.5" />
+    </svg>
+  )
+}
+
+function RedoIcon() {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M13 8a4 4 0 0 0-4-4H4a3 3 0 0 0 0 6h4" />
+      <path d="M10.5 5.5 13 8l-2.5 2.5" />
+    </svg>
+  )
+}
+
+function EyeOffIcon() {
+  return (
+    <svg
+      width="12"
+      height="12"
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M2 8s2.5-4.5 6-4.5c1.3 0 2.4.4 3.3 1" />
+      <path d="M14 8s-2.5 4.5-6 4.5c-1.3 0-2.4-.4-3.3-1" />
+      <path d="M6.6 6.6a2 2 0 0 0 2.8 2.8" />
+      <path d="M2.5 2.5 13.5 13.5" />
     </svg>
   )
 }

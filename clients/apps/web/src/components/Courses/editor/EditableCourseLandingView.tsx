@@ -14,11 +14,27 @@ import type { CourseLessonRead, CourseRead } from '@/hooks/queries/courses'
 import { api } from '@/utils/client'
 import { CONFIG } from '@/utils/config'
 import { useIsMobile } from '@/utils/mobile'
+import {
+  closestCenter,
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core'
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable'
 import type { schemas } from '@spaire/client'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { Fragment, useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { toast } from '../../Toast/use-toast'
 import { HlsVideo } from '../HlsVideo'
+import { AddSectionDock } from './AddSectionDock'
 import {
   MobileCreatedBy,
   MobileEpisodes,
@@ -34,8 +50,10 @@ import { useEditor } from './EditorContext'
 import { EditBlock, EditMedia, EditText } from './EditPrimitives'
 import { HeroMedia } from './HeroMedia'
 import { LearnItemSheet } from './LearnItemSheet'
+import { MotionSection } from './MotionSection'
 import { SectionModuleSheet } from './SectionModuleSheet'
 import { SeriesSampleBlock } from './SeriesSampleBlock'
+import { SpacingHandle } from './SpacingHandle'
 
 // Imperative handlers wired by the host (CustomizeTab) so episode tiles can
 // persist edits to the actual course lesson — title, description, thumbnail
@@ -355,6 +373,32 @@ export function EditableCourseLandingView({
           },
         }
 
+  // Ids that have a renderable section under the current device tree. dnd-kit
+  // works on these only — any legacy ids in the saved `order` (e.g. `value`)
+  // are intentionally excluded so the user can't drag invisible things.
+  const renderedIds = ed.overrides.order.filter((id) => sectionMap[id])
+
+  const sensors = useSensors(
+    // 6px activation distance: prevents stray drags when the user is trying
+    // to click into an EditText / image tile inside the section.
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
+  )
+
+  const onDragEnd = (e: DragEndEvent) => {
+    const { active, over } = e
+    if (!over || active.id === over.id) return
+    // Operate on the full `order` array so non-rendered legacy ids retain
+    // their relative positions. arrayMove handles the splice math.
+    const fullOrder = [...ed.overrides.order]
+    const from = fullOrder.indexOf(String(active.id))
+    const to = fullOrder.indexOf(String(over.id))
+    if (from < 0 || to < 0) return
+    ed.setOrder(arrayMove(fullOrder, from, to))
+  }
+
   return (
     <div
       data-spaire-editor
@@ -365,20 +409,55 @@ export function EditableCourseLandingView({
         minHeight: '100%',
       }}
     >
-      {ed.overrides.order
-        .filter((id) => sectionMap[id])
-        .map((id) => {
-          const s = sectionMap[id]
-          return (
-            <EditBlock key={id} id={id} label={s.label}>
-              {s.node}
-            </EditBlock>
-          )
-        })}
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragEnd={onDragEnd}
+      >
+        <SortableContext
+          items={renderedIds}
+          strategy={verticalListSortingStrategy}
+        >
+          {renderedIds.map((id, i) => {
+            const s = sectionMap[id]
+            // Saved extra spacing before this section. Applied in BOTH edit
+            // mode (via SpacingHandle's own size) and preview mode (here, as
+            // marginTop). We render the handle for every section after the
+            // first; in preview mode it returns null so visitors see only
+            // the gap.
+            const extra = ed.overrides.spacingBefore[id] ?? 0
+            return (
+              <Fragment key={id}>
+                {i > 0 && ed.mode === 'edit' ? (
+                  <SpacingHandle nextId={id} />
+                ) : null}
+                <EditBlock
+                  id={id}
+                  label={s.label}
+                  // marginTop only applies in non-edit mode. In edit mode
+                  // the SpacingHandle's own height absorbs the gap so we
+                  // don't double-count it.
+                  marginTop={ed.mode === 'edit' ? 0 : extra}
+                >
+                  <MotionSection level={ed.overrides.theme.motion}>
+                    {s.node}
+                  </MotionSection>
+                </EditBlock>
+              </Fragment>
+            )
+          })}
+        </SortableContext>
+      </DndContext>
       {isMobile ? (
         <MobileFooter organizationName={organizationName} />
       ) : (
         <Footer organizationName={organizationName} />
+      )}
+      {/* The dock surfaces sections that have been deleted so the user can
+          add them back. Renders nothing when every catalog section is already
+          in the order — i.e., a freshly-created course shows no dock. */}
+      {ed.mode === 'edit' && (
+        <AddSectionDock availableSectionIds={Object.keys(sectionMap)} />
       )}
     </div>
   )
