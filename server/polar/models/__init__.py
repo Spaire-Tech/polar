@@ -12,6 +12,7 @@ from .checkout_link_product import CheckoutLinkProduct
 from .checkout_product import CheckoutProduct
 from .client_invoice import ClientInvoice, ClientInvoiceLineItem, ClientInvoiceStatus
 from .course import Course
+from .course_broadcast import CourseBroadcast
 from .course_challenge import CourseChallenge
 from .course_enrollment import CourseEnrollment
 from .course_lesson import CourseLesson
@@ -129,6 +130,7 @@ __all__ = [
     "ClientInvoiceLineItem",
     "ClientInvoiceStatus",
     "Course",
+    "CourseBroadcast",
     "CourseChallenge",
     "CourseEnrollment",
     "CourseLesson",
