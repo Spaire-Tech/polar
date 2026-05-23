@@ -112,6 +112,12 @@ export const landingSchema = z.object({
     }),
   ),
 
+  // Per-episode descriptions for the series carousel. One short
+  // description per episode (1-2 sentences, ≤ 200 chars). Optional —
+  // stays undefined until the AI emits it, which avoids stalling
+  // useObject on the partial stream.
+  episode_descriptions: z.array(z.string()).optional(),
+
   // FAQ — minimal accordion right before the final CTA. 7 items.
   faq_eyebrow: z.string(),
   faq_title: z.string(),

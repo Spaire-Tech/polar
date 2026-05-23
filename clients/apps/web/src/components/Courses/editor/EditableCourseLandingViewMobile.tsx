@@ -7,10 +7,12 @@
 // to mobile or when the page is viewed on a real phone.
 
 import type { CourseLessonRead, CourseRead } from '@/hooks/queries/courses'
+import type { schemas } from '@spaire/client'
 import { useMemo, useState } from 'react'
 import { TrailerModal } from './EditableCourseLandingView'
 import { useEditor } from './EditorContext'
 import { EditMedia, EditText } from './EditPrimitives'
+import { EpisodeCarousel } from './EpisodeCarousel'
 import { LearnItemSheet } from './LearnItemSheet'
 import { SectionModuleSheet } from './SectionModuleSheet'
 
@@ -729,6 +731,8 @@ function SectionThumbFallback({ hue, n }: { hue: number; n: number }) {
 // ── Episodes (free preview) + paywall ─────────────────────────────────────
 
 export function MobileEpisodes({
+  course,
+  product,
   freeLessons,
   paidLessons,
   lockedCount,
@@ -740,6 +744,8 @@ export function MobileEpisodes({
   courseThumbnailUrl,
   courseThumbnailObjectPosition,
 }: {
+  course: CourseRead
+  product?: schemas['Product']
   freeLessons: CourseLessonRead[]
   paidLessons: CourseLessonRead[]
   lockedCount: number
@@ -946,8 +952,22 @@ export function MobileEpisodes({
         </div>
       )}
 
-      {/* Paywall */}
-      {lockedCount > 0 && (
+      {/* Series replaces the members-only paywall card with a horizontal
+          carousel of the locked episodes (clicking a card opens the
+          enroll-to-watch modal). Courses keep the standard paywall card. */}
+      {course.format === 'series' && lockedCount > 0 && (
+        <EpisodeCarousel
+          course={course}
+          product={product}
+          paidLessons={paidLessons}
+          priceLabel={priceLabel}
+          onEnroll={onEnroll}
+          enrolling={enrolling}
+          canEnroll={canEnroll}
+          variant="mobile"
+        />
+      )}
+      {course.format !== 'series' && lockedCount > 0 && (
         <div style={{ padding: '32px 16px 0' }}>
           <MobilePaywall
             paidLessons={paidLessons}
@@ -1478,44 +1498,6 @@ export function MobileCreatedBy({
         fontFamily: FONT_VAR,
       }}
     >
-      {/* Eyebrow pill */}
-      <div
-        style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: 7,
-          padding: '7px 14px',
-          borderRadius: 999,
-          background: 'oklch(0.94 0.003 250 / 0.7)',
-          color: 'oklch(0.40 0.008 250)',
-          border: '1px solid oklch(0.88 0.004 250)',
-          backdropFilter: 'blur(20px) saturate(160%)',
-          WebkitBackdropFilter: 'blur(20px) saturate(160%)',
-          marginBottom: 22,
-          whiteSpace: 'nowrap',
-        }}
-      >
-        <span
-          aria-hidden
-          style={{
-            width: 6,
-            height: 6,
-            borderRadius: '50%',
-            background: 'oklch(0.55 0.008 250)',
-            boxShadow: '0 0 8px oklch(0.55 0.008 250 / 0.4)',
-          }}
-        />
-        <EditText
-          path="createdBy.eyebrow"
-          defaultValue={defaultEyebrow}
-          style={{
-            fontSize: 10,
-            fontWeight: 700,
-            letterSpacing: '0.18em',
-          }}
-        />
-      </div>
-
       {/* Headline quote */}
       <EditText
         as="h2"

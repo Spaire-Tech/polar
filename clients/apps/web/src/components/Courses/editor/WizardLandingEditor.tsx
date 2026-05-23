@@ -238,6 +238,13 @@ export function WizardLandingEditor({
           merged.text[`faq.item${i + 1}.a`] = it.answer
       })
     }
+    if (Array.isArray(text.episode_descriptions)) {
+      ;(text.episode_descriptions as unknown[]).forEach((d, i) => {
+        if (typeof d === 'string' && d.trim()) {
+          merged.text[`episode.${i}.desc`] = d
+        }
+      })
+    }
     if (draft.name) merged.text['hero.instructor'] = draft.name
     if (initialThumbFile) {
       const url = URL.createObjectURL(initialThumbFile)

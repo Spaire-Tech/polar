@@ -49,6 +49,7 @@ import {
 import { useEditor } from './EditorContext'
 import { EditBlock, EditMedia, EditText } from './EditPrimitives'
 import { HeroMedia } from './HeroMedia'
+import { EpisodeCarousel } from './EpisodeCarousel'
 import { LearnItemSheet } from './LearnItemSheet'
 import { MotionSection } from './MotionSection'
 import { SectionModuleSheet } from './SectionModuleSheet'
@@ -242,6 +243,8 @@ export function EditableCourseLandingView({
             label: 'Free preview',
             node: (
               <MobileEpisodes
+                course={course}
+                product={product}
                 freeLessons={freeLessons}
                 paidLessons={paidLessons}
                 lockedCount={lockedCount}
@@ -256,6 +259,7 @@ export function EditableCourseLandingView({
               />
             ),
           },
+          // Instructor section removed from the template; createdBy stays.
           createdBy: {
             label: 'Created by',
             node: (
@@ -269,10 +273,7 @@ export function EditableCourseLandingView({
             label: "What you'll learn",
             node: <MobileWhatYoullLearn />,
           },
-          instructor: {
-            label: 'Instructor',
-            node: <MobileInstructor course={course} />,
-          },
+          instructor: { label: 'Instructor', node: null },
           faq: {
             label: 'FAQ',
             node: <MobileFaq />,
@@ -326,6 +327,7 @@ export function EditableCourseLandingView({
             node: (
               <EpisodeGrid
                 course={course}
+                product={product}
                 freeLessons={freeLessons}
                 paidLessons={paidLessons}
                 lockedCount={lockedCount}
@@ -338,6 +340,7 @@ export function EditableCourseLandingView({
               />
             ),
           },
+          // Instructor section removed from the template; createdBy stays.
           createdBy: {
             label: 'Created by',
             node: (
@@ -351,10 +354,7 @@ export function EditableCourseLandingView({
             label: "What you'll learn",
             node: <WhatYoullLearn />,
           },
-          instructor: {
-            label: 'Instructor',
-            node: <Instructor course={course} />,
-          },
+          instructor: { label: 'Instructor', node: null },
           faq: {
             label: 'FAQ',
             node: <Faq />,
@@ -376,7 +376,10 @@ export function EditableCourseLandingView({
   // Ids that have a renderable section under the current device tree. dnd-kit
   // works on these only — any legacy ids in the saved `order` (e.g. `value`)
   // are intentionally excluded so the user can't drag invisible things.
-  const renderedIds = ed.overrides.order.filter((id) => sectionMap[id])
+  // Skip ids whose section was removed from the template (node === null).
+  const renderedIds = ed.overrides.order.filter(
+    (id) => sectionMap[id] && sectionMap[id].node !== null,
+  )
 
   const sensors = useSensors(
     // 6px activation distance: prevents stray drags when the user is trying
@@ -1590,6 +1593,7 @@ function CourseSections({
 
 function EpisodeGrid({
   course,
+  product,
   freeLessons,
   paidLessons,
   lockedCount,
@@ -1601,6 +1605,7 @@ function EpisodeGrid({
   lessonHandlers,
 }: {
   course: CourseRead
+  product?: schemas['Product']
   freeLessons: CourseLessonRead[]
   paidLessons: CourseLessonRead[]
   lockedCount: number
@@ -1714,8 +1719,28 @@ function EpisodeGrid({
         </div>
       )}
 
+      {/* Series replaces the members-only paywall card with a horizontal
+          carousel of the locked episodes. Clicking a card opens the
+          enroll-to-watch modal which routes to the same checkout flow. */}
+      {course.format === 'series' &&
+        course.paywall_enabled &&
+        lockedCount > 0 && (
+          <EpisodeCarousel
+            course={course}
+            product={product}
+            paidLessons={paidLessons}
+            priceLabel={priceLabel}
+            onEnroll={onEnroll}
+            enrolling={enrolling}
+            canEnroll={canEnroll}
+            variant="desktop"
+          />
+        )}
+
       {/* Paywall — Apple liquid-glass card. Light, dimensional, glass-on-glass. */}
-      {course.paywall_enabled && lockedCount > 0 && (
+      {course.format !== 'series' &&
+        course.paywall_enabled &&
+        lockedCount > 0 && (
         <div
           style={{
             display: 'flex',
@@ -3416,46 +3441,6 @@ function CreatedBy({
         fontFamily: FONT_VAR,
       }}
     >
-      {/* Eyebrow pill */}
-      <div
-        style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: 8,
-          padding: '8px 16px',
-          borderRadius: 999,
-          background: 'oklch(0.94 0.003 250 / 0.7)',
-          color: 'oklch(0.40 0.008 250)',
-          border: '1px solid oklch(0.88 0.004 250)',
-          backdropFilter: 'blur(20px) saturate(160%)',
-          WebkitBackdropFilter: 'blur(20px) saturate(160%)',
-          boxShadow:
-            'inset 0 1px 0 rgba(255,255,255,0.7), 0 1px 2px rgba(0,0,0,0.04)',
-          marginBottom: 28,
-          whiteSpace: 'nowrap',
-        }}
-      >
-        <span
-          aria-hidden
-          style={{
-            width: 6,
-            height: 6,
-            borderRadius: '50%',
-            background: 'oklch(0.55 0.008 250)',
-            boxShadow: '0 0 8px oklch(0.55 0.008 250 / 0.4)',
-          }}
-        />
-        <EditText
-          path="createdBy.eyebrow"
-          defaultValue={defaultEyebrow}
-          style={{
-            fontSize: 11,
-            fontWeight: 700,
-            letterSpacing: '0.16em',
-          }}
-        />
-      </div>
-
       {/* Headline quote */}
       <EditText
         as="h2"
@@ -3903,7 +3888,7 @@ function LearnZigzag({
         style={{
           display: 'grid',
           gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
-          gap: 20,
+          gap: 14,
           minHeight: 420,
           alignItems: 'end',
         }}
@@ -3936,7 +3921,7 @@ function LearnZigzag({
           position: 'relative',
           display: 'grid',
           gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
-          gap: 20,
+          gap: 14,
           height: 24,
           alignItems: 'center',
           margin: '6px 0',
@@ -3981,7 +3966,7 @@ function LearnZigzag({
         style={{
           display: 'grid',
           gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
-          gap: 20,
+          gap: 14,
           minHeight: 420,
           alignItems: 'start',
         }}
@@ -4025,8 +4010,12 @@ function WhatYoullLearn() {
   return (
     <section
       style={{
-        padding: '88px 32px 24px',
-        maxWidth: 1480,
+        // Wider canvas + tighter horizontal padding so each of the 4
+        // zigzag cards gets meaningfully more width. The row min-height
+        // and the 14px gap below also help the cards breathe instead of
+        // sitting tight against each other.
+        padding: '88px 16px 24px',
+        maxWidth: 1820,
         margin: '0 auto',
         fontFamily: FONT_VAR,
       }}

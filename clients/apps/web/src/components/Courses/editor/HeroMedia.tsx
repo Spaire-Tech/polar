@@ -163,16 +163,41 @@ export function HeroMedia({
   return (
     <div
       ref={containerRef}
-      onPointerEnter={(e) => {
-        // Ignore touch — tapping the hero on mobile shouldn't kick a
-        // peek before the user can read the page. Pointer events from
-        // touch report pointerType 'touch'.
-        if (e.pointerType === 'touch') return
-        if (trailerUrl) setHovered(true)
+      // Outer wrapper itself doesn't capture pointer events — it just
+      // hosts the image/video layers. The hover trigger is a separate
+      // smaller overlay (top portion only) so hovering near the title /
+      // CTA stack at the bottom of the hero doesn't fire the trailer.
+      // Volume button overrides this with its own pointerEvents:'auto'.
+      style={{
+        position: 'absolute',
+        inset: 0,
+        zIndex: 1,
+        pointerEvents: 'none',
       }}
-      onPointerLeave={() => setHovered(false)}
-      style={{ position: 'absolute', inset: 0, zIndex: 1 }}
     >
+      {/* Hover-trigger overlay — top portion of the hero only. The
+          title + CTA stack lives in the bottom ~40% of the hero, so
+          limiting the trigger to the top 55% means hovering over (or
+          near) the CTAs never accidentally fires the trailer. */}
+      {trailerUrl && (
+        <div
+          onPointerEnter={(e) => {
+            if (e.pointerType === 'touch') return
+            setHovered(true)
+          }}
+          onPointerLeave={() => setHovered(false)}
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            height: '55%',
+            zIndex: 3,
+            pointerEvents: 'auto',
+          }}
+          aria-hidden
+        />
+      )}
       {trailerUrl && (
         <video
           ref={videoRef}
@@ -251,6 +276,10 @@ export function HeroMedia({
             WebkitBackdropFilter: 'blur(8px) saturate(180%)',
             cursor: 'pointer',
             fontFamily: 'inherit',
+            // Parent has pointerEvents:'none' so the title/CTA layer
+            // beneath it stays clickable; re-enable here so the volume
+            // toggle remains tappable.
+            pointerEvents: 'auto',
           }}
         >
           {muted ? <VolumeOffIcon /> : <VolumeOnIcon />}
