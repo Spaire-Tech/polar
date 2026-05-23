@@ -12,11 +12,15 @@ from .checkout_link_product import CheckoutLinkProduct
 from .checkout_product import CheckoutProduct
 from .client_invoice import ClientInvoice, ClientInvoiceLineItem, ClientInvoiceStatus
 from .course import Course
+from .course_challenge import CourseChallenge
 from .course_enrollment import CourseEnrollment
 from .course_lesson import CourseLesson
 from .course_lesson_progress import CourseLessonProgress
 from .course_module import CourseModule
 from .course_note import CourseNote
+from .course_submission import CourseSubmission
+from .course_submission_media import CourseSubmissionMedia
+from .course_submission_reaction import CourseSubmissionReaction
 from .custom_field import CustomField
 from .customer import Customer
 from .customer_meter import CustomerMeter
@@ -125,10 +129,14 @@ __all__ = [
     "ClientInvoiceLineItem",
     "ClientInvoiceStatus",
     "Course",
+    "CourseChallenge",
     "CourseEnrollment",
     "CourseLesson",
     "CourseModule",
     "CourseNote",
+    "CourseSubmission",
+    "CourseSubmissionMedia",
+    "CourseSubmissionReaction",
     "CustomField",
     "Customer",
     "CustomerMeter",
