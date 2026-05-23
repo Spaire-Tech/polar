@@ -125,34 +125,49 @@ export function EpisodeCarousel({
               course.thumbnail_object_position ??
               null
             const duration = fmtDuration(lesson.duration_seconds)
-            // AI-generated per-episode description lives at
+            // Description resolution: AI-generated per-episode value
+            // first, then the lesson's own description, then a
+            // hardcoded fallback so a card never renders without copy
+            // below the title. The AI value lives at
             // `episode.<i>.desc` (written by WizardLandingEditor when
-            // the landing payload arrives). Fall back to the lesson's
-            // own description so the carousel reads on the public
-            // landing even if the AI didn't emit one.
-            const description = ed.t(
-              `episode.${i}.desc`,
-              lesson.description ?? '',
-            )
+            // the landing payload arrives).
+            const aiDesc = ed.t(`episode.${i}.desc`, '')
+            const description =
+              aiDesc.trim() ||
+              lesson.description?.trim() ||
+              `Available once you enroll. Watch ${lesson.title || `episode ${i + 1}`} and the rest of the season.`
             return (
               <article key={lesson.id} className="epcs-card">
                 <button
                   type="button"
                   className="epcs-media"
                   onClick={() => setOpenLesson(lesson)}
-                  style={
-                    thumbUrl
-                      ? {
-                          background: `center / cover no-repeat url(${thumbUrl})`,
-                          backgroundPosition: thumbPos ?? '50% 50%',
-                        }
-                      : { background: altBg }
-                  }
                   aria-label={`Episode ${i + 1}: ${lesson.title || 'Untitled'}`}
                 >
-                  {/* Frosted-glass blur strip behind the text block —
-                      backdrop-filter blurs whatever's behind, giving the
-                      glassy look the design calls for. */}
+                  {/* Image lives in its own layer so the blur strip
+                      below has something explicit to sample with
+                      backdrop-filter. Putting it on the parent
+                      button as a CSS background also works in most
+                      browsers but is less reliable across Safari /
+                      Firefox compositor paths. */}
+                  <div
+                    className="epcs-image"
+                    style={
+                      thumbUrl
+                        ? {
+                            background: `center / cover no-repeat url(${thumbUrl})`,
+                            backgroundPosition: thumbPos ?? '50% 50%',
+                          }
+                        : { background: altBg }
+                    }
+                    aria-hidden
+                  />
+                  {/* Frosted-glass strip — backdrop-filter blurs the
+                      .epcs-image behind it. No mask (which breaks the
+                      backdrop-filter compositor in Safari + Firefox).
+                      A faint dark gradient on top of the blur softens
+                      the seam and keeps the title legible over the
+                      blurred artwork. */}
                   <div className="epcs-blur" aria-hidden />
                   <div className="epcs-scrim" aria-hidden />
                   <div className="epcs-body">
@@ -289,42 +304,50 @@ export function EpisodeCarousel({
           cursor: pointer;
           font-family: inherit;
           text-align: left;
+          background: #0b0b10;
         }
-        .epcs-scrim {
+        /* Image layer — bottom of the stack. .epcs-blur backdrop-filters
+           this. */
+        .epcs-image {
           position: absolute;
           inset: 0;
-          background: linear-gradient(
-            180deg,
-            rgba(0, 0, 0, 0) 38%,
-            rgba(0, 0, 0, 0.45) 72%,
-            rgba(0, 0, 0, 0.78) 100%
-          );
-          pointer-events: none;
-          z-index: 1;
+          z-index: 0;
         }
-        /* Frosted-glass strip behind the bottom text — backdrop-filter
-           blurs whatever's behind, so the artwork softens into the
-           text instead of just darkening. Lives under the scrim so the
-           gradient still tints it dark for legibility. */
+        /* Frosted-glass strip — backdrop-filters the image layer.
+           Solid height, no mask (mask interacts badly with
+           backdrop-filter in Safari/Firefox compositors and ends up
+           rendering nothing). */
         .epcs-blur {
           position: absolute;
           left: 0;
           right: 0;
           bottom: 0;
-          height: 52%;
-          backdrop-filter: blur(18px) saturate(120%);
-          -webkit-backdrop-filter: blur(18px) saturate(120%);
-          mask-image: linear-gradient(
+          height: 46%;
+          backdrop-filter: blur(24px) saturate(140%);
+          -webkit-backdrop-filter: blur(24px) saturate(140%);
+          /* Light tint on top of the blur so the title still reads
+             over the softened artwork. */
+          background: linear-gradient(
             180deg,
             rgba(0, 0, 0, 0) 0%,
-            rgba(0, 0, 0, 0.5) 22%,
-            rgba(0, 0, 0, 1) 55%
+            rgba(0, 0, 0, 0.2) 40%,
+            rgba(0, 0, 0, 0.5) 100%
           );
-          -webkit-mask-image: linear-gradient(
+          pointer-events: none;
+          z-index: 1;
+        }
+        /* Top-edge softener — fades the blur strip into the unblurred
+           image above. Lives just above the blur, just below the body. */
+        .epcs-scrim {
+          position: absolute;
+          left: 0;
+          right: 0;
+          bottom: 46%;
+          height: 14%;
+          background: linear-gradient(
             180deg,
             rgba(0, 0, 0, 0) 0%,
-            rgba(0, 0, 0, 0.5) 22%,
-            rgba(0, 0, 0, 1) 55%
+            rgba(0, 0, 0, 0.18) 100%
           );
           pointer-events: none;
           z-index: 1;
