@@ -4,6 +4,7 @@ from typing import Annotated, Any, Literal
 
 from pydantic import (
     UUID4,
+    BeforeValidator,
     Discriminator,
     Field,
     Tag,
@@ -14,6 +15,27 @@ from pydantic.aliases import AliasChoices
 from pydantic.json_schema import SkipJsonSchema
 
 from polar.benefit.schemas import Benefit, BenefitID, BenefitPublic
+from polar.models.benefit import BenefitType
+
+
+def _strip_internal_benefits(value: Any) -> Any:
+    """Drop benefits that aren't part of the public Benefit discriminated union.
+
+    course_access (and any future internal-plumbing benefit type) is
+    attached to a course's product so the purchase pipeline enrolls
+    customers, but it has no corresponding API schema variant. Without
+    this strip, serializing a course product blew up the products list
+    with a Pydantic discriminator error — which is why the dashboard
+    Courses tab went empty after the backfill migration.
+    """
+    if not isinstance(value, list):
+        return value
+    internal = {BenefitType.course_access}
+    return [
+        b
+        for b in value
+        if getattr(b, "type", None) not in internal
+    ]
 from polar.custom_field.schemas import (
     AttachedCustomField,
     AttachedCustomFieldListCreate,
@@ -804,6 +826,7 @@ ProductPriceList = Annotated[
 ]
 BenefitList = Annotated[
     list[Benefit],
+    BeforeValidator(_strip_internal_benefits),
     Field(
         description="List of benefits granted by the product.",
     ),
@@ -831,6 +854,7 @@ class Product(MetadataOutputMixin, ProductBase):
 
 BenefitPublicList = Annotated[
     list[BenefitPublic],
+    BeforeValidator(_strip_internal_benefits),
     Field(
         title="BenefitPublic",
         description="List of benefits granted by the product.",
