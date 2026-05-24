@@ -40,7 +40,6 @@ from polar.notifications.notification import (
 )
 from polar.notifications.service import PartialNotification
 from polar.notifications.service import notifications as notifications_service
-from polar.redis import Redis, get_redis_pool
 from polar.user_organization.service import (
     user_organization as user_organization_service,
 )
@@ -303,9 +302,3 @@ __all__ = [
     "community_module_completed_listener",
     "community_post_created",
 ]
-
-
-# Keep a reference to Redis / pool import so future cron-style actors
-# (e.g. weekly digest, watching-rail aggregator) don't trip on missing
-# imports when first added.
-_ = (Redis, get_redis_pool)
