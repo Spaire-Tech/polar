@@ -64,6 +64,7 @@ def upgrade() -> None:
         sa.Column("id", sa.Uuid(), nullable=False),
         sa.Column("created_at", sa.TIMESTAMP(timezone=True), nullable=False),
         sa.Column("modified_at", sa.TIMESTAMP(timezone=True), nullable=True),
+        sa.Column("deleted_at", sa.TIMESTAMP(timezone=True), nullable=True),
         sa.Column("course_id", sa.Uuid(), nullable=False),
         sa.Column(
             "enabled",
@@ -88,9 +89,7 @@ def upgrade() -> None:
         ),
         # Hero block on the feed home.
         sa.Column("hero_thumbnail_url", sa.String(500), nullable=True),
-        sa.Column(
-            "hero_thumbnail_object_position", sa.String(32), nullable=True
-        ),
+        sa.Column("hero_thumbnail_object_position", sa.String(32), nullable=True),
         sa.Column("feed_title_override", sa.String(120), nullable=True),
         sa.Column("feed_eyebrow_override", sa.String(120), nullable=True),
         # Inline-rename of CourseModule.title in the community context
@@ -148,9 +147,7 @@ def upgrade() -> None:
             ondelete="CASCADE",
         ),
         sa.PrimaryKeyConstraint("id", name="community_settings_pkey"),
-        sa.UniqueConstraint(
-            "course_id", name="community_settings_course_id_unique"
-        ),
+        sa.UniqueConstraint("course_id", name="community_settings_course_id_unique"),
         sa.CheckConstraint(
             "comments_mode IN ('visible', 'hidden', 'locked')",
             name="community_settings_comments_mode_check",
@@ -203,9 +200,7 @@ def upgrade() -> None:
             postgresql_where=sa.text("deleted_at IS NULL"),
         ),
     )
-    op.create_index(
-        "ix_community_tags_course_id", "community_tags", ["course_id"]
-    )
+    op.create_index("ix_community_tags_course_id", "community_tags", ["course_id"])
 
     # ============================================================
     # community_posts — top-level posts
@@ -263,9 +258,7 @@ def upgrade() -> None:
         # sort key without a join.
         sa.Column("pinned_at", sa.TIMESTAMP(timezone=True), nullable=True),
         sa.Column("pin_type", sa.String(30), nullable=True),
-        sa.Column(
-            "pin_expires_at", sa.TIMESTAMP(timezone=True), nullable=True
-        ),
+        sa.Column("pin_expires_at", sa.TIMESTAMP(timezone=True), nullable=True),
         # Per-post override of the course-wide comments_mode. Null =
         # inherit from community_settings.comments_mode.
         sa.Column("comments_mode", sa.String(20), nullable=True),
@@ -328,13 +321,11 @@ def upgrade() -> None:
             name="community_posts_body_format_check",
         ),
         sa.CheckConstraint(
-            "comments_mode IS NULL "
-            "OR comments_mode IN ('visible', 'hidden', 'locked')",
+            "comments_mode IS NULL OR comments_mode IN ('visible', 'hidden', 'locked')",
             name="community_posts_comments_mode_check",
         ),
         sa.CheckConstraint(
-            "pin_type IS NULL "
-            "OR pin_type IN ('announcement', 'prompt_of_week')",
+            "pin_type IS NULL OR pin_type IN ('announcement', 'prompt_of_week')",
             name="community_posts_pin_type_check",
         ),
         # If pin_type is set, pinned_at must be set too — guards against
@@ -351,17 +342,13 @@ def upgrade() -> None:
         "ix_community_posts_course_published",
         "community_posts",
         ["course_id", sa.text("published_at DESC")],
-        postgresql_where=sa.text(
-            "deleted_at IS NULL AND published_at IS NOT NULL"
-        ),
+        postgresql_where=sa.text("deleted_at IS NULL AND published_at IS NOT NULL"),
     )
     op.create_index(
         "ix_community_posts_course_pinned",
         "community_posts",
         ["course_id", sa.text("pinned_at DESC")],
-        postgresql_where=sa.text(
-            "deleted_at IS NULL AND pinned_at IS NOT NULL"
-        ),
+        postgresql_where=sa.text("deleted_at IS NULL AND pinned_at IS NOT NULL"),
     )
     op.create_index(
         "ix_community_posts_lesson_id",
@@ -399,6 +386,7 @@ def upgrade() -> None:
         sa.Column("id", sa.Uuid(), nullable=False),
         sa.Column("created_at", sa.TIMESTAMP(timezone=True), nullable=False),
         sa.Column("modified_at", sa.TIMESTAMP(timezone=True), nullable=True),
+        sa.Column("deleted_at", sa.TIMESTAMP(timezone=True), nullable=True),
         sa.Column("post_id", sa.Uuid(), nullable=False),
         sa.Column(
             "position",
@@ -510,9 +498,7 @@ def upgrade() -> None:
             name="community_comments_timestamp_seconds_check",
         ),
     )
-    op.create_index(
-        "ix_community_comments_post_id", "community_comments", ["post_id"]
-    )
+    op.create_index("ix_community_comments_post_id", "community_comments", ["post_id"])
     op.create_index(
         "ix_community_comments_parent_id",
         "community_comments",
@@ -544,6 +530,8 @@ def upgrade() -> None:
         "community_reactions",
         sa.Column("id", sa.Uuid(), nullable=False),
         sa.Column("created_at", sa.TIMESTAMP(timezone=True), nullable=False),
+        sa.Column("modified_at", sa.TIMESTAMP(timezone=True), nullable=True),
+        sa.Column("deleted_at", sa.TIMESTAMP(timezone=True), nullable=True),
         sa.Column("target_type", sa.String(20), nullable=False),
         sa.Column("target_id", sa.Uuid(), nullable=False),
         # Actor union — same shape as the post/comment author union.
@@ -602,34 +590,22 @@ def upgrade() -> None:
 def downgrade() -> None:
     # Drop in reverse FK order.
     op.drop_index("ix_community_reactions_target", "community_reactions")
-    op.drop_index(
-        "ix_community_reactions_unique_user", "community_reactions"
-    )
-    op.drop_index(
-        "ix_community_reactions_unique_enrollment", "community_reactions"
-    )
+    op.drop_index("ix_community_reactions_unique_user", "community_reactions")
+    op.drop_index("ix_community_reactions_unique_enrollment", "community_reactions")
     op.drop_table("community_reactions")
 
-    op.drop_index(
-        "ix_community_comments_author_user_id", "community_comments"
-    )
-    op.drop_index(
-        "ix_community_comments_author_enrollment_id", "community_comments"
-    )
+    op.drop_index("ix_community_comments_author_user_id", "community_comments")
+    op.drop_index("ix_community_comments_author_enrollment_id", "community_comments")
     op.drop_index("ix_community_comments_parent_id", "community_comments")
     op.drop_index("ix_community_comments_post_id", "community_comments")
     op.drop_table("community_comments")
 
-    op.drop_index(
-        "ix_community_post_media_mux_upload_id", "community_post_media"
-    )
+    op.drop_index("ix_community_post_media_mux_upload_id", "community_post_media")
     op.drop_index("ix_community_post_media_post_id", "community_post_media")
     op.drop_table("community_post_media")
 
     op.drop_index("ix_community_posts_author_user_id", "community_posts")
-    op.drop_index(
-        "ix_community_posts_author_enrollment_id", "community_posts"
-    )
+    op.drop_index("ix_community_posts_author_enrollment_id", "community_posts")
     op.drop_index("ix_community_posts_tag_id", "community_posts")
     op.drop_index("ix_community_posts_lesson_id", "community_posts")
     op.drop_index("ix_community_posts_course_pinned", "community_posts")

@@ -11,6 +11,12 @@ from .checkout_link import CheckoutLink
 from .checkout_link_product import CheckoutLinkProduct
 from .checkout_product import CheckoutProduct
 from .client_invoice import ClientInvoice, ClientInvoiceLineItem, ClientInvoiceStatus
+from .community_comment import CommunityComment
+from .community_post import CommunityPost
+from .community_post_media import CommunityPostMedia
+from .community_reaction import CommunityReaction
+from .community_settings import CommunitySettings
+from .community_tag import CommunityTag
 from .course import Course
 from .course_enrollment import CourseEnrollment
 from .course_lesson import CourseLesson
@@ -66,7 +72,6 @@ from .oauth2_grant import OAuth2Grant
 from .oauth2_token import OAuth2Token
 from .order import Order
 from .order_item import OrderItem
-from .quota_notification import QuotaNotification
 from .organization import Organization
 from .organization_access_token import OrganizationAccessToken
 from .organization_review import OrganizationReview
@@ -93,6 +98,7 @@ from .product_price import (
     ProductPriceSeatUnit,
 )
 from .product_review import ProductReview
+from .quota_notification import QuotaNotification
 from .refund import Refund
 from .resend_webhook_event import ResendWebhookEvent
 from .subscription import Subscription
@@ -124,9 +130,16 @@ __all__ = [
     "ClientInvoice",
     "ClientInvoiceLineItem",
     "ClientInvoiceStatus",
+    "CommunityComment",
+    "CommunityPost",
+    "CommunityPostMedia",
+    "CommunityReaction",
+    "CommunitySettings",
+    "CommunityTag",
     "Course",
     "CourseEnrollment",
     "CourseLesson",
+    "CourseLessonProgress",
     "CourseModule",
     "CourseNote",
     "CustomField",
@@ -167,6 +180,7 @@ __all__ = [
     "LegacyRecurringProductPriceCustom",
     "LegacyRecurringProductPriceFixed",
     "LegacyRecurringProductPriceFree",
+    "LessonComment",
     "LicenseKey",
     "LicenseKeyActivation",
     "LoginCode",
@@ -205,6 +219,7 @@ __all__ = [
     "ProductPriceFree",
     "ProductPriceMeteredUnit",
     "ProductPriceSeatUnit",
+    "ProductReview",
     "ProductVisibility",
     "QuotaNotification",
     "Refund",
