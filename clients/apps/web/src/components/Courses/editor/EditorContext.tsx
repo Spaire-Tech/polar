@@ -613,6 +613,9 @@ export function EditorProvider({
     const acc =
       ACCENT_PRESETS.find((a) => a.id === overrides.theme.accentId) ??
       ACCENT_PRESETS[0]
+    const surf =
+      SURFACE_MODES.find((s) => s.id === overrides.theme.surfaceId) ??
+      SURFACE_MODES[0]
     const fontH =
       FONT_PAIRS.find((f) => f.id === overrides.theme.fontHeading) ??
       FONT_PAIRS[0]
@@ -641,50 +644,38 @@ export function EditorProvider({
       style.id = styleId
       document.head.appendChild(style)
     }
+    // Derive secondary surfaces from the chosen mode so cards / borders /
+    // muted text follow the same family without each section file having
+    // to know whether dark mode is active. Dark gets a richer palette
+    // (Google-style elevated greys) instead of a flat black.
+    const isDark = (t.surfaceId ?? 'light') === 'dark'
+    const surfaceVars = isDark
+      ? {
+          surface1: 'oklch(0.21 0.008 280)',
+          surface2: 'oklch(0.26 0.008 280)',
+          border: 'oklch(0.32 0.008 280)',
+          muted: 'oklch(0.72 0.005 280)',
+          subtle: 'oklch(0.85 0.004 280)',
+        }
+      : {
+          surface1: 'oklch(0.985 0.002 280)',
+          surface2: 'oklch(0.965 0.002 280)',
+          border: 'oklch(0.92 0.002 280)',
+          muted: 'oklch(0.52 0.008 280)',
+          subtle: 'oklch(0.36 0.008 280)',
+        }
 
-    // Three appearance modes drive how the editor (and the published
-    // landing) deal with dark mode:
-    //   'light' — always light (no @media flip, color-scheme: light)
-    //   'dark'  — always dark  (no @media flip, color-scheme: dark)
-    //   'auto'  — follow the visitor's OS preference via
-    //             prefers-color-scheme + color-scheme: light dark
-    // Anything else falls back to 'light'.
-    const surfaceMode: 'light' | 'dark' | 'auto' =
-      t.surfaceId === 'dark'
-        ? 'dark'
-        : t.surfaceId === 'auto'
-          ? 'auto'
-          : 'light'
-
-    const lightSurface = SURFACE_MODES.find((s) => s.id === 'light')!
-    const darkSurface = SURFACE_MODES.find((s) => s.id === 'dark')!
-
-    // Tell the browser which schemes we genuinely support. With
-    // 'light dark' the Google app / Chrome on Android stops applying
-    // its algorithmic force-dark and uses our @media-driven dark
-    // styles instead.
-    const colorSchemeMetaId = 'spaire-editor-color-scheme'
-    let meta = document.getElementById(
-      colorSchemeMetaId,
-    ) as HTMLMetaElement | null
-    if (!meta) {
-      meta = document.createElement('meta')
-      meta.id = colorSchemeMetaId
-      meta.name = 'color-scheme'
-      document.head.appendChild(meta)
-    }
-    meta.content =
-      surfaceMode === 'auto'
-        ? 'light dark'
-        : surfaceMode === 'dark'
-          ? 'dark'
-          : 'light'
-
-    const baseVars = (s: { bg0: string; fg0: string }) => `
+    style.textContent = `
+      [data-spaire-editor] {
         --accent: ${acc.accent};
         --accent-2: ${acc.accent2};
-        --bg-0: ${s.bg0};
-        --fg-0: ${s.fg0};
+        --bg-0: ${surf.bg0};
+        --fg-0: ${surf.fg0};
+        --surface-1: ${surfaceVars.surface1};
+        --surface-2: ${surfaceVars.surface2};
+        --border: ${surfaceVars.border};
+        --muted-text: ${surfaceVars.muted};
+        --subtle-text: ${surfaceVars.subtle};
         --font-heading: ${fontH.family};
         --font-body: ${fontB.family};
         --type-scale: ${t.typeScale};
@@ -695,19 +686,7 @@ export function EditorProvider({
         --h-tracking: ${t.headingTracking}em;
         --h-leading: ${t.headingLeading};
         --radius-mul: ${radMul[cornerKey]};
-        --density: ${dens[densityKey]};`
-
-    style.textContent = `
-      [data-spaire-editor] {${baseVars(
-        surfaceMode === 'dark' ? darkSurface : lightSurface,
-      )}
-        color-scheme: ${
-          surfaceMode === 'auto'
-            ? 'light dark'
-            : surfaceMode === 'dark'
-              ? 'dark'
-              : 'light'
-        };
+        --density: ${dens[densityKey]};
       }
       [data-spaire-editor] [data-spaire-h] {
         font-family: var(--font-heading) !important;
@@ -726,15 +705,35 @@ export function EditorProvider({
         background: var(--bg-0);
         color: var(--fg-0);
       }
-      ${
-        surfaceMode === 'auto'
-          ? `@media (prefers-color-scheme: dark) {
-        [data-spaire-editor] {
-          --bg-0: ${darkSurface.bg0};
-          --fg-0: ${darkSurface.fg0};
-        }
-      }`
-          : ''
+
+      /* Dark-mode overrides for sections that pre-date the theme system
+         and still hardcode white card / light border / dark muted-text
+         values inline. Targeting common literal whites and the gray
+         scale in the original markup is cheaper (and lower-risk) than
+         rewriting every section to read CSS vars. The matcher pairs
+         the literal value with our [data-surface-mode='dark'] scope so
+         the rule never leaks into light mode. */
+      [data-spaire-editor][data-surface-mode='dark'] [style*="background: #fff"],
+      [data-spaire-editor][data-surface-mode='dark'] [style*="background: white"],
+      [data-spaire-editor][data-surface-mode='dark'] [style*="background-color: #fff"],
+      [data-spaire-editor][data-surface-mode='dark'] [style*="background-color: white"] {
+        background: var(--surface-1) !important;
+      }
+      [data-spaire-editor][data-surface-mode='dark'] [style*="background: rgb(255, 255, 255)"],
+      [data-spaire-editor][data-surface-mode='dark'] [style*="background-color: rgb(255, 255, 255)"] {
+        background: var(--surface-1) !important;
+      }
+      [data-spaire-editor][data-surface-mode='dark'] [style*="border: 1px solid #e5e7eb"],
+      [data-spaire-editor][data-surface-mode='dark'] [style*="border-color: #e5e7eb"],
+      [data-spaire-editor][data-surface-mode='dark'] [style*="border: 1px solid oklch(0.92"],
+      [data-spaire-editor][data-surface-mode='dark'] [style*="border-color: oklch(0.92"] {
+        border-color: var(--border) !important;
+      }
+      [data-spaire-editor][data-surface-mode='dark'] [style*="color: oklch(0.14"],
+      [data-spaire-editor][data-surface-mode='dark'] [style*="color: oklch(0.18"],
+      [data-spaire-editor][data-surface-mode='dark'] [style*="color: #111"],
+      [data-spaire-editor][data-surface-mode='dark'] [style*="color: #1a1a1a"] {
+        color: var(--fg-0) !important;
       }
     `
 
