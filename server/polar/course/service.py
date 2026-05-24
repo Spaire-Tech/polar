@@ -2,9 +2,12 @@ from collections.abc import Sequence
 from datetime import UTC, datetime
 from uuid import UUID
 
+from sqlalchemy import select
+
 from polar.email_sequence.events import fire_event
 from polar.email_subscriber.repository import EmailSubscriberRepository
 from polar.entitlements.service import entitlements as entitlements_service
+from polar.models.benefit import Benefit, BenefitType
 from polar.models.course import Course
 from polar.models.course_enrollment import CourseEnrollment
 from polar.models.course_lesson import CourseLesson
@@ -13,6 +16,7 @@ from polar.models.course_module import CourseModule
 from polar.models.course_note import CourseNote
 from polar.models.customer import Customer
 from polar.models.lesson_comment import LessonComment
+from polar.models.product_benefit import ProductBenefit
 from polar.postgres import AsyncSession
 
 from .repository import (
@@ -149,7 +153,82 @@ class CourseService:
         course = await repo.create(course, flush=True)
         # Refresh to avoid MissingGreenlet when selectin relationships are accessed
         await session.refresh(course, attribute_names=["modules"])
+
+        # Wire the course up to a course_access benefit on its product, so
+        # that the existing Order → enqueue_benefits_grants → grant_benefit
+        # → BenefitCourseAccessService.grant pipeline actually enrolls every
+        # customer who pays. Without this row the buy-flow silently never
+        # creates a CourseEnrollment.
+        await self._ensure_course_access_benefit(session, course)
+
         return course
+
+    async def _ensure_course_access_benefit(
+        self,
+        session: AsyncSession,
+        course: Course,
+    ) -> Benefit | None:
+        """Create + attach a course_access benefit to course.product if missing.
+
+        Returns the benefit row (existing or freshly created), or None if
+        the course has no product to attach to.
+        """
+        if course.product_id is None:
+            return None
+
+        # Already wired? Match on (organization, course_id property) so we
+        # don't create duplicates if a benefit was created out-of-band.
+        existing_stmt = (
+            select(Benefit)
+            .where(
+                Benefit.type == BenefitType.course_access,
+                Benefit.organization_id == course.organization_id,
+                Benefit.deleted_at.is_(None),
+                Benefit.properties["course_id"].astext == str(course.id),
+            )
+        )
+        result = await session.execute(existing_stmt)
+        benefit = result.scalar_one_or_none()
+
+        if benefit is None:
+            title = course.title or "this course"
+            benefit = Benefit(
+                type=BenefitType.course_access,
+                description=f"Access to {title}",
+                is_tax_applicable=True,
+                selectable=False,
+                deletable=False,
+                organization_id=course.organization_id,
+                properties={"course_id": str(course.id)},
+            )
+            session.add(benefit)
+            await session.flush()
+
+        # Attach to the product if not already attached. The
+        # product_benefits table is keyed on (product_id, benefit_id) so
+        # the existence check is cheap and exact.
+        existing_link_stmt = select(ProductBenefit).where(
+            ProductBenefit.product_id == course.product_id,
+            ProductBenefit.benefit_id == benefit.id,
+        )
+        link_result = await session.execute(existing_link_stmt)
+        if link_result.scalar_one_or_none() is None:
+            # Find the next order slot to satisfy UniqueConstraint(product_id, order).
+            max_order_stmt = select(ProductBenefit.order).where(
+                ProductBenefit.product_id == course.product_id
+            )
+            existing_orders = (await session.execute(max_order_stmt)).scalars().all()
+            next_order = (max(existing_orders) + 1) if existing_orders else 0
+            session.add(
+                ProductBenefit(
+                    product_id=course.product_id,
+                    benefit_id=benefit.id,
+                    order=next_order,
+                )
+            )
+            await session.flush()
+
+        return benefit
 
     async def update(
         self,
@@ -444,11 +523,18 @@ class CourseService:
         limit: int,
         page: int,
     ) -> tuple[Sequence[CourseEnrollment], int]:
+        from sqlalchemy.orm import selectinload
+
         repo = CourseEnrollmentRepository.from_session(session)
+        # Eager-load the customer in the same round trip — the endpoint
+        # used to issue a follow-up SELECT … WHERE id IN (…) which
+        # doubled the wire time on the customers tab. With selectinload
+        # SQLAlchemy batches the customers query alongside this one.
         statement = (
             repo.get_base_statement()
             .where(CourseEnrollment.course_id == course_id)
             .order_by(CourseEnrollment.enrolled_at.desc())
+            .options(selectinload(CourseEnrollment.customer))
         )
         return await repo.paginate(statement, limit=limit, page=page)
 

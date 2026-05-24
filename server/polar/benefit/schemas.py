@@ -28,6 +28,9 @@ from polar.models.benefit import BenefitType
 
 from .strategies import BenefitGrantProperties
 from .strategies.base.schemas import BenefitGrantBase, BenefitPublicBase
+from .strategies.course_access.schemas import (
+    BenefitCourseAccess,
+)
 from .strategies.custom.schemas import (
     BenefitCustom,
     BenefitCustomCreate,
@@ -97,7 +100,8 @@ Benefit = Annotated[
     | BenefitGitHubRepository
     | BenefitDownloadables
     | BenefitLicenseKeys
-    | BenefitMeterCredit,
+    | BenefitMeterCredit
+    | BenefitCourseAccess,
     SetSchemaReference("Benefit"),
     MergeJSONSchema({"title": "Benefit"}),
     ClassName("Benefit"),
@@ -110,6 +114,7 @@ benefit_schema_map: dict[BenefitType, type[Benefit]] = {
     BenefitType.downloadables: BenefitDownloadables,
     BenefitType.license_keys: BenefitLicenseKeys,
     BenefitType.meter_credit: BenefitMeterCredit,
+    BenefitType.course_access: BenefitCourseAccess,
 }
 
 
