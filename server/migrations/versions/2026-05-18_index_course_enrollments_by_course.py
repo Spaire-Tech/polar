@@ -10,7 +10,10 @@ soft-deleted rows the query falls back to a sequential scan as soon as
 a course has more than a few thousand enrollments.
 
 Built CONCURRENTLY so production tables aren't locked while the index
-is created.
+is created. Uses `IF NOT EXISTS` because an environment may already
+have the index from a previous out-of-band run (e.g. a CONCURRENTLY
+build that finished but whose migration revision wasn't recorded in
+alembic_version because of a parallel multi-head deploy).
 
 """
 
@@ -24,20 +27,45 @@ depends_on: tuple[str] | None = None
 
 def upgrade() -> None:
     with op.get_context().autocommit_block():
-        op.create_index(
-            "ix_course_enrollments_course_active",
-            "course_enrollments",
-            ["course_id", "enrolled_at"],
-            postgresql_where="deleted_at IS NULL",
-            postgresql_ops={"enrolled_at": "DESC"},
-            postgresql_concurrently=True,
+        # Raw SQL so we get IF NOT EXISTS. op.create_index in older
+        # Alembic doesn't support the `if_not_exists` kwarg, and we
+        # want this migration to be re-runnable on every environment
+        # regardless of whether the index already exists from a prior
+        # deploy attempt. If an earlier CONCURRENTLY build was killed
+        # mid-flight it can leave an INVALID index behind — drop that
+        # first so the re-create lands a usable index.
+        op.execute(
+            """
+            DO $$
+            DECLARE
+                idx_oid oid;
+                is_valid boolean;
+            BEGIN
+                SELECT c.oid, i.indisvalid
+                  INTO idx_oid, is_valid
+                  FROM pg_class c
+                  JOIN pg_index i ON i.indexrelid = c.oid
+                 WHERE c.relname = 'ix_course_enrollments_course_active';
+                IF FOUND AND NOT is_valid THEN
+                    EXECUTE 'DROP INDEX ix_course_enrollments_course_active';
+                END IF;
+            END
+            $$;
+            """
+        )
+        op.execute(
+            """
+            CREATE INDEX CONCURRENTLY IF NOT EXISTS
+                ix_course_enrollments_course_active
+            ON course_enrollments (course_id, enrolled_at DESC)
+            WHERE deleted_at IS NULL;
+            """
         )
 
 
 def downgrade() -> None:
     with op.get_context().autocommit_block():
-        op.drop_index(
-            "ix_course_enrollments_course_active",
-            table_name="course_enrollments",
-            postgresql_concurrently=True,
+        op.execute(
+            "DROP INDEX CONCURRENTLY IF EXISTS "
+            "ix_course_enrollments_course_active;"
         )
