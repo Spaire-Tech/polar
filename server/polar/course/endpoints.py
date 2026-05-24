@@ -381,16 +381,11 @@ async def list_course_enrollments(
         limit=pagination.limit,
         page=pagination.page,
     )
-    customer_ids = {e.customer_id for e in enrollments}
-    customers_by_id: dict[UUID, Customer] = {}
-    if customer_ids:
-        stmt = select(Customer).where(Customer.id.in_(customer_ids))
-        result = await session.execute(stmt)
-        for customer in result.scalars():
-            customers_by_id[customer.id] = customer
+    # `paginate_enrollments_for_course` already eager-loads .customer
+    # via selectinload, so this loop never goes back to the DB.
     items: list[CourseEnrollmentRead] = []
     for e in enrollments:
-        c = customers_by_id.get(e.customer_id)
+        c = e.customer
         items.append(
             CourseEnrollmentRead(
                 id=e.id,
