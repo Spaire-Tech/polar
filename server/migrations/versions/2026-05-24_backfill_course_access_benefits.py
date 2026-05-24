@@ -78,9 +78,10 @@ def upgrade() -> None:
     op.execute(
         """
         INSERT INTO product_benefits (
-            created_at, modified_at, product_id, benefit_id, "order"
+            id, created_at, modified_at, product_id, benefit_id, "order"
         )
         SELECT
+            gen_random_uuid(),
             now(),
             now(),
             c.product_id,
