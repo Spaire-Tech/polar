@@ -1,13 +1,19 @@
 """Add community feed tables (settings, tags, posts, post_media, comments, reactions)
 
 Revision ID: b8f3c9a2e571
-Revises: 1f3a55e2b610
+Revises: 5b9f3e7a2c08
 Create Date: 2026-05-24 12:00:00.000000
 
 Introduces the per-course Community feed. Six new tables — no changes to
 existing tables, no data migration. See
 docs/plans/community-feed-decision-comments-table.md for the rationale on
 why comments are a fork of lesson_comments rather than polymorphic.
+
+Chains off 5b9f3e7a2c08 (the enrollments-from-subscriptions backfill),
+which itself sits downstream of the 4d2b6c91e0a3 four-way head merge.
+Before that merge landed, this migration pointed at one of the
+pre-merge heads (1f3a55e2b610) and would have re-opened the multi-head
+situation that merge fixed.
 
 Tables:
   community_settings      one row per course (creator's editor state)
@@ -28,7 +34,7 @@ from alembic import op
 from sqlalchemy.dialects import postgresql
 
 revision = "b8f3c9a2e571"
-down_revision = "1f3a55e2b610"
+down_revision = "5b9f3e7a2c08"
 branch_labels: tuple[str] | None = None
 depends_on: tuple[str] | None = None
 
