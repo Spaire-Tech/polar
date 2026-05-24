@@ -43,7 +43,7 @@ from polar.notifications.service import notifications as notifications_service
 from polar.user_organization.service import (
     user_organization as user_organization_service,
 )
-from polar.worker import AsyncSessionMaker, TaskPriority, actor
+from polar.worker import AsyncSessionMaker, CronTrigger, TaskPriority, actor
 
 from .repository import (
     CommunityCommentRepository,
@@ -321,9 +321,36 @@ async def community_module_completed_listener(
             )
 
 
+@actor(
+    actor_name="community.presence_blurb.recompute",
+    cron_trigger=CronTrigger(day_of_week="mon", hour=8, minute=0),
+    priority=TaskPriority.LOW,
+)
+async def recompute_presence_blurbs() -> None:
+    """Weekly: refresh the auto-generated presence blurb on every
+    enabled community whose creator hasn't set a manual override. The
+    rail then shows e.g. "Mira replied 4 times this week." instead of
+    the empty state.
+
+    Manual overrides (any non-null `presence_blurb`) are preserved —
+    the repository's list_for_auto_blurb filter excludes them. Runs
+    Monday 8:00 UTC so North American + European creators wake up to
+    a fresh stat.
+    """
+    async with AsyncSessionMaker() as session:
+        from polar.community.service import community as community_service
+
+        updated = await community_service.recompute_presence_blurbs(session)
+        log.info(
+            "community.presence_blurb.recomputed",
+            updated_count=updated,
+        )
+
+
 # Re-export for unit tests that need to monkeypatch.
 __all__ = [
     "community_comment_created",
     "community_module_completed_listener",
     "community_post_created",
+    "recompute_presence_blurbs",
 ]

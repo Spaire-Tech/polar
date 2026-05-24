@@ -185,6 +185,58 @@ class CommunityService:
             return settings
         return await repo.update(settings, update_dict=update_dict)
 
+    async def recompute_presence_blurbs(
+        self,
+        session: AsyncSession,
+        *,
+        window_days: int = 7,
+    ) -> int:
+        """Weekly cron path: for every enabled community whose creator
+        hasn't set a manual presence_blurb, compute one from creator-
+        side reply activity in the last `window_days`. Manual overrides
+        (non-null blurb) are always preserved — `list_for_auto_blurb`
+        filters them out before this method ever sees them.
+
+        Returns the number of settings rows actually updated, so the
+        cron actor can log a useful summary.
+        """
+        settings_repo = CommunitySettingsRepository.from_session(session)
+        comment_repo = CommunityCommentRepository.from_session(session)
+        course_repo = CourseRepository.from_session(session)
+
+        since = utc_now() - timedelta(days=window_days)
+        updated_count = 0
+
+        for settings in await settings_repo.list_for_auto_blurb():
+            course = await course_repo.get_by_id(settings.course_id)
+            if course is None:
+                continue
+
+            reply_count = await comment_repo.count_creator_replies_in_course(
+                course_id=course.id,
+                organization_id=course.organization_id,
+                since=since,
+            )
+            if reply_count <= 0:
+                continue
+
+            # Display name: course's instructor_name override beats the
+            # bare "Instructor" fallback. (The org name would be more
+            # canonical but it's not joined here — the instructor_name
+            # column is already the editor's intended display name.)
+            speaker = (
+                (course.instructor_name or "").strip() or "The instructor"
+            )
+            verb = "time" if reply_count == 1 else "times"
+            blurb = f"{speaker} replied {reply_count} {verb} this week."
+
+            await settings_repo.update(
+                settings, update_dict={"presence_blurb": blurb}
+            )
+            updated_count += 1
+
+        return updated_count
+
     # ------------------------------------------------------------------
     # Enrollment guard — used by every customer-portal route
     # ------------------------------------------------------------------

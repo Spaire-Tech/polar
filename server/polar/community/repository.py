@@ -65,6 +65,18 @@ class CommunitySettingsRepository(
         )
         return await self.get_one_or_none(statement)
 
+    async def list_for_auto_blurb(self) -> Sequence[CommunitySettings]:
+        """Communities where the cron should consider writing an
+        auto-generated presence blurb: enabled, soft-delete-clear, and
+        the creator hasn't set a manual override (presence_blurb is
+        NULL). Manual overrides always win — we never overwrite a
+        non-null blurb."""
+        statement = self.get_base_statement().where(
+            CommunitySettings.enabled.is_(True),
+            CommunitySettings.presence_blurb.is_(None),
+        )
+        return await self.get_all(statement)
+
     async def list_customer_communities(
         self, customer_id: UUID
     ) -> Sequence[tuple[UUID, str | None, str | None, str | None, bool]]:
@@ -556,6 +568,41 @@ class CommunityCommentRepository(
             CommunityComment.post_id == post_id,
         )
         return await self.get_all(statement)
+
+    async def count_creator_replies_in_course(
+        self,
+        *,
+        course_id: UUID,
+        organization_id: UUID,
+        since: datetime,
+    ) -> int:
+        """Count non-deleted comments on this course's posts that were
+        authored by a user belonging to the course's organization,
+        created on/after `since`. Powers the auto presence-blurb cron
+        ("Mira replied 4 times this week"). Student-authored comments
+        have `author_user_id IS NULL` so naturally excluded."""
+        from polar.models import UserOrganization
+
+        statement = (
+            select(func.count(CommunityComment.id))
+            .join(
+                CommunityPost,
+                CommunityPost.id == CommunityComment.post_id,
+            )
+            .where(
+                CommunityPost.course_id == course_id,
+                CommunityComment.deleted_at.is_(None),
+                CommunityComment.created_at >= since,
+                CommunityComment.author_user_id.in_(
+                    select(UserOrganization.user_id).where(
+                        UserOrganization.organization_id == organization_id,
+                        UserOrganization.deleted_at.is_(None),
+                    )
+                ),
+            )
+        )
+        result = await self.session.execute(statement)
+        return int(result.scalar_one())
 
 
 # ----------------------------------------------------------------------
