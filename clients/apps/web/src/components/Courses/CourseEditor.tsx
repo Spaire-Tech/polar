@@ -21,6 +21,7 @@ import { useCallback, useRef, useState } from 'react'
 import { toast } from '../Toast/use-toast'
 import { AutomationsPanel } from './editor/AutomationsPanel'
 import { CourseHeader, TabId } from './editor/CourseHeader'
+import { CommunityTab } from './editor/CommunityTab'
 import { CustomersTab } from './editor/CustomersTab'
 import { CustomizeTab } from './editor/CustomizeTab'
 import { LessonDetail, LessonEdits } from './editor/LessonDetail'
@@ -73,18 +74,18 @@ export default function CourseEditor({
   const router = useRouter()
   const searchParams = useSearchParams()
 
+  const tabFromQs = searchParams.get('tab') as TabId | null
+  const KNOWN_TABS: ReadonlySet<TabId> = new Set([
+    'outline',
+    'customize',
+    'community',
+    'automations',
+    'settings',
+    'pricing',
+    'customers',
+  ])
   const initialTab: TabId =
-    (searchParams.get('tab') as TabId) === 'customize'
-      ? 'customize'
-      : (searchParams.get('tab') as TabId) === 'automations'
-        ? 'automations'
-        : (searchParams.get('tab') as TabId) === 'settings'
-          ? 'settings'
-          : (searchParams.get('tab') as TabId) === 'pricing'
-            ? 'pricing'
-            : (searchParams.get('tab') as TabId) === 'customers'
-              ? 'customers'
-              : 'outline'
+    tabFromQs && KNOWN_TABS.has(tabFromQs) ? tabFromQs : 'outline'
   const [activeTab, setActiveTab] = useState<TabId>(initialTab)
   const [selectedLessonId, setSelectedLessonId] = useState<string | null>(null)
   // LessonDetail reports its dirty state up here so the host can guard
@@ -447,6 +448,8 @@ export default function CourseEditor({
     }
   } else if (activeTab === 'customize') {
     mainContent = <CustomizeTab course={course} organization={organization} />
+  } else if (activeTab === 'community') {
+    mainContent = <CommunityTab course={course} organization={organization} />
   } else if (activeTab === 'automations') {
     mainContent = (
       <div className="mx-auto w-full max-w-3xl px-8 py-8">

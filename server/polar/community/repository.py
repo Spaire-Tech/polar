@@ -165,6 +165,36 @@ class CommunityPostRepository(
             CommunityPost.course_id == course_id
         )
 
+    async def list_for_moderation(
+        self,
+        course_id: UUID,
+        *,
+        cursor: tuple[datetime, UUID] | None = None,
+        limit: int = 30,
+    ) -> tuple[Sequence[CommunityPost], bool]:
+        """Creator-side feed for the editor's moderation list. Sorted by
+        created_at desc — newest first, draft or published, but not
+        soft-deleted (those are gone from the editor too)."""
+        statement = self.get_creator_listing_statement(course_id).order_by(
+            CommunityPost.created_at.desc(),
+            CommunityPost.id.desc(),
+        )
+        if cursor is not None:
+            cursor_ts, cursor_id = cursor
+            statement = statement.where(
+                or_(
+                    CommunityPost.created_at < cursor_ts,
+                    and_(
+                        CommunityPost.created_at == cursor_ts,
+                        CommunityPost.id < cursor_id,
+                    ),
+                )
+            )
+        statement = statement.limit(limit + 1)
+        rows = list(await self.get_all(statement))
+        has_next = len(rows) > limit
+        return rows[:limit], has_next
+
     # ---- Feed query (cursor pagination) ----
 
     async def list_feed(

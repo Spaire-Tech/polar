@@ -283,6 +283,36 @@ async def update_settings_creator(
     return CommunitySettingsRead.model_validate(settings, from_attributes=True)
 
 
+@creator_router.get(
+    "/{course_id}/posts",
+    response_model=ListResourceWithCursorPagination[CommunityPostRead],
+    summary="List Community Posts (Creator / Moderation)",
+)
+async def list_posts_creator(
+    course_id: CourseID,
+    auth_subject: CommunityCreatorRead,
+    session: AsyncSession = Depends(get_db_session),
+    cursor: str | None = Query(default=None),
+    limit: int = Query(default=30, ge=1, le=100),
+) -> ListResourceWithCursorPagination[CommunityPostRead]:
+    await _require_creator_owns_course(session, course_id, auth_subject)
+    posts, has_next, ctx = await community_service.list_for_moderation(
+        session, course_id=course_id, cursor=cursor, limit=limit
+    )
+    items = [
+        _post_to_read(
+            p,
+            author=_author_for_post(p, ctx["authors"]),
+            lesson_chip=ctx["lessons"].get(p.lesson_id) if p.lesson_id else None,
+            reactions=ctx["reactions"].get(p.id, []),
+        )
+        for p in posts
+    ]
+    return ListResourceWithCursorPagination.from_results(
+        items, has_next_page=has_next
+    )
+
+
 @creator_router.post(
     "/{course_id}/posts",
     response_model=CommunityPostRead,

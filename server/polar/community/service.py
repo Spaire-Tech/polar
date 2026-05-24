@@ -277,6 +277,34 @@ class CommunityService:
         repo = CommunityPostRepository.from_session(session)
         await repo.soft_delete(post)
 
+    async def list_for_moderation(
+        self,
+        session: AsyncSession,
+        *,
+        course_id: UUID,
+        cursor: str | None,
+        limit: int,
+    ) -> tuple[Sequence[CommunityPost], bool, dict]:
+        """Creator moderation list — includes drafts. Same render
+        context shape as `list_feed` so the editor can use the same
+        per-post header / author chip render path."""
+        repo = CommunityPostRepository.from_session(session)
+        rows, has_next = await repo.list_for_moderation(
+            course_id,
+            cursor=decode_cursor(cursor) if cursor else None,
+            limit=limit,
+        )
+        ctx = await self.build_render_context(
+            session,
+            posts=rows,
+            viewer_enrollment_id=None,
+            viewer_user_id=None,
+        )
+        return rows, has_next, ctx
+
+    def encode_moderation_cursor(self, *, last: CommunityPost) -> str:
+        return encode_cursor(last.created_at, last.id)
+
     # ---- Feed ----
 
     async def list_feed(

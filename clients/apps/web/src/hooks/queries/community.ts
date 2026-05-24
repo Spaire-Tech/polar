@@ -476,6 +476,171 @@ export const useTogglePostReaction = (
     },
   })
 
+// =====================================================================
+// CREATOR-SIDE (course editor) — same module, dashboard auth.
+// These calls go through the standard logged-in dashboard session, not
+// the customer-portal token, so they use a different fetch helper.
+// =====================================================================
+
+async function creatorFetch<T>(
+  path: string,
+  options?: RequestInit,
+): Promise<T> {
+  const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}${path}`, {
+    ...options,
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(options?.headers ?? {}),
+    },
+  })
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`API ${res.status}: ${text}`)
+  }
+  if (res.status === 204) return undefined as T
+  return res.json()
+}
+
+const creatorSettingsKey = (courseId: string) =>
+  ['creator-community-settings', courseId] as const
+
+const creatorPostsKey = (courseId: string) =>
+  ['creator-community-posts', courseId] as const
+
+export const useCreatorCommunitySettings = (courseId: string | undefined) =>
+  useQuery<CommunitySettingsRead>({
+    queryKey: creatorSettingsKey(courseId ?? ''),
+    queryFn: () =>
+      creatorFetch<CommunitySettingsRead>(`/v1/community/${courseId}/settings`),
+    enabled: !!courseId,
+  })
+
+export const useUpdateCommunitySettings = (courseId: string | undefined) =>
+  useMutation({
+    mutationFn: (payload: Partial<CommunitySettingsRead>) =>
+      creatorFetch<CommunitySettingsRead>(
+        `/v1/community/${courseId}/settings`,
+        { method: 'PATCH', body: JSON.stringify(payload) },
+      ),
+    onSuccess: (data) => {
+      if (!courseId) return
+      // Optimistic-style: stash the server-returned settings so the form
+      // doesn't blink while the GET re-fires.
+      getQueryClient().setQueryData(creatorSettingsKey(courseId), data)
+      getQueryClient().invalidateQueries({
+        queryKey: creatorSettingsKey(courseId),
+      })
+    },
+  })
+
+export const useCreatorCommunityPosts = (courseId: string | undefined) =>
+  useInfiniteQuery<
+    CommunityFeedPage,
+    Error,
+    { pages: CommunityFeedPage[]; pageParams: (string | null)[] },
+    readonly unknown[],
+    string | null
+  >({
+    queryKey: creatorPostsKey(courseId ?? ''),
+    queryFn: ({ pageParam }) => {
+      const qs = pageParam ? `?cursor=${encodeURIComponent(pageParam)}` : ''
+      return creatorFetch<CommunityFeedPage>(
+        `/v1/community/${courseId}/posts${qs}`,
+      )
+    },
+    initialPageParam: null,
+    getNextPageParam: (lastPage) => {
+      // Moderation cursor uses created_at (the encode_moderation_cursor
+      // method on the service side). Re-build it from the last item.
+      if (!lastPage.pagination.has_next_page) return null
+      const last = lastPage.items[lastPage.items.length - 1]
+      if (!last) return null
+      return `${last.created_at}__${last.id}`
+    },
+    enabled: !!courseId,
+  })
+
+export const useCreatorDeletePost = (courseId: string | undefined) =>
+  useMutation({
+    mutationFn: (postId: string) =>
+      creatorFetch<void>(`/v1/community/${courseId}/posts/${postId}`, {
+        method: 'DELETE',
+      }),
+    onSuccess: () => {
+      if (!courseId) return
+      getQueryClient().invalidateQueries({
+        queryKey: creatorPostsKey(courseId),
+      })
+    },
+  })
+
+export const useCreatorDeleteComment = (courseId: string | undefined) =>
+  useMutation({
+    mutationFn: (commentId: string) =>
+      creatorFetch<void>(`/v1/community/${courseId}/comments/${commentId}`, {
+        method: 'DELETE',
+      }),
+    onSuccess: () => {
+      if (!courseId) return
+      getQueryClient().invalidateQueries({
+        queryKey: creatorPostsKey(courseId),
+      })
+    },
+  })
+
+export const usePinPost = (courseId: string | undefined) =>
+  useMutation({
+    mutationFn: ({
+      postId,
+      pinType,
+      expiresAt,
+    }: {
+      postId: string
+      pinType: CommunityPinType
+      expiresAt?: string | null
+    }) =>
+      creatorFetch<CommunityPostRead>(
+        `/v1/community/${courseId}/posts/${postId}/pin`,
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            pin_type: pinType,
+            expires_at: expiresAt ?? null,
+          }),
+        },
+      ),
+    onSuccess: () => {
+      if (!courseId) return
+      getQueryClient().invalidateQueries({
+        queryKey: creatorPostsKey(courseId),
+      })
+      // Settings holds prompt_of_week_post_id — refresh so the editor
+      // shows the new pin in its preview.
+      getQueryClient().invalidateQueries({
+        queryKey: creatorSettingsKey(courseId),
+      })
+    },
+  })
+
+export const useUnpinPost = (courseId: string | undefined) =>
+  useMutation({
+    mutationFn: (postId: string) =>
+      creatorFetch<CommunityPostRead>(
+        `/v1/community/${courseId}/posts/${postId}/pin`,
+        { method: 'DELETE' },
+      ),
+    onSuccess: () => {
+      if (!courseId) return
+      getQueryClient().invalidateQueries({
+        queryKey: creatorPostsKey(courseId),
+      })
+      getQueryClient().invalidateQueries({
+        queryKey: creatorSettingsKey(courseId),
+      })
+    },
+  })
+
 export const useToggleCommentReaction = (
   token: string | null | undefined,
   courseId: string | undefined,
