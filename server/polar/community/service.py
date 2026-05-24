@@ -672,12 +672,16 @@ class CommunityService:
         module_lesson_ids = None
         if module_id is not None:
             lesson_repo = CourseLessonRepository.from_session(session)
-            module_lessons = await lesson_repo.get_by_module_statement(
+            # get_by_module_statement returns a Select — it's a
+            # statement builder, NOT a coroutine. The await on it was a
+            # bug: it raised TypeError("'Select' object can't be
+            # awaited") the moment a feed request carried module_id.
+            module_lessons_stmt = lesson_repo.get_by_module_statement(
                 module_id
             )
             module_lesson_ids = {
                 lesson.id
-                for lesson in await lesson_repo.get_all(module_lessons)
+                for lesson in await lesson_repo.get_all(module_lessons_stmt)
             }
 
         rows, has_next = await post_repo.list_feed(
