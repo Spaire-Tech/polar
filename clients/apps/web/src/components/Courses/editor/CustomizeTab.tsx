@@ -625,18 +625,23 @@ function HiddenSectionsPill() {
   )
 }
 
-// Appearance popover — Light / Dark surface picker. Writes through the
-// existing LandingTheme.surfaceId so the choice rides along with the rest
-// of the landing_overrides on save. The selected mode IS the default
-// visitors see; there's no per-visitor toggle (yet), so the editor just
-// labels the choice as "the default" to make that obvious.
+// Appearance popover — Light / Dark / Auto picker. Writes through
+// LandingTheme.surfaceId so the choice rides along with the rest of the
+// landing_overrides on save. "Auto" tells the published landing to
+// follow the visitor's OS preference (prefers-color-scheme) — which is
+// the behavior the Google app on Android applies to sites that haven't
+// declared otherwise.
+type AppearanceMode = 'light' | 'dark' | 'auto'
+
 function AppearancePill() {
   const ed = useEditor()
-  const current = ed.overrides.theme.surfaceId ?? 'light'
-  // We only surface Light / Dark to match the dashboard wording — the
-  // older cream/paper modes still load if they were previously saved,
-  // but the picker treats them as "Light" for the visual indicator.
-  const isDark = current === 'dark'
+  const raw = ed.overrides.theme.surfaceId
+  const current: AppearanceMode =
+    raw === 'dark' ? 'dark' : raw === 'auto' ? 'auto' : 'light'
+  const Icon =
+    current === 'dark' ? MoonIcon : current === 'auto' ? AutoIcon : SunIcon
+  const label =
+    current === 'dark' ? 'Dark' : current === 'auto' ? 'Auto' : 'Light'
   return (
     <Popover>
       <PopoverTrigger asChild>
@@ -645,31 +650,38 @@ function AppearancePill() {
           title="Appearance"
           className="ml-1 flex items-center gap-1.5 rounded-md border border-gray-200 bg-white px-2 py-1 text-[11px] font-medium text-gray-700 transition-colors hover:bg-gray-50"
         >
-          {isDark ? <MoonIcon /> : <SunIcon />}
-          <span>{isDark ? 'Dark' : 'Light'}</span>
+          <Icon />
+          <span>{label}</span>
         </button>
       </PopoverTrigger>
-      <PopoverContent align="start" className="w-72 p-3">
+      <PopoverContent align="start" className="w-80 p-3">
         <div className="mb-2 text-[11px] font-medium tracking-wide text-gray-500 uppercase">
           Appearance
         </div>
-        <div className="mb-3 grid grid-cols-2 gap-2">
+        <div className="mb-3 grid grid-cols-3 gap-2">
           <AppearanceCard
             label="Light"
-            selected={!isDark}
+            selected={current === 'light'}
             onClick={() => ed.setTheme({ surfaceId: 'light' })}
             preview="light"
           />
           <AppearanceCard
             label="Dark"
-            selected={isDark}
+            selected={current === 'dark'}
             onClick={() => ed.setTheme({ surfaceId: 'dark' })}
             preview="dark"
           />
+          <AppearanceCard
+            label="Auto"
+            selected={current === 'auto'}
+            onClick={() => ed.setTheme({ surfaceId: 'auto' })}
+            preview="auto"
+          />
         </div>
         <p className="text-[11.5px] leading-snug text-gray-500">
-          Set {isDark ? 'dark' : 'light'} mode as the default appearance
-          visitors see on the published landing.
+          {current === 'auto'
+            ? 'Visitors see the landing in light or dark depending on their phone or browser preference.'
+            : `Set ${current} mode as the default appearance visitors see on the published landing.`}
         </p>
       </PopoverContent>
     </Popover>
@@ -685,7 +697,7 @@ function AppearanceCard({
   label: string
   selected: boolean
   onClick: () => void
-  preview: 'light' | 'dark'
+  preview: 'light' | 'dark' | 'auto'
 }) {
   return (
     <button
@@ -699,20 +711,35 @@ function AppearanceCard({
           : 'border-gray-200 hover:border-gray-300',
       ].join(' ')}
     >
-      <div
-        className="flex h-16 items-end p-2"
-        style={{
-          background: preview === 'dark' ? 'oklch(0.16 0.008 280)' : '#ffffff',
-        }}
-      >
-        <div className="flex w-full flex-col gap-1">
+      <div className="relative flex h-16 items-end overflow-hidden p-2">
+        {/* Diagonal split for the Auto card so the preview reads as
+            "this follows the visitor's setting" at a glance. */}
+        <div
+          className="absolute inset-0"
+          style={
+            preview === 'auto'
+              ? {
+                  background:
+                    'linear-gradient(115deg, #ffffff 0% 50%, oklch(0.16 0.008 280) 50% 100%)',
+                }
+              : {
+                  background:
+                    preview === 'dark'
+                      ? 'oklch(0.16 0.008 280)'
+                      : '#ffffff',
+                }
+          }
+        />
+        <div className="relative flex w-full flex-col gap-1">
           <div
             className="h-1.5 w-2/3 rounded-full"
             style={{
               background:
                 preview === 'dark'
                   ? 'oklch(0.78 0.005 280)'
-                  : 'oklch(0.34 0.008 280)',
+                  : preview === 'auto'
+                    ? 'oklch(0.55 0.005 280)'
+                    : 'oklch(0.34 0.008 280)',
             }}
           />
           <div
@@ -721,7 +748,9 @@ function AppearanceCard({
               background:
                 preview === 'dark'
                   ? 'oklch(0.55 0.004 280)'
-                  : 'oklch(0.62 0.008 280)',
+                  : preview === 'auto'
+                    ? 'oklch(0.70 0.005 280)'
+                    : 'oklch(0.62 0.008 280)',
             }}
           />
         </div>
@@ -767,6 +796,25 @@ function MoonIcon() {
       aria-hidden="true"
     >
       <path d="M6.2 1.3a6.5 6.5 0 1 0 8.5 8.5 5.5 5.5 0 0 1-8.5-8.5z" />
+    </svg>
+  )
+}
+
+function AutoIcon() {
+  // Half-filled circle reads as "follows the system" without needing
+  // a system / phone glyph.
+  return (
+    <svg
+      width="13"
+      height="13"
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      aria-hidden="true"
+    >
+      <circle cx="8" cy="8" r="5.5" />
+      <path d="M8 2.5v11a5.5 5.5 0 0 0 0-11z" fill="currentColor" />
     </svg>
   )
 }
