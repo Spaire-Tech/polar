@@ -43,6 +43,13 @@ const buildTabs = (
       matches: (p) => p.includes('/portal/courses'),
     },
     {
+      href: `/${slug}/portal/community`,
+      label: 'Community',
+      matches: (p) =>
+        p.includes('/portal/community') ||
+        /\/portal\/courses\/[^/]+\/community/.test(p),
+    },
+    {
       href: `/${slug}/portal/downloads`,
       label: 'Downloads',
       matches: (p) => p.includes('/portal/downloads'),
