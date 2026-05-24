@@ -489,6 +489,81 @@ class CommunityService:
         repo = CommunityPostRepository.from_session(session)
         await repo.soft_delete(post)
 
+    async def create_milestone_post(
+        self,
+        session: AsyncSession,
+        *,
+        course_id: UUID,
+        customer_id: UUID,
+        lesson_id: UUID,
+    ) -> CommunityPost | None:
+        """Create a 'just finished {module}' post when a student
+        completes a module. Returns None when:
+          * the customer isn't enrolled in the course
+          * the lesson / module can't be resolved
+          * the course has no `milestone` tag (creator deleted it)
+          * a milestone post for this (enrollment, lesson, tag) already
+            exists — Dramatiq retries shouldn't spawn duplicates
+
+        The body is a third-person fragment ("just finished Module 2 —
+        Hydration") because the frontend prepends the author name to
+        render "Maya just finished Module 2 — Hydration".
+        """
+        # 1. Resolve the enrollment.
+        enrollment = await course_service.get_enrollment_for_customer(
+            session, customer_id, course_id
+        )
+        if enrollment is None:
+            return None
+
+        # 2. Resolve lesson → module → title.
+        lesson_repo = CourseLessonRepository.from_session(session)
+        lesson = await lesson_repo.get_by_id(lesson_id)
+        if lesson is None:
+            return None
+        module_repo = CourseModuleRepository.from_session(session)
+        module = await module_repo.get_by_id(lesson.module_id)
+        if module is None:
+            return None
+
+        # 3. Find the milestone tag for the course. If it was deleted
+        # (creator's prerogative — the tag editor lets them remove it),
+        # don't create a post — the feed has no place to file it.
+        tag = await self.get_tag_by_slug(session, course_id, "milestone")
+        if tag is None:
+            return None
+
+        # 4. Idempotency check — same enrollment+lesson+tag already
+        # produced a milestone post. Skip rather than duplicate.
+        post_repo = CommunityPostRepository.from_session(session)
+        if await post_repo.milestone_exists_for_enrollment_lesson(
+            enrollment_id=enrollment.id,
+            lesson_id=lesson_id,
+            tag_id=tag.id,
+        ):
+            return None
+
+        # 5. Build + insert. We bypass the public create_post path
+        # because that one validates lesson_id via the module-lookup we
+        # just did, validates tag_id against the same course we just
+        # confirmed, and forbids 'video' type — all moot here. Direct
+        # insert keeps the system-author trail clean.
+        body = f"just finished {module.title}"
+        post = CommunityPost(
+            course_id=course_id,
+            author_enrollment_id=enrollment.id,
+            type="text",
+            body=body,
+            body_format="plain",
+            lesson_id=lesson_id,
+            tag_id=tag.id,
+            published_at=utc_now(),
+        )
+        created = await post_repo.create(post, flush=True)
+        # Fan-out (SSE + bell) — same path as a normal post create.
+        enqueue_job("community.post.created", post_id=created.id)
+        return created
+
     async def list_for_moderation(
         self,
         session: AsyncSession,

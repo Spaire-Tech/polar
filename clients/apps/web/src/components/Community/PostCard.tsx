@@ -424,7 +424,87 @@ function PostMediaGrid({ media }: { media: CommunityPostRead['media'] }) {
   )
 }
 
-export function PostCard({
+// ---------------------------------------------------------------------
+// Milestone variant — auto-generated "X just finished Module 2"
+// posts rendered as a single-line celebration card. The author name
+// gets prepended into the body so it reads in third person.
+// Distinct from the regular PostCard layout: gray panel background,
+// inline avatar+text, single "Say congrats" CTA that toggles 👏.
+// ---------------------------------------------------------------------
+
+function MilestoneCard({
+  post,
+  token,
+  courseId,
+  reactionsEnabled,
+}: {
+  post: CommunityPostRead
+  token: string
+  courseId: string
+  reactionsEnabled: boolean
+}) {
+  const togglePostReaction = useTogglePostReaction(token, courseId)
+  const author =
+    post.author.name ??
+    (post.author.kind === 'instructor' ? 'Instructor' : 'Member')
+  const clap = post.reactions.find((r) => r.emoji === 'clap')
+  const mineClapped = clap?.mine ?? false
+
+  const onCongrats = () => {
+    if (!reactionsEnabled) return
+    togglePostReaction.mutate({ postId: post.id, emoji: 'clap' })
+  }
+
+  return (
+    <div className={styles.milestone} id={`post-${post.id}`}>
+      <Avatar
+        name={author}
+        avatarUrl={post.author.avatar_url ?? undefined}
+        size={42}
+      />
+      <div className={styles.milestoneText}>
+        <div>
+          <strong>{author}</strong> {post.body}
+        </div>
+        <div className={styles.milestoneSub}>
+          {post.published_at ? formatRelative(post.published_at) : ''}
+          {clap && clap.count > 0 ? ` · ${clap.count} 👏` : ''}
+          {' · Auto-generated'}
+        </div>
+      </div>
+      {reactionsEnabled && (
+        <button
+          type="button"
+          className={styles.milestoneCta}
+          onClick={onCongrats}
+          aria-pressed={mineClapped}
+        >
+          {mineClapped ? 'Congrats sent' : 'Say congrats'}
+        </button>
+      )}
+    </div>
+  )
+}
+
+export function PostCard(props: PostCardProps) {
+  // Milestone-tagged posts get a dedicated celebratory render that
+  // doesn't carry a composer / reactions row / comment thread.
+  // Dispatch happens outside any hooks so the underlying components
+  // keep their hook ordering stable across renders (Rules of Hooks).
+  if (props.post.tag?.slug === 'milestone') {
+    return (
+      <MilestoneCard
+        post={props.post}
+        token={props.token}
+        courseId={props.courseId}
+        reactionsEnabled={props.reactionsEnabled}
+      />
+    )
+  }
+  return <RegularPostCard {...props} />
+}
+
+function RegularPostCard({
   post,
   token,
   courseId,

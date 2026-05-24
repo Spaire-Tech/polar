@@ -261,6 +261,32 @@ class CommunityPostRepository(
             CommunityPost.course_id == course_id
         )
 
+    async def milestone_exists_for_enrollment_lesson(
+        self,
+        *,
+        enrollment_id: UUID,
+        lesson_id: UUID,
+        tag_id: UUID,
+    ) -> bool:
+        """Idempotency check for the module-completion listener. Dramatiq
+        retries can re-fire the same event, and a student can also
+        complete + re-complete a lesson (mark-complete is idempotent at
+        the progress table but the event still emits). Returns True if a
+        milestone post already exists for this (enrollment, lesson, tag)
+        triple — caller skips the insert when so."""
+        statement = (
+            select(CommunityPost.id)
+            .where(
+                CommunityPost.author_enrollment_id == enrollment_id,
+                CommunityPost.lesson_id == lesson_id,
+                CommunityPost.tag_id == tag_id,
+                CommunityPost.deleted_at.is_(None),
+            )
+            .limit(1)
+        )
+        result = await self.session.execute(statement)
+        return result.scalar_one_or_none() is not None
+
     async def list_for_moderation(
         self,
         course_id: UUID,

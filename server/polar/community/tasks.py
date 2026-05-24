@@ -269,31 +269,56 @@ async def community_module_completed_listener(
     customer_id: UUID,
     lesson_id: UUID | None = None,
 ) -> None:
-    """Create a synthetic 'milestone' community post when a student
-    finishes a module. Skipped when:
+    """Insert a milestone community post when a student finishes a
+    module. Skipped when:
       * community is not enabled for the course, or
-      * milestones_enabled is false on the course's community settings.
+      * milestones_enabled is false on the course's community settings,
+      * the event arrives without a lesson_id (shouldn't happen — the
+        emitter at course/service.py always passes it), or
+      * any downstream check inside create_milestone_post fails
+        (no enrollment, no milestone tag, already-created, etc).
 
-    The community.post.created fan-out then carries the milestone
-    through the normal SSE + bell pipeline so the dashboard surfaces it
-    immediately.
+    The post insert enqueues community.post.created so the SSE + bell
+    fan-out fires for the milestone the same way it does for an
+    organic post.
     """
+    if lesson_id is None:
+        log.info(
+            "community.module_completed.skip_no_lesson",
+            course_id=str(course_id),
+            customer_id=str(customer_id),
+        )
+        return
+
     async with AsyncSessionMaker() as session:
+        from polar.community.service import community as community_service
+
         settings_repo = CommunitySettingsRepository.from_session(session)
         settings = await settings_repo.get_by_course_id(course_id)
         if settings is None or not settings.enabled or not settings.milestones_enabled:
             return
 
-        # The actual milestone-card insert (with all the
-        # author resolution / tag lookup / lesson resolution) is a
-        # service method — Phase 2 wires it in. Phase 1 just routes the
-        # event so the plumbing is provable in tests.
-        log.info(
-            "community.module_completed.observed",
-            course_id=str(course_id),
-            customer_id=str(customer_id),
-            lesson_id=str(lesson_id) if lesson_id else None,
+        created = await community_service.create_milestone_post(
+            session,
+            course_id=course_id,
+            customer_id=customer_id,
+            lesson_id=lesson_id,
         )
+        if created is None:
+            log.info(
+                "community.module_completed.no_post_created",
+                course_id=str(course_id),
+                customer_id=str(customer_id),
+                lesson_id=str(lesson_id),
+            )
+        else:
+            log.info(
+                "community.module_completed.post_created",
+                course_id=str(course_id),
+                customer_id=str(customer_id),
+                lesson_id=str(lesson_id),
+                post_id=str(created.id),
+            )
 
 
 # Re-export for unit tests that need to monkeypatch.
