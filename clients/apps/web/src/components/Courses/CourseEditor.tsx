@@ -449,12 +449,10 @@ export default function CourseEditor({
     mainContent = <CustomizeTab course={course} organization={organization} />
   } else if (activeTab === 'automations') {
     mainContent = (
-      <div className="mx-auto w-full max-w-5xl px-6 py-8">
-        <div className="mb-6 flex flex-col gap-1">
-          <h2 className="text-2xl font-bold tracking-tight text-gray-900">
-            Automations
-          </h2>
-          <p className="text-sm text-gray-500">
+      <div className="mx-auto w-full max-w-3xl px-8 py-8">
+        <div className="mb-6">
+          <h1 className="text-lg font-medium text-gray-900">Automations</h1>
+          <p className="mt-1 text-gray-500">
             Email sequences that fire on course enrolment, lesson completion,
             and other course events. Pick a template or start from scratch.
           </p>

@@ -54,17 +54,13 @@ export function AutomationsPanel({
     <div className="flex flex-col gap-6">
       <NewCard onClick={openNew} />
 
-      <div className="flex flex-col gap-2">
-        <div className="text-xs font-semibold tracking-wide text-gray-500 uppercase">
-          Active for this {scopeLabel}
-        </div>
-        {sequencesQuery.isLoading ? (
-          <div className="h-16 animate-pulse rounded-xl bg-gray-100" />
-        ) : sequences.length === 0 ? (
-          <p className="text-sm text-gray-500">
-            No automations yet. Create one above to get started.
-          </p>
-        ) : (
+      {sequencesQuery.isLoading ? (
+        <div className="h-16 animate-pulse rounded-xl bg-gray-100" />
+      ) : sequences.length > 0 ? (
+        <div className="flex flex-col gap-2">
+          <div className="text-xs font-semibold tracking-wide text-gray-500 uppercase">
+            Active for this {scopeLabel}
+          </div>
           <div className="flex flex-col gap-2">
             {sequences.map((s) => (
               <SequenceRowItem
@@ -74,8 +70,8 @@ export function AutomationsPanel({
               />
             ))}
           </div>
-        )}
-      </div>
+        </div>
+      ) : null}
 
       {editing ? (
         <SequenceEditorModal

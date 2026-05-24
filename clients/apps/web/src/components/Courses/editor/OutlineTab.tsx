@@ -170,21 +170,14 @@ function LessonCard({
             <LockOutlined sx={{ fontSize: 10 }} className="text-white" />
           </div>
         )}
-        {lesson.published && !locked && (
+        {lesson.published && (
           <span className="absolute top-[7px] right-2 inline-flex items-center gap-1 rounded-full bg-green-100 px-1.5 py-0.5 text-[9px] font-semibold tracking-[0.05em] text-green-700 uppercase">
             <span className="h-1 w-1 rounded-full bg-green-500" />
             Live
           </span>
         )}
-        {(lesson.is_free_preview ||
-          lesson.drip_days != null ||
-          lesson.release_at) && (
+        {(lesson.drip_days != null || lesson.release_at) && (
           <div className="absolute bottom-[7px] left-2 z-10 flex items-center gap-1">
-            {lesson.is_free_preview && (
-              <span className="rounded-md bg-emerald-500/90 px-1.5 py-[2px] text-[8.5px] font-bold tracking-[0.08em] text-white uppercase backdrop-blur-sm">
-                Free
-              </span>
-            )}
             {lesson.drip_days != null && (
               <span className="rounded-md bg-amber-500/90 px-1.5 py-[2px] text-[8.5px] font-bold tracking-[0.08em] text-white uppercase backdrop-blur-sm">
                 Drip {lesson.drip_days}d
@@ -393,14 +386,14 @@ export function OutlineTab({
     <div className="mx-auto w-full max-w-[880px] px-8 pt-7 pb-20">
       {/* Search + Preview */}
       <div className="flex items-center gap-3 pb-5">
-        <div className="flex flex-1 items-center gap-2 rounded-xl border border-gray-200 bg-white px-3.5 py-[9px] shadow-sm">
+        <div className="flex flex-1 items-center gap-2 rounded-xl border border-gray-200 bg-white px-3.5 py-[9px] shadow-sm transition-colors focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-100">
           <SearchOutlined sx={{ fontSize: 14 }} className="text-gray-400" />
           <input
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Find lesson…"
-            className="flex-1 border-0 bg-transparent text-[13px] tracking-tight text-gray-900 placeholder:text-gray-400 focus:outline-none"
+            className="flex-1 border border-transparent bg-transparent text-[13px] tracking-tight text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-0"
           />
         </div>
         <button
@@ -712,7 +705,7 @@ function ModuleHeader({
               Math.max(draft.length, mod.title.length, 8) + 2
             }ch + 1.25rem)`,
           }}
-          className="rounded-md border border-gray-300 bg-white px-2 py-0.5 text-[11px] font-semibold tracking-[0.06em] text-gray-700 uppercase focus:border-gray-900 focus:outline-none"
+          className="rounded-md border border-gray-300 bg-white px-2 py-0.5 text-[11px] font-semibold tracking-[0.06em] text-gray-700 uppercase focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 focus:outline-none"
         />
       ) : (
         <button

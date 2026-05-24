@@ -12,8 +12,8 @@ import { schemas } from '@spaire/client'
 import Button from '@spaire/ui/components/atoms/Button'
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
-import { PaywallIcon } from './PaywallIcon'
 import { CourseSettingsEdits } from './SettingsTab'
+import { EditPricingModal } from './EditPricingModal'
 
 export function PricingTab({
   organization,
@@ -30,6 +30,7 @@ export function PricingTab({
   const { data: product } = useProduct(course.product_id)
 
   const [enabled, setEnabled] = useState(course.paywall_enabled)
+  const [editingPrice, setEditingPrice] = useState(false)
 
   // Flatten lessons from all modules
   const allLessons = course.modules.flatMap((m) => m.lessons)
@@ -95,36 +96,38 @@ export function PricingTab({
         </div>
       )}
 
-      <div className="mb-6 flex items-center justify-between gap-4">
-        <h2 className="text-base font-bold text-gray-900">Pricing</h2>
+      <div className="mb-6">
+        <h1 className="text-lg font-medium text-gray-900">Pricing</h1>
+        <p className="mt-1 text-gray-500">
+          The price students see at checkout, plus where the paywall sits in
+          your lesson list.
+        </p>
       </div>
 
       {/* Current offer */}
       <section className="mb-4 overflow-hidden rounded-2xl border border-gray-200 bg-white">
         <div className="flex items-start justify-between gap-3 border-b border-gray-100 px-5 py-4">
           <div>
-            <h3 className="text-sm font-semibold text-gray-900">
-              Current offer
-            </h3>
-            <p className="mt-0.5 text-xs text-gray-500">
+            <h2 className="text-lg font-medium text-gray-900">Current offer</h2>
+            <p className="mt-1 text-gray-500">
               The price your students see at checkout for this course.
             </p>
           </div>
           {product && (
-            <Link
-              href={`/dashboard/${organization.slug}/products/${product.id}/edit`}
+            <button
+              type="button"
+              onClick={() => setEditingPrice(true)}
+              className="flex h-8 items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-50"
             >
-              <button className="flex h-8 items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-50">
-                <EditOutlined sx={{ fontSize: 13 }} />
-                Edit offer
-              </button>
-            </Link>
+              <EditOutlined sx={{ fontSize: 13 }} />
+              Edit price
+            </button>
           )}
         </div>
         <div className="px-5 py-4">
           {product ? (
             <div className="flex items-baseline gap-3">
-              <span className="text-lg font-semibold text-gray-900">
+              <span className="text-lg font-medium text-gray-900">
                 {hasLegacyRecurringPrices(product) ? (
                   <LegacyRecurringProductPrices product={product} />
                 ) : (
@@ -140,13 +143,10 @@ export function PricingTab({
 
       {/* Paywall */}
       <section className="overflow-hidden rounded-2xl border border-gray-200 bg-white">
-        <div className="flex items-start gap-3 px-5 py-4">
-          <span className="bg-primary/10 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg">
-            <PaywallIcon size={18} />
-          </span>
+        <div className="flex items-start gap-4 px-5 py-4">
           <div className="flex-1">
-            <h3 className="text-sm font-semibold text-gray-900">Paywall</h3>
-            <p className="mt-0.5 text-xs text-gray-500">
+            <h2 className="text-lg font-medium text-gray-900">Paywall</h2>
+            <p className="mt-1 text-gray-500">
               Place a paywall between lessons. Lessons above are free preview;
               everything after is locked until purchase.
             </p>
@@ -156,7 +156,7 @@ export function PricingTab({
 
         {enabled && (
           <div className="border-t border-gray-100 px-5 py-4">
-            <label className="block text-xs font-semibold text-gray-900">
+            <label className="block text-sm font-medium text-gray-900">
               Paywall position
             </label>
             <p className="mt-0.5 text-xs text-gray-500">
@@ -263,6 +263,14 @@ export function PricingTab({
           </button>
         </div>
       </section>
+
+      {editingPrice && product && (
+        <EditPricingModal
+          organization={organization}
+          product={product}
+          onClose={() => setEditingPrice(false)}
+        />
+      )}
     </div>
   )
 }
