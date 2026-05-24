@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from uuid import UUID
 
 from sqlalchemy import Select, func, select
@@ -232,6 +233,21 @@ class LessonCommentRepository(
             LessonComment.enrollment_id == enrollment_id,
             LessonComment.lesson_id == lesson_id,
         )
+
+    async def get_tombstone_parents(
+        self, lesson_id: UUID, parent_ids: set[UUID]
+    ) -> Sequence[LessonComment]:
+        """Fetch soft-deleted parent comments scoped to a lesson — the
+        caller wraps this in the kit's `merge_with_tombstones` so the
+        reply chain stays renderable.
+        """
+        if not parent_ids:
+            return []
+        statement = self.get_base_statement(include_deleted=True).where(
+            LessonComment.id.in_(parent_ids),
+            LessonComment.lesson_id == lesson_id,
+        )
+        return await self.get_all(statement)
 
 
 class CourseNoteRepository(
