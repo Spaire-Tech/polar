@@ -1,12 +1,17 @@
 from fastapi import APIRouter
 
 from polar.account.endpoints import router as accounts_router
+from polar.audit_log.endpoints import router as audit_log_router
 from polar.auth.endpoints import router as auth_router
 from polar.benefit.endpoints import router as benefits_router
 from polar.benefit.grant.endpoints import router as benefit_grants_router
 from polar.checkout.endpoints import router as checkout_router
 from polar.checkout_link.endpoints import router as checkout_link_router
 from polar.cli.endpoints import router as cli_router
+from polar.client_invoice.endpoints import router as client_invoice_router
+from polar.community.endpoints import creator_router as community_creator_router
+from polar.community.endpoints import customer_router as community_customer_router
+from polar.course.endpoints import router as course_router
 from polar.custom_field.endpoints import router as custom_field_router
 from polar.customer.endpoints import router as customer_router
 from polar.customer_meter.endpoints import router as customer_meter_router
@@ -20,7 +25,6 @@ from polar.email_segment.endpoints import router as email_segment_router
 from polar.email_sequence.endpoints import router as email_sequence_router
 from polar.email_subscriber.endpoints import router as email_subscriber_router
 from polar.email_update.endpoints import router as email_update_router
-from polar.audit_log.endpoints import router as audit_log_router
 from polar.entitlements.endpoints import router as entitlements_router
 from polar.event.endpoints import router as event_router
 from polar.event_type.endpoints import router as event_type_router
@@ -47,7 +51,6 @@ from polar.meter.endpoints import router as meter_router
 from polar.metrics.endpoints import router as metrics_router
 from polar.notifications.endpoints import router as notifications_router
 from polar.oauth2.endpoints.oauth2 import router as oauth2_router
-from polar.client_invoice.endpoints import router as client_invoice_router
 from polar.order.endpoints import router as order_router
 from polar.organization.endpoints import router as organization_router
 from polar.organization_access_token.endpoints import (
@@ -55,9 +58,8 @@ from polar.organization_access_token.endpoints import (
 )
 from polar.payment.endpoints import router as payment_router
 from polar.payout.endpoints import router as payout_router
-from polar.platform.endpoints import router as platform_router
-from polar.course.endpoints import router as course_router
 from polar.personal_access_token.endpoints import router as pat_router
+from polar.platform.endpoints import router as platform_router
 from polar.product.endpoints import router as product_router
 from polar.product_review.endpoints import router as product_review_router
 from polar.refund.endpoints import router as refund_router
@@ -192,3 +194,7 @@ router.include_router(resend_router)
 router.include_router(chargeback_stop_router)
 # /courses
 router.include_router(course_router)
+# /community (creator-side)
+router.include_router(community_creator_router)
+# /customer-portal/community (customer-side)
+router.include_router(community_customer_router)

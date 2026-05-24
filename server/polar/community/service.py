@@ -318,7 +318,7 @@ class CommunityService:
             limit=limit,
         )
 
-        ctx = await self._build_render_context(
+        ctx = await self.build_render_context(
             session,
             posts=rows,
             viewer_enrollment_id=viewer_enrollment_id,
@@ -718,7 +718,7 @@ class CommunityService:
             return "visible"
         return settings.comments_mode  # type: ignore[return-value]
 
-    async def _build_render_context(
+    async def build_render_context(
         self,
         session: AsyncSession,
         *,
