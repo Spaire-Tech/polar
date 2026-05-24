@@ -1,6 +1,5 @@
 'use client'
 
-import { useMemo, useState } from 'react'
 import {
   type CommunityAuthor,
   type CommunityCommentRead,
@@ -14,6 +13,8 @@ import {
   useTogglePostReaction,
 } from '@/hooks/queries/community'
 import { buildCommentTree, type CommentNode } from '@/lib/comments/build-tree'
+import { useCallback, useMemo, useRef, useState } from 'react'
+import { HlsVideo } from '../Courses/HlsVideo'
 import { Avatar } from './Avatar'
 import styles from './community.module.css'
 import { IconBook, IconChat, IconDots, IconShare, IconTrash } from './icons'
@@ -48,6 +49,15 @@ const formatRelative = (iso: string): string => {
 
 const authorName = (a: CommunityAuthor): string =>
   a.name ?? (a.kind === 'instructor' ? 'Instructor' : 'Member')
+
+const formatTimestamp = (seconds: number): string => {
+  const total = Math.max(0, Math.floor(seconds))
+  const h = Math.floor(total / 3600)
+  const m = Math.floor((total % 3600) / 60)
+  const s = total % 60
+  const pad = (n: number) => n.toString().padStart(2, '0')
+  return h > 0 ? `${h}:${pad(m)}:${pad(s)}` : `${m}:${pad(s)}`
+}
 
 const isInstructor = (a: CommunityAuthor): boolean => a.kind === 'instructor'
 
@@ -125,6 +135,7 @@ function CommentNodeView({
   setReplyDraft,
   submitReply,
   isSubmittingReply,
+  onSeek,
 }: {
   comment: CommentNode<CommunityCommentRead>
   depth: number
@@ -138,6 +149,9 @@ function CommentNodeView({
   setReplyDraft: (s: string) => void
   submitReply: () => void
   isSubmittingReply: boolean
+  // Provided on video posts only — clicking the timestamp chip jumps
+  // the post's video to that moment.
+  onSeek?: (seconds: number) => void
 }) {
   const isComposing = composingId === comment.id
   return (
@@ -161,6 +175,16 @@ function CommentNodeView({
             <span className={styles.commentMeta}>
               {formatRelative(comment.created_at)}
             </span>
+            {comment.timestamp_seconds !== null && onSeek && (
+              <button
+                type="button"
+                className={styles.timestampChip}
+                onClick={() => onSeek(comment.timestamp_seconds!)}
+                title="Jump to this moment in the video"
+              >
+                @ {formatTimestamp(comment.timestamp_seconds)}
+              </button>
+            )}
           </div>
           <div
             className={`${styles.commentContent} ${comment.deleted ? styles.deleted : ''}`}
@@ -256,6 +280,7 @@ function CommentNodeView({
           setReplyDraft={setReplyDraft}
           submitReply={submitReply}
           isSubmittingReply={isSubmittingReply}
+          onSeek={onSeek}
         />
       ))}
     </>
@@ -268,12 +293,18 @@ function CommentSection({
   postId,
   selfName,
   selfEnrollmentId,
+  isVideoPost = false,
+  videoElementRef,
 }: {
   token: string
   courseId: string
   postId: string
   selfName?: string | null
   selfEnrollmentId?: string | null
+  // Phase 3B: video posts let replies capture the playhead and let
+  // viewers seek to a comment's tagged moment by clicking its chip.
+  isVideoPost?: boolean
+  videoElementRef?: React.MutableRefObject<HTMLVideoElement | null>
 }) {
   const { data: comments = [], isLoading } = useCommunityPostComments(
     token,
@@ -289,13 +320,47 @@ function CommentSection({
   const [draft, setDraft] = useState('')
   const [composingId, setComposingId] = useState<string | null>(null)
   const [replyDraft, setReplyDraft] = useState('')
+  // Snapshot the playhead the moment the user starts typing. Capturing
+  // at submit-time would tag the comment with whatever the video was
+  // playing while they wrote it, not the moment they meant.
+  const [pendingTimestamp, setPendingTimestamp] = useState<number | null>(null)
+
+  const readCurrentTime = useCallback((): number | null => {
+    const el = videoElementRef?.current
+    if (!el || Number.isNaN(el.currentTime)) return null
+    return Math.max(0, Math.floor(el.currentTime))
+  }, [videoElementRef])
+
+  const seekTo = useCallback(
+    (seconds: number) => {
+      const el = videoElementRef?.current
+      if (!el) return
+      el.currentTime = seconds
+      if (el.paused) void el.play().catch(() => undefined)
+    },
+    [videoElementRef],
+  )
+
+  const beginDraft = (value: string) => {
+    setDraft(value)
+    if (isVideoPost && value.length > 0 && pendingTimestamp === null) {
+      setPendingTimestamp(readCurrentTime())
+    }
+    if (value.length === 0 && pendingTimestamp !== null) {
+      setPendingTimestamp(null)
+    }
+  }
 
   const submitTopLevel = async () => {
     const content = draft.trim()
     if (!content) return
     try {
-      await create.mutateAsync({ content })
+      await create.mutateAsync({
+        content,
+        timestamp_seconds: isVideoPost ? pendingTimestamp : null,
+      })
       setDraft('')
+      setPendingTimestamp(null)
     } catch {
       /* surface via mutation state */
     }
@@ -305,7 +370,11 @@ function CommentSection({
     const content = replyDraft.trim()
     if (!content || !composingId) return
     try {
-      await create.mutateAsync({ content, parent_id: composingId })
+      await create.mutateAsync({
+        content,
+        parent_id: composingId,
+        timestamp_seconds: isVideoPost ? readCurrentTime() : null,
+      })
       setReplyDraft('')
       setComposingId(null)
     } catch {
@@ -318,19 +387,55 @@ function CommentSection({
       {/* Top-level composer */}
       <div className={styles.replyComposer}>
         <Avatar name={selfName ?? 'You'} size={28} />
-        <textarea
-          className={styles.replyInput}
-          placeholder="Write a comment"
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          rows={2}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-              e.preventDefault()
-              submitTopLevel()
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+          <textarea
+            className={styles.replyInput}
+            placeholder={
+              isVideoPost
+                ? 'Comment — pinned to the moment you start typing'
+                : 'Write a comment'
             }
-          }}
-        />
+            value={draft}
+            onChange={(e) => beginDraft(e.target.value)}
+            rows={2}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                e.preventDefault()
+                submitTopLevel()
+              }
+            }}
+          />
+          {isVideoPost && pendingTimestamp !== null && (
+            <div
+              style={{
+                marginTop: 4,
+                display: 'inline-flex',
+                gap: 6,
+                alignItems: 'center',
+                fontSize: 11,
+                color: 'var(--c-muted)',
+              }}
+            >
+              <span className={styles.timestampChip}>
+                @ {formatTimestamp(pendingTimestamp)}
+              </span>
+              <button
+                type="button"
+                onClick={() => setPendingTimestamp(null)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  color: 'var(--c-muted)',
+                  fontSize: 11,
+                  padding: 0,
+                }}
+              >
+                Detach
+              </button>
+            </div>
+          )}
+        </div>
         <button
           type="button"
           className={styles.replySubmit}
@@ -368,6 +473,7 @@ function CommentSection({
           setReplyDraft={setReplyDraft}
           submitReply={submitReply}
           isSubmittingReply={create.isPending}
+          onSeek={isVideoPost ? seekTo : undefined}
         />
       ))}
     </div>
@@ -396,12 +502,23 @@ export type PostCardProps = {
 }
 
 // ---------------------------------------------------------------------
-// Image grid — 1, 2, 3, or 4-up. Renders only image media (video is
-// Phase 3). Aspect-ratio differs per count so 1 image gets a full
-// 16:9 frame and 2-4 collapse to a square grid.
+// Image grid — 1, 2, 3, or 4-up. Aspect-ratio differs per count so 1
+// image gets a full 16:9 frame and 2-4 collapse to a square grid.
+// Video posts route through PostVideo instead (one video per post by
+// the backend type contract).
 // ---------------------------------------------------------------------
 
-function PostMediaGrid({ media }: { media: CommunityPostRead['media'] }) {
+function PostMediaGrid({
+  media,
+  onVideoElement,
+}: {
+  media: CommunityPostRead['media']
+  onVideoElement?: (el: HTMLVideoElement | null) => void
+}) {
+  const video = useMemo(
+    () => media.find((m) => m.media_type === 'video'),
+    [media],
+  )
   const images = useMemo(
     () =>
       media
@@ -410,12 +527,10 @@ function PostMediaGrid({ media }: { media: CommunityPostRead['media'] }) {
         .sort((a, b) => a.position - b.position),
     [media],
   )
+  if (video) return <PostVideo media={video} onVideoElement={onVideoElement} />
   if (images.length === 0) return null
   return (
-    <div
-      className={styles.postMediaGrid}
-      data-count={images.length}
-    >
+    <div className={styles.postMediaGrid} data-count={images.length}>
       {images.map((m) => (
         // eslint-disable-next-line @next/next/no-img-element
         <img
@@ -426,6 +541,46 @@ function PostMediaGrid({ media }: { media: CommunityPostRead['media'] }) {
           className={styles.postMediaImage}
         />
       ))}
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------
+// Video post — lazy-mounts HlsVideo only when the asset is ready.
+// While Mux is still encoding the row's mux_status is 'waiting' or
+// 'processing'; the placeholder makes that visible so the author isn't
+// staring at an empty box wondering if posting silently failed.
+// ---------------------------------------------------------------------
+
+function PostVideo({
+  media,
+  onVideoElement,
+}: {
+  media: CommunityPostRead['media'][number]
+  onVideoElement?: (el: HTMLVideoElement | null) => void
+}) {
+  const ready =
+    media.mux_status === 'ready' &&
+    (media.playback_url !== null || media.mux_playback_id !== null)
+  return (
+    <div className={styles.postVideo}>
+      {ready ? (
+        <HlsVideo
+          playbackId={media.mux_playback_id}
+          playbackUrl={media.playback_url}
+          poster={media.thumbnail_url}
+          className={styles.postVideoFrame}
+          onVideoElement={onVideoElement}
+        />
+      ) : (
+        <div className={styles.postVideoProcessing}>
+          <span>
+            {media.mux_status === 'errored'
+              ? 'Video failed to process'
+              : 'Video is still processing…'}
+          </span>
+        </div>
+      )}
     </div>
   )
 }
@@ -529,6 +684,14 @@ function RegularPostCard({
   const [commentsOpen, setCommentsOpen] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
 
+  // Video posts share an element handle with the comment composer so a
+  // reply can capture the current playhead, and clicking a comment's
+  // timestamp chip can seek back to that moment.
+  const videoElementRef = useRef<HTMLVideoElement | null>(null)
+  const handleVideoElement = useCallback((el: HTMLVideoElement | null) => {
+    videoElementRef.current = el
+  }, [])
+
   const togglePostReaction = useTogglePostReaction(token, courseId)
   const deletePost = useDeleteCommunityPost(token, courseId)
 
@@ -583,9 +746,7 @@ function RegularPostCard({
             )}
           </div>
           <div className={styles.postMeta}>
-            {post.published_at
-              ? formatRelative(post.published_at)
-              : 'Draft'}
+            {post.published_at ? formatRelative(post.published_at) : 'Draft'}
           </div>
         </div>
         {ownPost && !previewMode && (
@@ -619,7 +780,11 @@ function RegularPostCard({
                   role="menuitem"
                   type="button"
                   className={styles.commentActionBtn}
-                  style={{ padding: '6px 10px', width: '100%', textAlign: 'left' }}
+                  style={{
+                    padding: '6px 10px',
+                    width: '100%',
+                    textAlign: 'left',
+                  }}
                   onClick={() => {
                     setMenuOpen(false)
                     onDelete()
@@ -648,7 +813,10 @@ function RegularPostCard({
         <p className={styles.postBody}>{post.body}</p>
       )}
 
-      <PostMediaGrid media={post.media} />
+      <PostMediaGrid
+        media={post.media}
+        onVideoElement={post.type === 'video' ? handleVideoElement : undefined}
+      />
 
       <ReactionsRow
         reactions={post.reactions}
@@ -669,11 +837,7 @@ function RegularPostCard({
           {post.comment_count === 1 ? 'comment' : 'comments'}
         </button>
         {!previewMode && (
-          <button
-            type="button"
-            className={styles.postAction}
-            onClick={onShare}
-          >
+          <button type="button" className={styles.postAction} onClick={onShare}>
             <IconShare size={14} /> Share
           </button>
         )}
@@ -686,6 +850,8 @@ function RegularPostCard({
           postId={post.id}
           selfName={selfName}
           selfEnrollmentId={selfEnrollmentId}
+          isVideoPost={post.type === 'video'}
+          videoElementRef={videoElementRef}
         />
       )}
     </article>

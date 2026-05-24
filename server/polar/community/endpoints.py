@@ -24,6 +24,7 @@ from pydantic import UUID4
 from polar.auth.models import (
     is_user,
 )
+from polar.course import mux as mux_client
 from polar.course.repository import CourseRepository
 from polar.customer_portal.utils import get_customer_id
 from polar.file.s3 import S3_SERVICES
@@ -55,6 +56,7 @@ from .schemas import (
     CommunityPostImageUploadResult,
     CommunityPostMediaRead,
     CommunityPostRead,
+    CommunityPostVideoUploadResult,
     CommunityReactionSummaryEntry,
     CommunityReactionToggle,
     CommunityReactionToggleResult,
@@ -156,10 +158,20 @@ def _media_to_read(post: CommunityPost) -> list[CommunityPostMediaRead]:
     out: list[CommunityPostMediaRead] = []
     for m in post.media:
         public_url: str | None = None
+        playback_url: str | None = None
+        thumbnail_url: str | None = m.thumbnail_url
         if m.media_type == "image" and m.file is not None and m.file.is_uploaded:
             public_url = S3_SERVICES[
                 FileServiceTypes.community_post_image
             ].get_public_url(m.file.path)
+        elif m.media_type == "video" and m.mux_playback_id:
+            # Sign per-request so the URL TTL is fresh on each feed page.
+            # `playback_url` falls back to None when signing keys aren't
+            # configured — HlsVideo then composes a public stream.mux URL
+            # from `mux_playback_id` itself.
+            playback_url = mux_client.playback_url(m.mux_playback_id)
+            if thumbnail_url is None:
+                thumbnail_url = mux_client.thumbnail_url(m.mux_playback_id)
         out.append(
             CommunityPostMediaRead(
                 id=m.id,
@@ -168,9 +180,10 @@ def _media_to_read(post: CommunityPost) -> list[CommunityPostMediaRead]:
                 file_id=m.file_id,
                 public_url=public_url,
                 mux_playback_id=m.mux_playback_id,
+                playback_url=playback_url,
                 mux_status=m.mux_status,
                 duration_seconds=m.duration_seconds,
-                thumbnail_url=m.thumbnail_url,
+                thumbnail_url=thumbnail_url,
             )
         )
     return out
@@ -682,6 +695,38 @@ async def list_feed_customer(
     return ListResourceWithCursorPagination.from_results(
         items, has_next_page=has_next
     )
+
+
+@customer_router.post(
+    "/{course_id}/media/mux-upload",
+    response_model=CommunityPostVideoUploadResult,
+    status_code=201,
+    summary="Create Community Post Video Upload",
+)
+async def create_video_upload_customer(
+    course_id: CourseID,
+    auth_subject: CommunityCustomerWrite,
+    session: AsyncSession = Depends(get_db_session),
+) -> CommunityPostVideoUploadResult:
+    """Mint a Mux direct-upload URL for a video community post. The
+    composer creates the upload, PUTs the file bytes to `upload_url`
+    directly from the browser, then includes `upload_id` in the
+    POST /posts payload as a media entry with media_type='video'.
+    The Mux webhook handler in course/endpoints.py flips the media
+    row from 'waiting' to 'ready' (with playback id + duration) once
+    encoding completes."""
+    customer_id = get_customer_id(auth_subject)
+    await community_service.assert_enrolled(
+        session, customer_id=customer_id, course_id=course_id
+    )
+    await community_service.assert_community_enabled(session, course_id)
+
+    try:
+        return await community_service.create_video_upload()
+    except Exception as e:
+        raise HTTPException(
+            status_code=502, detail="Failed to create video upload"
+        ) from e
 
 
 @customer_router.post(

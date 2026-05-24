@@ -157,25 +157,42 @@ class CommunityReactionToggleResult(Schema):
 
 
 class CommunityPostMediaCreate(Schema):
-    """One image attachment on a new post. The client must have already
-    uploaded the underlying File (FileServiceTypes.community_post_image)
-    and completed the upload — `file_id` is the resulting File.id.
-    Position determines the multi-image grid order (0-indexed)."""
+    """One attachment on a new post.
 
-    media_type: Literal["image"] = "image"
-    file_id: UUID4
+    Image branch: client uploaded a File via the
+      community_post_image service first, passes the file_id here.
+      Up to 4 image rows per post, positioned 0..3.
+
+    Video branch (Phase 3A): client created a Mux direct upload via
+      POST /media/mux-upload, the browser PUT the bytes to Mux, then
+      passes `mux_upload_id` here. Exactly one video per post.
+    """
+
+    media_type: Literal["image", "video"] = "image"
+    file_id: UUID4 | None = None
+    mux_upload_id: str | None = Field(default=None, max_length=255)
     position: int = Field(default=0, ge=0, le=3)
 
 
 class CommunityPostImageUploadResult(Schema):
-    """Returned by the upload endpoint so the composer can stash the
-    file_id alongside the local image preview, then include it in the
-    post create payload."""
+    """Returned by the image upload endpoint so the composer can stash
+    the file_id alongside the local image preview, then include it in
+    the post create payload."""
 
     file_id: UUID4
     public_url: str
     size: int
     mime_type: str
+
+
+class CommunityPostVideoUploadResult(Schema):
+    """Returned by the Mux direct-upload endpoint. The browser PUTs
+    bytes straight to `upload_url`; the upload_id is what gets passed
+    back into the post-create payload. The Mux webhook later flips the
+    media row's mux_status to 'ready' and fills in playback details."""
+
+    upload_id: str
+    upload_url: str
 
 
 class CommunityPostMediaRead(Schema):
@@ -188,9 +205,14 @@ class CommunityPostMediaRead(Schema):
     # writes to.
     file_id: UUID4 | None = None
     public_url: str | None = None
-    # Video branch — Phase 1 ships text only but the schema is forward-
-    # compatible so the client doesn't need a migration in Phase 3.
+    # Video branch — populated for media_type='video'. `playback_url` is
+    # the server-signed HLS URL (preferred — HlsVideo uses it directly);
+    # `mux_playback_id` is exposed for the legacy public-asset path.
+    # `mux_status` is one of 'waiting' | 'processing' | 'ready' |
+    # 'errored' — the client should treat anything but 'ready' as
+    # "still encoding, show a placeholder".
     mux_playback_id: str | None = None
+    playback_url: str | None = None
     mux_status: str | None = None
     duration_seconds: int | None = None
     thumbnail_url: str | None = None

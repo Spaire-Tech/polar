@@ -24,9 +24,7 @@ export interface CommunityAuthorStudent {
   name: string | null
   avatar_url: string | null
 }
-export type CommunityAuthor =
-  | CommunityAuthorInstructor
-  | CommunityAuthorStudent
+export type CommunityAuthor = CommunityAuthorInstructor | CommunityAuthorStudent
 
 export interface CommunityTagRead {
   id: string
@@ -58,6 +56,7 @@ export interface CommunityPostMediaRead {
   file_id: string | null
   public_url: string | null
   mux_playback_id: string | null
+  playback_url: string | null
   mux_status: string | null
   duration_seconds: number | null
   thumbnail_url: string | null
@@ -141,6 +140,11 @@ export interface CommunityCourseSummary {
   community_enabled: boolean
 }
 
+export interface CommunityPostVideoUploadResult {
+  upload_id: string
+  upload_url: string
+}
+
 export interface CommunityPostImageUploadResult {
   file_id: string
   public_url: string
@@ -184,11 +188,8 @@ const settingsKey = (token: string, courseId: string) =>
 const tagsKey = (token: string, courseId: string) =>
   ['community-tags', token, courseId] as const
 
-const feedKey = (
-  token: string,
-  courseId: string,
-  filters: FeedFilters,
-) => ['community-feed', token, courseId, filters] as const
+const feedKey = (token: string, courseId: string, filters: FeedFilters) =>
+  ['community-feed', token, courseId, filters] as const
 
 const commentsKey = (token: string, courseId: string, postId: string) =>
   ['community-comments', token, courseId, postId] as const
@@ -232,9 +233,7 @@ export const useCommunitySettings = (
     enabled: !!token && !!courseId,
   })
 
-export const useCommunityEnrolledCourses = (
-  token: string | null | undefined,
-) =>
+export const useCommunityEnrolledCourses = (token: string | null | undefined) =>
   useQuery<CommunityCourseSummary[]>({
     queryKey: ['community-enrolled-courses', token],
     queryFn: () =>
@@ -303,13 +302,18 @@ export const useCommunityFeed = (
 // ---------------------------------------------------------------------
 
 export interface CommunityPostMediaCreateBody {
-  // media_type is fixed to "image" for Phase 2 — video lands in Phase 3.
-  media_type?: 'image'
-  file_id: string
+  // Image branch: composer uploads via /media/upload, passes file_id.
+  // Video branch (Phase 3A): composer creates an upload via
+  // /media/mux-upload, PUTs bytes to Mux, then passes mux_upload_id.
+  media_type?: 'image' | 'video'
+  file_id?: string
+  mux_upload_id?: string
   position?: number
 }
 
 export interface CommunityPostCreateBody {
+  // Phase 3A: 'video' posts carry exactly one video entry in media[].
+  type?: 'text' | 'video'
   body: string
   title?: string | null
   body_format?: 'markdown' | 'plain'
@@ -371,6 +375,56 @@ export const useUploadPostImage = (
 ) =>
   useMutation({
     mutationFn: (file: File) => uploadPostImage(courseId!, token!, file),
+  })
+
+// Phase 3A video upload — two-step:
+//   1. POST /media/mux-upload → {upload_id, upload_url}
+//   2. Browser PUTs the file bytes directly to upload_url (Mux storage)
+// The returned upload_id is what the composer passes in the post-create
+// payload's media[]. The webhook then flips the media row to 'ready'
+// asynchronously.
+export interface UploadPostVideoResult {
+  upload_id: string
+}
+
+async function uploadPostVideo(
+  courseId: string,
+  token: string,
+  file: File,
+  onProgress?: (fraction: number) => void,
+): Promise<UploadPostVideoResult> {
+  const ticket = await portalFetch<CommunityPostVideoUploadResult>(
+    `/v1/customer-portal/community/${courseId}/media/mux-upload`,
+    token,
+    { method: 'POST', body: JSON.stringify({}) },
+  )
+
+  await new Promise<void>((resolve, reject) => {
+    const xhr = new XMLHttpRequest()
+    xhr.open('PUT', ticket.upload_url)
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable && onProgress) {
+        onProgress(e.loaded / e.total)
+      }
+    }
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) resolve()
+      else reject(new Error(`Mux upload ${xhr.status}: ${xhr.statusText}`))
+    }
+    xhr.onerror = () => reject(new Error('Mux upload network error'))
+    xhr.send(file)
+  })
+
+  return { upload_id: ticket.upload_id }
+}
+
+export const useUploadPostVideo = (
+  token: string | null | undefined,
+  courseId: string | undefined,
+) =>
+  useMutation({
+    mutationFn: (args: { file: File; onProgress?: (f: number) => void }) =>
+      uploadPostVideo(courseId!, token!, args.file, args.onProgress),
   })
 
 export const useDeleteCommunityPost = (
@@ -512,9 +566,13 @@ export const useTogglePostReaction = (
           if (p.id !== postId) return p
           const existing = p.reactions.find((r) => r.emoji === emoji)
           const willBeActive = !(existing?.mine ?? false)
-          const nextCount =
-            (existing?.count ?? 0) + (willBeActive ? 1 : -1)
-          return applyReactionDelta(p, emoji, willBeActive, Math.max(nextCount, 0))
+          const nextCount = (existing?.count ?? 0) + (willBeActive ? 1 : -1)
+          return applyReactionDelta(
+            p,
+            emoji,
+            willBeActive,
+            Math.max(nextCount, 0),
+          )
         })
         queryClient.setQueryData(key, { ...page, items })
       }

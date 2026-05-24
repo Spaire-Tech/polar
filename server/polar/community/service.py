@@ -25,6 +25,7 @@ from typing import Literal
 from uuid import UUID, uuid4
 
 from polar.auth.models import AuthSubject, Organization, User
+from polar.course import mux as mux_client
 from polar.course.repository import (
     CourseLessonRepository,
     CourseModuleRepository,
@@ -79,6 +80,7 @@ from .schemas import (
     CommunityPostImageUploadResult,
     CommunityPostMediaCreate,
     CommunityPostUpdate,
+    CommunityPostVideoUploadResult,
     CommunityReactionEmoji,
     CommunityReactionSummaryEntry,
     CommunitySettingsUpdate,
@@ -306,9 +308,10 @@ class CommunityService:
         author_user_id: UUID | None = None,
         payload: CommunityPostCreate,
     ) -> CommunityPost:
-        """Phase 1 accepts text posts only. Video lands in Phase 3
-        alongside the Mux pipeline."""
-        if payload.type != "text":
+        """Phase 1: text posts. Phase 3A added video — when type='video',
+        media must contain exactly one entry with media_type='video'
+        and a mux_upload_id from /media/mux-upload."""
+        if payload.type not in ("text", "video"):
             raise UnsupportedPostType()
         if (author_enrollment_id is None) == (author_user_id is None):
             # CHECK constraint will reject this at the DB layer too, but
@@ -326,10 +329,13 @@ class CommunityService:
 
         # Validate every image attachment up-front — same org as the
         # course, FileServiceTypes.community_post_image, is_uploaded.
-        # Any file_id that fails any of these → reject the post before
-        # we write a row.
+        # Any file_id / mux_upload_id that fails validation → reject
+        # the post before we write a row.
         validated_media = await self._validate_media(
-            session, course_id=course_id, media=payload.media
+            session,
+            course_id=course_id,
+            post_type=payload.type,
+            media=payload.media,
         )
 
         publish_at = payload.publish_at or utc_now()
@@ -351,15 +357,26 @@ class CommunityService:
 
         # Attach media rows in the same transaction. The cascade on the
         # post's `media` relationship will clean these up if the post is
-        # later soft-deleted.
+        # later soft-deleted. Video rows start with mux_status='waiting'
+        # — the Mux webhook flips it to 'ready' (+ asset_id, playback_id,
+        # duration) when the upload finishes processing.
         if validated_media:
             for entry in validated_media:
-                media = CommunityPostMedia(
-                    post_id=created.id,
-                    media_type="image",
-                    file_id=entry.file_id,
-                    position=entry.position,
-                )
+                if entry.media_type == "video":
+                    media = CommunityPostMedia(
+                        post_id=created.id,
+                        media_type="video",
+                        mux_upload_id=entry.mux_upload_id,
+                        mux_status="waiting",
+                        position=entry.position,
+                    )
+                else:
+                    media = CommunityPostMedia(
+                        post_id=created.id,
+                        media_type="image",
+                        file_id=entry.file_id,
+                        position=entry.position,
+                    )
                 session.add(media)
             await session.flush()
 
@@ -447,45 +464,105 @@ class CommunityService:
             mime_type=mime_type,
         )
 
+    async def create_video_upload(
+        self,
+        *,
+        cors_origin: str = "*",
+    ) -> CommunityPostVideoUploadResult:
+        """Mint a Mux direct-upload URL for a community-post video. The
+        browser PUTs the bytes straight to `upload_url`; the returned
+        `upload_id` is what gets passed back in the post-create payload's
+        media[] entry. The Mux webhook flips the resulting media row from
+        `waiting` → `ready` (+ playback_id, asset_id, duration) when the
+        asset finishes processing."""
+        result = await mux_client.create_direct_upload(cors_origin=cors_origin)
+        return CommunityPostVideoUploadResult(
+            upload_id=result["upload_id"],
+            upload_url=result["upload_url"],
+        )
+
     async def _validate_media(
         self,
         session: AsyncSession,
         *,
         course_id: UUID,
+        post_type: str,
         media: list[CommunityPostMediaCreate],
     ) -> list[CommunityPostMediaCreate]:
-        """Verify each image's file_id is uploaded, belongs to this
-        course's organization, and is the community_post_image service
-        type. Returns the validated list (same order, deduped by
-        file_id) or raises InvalidMediaReference if any check fails."""
+        """Validate every media entry:
+          - image: file_id is uploaded, belongs to course's org, is the
+            community_post_image service type
+          - video: mux_upload_id is non-empty (Mux hosts the asset
+            async — the webhook flips mux_status to 'ready' later)
+        Enforces the post-type contract:
+          - type='text': all entries must be image; max 4
+          - type='video': exactly one entry, must be video
+
+        Returns the validated list (deduped by file_id for images, by
+        mux_upload_id for videos) or raises InvalidMediaReference."""
         if not media:
+            if post_type == "video":
+                # Video posts need a video media row — the type wasn't
+                # arbitrary, it implies an attachment.
+                raise InvalidMediaReference()
             return []
 
-        # Resolve the course's organization to scope the file lookup.
+        # Resolve the course's organization for image file scoping.
         course_repo = CourseRepository.from_session(session)
         course = await course_repo.get_by_id(course_id)
         if course is None:
             raise CommunityNotEnrolled()  # "course gone" surfaces as 404
 
-        file_ids = {entry.file_id for entry in media}
-        file_repo = FileRepository.from_session(session)
-        files = await file_repo.get_uploaded_by_ids_in_org(
-            course.organization_id,
-            file_ids,
-            service=FileServiceTypes.community_post_image,
-        )
-        valid_ids = {f.id for f in files}
-        missing = file_ids - valid_ids
-        if missing:
-            raise InvalidMediaReference()
+        image_entries = [m for m in media if m.media_type == "image"]
+        video_entries = [m for m in media if m.media_type == "video"]
 
-        # Dedupe by file_id while preserving the client's order.
-        seen: set[UUID] = set()
+        # Type contract: text → only images; video → exactly one video,
+        # nothing else.
+        if post_type == "text" and video_entries:
+            raise InvalidMediaReference()
+        if post_type == "video":
+            if len(video_entries) != 1 or image_entries:
+                raise InvalidMediaReference()
+
+        # Image validation — must have file_id, must be uploaded under
+        # the course's org as community_post_image.
+        if image_entries:
+            for m in image_entries:
+                if m.file_id is None:
+                    raise InvalidMediaReference()
+            file_ids = {m.file_id for m in image_entries if m.file_id}
+            file_repo = FileRepository.from_session(session)
+            files = await file_repo.get_uploaded_by_ids_in_org(
+                course.organization_id,
+                file_ids,
+                service=FileServiceTypes.community_post_image,
+            )
+            valid_ids = {f.id for f in files}
+            missing = file_ids - valid_ids
+            if missing:
+                raise InvalidMediaReference()
+
+        # Video validation — mux_upload_id must be non-empty. Phase 3A
+        # trusts the client-supplied id (it came from our own endpoint
+        # 5 seconds ago); a hardening pass would track issued upload
+        # ids server-side.
+        for m in video_entries:
+            if not m.mux_upload_id or not m.mux_upload_id.strip():
+                raise InvalidMediaReference()
+
+        # Dedupe — by file_id for images, by mux_upload_id for videos.
+        # Preserves the client's order.
+        seen: set[str] = set()
         deduped: list[CommunityPostMediaCreate] = []
         for entry in media:
-            if entry.file_id in seen:
+            key = (
+                f"f:{entry.file_id}"
+                if entry.media_type == "image"
+                else f"m:{entry.mux_upload_id}"
+            )
+            if key in seen:
                 continue
-            seen.add(entry.file_id)
+            seen.add(key)
             deduped.append(entry)
         return deduped
 

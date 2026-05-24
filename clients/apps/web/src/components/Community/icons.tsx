@@ -19,7 +19,9 @@ const base = {
 type Props = Omit<SVGProps<SVGSVGElement>, 'children'> & { size?: number }
 
 const withSize = ({ size, ...rest }: Props) =>
-  size != null ? { ...base, ...rest, width: size, height: size } : { ...base, ...rest }
+  size != null
+    ? { ...base, ...rest, width: size, height: size }
+    : { ...base, ...rest }
 
 export const IconBook = (p: Props = {}) => (
   <svg {...withSize(p)}>
@@ -101,5 +103,18 @@ export const IconCheck = (p: Props = {}) => (
 export const IconX = (p: Props = {}) => (
   <svg {...withSize(p)}>
     <path d="M18 6L6 18M6 6l12 12" />
+  </svg>
+)
+
+export const IconVideo = (p: Props = {}) => (
+  <svg {...withSize(p)}>
+    <rect x="3" y="6" width="14" height="12" rx="2" />
+    <path d="M17 10l4-2v8l-4-2z" />
+  </svg>
+)
+
+export const IconPlay = (p: Props = {}) => (
+  <svg {...withSize(p)} fill="currentColor" stroke="none">
+    <path d="M8 5v14l11-7L8 5z" />
   </svg>
 )

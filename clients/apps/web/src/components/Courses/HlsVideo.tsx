@@ -38,6 +38,7 @@ export const HlsVideo = ({
   muted = false,
   loop = false,
   onEnded,
+  onVideoElement,
 }: {
   playbackId?: string | null
   playbackUrl?: string | null
@@ -48,6 +49,10 @@ export const HlsVideo = ({
   muted?: boolean
   loop?: boolean
   onEnded?: () => void
+  // Lets a parent reach the underlying <video> element for things like
+  // reading currentTime or seeking. Called with the element on mount and
+  // with null on unmount.
+  onVideoElement?: (el: HTMLVideoElement | null) => void
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null)
   // Track the current Hls instance via a ref so a fast effect re-run
@@ -60,6 +65,12 @@ export const HlsVideo = ({
   const src =
     playbackUrl ??
     (playbackId ? `https://stream.mux.com/${playbackId}.m3u8` : null)
+
+  useEffect(() => {
+    const el = videoRef.current
+    onVideoElement?.(el)
+    return () => onVideoElement?.(null)
+  }, [onVideoElement])
 
   useEffect(() => {
     setFatalError(null)
