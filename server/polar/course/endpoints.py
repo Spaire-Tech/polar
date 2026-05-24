@@ -9,7 +9,7 @@ from sqlalchemy import select
 from polar.auth.models import is_organization, is_user
 from polar.customer.repository import CustomerRepository
 from polar.customer_session.service import customer_session
-from polar.kit.pagination import ListResource, Pagination, PaginationParamsQuery
+from polar.kit.pagination import ListResource, PaginationParamsQuery
 from polar.models import Organization, UserOrganization
 from polar.models.course_lesson import CourseLesson
 from polar.models.customer import Customer
@@ -403,10 +403,7 @@ async def list_course_enrollments(
                 ),
             )
         )
-    return ListResource(
-        items=items,
-        pagination=Pagination(page=pagination.page, total_count=total),
-    )
+    return ListResource.from_paginated_results(items, total, pagination)
 
 
 @router.delete("/{course_id}/enrollments/{enrollment_id}", status_code=204)
