@@ -49,7 +49,6 @@ from .schemas import (
     CommunityPostCreate,
     CommunityPostMediaRead,
     CommunityPostRead,
-    CommunityPostUpdate,
     CommunityReactionSummaryEntry,
     CommunityReactionToggle,
     CommunityReactionToggleResult,
@@ -233,18 +232,6 @@ async def _require_creator_owns_course(
         raise HTTPException(status_code=404, detail="Course not found")
 
 
-def _user_id_from_creator(auth_subject) -> UUID:
-    """Return the User id when a creator-side actor is a User. Org PATs
-    can configure settings but cannot author posts (we want a stable
-    User behind every post for moderation + reply notifications)."""
-    if is_user(auth_subject):
-        return auth_subject.subject.id
-    raise HTTPException(
-        status_code=403,
-        detail="Posting requires a user-scoped token.",
-    )
-
-
 # ====================================================================
 # CREATOR ROUTES — /v1/community/...
 # ====================================================================
@@ -310,37 +297,6 @@ async def list_posts_creator(
     ]
     return ListResourceWithCursorPagination.from_results(
         items, has_next_page=has_next
-    )
-
-
-@creator_router.post(
-    "/{course_id}/posts",
-    response_model=CommunityPostRead,
-    status_code=201,
-    summary="Create Community Post as Creator",
-)
-async def create_post_creator(
-    course_id: CourseID,
-    payload: CommunityPostCreate,
-    auth_subject: CommunityCreatorWrite,
-    session: AsyncSession = Depends(get_db_session),
-) -> CommunityPostRead:
-    await _require_creator_owns_course(session, course_id, auth_subject)
-    user_id = _user_id_from_creator(auth_subject)
-
-    post = await community_service.create_post(
-        session,
-        course_id=course_id,
-        author_user_id=user_id,
-        payload=payload,
-    )
-    # Force-load the relationships that selectin would otherwise raise
-    # on (tag is selectin already; media is selectin already).
-    return await _render_single_post(
-        session,
-        post,
-        viewer_enrollment_id=None,
-        viewer_user_id=user_id,
     )
 
 
@@ -460,7 +416,14 @@ async def get_settings_customer(
     await community_service.assert_enrolled(
         session, customer_id=customer_id, course_id=course_id
     )
-    settings = await community_service.assert_community_enabled(session, course_id)
+    # Lazy-create the row so a student visiting before the creator
+    # ever opened the editor tab sees `enabled=False` and the
+    # "disabled" banner — not a 403 the frontend has no path for. The
+    # row defaults to `enabled=False`, so this is a no-op from the
+    # student's perspective until the creator flips the toggle.
+    settings = await community_service.get_or_create_settings(
+        session, course_id
+    )
     return CommunitySettingsRead.model_validate(settings, from_attributes=True)
 
 
@@ -559,42 +522,6 @@ async def create_post_customer(
     return await _render_single_post(
         session,
         post,
-        viewer_enrollment_id=enrollment.id,
-        viewer_user_id=None,
-    )
-
-
-@customer_router.patch(
-    "/{course_id}/posts/{post_id}",
-    response_model=CommunityPostRead,
-    summary="Update Own Community Post",
-)
-async def update_post_customer(
-    course_id: CourseID,
-    post_id: PostID,
-    payload: CommunityPostUpdate,
-    auth_subject: CommunityCustomerWrite,
-    session: AsyncSession = Depends(get_db_session),
-) -> CommunityPostRead:
-    customer_id = get_customer_id(auth_subject)
-    enrollment = await community_service.assert_enrolled(
-        session, customer_id=customer_id, course_id=course_id
-    )
-
-    post = await community_service.get_post(session, post_id)
-    if post is None or post.course_id != course_id:
-        raise HTTPException(status_code=404, detail="Post not found")
-    if not community_service.is_post_owner(
-        post, enrollment_id=enrollment.id, user_id=None
-    ):
-        raise HTTPException(status_code=403, detail="Not your post")
-
-    updated = await community_service.update_post(
-        session, post=post, payload=payload
-    )
-    return await _render_single_post(
-        session,
-        updated,
         viewer_enrollment_id=enrollment.id,
         viewer_user_id=None,
     )

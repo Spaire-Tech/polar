@@ -148,15 +148,23 @@ export function CommunityFeed({ courseId, customerSessionToken }: Props) {
     null
 
   const handleLessonChipClick = (
-    _lessonId: string,
-    moduleIdFromChip: string | null,
+    lessonIdFromChip: string,
+    _moduleIdFromChip: string | null,
   ) => {
-    // Snap the rail filter to the chip's module so the feed scopes to it.
-    if (moduleIdFromChip) {
-      setModuleId(moduleIdFromChip)
-      setLessonId(null)
-      window.scrollTo({ top: 0, behavior: 'smooth' })
-    }
+    // Filter the feed to this specific lesson — the chip says
+    // "re: Module 2 — Hydration", clicking it should narrow to
+    // *that lesson's* posts, not all of Module 2's. The rail's
+    // module filter is cleared since lesson is a strict subset.
+    setLessonId(lessonIdFromChip)
+    setModuleId(null)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  const handleModuleChange = (next: string | null) => {
+    // Changing the module filter always clears any active lesson
+    // filter — they're alternatives, not stackable.
+    setModuleId(next)
+    setLessonId(null)
   }
 
   const handleTagFilter = (id: string | null) => setTagId(id)
@@ -170,7 +178,7 @@ export function CommunityFeed({ courseId, customerSessionToken }: Props) {
           sort={sort}
           onSortChange={setSort}
           moduleId={moduleId}
-          onModuleChange={setModuleId}
+          onModuleChange={handleModuleChange}
           modules={railModules}
           presence={
             instructorName || settings?.presence_blurb

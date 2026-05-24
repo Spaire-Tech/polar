@@ -246,18 +246,10 @@ export function CommunityTab({ course }: Props) {
               }}
             />
           </Row>
-          <Row
-            label="Auto milestones"
-            description="Insert a celebratory card when a student finishes a module"
-          >
-            <Switch
-              checked={current.milestones_enabled}
-              onCheckedChange={(v) => {
-                patch({ milestones_enabled: v })
-                commit({ milestones_enabled: v })
-              }}
-            />
-          </Row>
+          {/* Auto milestones toggle is deferred until Phase 2 wires
+              the listener — community.module_completed_listener
+              currently logs and returns. Re-introduce when it
+              actually inserts a milestone post into the feed. */}
           {/* Watching rail toggle is deferred until Phase 3 wires the
               live Mux progress aggregator. Re-introduce here when the
               backend can answer "N students watching Module 3 right
