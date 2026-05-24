@@ -89,11 +89,12 @@ export function CommunityFeed({ courseId, customerSessionToken }: Props) {
     [allPosts, promptPostId],
   )
 
-  const feedPosts = useMemo(
-    () =>
-      promptPost ? allPosts.filter((p) => p.id !== promptPost.id) : allPosts,
-    [allPosts, promptPost],
-  )
+  // The prompt post is featured in the hero AND stays in the feed.
+  // Filtering it out broke the "Share your answer" CTA — it scrolled
+  // to an element that wasn't rendered. The hero is the question + a
+  // jump-link; the post card below carries the body, reactions, and
+  // the comment composer. Slight duplication, working behavior.
+  const feedPosts = allPosts
 
   // ---------- Loading / disabled states ----------
 

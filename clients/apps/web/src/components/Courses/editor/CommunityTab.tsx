@@ -17,12 +17,10 @@ import Input from '@spaire/ui/components/atoms/Input'
 import ShadowBox from '@spaire/ui/components/atoms/ShadowBox'
 import Switch from '@spaire/ui/components/atoms/Switch'
 import type { FocusEvent } from 'react'
-import { schemas } from '@spaire/client'
 import { useMemo, useState } from 'react'
 
 type Props = {
   course: CourseRead
-  organization: schemas['Organization']
 }
 
 type SettingsDraft = Partial<CommunitySettingsRead>
@@ -38,7 +36,7 @@ const formatRelative = (iso: string): string => {
   return new Date(iso).toLocaleDateString()
 }
 
-export function CommunityTab({ course, organization }: Props) {
+export function CommunityTab({ course }: Props) {
   const courseId = course.id
   const settingsQ = useCreatorCommunitySettings(courseId)
   const postsQ = useCreatorCommunityPosts(courseId)
@@ -108,28 +106,15 @@ export function CommunityTab({ course, organization }: Props) {
     )
   }
 
-  const openCommunityHref = `/${organization.slug}/portal/courses/${course.id}/community`
-
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-8 py-8">
       {/* Header */}
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-lg font-medium text-gray-900">Community</h1>
-          <p className="mt-1 text-gray-500">
-            A per-course feed students can post in, comment on, and react
-            to. Toggle features here; the student view lives at the link
-            on the right.
-          </p>
-        </div>
-        <a
-          href={openCommunityHref}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-sm font-medium text-blue-500 hover:text-blue-600"
-        >
-          Open as student ↗
-        </a>
+      <div>
+        <h1 className="text-lg font-medium text-gray-900">Community</h1>
+        <p className="mt-1 text-gray-500">
+          A per-course feed students can post in, comment on, and react
+          to. Configure it here, moderate from the list at the bottom.
+        </p>
       </div>
 
       {/* Status */}
@@ -273,37 +258,11 @@ export function CommunityTab({ course, organization }: Props) {
               }}
             />
           </Row>
-          <Row
-            label="Watching rail"
-            description='Show the live "12 watching Module 3 right now" line above the feed'
-          >
-            <Switch
-              checked={current.watching_rail_enabled}
-              onCheckedChange={(v) => {
-                patch({ watching_rail_enabled: v })
-                commit({ watching_rail_enabled: v })
-              }}
-            />
-          </Row>
-          <Row
-            label="Watching threshold"
-            description="Don’t show the rail until this many students are watching"
-          >
-            <Input
-              type="number"
-              min={1}
-              max={50}
-              className="w-24"
-              defaultValue={current.watching_rail_threshold}
-              onBlur={(e: FocusEvent<HTMLInputElement>) => {
-                const v = Number.parseInt(e.currentTarget.value, 10)
-                if (Number.isNaN(v) || v < 1) return
-                if (v === current.watching_rail_threshold) return
-                commitField('watching_rail_threshold', v)
-              }}
-              disabled={!current.watching_rail_enabled}
-            />
-          </Row>
+          {/* Watching rail toggle is deferred until Phase 3 wires the
+              live Mux progress aggregator. Re-introduce here when the
+              backend can answer "N students watching Module 3 right
+              now" — until then a toggle that does nothing is worse
+              than no toggle. */}
           <div>
             <label className="text-sm font-medium text-gray-700">
               Presence blurb
