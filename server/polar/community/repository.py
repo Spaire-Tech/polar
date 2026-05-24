@@ -138,6 +138,52 @@ class CommunityTagRepository(
     async def get_by_course(self, course_id: UUID) -> Sequence[CommunityTag]:
         return await self.get_all(self.get_by_course_statement(course_id))
 
+    async def get_max_position(self, course_id: UUID) -> int:
+        """Largest current position among this course's tags. Used so a
+        newly-created tag drops in at the end of the list rather than
+        colliding with an existing position."""
+        statement = select(func.coalesce(func.max(CommunityTag.position), -1)).where(
+            CommunityTag.course_id == course_id,
+            CommunityTag.deleted_at.is_(None),
+        )
+        result = await self.session.execute(statement)
+        return int(result.scalar_one())
+
+    async def reorder(
+        self, course_id: UUID, ordered_ids: list[UUID]
+    ) -> None:
+        """Set each tag's `position` to its index in `ordered_ids`. Tags
+        not in the list keep their existing position. Server-side
+        transactional so the partial-unique index never sees a
+        duplicate-position state."""
+        if not ordered_ids:
+            return
+        for index, tag_id in enumerate(ordered_ids):
+            statement = (
+                CommunityTag.__table__.update()
+                .where(
+                    CommunityTag.id == tag_id,
+                    CommunityTag.course_id == course_id,
+                    CommunityTag.deleted_at.is_(None),
+                )
+                .values(position=index)
+            )
+            await self.session.execute(statement)
+
+    async def clear_tag_from_posts(self, tag_id: UUID) -> None:
+        """Null out community_posts.tag_id where it points at this tag.
+
+        Soft-deleting a tag doesn't trigger the migration's ondelete
+        SET NULL (that fires on hard delete only). Without this, posts
+        keep a tag_id pointing at a deleted row and the feed renders a
+        ghost-pill that doesn't match any filter chip."""
+        statement = (
+            CommunityPost.__table__.update()
+            .where(CommunityPost.tag_id == tag_id)
+            .values(tag_id=None)
+        )
+        await self.session.execute(statement)
+
     async def get_by_slug(
         self, course_id: UUID, slug: str
     ) -> CommunityTag | None:

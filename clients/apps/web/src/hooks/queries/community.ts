@@ -604,6 +604,94 @@ export const useUpdateCommunitySettings = (courseId: string | undefined) =>
     },
   })
 
+// ----- Creator tag editor -----
+
+const creatorTagsKey = (courseId: string) =>
+  ['creator-community-tags', courseId] as const
+
+export const useCreatorCommunityTags = (courseId: string | undefined) =>
+  useQuery<CommunityTagRead[]>({
+    queryKey: creatorTagsKey(courseId ?? ''),
+    queryFn: () =>
+      creatorFetch<CommunityTagRead[]>(`/v1/community/${courseId}/tags`),
+    enabled: !!courseId,
+  })
+
+export const useCreateCommunityTag = (courseId: string | undefined) =>
+  useMutation({
+    mutationFn: (body: { label: string; slug?: string | null }) =>
+      creatorFetch<CommunityTagRead>(`/v1/community/${courseId}/tags`, {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
+    onSuccess: () => {
+      if (courseId)
+        getQueryClient().invalidateQueries({
+          queryKey: creatorTagsKey(courseId),
+        })
+    },
+  })
+
+export const useUpdateCommunityTag = (courseId: string | undefined) =>
+  useMutation({
+    mutationFn: ({
+      tagId,
+      label,
+      position,
+    }: {
+      tagId: string
+      label?: string | null
+      position?: number | null
+    }) =>
+      creatorFetch<CommunityTagRead>(
+        `/v1/community/${courseId}/tags/${tagId}`,
+        { method: 'PATCH', body: JSON.stringify({ label, position }) },
+      ),
+    onSuccess: () => {
+      if (courseId)
+        getQueryClient().invalidateQueries({
+          queryKey: creatorTagsKey(courseId),
+        })
+    },
+  })
+
+export const useDeleteCommunityTag = (courseId: string | undefined) =>
+  useMutation({
+    mutationFn: (tagId: string) =>
+      creatorFetch<void>(`/v1/community/${courseId}/tags/${tagId}`, {
+        method: 'DELETE',
+      }),
+    onSuccess: () => {
+      if (!courseId) return
+      getQueryClient().invalidateQueries({
+        queryKey: creatorTagsKey(courseId),
+      })
+      // Posts may have lost their tag chips — refresh the moderation
+      // list so the creator sees the cleared state.
+      getQueryClient().invalidateQueries({
+        queryKey: creatorPostsKey(courseId),
+      })
+    },
+  })
+
+export const useReorderCommunityTags = (courseId: string | undefined) =>
+  useMutation({
+    mutationFn: (orderedIds: string[]) =>
+      creatorFetch<CommunityTagRead[]>(
+        `/v1/community/${courseId}/tags/reorder`,
+        {
+          method: 'POST',
+          body: JSON.stringify({ ordered_ids: orderedIds }),
+        },
+      ),
+    onSuccess: (data) => {
+      if (!courseId) return
+      // Server returns the canonical order — write straight in so the
+      // optimistic UI settles without an extra refetch round-trip.
+      getQueryClient().setQueryData(creatorTagsKey(courseId), data)
+    },
+  })
+
 export const useCreatorCommunityPosts = (courseId: string | undefined) =>
   useInfiniteQuery<
     CommunityFeedPage,

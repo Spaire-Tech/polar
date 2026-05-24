@@ -63,6 +63,24 @@ class InvalidMediaReference(BadRequest):
         super().__init__("Invalid media reference.")
 
 
+class TagSlugInvalid(BadRequest):
+    """Slug couldn't be derived from the label (empty after
+    sanitization). Surfaces a friendly error rather than a 422 from the
+    schema validator."""
+
+    def __init__(self) -> None:
+        super().__init__("Tag label must contain at least one letter or number.")
+
+
+class TagSlugConflict(BadRequest):
+    """A non-deleted tag with this slug already exists on the course.
+    The partial-unique index in the migration enforces this at the
+    DB level too — this check produces a clean 400 instead of a 500."""
+
+    def __init__(self) -> None:
+        super().__init__("A tag with this label already exists.")
+
+
 class UnsupportedPostType(BadRequest):
     """Video posts are rejected until Phase 3 wires the Mux pipeline."""
 

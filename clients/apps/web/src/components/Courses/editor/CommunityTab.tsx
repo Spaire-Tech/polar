@@ -3,15 +3,38 @@
 import {
   type CommunityPostRead,
   type CommunitySettingsRead,
+  type CommunityTagRead,
+  useCreateCommunityTag,
   useCreatorCommunityPosts,
   useCreatorCommunitySettings,
+  useCreatorCommunityTags,
   useCreatorDeletePost,
+  useDeleteCommunityTag,
   usePinPost,
+  useReorderCommunityTags,
   useUnpinPost,
   useUpdateCommunitySettings,
+  useUpdateCommunityTag,
 } from '@/hooks/queries/community'
 import { toast } from '@/components/Toast/use-toast'
 import { type CourseRead } from '@/hooks/queries/courses'
+import {
+  DndContext,
+  type DragEndEvent,
+  KeyboardSensor,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core'
+import {
+  SortableContext,
+  arrayMove,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import Button from '@spaire/ui/components/atoms/Button'
 import Input from '@spaire/ui/components/atoms/Input'
 import ShadowBox from '@spaire/ui/components/atoms/ShadowBox'
@@ -229,6 +252,9 @@ export function CommunityTab({ course }: Props) {
           </div>
         </div>
       </ShadowBox>
+
+      {/* Tags */}
+      <TagsSection courseId={courseId} />
 
       {/* Features */}
       <ShadowBox>
@@ -475,6 +501,241 @@ function ModerationRow({
           Hide
         </Button>
       </div>
+    </li>
+  )
+}
+
+// ---------------------------------------------------------------------
+// Tags section — creator add / rename / reorder / delete.
+// ---------------------------------------------------------------------
+
+function TagsSection({ courseId }: { courseId: string }) {
+  const tagsQ = useCreatorCommunityTags(courseId)
+  const create = useCreateCommunityTag(courseId)
+  const update = useUpdateCommunityTag(courseId)
+  const remove = useDeleteCommunityTag(courseId)
+  const reorder = useReorderCommunityTags(courseId)
+
+  // Optimistic order — `pendingOrder` is non-null while a reorder
+  // mutation is in flight. Once the mutation settles, we clear it and
+  // fall through to the server data. Avoids the setState-in-effect
+  // anti-pattern of mirroring tagsQ.data into local state.
+  const [pendingOrder, setPendingOrder] = useState<CommunityTagRead[] | null>(
+    null,
+  )
+  const order = pendingOrder ?? tagsQ.data ?? []
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 5 },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
+  )
+
+  const onDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+    const oldIndex = order.findIndex((t) => t.id === active.id)
+    const newIndex = order.findIndex((t) => t.id === over.id)
+    if (oldIndex < 0 || newIndex < 0) return
+    const next = arrayMove(order, oldIndex, newIndex)
+    setPendingOrder(next)
+    reorder.mutate(
+      next.map((t) => t.id),
+      {
+        // Server returns canonical order and the hook writes it back
+        // into the cache — clear pendingOrder either way so we fall
+        // through to the server data on the next render.
+        onSettled: () => setPendingOrder(null),
+        onError: (e) =>
+          toast({
+            title: 'Couldn’t reorder tags',
+            description: e instanceof Error ? e.message : undefined,
+          }),
+      },
+    )
+  }
+
+  const [newLabel, setNewLabel] = useState('')
+  const submitNew = () => {
+    const trimmed = newLabel.trim()
+    if (!trimmed) return
+    create.mutate(
+      { label: trimmed },
+      {
+        onSuccess: () => setNewLabel(''),
+        onError: (e) =>
+          toast({
+            title: 'Couldn’t add tag',
+            description: e instanceof Error ? e.message : undefined,
+          }),
+      },
+    )
+  }
+
+  return (
+    <ShadowBox>
+      <h2 className="text-base font-medium text-gray-900">Tags</h2>
+      <p className="mt-1 text-sm text-gray-500">
+        Categories students pick from when they post (Question, Win,
+        Prompt, etc.). Drag to reorder — the order students see on the
+        filter bar matches this list.
+      </p>
+
+      {tagsQ.isLoading ? (
+        <div className="mt-4 h-12 animate-pulse rounded-lg bg-gray-100" />
+      ) : (
+        <div className="mt-5">
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={onDragEnd}
+          >
+            <SortableContext
+              items={order.map((t) => t.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              <ul className="flex flex-col gap-2">
+                {order.map((tag) => (
+                  <SortableTagRow
+                    key={tag.id}
+                    tag={tag}
+                    onRename={(label) =>
+                      update.mutate(
+                        { tagId: tag.id, label },
+                        {
+                          onError: (e) =>
+                            toast({
+                              title: 'Couldn’t rename tag',
+                              description:
+                                e instanceof Error ? e.message : undefined,
+                            }),
+                        },
+                      )
+                    }
+                    onDelete={() => {
+                      if (
+                        !window.confirm(
+                          `Delete "${tag.label}"? Posts using this tag will lose it.`,
+                        )
+                      )
+                        return
+                      remove.mutate(tag.id, {
+                        onError: (e) =>
+                          toast({
+                            title: 'Couldn’t delete tag',
+                            description:
+                              e instanceof Error ? e.message : undefined,
+                          }),
+                      })
+                    }}
+                  />
+                ))}
+              </ul>
+            </SortableContext>
+          </DndContext>
+
+          {/* Inline add row */}
+          <div className="mt-3 flex gap-2">
+            <Input
+              placeholder="New tag label"
+              value={newLabel}
+              onChange={(e) => setNewLabel(e.currentTarget.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault()
+                  submitNew()
+                }
+              }}
+              maxLength={50}
+            />
+            <Button
+              size="sm"
+              onClick={submitNew}
+              disabled={!newLabel.trim() || create.isPending}
+            >
+              {create.isPending ? 'Adding…' : 'Add'}
+            </Button>
+          </div>
+        </div>
+      )}
+    </ShadowBox>
+  )
+}
+
+function SortableTagRow({
+  tag,
+  onRename,
+  onDelete,
+}: {
+  tag: CommunityTagRead
+  onRename: (label: string) => void
+  onDelete: () => void
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: tag.id })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  }
+
+  return (
+    <li
+      ref={setNodeRef}
+      style={style}
+      className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-2 py-1.5"
+    >
+      <button
+        type="button"
+        className="cursor-grab px-1 text-gray-400 hover:text-gray-600"
+        aria-label="Drag to reorder"
+        {...attributes}
+        {...listeners}
+      >
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="currentColor"
+          aria-hidden
+        >
+          <circle cx="9" cy="6" r="1.5" />
+          <circle cx="15" cy="6" r="1.5" />
+          <circle cx="9" cy="12" r="1.5" />
+          <circle cx="15" cy="12" r="1.5" />
+          <circle cx="9" cy="18" r="1.5" />
+          <circle cx="15" cy="18" r="1.5" />
+        </svg>
+      </button>
+      <Input
+        defaultValue={tag.label}
+        className="h-8 flex-1"
+        maxLength={50}
+        onBlur={(e: FocusEvent<HTMLInputElement>) => {
+          const next = e.currentTarget.value.trim()
+          if (!next || next === tag.label) return
+          onRename(next)
+        }}
+      />
+      <span className="text-xs text-gray-400">·{tag.slug}</span>
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={onDelete}
+        aria-label="Delete tag"
+      >
+        Delete
+      </Button>
     </li>
   )
 }

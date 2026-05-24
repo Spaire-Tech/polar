@@ -66,14 +66,23 @@ class CommunityTagRead(TimestampedSchema):
 
 
 class CommunityTagCreate(Schema):
-    slug: str = Field(min_length=1, max_length=50)
     label: str = Field(min_length=1, max_length=50)
-    position: int = 0
+    # Optional. Service derives a slug from the label when omitted —
+    # callers only need to pass it explicitly when they need a stable
+    # identifier the milestone job can look up by.
+    slug: str | None = Field(default=None, min_length=1, max_length=50)
 
 
 class CommunityTagUpdate(Schema):
     label: str | None = Field(default=None, min_length=1, max_length=50)
-    position: int | None = None
+    position: int | None = Field(default=None, ge=0)
+
+
+class CommunityTagReorderRequest(Schema):
+    """Batch-reorder payload — `ordered_ids` is the desired top-to-bottom
+    order. Each id gets its `position` set to its array index."""
+
+    ordered_ids: list[UUID4] = Field(min_length=0, max_length=50)
 
 
 # =====================================================================

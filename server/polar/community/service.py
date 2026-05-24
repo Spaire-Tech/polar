@@ -18,6 +18,7 @@ need an id back).
 
 from __future__ import annotations
 
+import re
 from collections.abc import Sequence
 from datetime import timedelta
 from typing import Literal
@@ -53,6 +54,8 @@ from .exceptions import (
     InvalidMediaReference,
     InvalidParentComment,
     InvalidTagReference,
+    TagSlugConflict,
+    TagSlugInvalid,
     UnsupportedPostType,
 )
 from .repository import (
@@ -93,6 +96,18 @@ _SEED_TAGS: list[tuple[str, str, int]] = [
     ("prompt", "Prompt", 2),
     ("milestone", "Milestone", 3),
 ]
+
+
+_SLUG_NONALNUM = re.compile(r"[^a-z0-9]+")
+
+
+def _slugify(label: str) -> str:
+    """Derive a URL-safe slug from a tag label. Lowercase, collapse
+    non-alphanumerics to a single hyphen, strip leading/trailing
+    hyphens, cap at 50 chars (matches the slug column length in the
+    migration). Empty result = invalid label, caller raises."""
+    stripped = _SLUG_NONALNUM.sub("-", label.lower()).strip("-")
+    return stripped[:50]
 
 
 def _resolve_display_name(name: str | None, email: str | None) -> str | None:
@@ -787,6 +802,79 @@ class CommunityService:
     ) -> CommunityTag | None:
         repo = CommunityTagRepository.from_session(session)
         return await repo.get_by_slug(course_id, slug)
+
+    async def create_tag(
+        self,
+        session: AsyncSession,
+        *,
+        course_id: UUID,
+        label: str,
+        slug: str | None = None,
+    ) -> CommunityTag:
+        """Create a new tag for a course. Slug is auto-derived from the
+        label if the caller didn't supply one. Raises TagSlugConflict
+        if the slug already exists for this course."""
+        repo = CommunityTagRepository.from_session(session)
+        normalized_slug = (slug or _slugify(label)).strip()
+        if not normalized_slug:
+            raise TagSlugInvalid()
+        existing = await repo.get_by_slug(course_id, normalized_slug)
+        if existing is not None:
+            raise TagSlugConflict()
+
+        position = (await repo.get_max_position(course_id)) + 1
+        tag = CommunityTag(
+            course_id=course_id,
+            slug=normalized_slug,
+            label=label.strip(),
+            position=position,
+        )
+        return await repo.create(tag, flush=True)
+
+    async def update_tag(
+        self,
+        session: AsyncSession,
+        *,
+        tag: CommunityTag,
+        label: str | None,
+        position: int | None,
+    ) -> CommunityTag:
+        """Rename / reposition a tag. Slug stays stable (the milestone
+        job and other code paths reference seeded tags by slug)."""
+        repo = CommunityTagRepository.from_session(session)
+        update_dict: dict[str, str | int] = {}
+        if label is not None:
+            stripped = label.strip()
+            if stripped:
+                update_dict["label"] = stripped
+        if position is not None and position != tag.position:
+            update_dict["position"] = position
+        if not update_dict:
+            return tag
+        return await repo.update(tag, update_dict=update_dict)
+
+    async def delete_tag(
+        self,
+        session: AsyncSession,
+        *,
+        tag: CommunityTag,
+    ) -> None:
+        """Soft-delete the tag, then NULL out tag_id on any post that
+        references it so the post stops rendering a ghost-pill."""
+        repo = CommunityTagRepository.from_session(session)
+        await repo.clear_tag_from_posts(tag.id)
+        await repo.soft_delete(tag)
+
+    async def reorder_tags(
+        self,
+        session: AsyncSession,
+        *,
+        course_id: UUID,
+        ordered_ids: list[UUID],
+    ) -> Sequence[CommunityTag]:
+        repo = CommunityTagRepository.from_session(session)
+        await repo.reorder(course_id, ordered_ids)
+        return await repo.get_by_course(course_id)
 
     # ------------------------------------------------------------------
     # Permission helpers — who can moderate this post / comment?

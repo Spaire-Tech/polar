@@ -41,6 +41,7 @@ from .auth import (
     CommunityCustomerRead,
     CommunityCustomerWrite,
 )
+from .repository import CommunityTagRepository
 from .schemas import (
     CommunityAuthor,
     CommunityAuthorInstructor,
@@ -59,7 +60,10 @@ from .schemas import (
     CommunityReactionToggleResult,
     CommunitySettingsRead,
     CommunitySettingsUpdate,
+    CommunityTagCreate,
     CommunityTagRead,
+    CommunityTagReorderRequest,
+    CommunityTagUpdate,
 )
 from .service import community as community_service
 from .sorting import CommunityPostSortProperty
@@ -314,6 +318,103 @@ async def list_posts_creator(
     return ListResourceWithCursorPagination.from_results(
         items, has_next_page=has_next
     )
+
+
+@creator_router.get(
+    "/{course_id}/tags",
+    response_model=list[CommunityTagRead],
+    summary="List Community Tags (Creator)",
+)
+async def list_tags_creator(
+    course_id: CourseID,
+    auth_subject: CommunityCreatorRead,
+    session: AsyncSession = Depends(get_db_session),
+) -> list[CommunityTagRead]:
+    await _require_creator_owns_course(session, course_id, auth_subject)
+    tags = await community_service.list_tags(session, course_id)
+    return [CommunityTagRead.model_validate(t, from_attributes=True) for t in tags]
+
+
+@creator_router.post(
+    "/{course_id}/tags",
+    response_model=CommunityTagRead,
+    status_code=201,
+    summary="Create Community Tag",
+)
+async def create_tag(
+    course_id: CourseID,
+    payload: CommunityTagCreate,
+    auth_subject: CommunityCreatorWrite,
+    session: AsyncSession = Depends(get_db_session),
+) -> CommunityTagRead:
+    await _require_creator_owns_course(session, course_id, auth_subject)
+    tag = await community_service.create_tag(
+        session,
+        course_id=course_id,
+        label=payload.label,
+        slug=payload.slug,
+    )
+    return CommunityTagRead.model_validate(tag, from_attributes=True)
+
+
+@creator_router.patch(
+    "/{course_id}/tags/{tag_id}",
+    response_model=CommunityTagRead,
+    summary="Update Community Tag",
+)
+async def update_tag(
+    course_id: CourseID,
+    tag_id: Annotated[UUID4, ...],
+    payload: CommunityTagUpdate,
+    auth_subject: CommunityCreatorWrite,
+    session: AsyncSession = Depends(get_db_session),
+) -> CommunityTagRead:
+    await _require_creator_owns_course(session, course_id, auth_subject)
+    tag_repo = CommunityTagRepository.from_session(session)
+    tag = await tag_repo.get_by_id(tag_id)
+    if tag is None or tag.course_id != course_id:
+        raise HTTPException(status_code=404, detail="Tag not found")
+    updated = await community_service.update_tag(
+        session, tag=tag, label=payload.label, position=payload.position
+    )
+    return CommunityTagRead.model_validate(updated, from_attributes=True)
+
+
+@creator_router.delete(
+    "/{course_id}/tags/{tag_id}",
+    status_code=204,
+    summary="Delete Community Tag",
+)
+async def delete_tag(
+    course_id: CourseID,
+    tag_id: Annotated[UUID4, ...],
+    auth_subject: CommunityCreatorWrite,
+    session: AsyncSession = Depends(get_db_session),
+) -> None:
+    await _require_creator_owns_course(session, course_id, auth_subject)
+    tag_repo = CommunityTagRepository.from_session(session)
+    tag = await tag_repo.get_by_id(tag_id)
+    if tag is None or tag.course_id != course_id:
+        raise HTTPException(status_code=404, detail="Tag not found")
+    await community_service.delete_tag(session, tag=tag)
+
+
+@creator_router.post(
+    "/{course_id}/tags/reorder",
+    response_model=list[CommunityTagRead],
+    summary="Reorder Community Tags",
+)
+async def reorder_tags(
+    course_id: CourseID,
+    payload: CommunityTagReorderRequest,
+    auth_subject: CommunityCreatorWrite,
+    session: AsyncSession = Depends(get_db_session),
+) -> list[CommunityTagRead]:
+    await _require_creator_owns_course(session, course_id, auth_subject)
+    tags = await community_service.reorder_tags(
+        session, course_id=course_id, ordered_ids=payload.ordered_ids
+    )
+    return [CommunityTagRead.model_validate(t, from_attributes=True) for t in tags]
 
 
 @creator_router.post(
