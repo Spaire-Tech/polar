@@ -129,6 +129,16 @@ class CourseLessonRepository(
         )
         return (await self.session.execute(statement)).scalar_one()
 
+    async def count_by_module(self, module_id: UUID) -> int:
+        """Non-soft-deleted lesson count for a single module. Used by the
+        module-completion detector — combined with the per-enrollment
+        completed count we know when a student has finished a module."""
+        statement = select(func.count(CourseLesson.id)).where(
+            CourseLesson.module_id == module_id,
+            CourseLesson.deleted_at.is_(None),
+        )
+        return (await self.session.execute(statement)).scalar_one()
+
     async def get_readable_by_id(
         self,
         lesson_id: UUID,
@@ -202,6 +212,27 @@ class CourseLessonProgressRepository(
         statement = select(func.count(CourseLessonProgress.id)).where(
             CourseLessonProgress.enrollment_id == enrollment_id,
             CourseLessonProgress.deleted_at.is_(None),
+        )
+        return (await self.session.execute(statement)).scalar_one()
+
+    async def count_by_enrollment_in_module(
+        self, enrollment_id: UUID, module_id: UUID
+    ) -> int:
+        """Completed lessons by an enrollment inside a single module.
+        Together with CourseLessonRepository.count_by_module this is how
+        the service detects a course.module_completed event."""
+        statement = (
+            select(func.count(CourseLessonProgress.id))
+            .join(
+                CourseLesson,
+                CourseLesson.id == CourseLessonProgress.lesson_id,
+            )
+            .where(
+                CourseLessonProgress.enrollment_id == enrollment_id,
+                CourseLessonProgress.deleted_at.is_(None),
+                CourseLesson.module_id == module_id,
+                CourseLesson.deleted_at.is_(None),
+            )
         )
         return (await self.session.execute(statement)).scalar_one()
 

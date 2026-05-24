@@ -650,6 +650,40 @@ class CourseService:
                 session, event_name="course.first_lesson_completed", **common
             )
 
+        # course.module_completed — fires the first time an enrollment
+        # has every (non-soft-deleted) lesson in a single module
+        # completed. Used by the community milestone job (Chunk 6 in the
+        # community module) and available to email_sequence flow_engine.
+        lesson = await lesson_repo.get_by_id(lesson_id)
+        if lesson is not None:
+            module_total = await lesson_repo.count_by_module(lesson.module_id)
+            if module_total > 0:
+                module_completed = (
+                    await progress_repo.count_by_enrollment_in_module(
+                        enrollment_id, lesson.module_id
+                    )
+                )
+                if module_completed >= module_total:
+                    await self._fire_course_event(
+                        session,
+                        event_name="course.module_completed",
+                        lesson_id=lesson_id,
+                        **common,
+                    )
+                    # Forward to the community module so it can insert a
+                    # milestone post (subject to community-enabled +
+                    # milestones_enabled flags). Cross-module via the
+                    # job queue so course/ stays free of community/
+                    # imports.
+                    from polar.worker import enqueue_job
+
+                    enqueue_job(
+                        "community.module_completed_listener",
+                        course_id=enrollment.course_id,
+                        customer_id=enrollment.customer_id,
+                        lesson_id=lesson_id,
+                    )
+
         if total_count > 0:
             prev_pct = (completed_count - 1) / total_count
             cur_pct = completed_count / total_count

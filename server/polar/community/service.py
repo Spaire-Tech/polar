@@ -37,6 +37,7 @@ from polar.models.community_settings import CommunitySettings
 from polar.models.community_tag import CommunityTag
 from polar.models.course_enrollment import CourseEnrollment
 from polar.postgres import AsyncSession
+from polar.worker import enqueue_job
 
 from .exceptions import (
     CommentsHidden,
@@ -239,7 +240,11 @@ class CommunityService:
             published_at=publish_at,
         )
         repo = CommunityPostRepository.from_session(session)
-        return await repo.create(post, flush=True)
+        created = await repo.create(post, flush=True)
+        # Fan-out (SSE + bell). The actor pulls the row fresh so it's
+        # safe to enqueue before the request-level commit lands.
+        enqueue_job("community.post.created", post_id=created.id)
+        return created
 
     async def get_post(
         self, session: AsyncSession, post_id: UUID
@@ -413,6 +418,11 @@ class CommunityService:
 
         post_repo = CommunityPostRepository.from_session(session)
         await post_repo.increment_comment_count(post.id, by=1)
+
+        # Bell notification to the post author. The task skips self-
+        # replies and silently no-ops if the post / comment / target
+        # user resolution fails downstream.
+        enqueue_job("community.comment.created", comment_id=created.id)
         return created
 
     async def soft_delete_comment(

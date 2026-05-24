@@ -2,6 +2,7 @@ from polar.auth import tasks as auth
 from polar.benefit import tasks as benefit
 from polar.billing_entry import tasks as billing_entry
 from polar.checkout import tasks as checkout
+from polar.community import tasks as community
 from polar.course import tasks as course
 from polar.customer import tasks as customer
 from polar.customer_meter import tasks as customer_meter
@@ -25,10 +26,10 @@ from polar.order import tasks as order
 from polar.organization import tasks as organization
 from polar.organization_access_token import tasks as organization_access_token
 from polar.payout import tasks as payout
-from polar.platform import tasks as platform_tasks
-from polar.quotas import tasks as quotas_tasks
 from polar.personal_access_token import tasks as personal_access_token
+from polar.platform import tasks as platform_tasks
 from polar.processor_transaction import tasks as processor_transaction
+from polar.quotas import tasks as quotas_tasks
 from polar.subscription import tasks as subscription
 from polar.transaction import tasks as transaction
 from polar.user import tasks as user
@@ -40,6 +41,7 @@ __all__ = [
     "billing_entry",
     "chargeback_stop",
     "checkout",
+    "community",
     "course",
     "customer",
     "customer_meter",
@@ -60,10 +62,10 @@ __all__ = [
     "organization",
     "organization_access_token",
     "payout",
-    "platform_tasks",
-    "quotas_tasks",
     "personal_access_token",
+    "platform_tasks",
     "processor_transaction",
+    "quotas_tasks",
     "resend",
     "stripe",
     "subscription",
