@@ -44,6 +44,7 @@ from .schemas import (
     CommunityAuthorStudent,
     CommunityCommentCreate,
     CommunityCommentRead,
+    CommunityCourseSummary,
     CommunityLessonChip,
     CommunityPinPayload,
     CommunityPostCreate,
@@ -400,6 +401,26 @@ async def delete_comment_creator(
 # ====================================================================
 # CUSTOMER-PORTAL ROUTES — /v1/customer-portal/community/...
 # ====================================================================
+
+
+@customer_router.get(
+    "/courses",
+    response_model=list[CommunityCourseSummary],
+    summary="List Communities Available to Customer",
+)
+async def list_customer_communities(
+    auth_subject: CommunityCustomerRead,
+    session: AsyncSession = Depends(get_db_session),
+) -> list[CommunityCourseSummary]:
+    """Powers the /portal/community picker. Returns one entry per
+    enrolled course with `community_enabled` flagged from
+    community_settings, so the picker UI can filter to courses whose
+    creator has actually turned the feed on."""
+    customer_id = get_customer_id(auth_subject)
+    rows = await community_service.list_customer_communities(
+        session, customer_id=customer_id
+    )
+    return list(rows)
 
 
 @customer_router.get(

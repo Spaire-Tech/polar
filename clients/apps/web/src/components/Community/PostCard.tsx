@@ -385,7 +385,7 @@ export type PostCardProps = {
   selfName?: string | null
   selfEnrollmentId?: string | null
   reactionsEnabled: boolean
-  onLessonChipClick?: (lessonId: string, moduleId: string | null) => void
+  onLessonChipClick?: (lessonId: string) => void
   onShareToast?: (msg: string) => void
 }
 
@@ -509,12 +509,7 @@ export function PostCard({
         <button
           type="button"
           className={styles.lessonChip}
-          onClick={() =>
-            onLessonChipClick?.(
-              post.lesson!.lesson_id,
-              post.lesson!.module_id,
-            )
-          }
+          onClick={() => onLessonChipClick?.(post.lesson!.lesson_id)}
         >
           <IconBook size={12} /> re: {post.lesson.lesson_title}
         </button>

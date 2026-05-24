@@ -248,6 +248,23 @@ class CommunityCommentRead(TimestampedSchema):
 
 
 # =====================================================================
+# Picker — customer-portal "which communities can I access?"
+# =====================================================================
+
+
+class CommunityCourseSummary(Schema):
+    """One row in the customer-portal picker. `community_enabled` is
+    false when the creator hasn't enabled the feed for this course yet
+    (or the settings row doesn't exist at all)."""
+
+    course_id: UUID4
+    course_title: str | None
+    course_thumbnail_url: str | None
+    course_thumbnail_object_position: str | None
+    community_enabled: bool
+
+
+# =====================================================================
 # Feed
 # =====================================================================
 

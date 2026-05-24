@@ -132,6 +132,14 @@ export interface CommunityReactionToggleResult {
   count: number
 }
 
+export interface CommunityCourseSummary {
+  course_id: string
+  course_title: string | null
+  course_thumbnail_url: string | null
+  course_thumbnail_object_position: string | null
+  community_enabled: boolean
+}
+
 // ---------------------------------------------------------------------
 // Fetch wrapper — same shape as portalApiFetch in courses.ts, lifted
 // here so community hooks don't depend on a non-exported helper.
@@ -214,6 +222,19 @@ export const useCommunitySettings = (
         token!,
       ),
     enabled: !!token && !!courseId,
+  })
+
+export const useCommunityEnrolledCourses = (
+  token: string | null | undefined,
+) =>
+  useQuery<CommunityCourseSummary[]>({
+    queryKey: ['community-enrolled-courses', token],
+    queryFn: () =>
+      portalFetch<CommunityCourseSummary[]>(
+        '/v1/customer-portal/community/courses',
+        token!,
+      ),
+    enabled: !!token,
   })
 
 export const useCommunityTags = (

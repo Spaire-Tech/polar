@@ -1,6 +1,9 @@
 'use client'
 
-import { useCustomerCourses } from '@/hooks/queries/courses'
+import {
+  type CommunityCourseSummary,
+  useCommunityEnrolledCourses,
+} from '@/hooks/queries/community'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useMemo } from 'react'
@@ -18,8 +21,13 @@ export function CommunityPicker({
 }: Props) {
   const searchParams = useSearchParams()
   const router = useRouter()
-  const { data: enrollments, isLoading } = useCustomerCourses(
+  const { data: courses, isLoading } = useCommunityEnrolledCourses(
     customerSessionToken,
+  )
+
+  const enabledCourses = useMemo<CommunityCourseSummary[]>(
+    () => (courses ?? []).filter((c) => c.community_enabled),
+    [courses],
   )
 
   const qs = useMemo(() => searchParams.toString(), [searchParams])
@@ -28,17 +36,15 @@ export function CommunityPicker({
     return qs ? `${path}?${qs}` : path
   }
 
-  // Auto-redirect when the customer has exactly one enrolled course —
-  // no point making them click through a single-item picker.
+  // Auto-redirect when there's exactly one enabled community — the
+  // picker is useless for a one-item list.
   useEffect(() => {
-    if (!enrollments) return
-    if (enrollments.length === 1) {
-      router.replace(courseHref(enrollments[0].course.id))
+    if (!courses) return
+    if (enabledCourses.length === 1) {
+      router.replace(courseHref(enabledCourses[0].course_id))
     }
-    // courseHref depends on qs which is stable per render; enrollments
-    // is the only signal we care about here.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enrollments, router])
+  }, [courses, enabledCourses, router])
 
   if (isLoading) {
     return (
@@ -56,7 +62,11 @@ export function CommunityPicker({
     )
   }
 
-  if (!enrollments || enrollments.length === 0) {
+  // Distinguish "no enrollments" from "enrolled but no community is on"
+  // so the empty-state copy is honest in either case.
+  const hasEnrollments = (courses?.length ?? 0) > 0
+
+  if (!hasEnrollments) {
     return (
       <div className={styles.root}>
         <main className={styles.main}>
@@ -75,7 +85,27 @@ export function CommunityPicker({
     )
   }
 
-  if (enrollments.length === 1) {
+  if (enabledCourses.length === 0) {
+    return (
+      <div className={styles.root}>
+        <main className={styles.main}>
+          <header className={styles.feedHeader}>
+            <div className={styles.feedEyebrow}>Community</div>
+            <h1 className={styles.feedTitle}>Nothing open yet</h1>
+          </header>
+          <p
+            className={styles.empty}
+            style={{ marginTop: 20, padding: '40px 0' }}
+          >
+            None of your instructors have opened the community on their
+            courses yet. Check back soon.
+          </p>
+        </main>
+      </div>
+    )
+  }
+
+  if (enabledCourses.length === 1) {
     // Redirecting — render an empty shell while the navigation lands.
     return <div className={styles.root} />
   }
@@ -94,8 +124,7 @@ export function CommunityPicker({
             fontSize: 14,
           }}
         >
-          You&apos;re enrolled in {enrollments.length} courses. Open the
-          community for any of them.
+          {enabledCourses.length} of your courses have community open.
         </p>
 
         <div
@@ -106,10 +135,10 @@ export function CommunityPicker({
             gap: 20,
           }}
         >
-          {enrollments.map((e) => (
+          {enabledCourses.map((c) => (
             <Link
-              key={e.course.id}
-              href={courseHref(e.course.id)}
+              key={c.course_id}
+              href={courseHref(c.course_id)}
               style={{
                 display: 'block',
                 borderRadius: 18,
@@ -124,9 +153,11 @@ export function CommunityPicker({
               <div
                 style={{
                   aspectRatio: '16 / 9',
-                  background: e.course.thumbnail_url
-                    ? `url(${e.course.thumbnail_url}) center / cover`
+                  background: c.course_thumbnail_url
+                    ? `url(${c.course_thumbnail_url}) center / cover`
                     : 'linear-gradient(135deg, #0A84FF, #0056B3)',
+                  backgroundPosition:
+                    c.course_thumbnail_object_position ?? 'center',
                 }}
               />
               <div style={{ padding: '16px 18px' }}>
@@ -138,7 +169,7 @@ export function CommunityPicker({
                     color: 'var(--c-ink)',
                   }}
                 >
-                  {e.course.title ?? 'Untitled course'}
+                  {c.course_title ?? 'Untitled course'}
                 </div>
                 <div
                   style={{

@@ -65,6 +65,56 @@ class CommunitySettingsRepository(
         )
         return await self.get_one_or_none(statement)
 
+    async def list_customer_communities(
+        self, customer_id: UUID
+    ) -> Sequence[tuple[UUID, str | None, str | None, str | None, bool]]:
+        """Powers the customer-portal picker. Returns one row per
+        non-deleted enrollment as
+        `(course_id, course_title, thumbnail_url, thumbnail_object_position,
+        community_enabled)` — LEFT JOIN on community_settings so courses
+        that never had a settings row come back with
+        `community_enabled=False` rather than being filtered out."""
+        from polar.models.course import Course
+        from polar.models.course_enrollment import CourseEnrollment
+
+        statement = (
+            select(
+                Course.id,
+                Course.title,
+                Course.thumbnail_url,
+                Course.thumbnail_object_position,
+                func.coalesce(CommunitySettings.enabled, False).label(
+                    "enabled"
+                ),
+            )
+            .join(CourseEnrollment, CourseEnrollment.course_id == Course.id)
+            .join(
+                CommunitySettings,
+                and_(
+                    CommunitySettings.course_id == Course.id,
+                    CommunitySettings.deleted_at.is_(None),
+                ),
+                isouter=True,
+            )
+            .where(
+                CourseEnrollment.customer_id == customer_id,
+                CourseEnrollment.deleted_at.is_(None),
+                Course.deleted_at.is_(None),
+            )
+            .order_by(CourseEnrollment.enrolled_at.desc())
+        )
+        result = await self.session.execute(statement)
+        return [
+            (
+                row.id,
+                row.title,
+                row.thumbnail_url,
+                row.thumbnail_object_position,
+                bool(row.enabled),
+            )
+            for row in result
+        ]
+
 
 # ----------------------------------------------------------------------
 # Tags

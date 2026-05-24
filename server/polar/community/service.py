@@ -63,6 +63,7 @@ from .schemas import (
     CommunityAuthorInstructor,
     CommunityAuthorStudent,
     CommunityCommentCreate,
+    CommunityCourseSummary,
     CommunityLessonChip,
     CommunityPinPayload,
     CommunityPostCreate,
@@ -164,6 +165,29 @@ class CommunityService:
     # ------------------------------------------------------------------
     # Enrollment guard — used by every customer-portal route
     # ------------------------------------------------------------------
+
+    async def list_customer_communities(
+        self,
+        session: AsyncSession,
+        *,
+        customer_id: UUID,
+    ) -> Sequence[CommunityCourseSummary]:
+        """Customer-portal picker source-of-truth. Lists the customer's
+        enrolled courses with the community_enabled flag joined in. The
+        picker UI filters this list to `community_enabled=True` rows so
+        clicking a card never lands a student on a disabled banner."""
+        repo = CommunitySettingsRepository.from_session(session)
+        rows = await repo.list_customer_communities(customer_id)
+        return [
+            CommunityCourseSummary(
+                course_id=row[0],
+                course_title=row[1],
+                course_thumbnail_url=row[2],
+                course_thumbnail_object_position=row[3],
+                community_enabled=row[4],
+            )
+            for row in rows
+        ]
 
     async def assert_enrolled(
         self,

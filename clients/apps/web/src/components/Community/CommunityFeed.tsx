@@ -147,10 +147,7 @@ export function CommunityFeed({ courseId, customerSessionToken }: Props) {
     courseDetail?.course.thumbnail_url ??
     null
 
-  const handleLessonChipClick = (
-    lessonIdFromChip: string,
-    _moduleIdFromChip: string | null,
-  ) => {
+  const handleLessonChipClick = (lessonIdFromChip: string) => {
     // Filter the feed to this specific lesson — the chip says
     // "re: Module 2 — Hydration", clicking it should narrow to
     // *that lesson's* posts, not all of Module 2's. The rail's
