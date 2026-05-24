@@ -163,13 +163,15 @@ export function EpisodeCarousel({
                     aria-hidden
                   />
                   {/* Frosted-glass strip — backdrop-filter blurs the
-                      .epcs-image behind it. No mask (which breaks the
-                      backdrop-filter compositor in Safari + Firefox).
-                      A faint dark gradient on top of the blur softens
-                      the seam and keeps the title legible over the
-                      blurred artwork. */}
-                  <div className="epcs-blur" aria-hidden />
-                  <div className="epcs-scrim" aria-hidden />
+                      .epcs-image behind it. The mask gradient that
+                      ramps the top edge sits on a separate wrapper
+                      because Chromium silently drops backdrop-filter
+                      whenever mask-image is applied to the same
+                      element (WebKit on mobile composes both, which
+                      is why mobile worked even before this split). */}
+                  <div className="epcs-blur-wrap" aria-hidden>
+                    <div className="epcs-blur" />
+                  </div>
                   <div className="epcs-body">
                     <p className="epcs-ep">Episode {i + 1}</p>
                     <h3 className="epcs-title">
@@ -305,6 +307,12 @@ export function EpisodeCarousel({
           font-family: inherit;
           text-align: left;
           background: #0b0b10;
+          /* Give the card its own stacking context. Without this, the
+             .epcs-blur child's backdrop-filter silently drops on
+             desktop Chromium when the card sits inside the carousel's
+             overflow-x scroller — the blur strip then paints as a
+             flat dark band ("just a line") instead of an actual blur. */
+          isolation: isolate;
         }
         /* Image layer — bottom of the stack. .epcs-blur backdrop-filters
            this. */
@@ -313,44 +321,52 @@ export function EpisodeCarousel({
           inset: 0;
           z-index: 0;
         }
-        /* Frosted-glass strip — backdrop-filters the image layer.
-           Solid height, no mask (mask interacts badly with
-           backdrop-filter in Safari/Firefox compositors and ends up
-           rendering nothing). */
-        .epcs-blur {
+        /* Wrapper carries the mask gradient so the top edge of the
+           blur fades into the clear image above. The mask MUST live
+           on a separate element from backdrop-filter — Chromium drops
+           the filter the moment both are on the same node. */
+        .epcs-blur-wrap {
           position: absolute;
           left: 0;
           right: 0;
           bottom: 0;
-          height: 46%;
-          backdrop-filter: blur(24px) saturate(140%);
-          -webkit-backdrop-filter: blur(24px) saturate(140%);
+          height: 56%;
+          pointer-events: none;
+          z-index: 1;
+          -webkit-mask-image: linear-gradient(
+            to bottom,
+            transparent 0%,
+            rgba(0, 0, 0, 0.6) 16%,
+            black 36%
+          );
+          mask-image: linear-gradient(
+            to bottom,
+            transparent 0%,
+            rgba(0, 0, 0, 0.6) 16%,
+            black 36%
+          );
+        }
+        /* The actual frosted-glass strip — backdrop-filters the image
+           layer below. Lives inside .epcs-blur-wrap, fills it. */
+        .epcs-blur {
+          position: absolute;
+          inset: 0;
+          backdrop-filter: blur(20px) saturate(135%);
+          -webkit-backdrop-filter: blur(20px) saturate(135%);
           /* Light tint on top of the blur so the title still reads
              over the softened artwork. */
           background: linear-gradient(
             180deg,
             rgba(0, 0, 0, 0) 0%,
-            rgba(0, 0, 0, 0.2) 40%,
-            rgba(0, 0, 0, 0.5) 100%
+            rgba(0, 0, 0, 0.18) 40%,
+            rgba(0, 0, 0, 0.45) 100%
           );
-          pointer-events: none;
-          z-index: 1;
-        }
-        /* Top-edge softener — fades the blur strip into the unblurred
-           image above. Lives just above the blur, just below the body. */
-        .epcs-scrim {
-          position: absolute;
-          left: 0;
-          right: 0;
-          bottom: 46%;
-          height: 14%;
-          background: linear-gradient(
-            180deg,
-            rgba(0, 0, 0, 0) 0%,
-            rgba(0, 0, 0, 0.18) 100%
-          );
-          pointer-events: none;
-          z-index: 1;
+          /* Force a dedicated compositor layer so the backdrop-filter
+             actually renders on desktop Chromium inside the horizontal
+             scroller. Mobile WebKit composes the filter even without
+             this hint, but desktop Chrome needs the nudge. */
+          transform: translateZ(0);
+          will-change: transform;
         }
         .epcs-body {
           position: absolute;
