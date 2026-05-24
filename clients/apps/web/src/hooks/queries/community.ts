@@ -719,6 +719,37 @@ export const useCreatorCommunityPosts = (courseId: string | undefined) =>
     enabled: !!courseId,
   })
 
+// Read-only feed for the course-editor preview pane. Same shape as
+// useCommunityFeed (useInfiniteQuery, FeedFilters) but uses
+// creatorFetch (dashboard session cookie) and hits the creator-side
+// preview endpoint, so the creator doesn't need a customer session
+// token to render what students would see.
+const creatorPreviewKey = (courseId: string, filters: FeedFilters) =>
+  ['creator-community-preview', courseId, filters] as const
+
+export const useCreatorCommunityFeed = (
+  courseId: string | undefined,
+  filters: FeedFilters,
+) =>
+  useInfiniteQuery<
+    CommunityFeedPage,
+    Error,
+    { pages: CommunityFeedPage[]; pageParams: (string | null)[] },
+    readonly unknown[],
+    string | null
+  >({
+    queryKey: creatorPreviewKey(courseId ?? '', filters),
+    queryFn: ({ pageParam }) => {
+      const qs = buildFeedQS(filters, pageParam)
+      return creatorFetch<CommunityFeedPage>(
+        `/v1/community/${courseId}/preview?${qs}`,
+      )
+    },
+    initialPageParam: null,
+    getNextPageParam: (lastPage) => nextCursorFromPage(lastPage),
+    enabled: !!courseId,
+  })
+
 export const useCreatorDeletePost = (courseId: string | undefined) =>
   useMutation({
     mutationFn: (postId: string) =>

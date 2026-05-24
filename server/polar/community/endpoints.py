@@ -321,6 +321,58 @@ async def list_posts_creator(
 
 
 @creator_router.get(
+    "/{course_id}/preview",
+    response_model=ListResourceWithCursorPagination[CommunityPostRead],
+    summary="Preview Community Feed (Creator)",
+)
+async def preview_feed_creator(
+    course_id: CourseID,
+    auth_subject: CommunityCreatorRead,
+    session: AsyncSession = Depends(get_db_session),
+    sort: CommunityPostSortProperty = CommunityPostSortProperty.recent,
+    module_id: UUID4 | None = Query(default=None),
+    lesson_id: UUID4 | None = Query(default=None),
+    tag_id: UUID4 | None = Query(default=None),
+    cursor: str | None = Query(default=None),
+    limit: int = Query(default=20, ge=1, le=50),
+) -> ListResourceWithCursorPagination[CommunityPostRead]:
+    """Read-only render of the student-side feed for the course-editor
+    preview pane. Reuses list_feed so the same rendering primitives
+    drive both surfaces. Drafts (published_at IS NULL) and disabled
+    communities are excluded — the preview shows what a student would
+    actually see right now, not what the creator could see if they
+    were an admin."""
+    await _require_creator_owns_course(session, course_id, auth_subject)
+    viewer_user_id = (
+        auth_subject.subject.id if is_user(auth_subject) else None
+    )
+    posts, has_next, ctx = await community_service.list_feed(
+        session,
+        course_id=course_id,
+        sort=sort,
+        module_id=module_id,
+        lesson_id=lesson_id,
+        tag_id=tag_id,
+        cursor=cursor,
+        limit=limit,
+        viewer_enrollment_id=None,
+        viewer_user_id=viewer_user_id,
+    )
+    items = [
+        _post_to_read(
+            p,
+            author=_author_for_post(p, ctx["authors"]),
+            lesson_chip=ctx["lessons"].get(p.lesson_id) if p.lesson_id else None,
+            reactions=ctx["reactions"].get(p.id, []),
+        )
+        for p in posts
+    ]
+    return ListResourceWithCursorPagination.from_results(
+        items, has_next_page=has_next
+    )
+
+
+@creator_router.get(
     "/{course_id}/tags",
     response_model=list[CommunityTagRead],
     summary="List Community Tags (Creator)",

@@ -387,6 +387,12 @@ export type PostCardProps = {
   reactionsEnabled: boolean
   onLessonChipClick?: (lessonId: string) => void
   onShareToast?: (msg: string) => void
+  // When true, render read-only: reaction taps and share are no-ops,
+  // the comment thread and post menu are hidden. Used by the
+  // course-editor preview pane so the creator sees the student layout
+  // without being able to accidentally react / delete / share-link as
+  // themselves.
+  previewMode?: boolean
 }
 
 // ---------------------------------------------------------------------
@@ -437,11 +443,13 @@ function MilestoneCard({
   token,
   courseId,
   reactionsEnabled,
+  previewMode,
 }: {
   post: CommunityPostRead
   token: string
   courseId: string
   reactionsEnabled: boolean
+  previewMode?: boolean
 }) {
   const togglePostReaction = useTogglePostReaction(token, courseId)
   const author =
@@ -451,7 +459,7 @@ function MilestoneCard({
   const mineClapped = clap?.mine ?? false
 
   const onCongrats = () => {
-    if (!reactionsEnabled) return
+    if (!reactionsEnabled || previewMode) return
     togglePostReaction.mutate({ postId: post.id, emoji: 'clap' })
   }
 
@@ -478,6 +486,8 @@ function MilestoneCard({
           className={styles.milestoneCta}
           onClick={onCongrats}
           aria-pressed={mineClapped}
+          disabled={previewMode}
+          style={previewMode ? { cursor: 'default', opacity: 0.7 } : undefined}
         >
           {mineClapped ? 'Congrats sent' : 'Say congrats'}
         </button>
@@ -498,6 +508,7 @@ export function PostCard(props: PostCardProps) {
         token={props.token}
         courseId={props.courseId}
         reactionsEnabled={props.reactionsEnabled}
+        previewMode={props.previewMode}
       />
     )
   }
@@ -513,6 +524,7 @@ function RegularPostCard({
   reactionsEnabled,
   onLessonChipClick,
   onShareToast,
+  previewMode,
 }: PostCardProps) {
   const [commentsOpen, setCommentsOpen] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
@@ -521,6 +533,7 @@ function RegularPostCard({
   const deletePost = useDeleteCommunityPost(token, courseId)
 
   const onToggleReaction = (emoji: CommunityReactionEmoji) => {
+    if (previewMode) return
     togglePostReaction.mutate({ postId: post.id, emoji })
   }
 
@@ -575,7 +588,7 @@ function RegularPostCard({
               : 'Draft'}
           </div>
         </div>
-        {ownPost && (
+        {ownPost && !previewMode && (
           <div style={{ position: 'relative', marginLeft: 'auto' }}>
             <button
               type="button"
@@ -647,23 +660,26 @@ function RegularPostCard({
         <button
           type="button"
           className={styles.postAction}
-          onClick={() => setCommentsOpen((v) => !v)}
-          aria-expanded={commentsOpen}
+          onClick={previewMode ? undefined : () => setCommentsOpen((v) => !v)}
+          aria-expanded={previewMode ? undefined : commentsOpen}
+          style={previewMode ? { cursor: 'default' } : undefined}
         >
           <IconChat size={14} />
           {post.comment_count}{' '}
           {post.comment_count === 1 ? 'comment' : 'comments'}
         </button>
-        <button
-          type="button"
-          className={styles.postAction}
-          onClick={onShare}
-        >
-          <IconShare size={14} /> Share
-        </button>
+        {!previewMode && (
+          <button
+            type="button"
+            className={styles.postAction}
+            onClick={onShare}
+          >
+            <IconShare size={14} /> Share
+          </button>
+        )}
       </div>
 
-      {commentsOpen && (
+      {!previewMode && commentsOpen && (
         <CommentSection
           token={token}
           courseId={courseId}

@@ -41,6 +41,7 @@ import ShadowBox from '@spaire/ui/components/atoms/ShadowBox'
 import Switch from '@spaire/ui/components/atoms/Switch'
 import type { FocusEvent } from 'react'
 import { useMemo, useState } from 'react'
+import { CommunityPreview } from '@/components/Community/CommunityPreview'
 
 type Props = {
   course: CourseRead
@@ -130,13 +131,16 @@ export function CommunityTab({ course }: Props) {
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-8 py-8">
-      {/* Header */}
-      <div>
-        <h1 className="text-lg font-medium text-gray-900">Community</h1>
-        <p className="mt-1 text-gray-500">
-          A per-course feed students can post in, comment on, and react
-          to. Configure it here, moderate from the list at the bottom.
+    <div className="mx-auto grid w-full max-w-[1400px] grid-cols-1 gap-6 px-6 py-8 lg:grid-cols-[minmax(0,560px)_minmax(0,1fr)]">
+      {/* Left column — settings form. Scrolls with the page. */}
+      <div className="flex flex-col gap-6">
+        {/* Header */}
+        <div>
+          <h1 className="text-lg font-medium text-gray-900">Community</h1>
+          <p className="mt-1 text-gray-500">
+            A per-course feed students can post in, comment on, and react
+            to. Configure it on the left; the live student view renders
+            on the right.
         </p>
       </div>
 
@@ -385,6 +389,13 @@ export function CommunityTab({ course }: Props) {
           </div>
         )}
       </ShadowBox>
+      </div>
+      {/* Right column — read-only preview of the student feed.
+          Sticky at the top of the viewport on large screens so the
+          creator sees changes as they save. */}
+      <div className="lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto rounded-2xl border border-gray-200 bg-white">
+        <CommunityPreview courseId={courseId} />
+      </div>
     </div>
   )
 }
