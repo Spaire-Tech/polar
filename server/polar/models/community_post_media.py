@@ -77,4 +77,6 @@ class CommunityPostMedia(RecordModel):
 
     @declared_attr
     def file(cls) -> Mapped["File | None"]:
-        return relationship("File", lazy="raise")
+        # selectin so the post-render path can read `media.file.path` to
+        # build the public URL without N+1 lookups across the feed.
+        return relationship("File", lazy="selectin")
