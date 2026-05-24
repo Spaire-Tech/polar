@@ -1,0 +1,64 @@
+from polar.exceptions import BadRequest, NotPermitted, PolarError, ResourceNotFound
+
+
+class CommunityError(PolarError):
+    """Base class for module-specific errors."""
+
+
+class CommunityDisabled(NotPermitted):
+    def __init__(self) -> None:
+        super().__init__("Community is not enabled for this course.")
+
+
+class CommunityNotEnrolled(ResourceNotFound):
+    def __init__(self) -> None:
+        # 404 (not 403) — the API never confirms a course exists if the
+        # viewer has no relationship to it.
+        super().__init__("Course not found or not enrolled.")
+
+
+class CommentsLocked(NotPermitted):
+    """Post-level comments_mode is 'locked' — existing replies render but
+    no new ones can be created."""
+
+    def __init__(self) -> None:
+        super().__init__("Comments are locked.")
+
+
+class CommentsHidden(NotPermitted):
+    """Post-level comments_mode is 'hidden' — neither reads nor writes
+    are permitted for non-creators."""
+
+    def __init__(self) -> None:
+        super().__init__("Comments are disabled.")
+
+
+class InvalidParentComment(BadRequest):
+    """The parent_id supplied on a reply doesn't belong to the same post."""
+
+    def __init__(self) -> None:
+        super().__init__("Invalid parent comment.")
+
+
+class InvalidLessonReference(BadRequest):
+    """`lesson_id` doesn't belong to the post's course."""
+
+    def __init__(self) -> None:
+        super().__init__("Invalid lesson reference.")
+
+
+class InvalidTagReference(BadRequest):
+    """`tag_id` doesn't belong to the post's course."""
+
+    def __init__(self) -> None:
+        super().__init__("Invalid tag reference.")
+
+
+class UnsupportedPostType(BadRequest):
+    """Video posts are rejected until Phase 3 wires the Mux pipeline."""
+
+    def __init__(self) -> None:
+        super().__init__(
+            "Video posts are not yet supported. "
+            "Submit `type=text` for Phase 1."
+        )

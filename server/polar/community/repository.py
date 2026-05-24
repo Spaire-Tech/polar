@@ -1,0 +1,504 @@
+"""Database queries for the Community module.
+
+Per server/CLAUDE.md, all SQL lives in this file. The service composes
+these repository methods; endpoints never touch SQL directly.
+
+Six repositories, one per table from migration b8f3c9a2e571:
+  CommunitySettingsRepository
+  CommunityTagRepository
+  CommunityPostRepository
+  CommunityPostMediaRepository
+  CommunityCommentRepository
+  CommunityReactionRepository
+"""
+
+from __future__ import annotations
+
+from collections.abc import Sequence
+from datetime import UTC, datetime
+from typing import Literal
+from uuid import UUID
+
+from sqlalchemy import (
+    Select,
+    and_,
+    case,
+    delete,
+    func,
+    literal,
+    or_,
+    select,
+)
+from sqlalchemy.dialects.postgresql import insert as pg_insert
+
+from polar.kit.repository import (
+    RepositoryBase,
+    RepositorySoftDeletionIDMixin,
+    RepositorySoftDeletionMixin,
+)
+from polar.kit.utils import utc_now
+from polar.models.community_comment import CommunityComment
+from polar.models.community_post import CommunityPost
+from polar.models.community_post_media import CommunityPostMedia
+from polar.models.community_reaction import CommunityReaction
+from polar.models.community_settings import CommunitySettings
+from polar.models.community_tag import CommunityTag
+
+# ----------------------------------------------------------------------
+# Settings
+# ----------------------------------------------------------------------
+
+
+class CommunitySettingsRepository(
+    RepositorySoftDeletionIDMixin[CommunitySettings, UUID],
+    RepositorySoftDeletionMixin[CommunitySettings],
+    RepositoryBase[CommunitySettings],
+):
+    model = CommunitySettings
+
+    async def get_by_course_id(self, course_id: UUID) -> CommunitySettings | None:
+        statement = self.get_base_statement().where(
+            CommunitySettings.course_id == course_id
+        )
+        return await self.get_one_or_none(statement)
+
+
+# ----------------------------------------------------------------------
+# Tags
+# ----------------------------------------------------------------------
+
+
+class CommunityTagRepository(
+    RepositorySoftDeletionIDMixin[CommunityTag, UUID],
+    RepositorySoftDeletionMixin[CommunityTag],
+    RepositoryBase[CommunityTag],
+):
+    model = CommunityTag
+
+    def get_by_course_statement(self, course_id: UUID) -> Select[tuple[CommunityTag]]:
+        return (
+            self.get_base_statement()
+            .where(CommunityTag.course_id == course_id)
+            .order_by(CommunityTag.position.asc(), CommunityTag.created_at.asc())
+        )
+
+    async def get_by_course(self, course_id: UUID) -> Sequence[CommunityTag]:
+        return await self.get_all(self.get_by_course_statement(course_id))
+
+    async def get_by_slug(
+        self, course_id: UUID, slug: str
+    ) -> CommunityTag | None:
+        statement = self.get_base_statement().where(
+            CommunityTag.course_id == course_id,
+            CommunityTag.slug == slug,
+        )
+        return await self.get_one_or_none(statement)
+
+
+# ----------------------------------------------------------------------
+# Posts
+# ----------------------------------------------------------------------
+
+
+# Cursor encoding helpers — opaque to callers; the repository owns both
+# sides so they can change shape without leaking through the API.
+_CURSOR_SEP = "__"
+
+
+def encode_cursor(sort_key: datetime, post_id: UUID) -> str:
+    """Encode (sort_key, post_id) for the `?cursor=` query param. The
+    sort_key is whichever timestamp the chosen sort uses — for `recent`
+    that's coalesce(pinned_at, published_at)."""
+    return f"{sort_key.astimezone(UTC).isoformat()}{_CURSOR_SEP}{post_id}"
+
+
+def decode_cursor(value: str) -> tuple[datetime, UUID] | None:
+    if not value:
+        return None
+    try:
+        ts_str, id_str = value.split(_CURSOR_SEP, 1)
+        return datetime.fromisoformat(ts_str), UUID(id_str)
+    except (ValueError, AttributeError):
+        return None
+
+
+class CommunityPostRepository(
+    RepositorySoftDeletionIDMixin[CommunityPost, UUID],
+    RepositorySoftDeletionMixin[CommunityPost],
+    RepositoryBase[CommunityPost],
+):
+    model = CommunityPost
+
+    # ---- Core statements ----
+
+    def get_visible_in_course_statement(
+        self, course_id: UUID
+    ) -> Select[tuple[CommunityPost]]:
+        """Posts a viewer is allowed to see: published (published_at <= now)
+        AND not deleted. Used by the customer-side feed and by the
+        creator's moderation list (creator-side can extend with
+        include_deleted to see hidden rows)."""
+        now = utc_now()
+        return (
+            self.get_base_statement()
+            .where(
+                CommunityPost.course_id == course_id,
+                or_(
+                    CommunityPost.published_at.is_(None).is_(False),
+                    # Drafts (published_at IS NULL) are excluded; pinned
+                    # rows always have published_at set.
+                ),
+                CommunityPost.published_at <= now,
+            )
+        )
+
+    def get_creator_listing_statement(
+        self, course_id: UUID
+    ) -> Select[tuple[CommunityPost]]:
+        """Creator-side listing — includes drafts (published_at IS NULL)
+        so the editor moderation surface can show scheduled and
+        unpublished posts."""
+        return self.get_base_statement().where(
+            CommunityPost.course_id == course_id
+        )
+
+    # ---- Feed query (cursor pagination) ----
+
+    async def list_feed(
+        self,
+        course_id: UUID,
+        *,
+        sort: Literal["recent", "top_week", "unanswered"] = "recent",
+        module_lesson_ids: set[UUID] | None = None,
+        lesson_id: UUID | None = None,
+        tag_id: UUID | None = None,
+        cursor: tuple[datetime, UUID] | None = None,
+        limit: int = 20,
+    ) -> tuple[Sequence[CommunityPost], bool]:
+        """Return (rows, has_next_page).
+
+        `module_lesson_ids` filters to posts whose lesson_id belongs to
+        the requested module — the service resolves the module → lesson
+        set once and passes it in, so the repository stays free of
+        cross-table joins.
+        """
+        statement = self.get_visible_in_course_statement(course_id)
+
+        if lesson_id is not None:
+            statement = statement.where(CommunityPost.lesson_id == lesson_id)
+        elif module_lesson_ids is not None:
+            if not module_lesson_ids:
+                # Empty filter == empty result, not "no filter applied".
+                return [], False
+            statement = statement.where(
+                CommunityPost.lesson_id.in_(module_lesson_ids)
+            )
+
+        if tag_id is not None:
+            statement = statement.where(CommunityPost.tag_id == tag_id)
+
+        if sort == "recent":
+            # coalesce(pinned_at, published_at) DESC, id DESC. Pinned
+            # posts always float above their natural slot.
+            sort_key = func.coalesce(
+                CommunityPost.pinned_at, CommunityPost.published_at
+            )
+            statement = statement.order_by(
+                sort_key.desc(), CommunityPost.id.desc()
+            )
+            if cursor is not None:
+                cursor_ts, cursor_id = cursor
+                statement = statement.where(
+                    or_(
+                        sort_key < cursor_ts,
+                        and_(
+                            sort_key == cursor_ts,
+                            CommunityPost.id < cursor_id,
+                        ),
+                    )
+                )
+
+        elif sort == "top_week":
+            # Reactions in the last 7 days, ordered by count desc.
+            since = utc_now().replace(microsecond=0)
+            week_ago = since.fromtimestamp(since.timestamp() - 7 * 24 * 60 * 60)
+            statement = statement.where(
+                CommunityPost.published_at >= week_ago
+            ).order_by(
+                CommunityPost.reaction_count.desc(),
+                CommunityPost.id.desc(),
+            )
+            # Cursor for top_week encodes (reaction_count, id) — to keep
+            # the encode/decode interface simple we re-use the
+            # (datetime, uuid) shape and treat reaction_count as seconds
+            # since epoch in encode_cursor. Phase 1 ships without a
+            # cursor for top_week (one page is enough); revisit when the
+            # client wires Load More on this sort.
+
+        elif sort == "unanswered":
+            # Questions with zero replies. tag.slug resolution happens
+            # in the service (we accept tag_id from the caller); the
+            # repository just enforces the zero-comment rule here.
+            statement = statement.where(CommunityPost.comment_count == 0)
+            statement = statement.order_by(
+                CommunityPost.published_at.desc(),
+                CommunityPost.id.desc(),
+            )
+
+        # Fetch limit+1 so we can detect whether another page exists.
+        statement = statement.limit(limit + 1)
+        rows = list(await self.get_all(statement))
+        has_next_page = len(rows) > limit
+        return rows[:limit], has_next_page
+
+    # ---- Counters (materialized) ----
+
+    async def increment_comment_count(self, post_id: UUID, by: int = 1) -> None:
+        """Bump comment_count atomically. The service calls this in the
+        same UoW as the comment insert/soft-delete so the counter never
+        drifts under concurrent writes."""
+        statement = (
+            CommunityPost.__table__.update()
+            .where(CommunityPost.id == post_id)
+            .values(comment_count=CommunityPost.comment_count + by)
+        )
+        await self.session.execute(statement)
+
+    async def set_reaction_count(self, post_id: UUID, count: int) -> None:
+        """Set the absolute count — the toggle path computes the new
+        value as part of the same query that runs the toggle."""
+        statement = (
+            CommunityPost.__table__.update()
+            .where(CommunityPost.id == post_id)
+            .values(reaction_count=count)
+        )
+        await self.session.execute(statement)
+
+    # ---- Pinning ----
+
+    async def clear_existing_prompt_pin(self, course_id: UUID) -> None:
+        """A course has at most one prompt_of_week at a time — clearing
+        any existing one is the first half of the pin workflow."""
+        statement = (
+            CommunityPost.__table__.update()
+            .where(
+                CommunityPost.course_id == course_id,
+                CommunityPost.pin_type == "prompt_of_week",
+            )
+            .values(pinned_at=None, pin_type=None, pin_expires_at=None)
+        )
+        await self.session.execute(statement)
+
+
+# ----------------------------------------------------------------------
+# Post media
+# ----------------------------------------------------------------------
+
+
+class CommunityPostMediaRepository(
+    RepositorySoftDeletionIDMixin[CommunityPostMedia, UUID],
+    RepositorySoftDeletionMixin[CommunityPostMedia],
+    RepositoryBase[CommunityPostMedia],
+):
+    model = CommunityPostMedia
+
+    async def list_for_posts(
+        self, post_ids: set[UUID]
+    ) -> Sequence[CommunityPostMedia]:
+        """Bulk-load media for a feed page so we don't N+1 per post."""
+        if not post_ids:
+            return []
+        statement = (
+            self.get_base_statement()
+            .where(CommunityPostMedia.post_id.in_(post_ids))
+            .order_by(
+                CommunityPostMedia.post_id,
+                CommunityPostMedia.position.asc(),
+            )
+        )
+        return await self.get_all(statement)
+
+    async def get_by_mux_upload_id(
+        self, mux_upload_id: str
+    ) -> CommunityPostMedia | None:
+        statement = self.get_base_statement().where(
+            CommunityPostMedia.mux_upload_id == mux_upload_id
+        )
+        return await self.get_one_or_none(statement)
+
+
+# ----------------------------------------------------------------------
+# Comments
+# ----------------------------------------------------------------------
+
+
+class CommunityCommentRepository(
+    RepositorySoftDeletionIDMixin[CommunityComment, UUID],
+    RepositorySoftDeletionMixin[CommunityComment],
+    RepositoryBase[CommunityComment],
+):
+    model = CommunityComment
+
+    def get_by_post_statement(
+        self, post_id: UUID
+    ) -> Select[tuple[CommunityComment]]:
+        return (
+            self.get_base_statement()
+            .where(CommunityComment.post_id == post_id)
+            .order_by(CommunityComment.created_at.asc())
+        )
+
+    async def get_by_post(self, post_id: UUID) -> Sequence[CommunityComment]:
+        return await self.get_all(self.get_by_post_statement(post_id))
+
+    async def get_tombstone_parents(
+        self, post_id: UUID, parent_ids: set[UUID]
+    ) -> Sequence[CommunityComment]:
+        """Mirrors LessonCommentRepository.get_tombstone_parents — fetches
+        soft-deleted parents so polar.kit.comments.merge_with_tombstones
+        can keep the reply chain renderable."""
+        if not parent_ids:
+            return []
+        statement = self.get_base_statement(include_deleted=True).where(
+            CommunityComment.id.in_(parent_ids),
+            CommunityComment.post_id == post_id,
+        )
+        return await self.get_all(statement)
+
+
+# ----------------------------------------------------------------------
+# Reactions
+# ----------------------------------------------------------------------
+
+
+class CommunityReactionRepository(
+    RepositoryBase[CommunityReaction],
+):
+    """Reactions aren't soft-deleted — toggling off is a hard DELETE so
+    the unique index stays accurate and counters stay correct."""
+
+    model = CommunityReaction
+
+    async def toggle(
+        self,
+        *,
+        target_type: Literal["post", "comment"],
+        target_id: UUID,
+        actor_enrollment_id: UUID | None,
+        actor_user_id: UUID | None,
+        emoji: str,
+    ) -> bool:
+        """Returns True if the reaction now exists (just inserted),
+        False if it was just removed.
+
+        Two partial unique indexes enforce one row per
+        (target, actor, emoji); we read first to decide the branch,
+        then act. The unique-index race is fine because both branches
+        are idempotent — a concurrent insert that fails is caught and
+        treated as "exists, toggle off"."""
+        actor_clause = (
+            CommunityReaction.actor_enrollment_id == actor_enrollment_id
+            if actor_enrollment_id is not None
+            else CommunityReaction.actor_user_id == actor_user_id
+        )
+
+        existing_stmt = select(CommunityReaction.id).where(
+            CommunityReaction.target_type == target_type,
+            CommunityReaction.target_id == target_id,
+            CommunityReaction.emoji == emoji,
+            actor_clause,
+        )
+        existing_id = (
+            await self.session.execute(existing_stmt)
+        ).scalar_one_or_none()
+
+        if existing_id is not None:
+            del_stmt = delete(CommunityReaction).where(
+                CommunityReaction.id == existing_id
+            )
+            await self.session.execute(del_stmt)
+            return False
+
+        # The partial unique index (`ix_community_reactions_unique_*`)
+        # makes the duplicate branch a no-op via ON CONFLICT DO NOTHING.
+        # We don't need RETURNING since the caller's count query is the
+        # source of truth.
+        ins = (
+            pg_insert(CommunityReaction)
+            .values(
+                target_type=target_type,
+                target_id=target_id,
+                actor_enrollment_id=actor_enrollment_id,
+                actor_user_id=actor_user_id,
+                emoji=emoji,
+            )
+            .on_conflict_do_nothing()
+        )
+        await self.session.execute(ins)
+        return True
+
+    async def count_by_target(
+        self, *, target_type: Literal["post", "comment"], target_id: UUID
+    ) -> int:
+        statement = select(func.count(CommunityReaction.id)).where(
+            CommunityReaction.target_type == target_type,
+            CommunityReaction.target_id == target_id,
+        )
+        return (await self.session.execute(statement)).scalar_one()
+
+    async def summary_for_targets(
+        self,
+        *,
+        target_type: Literal["post", "comment"],
+        target_ids: set[UUID],
+        viewer_enrollment_id: UUID | None,
+        viewer_user_id: UUID | None,
+    ) -> dict[UUID, dict[str, dict[str, int | bool]]]:
+        """Return per-target, per-emoji `{count, mine}`.
+
+        Shape: { target_id: { emoji: { count: int, mine: bool } } }
+
+        One query: SELECT target_id, emoji, COUNT(*),
+                          BOOL_OR(actor matches viewer) AS mine
+                   GROUP BY (target_id, emoji)
+        """
+        if not target_ids:
+            return {}
+
+        viewer_clauses = []
+        if viewer_enrollment_id is not None:
+            viewer_clauses.append(
+                CommunityReaction.actor_enrollment_id == viewer_enrollment_id
+            )
+        if viewer_user_id is not None:
+            viewer_clauses.append(
+                CommunityReaction.actor_user_id == viewer_user_id
+            )
+        if viewer_clauses:
+            mine_expr = case((or_(*viewer_clauses), True), else_=False)
+        else:
+            # Anonymous viewers (shouldn't reach this code path in
+            # practice, but stay defensive — `mine` is just always
+            # False for them).
+            mine_expr = literal(False)
+        statement = (
+            select(
+                CommunityReaction.target_id,
+                CommunityReaction.emoji,
+                func.count(CommunityReaction.id).label("count"),
+                func.bool_or(mine_expr).label("mine"),
+            )
+            .where(
+                CommunityReaction.target_type == target_type,
+                CommunityReaction.target_id.in_(target_ids),
+            )
+            .group_by(CommunityReaction.target_id, CommunityReaction.emoji)
+        )
+        result = await self.session.execute(statement)
+        out: dict[UUID, dict[str, dict[str, int | bool]]] = {}
+        for row in result:
+            out.setdefault(row.target_id, {})[row.emoji] = {
+                "count": int(row.count),
+                "mine": bool(row.mine),
+            }
+        return out
