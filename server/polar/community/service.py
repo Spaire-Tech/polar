@@ -21,21 +21,26 @@ from __future__ import annotations
 from collections.abc import Sequence
 from datetime import timedelta
 from typing import Literal
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from polar.auth.models import AuthSubject, Organization, User
 from polar.course.repository import (
     CourseLessonRepository,
     CourseModuleRepository,
+    CourseRepository,
 )
 from polar.course.service import course_service
+from polar.file.repository import FileRepository
+from polar.file.s3 import S3_SERVICES
 from polar.kit.comments import find_orphan_parent_ids, merge_with_tombstones
 from polar.kit.utils import utc_now
 from polar.models.community_comment import CommunityComment
 from polar.models.community_post import CommunityPost
+from polar.models.community_post_media import CommunityPostMedia
 from polar.models.community_settings import CommunitySettings
 from polar.models.community_tag import CommunityTag
 from polar.models.course_enrollment import CourseEnrollment
+from polar.models.file import CommunityPostImageFile, FileServiceTypes
 from polar.postgres import AsyncSession
 from polar.worker import enqueue_job
 
@@ -45,6 +50,7 @@ from .exceptions import (
     CommunityDisabled,
     CommunityNotEnrolled,
     InvalidLessonReference,
+    InvalidMediaReference,
     InvalidParentComment,
     InvalidTagReference,
     UnsupportedPostType,
@@ -67,6 +73,8 @@ from .schemas import (
     CommunityLessonChip,
     CommunityPinPayload,
     CommunityPostCreate,
+    CommunityPostImageUploadResult,
+    CommunityPostMediaCreate,
     CommunityPostUpdate,
     CommunityReactionEmoji,
     CommunityReactionSummaryEntry,
@@ -249,6 +257,14 @@ class CommunityService:
             session, course_id=course_id, tag_id=payload.tag_id
         )
 
+        # Validate every image attachment up-front — same org as the
+        # course, FileServiceTypes.community_post_image, is_uploaded.
+        # Any file_id that fails any of these → reject the post before
+        # we write a row.
+        validated_media = await self._validate_media(
+            session, course_id=course_id, media=payload.media
+        )
+
         publish_at = payload.publish_at or utc_now()
 
         post = CommunityPost(
@@ -265,6 +281,21 @@ class CommunityService:
         )
         repo = CommunityPostRepository.from_session(session)
         created = await repo.create(post, flush=True)
+
+        # Attach media rows in the same transaction. The cascade on the
+        # post's `media` relationship will clean these up if the post is
+        # later soft-deleted.
+        if validated_media:
+            for entry in validated_media:
+                media = CommunityPostMedia(
+                    post_id=created.id,
+                    media_type="image",
+                    file_id=entry.file_id,
+                    position=entry.position,
+                )
+                session.add(media)
+            await session.flush()
+
         # Fan-out (SSE + bell). The actor pulls the row fresh so it's
         # safe to enqueue before the request-level commit lands.
         enqueue_job("community.post.created", post_id=created.id)
@@ -277,6 +308,119 @@ class CommunityService:
         # automatically without anyone remembering to update an
         # attribute list.
         return await self._get_post_for_render(session, created.id)
+
+    async def upload_post_image(
+        self,
+        session: AsyncSession,
+        *,
+        course_id: UUID,
+        filename: str,
+        data: bytes,
+        mime_type: str,
+    ) -> CommunityPostImageUploadResult:
+        """Server-proxied image upload for community-post composers.
+
+        Students don't carry an org-write scope and so can't use the
+        standard /v1/files/ presigned-upload flow. This pushes the
+        bytes through the server, lands them in the community-post
+        S3 bucket, and creates a File row owned by the course's
+        organization so the rest of the file lifecycle (the post's
+        media row, public URL render, cascade delete) works the same
+        as if the creator had uploaded it.
+        """
+        # Resolve the course's owning organization — file rows are
+        # always scoped to an org.
+        course_repo = CourseRepository.from_session(session)
+        course = await course_repo.get_by_id(course_id)
+        if course is None:
+            raise CommunityNotEnrolled()
+
+        # S3 key — keep org + course namespaces so deletion / migration
+        # scripts can scope by prefix later.
+        ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+        if not ext or "/" in ext or len(ext) > 6:
+            # Conservative extension fallback by mime type.
+            ext = {
+                "image/jpeg": "jpg",
+                "image/png": "png",
+                "image/gif": "gif",
+                "image/webp": "webp",
+                "image/svg+xml": "svg",
+                "image/heic": "heic",
+                "image/heif": "heif",
+                "image/avif": "avif",
+            }.get(mime_type, "bin")
+
+        path = (
+            f"community-posts/{course.organization_id}/{course_id}/"
+            f"{uuid4().hex}.{ext}"
+        )
+        s3 = S3_SERVICES[FileServiceTypes.community_post_image]
+        s3.upload(data, path, mime_type)
+
+        # Create the polymorphic File row. is_uploaded=True so the
+        # standard validators (FileRepository.get_uploaded_by_ids_in_org)
+        # accept it on the post-create request.
+        file_row = CommunityPostImageFile(
+            organization_id=course.organization_id,
+            name=filename,
+            path=path,
+            mime_type=mime_type,
+            size=len(data),
+            is_uploaded=True,
+            is_enabled=True,
+        )
+        file_repo = FileRepository.from_session(session)
+        created = await file_repo.create(file_row, flush=True)
+
+        return CommunityPostImageUploadResult(
+            file_id=created.id,
+            public_url=s3.get_public_url(path),
+            size=len(data),
+            mime_type=mime_type,
+        )
+
+    async def _validate_media(
+        self,
+        session: AsyncSession,
+        *,
+        course_id: UUID,
+        media: list[CommunityPostMediaCreate],
+    ) -> list[CommunityPostMediaCreate]:
+        """Verify each image's file_id is uploaded, belongs to this
+        course's organization, and is the community_post_image service
+        type. Returns the validated list (same order, deduped by
+        file_id) or raises InvalidMediaReference if any check fails."""
+        if not media:
+            return []
+
+        # Resolve the course's organization to scope the file lookup.
+        course_repo = CourseRepository.from_session(session)
+        course = await course_repo.get_by_id(course_id)
+        if course is None:
+            raise CommunityNotEnrolled()  # "course gone" surfaces as 404
+
+        file_ids = {entry.file_id for entry in media}
+        file_repo = FileRepository.from_session(session)
+        files = await file_repo.get_uploaded_by_ids_in_org(
+            course.organization_id,
+            file_ids,
+            service=FileServiceTypes.community_post_image,
+        )
+        valid_ids = {f.id for f in files}
+        missing = file_ids - valid_ids
+        if missing:
+            raise InvalidMediaReference()
+
+        # Dedupe by file_id while preserving the client's order.
+        seen: set[UUID] = set()
+        deduped: list[CommunityPostMediaCreate] = []
+        for entry in media:
+            if entry.file_id in seen:
+                continue
+            seen.add(entry.file_id)
+            deduped.append(entry)
+        return deduped
 
     async def _get_post_for_render(
         self, session: AsyncSession, post_id: UUID

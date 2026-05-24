@@ -94,6 +94,27 @@ class FileRepository(
 
         return await self.paginate(statement, limit=limit, page=page)
 
+    async def get_uploaded_by_ids_in_org(
+        self,
+        organization_id: UUID,
+        file_ids: set[UUID],
+        *,
+        service: FileServiceTypes,
+    ) -> Sequence[File]:
+        """Bulk-validate a set of file ids — returns only the ones that
+        are uploaded, belong to the given org, and match the requested
+        service type. Used by the community-post composer to verify
+        every attached image before persisting the post."""
+        if not file_ids:
+            return []
+        statement = self.get_base_statement().where(
+            File.id.in_(file_ids),
+            File.organization_id == organization_id,
+            File.service == service,
+            File.is_uploaded.is_(True),
+        )
+        return await self.get_all(statement)
+
     def get_sorting_clause(self, property: FileSortProperty) -> SortingClause:
         match property:
             case FileSortProperty.created_at:

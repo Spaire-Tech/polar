@@ -97,3 +97,9 @@ export const IconCheck = (p: Props = {}) => (
     <path d="M4 12l5 5L20 6" />
   </svg>
 )
+
+export const IconX = (p: Props = {}) => (
+  <svg {...withSize(p)}>
+    <path d="M18 6L6 18M6 6l12 12" />
+  </svg>
+)

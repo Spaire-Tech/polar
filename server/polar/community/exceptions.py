@@ -54,6 +54,15 @@ class InvalidTagReference(BadRequest):
         super().__init__("Invalid tag reference.")
 
 
+class InvalidMediaReference(BadRequest):
+    """One or more file_ids on a post don't belong to the course's org,
+    aren't the community_post_image service type, or haven't completed
+    upload yet."""
+
+    def __init__(self) -> None:
+        super().__init__("Invalid media reference.")
+
+
 class UnsupportedPostType(BadRequest):
     """Video posts are rejected until Phase 3 wires the Mux pipeline."""
 

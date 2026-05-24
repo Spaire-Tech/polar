@@ -56,6 +56,7 @@ export interface CommunityPostMediaRead {
   media_type: 'image' | 'video'
   position: number
   file_id: string | null
+  public_url: string | null
   mux_playback_id: string | null
   mux_status: string | null
   duration_seconds: number | null
@@ -138,6 +139,13 @@ export interface CommunityCourseSummary {
   course_thumbnail_url: string | null
   course_thumbnail_object_position: string | null
   community_enabled: boolean
+}
+
+export interface CommunityPostImageUploadResult {
+  file_id: string
+  public_url: string
+  size: number
+  mime_type: string
 }
 
 // ---------------------------------------------------------------------
@@ -294,12 +302,20 @@ export const useCommunityFeed = (
 // Posts
 // ---------------------------------------------------------------------
 
+export interface CommunityPostMediaCreateBody {
+  // media_type is fixed to "image" for Phase 2 — video lands in Phase 3.
+  media_type?: 'image'
+  file_id: string
+  position?: number
+}
+
 export interface CommunityPostCreateBody {
   body: string
   title?: string | null
   body_format?: 'markdown' | 'plain'
   lesson_id?: string | null
   tag_id?: string | null
+  media?: CommunityPostMediaCreateBody[]
 }
 
 const invalidateFeed = (token: string, courseId: string) => {
@@ -322,6 +338,39 @@ export const useCreateCommunityPost = (
     onSuccess: () => {
       if (token && courseId) invalidateFeed(token, courseId)
     },
+  })
+
+// Server-proxied image upload. Posts FormData (not JSON) so portalFetch's
+// JSON content-type would break it — multipart needs the browser to set
+// the boundary header, which means *no* Content-Type override.
+async function uploadPostImage(
+  courseId: string,
+  token: string,
+  file: File,
+): Promise<CommunityPostImageUploadResult> {
+  const form = new FormData()
+  form.append('file', file)
+  const res = await fetch(
+    `${process.env.NEXT_PUBLIC_API_URL}/v1/customer-portal/community/${courseId}/media/upload`,
+    {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: form,
+    },
+  )
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`Upload ${res.status}: ${text}`)
+  }
+  return res.json()
+}
+
+export const useUploadPostImage = (
+  token: string | null | undefined,
+  courseId: string | undefined,
+) =>
+  useMutation({
+    mutationFn: (file: File) => uploadPostImage(courseId!, token!, file),
   })
 
 export const useDeleteCommunityPost = (

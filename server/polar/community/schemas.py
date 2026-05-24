@@ -147,12 +147,38 @@ class CommunityReactionToggleResult(Schema):
 # =====================================================================
 
 
+class CommunityPostMediaCreate(Schema):
+    """One image attachment on a new post. The client must have already
+    uploaded the underlying File (FileServiceTypes.community_post_image)
+    and completed the upload — `file_id` is the resulting File.id.
+    Position determines the multi-image grid order (0-indexed)."""
+
+    media_type: Literal["image"] = "image"
+    file_id: UUID4
+    position: int = Field(default=0, ge=0, le=3)
+
+
+class CommunityPostImageUploadResult(Schema):
+    """Returned by the upload endpoint so the composer can stash the
+    file_id alongside the local image preview, then include it in the
+    post create payload."""
+
+    file_id: UUID4
+    public_url: str
+    size: int
+    mime_type: str
+
+
 class CommunityPostMediaRead(Schema):
     id: UUID4
     media_type: Literal["image", "video"]
     position: int
-    # Image branch.
+    # Image branch — file_id is the File row; public_url is the
+    # rendered S3 URL the client uses in <img>. Resolved server-side
+    # so the client doesn't need to know which bucket each service
+    # writes to.
     file_id: UUID4 | None = None
+    public_url: str | None = None
     # Video branch — Phase 1 ships text only but the schema is forward-
     # compatible so the client doesn't need a migration in Phase 3.
     mux_playback_id: str | None = None
@@ -181,6 +207,15 @@ class CommunityPostCreate(Schema):
     # If the creator wants to schedule into the future; omitted means
     # publish-now. Drafts go through a separate flag once added.
     publish_at: datetime | None = None
+    # Up to 4 image attachments. The client uploads each image via the
+    # standard file pipeline (FileServiceTypes.community_post_image)
+    # first, then passes the resulting file_ids here. The server creates
+    # one community_post_media row per entry in the same transaction as
+    # the post so a partial-failure can't leave orphan files.
+    media: list[CommunityPostMediaCreate] = Field(
+        default_factory=list,
+        max_length=4,
+    )
 
 
 class CommunityPostUpdate(Schema):

@@ -17,7 +17,8 @@ from collections.abc import Iterable
 from typing import Annotated, Literal
 from uuid import UUID
 
-from fastapi import Depends, HTTPException, Query
+from fastapi import Depends, HTTPException, Query, UploadFile
+from fastapi import File as FastAPIFile
 from pydantic import UUID4
 
 from polar.auth.models import (
@@ -25,9 +26,11 @@ from polar.auth.models import (
 )
 from polar.course.repository import CourseRepository
 from polar.customer_portal.utils import get_customer_id
+from polar.file.s3 import S3_SERVICES
 from polar.kit.pagination import ListResourceWithCursorPagination
 from polar.models.community_comment import CommunityComment
 from polar.models.community_post import CommunityPost
+from polar.models.file import FileServiceTypes
 from polar.openapi import APITag
 from polar.postgres import AsyncSession, get_db_session
 from polar.routing import APIRouter
@@ -48,6 +51,7 @@ from .schemas import (
     CommunityLessonChip,
     CommunityPinPayload,
     CommunityPostCreate,
+    CommunityPostImageUploadResult,
     CommunityPostMediaRead,
     CommunityPostRead,
     CommunityReactionSummaryEntry,
@@ -142,19 +146,30 @@ def _author_for_comment(
 
 
 def _media_to_read(post: CommunityPost) -> list[CommunityPostMediaRead]:
-    return [
-        CommunityPostMediaRead(
-            id=m.id,
-            media_type=m.media_type,  # type: ignore[arg-type]
-            position=m.position,
-            file_id=m.file_id,
-            mux_playback_id=m.mux_playback_id,
-            mux_status=m.mux_status,
-            duration_seconds=m.duration_seconds,
-            thumbnail_url=m.thumbnail_url,
+    # The CommunityPostMedia.file relationship is selectin so this
+    # loop is N+0 across the feed page — the file rows came in with
+    # the post's media row in the original SELECT.
+    out: list[CommunityPostMediaRead] = []
+    for m in post.media:
+        public_url: str | None = None
+        if m.media_type == "image" and m.file is not None and m.file.is_uploaded:
+            public_url = S3_SERVICES[
+                FileServiceTypes.community_post_image
+            ].get_public_url(m.file.path)
+        out.append(
+            CommunityPostMediaRead(
+                id=m.id,
+                media_type=m.media_type,  # type: ignore[arg-type]
+                position=m.position,
+                file_id=m.file_id,
+                public_url=public_url,
+                mux_playback_id=m.mux_playback_id,
+                mux_status=m.mux_status,
+                duration_seconds=m.duration_seconds,
+                thumbnail_url=m.thumbnail_url,
+            )
         )
-        for m in post.media
-    ]
+    return out
 
 
 def _post_to_read(
@@ -513,6 +528,53 @@ async def list_feed_customer(
     ]
     return ListResourceWithCursorPagination.from_results(
         items, has_next_page=has_next
+    )
+
+
+@customer_router.post(
+    "/{course_id}/media/upload",
+    response_model=CommunityPostImageUploadResult,
+    status_code=201,
+    summary="Upload Community Post Image",
+)
+async def upload_post_image(
+    course_id: CourseID,
+    auth_subject: CommunityCustomerWrite,
+    file: UploadFile = FastAPIFile(...),
+    session: AsyncSession = Depends(get_db_session),
+) -> CommunityPostImageUploadResult:
+    """Server-proxied image upload for the composer. Students don't
+    carry an org-write scope and so can't use the standard
+    /v1/files/ presigned flow — the bytes go through the server,
+    land in the community-post bucket, and a File row is created
+    owned by the course's organization. The returned file_id is
+    passed back in the POST /posts payload's `media[]`."""
+    customer_id = get_customer_id(auth_subject)
+    await community_service.assert_enrolled(
+        session, customer_id=customer_id, course_id=course_id
+    )
+    await community_service.assert_community_enabled(session, course_id)
+
+    content_type = file.content_type or "application/octet-stream"
+    if not content_type.startswith("image/"):
+        raise HTTPException(
+            status_code=400,
+            detail="File must be an image.",
+        )
+
+    data = await file.read()
+    if len(data) > 10 * 1024 * 1024:
+        raise HTTPException(
+            status_code=413,
+            detail="Image must be under 10 MB.",
+        )
+
+    return await community_service.upload_post_image(
+        session,
+        course_id=course_id,
+        filename=file.filename or "image",
+        data=data,
+        mime_type=content_type,
     )
 
 

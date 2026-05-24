@@ -389,6 +389,41 @@ export type PostCardProps = {
   onShareToast?: (msg: string) => void
 }
 
+// ---------------------------------------------------------------------
+// Image grid — 1, 2, 3, or 4-up. Renders only image media (video is
+// Phase 3). Aspect-ratio differs per count so 1 image gets a full
+// 16:9 frame and 2-4 collapse to a square grid.
+// ---------------------------------------------------------------------
+
+function PostMediaGrid({ media }: { media: CommunityPostRead['media'] }) {
+  const images = useMemo(
+    () =>
+      media
+        .filter((m) => m.media_type === 'image' && m.public_url)
+        .slice(0, 4)
+        .sort((a, b) => a.position - b.position),
+    [media],
+  )
+  if (images.length === 0) return null
+  return (
+    <div
+      className={styles.postMediaGrid}
+      data-count={images.length}
+    >
+      {images.map((m) => (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          key={m.id}
+          src={m.public_url!}
+          alt=""
+          loading="lazy"
+          className={styles.postMediaImage}
+        />
+      ))}
+    </div>
+  )
+}
+
 export function PostCard({
   post,
   token,
@@ -516,7 +551,11 @@ export function PostCard({
       )}
 
       {post.title && <h3 className={styles.postTitle}>{post.title}</h3>}
-      {post.body && <p className={styles.postBody}>{post.body}</p>}
+      {post.body && post.body.trim().length > 0 && (
+        <p className={styles.postBody}>{post.body}</p>
+      )}
+
+      <PostMediaGrid media={post.media} />
 
       <ReactionsRow
         reactions={post.reactions}
