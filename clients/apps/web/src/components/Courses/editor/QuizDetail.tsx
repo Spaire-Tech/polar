@@ -439,13 +439,13 @@ function QuestionCard({
           onChange={(e) => onChange({ text: e.target.value })}
           placeholder="Question"
           rows={3}
-          className="mb-4 w-full resize-none rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-900 focus:border-gray-900 focus:outline-none"
+          className="mb-4 w-full resize-none rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-900 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 focus:outline-none"
         />
 
         <select
           value={question.type}
           onChange={(e) => onChange({ type: e.target.value as QuestionType })}
-          className="mb-5 w-full appearance-none rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:border-gray-900 focus:outline-none"
+          className="mb-5 w-full appearance-none rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 focus:outline-none"
         >
           {QUESTION_TYPES.map((qt) => (
             <option key={qt.value} value={qt.value}>
@@ -497,7 +497,7 @@ function QuestionCard({
                         onUpdateOption(option.id, { text: e.target.value })
                       }
                       placeholder="Option text"
-                      className="rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm text-gray-900 focus:border-gray-900 focus:outline-none"
+                      className="rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm text-gray-900 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 focus:outline-none"
                     />
                     <input
                       value={option.explanation ?? ''}
@@ -562,7 +562,7 @@ function SettingsPanel({
               value={quiz.title ?? ''}
               onChange={(e) => onChange({ title: e.target.value })}
               placeholder="Untitled quiz"
-              className="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm focus:border-gray-900 focus:outline-none"
+              className="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 focus:outline-none"
             />
           </Field>
           <Field label="Description">
@@ -573,7 +573,7 @@ function SettingsPanel({
               }
               placeholder="Describe your quiz"
               rows={3}
-              className="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm focus:border-gray-900 focus:outline-none"
+              className="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 focus:outline-none"
             />
           </Field>
           <div className="flex items-center gap-4 rounded-xl border border-gray-200 bg-gray-50 p-3">

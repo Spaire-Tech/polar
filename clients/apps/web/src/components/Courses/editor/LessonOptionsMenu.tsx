@@ -176,7 +176,7 @@ function SchedulePanel({
     dripDays != null ? String(dripDays) : '7',
   )
   const [date, setDate] = useState<string>(
-    releaseAt ? releaseAt.slice(0, 10) : '',
+    releaseAt ? toLocalDateInput(releaseAt) : '',
   )
 
   const save = () => {
@@ -187,7 +187,10 @@ function SchedulePanel({
       const safe = Number.isFinite(parsed) ? Math.max(0, parsed) : 0
       onSave({ release_at: null, drip_days: safe })
     } else {
-      const iso = date ? new Date(`${date}T00:00:00Z`).toISOString() : null
+      // Anchor the picked YYYY-MM-DD to local midnight so that round-tripping
+      // through `toLocaleDateString` keeps the same calendar day for users
+      // west of UTC.
+      const iso = date ? new Date(`${date}T00:00:00`).toISOString() : null
       onSave({ release_at: iso, drip_days: null })
     }
   }
@@ -228,7 +231,7 @@ function SchedulePanel({
               min={0}
               value={daysInput}
               onChange={(e) => setDaysInput(e.target.value)}
-              className="w-16 rounded-lg border border-gray-300 px-2 py-1 text-[12.5px] focus:border-gray-900 focus:outline-none"
+              className="w-16 rounded-lg border border-gray-300 px-2 py-1 text-[12.5px] focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 focus:outline-none"
             />
             <span className="text-[12px] text-gray-600">
               day{daysInput === '1' ? '' : 's'} after enrollment
@@ -251,7 +254,7 @@ function SchedulePanel({
               type="date"
               value={date}
               onChange={(e) => setDate(e.target.value)}
-              className="rounded-lg border border-gray-300 px-2 py-1 text-[12.5px] focus:border-gray-900 focus:outline-none"
+              className="rounded-lg border border-gray-300 px-2 py-1 text-[12.5px] focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 focus:outline-none"
             />
           </div>
         )}
@@ -275,6 +278,16 @@ function SchedulePanel({
       </div>
     </div>
   )
+}
+
+// Pull the local YYYY-MM-DD out of an ISO timestamp so the <input type=date>
+// shows the same calendar day the user originally picked.
+function toLocalDateInput(iso: string): string {
+  const d = new Date(iso)
+  const yyyy = d.getFullYear()
+  const mm = String(d.getMonth() + 1).padStart(2, '0')
+  const dd = String(d.getDate()).padStart(2, '0')
+  return `${yyyy}-${mm}-${dd}`
 }
 
 function ModeRow({

@@ -15,7 +15,7 @@ export type TabId =
 
 const TABS: { id: TabId; label: string }[] = [
   { id: 'outline', label: 'Outline' },
-  { id: 'customize', label: 'Customize' },
+  { id: 'customize', label: 'Landing' },
   { id: 'automations', label: 'Automations' },
   { id: 'settings', label: 'Settings' },
   { id: 'pricing', label: 'Pricing' },

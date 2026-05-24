@@ -84,7 +84,7 @@ function SchedulePanel({
   const [mode, setMode] = useState<Mode>(initialMode)
   const [dripDays, setDripDays] = useState<number>(module.drip_days ?? 7)
   const [releaseAt, setReleaseAt] = useState<string>(
-    module.release_at ? module.release_at.slice(0, 10) : '',
+    module.release_at ? toLocalDateInput(module.release_at) : '',
   )
 
   const save = () => {
@@ -93,8 +93,12 @@ function SchedulePanel({
     } else if (mode === 'drip') {
       onSave({ drip_days: Math.max(0, dripDays), release_at: null })
     } else {
+      // Interpret the YYYY-MM-DD as midnight in the user's local timezone so
+      // a date picked here surfaces as the same calendar day when rendered
+      // back through `toLocaleDateString`, instead of shifting a day west
+      // for anyone west of UTC.
       const iso = releaseAt
-        ? new Date(`${releaseAt}T00:00:00Z`).toISOString()
+        ? new Date(`${releaseAt}T00:00:00`).toISOString()
         : null
       onSave({ drip_days: null, release_at: iso })
     }
@@ -132,7 +136,7 @@ function SchedulePanel({
               min={0}
               value={dripDays}
               onChange={(e) => setDripDays(parseInt(e.target.value || '0'))}
-              className="w-20 rounded-lg border border-gray-300 px-2 py-1.5 text-sm focus:border-gray-900 focus:outline-none"
+              className="w-20 rounded-lg border border-gray-300 px-2 py-1.5 text-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 focus:outline-none"
             />
             <span className="text-sm text-gray-600">
               day{dripDays === 1 ? '' : 's'} after enrollment
@@ -155,7 +159,7 @@ function SchedulePanel({
               type="date"
               value={releaseAt}
               onChange={(e) => setReleaseAt(e.target.value)}
-              className="rounded-lg border border-gray-300 px-2 py-1.5 text-sm focus:border-gray-900 focus:outline-none"
+              className="rounded-lg border border-gray-300 px-2 py-1.5 text-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 focus:outline-none"
             />
           </div>
         )}
@@ -223,4 +227,15 @@ function describe(module: CourseModuleRead): string {
     return `Drips ${module.drip_days}d after enrollment`
   }
   return 'Available immediately'
+}
+
+// Pull the local YYYY-MM-DD out of an ISO timestamp so the <input type=date>
+// shows the same calendar day the user originally picked, regardless of how
+// the moment was serialized to UTC.
+function toLocalDateInput(iso: string): string {
+  const d = new Date(iso)
+  const yyyy = d.getFullYear()
+  const mm = String(d.getMonth() + 1).padStart(2, '0')
+  const dd = String(d.getDate()).padStart(2, '0')
+  return `${yyyy}-${mm}-${dd}`
 }

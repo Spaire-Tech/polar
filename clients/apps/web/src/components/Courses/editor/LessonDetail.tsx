@@ -470,10 +470,10 @@ export function LessonDetail({
                   onChange={(e) => update('title', e.target.value)}
                   aria-invalid={titleError}
                   className={cn(
-                    'w-full rounded-xl border px-3.5 py-2.5 text-sm text-gray-900 focus:ring-2 focus:ring-gray-100 focus:outline-none',
+                    'w-full rounded-xl border px-3.5 py-2.5 text-sm text-gray-900 focus:ring-2 focus:outline-none',
                     titleError
-                      ? 'border-red-400 focus:border-red-500'
-                      : 'border-gray-300 focus:border-gray-900',
+                      ? 'border-red-400 focus:border-red-500 focus:ring-red-100'
+                      : 'border-gray-300 focus:border-indigo-500 focus:ring-indigo-100',
                   )}
                 />
                 {titleError && (
@@ -488,7 +488,7 @@ export function LessonDetail({
                   value={edits.description}
                   onChange={(e) => update('description', e.target.value)}
                   placeholder="Brief overview of this lesson (optional)"
-                  className="w-full rounded-xl border border-gray-300 px-3.5 py-2.5 text-sm text-gray-900 focus:border-gray-900 focus:ring-2 focus:ring-gray-100 focus:outline-none"
+                  className="w-full rounded-xl border border-gray-300 px-3.5 py-2.5 text-sm text-gray-900 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 focus:outline-none"
                   rows={3}
                 />
               </Field>
@@ -509,7 +509,7 @@ export function LessonDetail({
                         className={cn(
                           'flex items-center justify-center gap-2 rounded-2xl border-2 py-4 text-sm font-medium transition-colors',
                           active
-                            ? 'border-gray-900 bg-white text-gray-900'
+                            ? 'border-indigo-500 bg-white text-gray-900'
                             : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300',
                         )}
                       >

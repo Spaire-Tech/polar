@@ -169,7 +169,7 @@ export function ModuleCard({
                 setIsEditing(false)
               }
             }}
-            className="flex-1 rounded-lg border border-gray-300 px-2 py-1 text-sm font-semibold text-gray-900 focus:border-gray-900 focus:outline-none"
+            className="flex-1 rounded-lg border border-gray-300 px-2 py-1 text-sm font-semibold text-gray-900 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 focus:outline-none"
           />
         ) : (
           <button
