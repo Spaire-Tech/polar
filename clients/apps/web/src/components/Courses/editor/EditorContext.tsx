@@ -644,38 +644,12 @@ export function EditorProvider({
       style.id = styleId
       document.head.appendChild(style)
     }
-    // Derive secondary surfaces from the chosen mode so cards / borders /
-    // muted text follow the same family without each section file having
-    // to know whether dark mode is active. Dark gets a richer palette
-    // (Google-style elevated greys) instead of a flat black.
-    const isDark = (t.surfaceId ?? 'light') === 'dark'
-    const surfaceVars = isDark
-      ? {
-          surface1: 'oklch(0.21 0.008 280)',
-          surface2: 'oklch(0.26 0.008 280)',
-          border: 'oklch(0.32 0.008 280)',
-          muted: 'oklch(0.72 0.005 280)',
-          subtle: 'oklch(0.85 0.004 280)',
-        }
-      : {
-          surface1: 'oklch(0.985 0.002 280)',
-          surface2: 'oklch(0.965 0.002 280)',
-          border: 'oklch(0.92 0.002 280)',
-          muted: 'oklch(0.52 0.008 280)',
-          subtle: 'oklch(0.36 0.008 280)',
-        }
-
     style.textContent = `
       [data-spaire-editor] {
         --accent: ${acc.accent};
         --accent-2: ${acc.accent2};
         --bg-0: ${surf.bg0};
         --fg-0: ${surf.fg0};
-        --surface-1: ${surfaceVars.surface1};
-        --surface-2: ${surfaceVars.surface2};
-        --border: ${surfaceVars.border};
-        --muted-text: ${surfaceVars.muted};
-        --subtle-text: ${surfaceVars.subtle};
         --font-heading: ${fontH.family};
         --font-body: ${fontB.family};
         --type-scale: ${t.typeScale};
@@ -704,36 +678,6 @@ export function EditorProvider({
         font-weight: var(--b-weight);
         background: var(--bg-0);
         color: var(--fg-0);
-      }
-
-      /* Dark-mode overrides for sections that pre-date the theme system
-         and still hardcode white card / light border / dark muted-text
-         values inline. Targeting common literal whites and the gray
-         scale in the original markup is cheaper (and lower-risk) than
-         rewriting every section to read CSS vars. The matcher pairs
-         the literal value with our [data-surface-mode='dark'] scope so
-         the rule never leaks into light mode. */
-      [data-spaire-editor][data-surface-mode='dark'] [style*="background: #fff"],
-      [data-spaire-editor][data-surface-mode='dark'] [style*="background: white"],
-      [data-spaire-editor][data-surface-mode='dark'] [style*="background-color: #fff"],
-      [data-spaire-editor][data-surface-mode='dark'] [style*="background-color: white"] {
-        background: var(--surface-1) !important;
-      }
-      [data-spaire-editor][data-surface-mode='dark'] [style*="background: rgb(255, 255, 255)"],
-      [data-spaire-editor][data-surface-mode='dark'] [style*="background-color: rgb(255, 255, 255)"] {
-        background: var(--surface-1) !important;
-      }
-      [data-spaire-editor][data-surface-mode='dark'] [style*="border: 1px solid #e5e7eb"],
-      [data-spaire-editor][data-surface-mode='dark'] [style*="border-color: #e5e7eb"],
-      [data-spaire-editor][data-surface-mode='dark'] [style*="border: 1px solid oklch(0.92"],
-      [data-spaire-editor][data-surface-mode='dark'] [style*="border-color: oklch(0.92"] {
-        border-color: var(--border) !important;
-      }
-      [data-spaire-editor][data-surface-mode='dark'] [style*="color: oklch(0.14"],
-      [data-spaire-editor][data-surface-mode='dark'] [style*="color: oklch(0.18"],
-      [data-spaire-editor][data-surface-mode='dark'] [style*="color: #111"],
-      [data-spaire-editor][data-surface-mode='dark'] [style*="color: #1a1a1a"] {
-        color: var(--fg-0) !important;
       }
     `
 
