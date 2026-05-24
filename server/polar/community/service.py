@@ -241,6 +241,11 @@ class CommunityService:
         )
         repo = CommunityPostRepository.from_session(session)
         created = await repo.create(post, flush=True)
+        # Force the selectin relationships to materialize before the
+        # endpoint serializes the row. Without this, _post_to_read's
+        # `post.tag` / `post.media` access triggers an implicit async
+        # lazy-load → MissingGreenlet under asyncpg.
+        await session.refresh(created, attribute_names=["tag", "media"])
         # Fan-out (SSE + bell). The actor pulls the row fresh so it's
         # safe to enqueue before the request-level commit lands.
         enqueue_job("community.post.created", post_id=created.id)
