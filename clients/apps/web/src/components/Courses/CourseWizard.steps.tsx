@@ -1142,6 +1142,11 @@ export function StepShell({
   nextLabel = 'Continue',
   nextDisabled = false,
   wide = false,
+  // When true, hides the wizard progress bar + step counter top bar. Use
+  // when mounting a step outside the wizard flow (e.g. editing pricing
+  // from inside the course editor) where the step counter is misleading.
+  hideProgress = false,
+  backLabel,
 }: {
   step: number
   total: number
@@ -1157,11 +1162,13 @@ export function StepShell({
   // renders its own heading) and widens the content container so canonical
   // product form sections fit naturally.
   wide?: boolean
+  hideProgress?: boolean
+  backLabel?: string
 }) {
   return (
     <>
-      <ProgressBar pct={(step / total) * 100} />
-      <TopBar step={step} total={total} onClose={onClose} />
+      {!hideProgress && <ProgressBar pct={(step / total) * 100} />}
+      {!hideProgress && <TopBar step={step} total={total} onClose={onClose} />}
       <div className="so-stage">
         <div
           className="so-screen"
@@ -1200,7 +1207,7 @@ export function StepShell({
               )}
             </button>
             <button type="button" className="so-btn-back" onClick={onBack}>
-              ← Back
+              {backLabel ?? '← Back'}
             </button>
           </div>
         </div>
@@ -2250,6 +2257,10 @@ export function StepPricingWizard({
   courseDesc,
   courseLessons,
   format = 'course',
+  nextLabel,
+  backLabel,
+  hideProgress = false,
+  hideAccessSection = false,
 }: {
   organization: schemas['Organization']
   paywall: WizardPaywallState
@@ -2261,6 +2272,14 @@ export function StepPricingWizard({
   courseDesc?: string
   courseLessons?: number
   format?: WizardFormat
+  // Override the wizard's "Generate outline" CTA — e.g. "Save changes"
+  // when this step is mounted standalone for editing an existing course.
+  nextLabel?: string
+  backLabel?: string
+  hideProgress?: boolean
+  // The course editor manages paywall position in its own Pricing tab, so
+  // we hide the free-preview slider when the step is mounted there.
+  hideAccessSection?: boolean
 }) {
   const isSeries = format === 'series'
   const { control, watch, setValue, getValues } =
@@ -2413,7 +2432,11 @@ export function StepPricingWizard({
     <StepShell
       step={4}
       total={4}
-      nextLabel={isSeries ? 'Generate series' : 'Generate outline'}
+      nextLabel={
+        nextLabel ?? (isSeries ? 'Generate series' : 'Generate outline')
+      }
+      backLabel={backLabel}
+      hideProgress={hideProgress}
       onNext={onNext}
       onBack={onBack}
       onClose={onClose}
@@ -2644,8 +2667,10 @@ export function StepPricingWizard({
               </div>
             </PFSection>
 
-            {/* ACCESS — only relevant for paid courses */}
-            {priceModel === 'fixed' && (
+            {/* ACCESS — only relevant for paid courses. The course editor's
+                Pricing tab owns this control directly, so we hide the
+                duplicate here when the step is mounted there. */}
+            {priceModel === 'fixed' && !hideAccessSection && (
               <PFSection
                 eyebrow="Access"
                 title="What students see before paying"

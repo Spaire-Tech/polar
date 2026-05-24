@@ -7,9 +7,6 @@ import {
 } from '@/hooks/queries/courses'
 import { toast } from '../../Toast/use-toast'
 import ImageOutlined from '@mui/icons-material/ImageOutlined'
-import InfoOutlined from '@mui/icons-material/InfoOutlined'
-import LockOutlined from '@mui/icons-material/LockOutlined'
-import PersonOutline from '@mui/icons-material/PersonOutline'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ThumbnailPositioner } from './ThumbnailPositioner'
 
@@ -180,29 +177,24 @@ export function SettingsTab({
   return (
     <div className="mx-auto w-full max-w-3xl px-8 py-8">
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">Course settings</h1>
-        <p className="mt-1 text-sm text-gray-500">
+        <h1 className="text-lg font-medium text-gray-900">Course settings</h1>
+        <p className="mt-1 text-gray-500">
           The course title, description, instructor and thumbnail used on the
           landing page, plus paywall and access controls.
         </p>
       </div>
 
       <section className="mb-6 rounded-2xl border border-gray-200 bg-white p-6">
-        <div className="mb-4 flex items-start gap-3">
-          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
-            <InfoOutlined sx={{ fontSize: 18 }} />
-          </span>
-          <div className="flex-1">
-            <h2 className="text-base font-bold text-gray-900">Details</h2>
-            <p className="mt-0.5 text-sm text-gray-500">
-              Shown on the course landing and student portal.
-            </p>
-          </div>
+        <div className="mb-4">
+          <h2 className="text-lg font-medium text-gray-900">Details</h2>
+          <p className="mt-1 text-gray-500">
+            Shown on the course landing and student portal.
+          </p>
         </div>
 
         <div className="flex flex-col gap-4">
           <div>
-            <label className="block text-sm font-bold text-gray-900">
+            <label className="block text-sm font-medium text-gray-900">
               Course title
             </label>
             <input
@@ -224,7 +216,7 @@ export function SettingsTab({
           </div>
 
           <div>
-            <label className="block text-sm font-bold text-gray-900">
+            <label className="block text-sm font-medium text-gray-900">
               Course description
             </label>
             <p className="mt-0.5 text-xs text-gray-500">
@@ -243,21 +235,16 @@ export function SettingsTab({
       </section>
 
       <section className="mb-6 rounded-2xl border border-gray-200 bg-white p-6">
-        <div className="mb-4 flex items-start gap-3">
-          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
-            <PersonOutline sx={{ fontSize: 18 }} />
-          </span>
-          <div className="flex-1">
-            <h2 className="text-base font-bold text-gray-900">Instructor</h2>
-            <p className="mt-0.5 text-sm text-gray-500">
-              Used in the hero, instructor section, and pull-quote attribution.
-            </p>
-          </div>
+        <div className="mb-4">
+          <h2 className="text-lg font-medium text-gray-900">Instructor</h2>
+          <p className="mt-1 text-gray-500">
+            Used in the hero, instructor section, and pull-quote attribution.
+          </p>
         </div>
 
         <div className="flex flex-col gap-4">
           <div>
-            <label className="block text-sm font-bold text-gray-900">
+            <label className="block text-sm font-medium text-gray-900">
               Instructor name
             </label>
             <input
@@ -270,7 +257,7 @@ export function SettingsTab({
           </div>
 
           <div>
-            <label className="block text-sm font-bold text-gray-900">
+            <label className="block text-sm font-medium text-gray-900">
               Instructor bio
             </label>
             <textarea
@@ -285,20 +272,13 @@ export function SettingsTab({
       </section>
 
       <section className="mb-6 rounded-2xl border border-gray-200 bg-white p-6">
-        <div className="mb-4 flex items-start gap-3">
-          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
-            <ImageOutlined sx={{ fontSize: 18 }} />
-          </span>
-          <div className="flex-1">
-            <h2 className="text-base font-bold text-gray-900">
-              Course thumbnail
-            </h2>
-            <p className="mt-0.5 text-sm text-gray-500">
-              Shown on the course card and the student portal. JPG or PNG with a
-              non-transparent background. Recommended dimensions{' '}
-              <span className="font-semibold text-gray-700">1280×720</span>.
-            </p>
-          </div>
+        <div className="mb-4">
+          <h2 className="text-lg font-medium text-gray-900">Course thumbnail</h2>
+          <p className="mt-1 text-gray-500">
+            Shown on the course card and the student portal. JPG or PNG with a
+            non-transparent background. Recommended dimensions{' '}
+            <span className="font-medium text-gray-700">1280×720</span>.
+          </p>
         </div>
 
         <input
@@ -369,13 +349,10 @@ export function SettingsTab({
       </section>
 
       <section className="rounded-2xl border border-gray-200 bg-white p-6">
-        <div className="mb-4 flex items-start gap-3">
-          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
-            <LockOutlined sx={{ fontSize: 18 }} />
-          </span>
+        <div className="mb-4 flex items-start gap-4">
           <div className="flex-1">
-            <h2 className="text-base font-bold text-gray-900">Paywall</h2>
-            <p className="mt-0.5 text-sm text-gray-500">
+            <h2 className="text-lg font-medium text-gray-900">Paywall</h2>
+            <p className="mt-1 text-gray-500">
               Place a paywall between lessons. Lessons before the paywall are
               free preview; everything after is locked until purchase.
             </p>
@@ -385,7 +362,7 @@ export function SettingsTab({
 
         {enabled && (
           <div className="mt-4 border-t border-gray-100 pt-4">
-            <label className="block text-sm font-bold text-gray-900">
+            <label className="block text-sm font-medium text-gray-900">
               Paywall position
             </label>
             <p className="mt-0.5 text-xs text-gray-500">

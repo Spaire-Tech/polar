@@ -138,10 +138,16 @@ export function CustomersTab({
 
   return (
     <div className="mx-auto w-full max-w-6xl px-8 py-8">
-      <div className="mb-6 flex items-center justify-between gap-4">
-        <h2 className="text-base font-bold text-gray-900">
-          Customers ({rows.length})
-        </h2>
+      <div className="mb-6 flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-lg font-medium text-gray-900">
+            Customers ({rows.length})
+          </h1>
+          <p className="mt-1 text-gray-500">
+            Everyone with access to this course — instructors and enrolled
+            students.
+          </p>
+        </div>
         <div className="flex items-center gap-2">
           <button
             onClick={handleDownloadCsv}

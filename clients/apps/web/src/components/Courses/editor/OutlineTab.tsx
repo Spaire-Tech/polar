@@ -393,7 +393,7 @@ export function OutlineTab({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Find lesson…"
-            className="flex-1 border-0 bg-transparent text-[13px] tracking-tight text-gray-900 placeholder:text-gray-400 focus:outline-none"
+            className="flex-1 border border-transparent bg-transparent text-[13px] tracking-tight text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-0"
           />
         </div>
         <button
