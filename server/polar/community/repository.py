@@ -43,6 +43,9 @@ from polar.models.community_post_media import CommunityPostMedia
 from polar.models.community_reaction import CommunityReaction
 from polar.models.community_settings import CommunitySettings
 from polar.models.community_tag import CommunityTag
+from polar.models.course_enrollment import CourseEnrollment
+from polar.models.customer import Customer
+from polar.models.user import User as UserModel
 
 # ----------------------------------------------------------------------
 # Settings
@@ -288,6 +291,43 @@ class CommunityPostRepository(
             .values(pinned_at=None, pin_type=None, pin_expires_at=None)
         )
         await self.session.execute(statement)
+
+    # ---- Author resolution (cross-table reads) ----
+    #
+    # The joins live on the post repository rather than the service
+    # because server/CLAUDE.md requires all SQL to be repository-layer.
+    # Returning raw tuples keeps the repository Pydantic-free; the
+    # service composes the response schemas.
+
+    async def list_student_author_rows(
+        self, enrollment_ids: set[UUID]
+    ) -> Sequence[tuple[UUID, str | None, str]]:
+        """Return (enrollment_id, customer_name, customer_email) for each
+        requested enrollment. The customer table has no avatar_url today
+        — Phase 1 falls back to initials in the UI."""
+        if not enrollment_ids:
+            return []
+        statement = (
+            select(CourseEnrollment.id, Customer.name, Customer.email)
+            .join(Customer, Customer.id == CourseEnrollment.customer_id)
+            .where(CourseEnrollment.id.in_(enrollment_ids))
+        )
+        result = await self.session.execute(statement)
+        return [(row.id, row.name, row.email) for row in result]
+
+    async def list_instructor_author_rows(
+        self, user_ids: set[UUID]
+    ) -> Sequence[tuple[UUID, str, str | None]]:
+        """Return (user_id, user_email, user_avatar_url) for each
+        requested user. Users have no explicit display name column —
+        the service falls back to the email local-part."""
+        if not user_ids:
+            return []
+        statement = select(
+            UserModel.id, UserModel.email, UserModel.avatar_url
+        ).where(UserModel.id.in_(user_ids))
+        result = await self.session.execute(statement)
+        return [(row.id, row.email, row.avatar_url) for row in result]
 
 
 # ----------------------------------------------------------------------
