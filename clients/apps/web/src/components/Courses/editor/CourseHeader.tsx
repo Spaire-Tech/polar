@@ -8,6 +8,7 @@ import { cn } from '@spaire/ui/lib/utils'
 export type TabId =
   | 'outline'
   | 'customize'
+  | 'community'
   | 'automations'
   | 'settings'
   | 'pricing'
@@ -16,6 +17,7 @@ export type TabId =
 const TABS: { id: TabId; label: string }[] = [
   { id: 'outline', label: 'Outline' },
   { id: 'customize', label: 'Landing' },
+  { id: 'community', label: 'Community' },
   { id: 'automations', label: 'Automations' },
   { id: 'settings', label: 'Settings' },
   { id: 'pricing', label: 'Pricing' },

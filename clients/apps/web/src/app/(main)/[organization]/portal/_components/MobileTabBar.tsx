@@ -126,6 +126,21 @@ const CardIcon = (active: boolean) => (
     <path d="M3 10h18M7 15h3" />
   </svg>
 )
+const ChatIcon = (active: boolean) => (
+  <svg
+    width="22"
+    height="22"
+    viewBox="0 0 24 24"
+    fill={active ? 'currentColor' : 'none'}
+    stroke="currentColor"
+    strokeWidth="1.7"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden
+  >
+    <path d="M21 12a8 8 0 0 1-12.7 6.5L3 20l1.5-5.3A8 8 0 1 1 21 12z" />
+  </svg>
+)
 
 const buildTabs = (
   organization: schemas['CustomerOrganization'],
@@ -145,6 +160,14 @@ const buildTabs = (
       label: 'Courses',
       matches: (p) => p.includes('/portal/courses'),
       icon: StackIcon,
+    },
+    {
+      href: `/${slug}/portal/community`,
+      label: 'Community',
+      matches: (p) =>
+        p.includes('/portal/community') ||
+        /\/portal\/courses\/[^/]+\/community/.test(p),
+      icon: ChatIcon,
     },
     {
       href: `/${slug}/portal/downloads`,

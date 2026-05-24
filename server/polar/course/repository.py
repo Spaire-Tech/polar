@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from uuid import UUID
 
 from sqlalchemy import Select, func, select
@@ -128,6 +129,16 @@ class CourseLessonRepository(
         )
         return (await self.session.execute(statement)).scalar_one()
 
+    async def count_by_module(self, module_id: UUID) -> int:
+        """Non-soft-deleted lesson count for a single module. Used by the
+        module-completion detector — combined with the per-enrollment
+        completed count we know when a student has finished a module."""
+        statement = select(func.count(CourseLesson.id)).where(
+            CourseLesson.module_id == module_id,
+            CourseLesson.deleted_at.is_(None),
+        )
+        return (await self.session.execute(statement)).scalar_one()
+
     async def get_readable_by_id(
         self,
         lesson_id: UUID,
@@ -204,6 +215,27 @@ class CourseLessonProgressRepository(
         )
         return (await self.session.execute(statement)).scalar_one()
 
+    async def count_by_enrollment_in_module(
+        self, enrollment_id: UUID, module_id: UUID
+    ) -> int:
+        """Completed lessons by an enrollment inside a single module.
+        Together with CourseLessonRepository.count_by_module this is how
+        the service detects a course.module_completed event."""
+        statement = (
+            select(func.count(CourseLessonProgress.id))
+            .join(
+                CourseLesson,
+                CourseLesson.id == CourseLessonProgress.lesson_id,
+            )
+            .where(
+                CourseLessonProgress.enrollment_id == enrollment_id,
+                CourseLessonProgress.deleted_at.is_(None),
+                CourseLesson.module_id == module_id,
+                CourseLesson.deleted_at.is_(None),
+            )
+        )
+        return (await self.session.execute(statement)).scalar_one()
+
     def get_by_enrollment_and_lesson_statement(
         self, enrollment_id: UUID, lesson_id: UUID
     ):
@@ -232,6 +264,21 @@ class LessonCommentRepository(
             LessonComment.enrollment_id == enrollment_id,
             LessonComment.lesson_id == lesson_id,
         )
+
+    async def get_tombstone_parents(
+        self, lesson_id: UUID, parent_ids: set[UUID]
+    ) -> Sequence[LessonComment]:
+        """Fetch soft-deleted parent comments scoped to a lesson — the
+        caller wraps this in the kit's `merge_with_tombstones` so the
+        reply chain stays renderable.
+        """
+        if not parent_ids:
+            return []
+        statement = self.get_base_statement(include_deleted=True).where(
+            LessonComment.id.in_(parent_ids),
+            LessonComment.lesson_id == lesson_id,
+        )
+        return await self.get_all(statement)
 
 
 class CourseNoteRepository(

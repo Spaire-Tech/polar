@@ -19,6 +19,9 @@ class NotificationType(StrEnum):
     maintainer_create_account = "MaintainerCreateAccountNotification"
     maintainer_account_credits_granted = "MaintainerAccountCreditsGrantedNotification"
     maintainer_perks_unlocked = "MaintainerPerksUnlockedNotification"
+    # --- Community ---
+    community_post_new_on_course = "CommunityPostNewOnCourseNotification"
+    community_post_reply = "CommunityPostReplyNotification"
 
 
 class NotificationPayloadBase(BaseModel):
@@ -205,7 +208,7 @@ class MaintainerPerksUnlockedNotificationPayload(NotificationPayloadBase):
         return f"{settings.FRONTEND_BASE_URL}/dashboard"
 
     def subject(self) -> str:
-        return f"🎉 Congrats on your first sale! You've unlocked the Spaire Startup Perks."
+        return "🎉 Congrats on your first sale! You've unlocked the Spaire Startup Perks."
 
     @classmethod
     def template_name(cls) -> str:
@@ -217,12 +220,85 @@ class MaintainerPerksUnlockedNotification(NotificationBase):
     payload: MaintainerPerksUnlockedNotificationPayload
 
 
+# ============================================================
+# Community
+# ============================================================
+
+
+class CommunityPostNewOnCourseNotificationPayload(NotificationPayloadBase):
+    """Bell notification for the course creator each time a student
+    posts something new in their community feed."""
+
+    course_id: UUID4
+    course_title: str
+    post_id: UUID4
+    post_title: str | None
+    post_preview: str
+    author_name: str | None
+
+    @computed_field
+    def post_url(self) -> str:
+        return (
+            f"{settings.FRONTEND_BASE_URL}/dashboard"
+            f"/courses/{self.course_id}/community"
+        )
+
+    def subject(self) -> str:
+        author = self.author_name or "Someone"
+        title = self.post_title or self.post_preview
+        return f"{author} posted in {self.course_title}: {title}"
+
+    @classmethod
+    def template_name(cls) -> str:
+        return "notification_community_post_new_on_course"
+
+
+class CommunityPostNewOnCourseNotification(NotificationBase):
+    type: Literal[NotificationType.community_post_new_on_course]
+    payload: CommunityPostNewOnCourseNotificationPayload
+
+
+class CommunityPostReplyNotificationPayload(NotificationPayloadBase):
+    """Bell notification for the author of a post when someone replies."""
+
+    course_id: UUID4
+    course_title: str
+    post_id: UUID4
+    post_title: str | None
+    comment_id: UUID4
+    comment_preview: str
+    replier_name: str | None
+
+    @computed_field
+    def post_url(self) -> str:
+        return (
+            f"{settings.FRONTEND_BASE_URL}/dashboard"
+            f"/courses/{self.course_id}/community#post-{self.post_id}"
+        )
+
+    def subject(self) -> str:
+        replier = self.replier_name or "Someone"
+        target = self.post_title or "your post"
+        return f"{replier} replied to {target}"
+
+    @classmethod
+    def template_name(cls) -> str:
+        return "notification_community_post_reply"
+
+
+class CommunityPostReplyNotification(NotificationBase):
+    type: Literal[NotificationType.community_post_reply]
+    payload: CommunityPostReplyNotificationPayload
+
+
 NotificationPayload = (
     MaintainerNewPaidSubscriptionNotificationPayload
     | MaintainerNewProductSaleNotificationPayload
     | MaintainerCreateAccountNotificationPayload
     | MaintainerAccountCreditsGrantedNotificationPayload
     | MaintainerPerksUnlockedNotificationPayload
+    | CommunityPostNewOnCourseNotificationPayload
+    | CommunityPostReplyNotificationPayload
 )
 
 Notification = Annotated[
@@ -230,6 +306,8 @@ Notification = Annotated[
     | MaintainerNewProductSaleNotification
     | MaintainerCreateAccountNotification
     | MaintainerAccountCreditsGrantedNotification
-    | MaintainerPerksUnlockedNotification,
+    | MaintainerPerksUnlockedNotification
+    | CommunityPostNewOnCourseNotification
+    | CommunityPostReplyNotification,
     Discriminator(discriminator="type"),
 ]

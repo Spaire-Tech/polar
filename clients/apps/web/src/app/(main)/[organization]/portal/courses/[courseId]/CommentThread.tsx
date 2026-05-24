@@ -6,11 +6,12 @@ import {
   useLessonComments,
   type LessonCommentRead,
 } from '@/hooks/queries/courses'
+import { buildCommentTree, type CommentNode as CommentNodeBase } from '@/lib/comments/build-tree'
 import DeleteOutlined from '@mui/icons-material/DeleteOutlined'
 import KeyboardArrowDown from '@mui/icons-material/KeyboardArrowDown'
 import { useMemo, useState } from 'react'
 
-type CommentNode = LessonCommentRead & { replies: CommentNode[] }
+type CommentNode = CommentNodeBase<LessonCommentRead>
 
 const fontStack = "'Poppins', var(--font-poppins), system-ui, sans-serif"
 
@@ -26,19 +27,8 @@ const COLORS = {
   accentSoft: 'oklch(0.55 0.20 265 / 0.10)',
 }
 
-function buildTree(comments: LessonCommentRead[]): CommentNode[] {
-  const byId = new Map<string, CommentNode>()
-  comments.forEach((c) => byId.set(c.id, { ...c, replies: [] }))
-  const roots: CommentNode[] = []
-  byId.forEach((node) => {
-    if (node.parent_id && byId.has(node.parent_id)) {
-      byId.get(node.parent_id)!.replies.push(node)
-    } else {
-      roots.push(node)
-    }
-  })
-  return roots
-}
+const buildTree = (comments: LessonCommentRead[]): CommentNode[] =>
+  buildCommentTree<LessonCommentRead>(comments)
 
 function formatRelative(iso: string): string {
   const ts = new Date(iso).getTime()

@@ -11,6 +11,7 @@ from polar.customer.repository import CustomerRepository
 from polar.customer_session.service import customer_session
 from polar.kit.pagination import ListResource, PaginationParamsQuery
 from polar.models import Organization, UserOrganization
+from polar.models.community_post_media import CommunityPostMedia
 from polar.models.course_lesson import CourseLesson
 from polar.models.customer import Customer
 from polar.openapi import APITag
@@ -1026,6 +1027,20 @@ async def mux_webhook(
         res = await session.execute(stmt)
         return res.scalar_one_or_none()
 
+    async def _find_community_media_by_upload(
+        upload_id: str,
+    ) -> CommunityPostMedia | None:
+        """Community-post video media uses the same Mux pipeline. The
+        webhook arrives without a discriminator so we try the lesson
+        table first (the original consumer); when there's no match we
+        check community media."""
+        stmt = select(CommunityPostMedia).where(
+            CommunityPostMedia.mux_upload_id == upload_id,
+            CommunityPostMedia.deleted_at.is_(None),
+        )
+        res = await session.execute(stmt)
+        return res.scalar_one_or_none()
+
     if event_type == "video.asset.ready":
         upload_id = data.get("upload_id")
         asset_id = data.get("id")
@@ -1034,6 +1049,24 @@ async def mux_webhook(
         duration = data.get("duration")
 
         if upload_id and asset_id and playback_id:
+            community_media = await _find_community_media_by_upload(upload_id)
+            if community_media is not None:
+                # Community-post video lifecycle is simpler than lessons:
+                # no per-org video-hours quota (community videos count
+                # against the same Mux account but we don't gate them
+                # here yet — Phase 3A trade-off).
+                update: dict = {
+                    "mux_asset_id": asset_id,
+                    "mux_playback_id": playback_id,
+                    "mux_status": "ready",
+                }
+                if duration:
+                    update["duration_seconds"] = int(duration)
+                for key, value in update.items():
+                    setattr(community_media, key, value)
+                session.add(community_media)
+                return
+
             lesson = await _find_lesson_by_upload(upload_id)
             if lesson:
                 # Only emit on first transition to ready, so retried
@@ -1103,6 +1136,11 @@ async def mux_webhook(
     elif event_type in ("video.upload.errored", "video.asset.errored"):
         upload_id = data.get("upload_id") or data.get("id")
         if upload_id:
+            community_media = await _find_community_media_by_upload(upload_id)
+            if community_media is not None:
+                community_media.mux_status = "errored"
+                session.add(community_media)
+                return
             lesson = await _find_lesson_by_upload(upload_id)
             if lesson:
                 await lesson_repo.update(
@@ -1116,6 +1154,12 @@ async def mux_webhook(
     ):
         upload_id = data.get("upload_id") or data.get("id")
         if upload_id:
+            community_media = await _find_community_media_by_upload(upload_id)
+            if community_media is not None:
+                if community_media.mux_status != "ready":
+                    community_media.mux_status = "processing"
+                    session.add(community_media)
+                return
             lesson = await _find_lesson_by_upload(upload_id)
             if lesson and lesson.mux_status != "ready":
                 await lesson_repo.update(
@@ -1125,6 +1169,13 @@ async def mux_webhook(
     elif event_type == "video.asset.deleted":
         upload_id = data.get("upload_id")
         if upload_id:
+            community_media = await _find_community_media_by_upload(upload_id)
+            if community_media is not None:
+                community_media.mux_status = "deleted"
+                community_media.mux_playback_id = None
+                community_media.mux_asset_id = None
+                session.add(community_media)
+                return
             lesson = await _find_lesson_by_upload(upload_id)
             if lesson:
                 previous_duration = lesson.duration_seconds
