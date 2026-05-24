@@ -405,6 +405,7 @@ export function EditableCourseLandingView({
   return (
     <div
       data-spaire-editor
+      data-surface-mode={ed.overrides.theme.surfaceId ?? 'light'}
       style={{
         background: 'var(--bg-0, #fff)',
         color: 'var(--fg-0, oklch(0.18 0.008 280))',
