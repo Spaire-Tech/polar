@@ -241,15 +241,35 @@ class CommunityService:
         )
         repo = CommunityPostRepository.from_session(session)
         created = await repo.create(post, flush=True)
-        # Force the selectin relationships to materialize before the
-        # endpoint serializes the row. Without this, _post_to_read's
-        # `post.tag` / `post.media` access triggers an implicit async
-        # lazy-load → MissingGreenlet under asyncpg.
-        await session.refresh(created, attribute_names=["tag", "media"])
         # Fan-out (SSE + bell). The actor pulls the row fresh so it's
         # safe to enqueue before the request-level commit lands.
         enqueue_job("community.post.created", post_id=created.id)
-        return created
+        # Re-fetch so every selectin relationship is materialized in the
+        # current async context. Without this, _post_to_read's
+        # `post.tag` / `post.media` access on the freshly-flushed object
+        # triggers an implicit lazy-load → MissingGreenlet under asyncpg.
+        # Re-fetching (vs `session.refresh(attribute_names=…)`) is
+        # future-proof: future selectin relationships hydrate
+        # automatically without anyone remembering to update an
+        # attribute list.
+        return await self._get_post_for_render(session, created.id)
+
+    async def _get_post_for_render(
+        self, session: AsyncSession, post_id: UUID
+    ) -> CommunityPost:
+        """Return a CommunityPost with all selectin relationships loaded.
+
+        Wraps `repo.get_by_id` with a non-null assertion so callers that
+        just inserted or updated the row can rely on the fully-hydrated
+        object for serialization."""
+        repo = CommunityPostRepository.from_session(session)
+        fresh = await repo.get_by_id(post_id)
+        if fresh is None:
+            raise RuntimeError(
+                f"Post {post_id} not found after create/update — "
+                "this should be impossible within the same session"
+            )
+        return fresh
 
     async def get_post(
         self, session: AsyncSession, post_id: UUID
@@ -274,7 +294,11 @@ class CommunityService:
         update_dict = payload.model_dump(exclude_unset=True, exclude_none=False)
         if not update_dict:
             return post
-        return await repo.update(post, update_dict=update_dict)
+        await repo.update(post, update_dict=update_dict)
+        # If tag_id changed, the in-memory `post.tag` cache points at
+        # the OLD tag — selectin loaded it on the initial get_by_id.
+        # Re-fetch so the renderer sees the new tag.
+        return await self._get_post_for_render(session, post.id)
 
     async def soft_delete_post(
         self, session: AsyncSession, post: CommunityPost
@@ -638,6 +662,42 @@ class CommunityService:
     # ------------------------------------------------------------------
     # Author resolution — used by endpoints to build CommunityPostRead
     # ------------------------------------------------------------------
+
+    async def resolve_comment_reactions(
+        self,
+        session: AsyncSession,
+        *,
+        comment_ids: set[UUID],
+        viewer_enrollment_id: UUID | None,
+        viewer_user_id: UUID | None,
+    ) -> dict[UUID, list[CommunityReactionSummaryEntry]]:
+        """Per-comment reaction summary — same shape as the per-post
+        summary `build_render_context` produces. Returns
+        `{comment_id: [CommunityReactionSummaryEntry, ...]}` with
+        `mine=True` flagged for the viewer's own reactions.
+
+        Bulk-loaded so a comment thread of N replies costs one query,
+        not N."""
+        if not comment_ids:
+            return {}
+        reaction_repo = CommunityReactionRepository.from_session(session)
+        raw = await reaction_repo.summary_for_targets(
+            target_type="comment",
+            target_ids=comment_ids,
+            viewer_enrollment_id=viewer_enrollment_id,
+            viewer_user_id=viewer_user_id,
+        )
+        out: dict[UUID, list[CommunityReactionSummaryEntry]] = {}
+        for comment_id, by_emoji in raw.items():
+            out[comment_id] = [
+                CommunityReactionSummaryEntry(
+                    emoji=emoji,  # type: ignore[arg-type]
+                    count=int(payload["count"]),
+                    mine=bool(payload["mine"]),
+                )
+                for emoji, payload in by_emoji.items()
+            ]
+        return out
 
     async def resolve_authors(
         self,

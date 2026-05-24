@@ -816,6 +816,16 @@ async def _serialize_comments(
         user_ids=user_ids,
     )
 
+    # Bulk-load reactions for every comment in this batch. Soft-deleted
+    # rows still get their reaction row queried — cheap and means the
+    # tombstone shows the same surface as the live comment.
+    comment_reactions = await community_service.resolve_comment_reactions(
+        session,
+        comment_ids={c.id for c in comments},
+        viewer_enrollment_id=viewer_enrollment_id,
+        viewer_user_id=viewer_user_id,
+    )
+
     out: list[CommunityCommentRead] = []
     for c in comments:
         is_deleted = c.deleted_at is not None
@@ -836,7 +846,7 @@ async def _serialize_comments(
                 timestamp_seconds=c.timestamp_seconds,
                 deleted=is_deleted,
                 is_own=own,
-                reactions=[],  # Comment-reaction summary lazy-loaded
+                reactions=comment_reactions.get(c.id, []),
                 created_at=c.created_at,
                 modified_at=c.modified_at,
             )
