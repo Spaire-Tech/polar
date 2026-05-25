@@ -16,6 +16,7 @@ Create Date: 2026-05-25 18:00:00.000000
 
 import sqlalchemy as sa
 from alembic import op
+from sqlalchemy.dialects import postgresql as pg
 
 revision = "comm_events_525"
 down_revision = "cust_avatar_525"
@@ -62,6 +63,16 @@ def upgrade() -> None:
         sa.Column("type", sa.String(length=20), nullable=False),
         sa.Column("description", sa.Text(), nullable=True),
         sa.Column("start_at", sa.TIMESTAMP(timezone=True), nullable=False),
+        # IANA timezone the host scheduled in (e.g. "America/Los_Angeles").
+        # start_at is canonical UTC; this is for display so the host's
+        # "8pm PT" shows as "8pm PT" rather than being re-translated to
+        # whatever the viewer's locale would render.
+        sa.Column(
+            "timezone",
+            sa.String(length=64),
+            nullable=False,
+            server_default=sa.text("'UTC'"),
+        ),
         sa.Column(
             "duration_minutes",
             sa.Integer(),
@@ -204,7 +215,7 @@ def upgrade() -> None:
         sa.Column("type", sa.String(length=64), nullable=False),
         sa.Column(
             "payload",
-            sa.dialects.postgresql.JSONB(),
+            pg.JSONB(),
             nullable=False,
             server_default=sa.text("'{}'::jsonb"),
         ),

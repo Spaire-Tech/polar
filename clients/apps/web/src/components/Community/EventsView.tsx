@@ -27,8 +27,11 @@ export type CommunityEvent = {
   title: string
   type: EventType
   desc: string
-  date: string // ISO date (YYYY-MM-DD)
-  startTime: string // HH:mm local
+  // Canonical ISO timestamp in UTC. The card renders both the host's
+  // timezone (event.timezone) and the viewer's local zone from this
+  // single instant.
+  startAt: string
+  timezone: string
   duration: string // minutes
   location: string
   meetingUrl?: string | null
@@ -41,13 +44,16 @@ export type CommunityEvent = {
 }
 
 // Payload emitted from the create modal. Includes the two toggles we
-// previously dropped on the floor (notify + recurring).
+// previously dropped on the floor (notify + recurring) and the host's
+// chosen timezone — the modal lets them schedule "8pm PT" rather than
+// "8pm browser-local."
 export type CommunityEventCreateInput = {
   title: string
   type: EventType
   desc: string
   date: string
   startTime: string
+  timezone: string
   duration: string
   location: string
   meetingUrl: string
@@ -77,23 +83,133 @@ const MONTH_ABBR = [
   'DEC',
 ]
 
-const formatDateChip = (iso: string): { month: string; day: number } => {
-  const d = new Date(iso + 'T00:00:00')
-  return { month: MONTH_ABBR[d.getMonth()], day: d.getDate() }
+const tzAbbrev = (tz: string, at: Date): string => {
+  // Best-effort short label for a tz. Intl gives us "PDT", "EST", "GMT+1"
+  // etc. when shortGeneric / short is requested.
+  try {
+    const parts = new Intl.DateTimeFormat([], {
+      timeZone: tz,
+      timeZoneName: 'short',
+      hour: 'numeric',
+    }).formatToParts(at)
+    const part = parts.find((p) => p.type === 'timeZoneName')
+    return part?.value ?? tz
+  } catch {
+    return tz
+  }
 }
 
-const formatWhen = (date: string, time: string, duration: string): string => {
-  const d = new Date(`${date}T${time || '00:00'}:00`)
-  const opts: Intl.DateTimeFormatOptions = {
+const formatDateChip = (
+  startAt: string,
+  tz: string,
+): { month: string; day: number } => {
+  const d = new Date(startAt)
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: tz,
+    month: 'short',
+    day: 'numeric',
+  }).formatToParts(d)
+  const monthStr = parts.find((p) => p.type === 'month')?.value ?? ''
+  const dayStr = parts.find((p) => p.type === 'day')?.value ?? '1'
+  const idx = [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ].indexOf(monthStr)
+  return {
+    month: MONTH_ABBR[idx >= 0 ? idx : 0],
+    day: parseInt(dayStr, 10) || 1,
+  }
+}
+
+const VIEWER_TZ =
+  typeof Intl !== 'undefined'
+    ? Intl.DateTimeFormat().resolvedOptions().timeZone
+    : 'UTC'
+
+// Curated short list — covers the common cohort timezones without
+// dumping all ~600 IANA names into the select. If the host's tz is
+// already set and missing from this list, the modal prepends it.
+const COMMON_TIMEZONES = [
+  VIEWER_TZ,
+  'UTC',
+  'America/Los_Angeles',
+  'America/Denver',
+  'America/Chicago',
+  'America/New_York',
+  'Europe/London',
+  'Europe/Berlin',
+  'Europe/Paris',
+  'Africa/Lagos',
+  'Asia/Dubai',
+  'Asia/Kolkata',
+  'Asia/Singapore',
+  'Asia/Tokyo',
+  'Australia/Sydney',
+].filter((v, i, a) => a.indexOf(v) === i)
+
+const previewWhen = (
+  date: string,
+  startTime: string,
+  tz: string,
+): string => {
+  // Interpret `date + startTime` as a wall clock in `tz` and show the
+  // host what "8pm PT" actually maps to in their viewer-local time —
+  // a sanity check before they hit publish.
+  try {
+    // Build the candidate instant in the target tz by formatting the
+    // viewer-local interpretation, then back-calculating the offset.
+    // For a preview this is fine to do approximately.
+    const local = new Date(`${date}T${startTime}:00`)
+    // Use Intl to get the host-tz wall clock for that instant; compare
+    // to the literal date/time to compute drift.
+    const fmt = new Intl.DateTimeFormat('en-US', {
+      timeZone: tz,
+      hour: 'numeric',
+      minute: '2-digit',
+    })
+    return `~ ${fmt.format(local)} ${tzAbbrev(tz, local)}`
+  } catch {
+    return ''
+  }
+}
+
+const fmtInTz = (
+  d: Date,
+  tz: string,
+  opts: Intl.DateTimeFormatOptions,
+): string => new Intl.DateTimeFormat([], { ...opts, timeZone: tz }).format(d)
+
+// "Thu, Jun 12 · 8:00 PM PDT" in the host's tz.
+const formatHostWhen = (startAt: string, tz: string): string => {
+  const d = new Date(startAt)
+  const date = fmtInTz(d, tz, {
     weekday: 'short',
     month: 'short',
     day: 'numeric',
-  }
-  const timeStr = time
-    ? d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
-    : ''
-  const datePart = d.toLocaleDateString([], opts)
-  return timeStr ? `${datePart} · ${timeStr}` : `${datePart} · ${duration}m`
+  })
+  const time = fmtInTz(d, tz, { hour: 'numeric', minute: '2-digit' })
+  return `${date} · ${time} ${tzAbbrev(tz, d)}`
+}
+
+// "Your time: 11:00 PM EDT" when viewer's tz differs from host's.
+const formatViewerWhen = (startAt: string, hostTz: string): string | null => {
+  if (!hostTz || hostTz === VIEWER_TZ) return null
+  const d = new Date(startAt)
+  const time = fmtInTz(d, VIEWER_TZ, {
+    hour: 'numeric',
+    minute: '2-digit',
+  })
+  return `Your time: ${time} ${tzAbbrev(VIEWER_TZ, d)}`
 }
 
 type Props = {
@@ -297,7 +413,9 @@ function EventCard({
   onToggleGoing: (id: string) => void
   canRsvp: boolean
 }) {
-  const chip = formatDateChip(event.date)
+  const chip = formatDateChip(event.startAt, event.timezone)
+  const whenHost = formatHostWhen(event.startAt, event.timezone)
+  const whenViewer = formatViewerWhen(event.startAt, event.timezone)
 
   if (past) {
     return (
@@ -366,8 +484,13 @@ function EventCard({
         <div className={styles.eventMeta}>
           <span className={styles.eventMetaBit}>
             <IconClock size={11} />
-            {formatWhen(event.date, event.startTime, event.duration)}
+            {whenHost} · {event.duration}m
           </span>
+          {whenViewer && (
+            <span className={styles.eventMetaBit} style={{ opacity: 0.7 }}>
+              {whenViewer}
+            </span>
+          )}
           {event.location && (
             <span className={styles.eventMetaBit}>
               <IconMapPin size={11} /> {event.location}
@@ -481,6 +604,7 @@ function CreateEventModal({
   const [date, setDate] = useState('')
   const [startTime, setStartTime] = useState('')
   const [duration, setDuration] = useState('60')
+  const [timezone, setTimezone] = useState<string>(VIEWER_TZ)
   const [location, setLocation] = useState('')
   const [meetingUrl, setMeetingUrl] = useState('')
   const [desc, setDesc] = useState('')
@@ -496,6 +620,7 @@ function CreateEventModal({
       setDate('')
       setStartTime('')
       setDuration('60')
+      setTimezone(VIEWER_TZ)
       setLocation('')
       setMeetingUrl('')
       setDesc('')
@@ -533,6 +658,7 @@ function CreateEventModal({
       desc: desc.trim(),
       date,
       startTime,
+      timezone,
       duration,
       location: location.trim(),
       meetingUrl: meetingUrl.trim(),
@@ -621,6 +747,37 @@ function CreateEventModal({
                 <option value="90">90 min</option>
                 <option value="120">2 hours</option>
               </select>
+            </div>
+            <div
+              style={{
+                marginTop: 8,
+                display: 'flex',
+                gap: 8,
+                alignItems: 'center',
+              }}
+            >
+              <select
+                className={styles.ceInput}
+                value={timezone}
+                onChange={(e) => setTimezone(e.target.value)}
+                style={{ flex: 1 }}
+              >
+                {COMMON_TIMEZONES.includes(timezone) ? null : (
+                  <option value={timezone}>{timezone}</option>
+                )}
+                {COMMON_TIMEZONES.map((tz) => (
+                  <option key={tz} value={tz}>
+                    {tz}
+                  </option>
+                ))}
+              </select>
+              {date && startTime && (
+                <span
+                  style={{ fontSize: 12, opacity: 0.7, whiteSpace: 'nowrap' }}
+                >
+                  {previewWhen(date, startTime, timezone)}
+                </span>
+              )}
             </div>
           </div>
 

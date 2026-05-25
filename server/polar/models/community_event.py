@@ -74,6 +74,12 @@ class CommunityEvent(RecordModel):
     start_at: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True), nullable=False, index=True
     )
+    # IANA timezone the host picked, e.g. "America/Los_Angeles". start_at
+    # is canonical UTC; this is the host's preferred display zone so
+    # the card can show "8pm PT (your time: 11pm)".
+    timezone: Mapped[str] = mapped_column(
+        String(64), nullable=False, default="UTC"
+    )
     duration_minutes: Mapped[int] = mapped_column(Integer, nullable=False, default=60)
 
     meeting_url: Mapped[str | None] = mapped_column(Text, nullable=True, default=None)

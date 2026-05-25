@@ -115,6 +115,7 @@ class CommunityEventService:
             type=payload.type,
             description=(payload.description or None),
             start_at=start_at,
+            timezone=payload.timezone or "UTC",
             duration_minutes=payload.duration_minutes,
             meeting_url=payload.meeting_url,
             location=payload.location,

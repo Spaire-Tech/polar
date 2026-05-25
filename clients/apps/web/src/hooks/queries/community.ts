@@ -1054,7 +1054,8 @@ export interface CommunityEventRead {
   title: string
   type: CommunityEventType
   description: string | null
-  start_at: string // ISO timestamp
+  start_at: string // ISO timestamp (UTC)
+  timezone: string // IANA tz the host scheduled in
   duration_minutes: number
   meeting_url: string | null
   location: string | null
@@ -1076,6 +1077,7 @@ export interface CommunityEventCreateBody {
   type: CommunityEventType
   description?: string | null
   start_at: string
+  timezone?: string
   duration_minutes: number
   meeting_url?: string | null
   location?: string | null

@@ -477,17 +477,13 @@ export function CommunityFeed({ courseId, customerSessionToken }: Props) {
 // ---------------------------------------------------------------------
 
 function mapEventReadToUI(e: CommunityEventRead): CommunityEvent {
-  const d = new Date(e.start_at)
-  const pad = (n: number) => n.toString().padStart(2, '0')
-  const date = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
-  const startTime = `${pad(d.getHours())}:${pad(d.getMinutes())}`
   return {
     id: e.id,
     title: e.title,
     type: e.type,
     desc: e.description ?? '',
-    date,
-    startTime,
+    startAt: e.start_at,
+    timezone: e.timezone || 'UTC',
     duration: String(e.duration_minutes),
     location: e.location ?? '',
     meetingUrl: e.meeting_url,
@@ -501,19 +497,62 @@ function mapEventReadToUI(e: CommunityEventRead): CommunityEvent {
 }
 
 function buildEventCreateBody(input: CommunityEventCreateInput) {
-  // Combine date + startTime as local time, then send as ISO. The server
-  // normalizes naive datetimes to UTC; we explicitly include the local
-  // timezone so the host's intent ("8pm my time") is preserved.
-  const startLocal = new Date(`${input.date}T${input.startTime}:00`)
+  // The host picked `date + startTime` as wall-clock in `input.timezone`.
+  // Convert that to a UTC instant by serializing through Intl: take the
+  // naive datetime, interpret the same wall clock in the target tz, and
+  // compute the offset.
+  const start_at = wallClockInTzToUtcIso(
+    input.date,
+    input.startTime,
+    input.timezone,
+  )
   return {
     title: input.title,
     type: input.type,
     description: input.desc || null,
-    start_at: startLocal.toISOString(),
+    start_at,
+    timezone: input.timezone,
     duration_minutes: parseInt(input.duration, 10) || 60,
     meeting_url: input.meetingUrl || null,
     location: input.location || null,
     notify_on_publish: input.notify,
     recurring_weekly: input.recurring,
   }
+}
+
+// Convert "YYYY-MM-DD HH:mm in IANA tz X" to the UTC ISO instant.
+// Uses Intl to compute the offset of `tz` at that wall clock.
+function wallClockInTzToUtcIso(
+  date: string,
+  time: string,
+  tz: string,
+): string {
+  // First, build a UTC interpretation of the wall clock as a starting
+  // point.
+  const naiveUtc = new Date(`${date}T${time || '00:00'}:00Z`)
+  // Format that instant *as if* it were viewed in `tz` — the parts tell
+  // us what UTC reads as in tz. The drift is exactly the offset we need
+  // to subtract from naiveUtc to get the real UTC instant.
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: tz,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  }).formatToParts(naiveUtc)
+  const get = (t: string) =>
+    parseInt(parts.find((p) => p.type === t)?.value ?? '0', 10)
+  const asTz = Date.UTC(
+    get('year'),
+    get('month') - 1,
+    get('day'),
+    get('hour') % 24,
+    get('minute'),
+    get('second'),
+  )
+  const offsetMs = asTz - naiveUtc.getTime()
+  return new Date(naiveUtc.getTime() - offsetMs).toISOString()
 }

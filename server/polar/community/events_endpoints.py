@@ -111,6 +111,7 @@ async def _event_to_read(
         type=event.type,  # type: ignore[arg-type]
         description=event.description,
         start_at=event.start_at,
+        timezone=event.timezone or "UTC",
         duration_minutes=event.duration_minutes,
         meeting_url=event.meeting_url,
         location=event.location,

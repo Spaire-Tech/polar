@@ -31,6 +31,7 @@ class CommunityEventRead(TimestampedSchema):
     type: EventType
     description: str | None = None
     start_at: datetime
+    timezone: str = "UTC"
     duration_minutes: int
     meeting_url: str | None = None
     location: str | None = None
@@ -54,6 +55,7 @@ class CommunityEventCreate(Schema):
     type: EventType
     description: str | None = Field(default=None, max_length=4000)
     start_at: datetime
+    timezone: str = Field(default="UTC", max_length=64)
     duration_minutes: int = Field(ge=5, le=600, default=60)
     meeting_url: str | None = Field(default=None, max_length=2000)
     location: str | None = Field(default=None, max_length=500)
@@ -70,6 +72,7 @@ class CommunityEventUpdate(Schema):
     type: EventType | None = None
     description: str | None = Field(default=None, max_length=4000)
     start_at: datetime | None = None
+    timezone: str | None = Field(default=None, max_length=64)
     duration_minutes: int | None = Field(default=None, ge=5, le=600)
     meeting_url: str | None = Field(default=None, max_length=2000)
     location: str | None = Field(default=None, max_length=500)
