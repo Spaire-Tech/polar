@@ -122,6 +122,11 @@ export const MasterClassLessonViewer = ({
   // the savedNote effect below from clobbering in-flight typing if the
   // server response arrives mid-keystroke.
   const noteDirtyRef = useRef(false)
+  // Latest pending draft + lesson id — captured in refs so the unload
+  // handlers below can read them without being torn down on every
+  // keystroke.
+  const pendingNoteRef = useRef<string | null>(null)
+  const pendingLessonIdRef = useRef<string | null>(null)
 
   const { data: savedNote } = useLessonNote(token, courseId, lesson.id)
   const upsertNote = useUpsertLessonNote(token, courseId, lesson.id)
@@ -132,19 +137,49 @@ export const MasterClassLessonViewer = ({
     setPlaying(false)
     setPlaybackUrl(null)
     setPlaybackError(null)
-    // Cancel any pending debounced save from the previous lesson before
-    // we swap state — otherwise the timer fires after the lesson change
-    // and writes the previous draft into the new lesson's note.
+    // Flush any pending note for the lesson we're leaving before we
+    // reset state. Previously the debounce was cancelled outright, so
+    // typing made within 800ms of switching lessons was discarded.
     if (noteDebounceRef.current) {
       clearTimeout(noteDebounceRef.current)
       noteDebounceRef.current = null
+    }
+    const pendingDraft = pendingNoteRef.current
+    const pendingLessonId = pendingLessonIdRef.current
+    if (
+      pendingDraft !== null &&
+      pendingLessonId &&
+      pendingLessonId !== lesson.id &&
+      token &&
+      courseId
+    ) {
+      fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/v1/customer-portal/courses/${courseId}/lessons/${pendingLessonId}/notes`,
+        {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ content: pendingDraft }),
+          keepalive: true,
+        },
+      ).catch(() => {})
+      pendingNoteRef.current = null
+      pendingLessonIdRef.current = null
     }
     noteDirtyRef.current = false
     setNoteText('')
     if (typeof window !== 'undefined') {
       setBookmarked(window.localStorage.getItem(bookmarkKey) !== null)
+      // Reset scroll on lesson change. The router uses `scroll: false` to
+      // preserve position between in-viewer navigations, but that also
+      // preserves the (often bottom-of-page) scroll from the course
+      // overview when a lesson is first opened — landing the user on
+      // comments instead of the video.
+      window.scrollTo({ top: 0, left: 0, behavior: 'auto' })
     }
-  }, [lesson.id, bookmarkKey])
+  }, [lesson.id, bookmarkKey, token, courseId])
 
   // Mint a fresh signed playback URL each time the user presses play.
   // The course-read response no longer inlines mux_playback_url; the
@@ -183,26 +218,76 @@ export const MasterClassLessonViewer = ({
   const handleNoteChange = (text: string) => {
     noteDirtyRef.current = true
     setNoteText(text)
+    pendingNoteRef.current = text
+    pendingLessonIdRef.current = lesson.id
     if (noteDebounceRef.current) clearTimeout(noteDebounceRef.current)
     noteDebounceRef.current = setTimeout(() => {
       upsertNote.mutate(text)
-    }, 800)
+      pendingNoteRef.current = null
+    }, 400)
   }
 
   const handleClearNote = () => {
     if (noteDebounceRef.current) clearTimeout(noteDebounceRef.current)
     noteDirtyRef.current = true
     setNoteText('')
+    pendingNoteRef.current = null
     upsertNote.mutate('')
   }
 
-  // Clear any pending debounce when the component unmounts so we never
-  // fire a save against a stale lesson id.
-  useEffect(() => {
-    return () => {
-      if (noteDebounceRef.current) clearTimeout(noteDebounceRef.current)
+  // Fire any pending debounced save immediately. Used on blur, lesson
+  // switch, and tab visibility hide so we don't lose unsaved typing.
+  const flushPendingNote = () => {
+    if (noteDebounceRef.current) {
+      clearTimeout(noteDebounceRef.current)
+      noteDebounceRef.current = null
     }
-  }, [])
+    if (pendingNoteRef.current !== null) {
+      upsertNote.mutate(pendingNoteRef.current)
+      pendingNoteRef.current = null
+    }
+  }
+
+  // Save synchronously on tab close / refresh. The debounced mutation
+  // never gets a chance to fire if the user closes the tab inside the
+  // debounce window — keepalive lets the request survive page unload.
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const flushKeepalive = () => {
+      const draft = pendingNoteRef.current
+      const lessonIdAtTime = pendingLessonIdRef.current
+      if (draft === null || !lessonIdAtTime || !token || !courseId) return
+      try {
+        fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/v1/customer-portal/courses/${courseId}/lessons/${lessonIdAtTime}/notes`,
+          {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ content: draft }),
+            keepalive: true,
+          },
+        )
+        pendingNoteRef.current = null
+      } catch {
+        // best-effort — nothing we can do mid-unload
+      }
+    }
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden') flushKeepalive()
+    }
+    window.addEventListener('beforeunload', flushKeepalive)
+    window.addEventListener('pagehide', flushKeepalive)
+    document.addEventListener('visibilitychange', onVisibility)
+    return () => {
+      window.removeEventListener('beforeunload', flushKeepalive)
+      window.removeEventListener('pagehide', flushKeepalive)
+      document.removeEventListener('visibilitychange', onVisibility)
+      flushKeepalive()
+    }
+  }, [token, courseId])
 
   const handleShare = async () => {
     if (typeof window === 'undefined') return
@@ -347,6 +432,7 @@ export const MasterClassLessonViewer = ({
       noteText,
       handleNoteChange,
       handleClearNote,
+      flushPendingNote,
       bookmarked,
       handleBookmark,
       handleShare,
@@ -502,7 +588,7 @@ export const MasterClassLessonViewer = ({
                 >
                   {lesson.title}
                 </h1>
-                {courseDescription && (
+                {lesson.description && (
                   <p
                     style={{
                       fontSize: 14,
@@ -514,7 +600,7 @@ export const MasterClassLessonViewer = ({
                       fontWeight: 400,
                     }}
                   >
-                    {courseDescription}
+                    {lesson.description}
                   </p>
                 )}
               </div>
@@ -1081,6 +1167,7 @@ export const MasterClassLessonViewer = ({
                     <textarea
                       value={noteText}
                       onChange={(e) => handleNoteChange(e.target.value)}
+                      onBlur={flushPendingNote}
                       placeholder="Type your notes here…"
                       rows={12}
                       style={{
@@ -1235,6 +1322,7 @@ type MobileVA = {
   noteText: string
   handleNoteChange: (t: string) => void
   handleClearNote: () => void
+  flushPendingNote: () => void
   bookmarked: boolean
   handleBookmark: () => void
   handleShare: () => void
@@ -1778,6 +1866,7 @@ function renderMobileLessonViewer(a: MobileVA): React.ReactElement {
             <textarea
               value={noteText}
               onChange={(e) => handleNoteChange(e.target.value)}
+              onBlur={a.flushPendingNote}
               placeholder="Capture a thought, a question, a quote — saves automatically."
               rows={8}
               style={{
