@@ -3,6 +3,7 @@
 import {
   type CommunityAuthor,
   type CommunityCommentRead,
+  type CommunityIOMode,
   type CommunityPostRead,
   type CommunityReactionEmoji,
   useCommunityPostComments,
@@ -104,18 +105,15 @@ const tagPillClass = (slug: string): string => {
 function LikeButton({
   reactions,
   onToggle,
-  disabled,
 }: {
   reactions: CommunityPostRead['reactions']
   onToggle: (emoji: CommunityReactionEmoji) => void
-  disabled?: boolean
 }) {
   const mine = useMemo(() => reactions.find((r) => r.mine), [reactions])
   const active = mine ? REACTION_BY_ID[mine.emoji] : null
   const [burst, setBurst] = useState(false)
 
   const choose = (id: CommunityReactionEmoji) => {
-    if (disabled) return
     setBurst(true)
     setTimeout(() => setBurst(false), 400)
     onToggle(id)
@@ -128,27 +126,24 @@ function LikeButton({
 
   return (
     <div className={styles.likeWrap}>
-      {!disabled && (
-        <div className={styles.reactionPicker}>
-          {REACTIONS.map((r) => (
-            <button
-              key={r.id}
-              type="button"
-              className={styles.rx}
-              onClick={() => choose(r.id)}
-              aria-label={r.label}
-            >
-              <span className={styles.rxLabel}>{r.label}</span>
-              {r.emoji}
-            </button>
-          ))}
-        </div>
-      )}
+      <div className={styles.reactionPicker}>
+        {REACTIONS.map((r) => (
+          <button
+            key={r.id}
+            type="button"
+            className={styles.rx}
+            onClick={() => choose(r.id)}
+            aria-label={r.label}
+          >
+            <span className={styles.rxLabel}>{r.label}</span>
+            {r.emoji}
+          </button>
+        ))}
+      </div>
       <button
         type="button"
         className={`${styles.postAction} ${active ? styles.reacted : ''}`}
         onClick={onPrimary}
-        disabled={disabled}
       >
         {active ? (
           <>
@@ -402,25 +397,30 @@ function CommentSection({
   courseId,
   postId,
   selfName,
+  selfAvatarUrl,
   isVideoPost = false,
   videoElementRef,
+  mode = 'customer',
 }: {
   token: string
   courseId: string
   postId: string
   selfName?: string | null
+  selfAvatarUrl?: string | null
   selfEnrollmentId?: string | null
   isVideoPost?: boolean
   videoElementRef?: React.MutableRefObject<HTMLVideoElement | null>
+  mode?: CommunityIOMode
 }) {
   const { data: comments = [], isLoading } = useCommunityPostComments(
     token,
     courseId,
     postId,
+    mode,
   )
-  const create = useCreateCommunityComment(token, courseId, postId)
-  const del = useDeleteCommunityComment(token, courseId, postId)
-  const reactComment = useToggleCommentReaction(token, courseId, postId)
+  const create = useCreateCommunityComment(token, courseId, postId, mode)
+  const del = useDeleteCommunityComment(token, courseId, postId, mode)
+  const reactComment = useToggleCommentReaction(token, courseId, postId, mode)
 
   const tree = useMemo(() => buildCommentTree(comments), [comments])
 
@@ -489,7 +489,11 @@ function CommentSection({
   return (
     <div className={styles.comments}>
       <div className={styles.replyComposer}>
-        <Avatar name={selfName ?? 'You'} size={32} />
+        <Avatar
+          name={selfName ?? 'You'}
+          avatarUrl={selfAvatarUrl ?? undefined}
+          size={32}
+        />
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
           <textarea
             className={styles.replyInput}
@@ -591,11 +595,19 @@ export type PostCardProps = {
   token: string
   courseId: string
   selfName?: string | null
+  selfAvatarUrl?: string | null
   selfEnrollmentId?: string | null
+  // The signed-in admin's user_id when in creator mode — used to flag
+  // own posts (so the dots menu surfaces "Delete post") without
+  // an enrollment.
+  selfUserId?: string | null
   reactionsEnabled: boolean
   onLessonChipClick?: (lessonId: string) => void
   onShareToast?: (msg: string) => void
-  previewMode?: boolean
+  // 'creator' routes every read/write to the dashboard-auth endpoints
+  // and lets the admin interact as themselves. 'customer' is the
+  // student-portal default.
+  mode?: CommunityIOMode
 }
 
 function PostMediaGrid({
@@ -676,15 +688,15 @@ function MilestoneCard({
   token,
   courseId,
   reactionsEnabled,
-  previewMode,
+  mode = 'customer',
 }: {
   post: CommunityPostRead
   token: string
   courseId: string
   reactionsEnabled: boolean
-  previewMode?: boolean
+  mode?: CommunityIOMode
 }) {
-  const togglePostReaction = useTogglePostReaction(token, courseId)
+  const togglePostReaction = useTogglePostReaction(token, courseId, mode)
   const author =
     post.author.name ??
     (post.author.kind === 'instructor' ? 'Instructor' : 'Member')
@@ -692,7 +704,7 @@ function MilestoneCard({
   const mineClapped = clap?.mine ?? false
 
   const onCongrats = () => {
-    if (!reactionsEnabled || previewMode) return
+    if (!reactionsEnabled) return
     togglePostReaction.mutate({ postId: post.id, emoji: 'clap' })
   }
 
@@ -719,8 +731,6 @@ function MilestoneCard({
           className={styles.milestoneCta}
           onClick={onCongrats}
           aria-pressed={mineClapped}
-          disabled={previewMode}
-          style={previewMode ? { cursor: 'default', opacity: 0.7 } : undefined}
         >
           {mineClapped ? 'Congrats sent' : 'Say congrats'}
         </button>
@@ -737,7 +747,7 @@ export function PostCard(props: PostCardProps) {
         token={props.token}
         courseId={props.courseId}
         reactionsEnabled={props.reactionsEnabled}
-        previewMode={props.previewMode}
+        mode={props.mode}
       />
     )
   }
@@ -749,11 +759,13 @@ function RegularPostCard({
   token,
   courseId,
   selfName,
+  selfAvatarUrl,
   selfEnrollmentId,
+  selfUserId,
   reactionsEnabled,
   onLessonChipClick,
   onShareToast,
-  previewMode,
+  mode = 'customer',
 }: PostCardProps) {
   const [commentsOpen, setCommentsOpen] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
@@ -763,11 +775,10 @@ function RegularPostCard({
     videoElementRef.current = el
   }, [])
 
-  const togglePostReaction = useTogglePostReaction(token, courseId)
-  const deletePost = useDeleteCommunityPost(token, courseId)
+  const togglePostReaction = useTogglePostReaction(token, courseId, mode)
+  const deletePost = useDeleteCommunityPost(token, courseId, mode)
 
   const onToggleReaction = (emoji: CommunityReactionEmoji) => {
-    if (previewMode) return
     togglePostReaction.mutate({ postId: post.id, emoji })
   }
 
@@ -788,12 +799,26 @@ function RegularPostCard({
   }
 
   const ownPost = useMemo(() => {
-    if (!selfEnrollmentId) return false
-    return (
+    if (
+      selfEnrollmentId &&
       post.author.kind === 'student' &&
       post.author.enrollment_id === selfEnrollmentId
-    )
-  }, [post.author, selfEnrollmentId])
+    ) {
+      return true
+    }
+    if (
+      selfUserId &&
+      post.author.kind === 'instructor' &&
+      post.author.user_id === selfUserId
+    ) {
+      return true
+    }
+    // In creator mode the admin can moderate anyone's post anyway, so
+    // surface the menu for every card. The backend's moderator-delete
+    // endpoint enforces course ownership.
+    if (mode === 'creator') return true
+    return false
+  }, [post.author, selfEnrollmentId, selfUserId, mode])
 
   const isPinned = !!post.pinned_at
   const isInstr = isInstructor(post.author)
@@ -839,7 +864,7 @@ function RegularPostCard({
             {post.tag.label}
           </span>
         )}
-        {ownPost && !previewMode && (
+        {ownPost && (
           <div style={{ position: 'relative' }}>
             <button
               type="button"
@@ -913,18 +938,12 @@ function RegularPostCard({
       <StatsBar
         reactions={post.reactions}
         commentCount={post.comment_count}
-        onCommentsClick={
-          previewMode ? undefined : () => setCommentsOpen((v) => !v)
-        }
+        onCommentsClick={() => setCommentsOpen((v) => !v)}
       />
 
       <div className={styles.postActions}>
         {reactionsEnabled ? (
-          <LikeButton
-            reactions={post.reactions}
-            onToggle={onToggleReaction}
-            disabled={previewMode}
-          />
+          <LikeButton reactions={post.reactions} onToggle={onToggleReaction} />
         ) : (
           <button type="button" className={styles.postAction} disabled>
             <IconThumbsUp size={16} /> Like
@@ -933,42 +952,33 @@ function RegularPostCard({
         <button
           type="button"
           className={styles.postAction}
-          onClick={previewMode ? undefined : () => setCommentsOpen((v) => !v)}
-          aria-expanded={previewMode ? undefined : commentsOpen}
-          disabled={previewMode}
+          onClick={() => setCommentsOpen((v) => !v)}
+          aria-expanded={commentsOpen}
         >
           <IconChat size={16} />
           Comment
         </button>
-        <button
-          type="button"
-          className={styles.postAction}
-          onClick={previewMode ? undefined : onShare}
-          disabled={previewMode}
-        >
+        <button type="button" className={styles.postAction} onClick={onShare}>
           <IconRepeat size={16} />
           Share
         </button>
-        <button
-          type="button"
-          className={styles.postAction}
-          onClick={previewMode ? undefined : onShare}
-          disabled={previewMode}
-        >
+        <button type="button" className={styles.postAction} onClick={onShare}>
           <IconSend size={16} />
           Send
         </button>
       </div>
 
-      {!previewMode && commentsOpen && (
+      {commentsOpen && (
         <CommentSection
           token={token}
           courseId={courseId}
           postId={post.id}
           selfName={selfName}
+          selfAvatarUrl={selfAvatarUrl}
           selfEnrollmentId={selfEnrollmentId}
           isVideoPost={post.type === 'video'}
           videoElementRef={videoElementRef}
+          mode={mode}
         />
       )}
     </article>

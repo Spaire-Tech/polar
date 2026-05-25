@@ -1,6 +1,7 @@
 'use client'
 
 import {
+  type CommunityIOMode,
   type CommunityTagRead,
   useCreateCommunityPost,
   useUploadPostImage,
@@ -40,6 +41,7 @@ type Props = {
   token: string
   courseId: string
   selfName?: string | null
+  selfAvatarUrl?: string | null
   // The category dropdown's option list. For series courses this is
   // every episode (lesson). For course-format it's every module. The
   // composer doesn't care which — it shows the labels and passes the
@@ -52,6 +54,9 @@ type Props = {
   // tag selector is hidden so the creator hasn't accidentally exposed
   // an empty row.
   tags?: CommunityTagRead[]
+  // 'creator' routes the create/upload mutations through the
+  // dashboard-auth endpoints so admins post AS the instructor.
+  mode?: CommunityIOMode
   forceOpen?: boolean
   onOpenChange?: (open: boolean) => void
   onPosted?: () => void
@@ -61,9 +66,11 @@ export function Composer({
   token,
   courseId,
   selfName,
+  selfAvatarUrl,
   categories,
   categoryKind,
   tags = [],
+  mode = 'customer',
   forceOpen,
   onOpenChange,
   onPosted,
@@ -80,9 +87,9 @@ export function Composer({
   const videoInputRef = useRef<HTMLInputElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
-  const create = useCreateCommunityPost(token, courseId)
-  const upload = useUploadPostImage(token, courseId)
-  const uploadVideo = useUploadPostVideo(token, courseId)
+  const create = useCreateCommunityPost(token, courseId, mode)
+  const upload = useUploadPostImage(token, courseId, mode)
+  const uploadVideo = useUploadPostVideo(token, courseId, mode)
 
   // Focus the textarea once the modal mounts.
   useEffect(() => {
@@ -296,7 +303,11 @@ export function Composer({
           the modal; Photo/Video skip straight to the device picker. */}
       <div className={styles.composer}>
         <div className={styles.composerRow}>
-          <Avatar name={selfName ?? 'You'} size={40} />
+          <Avatar
+            name={selfName ?? 'You'}
+            avatarUrl={selfAvatarUrl ?? undefined}
+            size={40}
+          />
           <button type="button" className={styles.composerInput} onClick={open}>
             Start a discussion, ask a question, share what you&apos;re working
             on…
@@ -363,7 +374,11 @@ export function Composer({
           <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
             <div className={styles.modalHead}>
               <div className={styles.modalAuthor}>
-                <Avatar name={selfName ?? 'You'} size={38} />
+                <Avatar
+                  name={selfName ?? 'You'}
+                  avatarUrl={selfAvatarUrl ?? undefined}
+                  size={38}
+                />
                 <div>
                   <div className={styles.modalAuthorName}>
                     {selfName ?? 'You'}

@@ -5,12 +5,14 @@ import {
   type CommunitySortProperty,
   type FeedFilters,
   useCreatorCommunityFeed,
+  useCreatorCommunityIdentity,
   useCreatorCommunityMembers,
   useCreatorCommunitySettings,
   useCreatorCommunityTags,
 } from '@/hooks/queries/community'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { ActivitiesView, type CommunityActivity } from './ActivitiesView'
+import { Composer } from './Composer'
 import { type CommunityEvent, EventsView } from './EventsView'
 import {
   type CommunityView,
@@ -35,12 +37,11 @@ type Props = {
   courseTitle?: string
 }
 
-// Read-only preview of the student-facing feed for the course-editor
-// pane. Calls the creator-side endpoints (which use the dashboard
-// session cookie) instead of the customer-portal hooks, so the creator
-// never needs a customer_session_token to see what their students see.
-// Composer is hidden entirely; reactions + comments render but their
-// click handlers no-op (PostCard's previewMode prop).
+// Live, interactive community surface embedded in the course editor.
+// The admin sees + acts on the same posts students do, identified as
+// themselves (kind='instructor', name pulled from course.instructor_name).
+// All read/write hooks here are routed to the creator-side endpoints
+// via mode='creator', so no customer_session_token is needed.
 export function CommunityPreview({
   courseId,
   lessons = [],
@@ -53,6 +54,8 @@ export function CommunityPreview({
   const [sort] = useState<CommunitySortProperty>('recent')
   const [events, setEvents] = useState<CommunityEvent[]>([])
   const [activities, setActivities] = useState<CommunityActivity[]>([])
+  const [composerForceOpen, setComposerForceOpen] = useState(false)
+  const [toast, setToast] = useState<string | null>(null)
 
   const filters: FeedFilters = useMemo(
     () => ({ sort, module_id: null, lesson_id: lessonId, tag_id: tagId }),
@@ -63,6 +66,14 @@ export function CommunityPreview({
   const feedQ = useCreatorCommunityFeed(courseId, filters)
   const tagsQ = useCreatorCommunityTags(courseId)
   const membersQ = useCreatorCommunityMembers(courseId)
+  const meQ = useCreatorCommunityIdentity(courseId)
+
+  // Toast auto-dismiss.
+  useEffect(() => {
+    if (!toast) return
+    const t = setTimeout(() => setToast(null), 2200)
+    return () => clearTimeout(t)
+  }, [toast])
 
   const settings = settingsQ.data
 
@@ -110,7 +121,7 @@ export function CommunityPreview({
       <div className={styles.root}>
         <div className={styles.disabledBanner}>
           Community is off. Toggle <strong>Community enabled</strong> on the
-          left to render the student-facing view here.
+          left to render the live student-facing view here.
         </div>
       </div>
     )
@@ -121,6 +132,15 @@ export function CommunityPreview({
   const tags = tagsQ.data ?? []
   const upcomingEventCount = events.filter((e) => !e.past).length
   const displayCourseTitle = courseTitle ?? 'Course'
+
+  // The admin's community identity. Resolved server-side from
+  // course.instructor_name → user.account_username → email fallback,
+  // so the composer/avatars show the editorial display name rather
+  // than an email-local string.
+  const me = meQ.data
+  const selfName = me?.name ?? null
+  const selfAvatarUrl = me?.avatar_url ?? null
+  const selfUserId = me?.kind === 'instructor' ? me.user_id : null
 
   return (
     <div className={styles.root}>
@@ -138,32 +158,11 @@ export function CommunityPreview({
         />
 
         <main className={styles.main}>
-          {/* Read-only badge so the creator knows this is the
-              simulation, not the live page. */}
-          <div
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 6,
-              fontSize: 11,
-              fontWeight: 500,
-              color: 'var(--c-muted)',
-              letterSpacing: '0.06em',
-              textTransform: 'uppercase',
-              padding: '4px 10px',
-              borderRadius: 999,
-              background: 'var(--c-panel)',
-              marginBottom: 16,
-            }}
-          >
-            Preview · read-only
-          </div>
-
           {view === 'members' ? (
             <MembersView members={members} isLoading={membersQ.isLoading} />
           ) : view === 'events' ? (
             <EventsView
-              hostName="You"
+              hostName={selfName ?? 'You'}
               events={events}
               onCreate={(e) => setEvents((prev) => [e, ...prev])}
               onToggleGoing={(id) =>
@@ -217,8 +216,26 @@ export function CommunityPreview({
                 </div>
               )}
 
-              {/* Tag filter chips — same UX as the live feed, just
-                  doesn't let the creator type anything. */}
+              <Composer
+                token=""
+                courseId={courseId}
+                selfName={selfName}
+                selfAvatarUrl={selfAvatarUrl}
+                categories={lessons.map((l) => ({
+                  id: l.id,
+                  label: l.label,
+                }))}
+                categoryKind={discussionsKind}
+                tags={tags}
+                mode="creator"
+                forceOpen={composerForceOpen}
+                onOpenChange={setComposerForceOpen}
+                onPosted={() => {
+                  setComposerForceOpen(false)
+                  setToast('Posted')
+                }}
+              />
+
               <div className={styles.filterbar}>
                 <button
                   type="button"
@@ -252,7 +269,7 @@ export function CommunityPreview({
                   <div className={styles.empty}>Loading…</div>
                 ) : allPosts.length === 0 ? (
                   <div className={styles.empty}>
-                    No posts yet — when a student writes one, it shows here.
+                    No posts yet — write the first one above.
                   </div>
                 ) : (
                   allPosts.map((post) => (
@@ -261,9 +278,13 @@ export function CommunityPreview({
                       post={post}
                       token=""
                       courseId={courseId}
+                      selfName={selfName}
+                      selfAvatarUrl={selfAvatarUrl}
+                      selfUserId={selfUserId}
                       reactionsEnabled={settings?.reactions_enabled ?? true}
-                      previewMode
+                      mode="creator"
                       onLessonChipClick={setLessonId}
+                      onShareToast={(m) => setToast(m)}
                     />
                   ))
                 )}
@@ -283,6 +304,8 @@ export function CommunityPreview({
           )}
         </main>
       </div>
+
+      {toast && <div className={styles.toast}>{toast}</div>}
     </div>
   )
 }

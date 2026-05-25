@@ -205,6 +205,47 @@ const commentsKey = (token: string, courseId: string, postId: string) =>
 const membersKey = (token: string, courseId: string) =>
   ['community-members', token, courseId] as const
 
+// Discriminator threaded through every customer-portal hook so the
+// same component (PostCard, Composer, CommentSection) can be reused
+// from the course editor's preview pane. 'creator' swaps the URL
+// prefix from /customer-portal/community → /community and uses the
+// dashboard session cookie instead of a customer session token.
+export type CommunityIOMode = 'customer' | 'creator'
+
+const communityBase = (mode: CommunityIOMode, courseId: string) =>
+  mode === 'creator'
+    ? `/v1/community/${courseId}`
+    : `/v1/customer-portal/community/${courseId}`
+
+async function communityFetch<T>(
+  mode: CommunityIOMode,
+  token: string | null | undefined,
+  path: string,
+  options?: RequestInit,
+): Promise<T> {
+  if (mode === 'creator') return creatorFetch<T>(path, options)
+  return portalFetch<T>(path, token!, options)
+}
+
+// Invalidate the per-(token, courseId) feed AND any creator-side
+// preview feed so a mutation from the editor pane propagates to both
+// the live customer view (next session) and the preview itself.
+const invalidateAllFeeds = (
+  mode: CommunityIOMode,
+  token: string | null | undefined,
+  courseId: string,
+) => {
+  if (mode === 'customer' && token) {
+    getQueryClient().invalidateQueries({
+      queryKey: ['community-feed', token, courseId],
+    })
+  } else {
+    getQueryClient().invalidateQueries({
+      queryKey: ['creator-community-feed', courseId],
+    })
+  }
+}
+
 // ---------------------------------------------------------------------
 // Feed filters — match the customer-portal query params
 // ---------------------------------------------------------------------
@@ -356,16 +397,18 @@ const invalidateFeed = (token: string, courseId: string) => {
 export const useCreateCommunityPost = (
   token: string | null | undefined,
   courseId: string | undefined,
+  mode: CommunityIOMode = 'customer',
 ) =>
   useMutation({
     mutationFn: (body: CommunityPostCreateBody) =>
-      portalFetch<CommunityPostRead>(
-        `/v1/customer-portal/community/${courseId}/posts`,
-        token!,
+      communityFetch<CommunityPostRead>(
+        mode,
+        token,
+        `${communityBase(mode, courseId!)}/posts`,
         { method: 'POST', body: JSON.stringify(body) },
       ),
     onSuccess: () => {
-      if (token && courseId) invalidateFeed(token, courseId)
+      if (courseId) invalidateAllFeeds(mode, token, courseId)
     },
   })
 
@@ -373,20 +416,26 @@ export const useCreateCommunityPost = (
 // JSON content-type would break it — multipart needs the browser to set
 // the boundary header, which means *no* Content-Type override.
 async function uploadPostImage(
+  mode: CommunityIOMode,
   courseId: string,
-  token: string,
+  token: string | null | undefined,
   file: File,
 ): Promise<CommunityPostImageUploadResult> {
   const form = new FormData()
   form.append('file', file)
-  const res = await fetch(
-    `${process.env.NEXT_PUBLIC_API_URL}/v1/customer-portal/community/${courseId}/media/upload`,
-    {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}` },
-      body: form,
-    },
-  )
+  const url = `${process.env.NEXT_PUBLIC_API_URL}${
+    mode === 'creator'
+      ? `/v1/community/${courseId}/media/image-upload`
+      : `/v1/customer-portal/community/${courseId}/media/upload`
+  }`
+  const headers: HeadersInit =
+    mode === 'creator' ? {} : { Authorization: `Bearer ${token!}` }
+  const res = await fetch(url, {
+    method: 'POST',
+    headers,
+    body: form,
+    credentials: mode === 'creator' ? 'include' : 'same-origin',
+  })
   if (!res.ok) {
     const text = await res.text().catch(() => '')
     throw new Error(`Upload ${res.status}: ${text}`)
@@ -397,9 +446,10 @@ async function uploadPostImage(
 export const useUploadPostImage = (
   token: string | null | undefined,
   courseId: string | undefined,
+  mode: CommunityIOMode = 'customer',
 ) =>
   useMutation({
-    mutationFn: (file: File) => uploadPostImage(courseId!, token!, file),
+    mutationFn: (file: File) => uploadPostImage(mode, courseId!, token, file),
   })
 
 // Phase 3A video upload — two-step:
@@ -413,14 +463,16 @@ export interface UploadPostVideoResult {
 }
 
 async function uploadPostVideo(
+  mode: CommunityIOMode,
   courseId: string,
-  token: string,
+  token: string | null | undefined,
   file: File,
   onProgress?: (fraction: number) => void,
 ): Promise<UploadPostVideoResult> {
-  const ticket = await portalFetch<CommunityPostVideoUploadResult>(
-    `/v1/customer-portal/community/${courseId}/media/mux-upload`,
+  const ticket = await communityFetch<CommunityPostVideoUploadResult>(
+    mode,
     token,
+    `${communityBase(mode, courseId)}/media/mux-upload`,
     { method: 'POST', body: JSON.stringify({}) },
   )
 
@@ -446,25 +498,28 @@ async function uploadPostVideo(
 export const useUploadPostVideo = (
   token: string | null | undefined,
   courseId: string | undefined,
+  mode: CommunityIOMode = 'customer',
 ) =>
   useMutation({
     mutationFn: (args: { file: File; onProgress?: (f: number) => void }) =>
-      uploadPostVideo(courseId!, token!, args.file, args.onProgress),
+      uploadPostVideo(mode, courseId!, token, args.file, args.onProgress),
   })
 
 export const useDeleteCommunityPost = (
   token: string | null | undefined,
   courseId: string | undefined,
+  mode: CommunityIOMode = 'customer',
 ) =>
   useMutation({
     mutationFn: (postId: string) =>
-      portalFetch<void>(
-        `/v1/customer-portal/community/${courseId}/posts/${postId}`,
-        token!,
+      communityFetch<void>(
+        mode,
+        token,
+        `${communityBase(mode, courseId!)}/posts/${postId}`,
         { method: 'DELETE' },
       ),
     onSuccess: () => {
-      if (token && courseId) invalidateFeed(token, courseId)
+      if (courseId) invalidateAllFeeds(mode, token, courseId)
     },
   })
 
@@ -476,21 +531,24 @@ export const useCommunityPostComments = (
   token: string | null | undefined,
   courseId: string | undefined,
   postId: string | null | undefined,
+  mode: CommunityIOMode = 'customer',
 ) =>
   useQuery<CommunityCommentRead[]>({
-    queryKey: commentsKey(token ?? '', courseId ?? '', postId ?? ''),
+    queryKey: commentsKey(token ?? mode, courseId ?? '', postId ?? ''),
     queryFn: () =>
-      portalFetch<CommunityCommentRead[]>(
-        `/v1/customer-portal/community/${courseId}/posts/${postId}/comments`,
-        token!,
+      communityFetch<CommunityCommentRead[]>(
+        mode,
+        token,
+        `${communityBase(mode, courseId!)}/posts/${postId}/comments`,
       ),
-    enabled: !!token && !!courseId && !!postId,
+    enabled: !!courseId && !!postId && (mode === 'creator' || !!token),
   })
 
 export const useCreateCommunityComment = (
   token: string | null | undefined,
   courseId: string | undefined,
   postId: string | undefined,
+  mode: CommunityIOMode = 'customer',
 ) =>
   useMutation({
     mutationFn: (body: {
@@ -498,19 +556,20 @@ export const useCreateCommunityComment = (
       parent_id?: string | null
       timestamp_seconds?: number | null
     }) =>
-      portalFetch<CommunityCommentRead>(
-        `/v1/customer-portal/community/${courseId}/posts/${postId}/comments`,
-        token!,
+      communityFetch<CommunityCommentRead>(
+        mode,
+        token,
+        `${communityBase(mode, courseId!)}/posts/${postId}/comments`,
         { method: 'POST', body: JSON.stringify(body) },
       ),
     onSuccess: () => {
-      if (token && courseId && postId) {
+      if (courseId && postId) {
         getQueryClient().invalidateQueries({
-          queryKey: commentsKey(token, courseId, postId),
+          queryKey: commentsKey(token ?? mode, courseId, postId),
         })
         // Comment counters on the post card live on the feed payload —
         // refresh those too so the count chip stays accurate.
-        invalidateFeed(token, courseId)
+        invalidateAllFeeds(mode, token, courseId)
       }
     },
   })
@@ -519,20 +578,22 @@ export const useDeleteCommunityComment = (
   token: string | null | undefined,
   courseId: string | undefined,
   postId: string | undefined,
+  mode: CommunityIOMode = 'customer',
 ) =>
   useMutation({
     mutationFn: (commentId: string) =>
-      portalFetch<void>(
-        `/v1/customer-portal/community/${courseId}/comments/${commentId}`,
-        token!,
+      communityFetch<void>(
+        mode,
+        token,
+        `${communityBase(mode, courseId!)}/comments/${commentId}`,
         { method: 'DELETE' },
       ),
     onSuccess: () => {
-      if (token && courseId && postId) {
+      if (courseId && postId) {
         getQueryClient().invalidateQueries({
-          queryKey: commentsKey(token, courseId, postId),
+          queryKey: commentsKey(token ?? mode, courseId, postId),
         })
-        invalidateFeed(token, courseId)
+        invalidateAllFeeds(mode, token, courseId)
       }
     },
   })
@@ -563,8 +624,18 @@ const applyReactionDelta = (
 export const useTogglePostReaction = (
   token: string | null | undefined,
   courseId: string | undefined,
-) =>
-  useMutation({
+  mode: CommunityIOMode = 'customer',
+) => {
+  // The optimistic-snapshot path keys by query name, which differs
+  // between the customer feed and the creator-side preview feed. Pick
+  // the one that matches this hook's mode so updates land on the
+  // surface the user is actually looking at.
+  const feedQueryKey =
+    mode === 'creator'
+      ? (['creator-community-feed', courseId] as const)
+      : (['community-feed', token, courseId] as const)
+
+  return useMutation({
     mutationFn: ({
       postId,
       emoji,
@@ -572,19 +643,18 @@ export const useTogglePostReaction = (
       postId: string
       emoji: CommunityReactionEmoji
     }) =>
-      portalFetch<CommunityReactionToggleResult>(
-        `/v1/customer-portal/community/${courseId}/posts/${postId}/react`,
-        token!,
+      communityFetch<CommunityReactionToggleResult>(
+        mode,
+        token,
+        `${communityBase(mode, courseId!)}/posts/${postId}/react`,
         { method: 'POST', body: JSON.stringify({ emoji }) },
       ),
     onMutate: async ({ postId, emoji }) => {
-      if (!token || !courseId) return
-      // Snapshot every active feed page so we can roll back on error.
+      if (!courseId) return
       const queryClient = getQueryClient()
       const snapshots = queryClient.getQueriesData<CommunityFeedPage>({
-        queryKey: ['community-feed', token, courseId],
+        queryKey: feedQueryKey,
       })
-      // Optimistic: flip `mine` on the existing entry and bump count by ±1.
       for (const [key, page] of snapshots) {
         if (!page) continue
         const items = page.items.map((p) => {
@@ -604,18 +674,16 @@ export const useTogglePostReaction = (
       return { snapshots }
     },
     onError: (_err, _vars, ctx) => {
-      // Roll back to the snapshots we took in onMutate.
       const queryClient = getQueryClient()
       ctx?.snapshots?.forEach(([key, data]) => {
         queryClient.setQueryData(key, data)
       })
     },
     onSuccess: (result, { postId }) => {
-      // Server-confirmed count: settle the optimistic state.
-      if (!token || !courseId) return
+      if (!courseId) return
       const queryClient = getQueryClient()
       const snapshots = queryClient.getQueriesData<CommunityFeedPage>({
-        queryKey: ['community-feed', token, courseId],
+        queryKey: feedQueryKey,
       })
       for (const [key, page] of snapshots) {
         if (!page) continue
@@ -628,6 +696,7 @@ export const useTogglePostReaction = (
       }
     },
   })
+}
 
 // =====================================================================
 // CREATOR-SIDE (course editor) — same module, dashboard auth.
@@ -928,6 +997,7 @@ export const useToggleCommentReaction = (
   token: string | null | undefined,
   courseId: string | undefined,
   postId: string | undefined,
+  mode: CommunityIOMode = 'customer',
 ) =>
   useMutation({
     mutationFn: ({
@@ -937,16 +1007,31 @@ export const useToggleCommentReaction = (
       commentId: string
       emoji: CommunityReactionEmoji
     }) =>
-      portalFetch<CommunityReactionToggleResult>(
-        `/v1/customer-portal/community/${courseId}/comments/${commentId}/react`,
-        token!,
+      communityFetch<CommunityReactionToggleResult>(
+        mode,
+        token,
+        `${communityBase(mode, courseId!)}/comments/${commentId}/react`,
         { method: 'POST', body: JSON.stringify({ emoji }) },
       ),
     onSuccess: () => {
-      if (token && courseId && postId) {
+      if (courseId && postId) {
         getQueryClient().invalidateQueries({
-          queryKey: commentsKey(token, courseId, postId),
+          queryKey: commentsKey(token ?? mode, courseId, postId),
         })
       }
     },
+  })
+
+// =====================================================================
+// Creator's identity in the community context — used by the editor to
+// seed the composer avatar/selfName without stitching together the
+// session's user with course.instructor_name client-side.
+// =====================================================================
+
+export const useCreatorCommunityIdentity = (courseId: string | undefined) =>
+  useQuery<CommunityAuthor>({
+    queryKey: ['creator-community-identity', courseId],
+    queryFn: () =>
+      creatorFetch<CommunityAuthor>(`/v1/community/${courseId}/me`),
+    enabled: !!courseId,
   })

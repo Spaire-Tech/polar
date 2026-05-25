@@ -1213,12 +1213,19 @@ class CommunityService:
         self,
         session: AsyncSession,
         *,
+        course_id: UUID | None = None,
         enrollment_ids: set[UUID],
         user_ids: set[UUID],
     ) -> dict[tuple[Literal["enrollment", "user"], UUID], CommunityAuthor]:
         """One round-trip per author kind. Returns a dict keyed by
         ('enrollment'|'user', id) so endpoints can look up each post's
-        author without N+1 queries."""
+        author without N+1 queries.
+
+        When `course_id` is provided, instructor authors get the
+        course's `instructor_name` overlaid as their display name —
+        that's the creator-facing identity they actually edit in the
+        course settings, and it's what the community surface should
+        render rather than the raw User email."""
         out: dict[tuple[Literal["enrollment", "user"], UUID], CommunityAuthor] = {}
 
         post_repo = CommunityPostRepository.from_session(session)
@@ -1236,15 +1243,28 @@ class CommunityService:
                 avatar_url=None,
             )
 
-        # Instructor authors — User has no explicit display name distinct
-        # from email; the endpoint layer may overlay course.instructor_name
-        # on top, but the service surfaces the raw resolution here.
+        # Instructor authors. The User table has no display name distinct
+        # from email, but the course carries an `instructor_name`
+        # override that's the editorial-facing identity (set in the
+        # course editor). If present, that beats the email-local
+        # fallback so admins see "Mira Chen" on their own posts instead
+        # of "mira.chen".
+        instructor_name_override: str | None = None
+        if course_id is not None:
+            course_repo = CourseRepository.from_session(session)
+            course = await course_repo.get_by_id(course_id)
+            if course is not None and course.instructor_name:
+                stripped = course.instructor_name.strip()
+                if stripped:
+                    instructor_name_override = stripped
+
         for user_id, email, avatar_url in await post_repo.list_instructor_author_rows(
             user_ids
         ):
             out[("user", user_id)] = CommunityAuthorInstructor(
                 user_id=user_id,
-                name=_resolve_display_name(None, email),
+                name=instructor_name_override
+                or _resolve_display_name(None, email),
                 avatar_url=avatar_url,
             )
 
@@ -1355,8 +1375,17 @@ class CommunityService:
         lesson_ids = {p.lesson_id for p in posts if p.lesson_id}
         post_ids = {p.id for p in posts}
 
+        # All posts in a render context belong to the same course (the
+        # feed/list endpoints scope the query that way). Lift the
+        # course_id off any post so resolve_authors can overlay the
+        # course's instructor_name on instructor authors.
+        course_id_for_overlay = posts[0].course_id if posts else None
+
         authors = await self.resolve_authors(
-            session, enrollment_ids=enrollment_ids, user_ids=user_ids
+            session,
+            course_id=course_id_for_overlay,
+            enrollment_ids=enrollment_ids,
+            user_ids=user_ids,
         )
         lessons = await self.resolve_lesson_chips(session, lesson_ids)
 
