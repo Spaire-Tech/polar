@@ -362,13 +362,16 @@ async def get_enrolled_course(
 
     customer = await session.get(Customer, customer_id)
     customer_name = customer.name if customer else None
-    # Customer has no native avatar column, but preview customers
-    # represent the admin themselves — surface the org's avatar
+    # Real customers get their own avatar (set during the first-sign-in
+    # onboarding flow or the Settings menu). Preview customers — the
+    # admin acting as a student — fall back to the org's avatar
     # (logo.dev fallback when the creator hasn't uploaded one) so the
-    # composer pill in the portal doesn't render as a bare initial.
-    customer_avatar_url: str | None = None
-    if customer is not None and (customer.email or "").endswith(
-        "@course-preview.invalid"
+    # composer pill reads as the admin themselves.
+    customer_avatar_url: str | None = customer.avatar_url if customer else None
+    if (
+        customer_avatar_url is None
+        and customer is not None
+        and (customer.email or "").endswith("@course-preview.invalid")
     ):
         from polar.models.organization import Organization
 

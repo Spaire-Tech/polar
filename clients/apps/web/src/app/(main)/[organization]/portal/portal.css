@@ -237,6 +237,72 @@
   object-fit: cover;
   display: block;
 }
+/* Button variant — the avatar is also the dropdown trigger. */
+.spaire-portal .sp-avatar--btn {
+  padding: 0;
+  cursor: pointer;
+  font-family: inherit;
+}
+.spaire-portal .sp-avatar--btn:hover {
+  filter: brightness(0.96);
+}
+
+/* Account dropdown — anchored to the avatar chip in the top-right. */
+.spaire-portal .sp-account {
+  position: relative;
+}
+.spaire-portal .sp-account-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 220px;
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 12px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12);
+  padding: 6px;
+  z-index: 60;
+}
+.spaire-portal .sp-account-menu-head {
+  padding: 8px 10px 10px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  margin-bottom: 6px;
+}
+.spaire-portal .sp-account-menu-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--sp-ink);
+  text-transform: none;
+  letter-spacing: 0;
+}
+.spaire-portal .sp-account-menu-email {
+  font-size: 11.5px;
+  color: var(--sp-ink-2);
+  margin-top: 2px;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.spaire-portal .sp-account-menu-item {
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  padding: 8px 10px;
+  font-size: 13px;
+  color: var(--sp-ink);
+  border-radius: 8px;
+  cursor: pointer;
+  font-family: inherit;
+}
+.spaire-portal .sp-account-menu-item:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+.spaire-portal .sp-account-menu-item--danger {
+  color: #b23b3b;
+}
+.spaire-portal .sp-account-menu-item--danger:hover {
+  background: rgba(178, 59, 59, 0.08);
+}
 
 /* ── Page ─────────────────────────────────────────────────────────────── */
 .spaire-portal .sp-page {

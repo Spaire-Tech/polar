@@ -485,6 +485,7 @@ class CommunityPostRepository(
                 CourseEnrollment.id,
                 Customer.name,
                 Customer.email,
+                Customer.avatar_url.label("customer_avatar"),
                 # Organization.avatar_url is a @property, not a column —
                 # we resolve it in Python by hydrating the row instead
                 # of selecting the underlying _avatar_url string and
@@ -515,7 +516,7 @@ class CommunityPostRepository(
                 row.id,
                 row.name,
                 row.email,
-                None,  # customer has no avatar column today
+                row.customer_avatar,
                 org_avatars.get(row.org_id),
                 row.org_id,
             )
