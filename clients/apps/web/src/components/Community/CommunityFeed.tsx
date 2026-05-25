@@ -13,7 +13,7 @@ import { Composer } from './Composer'
 import { LeftRail, type RailModule } from './LeftRail'
 import { PostCard } from './PostCard'
 import styles from './community.module.css'
-import { IconImage, IconPin, IconPlus } from './icons'
+import { IconImage, IconPin } from './icons'
 
 type Props = {
   courseId: string
@@ -187,11 +187,17 @@ export function CommunityFeed({ courseId, customerSessionToken }: Props) {
           {/* Feed header */}
           <header className={styles.feedHeader}>
             <div className={styles.feedEyebrow}>
+              <span className={styles.feedEyebrowDot} />
               {settings?.feed_eyebrow_override ?? courseTitle}
             </div>
             <h1 className={styles.feedTitle}>
               {settings?.feed_title_override ?? 'Community'}
             </h1>
+            <p className={styles.feedSub}>
+              Discussions, wins, and questions across the course. Share what
+              you&apos;re working on, ask for feedback, and reply to anyone in
+              the cohort.
+            </p>
           </header>
 
           {/* Course thumbnail */}
@@ -253,19 +259,7 @@ export function CommunityFeed({ courseId, customerSessionToken }: Props) {
             </div>
           )}
 
-          {/* New-post trigger — the composer renders inline below */}
-          <div className={styles.filterbar}>
-            <span className={styles.filterSpacer} />
-            <button
-              type="button"
-              className={styles.newPostBtn}
-              onClick={() => setComposerForceOpen(true)}
-            >
-              <IconPlus size={13} /> New post
-            </button>
-          </div>
-
-          {/* Composer */}
+          {/* Composer — collapsed pill (click to open modal) */}
           <Composer
             token={customerSessionToken}
             courseId={courseId}

@@ -2,7 +2,7 @@
 
 import { Avatar } from './Avatar'
 import styles from './community.module.css'
-import { IconBook, IconFilter } from './icons'
+import { IconBook, IconHome } from './icons'
 
 export type RailModule = {
   id: string
@@ -29,18 +29,31 @@ export function LeftRail({
 }) {
   return (
     <aside className={styles.rail}>
+      <div className={styles.railSection}>
+        <button
+          type="button"
+          className={`${styles.railItem} ${styles.active}`}
+          onClick={() => onModuleChange(null)}
+        >
+          <span className={styles.railIcon}>
+            <IconHome size={14} />
+          </span>
+          <span className={styles.railItemLabel}>Home</span>
+        </button>
+      </div>
+
       {modules.length > 0 && (
         <div className={styles.railSection}>
-          <div className={styles.railLabel}>Modules</div>
+          <div className={styles.railLabel}>Discussions</div>
           <button
             type="button"
             className={`${styles.railItem} ${moduleId == null ? styles.active : ''}`}
             onClick={() => onModuleChange(null)}
           >
             <span className={styles.railIcon}>
-              <IconFilter size={14} />
+              <IconBook size={14} />
             </span>
-            <span className={styles.railItemLabel}>All modules</span>
+            <span className={styles.railItemLabel}>All discussions</span>
           </button>
           {modules.map((m) => (
             <button

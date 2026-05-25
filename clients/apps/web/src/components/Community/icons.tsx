@@ -118,3 +118,55 @@ export const IconPlay = (p: Props = {}) => (
     <path d="M8 5v14l11-7L8 5z" />
   </svg>
 )
+
+export const IconThumbsUp = (p: Props = {}) => (
+  <svg {...withSize(p)}>
+    <path d="M7 11v9H4a1 1 0 01-1-1v-7a1 1 0 011-1h3z" />
+    <path d="M7 11l5-8a2 2 0 014 0v6h5a2 2 0 012 2.5l-2 7a2 2 0 01-2 1.5H7" />
+  </svg>
+)
+
+export const IconHeart = (p: Props = {}) => (
+  <svg {...withSize(p)}>
+    <path d="M12 21s-7-4.5-9.5-9C1 9 3 5 7 5c2 0 3.5 1 5 3 1.5-2 3-3 5-3 4 0 6 4 4.5 7-2.5 4.5-9.5 9-9.5 9z" />
+  </svg>
+)
+
+export const IconSend = (p: Props = {}) => (
+  <svg {...withSize(p)}>
+    <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" />
+  </svg>
+)
+
+export const IconRepeat = (p: Props = {}) => (
+  <svg {...withSize(p)}>
+    <path d="M17 1l4 4-4 4M3 11V9a4 4 0 014-4h14M7 23l-4-4 4-4M21 13v2a4 4 0 01-4 4H3" />
+  </svg>
+)
+
+export const IconGlobe = (p: Props = {}) => (
+  <svg {...withSize(p)}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M3 12h18M12 3a13.5 13.5 0 010 18M12 3a13.5 13.5 0 000 18" />
+  </svg>
+)
+
+export const IconHome = (p: Props = {}) => (
+  <svg {...withSize(p)}>
+    <path d="M3 10l9-7 9 7v10a1 1 0 01-1 1h-5v-7H9v7H4a1 1 0 01-1-1V10z" />
+  </svg>
+)
+
+export const IconFile = (p: Props = {}) => (
+  <svg {...withSize(p)}>
+    <path d="M14 3H6a2 2 0 00-2 2v14a2 2 0 002 2h12a2 2 0 002-2V9l-6-6z" />
+    <path d="M14 3v6h6" />
+  </svg>
+)
+
+export const IconSmile = (p: Props = {}) => (
+  <svg {...withSize(p)}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M8 14s1.5 2 4 2 4-2 4-2M9 9h.01M15 9h.01" />
+  </svg>
+)

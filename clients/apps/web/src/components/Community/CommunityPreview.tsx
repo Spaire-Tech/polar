@@ -120,11 +120,16 @@ export function CommunityPreview({ courseId }: Props) {
 
         <header className={styles.feedHeader}>
           <div className={styles.feedEyebrow}>
+            <span className={styles.feedEyebrowDot} />
             {settings?.feed_eyebrow_override ?? 'Community'}
           </div>
           <h1 className={styles.feedTitle}>
             {settings?.feed_title_override ?? 'Community'}
           </h1>
+          <p className={styles.feedSub}>
+            A read-only simulation of the student-facing feed. Toggle settings
+            on the left to see them apply here.
+          </p>
         </header>
 
         <div
