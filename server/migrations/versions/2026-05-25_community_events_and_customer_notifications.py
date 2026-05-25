@@ -8,8 +8,18 @@ Adds four tables:
 
 All additive — no existing tables are modified.
 
+Also merges five pre-existing Alembic heads so `alembic upgrade head`
+resolves to a single tip again (the pre-deploy step was silently failing
+on "Multiple heads are present"):
+
+  - cust_avatar_525    (2026-05-25 customer avatar_url)
+  - 1f3a55e2b610       (2026-05-18 index_course_enrollments_by_course)
+  - 4f1cb78a2d6e       (2026-05-18 grant_spaire_staff_platform_org)
+  - 6f4a9d2c1b08       (2026-05-17 add_course_sample)
+  - e51c8d7a4b9c       (2026-05-11 email_sequences_course_lesson_links)
+
 Revision ID: comm_events_525
-Revises: cust_avatar_525
+Revises: cust_avatar_525, 1f3a55e2b610, 4f1cb78a2d6e, 6f4a9d2c1b08, e51c8d7a4b9c
 Create Date: 2026-05-25 18:00:00.000000
 
 """
@@ -19,7 +29,13 @@ from alembic import op
 from sqlalchemy.dialects import postgresql as pg
 
 revision = "comm_events_525"
-down_revision = "cust_avatar_525"
+down_revision = (
+    "cust_avatar_525",
+    "1f3a55e2b610",
+    "4f1cb78a2d6e",
+    "6f4a9d2c1b08",
+    "e51c8d7a4b9c",
+)
 branch_labels = None
 depends_on = None
 
