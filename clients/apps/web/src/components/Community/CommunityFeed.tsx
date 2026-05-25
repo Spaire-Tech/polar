@@ -1,20 +1,28 @@
 'use client'
 
 import {
+  type CommunityEventRead,
   type CommunityPostRead,
   type CommunitySortProperty,
   type FeedFilters,
+  useCommunityEvents,
   useCommunityFeed,
   useCommunityMembers,
   useCommunitySettings,
   useCommunityTags,
+  useCreateCommunityEvent,
+  useRsvpCommunityEvent,
 } from '@/hooks/queries/community'
 import { useCustomerCourse } from '@/hooks/queries/courses'
 import { useEffect, useMemo, useState } from 'react'
 import { ActivitiesView, type CommunityActivity } from './ActivitiesView'
 import { Avatar } from './Avatar'
 import { Composer } from './Composer'
-import { type CommunityEvent, EventsView } from './EventsView'
+import {
+  type CommunityEvent,
+  type CommunityEventCreateInput,
+  EventsView,
+} from './EventsView'
 import {
   type CommunityView,
   type DiscussionsKind,
@@ -39,11 +47,21 @@ export function CommunityFeed({ courseId, customerSessionToken }: Props) {
   const [sortMenuOpen, setSortMenuOpen] = useState(false)
   const [composerForceOpen, setComposerForceOpen] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
-  // Events + activities are client-state only — no backend yet. Persist
-  // nothing across reloads in Phase 3; the UIs are functional but
-  // ephemeral so creators can preview the flow.
-  const [events, setEvents] = useState<CommunityEvent[]>([])
+  // Activities are still client-state only (Phase 3 placeholder).
+  // Events are backed by /v1/customer-portal/community/.../events.
   const [activities, setActivities] = useState<CommunityActivity[]>([])
+
+  const eventsQ = useCommunityEvents(customerSessionToken, courseId, 'customer')
+  const createEventMut = useCreateCommunityEvent(
+    customerSessionToken,
+    courseId,
+    'customer',
+  )
+  const rsvpMut = useRsvpCommunityEvent(customerSessionToken, courseId)
+  const events: CommunityEvent[] = useMemo(
+    () => (eventsQ.data ?? []).map(mapEventReadToUI),
+    [eventsQ.data],
+  )
 
   const settingsQ = useCommunitySettings(customerSessionToken, courseId)
   const courseQ = useCustomerCourse(customerSessionToken, courseId)
@@ -192,23 +210,19 @@ export function CommunityFeed({ courseId, customerSessionToken }: Props) {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
-  const onCreateEvent = (event: CommunityEvent) => {
-    setEvents((prev) => [event, ...prev])
-    setToast('Event created')
+  const onCreateEvent = async (input: CommunityEventCreateInput) => {
+    try {
+      await createEventMut.mutateAsync(buildEventCreateBody(input))
+      setToast('Event created')
+    } catch (e) {
+      setToast('Could not create event')
+    }
   }
 
   const onToggleGoing = (id: string) => {
-    setEvents((prev) =>
-      prev.map((e) =>
-        e.id === id
-          ? {
-              ...e,
-              going: !e.going,
-              rsvpCount: Math.max(0, e.rsvpCount + (e.going ? -1 : 1)),
-            }
-          : e,
-      ),
-    )
+    const ev = events.find((e) => e.id === id)
+    if (!ev) return
+    rsvpMut.mutate({ eventId: id, going: !ev.going })
   }
 
   // ---------- Render ----------
@@ -237,6 +251,7 @@ export function CommunityFeed({ courseId, customerSessionToken }: Props) {
               events={events}
               onCreate={onCreateEvent}
               onToggleGoing={onToggleGoing}
+              canCreate={false}
             />
           ) : view === 'activities' ? (
             <ActivitiesView
@@ -453,4 +468,52 @@ export function CommunityFeed({ courseId, customerSessionToken }: Props) {
       {toast && <div className={styles.toast}>{toast}</div>}
     </div>
   )
+}
+
+// ---------------------------------------------------------------------
+// Event mappers — translate server CommunityEventRead into the
+// UI-shaped CommunityEvent that EventsView consumes, and translate the
+// modal's input back into the server's create payload.
+// ---------------------------------------------------------------------
+
+function mapEventReadToUI(e: CommunityEventRead): CommunityEvent {
+  const d = new Date(e.start_at)
+  const pad = (n: number) => n.toString().padStart(2, '0')
+  const date = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+  const startTime = `${pad(d.getHours())}:${pad(d.getMinutes())}`
+  return {
+    id: e.id,
+    title: e.title,
+    type: e.type,
+    desc: e.description ?? '',
+    date,
+    startTime,
+    duration: String(e.duration_minutes),
+    location: e.location ?? '',
+    meetingUrl: e.meeting_url,
+    replayUrl: e.replay_url,
+    hostName: e.host.name,
+    rsvpCount: e.rsvp_count,
+    going: e.going,
+    live: e.live,
+    past: e.past,
+  }
+}
+
+function buildEventCreateBody(input: CommunityEventCreateInput) {
+  // Combine date + startTime as local time, then send as ISO. The server
+  // normalizes naive datetimes to UTC; we explicitly include the local
+  // timezone so the host's intent ("8pm my time") is preserved.
+  const startLocal = new Date(`${input.date}T${input.startTime}:00`)
+  return {
+    title: input.title,
+    type: input.type,
+    description: input.desc || null,
+    start_at: startLocal.toISOString(),
+    duration_minutes: parseInt(input.duration, 10) || 60,
+    meeting_url: input.meetingUrl || null,
+    location: input.location || null,
+    notify_on_publish: input.notify,
+    recurring_weekly: input.recurring,
+  }
 }

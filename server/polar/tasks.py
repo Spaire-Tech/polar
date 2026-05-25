@@ -2,10 +2,12 @@ from polar.auth import tasks as auth
 from polar.benefit import tasks as benefit
 from polar.billing_entry import tasks as billing_entry
 from polar.checkout import tasks as checkout
+from polar.community import events_tasks as community_events
 from polar.community import tasks as community
 from polar.course import tasks as course
 from polar.customer import tasks as customer
 from polar.customer_meter import tasks as customer_meter
+from polar.customer_notifications import tasks as customer_notifications
 from polar.customer_seat import tasks as customer_seat
 from polar.customer_session import tasks as customer_session
 from polar.email import tasks as email
@@ -42,9 +44,11 @@ __all__ = [
     "chargeback_stop",
     "checkout",
     "community",
+    "community_events",
     "course",
     "customer",
     "customer_meter",
+    "customer_notifications",
     "customer_seat",
     "customer_session",
     "email",

@@ -1,7 +1,7 @@
 from enum import StrEnum
 from uuid import UUID
 
-from sqlalchemy import ForeignKey, Index, String, Text, UniqueConstraint, Uuid
+from sqlalchemy import ForeignKey, Index, String, Text, Uuid
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, declared_attr, mapped_column, relationship
 

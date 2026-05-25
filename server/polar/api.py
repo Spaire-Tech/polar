@@ -9,12 +9,22 @@ from polar.checkout.endpoints import router as checkout_router
 from polar.checkout_link.endpoints import router as checkout_link_router
 from polar.cli.endpoints import router as cli_router
 from polar.client_invoice.endpoints import router as client_invoice_router
+
+# Importing events_endpoints attaches the events routes onto the two
+# routers above. Keep this import below the router imports so the side
+# effect is obvious.
+from polar.community import (
+    events_endpoints as _community_events_endpoints,  # noqa: F401
+)
 from polar.community.endpoints import creator_router as community_creator_router
 from polar.community.endpoints import customer_router as community_customer_router
 from polar.course.endpoints import router as course_router
 from polar.custom_field.endpoints import router as custom_field_router
 from polar.customer.endpoints import router as customer_router
 from polar.customer_meter.endpoints import router as customer_meter_router
+from polar.customer_notifications.endpoints import (
+    router as customer_notifications_router,
+)
 from polar.customer_portal.endpoints import router as customer_portal_router
 from polar.customer_seat.endpoints import router as customer_seat_router
 from polar.customer_session.endpoints import router as customer_session_router
@@ -198,3 +208,5 @@ router.include_router(course_router)
 router.include_router(community_creator_router)
 # /customer-portal/community (customer-side)
 router.include_router(community_customer_router)
+# /customer-portal/notifications (customer-side bell)
+router.include_router(customer_notifications_router)

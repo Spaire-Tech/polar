@@ -16,10 +16,11 @@ import {
   IconX,
 } from './icons'
 
-// Phase 3C: events surface is client-state only — the backend doesn't
-// model events yet. The form ships first so creators see what the flow
-// will feel like, and so we have a real UI target to wire when the
-// `/community/{course_id}/events` endpoints land.
+// Phase 3D: events surface is now backed by /v1/.../events.  Local
+// state in this file is UI-only (modal open, filter chip).  Hosts
+// (course-owner instructors) see "Create event"; students don't.
+
+export type EventType = 'workshop' | 'office' | 'cohort' | 'guest'
 
 export type CommunityEvent = {
   id: string
@@ -30,6 +31,8 @@ export type CommunityEvent = {
   startTime: string // HH:mm local
   duration: string // minutes
   location: string
+  meetingUrl?: string | null
+  replayUrl?: string | null
   hostName: string
   rsvpCount: number
   going: boolean
@@ -37,7 +40,20 @@ export type CommunityEvent = {
   past?: boolean
 }
 
-type EventType = 'workshop' | 'office' | 'cohort' | 'guest'
+// Payload emitted from the create modal. Includes the two toggles we
+// previously dropped on the floor (notify + recurring).
+export type CommunityEventCreateInput = {
+  title: string
+  type: EventType
+  desc: string
+  date: string
+  startTime: string
+  duration: string
+  location: string
+  meetingUrl: string
+  notify: boolean
+  recurring: boolean
+}
 
 const TYPE_LABEL: Record<EventType, string> = {
   workshop: 'Workshop',
@@ -83,8 +99,9 @@ const formatWhen = (date: string, time: string, duration: string): string => {
 type Props = {
   hostName: string
   events: CommunityEvent[]
-  onCreate: (event: CommunityEvent) => void
+  onCreate: (event: CommunityEventCreateInput) => void
   onToggleGoing: (id: string) => void
+  canCreate: boolean
 }
 
 export function EventsView({
@@ -92,9 +109,14 @@ export function EventsView({
   events,
   onCreate,
   onToggleGoing,
+  canCreate,
 }: Props) {
   const [createOpen, setCreateOpen] = useState(false)
+  // "mine" = Going (student) or Hosting (creator). Label flips based on
+  // canCreate; the underlying filter is the same `going` boolean.
   const [filter, setFilter] = useState<'all' | EventType | 'mine'>('all')
+
+  const mineLabel = canCreate ? 'Hosting' : 'Going'
 
   const filters: { id: typeof filter; label: string }[] = [
     { id: 'all', label: 'All' },
@@ -102,7 +124,7 @@ export function EventsView({
     { id: 'office', label: 'Office hours' },
     { id: 'cohort', label: 'Cohort meetups' },
     { id: 'guest', label: 'Guests' },
-    { id: 'mine', label: 'My events' },
+    { id: 'mine', label: mineLabel },
   ]
 
   const matches = (e: CommunityEvent) => {
@@ -144,13 +166,15 @@ export function EventsView({
           </button>
         ))}
         <span className={styles.filterSpacer} />
-        <button
-          type="button"
-          className={styles.newEventBtn}
-          onClick={() => setCreateOpen(true)}
-        >
-          <IconPlus size={13} /> Create event
-        </button>
+        {canCreate && (
+          <button
+            type="button"
+            className={styles.newEventBtn}
+            onClick={() => setCreateOpen(true)}
+          >
+            <IconPlus size={13} /> Create event
+          </button>
+        )}
       </div>
 
       {live && <FeaturedLive event={live} />}
@@ -161,13 +185,19 @@ export function EventsView({
           mine={filter === 'mine'}
           onResetFilter={() => setFilter('all')}
           activeFilter={filter}
+          canCreate={canCreate}
         />
       ) : (
         upcoming.length > 0 && (
           <div className={styles.eventsSection}>
             <div className={styles.eventsSectionTitle}>Upcoming</div>
             {upcoming.map((e) => (
-              <EventCard key={e.id} event={e} onToggleGoing={onToggleGoing} />
+              <EventCard
+                key={e.id}
+                event={e}
+                onToggleGoing={onToggleGoing}
+                canRsvp={!canCreate}
+              />
             ))}
           </div>
         )
@@ -182,20 +212,23 @@ export function EventsView({
               event={e}
               onToggleGoing={onToggleGoing}
               past
+              canRsvp={!canCreate}
             />
           ))}
         </div>
       )}
 
-      <CreateEventModal
-        open={createOpen}
-        hostName={hostName}
-        onClose={() => setCreateOpen(false)}
-        onCreate={(e) => {
-          onCreate(e)
-          setCreateOpen(false)
-        }}
-      />
+      {canCreate && (
+        <CreateEventModal
+          open={createOpen}
+          hostName={hostName}
+          onClose={() => setCreateOpen(false)}
+          onCreate={(payload) => {
+            onCreate(payload)
+            setCreateOpen(false)
+          }}
+        />
+      )}
     </>
   )
 }
@@ -229,9 +262,25 @@ function FeaturedLive({ event }: { event: CommunityEvent }) {
             </div>
           </div>
         </div>
-        <button type="button" className={styles.eventFeaturedJoin}>
-          <IconVideo size={15} /> Join live now
-        </button>
+        {event.meetingUrl ? (
+          <a
+            href={event.meetingUrl}
+            target="_blank"
+            rel="noreferrer noopener"
+            className={styles.eventFeaturedJoin}
+          >
+            <IconVideo size={15} /> Join live now
+          </a>
+        ) : (
+          <button
+            type="button"
+            className={styles.eventFeaturedJoin}
+            disabled
+            title="The host hasn't added a meeting link yet."
+          >
+            <IconVideo size={15} /> Join live now
+          </button>
+        )}
       </div>
     </div>
   )
@@ -241,10 +290,12 @@ function EventCard({
   event,
   past,
   onToggleGoing,
+  canRsvp,
 }: {
   event: CommunityEvent
   past?: boolean
   onToggleGoing: (id: string) => void
+  canRsvp: boolean
 }) {
   const chip = formatDateChip(event.date)
 
@@ -273,12 +324,25 @@ function EventCard({
           </div>
         </div>
         <div className={styles.eventActions}>
-          <button
-            type="button"
-            className={`${styles.eventCta} ${styles.eventCtaReplay}`}
-          >
-            <IconPlayCircle size={13} /> Watch replay
-          </button>
+          {event.replayUrl ? (
+            <a
+              href={event.replayUrl}
+              target="_blank"
+              rel="noreferrer noopener"
+              className={`${styles.eventCta} ${styles.eventCtaReplay}`}
+            >
+              <IconPlayCircle size={13} /> Watch replay
+            </a>
+          ) : (
+            <button
+              type="button"
+              className={`${styles.eventCta} ${styles.eventCtaReplay}`}
+              disabled
+              title="No replay posted yet."
+            >
+              <IconPlayCircle size={13} /> Watch replay
+            </button>
+          )}
         </div>
       </div>
     )
@@ -318,17 +382,19 @@ function EventCard({
           <span>· {event.rsvpCount} going</span>
         </div>
       </div>
-      <div className={styles.eventActions}>
-        <button
-          type="button"
-          className={`${styles.eventCta} ${styles.eventCtaOutline} ${
-            event.going ? styles.eventCtaGoing : ''
-          }`}
-          onClick={() => onToggleGoing(event.id)}
-        >
-          {event.going ? '✓ Going' : 'RSVP'}
-        </button>
-      </div>
+      {canRsvp && (
+        <div className={styles.eventActions}>
+          <button
+            type="button"
+            className={`${styles.eventCta} ${styles.eventCtaOutline} ${
+              event.going ? styles.eventCtaGoing : ''
+            }`}
+            onClick={() => onToggleGoing(event.id)}
+          >
+            {event.going ? '✓ Going' : 'RSVP'}
+          </button>
+        </div>
+      )}
     </div>
   )
 }
@@ -338,11 +404,13 @@ function EmptyEvents({
   mine,
   activeFilter,
   onResetFilter,
+  canCreate,
 }: {
   onCreate: () => void
   mine: boolean
   activeFilter: string
   onResetFilter: () => void
+  canCreate: boolean
 }) {
   return (
     <div className={styles.eventsEmpty}>
@@ -351,22 +419,34 @@ function EmptyEvents({
       </div>
       <div>
         <div className={styles.eventsEmptyTitle}>
-          {mine ? 'You haven’t RSVP’d to anything yet' : 'No events yet'}
+          {mine
+            ? canCreate
+              ? 'You haven’t scheduled anything yet'
+              : 'You haven’t RSVP’d to anything yet'
+            : canCreate
+              ? 'No events yet'
+              : 'No events scheduled yet'}
         </div>
         <p className={styles.eventsEmptySub}>
           {mine
-            ? 'RSVP to an event to see it here.'
-            : 'Host a bake-along, a cohort meetup, or open up a Q&A. The whole community gets notified.'}
+            ? canCreate
+              ? 'Schedule a workshop, office hours, or a guest session.'
+              : 'RSVP to an event to see it here.'
+            : canCreate
+              ? 'Host a bake-along, a cohort meetup, or open up a Q&A. The whole community gets notified.'
+              : 'Your instructor hasn’t scheduled anything yet — check back soon.'}
         </p>
       </div>
       <div className={styles.eventsEmptyActions}>
-        <button
-          type="button"
-          className={styles.eventsEmptyBtn}
-          onClick={onCreate}
-        >
-          <IconPlus size={13} /> Create event
-        </button>
+        {canCreate && (
+          <button
+            type="button"
+            className={styles.eventsEmptyBtn}
+            onClick={onCreate}
+          >
+            <IconPlus size={13} /> Create event
+          </button>
+        )}
         {activeFilter !== 'all' && (
           <button
             type="button"
@@ -394,7 +474,7 @@ function CreateEventModal({
   open: boolean
   hostName: string
   onClose: () => void
-  onCreate: (e: CommunityEvent) => void
+  onCreate: (e: CommunityEventCreateInput) => void
 }) {
   const [title, setTitle] = useState('')
   const [type, setType] = useState<EventType>('workshop')
@@ -402,6 +482,7 @@ function CreateEventModal({
   const [startTime, setStartTime] = useState('')
   const [duration, setDuration] = useState('60')
   const [location, setLocation] = useState('')
+  const [meetingUrl, setMeetingUrl] = useState('')
   const [desc, setDesc] = useState('')
   const [notify, setNotify] = useState(true)
   const [recurring, setRecurring] = useState(false)
@@ -416,6 +497,7 @@ function CreateEventModal({
       setStartTime('')
       setDuration('60')
       setLocation('')
+      setMeetingUrl('')
       setDesc('')
       setNotify(true)
       setRecurring(false)
@@ -446,7 +528,6 @@ function CreateEventModal({
   const submit = () => {
     if (!canSubmit) return
     onCreate({
-      id: `evt-${Date.now()}`,
       title: title.trim(),
       type,
       desc: desc.trim(),
@@ -454,10 +535,9 @@ function CreateEventModal({
       startTime,
       duration,
       location: location.trim(),
-      hostName,
-      rsvpCount: 0,
-      going: true,
-      live: false,
+      meetingUrl: meetingUrl.trim(),
+      notify,
+      recurring,
     })
   }
 
@@ -545,10 +625,20 @@ function CreateEventModal({
           </div>
 
           <div className={styles.ceField}>
-            <span className={styles.ceLabel}>Where</span>
+            <span className={styles.ceLabel}>Meeting link</span>
             <input
               className={styles.ceInput}
-              placeholder="Zoom link, location, or 'TBD'"
+              placeholder="Zoom, Google Meet, Calendly… (https://)"
+              value={meetingUrl}
+              onChange={(e) => setMeetingUrl(e.target.value)}
+            />
+          </div>
+
+          <div className={styles.ceField}>
+            <span className={styles.ceLabel}>Where (optional)</span>
+            <input
+              className={styles.ceInput}
+              placeholder="Room name, city, or 'TBD'"
               value={location}
               onChange={(e) => setLocation(e.target.value)}
             />
