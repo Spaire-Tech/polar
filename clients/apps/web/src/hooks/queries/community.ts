@@ -1285,3 +1285,226 @@ export const useMarkAllCustomerNotificationsRead = (
       })
     },
   })
+
+// =====================================================================
+// Activities — community_activity + community_activity_submission
+// =====================================================================
+
+export type ActivitySubmissionType = 'photo' | 'video' | 'text' | 'link'
+export type ActivityStatus = 'open' | 'closed'
+export type ActivityChannelKind = 'module' | 'lesson'
+
+export interface CommunityActivityHostRead {
+  user_id: string
+  name: string
+  avatar_url: string | null
+}
+
+export interface CommunityActivityRead {
+  id: string
+  course_id: string
+  channel_kind: ActivityChannelKind
+  module_id: string | null
+  lesson_id: string | null
+  channel_label: string | null
+  title: string
+  description: string | null
+  submission_type: ActivitySubmissionType
+  status: ActivityStatus
+  pin_to_feed: boolean
+  notify_on_publish: boolean
+  submission_count: number
+  distinct_submitter_count: number
+  host: CommunityActivityHostRead
+  has_own_submission: boolean
+  created_at: string
+  modified_at: string | null
+}
+
+export interface CommunityActivityCreateBody {
+  channel_kind: ActivityChannelKind
+  module_id?: string | null
+  lesson_id?: string | null
+  title: string
+  description?: string | null
+  submission_type: ActivitySubmissionType
+  pin_to_feed?: boolean
+  notify_on_publish?: boolean
+}
+
+export interface CommunityActivityUpdateBody {
+  title?: string
+  description?: string | null
+  submission_type?: ActivitySubmissionType
+  pin_to_feed?: boolean
+  status?: ActivityStatus
+}
+
+export interface CommunityActivitySubmissionRead {
+  id: string
+  activity_id: string
+  submission_type: ActivitySubmissionType
+  body: string | null
+  file_id: string | null
+  file_url: string | null
+  mux_playback_id: string | null
+  link_url: string | null
+  author_name: string
+  author_avatar_url: string | null
+  is_own: boolean
+  created_at: string
+  modified_at: string | null
+}
+
+export interface CommunityActivitySubmissionCreateBody {
+  submission_type: ActivitySubmissionType
+  body?: string | null
+  file_id?: string | null
+  mux_upload_id?: string | null
+  link_url?: string | null
+}
+
+const activitiesKey = (
+  mode: CommunityIOMode,
+  token: string,
+  courseId: string,
+) => ['community-activities', mode, token, courseId] as const
+
+const submissionsKey = (
+  mode: CommunityIOMode,
+  token: string,
+  activityId: string,
+) => ['community-activity-submissions', mode, token, activityId] as const
+
+const invalidateActivities = (
+  mode: CommunityIOMode,
+  token: string | null | undefined,
+  courseId: string,
+) => {
+  getQueryClient().invalidateQueries({
+    queryKey: ['community-activities', mode, token ?? mode, courseId],
+  })
+}
+
+export const useCommunityActivities = (
+  token: string | null | undefined,
+  courseId: string | undefined,
+  mode: CommunityIOMode = 'customer',
+) =>
+  useQuery<CommunityActivityRead[]>({
+    queryKey: activitiesKey(mode, token ?? mode, courseId ?? ''),
+    queryFn: () =>
+      communityFetch<CommunityActivityRead[]>(
+        mode,
+        token,
+        `${communityBase(mode, courseId!)}/activities`,
+      ),
+    enabled: !!courseId && (mode === 'creator' || !!token),
+  })
+
+export const useCreateCommunityActivity = (
+  token: string | null | undefined,
+  courseId: string | undefined,
+  mode: CommunityIOMode = 'creator',
+) =>
+  useMutation({
+    mutationFn: (body: CommunityActivityCreateBody) =>
+      communityFetch<CommunityActivityRead>(
+        mode,
+        token,
+        `${communityBase(mode, courseId!)}/activities`,
+        { method: 'POST', body: JSON.stringify(body) },
+      ),
+    onSuccess: () => {
+      if (courseId) invalidateActivities(mode, token, courseId)
+    },
+  })
+
+export const useUpdateCommunityActivity = (
+  token: string | null | undefined,
+  courseId: string | undefined,
+  mode: CommunityIOMode = 'creator',
+) =>
+  useMutation({
+    mutationFn: ({
+      activityId,
+      body,
+    }: {
+      activityId: string
+      body: CommunityActivityUpdateBody
+    }) =>
+      communityFetch<CommunityActivityRead>(
+        mode,
+        token,
+        `${communityBase(mode, courseId!)}/activities/${activityId}`,
+        { method: 'PATCH', body: JSON.stringify(body) },
+      ),
+    onSuccess: () => {
+      if (courseId) invalidateActivities(mode, token, courseId)
+    },
+  })
+
+export const useDeleteCommunityActivity = (
+  token: string | null | undefined,
+  courseId: string | undefined,
+  mode: CommunityIOMode = 'creator',
+) =>
+  useMutation({
+    mutationFn: (activityId: string) =>
+      communityFetch<void>(
+        mode,
+        token,
+        `${communityBase(mode, courseId!)}/activities/${activityId}`,
+        { method: 'DELETE' },
+      ),
+    onSuccess: () => {
+      if (courseId) invalidateActivities(mode, token, courseId)
+    },
+  })
+
+export const useCommunityActivitySubmissions = (
+  token: string | null | undefined,
+  courseId: string | undefined,
+  activityId: string | undefined,
+  mode: CommunityIOMode = 'customer',
+) =>
+  useQuery<CommunityActivitySubmissionRead[]>({
+    queryKey: submissionsKey(mode, token ?? mode, activityId ?? ''),
+    queryFn: () =>
+      communityFetch<CommunityActivitySubmissionRead[]>(
+        mode,
+        token,
+        `${communityBase(mode, courseId!)}/activities/${activityId}/submissions`,
+      ),
+    enabled: !!courseId && !!activityId && (mode === 'creator' || !!token),
+  })
+
+export const useSubmitToCommunityActivity = (
+  token: string | null | undefined,
+  courseId: string | undefined,
+) =>
+  useMutation({
+    mutationFn: ({
+      activityId,
+      body,
+    }: {
+      activityId: string
+      body: CommunityActivitySubmissionCreateBody
+    }) =>
+      communityFetch<CommunityActivitySubmissionRead>(
+        'customer',
+        token,
+        `${communityBase('customer', courseId!)}/activities/${activityId}/submissions`,
+        { method: 'POST', body: JSON.stringify(body) },
+      ),
+    onSuccess: (_data, vars) => {
+      if (courseId) invalidateActivities('customer', token, courseId)
+      getQueryClient().invalidateQueries({
+        queryKey: ['community-activity-submissions', 'customer'],
+      })
+      // Touch the specific submissions key so the modal refreshes.
+      getQueryClient().invalidateQueries({
+        queryKey: submissionsKey('customer', token ?? '', vars.activityId),
+      })
+    },
+  })

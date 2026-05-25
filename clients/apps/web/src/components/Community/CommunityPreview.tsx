@@ -1,11 +1,14 @@
 'use client'
 
 import {
+  type CommunityActivityRead,
   type CommunityEventRead,
   type CommunityPostRead,
   type CommunitySortProperty,
   type FeedFilters,
+  useCommunityActivities,
   useCommunityEvents,
+  useCreateCommunityActivity,
   useCreateCommunityEvent,
   useCreatorCommunityFeed,
   useCreatorCommunityIdentity,
@@ -14,7 +17,12 @@ import {
   useCreatorCommunityTags,
 } from '@/hooks/queries/community'
 import { useEffect, useMemo, useState } from 'react'
-import { ActivitiesView, type CommunityActivity } from './ActivitiesView'
+import {
+  ActivitiesView,
+  type ActivitySubmissionInput,
+  type CommunityActivity,
+  type CommunityActivityCreateInput,
+} from './ActivitiesView'
 import { Composer } from './Composer'
 import {
   type CommunityEvent,
@@ -59,7 +67,12 @@ export function CommunityPreview({
   const [lessonId, setLessonId] = useState<string | null>(null)
   const [tagId, setTagId] = useState<string | null>(null)
   const [sort] = useState<CommunitySortProperty>('recent')
-  const [activities, setActivities] = useState<CommunityActivity[]>([])
+  const activitiesQ = useCommunityActivities(null, courseId, 'creator')
+  const createActivityMut = useCreateCommunityActivity(
+    null,
+    courseId,
+    'creator',
+  )
 
   // Events come from the creator-side endpoint (host sees own events,
   // students see filtered list via /customer-portal). Creator can create
@@ -145,6 +158,9 @@ export function CommunityPreview({
 
   const members = membersQ.data ?? []
   const memberCount = members.length
+  const activities: CommunityActivity[] = (activitiesQ.data ?? []).map((a) =>
+    mapActivityReadToUI(a, memberCount),
+  )
   const tags = tagsQ.data ?? []
   const upcomingEventCount = events.filter((e) => !e.past).length
   const displayCourseTitle = courseTitle ?? 'Course'
@@ -199,7 +215,23 @@ export function CommunityPreview({
               channels={lessons.map((l) => ({ id: l.id, label: l.label }))}
               activities={activities}
               totalMembers={memberCount}
-              onCreate={(a) => setActivities((prev) => [a, ...prev])}
+              canCreate
+              onCreate={async (input: CommunityActivityCreateInput) => {
+                try {
+                  await createActivityMut.mutateAsync(
+                    buildActivityCreateBody(input),
+                  )
+                  setToast('Activity created')
+                } catch {
+                  setToast('Could not create activity')
+                }
+              }}
+              onSubmit={async (_id, _sub: ActivitySubmissionInput) => {
+                /* The host doesn't submit to their own activity. */
+              }}
+              onViewSubmissions={() => {
+                setToast('Submissions view coming next')
+              }}
             />
           ) : (
             <>
@@ -367,11 +399,7 @@ function buildEventCreateBody(input: CommunityEventCreateInput) {
   }
 }
 
-function wallClockInTzToUtcIso(
-  date: string,
-  time: string,
-  tz: string,
-): string {
+function wallClockInTzToUtcIso(date: string, time: string, tz: string): string {
   const naiveUtc = new Date(`${date}T${time || '00:00'}:00Z`)
   const parts = new Intl.DateTimeFormat('en-US', {
     timeZone: tz,
@@ -395,4 +423,44 @@ function wallClockInTzToUtcIso(
   )
   const offsetMs = asTz - naiveUtc.getTime()
   return new Date(naiveUtc.getTime() - offsetMs).toISOString()
+}
+
+// ---------------------------------------------------------------------
+// Activity mappers — duplicated from CommunityFeed.tsx (same pattern as
+// the event mappers above). Lift to a util once a third caller appears.
+// ---------------------------------------------------------------------
+
+function mapActivityReadToUI(
+  a: CommunityActivityRead,
+  totalMembers: number,
+): CommunityActivity {
+  return {
+    id: a.id,
+    channelKind: a.channel_kind,
+    channelId: a.module_id ?? a.lesson_id,
+    channelLabel: a.channel_label ?? '',
+    title: a.title,
+    desc: a.description ?? '',
+    submissionType: a.submission_type,
+    status: a.status,
+    pinFeed: a.pin_to_feed,
+    notify: a.notify_on_publish,
+    submissionCount: a.submission_count,
+    distinctSubmitters: a.distinct_submitter_count,
+    totalMembers,
+    hasOwnSubmission: a.has_own_submission,
+  }
+}
+
+function buildActivityCreateBody(input: CommunityActivityCreateInput) {
+  return {
+    channel_kind: input.channelKind,
+    module_id: input.channelKind === 'module' ? input.channelId : null,
+    lesson_id: input.channelKind === 'lesson' ? input.channelId : null,
+    title: input.title,
+    description: input.desc || null,
+    submission_type: input.submissionType,
+    pin_to_feed: input.pinFeed,
+    notify_on_publish: input.notify,
+  }
 }

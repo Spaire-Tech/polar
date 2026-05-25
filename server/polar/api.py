@@ -10,9 +10,12 @@ from polar.checkout_link.endpoints import router as checkout_link_router
 from polar.cli.endpoints import router as cli_router
 from polar.client_invoice.endpoints import router as client_invoice_router
 
-# Importing events_endpoints attaches the events routes onto the two
-# routers above. Keep this import below the router imports so the side
-# effect is obvious.
+# Importing events_endpoints + activities_endpoints attaches their
+# routes onto the two community routers above. Keep these imports below
+# the router imports so the side effect is obvious.
+from polar.community import (
+    activities_endpoints as _community_activities_endpoints,  # noqa: F401
+)
 from polar.community import (
     events_endpoints as _community_events_endpoints,  # noqa: F401
 )
