@@ -140,6 +140,14 @@ export interface CommunityCourseSummary {
   community_enabled: boolean
 }
 
+export interface CommunityMemberRead {
+  id: string
+  kind: 'instructor' | 'student'
+  name: string | null
+  avatar_url: string | null
+  joined_at: string | null
+}
+
 export interface CommunityPostVideoUploadResult {
   upload_id: string
   upload_url: string
@@ -193,6 +201,9 @@ const feedKey = (token: string, courseId: string, filters: FeedFilters) =>
 
 const commentsKey = (token: string, courseId: string, postId: string) =>
   ['community-comments', token, courseId, postId] as const
+
+const membersKey = (token: string, courseId: string) =>
+  ['community-members', token, courseId] as const
 
 // ---------------------------------------------------------------------
 // Feed filters — match the customer-portal query params
@@ -253,6 +264,20 @@ export const useCommunityTags = (
     queryFn: () =>
       portalFetch<CommunityTagRead[]>(
         `/v1/customer-portal/community/${courseId}/tags`,
+        token!,
+      ),
+    enabled: !!token && !!courseId,
+  })
+
+export const useCommunityMembers = (
+  token: string | null | undefined,
+  courseId: string | undefined,
+) =>
+  useQuery<CommunityMemberRead[]>({
+    queryKey: membersKey(token ?? '', courseId ?? ''),
+    queryFn: () =>
+      portalFetch<CommunityMemberRead[]>(
+        `/v1/customer-portal/community/${courseId}/members`,
         token!,
       ),
     enabled: !!token && !!courseId,
@@ -667,11 +692,22 @@ export const useUpdateCommunitySettings = (courseId: string | undefined) =>
 const creatorTagsKey = (courseId: string) =>
   ['creator-community-tags', courseId] as const
 
+const creatorMembersKey = (courseId: string) =>
+  ['creator-community-members', courseId] as const
+
 export const useCreatorCommunityTags = (courseId: string | undefined) =>
   useQuery<CommunityTagRead[]>({
     queryKey: creatorTagsKey(courseId ?? ''),
     queryFn: () =>
       creatorFetch<CommunityTagRead[]>(`/v1/community/${courseId}/tags`),
+    enabled: !!courseId,
+  })
+
+export const useCreatorCommunityMembers = (courseId: string | undefined) =>
+  useQuery<CommunityMemberRead[]>({
+    queryKey: creatorMembersKey(courseId ?? ''),
+    queryFn: () =>
+      creatorFetch<CommunityMemberRead[]>(`/v1/community/${courseId}/members`),
     enabled: !!courseId,
   })
 

@@ -21,9 +21,8 @@ export function CommunityPicker({
 }: Props) {
   const searchParams = useSearchParams()
   const router = useRouter()
-  const { data: courses, isLoading } = useCommunityEnrolledCourses(
-    customerSessionToken,
-  )
+  const { data: courses, isLoading } =
+    useCommunityEnrolledCourses(customerSessionToken)
 
   const enabledCourses = useMemo<CommunityCourseSummary[]>(
     () => (courses ?? []).filter((c) => c.community_enabled),
@@ -97,8 +96,8 @@ export function CommunityPicker({
             className={styles.empty}
             style={{ marginTop: 20, padding: '40px 0' }}
           >
-            None of your instructors have opened the community on their
-            courses yet. Check back soon.
+            None of your instructors have opened the community on their courses
+            yet. Check back soon.
           </p>
         </main>
       </div>

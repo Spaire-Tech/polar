@@ -365,7 +365,14 @@ export function CommunityTab({ course }: Props) {
           Sticky at the top of the viewport on large screens so the
           creator sees changes as they save. */}
       <div className="rounded-2xl border border-gray-200 bg-white lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto">
-        <CommunityPreview courseId={courseId} />
+        <CommunityPreview
+          courseId={courseId}
+          courseTitle={course.title ?? undefined}
+          courseThumbnailUrl={course.thumbnail_url ?? null}
+          lessons={course.modules.flatMap((m) =>
+            (m.lessons ?? []).map((l) => ({ id: l.id, label: l.title })),
+          )}
+        />
       </div>
     </div>
   )

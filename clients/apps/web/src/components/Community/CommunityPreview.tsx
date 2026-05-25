@@ -5,40 +5,57 @@ import {
   type CommunitySortProperty,
   type FeedFilters,
   useCreatorCommunityFeed,
+  useCreatorCommunityMembers,
   useCreatorCommunitySettings,
+  useCreatorCommunityTags,
 } from '@/hooks/queries/community'
 import { useMemo, useState } from 'react'
+import { type CommunityEvent, EventsView } from './EventsView'
+import { type CommunityView, LeftRail, type RailLesson } from './LeftRail'
+import { MembersView } from './MembersView'
+import { PostCard } from './PostCard'
 import styles from './community.module.css'
 import { IconImage, IconPin } from './icons'
-import { PostCard } from './PostCard'
 
 type Props = {
   courseId: string
+  // Per-course lesson list lifted from the editor's course query so the
+  // preview rail shows the same "Discussions" channels students see.
+  lessons?: RailLesson[]
+  // Read-only fallback header copy when settings haven't loaded yet.
+  courseTitle?: string
+  // Hero falls back to the course thumbnail when the creator hasn't
+  // overridden it in settings.
+  courseThumbnailUrl?: string | null
 }
 
 // Read-only preview of the student-facing feed for the course-editor
 // pane. Calls the creator-side endpoints (which use the dashboard
-// session cookie) instead of the customer-portal hooks, so the
-// creator never needs a customer_session_token to see what their
-// students see. Composer / share / post-menu are hidden; reactions
-// + comments render but their click handlers no-op (PostCard's
-// previewMode prop).
-export function CommunityPreview({ courseId }: Props) {
-  // Sort + module + lesson are local-state-only in the preview — the
-  // creator can scope what they see without touching anything
-  // mutable. (setSort is reserved for a future sort dropdown; for now
-  // 'recent' matches what students land on by default.)
-  const [sort] = useState<CommunitySortProperty>('recent')
-  const [moduleId] = useState<string | null>(null)
+// session cookie) instead of the customer-portal hooks, so the creator
+// never needs a customer_session_token to see what their students see.
+// Composer is hidden entirely; reactions + comments render but their
+// click handlers no-op (PostCard's previewMode prop).
+export function CommunityPreview({
+  courseId,
+  lessons = [],
+  courseTitle,
+  courseThumbnailUrl,
+}: Props) {
+  const [view, setView] = useState<CommunityView>('home')
   const [lessonId, setLessonId] = useState<string | null>(null)
+  const [tagId, setTagId] = useState<string | null>(null)
+  const [sort] = useState<CommunitySortProperty>('recent')
+  const [events, setEvents] = useState<CommunityEvent[]>([])
 
   const filters: FeedFilters = useMemo(
-    () => ({ sort, module_id: moduleId, lesson_id: lessonId, tag_id: null }),
-    [sort, moduleId, lessonId],
+    () => ({ sort, module_id: null, lesson_id: lessonId, tag_id: tagId }),
+    [sort, lessonId, tagId],
   )
 
   const settingsQ = useCreatorCommunitySettings(courseId)
   const feedQ = useCreatorCommunityFeed(courseId, filters)
+  const tagsQ = useCreatorCommunityTags(courseId)
+  const membersQ = useCreatorCommunityMembers(courseId)
 
   const settings = settingsQ.data
 
@@ -92,103 +109,178 @@ export function CommunityPreview({ courseId }: Props) {
     )
   }
 
-  const heroThumbnailUrl = settings?.hero_thumbnail_url ?? null
+  const heroThumbnailUrl =
+    settings?.hero_thumbnail_url ?? courseThumbnailUrl ?? null
+  const members = membersQ.data ?? []
+  const memberCount = members.length
+  const tags = tagsQ.data ?? []
+  const upcomingEventCount = events.filter((e) => !e.past).length
+  const displayCourseTitle = courseTitle ?? 'Course'
 
   return (
     <div className={styles.root}>
-      <main className={styles.main} style={{ padding: '24px' }}>
-        {/* Eyebrow tag so the creator knows this is the read-only
-            simulation, not the live page. */}
-        <div
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 6,
-            fontSize: 11,
-            fontWeight: 500,
-            color: 'var(--c-muted)',
-            letterSpacing: '0.06em',
-            textTransform: 'uppercase',
-            padding: '4px 10px',
-            borderRadius: 999,
-            background: 'var(--c-panel)',
-            marginBottom: 16,
-          }}
-        >
-          Preview · read-only
-        </div>
+      <div className={styles.layout}>
+        <LeftRail
+          view={view}
+          onViewChange={setView}
+          lessons={lessons}
+          lessonId={lessonId}
+          onLessonChange={setLessonId}
+          memberCount={memberCount}
+          eventCount={upcomingEventCount}
+        />
 
-        <header className={styles.feedHeader}>
-          <div className={styles.feedEyebrow}>
-            <span className={styles.feedEyebrowDot} />
-            {settings?.feed_eyebrow_override ?? 'Community'}
-          </div>
-          <h1 className={styles.feedTitle}>
-            {settings?.feed_title_override ?? 'Community'}
-          </h1>
-          <p className={styles.feedSub}>
-            A read-only simulation of the student-facing feed. Toggle settings
-            on the left to see them apply here.
-          </p>
-        </header>
-
-        <div
-          className={styles.thumb}
-          style={
-            heroThumbnailUrl
-              ? { backgroundImage: `url(${heroThumbnailUrl})` }
-              : undefined
-          }
-        >
-          {!heroThumbnailUrl && (
-            <IconImage size={56} className={styles.thumbIcon} />
-          )}
-        </div>
-
-        {promptPost && (
-          <div className={styles.prompt}>
-            <span className={styles.pinTag}>
-              <IconPin size={10} /> Prompt of the week
-            </span>
-            <h2 className={styles.promptQ}>
-              {promptPost.title ?? promptPost.body.slice(0, 140)}
-            </h2>
-          </div>
-        )}
-
-        <div className={styles.feedList}>
-          {feedQ.isLoading && allPosts.length === 0 ? (
-            <div className={styles.empty}>Loading…</div>
-          ) : allPosts.length === 0 ? (
-            <div className={styles.empty}>
-              No posts yet — when a student writes one, it shows here.
-            </div>
-          ) : (
-            allPosts.map((post) => (
-              <PostCard
-                key={post.id}
-                post={post}
-                token=""
-                courseId={courseId}
-                reactionsEnabled={settings?.reactions_enabled ?? true}
-                previewMode
-                onLessonChipClick={setLessonId}
-              />
-            ))
-          )}
-        </div>
-
-        {feedQ.hasNextPage && (
-          <button
-            type="button"
-            className={styles.loadMore}
-            onClick={() => feedQ.fetchNextPage()}
-            disabled={feedQ.isFetchingNextPage}
+        <main className={styles.main}>
+          {/* Read-only badge so the creator knows this is the
+              simulation, not the live page. */}
+          <div
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              fontSize: 11,
+              fontWeight: 500,
+              color: 'var(--c-muted)',
+              letterSpacing: '0.06em',
+              textTransform: 'uppercase',
+              padding: '4px 10px',
+              borderRadius: 999,
+              background: 'var(--c-panel)',
+              marginBottom: 16,
+            }}
           >
-            {feedQ.isFetchingNextPage ? 'Loading…' : 'Load more'}
-          </button>
-        )}
-      </main>
+            Preview · read-only
+          </div>
+
+          {view === 'members' ? (
+            <MembersView members={members} isLoading={membersQ.isLoading} />
+          ) : view === 'events' ? (
+            <EventsView
+              hostName="You"
+              events={events}
+              onCreate={(e) => setEvents((prev) => [e, ...prev])}
+              onToggleGoing={(id) =>
+                setEvents((prev) =>
+                  prev.map((e) =>
+                    e.id === id
+                      ? {
+                          ...e,
+                          going: !e.going,
+                          rsvpCount: Math.max(
+                            0,
+                            e.rsvpCount + (e.going ? -1 : 1),
+                          ),
+                        }
+                      : e,
+                  ),
+                )
+              }
+            />
+          ) : (
+            <>
+              <header className={styles.feedHeader}>
+                <div className={styles.feedEyebrow}>
+                  {memberCount} {memberCount === 1 ? 'member' : 'members'}
+                </div>
+                <h1 className={styles.feedTitle}>
+                  {settings?.feed_title_override ?? 'Community'}
+                </h1>
+                <p className={styles.feedSub}>
+                  {settings?.feed_eyebrow_override ??
+                    `Discussions, wins, and questions for ${displayCourseTitle}.`}
+                </p>
+              </header>
+
+              <div
+                className={styles.thumb}
+                style={
+                  heroThumbnailUrl
+                    ? { backgroundImage: `url(${heroThumbnailUrl})` }
+                    : undefined
+                }
+              >
+                {!heroThumbnailUrl && (
+                  <IconImage size={56} className={styles.thumbIcon} />
+                )}
+              </div>
+
+              {promptPost && (
+                <div className={styles.prompt}>
+                  <span className={styles.pinTag}>
+                    <IconPin size={10} /> Prompt of the week
+                  </span>
+                  <h2 className={styles.promptQ}>
+                    {promptPost.title ?? promptPost.body.slice(0, 140)}
+                  </h2>
+                </div>
+              )}
+
+              {/* Tag filter chips — same UX as the live feed, just
+                  doesn't let the creator type anything. */}
+              <div className={styles.filterbar}>
+                <button
+                  type="button"
+                  className={`${styles.filterChip} ${
+                    tagId == null ? styles.active : ''
+                  }`}
+                  onClick={() => setTagId(null)}
+                >
+                  All
+                </button>
+                {tags.map((t) => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    className={`${styles.filterChip} ${
+                      tagId === t.id ? styles.active : ''
+                    }`}
+                    onClick={() => setTagId(t.id)}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+                <span className={styles.filterSpacer} />
+                <button type="button" className={styles.sortBtn} disabled>
+                  Recent ↓
+                </button>
+              </div>
+
+              <div className={styles.feedList}>
+                {feedQ.isLoading && allPosts.length === 0 ? (
+                  <div className={styles.empty}>Loading…</div>
+                ) : allPosts.length === 0 ? (
+                  <div className={styles.empty}>
+                    No posts yet — when a student writes one, it shows here.
+                  </div>
+                ) : (
+                  allPosts.map((post) => (
+                    <PostCard
+                      key={post.id}
+                      post={post}
+                      token=""
+                      courseId={courseId}
+                      reactionsEnabled={settings?.reactions_enabled ?? true}
+                      previewMode
+                      onLessonChipClick={setLessonId}
+                    />
+                  ))
+                )}
+              </div>
+
+              {feedQ.hasNextPage && (
+                <button
+                  type="button"
+                  className={styles.loadMore}
+                  onClick={() => feedQ.fetchNextPage()}
+                  disabled={feedQ.isFetchingNextPage}
+                >
+                  {feedQ.isFetchingNextPage ? 'Loading…' : 'Load more'}
+                </button>
+              )}
+            </>
+          )}
+        </main>
+      </div>
     </div>
   )
 }

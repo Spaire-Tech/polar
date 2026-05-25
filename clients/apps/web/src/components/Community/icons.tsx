@@ -170,3 +170,46 @@ export const IconSmile = (p: Props = {}) => (
     <path d="M8 14s1.5 2 4 2 4-2 4-2M9 9h.01M15 9h.01" />
   </svg>
 )
+
+export const IconUsers = (p: Props = {}) => (
+  <svg {...withSize(p)}>
+    <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
+    <circle cx="9" cy="7" r="4" />
+    <path d="M23 21v-2a4 4 0 00-3-3.9M16 3.1A4 4 0 0116 11" />
+  </svg>
+)
+
+export const IconCalendar = (p: Props = {}) => (
+  <svg {...withSize(p)}>
+    <rect x="3" y="5" width="18" height="16" rx="2" />
+    <path d="M3 10h18M8 3v4M16 3v4" />
+  </svg>
+)
+
+export const IconClock = (p: Props = {}) => (
+  <svg {...withSize(p)}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M12 7v5l3 2" />
+  </svg>
+)
+
+export const IconMapPin = (p: Props = {}) => (
+  <svg {...withSize(p)}>
+    <path d="M12 22s-7-6-7-12a7 7 0 0114 0c0 6-7 12-7 12z" />
+    <circle cx="12" cy="10" r="2.5" />
+  </svg>
+)
+
+export const IconSearch = (p: Props = {}) => (
+  <svg {...withSize(p)}>
+    <circle cx="11" cy="11" r="7" />
+    <path d="M20 20l-3.5-3.5" />
+  </svg>
+)
+
+export const IconPlayCircle = (p: Props = {}) => (
+  <svg {...withSize(p)}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M10 8l6 4-6 4V8z" />
+  </svg>
+)

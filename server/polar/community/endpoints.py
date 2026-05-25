@@ -51,6 +51,7 @@ from .schemas import (
     CommunityCommentRead,
     CommunityCourseSummary,
     CommunityLessonChip,
+    CommunityMemberRead,
     CommunityPinPayload,
     CommunityPostCreate,
     CommunityPostImageUploadResult,
@@ -386,6 +387,24 @@ async def preview_feed_creator(
 
 
 @creator_router.get(
+    "/{course_id}/members",
+    response_model=list[CommunityMemberRead],
+    summary="List Community Members (Creator)",
+)
+async def list_members_creator(
+    course_id: CourseID,
+    auth_subject: CommunityCreatorRead,
+    session: AsyncSession = Depends(get_db_session),
+) -> list[CommunityMemberRead]:
+    """Members tab for the course-editor preview. Returns the instructor
+    + every active enrollment, newest-first. Avatars aren't joined —
+    Phase 1 falls back to initials in the UI."""
+    await _require_creator_owns_course(session, course_id, auth_subject)
+    members = await community_service.list_members(session, course_id=course_id)
+    return list(members)
+
+
+@creator_router.get(
     "/{course_id}/tags",
     response_model=list[CommunityTagRead],
     summary="List Community Tags (Creator)",
@@ -627,6 +646,28 @@ async def get_settings_customer(
         session, course_id
     )
     return CommunitySettingsRead.model_validate(settings, from_attributes=True)
+
+
+@customer_router.get(
+    "/{course_id}/members",
+    response_model=list[CommunityMemberRead],
+    summary="List Community Members",
+)
+async def list_members_customer(
+    course_id: CourseID,
+    auth_subject: CommunityCustomerRead,
+    session: AsyncSession = Depends(get_db_session),
+) -> list[CommunityMemberRead]:
+    """Members tab on the customer-portal community surface. Mirrors the
+    creator endpoint but gates on enrollment + community-enabled, so a
+    student visiting a disabled course can't list peers."""
+    customer_id = get_customer_id(auth_subject)
+    await community_service.assert_enrolled(
+        session, customer_id=customer_id, course_id=course_id
+    )
+    await community_service.assert_community_enabled(session, course_id)
+    members = await community_service.list_members(session, course_id=course_id)
+    return list(members)
 
 
 @customer_router.get(

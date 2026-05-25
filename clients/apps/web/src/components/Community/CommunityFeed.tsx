@@ -2,15 +2,20 @@
 
 import {
   type CommunityPostRead,
+  type CommunitySortProperty,
   type FeedFilters,
   useCommunityFeed,
+  useCommunityMembers,
   useCommunitySettings,
+  useCommunityTags,
 } from '@/hooks/queries/community'
 import { useCustomerCourse } from '@/hooks/queries/courses'
 import { useEffect, useMemo, useState } from 'react'
 import { Avatar } from './Avatar'
 import { Composer } from './Composer'
-import { LeftRail, type RailModule } from './LeftRail'
+import { type CommunityEvent, EventsView } from './EventsView'
+import { type CommunityView, LeftRail, type RailLesson } from './LeftRail'
+import { MembersView } from './MembersView'
 import { PostCard } from './PostCard'
 import styles from './community.module.css'
 import { IconImage, IconPin } from './icons'
@@ -21,24 +26,33 @@ type Props = {
 }
 
 export function CommunityFeed({ courseId, customerSessionToken }: Props) {
-  const [moduleId, setModuleId] = useState<string | null>(null)
+  const [view, setView] = useState<CommunityView>('home')
   const [lessonId, setLessonId] = useState<string | null>(null)
+  const [tagId, setTagId] = useState<string | null>(null)
+  const [sort, setSort] = useState<CommunitySortProperty>('recent')
+  const [sortMenuOpen, setSortMenuOpen] = useState(false)
   const [composerForceOpen, setComposerForceOpen] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
+  // Events are client-state only — no backend yet. Persist nothing across
+  // reloads in Phase 3C; the UI is functional but ephemeral so creators
+  // can preview the flow.
+  const [events, setEvents] = useState<CommunityEvent[]>([])
 
   const filters: FeedFilters = useMemo(
     () => ({
-      sort: 'recent',
-      module_id: moduleId,
+      sort,
+      module_id: null,
       lesson_id: lessonId,
-      tag_id: null,
+      tag_id: tagId,
     }),
-    [moduleId, lessonId],
+    [sort, lessonId, tagId],
   )
 
   const settingsQ = useCommunitySettings(customerSessionToken, courseId)
   const courseQ = useCustomerCourse(customerSessionToken, courseId)
   const feedQ = useCommunityFeed(customerSessionToken, courseId, filters)
+  const tagsQ = useCommunityTags(customerSessionToken, courseId)
+  const membersQ = useCommunityMembers(customerSessionToken, courseId)
 
   // Toast auto-dismiss.
   useEffect(() => {
@@ -54,15 +68,17 @@ export function CommunityFeed({ courseId, customerSessionToken }: Props) {
     [courseDetail],
   )
 
-  const railModules: RailModule[] = useMemo(
-    () =>
-      modules.map((m) => ({
-        id: m.id,
-        label: settings?.module_label_overrides?.[m.id] ?? m.title,
-        count: m.lessons?.length ?? 0,
-      })),
-    [modules, settings?.module_label_overrides],
-  )
+  // Lessons are the per-episode discussion channels under "Discussions".
+  // Flatten in module → lesson order so series courses read top-down.
+  const railLessons: RailLesson[] = useMemo(() => {
+    const out: RailLesson[] = []
+    for (const m of modules) {
+      for (const l of m.lessons ?? []) {
+        out.push({ id: l.id, label: l.title })
+      }
+    }
+    return out
+  }, [modules])
 
   // Flatten the infinite query's pages into a single list. Computing
   // the prompt-of-week and feed-list slices inline keeps both memos
@@ -89,13 +105,6 @@ export function CommunityFeed({ courseId, customerSessionToken }: Props) {
         : null,
     [allPosts, promptPostId],
   )
-
-  // The prompt post is featured in the hero AND stays in the feed.
-  // Filtering it out broke the "Share your answer" CTA — it scrolled
-  // to an element that wasn't rendered. The hero is the question + a
-  // jump-link; the post card below carries the body, reactions, and
-  // the comment composer. Slight duplication, working behavior.
-  const feedPosts = allPosts
 
   // ---------- Loading / disabled states ----------
 
@@ -141,26 +150,38 @@ export function CommunityFeed({ courseId, customerSessionToken }: Props) {
   // ---------- Computed display values ----------
 
   const courseTitle = courseDetail?.course.title ?? 'Course'
-  const instructorName = courseDetail?.course.instructor_name ?? null
-
   const heroThumbnailUrl =
     settings?.hero_thumbnail_url ?? courseDetail?.course.thumbnail_url ?? null
+  const selfName = courseDetail?.customer_name ?? null
+  const members = membersQ.data ?? []
+  const memberCount = members.length
+  const tags = tagsQ.data ?? []
+  const upcomingEventCount = events.filter((e) => !e.past).length
 
   const handleLessonChipClick = (lessonIdFromChip: string) => {
-    // Filter the feed to this specific lesson — the chip says
-    // "re: Module 2 — Hydration", clicking it should narrow to
-    // *that lesson's* posts, not all of Module 2's. The rail's
-    // module filter is cleared since lesson is a strict subset.
     setLessonId(lessonIdFromChip)
-    setModuleId(null)
+    setTagId(null)
+    setView('home')
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
-  const handleModuleChange = (next: string | null) => {
-    // Changing the module filter always clears any active lesson
-    // filter — they're alternatives, not stackable.
-    setModuleId(next)
-    setLessonId(null)
+  const onCreateEvent = (event: CommunityEvent) => {
+    setEvents((prev) => [event, ...prev])
+    setToast('Event created')
+  }
+
+  const onToggleGoing = (id: string) => {
+    setEvents((prev) =>
+      prev.map((e) =>
+        e.id === id
+          ? {
+              ...e,
+              going: !e.going,
+              rsvpCount: Math.max(0, e.rsvpCount + (e.going ? -1 : 1)),
+            }
+          : e,
+      ),
+    )
   }
 
   // ---------- Render ----------
@@ -169,147 +190,232 @@ export function CommunityFeed({ courseId, customerSessionToken }: Props) {
     <div className={styles.root}>
       <div className={styles.layout}>
         <LeftRail
-          moduleId={moduleId}
-          onModuleChange={handleModuleChange}
-          modules={railModules}
-          presence={
-            instructorName || settings?.presence_blurb
-              ? {
-                  instructorName,
-                  instructorAvatarUrl: null,
-                  blurb: settings?.presence_blurb ?? null,
-                }
-              : null
-          }
+          view={view}
+          onViewChange={setView}
+          lessons={railLessons}
+          lessonId={lessonId}
+          onLessonChange={setLessonId}
+          memberCount={memberCount}
+          eventCount={upcomingEventCount}
         />
 
         <main className={styles.main}>
-          {/* Feed header */}
-          <header className={styles.feedHeader}>
-            <div className={styles.feedEyebrow}>
-              <span className={styles.feedEyebrowDot} />
-              {settings?.feed_eyebrow_override ?? courseTitle}
-            </div>
-            <h1 className={styles.feedTitle}>
-              {settings?.feed_title_override ?? 'Community'}
-            </h1>
-            <p className={styles.feedSub}>
-              Discussions, wins, and questions across the course. Share what
-              you&apos;re working on, ask for feedback, and reply to anyone in
-              the cohort.
-            </p>
-          </header>
+          {view === 'members' ? (
+            <MembersView members={members} isLoading={membersQ.isLoading} />
+          ) : view === 'events' ? (
+            <EventsView
+              hostName={selfName ?? 'You'}
+              events={events}
+              onCreate={onCreateEvent}
+              onToggleGoing={onToggleGoing}
+            />
+          ) : (
+            <>
+              {/* Feed header */}
+              <header className={styles.feedHeader}>
+                <div className={styles.feedEyebrow}>
+                  {memberCount} {memberCount === 1 ? 'member' : 'members'}
+                </div>
+                <h1 className={styles.feedTitle}>
+                  {settings?.feed_title_override ?? 'Community'}
+                </h1>
+                <p className={styles.feedSub}>
+                  {settings?.feed_eyebrow_override ??
+                    `Discussions, wins, and questions for ${courseTitle}. Share what you're working on, ask for feedback, and reply to anyone in the cohort.`}
+                </p>
+              </header>
 
-          {/* Course thumbnail */}
-          <div
-            className={styles.thumb}
-            style={
-              heroThumbnailUrl
-                ? { backgroundImage: `url(${heroThumbnailUrl})` }
-                : undefined
-            }
-          >
-            {!heroThumbnailUrl && (
-              <IconImage size={56} className={styles.thumbIcon} />
-            )}
-          </div>
+              {/* Course thumbnail */}
+              <div
+                className={styles.thumb}
+                style={
+                  heroThumbnailUrl
+                    ? { backgroundImage: `url(${heroThumbnailUrl})` }
+                    : undefined
+                }
+              >
+                {!heroThumbnailUrl && (
+                  <IconImage size={56} className={styles.thumbIcon} />
+                )}
+              </div>
 
-          {/* Prompt of the week */}
-          {promptPost && (
-            <div className={styles.prompt}>
-              <span className={styles.pinTag}>
-                <IconPin size={10} /> Prompt of the week
-              </span>
-              <h2 className={styles.promptQ}>
-                {promptPost.title ?? promptPost.body.slice(0, 140)}
-              </h2>
-              <div className={styles.promptFoot}>
-                <div className={styles.promptBy}>
-                  <Avatar
-                    name={
-                      promptPost.author.name ??
-                      (promptPost.author.kind === 'instructor'
-                        ? 'Instructor'
-                        : 'Member')
-                    }
-                    avatarUrl={promptPost.author.avatar_url ?? undefined}
-                    size={26}
-                  />
-                  <div className={styles.promptByText}>
-                    <strong>
-                      {promptPost.author.name ??
-                        (promptPost.author.kind === 'instructor'
-                          ? 'Instructor'
-                          : 'Member')}
-                    </strong>{' '}
-                    · {promptPost.comment_count} replies
+              {/* Prompt of the week */}
+              {promptPost && (
+                <div className={styles.prompt}>
+                  <span className={styles.pinTag}>
+                    <IconPin size={10} /> Prompt of the week
+                  </span>
+                  <h2 className={styles.promptQ}>
+                    {promptPost.title ?? promptPost.body.slice(0, 140)}
+                  </h2>
+                  <div className={styles.promptFoot}>
+                    <div className={styles.promptBy}>
+                      <Avatar
+                        name={
+                          promptPost.author.name ??
+                          (promptPost.author.kind === 'instructor'
+                            ? 'Instructor'
+                            : 'Member')
+                        }
+                        avatarUrl={promptPost.author.avatar_url ?? undefined}
+                        size={26}
+                      />
+                      <div className={styles.promptByText}>
+                        <strong>
+                          {promptPost.author.name ??
+                            (promptPost.author.kind === 'instructor'
+                              ? 'Instructor'
+                              : 'Member')}
+                        </strong>{' '}
+                        · {promptPost.comment_count} replies
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      className={styles.promptCta}
+                      onClick={() => {
+                        const el = document.getElementById(
+                          `post-${promptPost.id}`,
+                        )
+                        el?.scrollIntoView({
+                          behavior: 'smooth',
+                          block: 'start',
+                        })
+                      }}
+                    >
+                      Share your answer
+                    </button>
                   </div>
                 </div>
+              )}
+
+              {/* Composer — collapsed pill (Photo/Video buttons open the
+                  device picker directly; clicking the pill or Write opens
+                  the modal) */}
+              <Composer
+                token={customerSessionToken}
+                courseId={courseId}
+                selfName={selfName}
+                modules={modules.map((m) => ({ id: m.id, label: m.title }))}
+                defaultModuleId={null}
+                forceOpen={composerForceOpen}
+                onOpenChange={setComposerForceOpen}
+                onPosted={() => {
+                  setComposerForceOpen(false)
+                  setToast('Posted')
+                }}
+              />
+
+              {/* Tag filter chips + sort */}
+              {(tags.length > 0 || true) && (
+                <div className={styles.filterbar}>
+                  <button
+                    type="button"
+                    className={`${styles.filterChip} ${
+                      tagId == null ? styles.active : ''
+                    }`}
+                    onClick={() => setTagId(null)}
+                  >
+                    All
+                  </button>
+                  {tags.map((t) => (
+                    <button
+                      key={t.id}
+                      type="button"
+                      className={`${styles.filterChip} ${
+                        tagId === t.id ? styles.active : ''
+                      }`}
+                      onClick={() => setTagId(t.id)}
+                    >
+                      {t.label}
+                    </button>
+                  ))}
+                  <span className={styles.filterSpacer} />
+                  <div style={{ position: 'relative' }}>
+                    <button
+                      type="button"
+                      className={styles.sortBtn}
+                      onClick={() => setSortMenuOpen((v) => !v)}
+                      aria-haspopup="menu"
+                      aria-expanded={sortMenuOpen}
+                    >
+                      {sort === 'recent'
+                        ? 'Recent'
+                        : sort === 'top_week'
+                          ? 'Top this week'
+                          : 'Unanswered'}{' '}
+                      ↓
+                    </button>
+                    {sortMenuOpen && (
+                      <div
+                        className={styles.sortMenu}
+                        role="menu"
+                        onMouseLeave={() => setSortMenuOpen(false)}
+                      >
+                        {(
+                          [
+                            { id: 'recent', label: 'Recent' },
+                            { id: 'top_week', label: 'Top this week' },
+                            { id: 'unanswered', label: 'Unanswered' },
+                          ] as { id: CommunitySortProperty; label: string }[]
+                        ).map((s) => (
+                          <button
+                            key={s.id}
+                            type="button"
+                            role="menuitem"
+                            className={styles.sortMenuItem}
+                            onClick={() => {
+                              setSort(s.id)
+                              setSortMenuOpen(false)
+                            }}
+                          >
+                            {s.label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Feed list */}
+              <div className={styles.feedList}>
+                {feedQ.isLoading && allPosts.length === 0 ? (
+                  <div className={styles.empty}>Loading…</div>
+                ) : allPosts.length === 0 && !promptPost ? (
+                  <div className={styles.empty}>
+                    {lessonId || tagId
+                      ? 'No posts match this filter yet.'
+                      : 'No posts yet — be the first to start a conversation.'}
+                  </div>
+                ) : (
+                  allPosts.map((post) => (
+                    <PostCard
+                      key={post.id}
+                      post={post}
+                      token={customerSessionToken}
+                      courseId={courseId}
+                      selfName={selfName}
+                      selfEnrollmentId={courseDetail?.enrollment_id}
+                      reactionsEnabled={settings?.reactions_enabled ?? true}
+                      onLessonChipClick={handleLessonChipClick}
+                      onShareToast={(m) => setToast(m)}
+                    />
+                  ))
+                )}
+              </div>
+
+              {feedQ.hasNextPage && (
                 <button
                   type="button"
-                  className={styles.promptCta}
-                  onClick={() => {
-                    const el = document.getElementById(`post-${promptPost.id}`)
-                    el?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-                  }}
+                  className={styles.loadMore}
+                  onClick={() => feedQ.fetchNextPage()}
+                  disabled={feedQ.isFetchingNextPage}
                 >
-                  Share your answer
+                  {feedQ.isFetchingNextPage ? 'Loading…' : 'Load more'}
                 </button>
-              </div>
-            </div>
-          )}
-
-          {/* Composer — collapsed pill (click to open modal) */}
-          <Composer
-            token={customerSessionToken}
-            courseId={courseId}
-            selfName={courseDetail?.customer_name}
-            modules={railModules.map(({ id, label }) => ({ id, label }))}
-            defaultModuleId={moduleId}
-            forceOpen={composerForceOpen}
-            onOpenChange={setComposerForceOpen}
-            onPosted={() => {
-              setComposerForceOpen(false)
-              setToast('Posted')
-            }}
-          />
-
-          {/* Feed list */}
-          <div className={styles.feedList}>
-            {feedQ.isLoading && allPosts.length === 0 ? (
-              <div className={styles.empty}>Loading…</div>
-            ) : feedPosts.length === 0 && !promptPost ? (
-              <div className={styles.empty}>
-                {moduleId
-                  ? 'No posts match this filter yet.'
-                  : 'No posts yet — be the first to start a conversation.'}
-              </div>
-            ) : (
-              feedPosts.map((post) => (
-                <PostCard
-                  key={post.id}
-                  post={post}
-                  token={customerSessionToken}
-                  courseId={courseId}
-                  selfName={courseDetail?.customer_name}
-                  selfEnrollmentId={courseDetail?.enrollment_id}
-                  reactionsEnabled={settings?.reactions_enabled ?? true}
-                  onLessonChipClick={handleLessonChipClick}
-                  onShareToast={(m) => setToast(m)}
-                />
-              ))
-            )}
-          </div>
-
-          {feedQ.hasNextPage && (
-            <button
-              type="button"
-              className={styles.loadMore}
-              onClick={() => feedQ.fetchNextPage()}
-              disabled={feedQ.isFetchingNextPage}
-            >
-              {feedQ.isFetchingNextPage ? 'Loading…' : 'Load more'}
-            </button>
+              )}
+            </>
           )}
         </main>
       </div>

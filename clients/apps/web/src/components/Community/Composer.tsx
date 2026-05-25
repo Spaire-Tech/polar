@@ -232,26 +232,55 @@ export function Composer({
   const moduleLabel =
     modules.find((m) => m.id === lessonModuleId)?.label ?? 'No module'
 
+  // Photo/Video tool buttons open the OS file picker directly, then
+  // expand the modal so the user lands on a draft with the file already
+  // attached. The pill itself and the Write tool just open the modal.
+  const pickPhotoAndOpen = () => {
+    fileInputRef.current?.click()
+    open()
+  }
+  const pickVideoAndOpen = () => {
+    videoInputRef.current?.click()
+    open()
+  }
+
   return (
     <>
-      {/* Collapsed pill — always rendered; clicking opens the modal */}
+      {/* Hidden inputs sit OUTSIDE the modal so the device picker can
+          be invoked from the collapsed pill before the modal renders.
+          They're re-used by the modal's foot tools via the same refs. */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        multiple
+        style={{ display: 'none' }}
+        onChange={(e) => onFilesPicked(e.target.files)}
+      />
+      <input
+        ref={videoInputRef}
+        type="file"
+        accept="video/*"
+        style={{ display: 'none' }}
+        onChange={(e) => onVideoPicked(e.target.files)}
+      />
+
+      {/* Collapsed pill — always rendered. The pill itself + Write open
+          the modal; Photo/Video skip straight to the device picker. */}
       <div className={styles.composer}>
         <div className={styles.composerRow}>
           <Avatar name={selfName ?? 'You'} size={40} />
-          <button
-            type="button"
-            className={styles.composerInput}
-            onClick={open}
-          >
-            Start a discussion, ask a question, share a bake…
+          <button type="button" className={styles.composerInput} onClick={open}>
+            Start a discussion, ask a question, share what you&apos;re working
+            on…
           </button>
         </div>
         <div className={styles.composerTools}>
           <button
             type="button"
             className={styles.composerTool}
-            onClick={open}
-            aria-label="Start photo post"
+            onClick={pickPhotoAndOpen}
+            aria-label="Attach photo"
           >
             <span className={styles.composerToolPhoto}>
               <IconImage size={18} />
@@ -261,8 +290,8 @@ export function Composer({
           <button
             type="button"
             className={styles.composerTool}
-            onClick={open}
-            aria-label="Start video post"
+            onClick={pickVideoAndOpen}
+            aria-label="Attach video"
           >
             <span className={styles.composerToolVideo}>
               <IconVideo size={18} />
@@ -273,6 +302,7 @@ export function Composer({
             type="button"
             className={styles.composerTool}
             onClick={open}
+            aria-label="Write a post"
           >
             <span className={styles.composerToolPoll}>
               <IconFile size={18} />
@@ -406,21 +436,6 @@ export function Composer({
 
             <div className={styles.modalFoot}>
               <div className={styles.modalFootTools}>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  style={{ display: 'none' }}
-                  onChange={(e) => onFilesPicked(e.target.files)}
-                />
-                <input
-                  ref={videoInputRef}
-                  type="file"
-                  accept="video/*"
-                  style={{ display: 'none' }}
-                  onChange={(e) => onVideoPicked(e.target.files)}
-                />
                 <button
                   type="button"
                   className={`${styles.modalTool} ${styles.modalToolPhoto}`}

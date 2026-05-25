@@ -75,6 +75,7 @@ from .schemas import (
     CommunityCommentCreate,
     CommunityCourseSummary,
     CommunityLessonChip,
+    CommunityMemberRead,
     CommunityPinPayload,
     CommunityPostCreate,
     CommunityPostImageUploadResult,
@@ -265,6 +266,47 @@ class CommunityService:
             )
             for row in rows
         ]
+
+    async def list_members(
+        self,
+        session: AsyncSession,
+        *,
+        course_id: UUID,
+    ) -> Sequence[CommunityMemberRead]:
+        """Powers the Members tab. Returns the course instructor as a
+        synthetic first row (so the UI doesn't need a second call), then
+        every active enrollment in newest-first order. The instructor row
+        uses the course as its identity since no user_id mapping is
+        joined here — the UI keys members by `id` and surfaces the role
+        via `kind`."""
+        course_repo = CourseRepository.from_session(session)
+        course = await course_repo.get_by_id(course_id)
+        post_repo = CommunityPostRepository.from_session(session)
+        enrollment_rows = await post_repo.list_course_members(course_id)
+
+        members: list[CommunityMemberRead] = []
+        if course is not None:
+            instructor_name = (course.instructor_name or "").strip() or "Instructor"
+            members.append(
+                CommunityMemberRead(
+                    id=course.id,
+                    kind="instructor",
+                    name=instructor_name,
+                    avatar_url=None,
+                    joined_at=course.created_at,
+                )
+            )
+        for enrollment_id, name, email, joined_at in enrollment_rows:
+            members.append(
+                CommunityMemberRead(
+                    id=enrollment_id,
+                    kind="student",
+                    name=_resolve_display_name(name, email),
+                    avatar_url=None,
+                    joined_at=joined_at,
+                )
+            )
+        return members
 
     async def assert_enrolled(
         self,

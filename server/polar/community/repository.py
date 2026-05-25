@@ -493,6 +493,31 @@ class CommunityPostRepository(
         result = await self.session.execute(statement)
         return [(row.id, row.email, row.avatar_url) for row in result]
 
+    async def list_course_members(
+        self, course_id: UUID
+    ) -> Sequence[tuple[UUID, str | None, str, datetime]]:
+        """Powers the Members tab. Returns (enrollment_id, customer_name,
+        customer_email, enrolled_at) for every active (non-soft-deleted)
+        enrollment in the course, newest enrollment first."""
+        statement = (
+            select(
+                CourseEnrollment.id,
+                Customer.name,
+                Customer.email,
+                CourseEnrollment.enrolled_at,
+            )
+            .join(Customer, Customer.id == CourseEnrollment.customer_id)
+            .where(
+                CourseEnrollment.course_id == course_id,
+                CourseEnrollment.deleted_at.is_(None),
+            )
+            .order_by(CourseEnrollment.enrolled_at.desc())
+        )
+        result = await self.session.execute(statement)
+        return [
+            (row.id, row.name, row.email, row.enrolled_at) for row in result
+        ]
+
 
 # ----------------------------------------------------------------------
 # Post media
