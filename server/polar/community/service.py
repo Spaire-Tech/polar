@@ -1278,7 +1278,11 @@ class CommunityService:
             out[("enrollment", enrollment_id)] = CommunityAuthorStudent(
                 enrollment_id=enrollment_id,
                 name=resolved_name,
-                avatar_url=customer_avatar or org_avatar,
+                # Only the admin's preview customer borrows the org logo
+                # — real students stay at None so they render initials,
+                # never with another author's brand on their face.
+                avatar_url=customer_avatar
+                or (org_avatar if is_preview else None),
             )
 
         # Instructor authors. The User table has no display name distinct

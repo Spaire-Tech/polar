@@ -224,6 +224,18 @@
   font-size: 12px;
   font-weight: 600;
   text-transform: uppercase;
+  overflow: hidden;
+}
+/* Image-backed variant — used by the preview-customer flow that
+   borrows the org's avatar so the top-right chip reads as the admin. */
+.spaire-portal .sp-avatar--image {
+  background: transparent;
+}
+.spaire-portal .sp-avatar--image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 
 /* ── Page ─────────────────────────────────────────────────────────────── */

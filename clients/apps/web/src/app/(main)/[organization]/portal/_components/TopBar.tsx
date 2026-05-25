@@ -188,17 +188,63 @@ export const TopBar = ({
           >
             <BookmarkIcon />
           </Link>
-          <div
-            className="sp-avatar"
-            title={authenticatedUser?.name ?? authenticatedUser?.email ?? ''}
-            aria-label="Account"
-          >
-            {authenticatedUser
-              ? initialsFor(authenticatedUser.name, authenticatedUser.email)
-              : '·'}
-          </div>
+          <AccountAvatar
+            authenticatedUser={authenticatedUser}
+            customer={customer}
+            organization={organization}
+          />
         </div>
       </div>
     </header>
+  )
+}
+
+// Top-right account chip. Renders an <img> when a real avatar exists —
+// preview customers (the editor's "act as a student" flow) borrow the
+// org's logo so the chip reads as the admin themselves, not as an
+// initial-only blank. Real customers still fall back to initials.
+function AccountAvatar({
+  authenticatedUser,
+  customer,
+  organization,
+}: {
+  authenticatedUser: schemas['PortalAuthenticatedUser'] | undefined
+  customer: schemas['CustomerPortalCustomer'] | undefined
+  organization: schemas['CustomerOrganization']
+}) {
+  const isPreviewCustomer = !!(
+    customer?.email &&
+    customer.email.endsWith('@course-preview.invalid')
+  )
+  const avatarUrl = isPreviewCustomer ? organization.avatar_url : null
+  const displayName =
+    customer?.name ??
+    authenticatedUser?.name ??
+    authenticatedUser?.email ??
+    ''
+  const title = displayName || organization.name
+
+  if (avatarUrl) {
+    return (
+      <div
+        className="sp-avatar sp-avatar--image"
+        title={title}
+        aria-label="Account"
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={avatarUrl} alt="" />
+      </div>
+    )
+  }
+
+  return (
+    <div className="sp-avatar" title={title} aria-label="Account">
+      {authenticatedUser
+        ? initialsFor(
+            customer?.name ?? authenticatedUser.name,
+            authenticatedUser.email,
+          )
+        : '·'}
+    </div>
   )
 }
