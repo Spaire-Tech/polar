@@ -7,7 +7,13 @@ import { useInfiniteQuery, useMutation, useQuery } from '@tanstack/react-query'
 // for every backend tweak.
 // ---------------------------------------------------------------------
 
-export type CommunityReactionEmoji = 'clap' | 'heart' | 'fire' | 'idea' | 'pray'
+export type CommunityReactionEmoji =
+  | 'thumbsup'
+  | 'clap'
+  | 'heart'
+  | 'fire'
+  | 'idea'
+  | 'pray'
 export type CommentsMode = 'visible' | 'hidden' | 'locked'
 export type CommunitySortProperty = 'recent' | 'top_week' | 'unanswered'
 export type CommunityPinType = 'announcement' | 'prompt_of_week'

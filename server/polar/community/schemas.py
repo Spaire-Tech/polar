@@ -123,7 +123,9 @@ CommunityAuthor = CommunityAuthorInstructor | CommunityAuthorStudent
 # Mirrors the CHECK constraint in the migration and the
 # COMMUNITY_REACTION_EMOJIS tuple on the model. Kept here so OpenAPI
 # documents the allowed values without importing the model.
-CommunityReactionEmoji = Literal["clap", "heart", "fire", "idea", "pray"]
+CommunityReactionEmoji = Literal[
+    "thumbsup", "clap", "heart", "fire", "idea", "pray"
+]
 
 
 class CommunityReactionSummaryEntry(Schema):
