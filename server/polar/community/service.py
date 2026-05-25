@@ -75,6 +75,7 @@ from .schemas import (
     CommunityCommentCreate,
     CommunityCourseSummary,
     CommunityLessonChip,
+    CommunityMemberRead,
     CommunityPinPayload,
     CommunityPostCreate,
     CommunityPostImageUploadResult,
@@ -90,13 +91,17 @@ from .sorting import CommunityPostSortProperty
 # Default pin lifetime when the creator doesn't specify expires_at.
 DEFAULT_PIN_DURATION = timedelta(days=7)
 
-# Tags that get seeded on first enable. Keep slugs in sync with
-# COMMUNITY_TAG_SLUGS_SEEDED in sorting.py.
+# Tags that get seeded on first enable. Matches the v4 design's filter
+# row (Activity / Question / Win / Discussion). The legacy `milestone`
+# slug was dropped here on 2026-05-25 — existing courses with a
+# milestone tag aren't auto-removed but the tag-editor UI lets the
+# creator delete it, and create_milestone_post tolerates a missing
+# tag gracefully (no-ops).
 _SEED_TAGS: list[tuple[str, str, int]] = [
-    ("question", "Question", 0),
-    ("win", "Win", 1),
-    ("prompt", "Prompt", 2),
-    ("milestone", "Milestone", 3),
+    ("activity", "Activity", 0),
+    ("question", "Question", 1),
+    ("win", "Win", 2),
+    ("discussion", "Discussion", 3),
 ]
 
 
@@ -265,6 +270,47 @@ class CommunityService:
             )
             for row in rows
         ]
+
+    async def list_members(
+        self,
+        session: AsyncSession,
+        *,
+        course_id: UUID,
+    ) -> Sequence[CommunityMemberRead]:
+        """Powers the Members tab. Returns the course instructor as a
+        synthetic first row (so the UI doesn't need a second call), then
+        every active enrollment in newest-first order. The instructor row
+        uses the course as its identity since no user_id mapping is
+        joined here — the UI keys members by `id` and surfaces the role
+        via `kind`."""
+        course_repo = CourseRepository.from_session(session)
+        course = await course_repo.get_by_id(course_id)
+        post_repo = CommunityPostRepository.from_session(session)
+        enrollment_rows = await post_repo.list_course_members(course_id)
+
+        members: list[CommunityMemberRead] = []
+        if course is not None:
+            instructor_name = (course.instructor_name or "").strip() or "Instructor"
+            members.append(
+                CommunityMemberRead(
+                    id=course.id,
+                    kind="instructor",
+                    name=instructor_name,
+                    avatar_url=None,
+                    joined_at=course.created_at,
+                )
+            )
+        for enrollment_id, name, email, joined_at in enrollment_rows:
+            members.append(
+                CommunityMemberRead(
+                    id=enrollment_id,
+                    kind="student",
+                    name=_resolve_display_name(name, email),
+                    avatar_url=None,
+                    joined_at=joined_at,
+                )
+            )
+        return members
 
     async def assert_enrolled(
         self,
@@ -1167,39 +1213,106 @@ class CommunityService:
         self,
         session: AsyncSession,
         *,
+        course_id: UUID | None = None,
         enrollment_ids: set[UUID],
         user_ids: set[UUID],
     ) -> dict[tuple[Literal["enrollment", "user"], UUID], CommunityAuthor]:
         """One round-trip per author kind. Returns a dict keyed by
         ('enrollment'|'user', id) so endpoints can look up each post's
-        author without N+1 queries."""
+        author without N+1 queries.
+
+        When `course_id` is provided, instructor authors get the
+        course's `instructor_name` overlaid as their display name —
+        that's the creator-facing identity they actually edit in the
+        course settings, and it's what the community surface should
+        render rather than the raw User email."""
         out: dict[tuple[Literal["enrollment", "user"], UUID], CommunityAuthor] = {}
 
         post_repo = CommunityPostRepository.from_session(session)
 
-        # Student authors — Customer has no avatar column today, so
-        # student rows surface avatar_url=None and the UI falls back to
-        # initials. Schema stays nullable so we can light it up later
-        # without a client change.
-        for enrollment_id, name, email in await post_repo.list_student_author_rows(
-            enrollment_ids
-        ):
+        # Resolve the course's instructor_name override up front so both
+        # the student section (for preview-customer overlay) and the
+        # instructor section can use it. Falls back to None when no
+        # course_id was threaded through — the bulk-loaders below
+        # tolerate that.
+        instructor_name_override: str | None = None
+        if course_id is not None:
+            course_repo = CourseRepository.from_session(session)
+            course = await course_repo.get_by_id(course_id)
+            if course is not None and course.instructor_name:
+                stripped = course.instructor_name.strip()
+                if stripped:
+                    instructor_name_override = stripped
+
+        # Student authors. Customer has no native avatar column, but the
+        # org always carries a logo (logo.dev fallback when the creator
+        # hasn't uploaded one) — surface it so every student row gets
+        # the same "the system's got a picture for them" treatment as
+        # the dashboard does elsewhere.
+        #
+        # Preview customers (Polar's editor-side "log in as a student"
+        # flow mints one per org user with a deterministic email) are
+        # special-cased: they're really the admin, so they get the
+        # course's instructor_name + the org's avatar instead of the
+        # synthetic "(preview)" suffix Customer.name carries.
+        for (
+            enrollment_id,
+            name,
+            email,
+            customer_avatar,
+            org_avatar,
+            _org_id,
+        ) in await post_repo.list_student_author_rows(enrollment_ids):
+            is_preview = (
+                isinstance(email, str)
+                and email.endswith("@course-preview.invalid")
+            )
+            if is_preview and instructor_name_override:
+                resolved_name: str | None = instructor_name_override
+            elif is_preview and name:
+                # Strip the legacy " (preview)" suffix from older preview
+                # customers so the rendered author stays clean.
+                resolved_name = name.removesuffix(" (preview)").strip() or None
+            else:
+                resolved_name = _resolve_display_name(name, email)
             out[("enrollment", enrollment_id)] = CommunityAuthorStudent(
                 enrollment_id=enrollment_id,
-                name=_resolve_display_name(name, email),
-                avatar_url=None,
+                name=resolved_name,
+                # Only the admin's preview customer borrows the org logo
+                # — real students stay at None so they render initials,
+                # never with another author's brand on their face.
+                avatar_url=customer_avatar
+                or (org_avatar if is_preview else None),
             )
 
-        # Instructor authors — User has no explicit display name distinct
-        # from email; the endpoint layer may overlay course.instructor_name
-        # on top, but the service surfaces the raw resolution here.
+        # Instructor authors. The User table has no display name distinct
+        # from email, but the course carries an `instructor_name`
+        # override that's the editorial-facing identity (set in the
+        # course editor). If present, that beats the email-local
+        # fallback so admins see "Mira Chen" on their own posts instead
+        # of "mira.chen". Avatars fall back to the org's logo (same
+        # logo.dev URL the dashboard uses) when the user hasn't
+        # uploaded their own — "the picture the system's got for them".
+        instructor_avatar_fallback: str | None = None
+        if course_id is not None:
+            from polar.models.organization import Organization
+
+            # Pulls the course's org and its avatar_url property
+            # (which mints the logo.dev URL when no upload exists).
+            course_row = await course_repo.get_by_id(course_id)
+            if course_row is not None:
+                org = await session.get(Organization, course_row.organization_id)
+                if org is not None:
+                    instructor_avatar_fallback = org.avatar_url
+
         for user_id, email, avatar_url in await post_repo.list_instructor_author_rows(
             user_ids
         ):
             out[("user", user_id)] = CommunityAuthorInstructor(
                 user_id=user_id,
-                name=_resolve_display_name(None, email),
-                avatar_url=avatar_url,
+                name=instructor_name_override
+                or _resolve_display_name(None, email),
+                avatar_url=avatar_url or instructor_avatar_fallback,
             )
 
         return out
@@ -1309,8 +1422,17 @@ class CommunityService:
         lesson_ids = {p.lesson_id for p in posts if p.lesson_id}
         post_ids = {p.id for p in posts}
 
+        # All posts in a render context belong to the same course (the
+        # feed/list endpoints scope the query that way). Lift the
+        # course_id off any post so resolve_authors can overlay the
+        # course's instructor_name on instructor authors.
+        course_id_for_overlay = posts[0].course_id if posts else None
+
         authors = await self.resolve_authors(
-            session, enrollment_ids=enrollment_ids, user_ids=user_ids
+            session,
+            course_id=course_id_for_overlay,
+            enrollment_ids=enrollment_ids,
+            user_ids=user_ids,
         )
         lessons = await self.resolve_lesson_chips(session, lesson_ids)
 

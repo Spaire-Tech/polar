@@ -362,6 +362,22 @@ async def get_enrolled_course(
 
     customer = await session.get(Customer, customer_id)
     customer_name = customer.name if customer else None
+    # Real customers get their own avatar (set during the first-sign-in
+    # onboarding flow or the Settings menu). Preview customers — the
+    # admin acting as a student — fall back to the org's avatar
+    # (logo.dev fallback when the creator hasn't uploaded one) so the
+    # composer pill reads as the admin themselves.
+    customer_avatar_url: str | None = customer.avatar_url if customer else None
+    if (
+        customer_avatar_url is None
+        and customer is not None
+        and (customer.email or "").endswith("@course-preview.invalid")
+    ):
+        from polar.models.organization import Organization
+
+        org = await session.get(Organization, customer.organization_id)
+        if org is not None:
+            customer_avatar_url = org.avatar_url
 
     modules, accessible_ids = _build_module_list(
         course, course.paywall_position, enrolled_at, now, completed_ids
@@ -378,6 +394,7 @@ async def get_enrolled_course(
         "enrollment_id": str(enrollment.id),
         "enrolled_at": enrolled_at.isoformat(),
         "customer_name": customer_name,
+        "customer_avatar_url": customer_avatar_url,
         "progress": {
             "total_lessons": total_lessons,
             "completed_lessons": completed_count,
@@ -400,6 +417,7 @@ async def get_enrolled_course(
             "instructor_name_bold": course.instructor_name_bold,
             "instructor_name_uppercase": course.instructor_name_uppercase,
             "course_type": course.course_type,
+            "format": course.format,
             "paywall_enabled": course.paywall_enabled,
             "paywall_position": course.paywall_position,
             "landing_overrides": course.landing_overrides,

@@ -971,6 +971,15 @@ async def get_preview_access(
     # The .invalid TLD is RFC-reserved and guaranteed to never match a
     # real address, so this can't collide with checkout-created customers.
     preview_email = f"preview+{user.id}@course-preview.invalid"
+    # Display name mirrors the admin's editorial identity: course's
+    # instructor_name override → org name → user email-local. No
+    # "(preview)" suffix — the portal now treats this customer as the
+    # admin themselves, not a sandboxed fake account.
+    display_name = (
+        (course.instructor_name or "").strip()
+        or (org.name or "").strip()
+        or user.email.split("@")[0]
+    )
     customer = await customer_repo.get_by_email_and_organization(
         preview_email, course.organization_id
     )
@@ -978,10 +987,16 @@ async def get_preview_access(
         customer = await customer_repo.create(
             Customer(
                 email=preview_email,
-                name=f"{user.email.split('@')[0]} (preview)",
+                name=display_name,
                 organization_id=course.organization_id,
             ),
             flush=True,
+        )
+    elif customer.name != display_name:
+        # Refresh stale preview customer rows from earlier sessions
+        # whose name still carries the legacy "(preview)" suffix.
+        customer = await customer_repo.update(
+            customer, update_dict={"name": display_name}
         )
 
     await course_service.enroll_customer(

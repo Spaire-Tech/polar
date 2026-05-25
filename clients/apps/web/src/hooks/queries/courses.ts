@@ -606,6 +606,7 @@ export type CustomerCourseDetail = {
   enrollment_id: string
   enrolled_at: string
   customer_name: string | null
+  customer_avatar_url: string | null
   progress: CustomerCourseProgress
   course: {
     id: string
@@ -620,6 +621,7 @@ export type CustomerCourseDetail = {
     instructor_name_bold?: boolean
     instructor_name_uppercase?: boolean
     course_type: string
+    format?: CourseFormat
     paywall_enabled: boolean
     paywall_position: number | null
     landing_overrides?: LandingOverrides | null

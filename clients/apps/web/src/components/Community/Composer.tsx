@@ -1,19 +1,29 @@
 'use client'
 
 import {
+  type CommunityIOMode,
   type CommunityTagRead,
   useCreateCommunityPost,
   useUploadPostImage,
   useUploadPostVideo,
 } from '@/hooks/queries/community'
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Avatar } from './Avatar'
 import styles from './community.module.css'
-import { IconImage, IconPlus, IconVideo, IconX } from './icons'
+import {
+  IconCalendar,
+  IconFile,
+  IconGif,
+  IconImage,
+  IconPoll,
+  IconSend,
+  IconSmile,
+  IconVideo,
+  IconX,
+} from './icons'
 
 const MAX_IMAGES = 4
-const MAX_VIDEO_BYTES = 500 * 1024 * 1024 // 500 MB ceiling — Mux ingests
-// larger but the wait + abandonment risk isn't worth it for a feed post.
+const MAX_VIDEO_BYTES = 500 * 1024 * 1024
 
 type AttachedImage = {
   file_id: string
@@ -22,21 +32,31 @@ type AttachedImage = {
 
 type AttachedVideo = {
   upload_id: string
-  // Browser-side blob URL for the preview — released on unmount /
-  // submission so we don't leak memory between drafts.
   preview_url: string
   filename: string
-  progress: number // 0..1
+  progress: number
 }
 
 type Props = {
   token: string
   courseId: string
   selfName?: string | null
-  tags: CommunityTagRead[]
-  modules: { id: string; label: string }[]
-  defaultModuleId?: string | null
-  // When the user clicks the top-right "+ New post" button.
+  selfAvatarUrl?: string | null
+  // The category dropdown's option list. For series courses this is
+  // every episode (lesson). For course-format it's every module. The
+  // composer doesn't care which — it shows the labels and passes the
+  // selected id back as lesson_id when categoryKind === 'episode'.
+  // Module-only selections are kept client-side until the backend
+  // gains a module_id column on community_post.
+  categories: { id: string; label: string }[]
+  categoryKind: 'episode' | 'module'
+  // Available tags surfaced as chips in the modal. When empty, the
+  // tag selector is hidden so the creator hasn't accidentally exposed
+  // an empty row.
+  tags?: CommunityTagRead[]
+  // 'creator' routes the create/upload mutations through the
+  // dashboard-auth endpoints so admins post AS the instructor.
+  mode?: CommunityIOMode
   forceOpen?: boolean
   onOpenChange?: (open: boolean) => void
   onPosted?: () => void
@@ -46,9 +66,11 @@ export function Composer({
   token,
   courseId,
   selfName,
-  tags,
-  modules,
-  defaultModuleId,
+  selfAvatarUrl,
+  categories,
+  categoryKind,
+  tags = [],
+  mode = 'customer',
   forceOpen,
   onOpenChange,
   onPosted,
@@ -56,24 +78,43 @@ export function Composer({
   const [expanded, setExpanded] = useState(false)
   const isOpen = forceOpen ?? expanded
   const [body, setBody] = useState('')
-  const [tagId, setTagId] = useState<string>('')
-  const [lessonModuleId, setLessonModuleId] = useState<string>(
-    defaultModuleId ?? '',
-  )
+  const [categoryId, setCategoryId] = useState<string>('')
+  const [tagId, setTagId] = useState<string | null>(null)
   const [images, setImages] = useState<AttachedImage[]>([])
   const [video, setVideo] = useState<AttachedVideo | null>(null)
   const [uploadError, setUploadError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const videoInputRef = useRef<HTMLInputElement>(null)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
 
-  const create = useCreateCommunityPost(token, courseId)
-  const upload = useUploadPostImage(token, courseId)
-  const uploadVideo = useUploadPostVideo(token, courseId)
+  const create = useCreateCommunityPost(token, courseId, mode)
+  const upload = useUploadPostImage(token, courseId, mode)
+  const uploadVideo = useUploadPostVideo(token, courseId, mode)
+
+  // Focus the textarea once the modal mounts.
+  useEffect(() => {
+    if (isOpen) {
+      const t = setTimeout(() => textareaRef.current?.focus(), 60)
+      return () => clearTimeout(t)
+    }
+  }, [isOpen])
+
+  // Esc closes the modal — global key listener stays scoped to the open
+  // state so it doesn't capture keys when the composer is collapsed.
+  useEffect(() => {
+    if (!isOpen) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') close()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen])
 
   const reset = () => {
     setBody('')
-    setTagId('')
-    setLessonModuleId(defaultModuleId ?? '')
+    setCategoryId('')
+    setTagId(null)
     setImages([])
     if (video) URL.revokeObjectURL(video.preview_url)
     setVideo(null)
@@ -94,7 +135,6 @@ export function Composer({
   const onFilesPicked = async (files: FileList | null) => {
     if (!files || files.length === 0) return
     setUploadError(null)
-    // Cap at MAX_IMAGES total — silently drop overflow.
     const slots = MAX_IMAGES - images.length
     const queue = Array.from(files).slice(0, slots)
     for (const file of queue) {
@@ -116,7 +156,6 @@ export function Composer({
         setUploadError(e instanceof Error ? e.message : 'Upload failed')
       }
     }
-    // Reset input so picking the same file again re-fires onChange.
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
@@ -134,7 +173,6 @@ export function Composer({
       if (videoInputRef.current) videoInputRef.current.value = ''
       return
     }
-    // Seed the row with a 0% progress so the UI shows immediately.
     const preview = URL.createObjectURL(file)
     setVideo({
       upload_id: '',
@@ -178,7 +216,8 @@ export function Composer({
           type: 'video',
           body: trimmed || ' ',
           body_format: 'plain',
-          tag_id: tagId || null,
+          tag_id: tagId,
+          lesson_id: selectedLessonId,
           media: [
             {
               media_type: 'video',
@@ -189,9 +228,10 @@ export function Composer({
         })
       } else {
         await create.mutateAsync({
-          body: trimmed || ' ', // body is min_length=1 on the server
+          body: trimmed || ' ',
           body_format: 'plain',
-          tag_id: tagId || null,
+          tag_id: tagId,
+          lesson_id: selectedLessonId,
           media: images.map((img, idx) => ({
             media_type: 'image',
             file_id: img.file_id,
@@ -204,40 +244,8 @@ export function Composer({
       onOpenChange?.(false)
       onPosted?.()
     } catch {
-      // Mutation surfaces the error via .isError if the parent wants
-      // to render it; keep the composer open so the user doesn't lose
-      // their draft.
+      // Keep modal open so the draft survives.
     }
-  }
-
-  if (!isOpen) {
-    return (
-      <div className={styles.composer}>
-        <div className={styles.composerRow}>
-          <Avatar name={selfName ?? 'You'} size={36} />
-          <button
-            type="button"
-            className={styles.composerInput}
-            style={{
-              textAlign: 'left',
-              cursor: 'text',
-              color: 'var(--c-muted)',
-            }}
-            onClick={open}
-          >
-            Start a post
-          </button>
-          <button
-            type="button"
-            className={styles.composerAdd}
-            onClick={open}
-            aria-label="New post"
-          >
-            <IconPlus size={17} />
-          </button>
-        </div>
-      </div>
-    )
   }
 
   const videoReady = video !== null && video.upload_id !== ''
@@ -247,273 +255,356 @@ export function Composer({
     !uploadVideo.isPending &&
     (body.trim().length > 0 || images.length > 0 || videoReady)
 
-  return (
-    <div className={styles.composer}>
-      <div className={styles.composerRow} style={{ alignItems: 'flex-start' }}>
-        <Avatar name={selfName ?? 'You'} size={36} />
-        <div className={styles.composerExpanded} style={{ flex: 1 }}>
-          <textarea
-            className={styles.composerTextarea}
-            placeholder="What's on your mind?"
-            value={body}
-            onChange={(e) => setBody(e.target.value)}
-            autoFocus
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-                e.preventDefault()
-                submit()
-              }
-              if (e.key === 'Escape') {
-                e.preventDefault()
-                close()
-              }
-            }}
-          />
+  const categoryLabel =
+    categories.find((c) => c.id === categoryId)?.label ??
+    (categoryKind === 'episode' ? 'All episodes' : 'All modules')
 
-          {/* Attached video preview — exclusive with images per the
-              backend type contract (video posts get exactly one video,
-              no images). */}
-          {video && (
-            <div
-              style={{
-                marginTop: 10,
-                borderRadius: 12,
-                overflow: 'hidden',
-                position: 'relative',
-                background: '#000',
-                aspectRatio: '16 / 9',
-              }}
-            >
-              {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
-              <video
-                src={video.preview_url}
-                controls
-                playsInline
-                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-              />
+  // We only send lesson_id when the picker is series (= lessons). Course
+  // format selections are module-level and the backend has no module_id
+  // column on community_post yet, so we keep them local until that
+  // lands.
+  const selectedLessonId =
+    categoryKind === 'episode' && categoryId ? categoryId : null
+
+  // Photo/Video tool buttons open the OS file picker directly, then
+  // expand the modal so the user lands on a draft with the file already
+  // attached. The pill itself and the Write tool just open the modal.
+  const pickPhotoAndOpen = () => {
+    fileInputRef.current?.click()
+    open()
+  }
+  const pickVideoAndOpen = () => {
+    videoInputRef.current?.click()
+    open()
+  }
+
+  return (
+    <>
+      {/* Hidden inputs sit OUTSIDE the modal so the device picker can
+          be invoked from the collapsed pill before the modal renders.
+          They're re-used by the modal's foot tools via the same refs. */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        multiple
+        style={{ display: 'none' }}
+        onChange={(e) => onFilesPicked(e.target.files)}
+      />
+      <input
+        ref={videoInputRef}
+        type="file"
+        accept="video/*"
+        style={{ display: 'none' }}
+        onChange={(e) => onVideoPicked(e.target.files)}
+      />
+
+      {/* Collapsed pill — always rendered. The pill itself + Write open
+          the modal; Photo/Video skip straight to the device picker. */}
+      <div className={styles.composer}>
+        <div className={styles.composerRow}>
+          <Avatar
+            name={selfName ?? 'You'}
+            avatarUrl={selfAvatarUrl ?? undefined}
+            size={40}
+          />
+          <button type="button" className={styles.composerInput} onClick={open}>
+            Start a discussion, ask a question, share what you&apos;re working
+            on…
+          </button>
+        </div>
+        <div className={styles.composerTools}>
+          <button
+            type="button"
+            className={styles.composerTool}
+            onClick={pickPhotoAndOpen}
+            aria-label="Attach photo"
+          >
+            <span className={styles.composerToolPhoto}>
+              <IconImage size={18} />
+            </span>
+            Photo
+          </button>
+          <button
+            type="button"
+            className={styles.composerTool}
+            onClick={pickVideoAndOpen}
+            aria-label="Attach video"
+          >
+            <span className={styles.composerToolVideo}>
+              <IconVideo size={18} />
+            </span>
+            Video
+          </button>
+          <button
+            type="button"
+            className={styles.composerTool}
+            onClick={open}
+            aria-label="Create poll"
+            title="Polls coming soon"
+          >
+            <span className={styles.composerToolPoll}>
+              <IconPoll size={18} />
+            </span>
+            Poll
+          </button>
+          <button
+            type="button"
+            className={styles.composerTool}
+            onClick={open}
+            aria-label="Create event"
+            title="Open events from the rail to schedule one"
+          >
+            <span className={styles.composerToolEvent}>
+              <IconCalendar size={18} />
+            </span>
+            Event
+          </button>
+        </div>
+      </div>
+
+      {/* Modal */}
+      {isOpen && (
+        <div
+          className={styles.modalBackdrop}
+          onClick={close}
+          role="dialog"
+          aria-modal="true"
+        >
+          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.modalHead}>
+              <div className={styles.modalAuthor}>
+                <Avatar
+                  name={selfName ?? 'You'}
+                  avatarUrl={selfAvatarUrl ?? undefined}
+                  size={38}
+                />
+                <div>
+                  <div className={styles.modalAuthorName}>
+                    {selfName ?? 'You'}
+                  </div>
+                  {categories.length > 0 && (
+                    <select
+                      className={styles.modalAuthorMeta}
+                      value={categoryId}
+                      onChange={(e) => setCategoryId(e.target.value)}
+                      aria-label={
+                        categoryKind === 'episode' ? 'Episode' : 'Module'
+                      }
+                      title={categoryLabel}
+                    >
+                      <option value="">
+                        {categoryKind === 'episode'
+                          ? 'No episode'
+                          : 'No module'}
+                      </option>
+                      {categories.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.label}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+              </div>
               <button
                 type="button"
-                onClick={removeVideo}
-                aria-label="Remove video"
-                style={{
-                  position: 'absolute',
-                  top: 8,
-                  right: 8,
-                  width: 24,
-                  height: 24,
-                  borderRadius: 999,
-                  background: 'rgba(0,0,0,0.6)',
-                  color: 'white',
-                  border: 'none',
-                  cursor: 'pointer',
-                  display: 'grid',
-                  placeItems: 'center',
-                }}
+                className={styles.modalClose}
+                onClick={close}
+                aria-label="Close"
               >
-                <IconX size={12} />
+                <IconX size={18} />
               </button>
-              {video.upload_id === '' && (
-                <div
-                  style={{
-                    position: 'absolute',
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    background:
-                      'linear-gradient(0deg, rgba(0,0,0,0.6), transparent)',
-                    padding: '14px 12px 8px',
-                    color: 'white',
-                    fontSize: 11,
-                  }}
-                >
-                  Uploading {Math.round(video.progress * 100)}% —{' '}
-                  {video.filename}
-                  <div
-                    style={{
-                      marginTop: 4,
-                      height: 3,
-                      background: 'rgba(255,255,255,0.25)',
-                      borderRadius: 999,
-                      overflow: 'hidden',
-                    }}
-                  >
-                    <div
-                      style={{
-                        width: `${Math.round(video.progress * 100)}%`,
-                        height: '100%',
-                        background: 'white',
-                        transition: 'width 120ms linear',
-                      }}
-                    />
-                  </div>
+            </div>
+
+            <div className={styles.modalBody}>
+              <textarea
+                ref={textareaRef}
+                className={styles.modalTextarea}
+                placeholder={`What's on your mind${
+                  selfName ? `, ${selfName.split(' ')[0]}` : ''
+                }? Share a question, a win, or what you've been working on…`}
+                value={body}
+                onChange={(e) => setBody(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                    e.preventDefault()
+                    submit()
+                  }
+                }}
+              />
+
+              {tags.length > 0 && (
+                <div className={styles.modalTagRow}>
+                  <span className={styles.modalTagLabel}>Tag your post:</span>
+                  {tags.map((t) => (
+                    <button
+                      key={t.id}
+                      type="button"
+                      className={`${styles.modalTagChip} ${
+                        tagId === t.id ? styles.active : ''
+                      }`}
+                      onClick={() =>
+                        setTagId((prev) => (prev === t.id ? null : t.id))
+                      }
+                    >
+                      {t.label}
+                    </button>
+                  ))}
                 </div>
               )}
-            </div>
-          )}
 
-          {/* Attached-image thumbnails (1–4 chips above the foot) */}
-          {images.length > 0 && (
-            <div className={styles.composerThumbs}>
-              {images.map((img, idx) => (
-                <div key={img.file_id} className={styles.composerThumb}>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={img.preview_url} alt="" loading="lazy" />
+              {video && (
+                <div className={styles.composerVideoPreview}>
+                  {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+                  <video src={video.preview_url} controls playsInline />
                   <button
                     type="button"
-                    className={styles.composerThumbRemove}
-                    onClick={() => removeImage(idx)}
-                    aria-label="Remove image"
+                    className={styles.composerVideoRemove}
+                    onClick={removeVideo}
+                    aria-label="Remove video"
                   >
-                    <IconX size={11} />
+                    <IconX size={13} />
                   </button>
+                  {video.upload_id === '' && (
+                    <div className={styles.composerVideoProgress}>
+                      Uploading {Math.round(video.progress * 100)}% —{' '}
+                      {video.filename}
+                      <div className={styles.composerVideoProgressBar}>
+                        <div
+                          className={styles.composerVideoProgressFill}
+                          style={{
+                            width: `${Math.round(video.progress * 100)}%`,
+                          }}
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
-              ))}
-              {upload.isPending && (
-                <div
-                  className={styles.composerThumb}
-                  style={{
-                    display: 'grid',
-                    placeItems: 'center',
-                    color: 'var(--c-muted)',
-                    fontSize: 11,
-                  }}
-                >
+              )}
+
+              {images.length > 0 && (
+                <div className={styles.composerThumbs}>
+                  {images.map((img, idx) => (
+                    <div key={img.file_id} className={styles.composerThumb}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={img.preview_url} alt="" loading="lazy" />
+                      <button
+                        type="button"
+                        className={styles.composerThumbRemove}
+                        onClick={() => removeImage(idx)}
+                        aria-label="Remove image"
+                      >
+                        <IconX size={11} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {(upload.isPending || uploadVideo.isPending) && (
+                <div style={{ fontSize: 12, color: 'var(--c-muted)' }}>
                   Uploading…
                 </div>
               )}
-            </div>
-          )}
-          {upload.isPending && images.length === 0 && (
-            <div
-              style={{
-                fontSize: 12,
-                color: 'var(--c-muted)',
-                marginTop: 4,
-              }}
-            >
-              Uploading…
-            </div>
-          )}
-          {uploadError && (
-            <div
-              style={{
-                fontSize: 12,
-                color: '#dc2626',
-                marginTop: 4,
-              }}
-              role="alert"
-            >
-              {uploadError}
-            </div>
-          )}
 
-          <div className={styles.composerFoot}>
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                multiple
-                style={{ display: 'none' }}
-                onChange={(e) => onFilesPicked(e.target.files)}
-              />
-              <input
-                ref={videoInputRef}
-                type="file"
-                accept="video/*"
-                style={{ display: 'none' }}
-                onChange={(e) => onVideoPicked(e.target.files)}
-              />
-              <button
-                type="button"
-                className={styles.composerIconBtn}
-                onClick={() => fileInputRef.current?.click()}
-                disabled={
-                  images.length >= MAX_IMAGES ||
-                  upload.isPending ||
-                  video !== null
-                }
-                aria-label="Attach image"
-                title={
-                  video !== null
-                    ? 'Remove the video first to attach images'
-                    : images.length >= MAX_IMAGES
-                      ? `Maximum ${MAX_IMAGES} images per post`
-                      : 'Attach image'
-                }
-              >
-                <IconImage size={16} />
-              </button>
-              <button
-                type="button"
-                className={styles.composerIconBtn}
-                onClick={() => videoInputRef.current?.click()}
-                disabled={
-                  video !== null || uploadVideo.isPending || images.length > 0
-                }
-                aria-label="Attach video"
-                title={
-                  images.length > 0
-                    ? 'Remove images first to attach a video'
-                    : video !== null
-                      ? 'Only one video per post'
-                      : 'Attach video'
-                }
-              >
-                <IconVideo size={16} />
-              </button>
-              {tags.length > 0 && (
-                <select
-                  className={styles.composerSelect}
-                  value={tagId}
-                  onChange={(e) => setTagId(e.target.value)}
-                  aria-label="Tag"
-                >
-                  <option value="">No tag</option>
-                  {tags.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.label}
-                    </option>
-                  ))}
-                </select>
-              )}
-              {modules.length > 0 && (
-                <select
-                  className={styles.composerSelect}
-                  value={lessonModuleId}
-                  onChange={(e) => setLessonModuleId(e.target.value)}
-                  aria-label="Module"
-                >
-                  <option value="">No module</option>
-                  {modules.map((m) => (
-                    <option key={m.id} value={m.id}>
-                      {m.label}
-                    </option>
-                  ))}
-                </select>
+              {uploadError && (
+                <div className={styles.composerError} role="alert">
+                  {uploadError}
+                </div>
               )}
             </div>
-            <div style={{ display: 'flex', gap: 4 }}>
+
+            <div className={styles.modalFoot}>
+              <div className={styles.modalFootTools}>
+                <button
+                  type="button"
+                  className={`${styles.modalTool} ${styles.modalToolPhoto}`}
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={
+                    images.length >= MAX_IMAGES ||
+                    upload.isPending ||
+                    video !== null
+                  }
+                  aria-label="Add photo"
+                  title={
+                    video !== null
+                      ? 'Remove the video first to attach images'
+                      : images.length >= MAX_IMAGES
+                        ? `Maximum ${MAX_IMAGES} images per post`
+                        : 'Add photo'
+                  }
+                >
+                  <IconImage size={18} />
+                </button>
+                <button
+                  type="button"
+                  className={`${styles.modalTool} ${styles.modalToolVideo}`}
+                  onClick={() => videoInputRef.current?.click()}
+                  disabled={
+                    video !== null || uploadVideo.isPending || images.length > 0
+                  }
+                  aria-label="Add video"
+                  title={
+                    images.length > 0
+                      ? 'Remove images first to attach a video'
+                      : video !== null
+                        ? 'Only one video per post'
+                        : 'Add video'
+                  }
+                >
+                  <IconVideo size={18} />
+                </button>
+                <button
+                  type="button"
+                  className={`${styles.modalTool} ${styles.modalToolFile}`}
+                  aria-label="Attach file"
+                  disabled
+                  title="File attachments coming soon"
+                >
+                  <IconFile size={18} />
+                </button>
+                <button
+                  type="button"
+                  className={`${styles.modalTool} ${styles.modalToolGif}`}
+                  aria-label="Add GIF"
+                  disabled
+                  title="GIF picker coming soon"
+                >
+                  <IconGif size={18} />
+                </button>
+                <button
+                  type="button"
+                  className={`${styles.modalTool} ${styles.modalToolPoll}`}
+                  aria-label="Create poll"
+                  disabled
+                  title="Polls coming soon"
+                >
+                  <IconPoll size={18} />
+                </button>
+                <button
+                  type="button"
+                  className={styles.modalTool}
+                  aria-label="Add emoji"
+                  disabled
+                  title="Emoji picker coming soon"
+                >
+                  <IconSmile size={18} />
+                </button>
+              </div>
               <button
                 type="button"
-                className={styles.composerCancel}
-                onClick={close}
-                disabled={create.isPending}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                className={styles.composerSubmit}
-                onClick={submit}
+                className={styles.modalPostBtn}
                 disabled={!canSubmit}
+                onClick={submit}
               >
+                <IconSend size={13} />
                 {create.isPending ? 'Posting…' : 'Post'}
               </button>
             </div>
           </div>
         </div>
-      </div>
-    </div>
+      )}
+    </>
   )
 }

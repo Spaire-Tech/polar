@@ -17,7 +17,9 @@ class CommunityPostSortProperty(StrEnum):
     unanswered = "unanswered"
 
 
-# Seed tag slugs from the migration. Referenced by the milestone task and
-# the default filter-chip set; the labels stay creator-renamable but the
-# slugs are stable identifiers the code looks up by.
-COMMUNITY_TAG_SLUGS_SEEDED = ("question", "win", "prompt", "milestone")
+# Seed tag slugs. Matches the v4 design's filter row. Labels stay
+# creator-renamable but slugs are stable identifiers the code (and tag
+# pill colors in CSS) look up by. The legacy `milestone` slug is still
+# referenced by create_milestone_post but the lookup is None-tolerant —
+# courses without the tag just skip the auto-post.
+COMMUNITY_TAG_SLUGS_SEEDED = ("activity", "question", "win", "discussion")

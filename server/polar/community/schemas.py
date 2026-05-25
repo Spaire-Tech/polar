@@ -331,6 +331,23 @@ class CommunityCourseSummary(Schema):
 
 
 # =====================================================================
+# Members
+# =====================================================================
+
+
+class CommunityMemberRead(Schema):
+    """One row in the Members tab. The instructor is included as a
+    synthetic first entry (kind='instructor', id=user_id). Students are
+    one-per-enrollment, keyed by enrollment_id."""
+
+    id: UUID4
+    kind: Literal["instructor", "student"]
+    name: str | None
+    avatar_url: str | None
+    joined_at: datetime | None
+
+
+# =====================================================================
 # Feed
 # =====================================================================
 

@@ -1,116 +1,147 @@
 'use client'
 
-import type { CommunitySortProperty } from '@/hooks/queries/community'
-import { Avatar } from './Avatar'
 import styles from './community.module.css'
-import { IconBook, IconChat, IconFilter, IconSort, IconStar } from './icons'
+import {
+  IconBook,
+  IconCalendar,
+  IconCamera,
+  IconFilter,
+  IconHome,
+  IconUsers,
+} from './icons'
 
-export type RailModule = {
+export type RailLesson = {
   id: string
   label: string
-  count: number
+  count?: number
 }
 
-const SORTS: { id: CommunitySortProperty; label: string; Icon: typeof IconSort }[] = [
-  { id: 'recent', label: 'Recent', Icon: IconSort },
-  { id: 'top_week', label: 'Top this week', Icon: IconStar },
-  { id: 'unanswered', label: 'Unanswered', Icon: IconChat },
-]
+export type CommunityView = 'home' | 'members' | 'events' | 'activities'
 
-type PresenceProps = {
-  instructorName: string | null
-  instructorAvatarUrl: string | null
-  blurb: string | null
+// `series` → label items "episodes"; anything else → "modules". Mirrors
+// the composer's category selector so the rail and modal agree.
+export type DiscussionsKind = 'episode' | 'module'
+
+type Props = {
+  view: CommunityView
+  onViewChange: (view: CommunityView) => void
+  lessons: RailLesson[]
+  lessonId: string | null
+  onLessonChange: (lessonId: string | null) => void
+  memberCount: number | null
+  eventCount: number | null
+  activityCount?: number | null
+  discussionsKind: DiscussionsKind
 }
 
 export function LeftRail({
-  sort,
-  onSortChange,
-  moduleId,
-  onModuleChange,
-  modules,
-  presence,
-}: {
-  sort: CommunitySortProperty
-  onSortChange: (sort: CommunitySortProperty) => void
-  moduleId: string | null
-  onModuleChange: (moduleId: string | null) => void
-  modules: RailModule[]
-  presence: PresenceProps | null
-}) {
+  view,
+  onViewChange,
+  lessons,
+  lessonId,
+  onLessonChange,
+  memberCount,
+  eventCount,
+  activityCount,
+  discussionsKind,
+}: Props) {
+  const allLabel =
+    discussionsKind === 'episode' ? 'All episodes' : 'All modules'
+
   return (
     <aside className={styles.rail}>
       <div className={styles.railSection}>
-        <div className={styles.railLabel}>Sort</div>
-        {SORTS.map(({ id, label, Icon }) => (
-          <button
-            key={id}
-            type="button"
-            className={`${styles.railItem} ${sort === id ? styles.active : ''}`}
-            onClick={() => onSortChange(id)}
-          >
-            <span className={styles.railIcon}>
-              <Icon size={14} />
-            </span>
-            <span className={styles.railItemLabel}>{label}</span>
-          </button>
-        ))}
+        <button
+          type="button"
+          className={`${styles.railItem} ${view === 'home' ? styles.active : ''}`}
+          onClick={() => onViewChange('home')}
+        >
+          <span className={styles.railIcon}>
+            <IconHome size={14} />
+          </span>
+          <span className={styles.railItemLabel}>Home</span>
+        </button>
+        <button
+          type="button"
+          className={`${styles.railItem} ${view === 'members' ? styles.active : ''}`}
+          onClick={() => onViewChange('members')}
+        >
+          <span className={styles.railIcon}>
+            <IconUsers size={14} />
+          </span>
+          <span className={styles.railItemLabel}>Members</span>
+          {memberCount !== null && (
+            <span className={styles.railCount}>{memberCount}</span>
+          )}
+        </button>
+        <button
+          type="button"
+          className={`${styles.railItem} ${view === 'events' ? styles.active : ''}`}
+          onClick={() => onViewChange('events')}
+        >
+          <span className={styles.railIcon}>
+            <IconCalendar size={14} />
+          </span>
+          <span className={styles.railItemLabel}>Events</span>
+          {eventCount !== null && eventCount > 0 && (
+            <span className={styles.railCount}>{eventCount}</span>
+          )}
+        </button>
+        <button
+          type="button"
+          className={`${styles.railItem} ${view === 'activities' ? styles.active : ''}`}
+          onClick={() => onViewChange('activities')}
+        >
+          <span className={styles.railIcon}>
+            <IconCamera size={14} />
+          </span>
+          <span className={styles.railItemLabel}>Activities</span>
+          {activityCount != null && activityCount > 0 && (
+            <span className={styles.railCount}>{activityCount}</span>
+          )}
+        </button>
       </div>
 
-      {modules.length > 0 && (
+      {lessons.length > 0 && (
         <div className={styles.railSection}>
-          <div className={styles.railLabel}>Modules</div>
+          <div className={styles.railLabel}>Discussions</div>
           <button
             type="button"
-            className={`${styles.railItem} ${moduleId == null ? styles.active : ''}`}
-            onClick={() => onModuleChange(null)}
+            className={`${styles.railItem} ${
+              view === 'home' && lessonId == null ? styles.active : ''
+            }`}
+            onClick={() => {
+              onViewChange('home')
+              onLessonChange(null)
+            }}
           >
             <span className={styles.railIcon}>
               <IconFilter size={14} />
             </span>
-            <span className={styles.railItemLabel}>All modules</span>
+            <span className={styles.railItemLabel}>{allLabel}</span>
           </button>
-          {modules.map((m) => (
+          {lessons.map((l) => (
             <button
-              key={m.id}
+              key={l.id}
               type="button"
-              className={`${styles.railItem} ${moduleId === m.id ? styles.active : ''}`}
-              onClick={() => onModuleChange(m.id)}
+              className={`${styles.railItem} ${
+                view === 'home' && lessonId === l.id ? styles.active : ''
+              }`}
+              onClick={() => {
+                onViewChange('home')
+                onLessonChange(l.id)
+              }}
+              title={l.label}
             >
               <span className={styles.railIcon}>
                 <IconBook size={14} />
               </span>
-              <span className={styles.railItemLabel}>{m.label}</span>
-              {m.count > 0 && (
-                <span className={styles.railCount}>{m.count}</span>
+              <span className={styles.railItemLabel}>{l.label}</span>
+              {l.count != null && l.count > 0 && (
+                <span className={styles.railCount}>{l.count}</span>
               )}
             </button>
           ))}
-        </div>
-      )}
-
-      {presence && (
-        <div className={styles.presence}>
-          <div className={styles.presenceHead}>
-            <Avatar
-              name={presence.instructorName ?? 'Instructor'}
-              avatarUrl={presence.instructorAvatarUrl ?? undefined}
-              size={32}
-            />
-            <div>
-              <div className={styles.presenceName}>
-                {presence.instructorName ?? 'Instructor'}{' '}
-                <span
-                  className={styles.presenceDot}
-                  title="Active recently"
-                />
-              </div>
-              <div className={styles.presenceRole}>Instructor</div>
-            </div>
-          </div>
-          {presence.blurb && (
-            <div className={styles.presenceStat}>{presence.blurb}</div>
-          )}
         </div>
       )}
     </aside>

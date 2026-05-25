@@ -22,6 +22,7 @@ from ..schemas.customer import (
     CustomerPaymentMethodCreateResponse,
     CustomerPaymentMethodTypeAdapter,
     CustomerPortalCustomer,
+    CustomerPortalCustomerProfileUpdate,
     CustomerPortalCustomerUpdate,
 )
 from ..service.customer import CustomerNotReady
@@ -68,6 +69,29 @@ async def update(
     return await customer_service.update(
         session, get_customer(auth_subject), customer_update
     )
+
+
+@router.patch(
+    "/me/profile",
+    summary="Update Customer Profile",
+    response_model=CustomerPortalCustomer,
+)
+async def update_profile(
+    profile_update: CustomerPortalCustomerProfileUpdate,
+    auth_subject: auth.CustomerPortalUnionWrite,
+    session: AsyncSession = Depends(get_db_session),
+) -> Customer:
+    """First-sign-in + Settings menu's name + avatar editor.
+
+    Separate from PATCH /me because it doesn't touch billing data
+    and runs under a non-billing scope so any portal session can
+    customize the customer's display identity."""
+    customer = get_customer(auth_subject)
+    if profile_update.name is not None:
+        customer.name = profile_update.name
+    if profile_update.avatar_url is not None:
+        customer.avatar_url = profile_update.avatar_url
+    return customer
 
 
 @router.get(

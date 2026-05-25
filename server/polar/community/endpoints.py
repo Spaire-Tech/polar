@@ -51,6 +51,7 @@ from .schemas import (
     CommunityCommentRead,
     CommunityCourseSummary,
     CommunityLessonChip,
+    CommunityMemberRead,
     CommunityPinPayload,
     CommunityPostCreate,
     CommunityPostImageUploadResult,
@@ -386,6 +387,24 @@ async def preview_feed_creator(
 
 
 @creator_router.get(
+    "/{course_id}/members",
+    response_model=list[CommunityMemberRead],
+    summary="List Community Members (Creator)",
+)
+async def list_members_creator(
+    course_id: CourseID,
+    auth_subject: CommunityCreatorRead,
+    session: AsyncSession = Depends(get_db_session),
+) -> list[CommunityMemberRead]:
+    """Members tab for the course-editor preview. Returns the instructor
+    + every active enrollment, newest-first. Avatars aren't joined —
+    Phase 1 falls back to initials in the UI."""
+    await _require_creator_owns_course(session, course_id, auth_subject)
+    members = await community_service.list_members(session, course_id=course_id)
+    return list(members)
+
+
+@creator_router.get(
     "/{course_id}/tags",
     response_model=list[CommunityTagRead],
     summary="List Community Tags (Creator)",
@@ -580,6 +599,261 @@ async def delete_comment_creator(
 
 
 # ====================================================================
+# Creator-side WRITE endpoints — the admin posts/comments/reacts AS
+# the instructor on their own community surface. These mirror the
+# customer-portal write endpoints but use the user auth subject so
+# author_user_id is set (not author_enrollment_id). Org-token auth is
+# rejected — a community needs a human identity behind the avatar.
+# ====================================================================
+
+
+def _require_user_subject(auth_subject) -> UUID:
+    if not is_user(auth_subject):
+        raise HTTPException(
+            status_code=403,
+            detail="Only user-authenticated sessions can act as the instructor.",
+        )
+    return auth_subject.subject.id
+
+
+@creator_router.post(
+    "/{course_id}/posts",
+    response_model=CommunityPostRead,
+    status_code=201,
+    summary="Create Community Post (Creator)",
+)
+async def create_post_creator(
+    course_id: CourseID,
+    payload: CommunityPostCreate,
+    auth_subject: CommunityCreatorWrite,
+    session: AsyncSession = Depends(get_db_session),
+) -> CommunityPostRead:
+    await _require_creator_owns_course(session, course_id, auth_subject)
+    user_id = _require_user_subject(auth_subject)
+    post = await community_service.create_post(
+        session,
+        course_id=course_id,
+        author_user_id=user_id,
+        payload=payload,
+    )
+    return await _render_single_post(
+        session,
+        post,
+        viewer_enrollment_id=None,
+        viewer_user_id=user_id,
+    )
+
+
+@creator_router.post(
+    "/{course_id}/media/image-upload",
+    response_model=CommunityPostImageUploadResult,
+    status_code=201,
+    summary="Upload Community Post Image (Creator)",
+)
+async def upload_post_image_creator(
+    course_id: CourseID,
+    auth_subject: CommunityCreatorWrite,
+    file: UploadFile = FastAPIFile(...),
+    session: AsyncSession = Depends(get_db_session),
+) -> CommunityPostImageUploadResult:
+    await _require_creator_owns_course(session, course_id, auth_subject)
+    _require_user_subject(auth_subject)
+
+    content_type = file.content_type or "application/octet-stream"
+    if not content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="File must be an image.")
+
+    data = await file.read()
+    if len(data) > 10 * 1024 * 1024:
+        raise HTTPException(
+            status_code=413,
+            detail="Image must be under 10 MB.",
+        )
+
+    return await community_service.upload_post_image(
+        session,
+        course_id=course_id,
+        filename=file.filename or "image",
+        data=data,
+        mime_type=content_type,
+    )
+
+
+@creator_router.post(
+    "/{course_id}/media/mux-upload",
+    response_model=CommunityPostVideoUploadResult,
+    status_code=201,
+    summary="Create Community Post Video Upload (Creator)",
+)
+async def create_video_upload_creator(
+    course_id: CourseID,
+    auth_subject: CommunityCreatorWrite,
+    session: AsyncSession = Depends(get_db_session),
+) -> CommunityPostVideoUploadResult:
+    await _require_creator_owns_course(session, course_id, auth_subject)
+    _require_user_subject(auth_subject)
+    try:
+        return await community_service.create_video_upload()
+    except Exception as e:
+        raise HTTPException(
+            status_code=502, detail="Failed to create video upload"
+        ) from e
+
+
+@creator_router.get(
+    "/{course_id}/posts/{post_id}/comments",
+    response_model=list[CommunityCommentRead],
+    summary="List Community Post Comments (Creator)",
+)
+async def list_comments_creator(
+    course_id: CourseID,
+    post_id: PostID,
+    auth_subject: CommunityCreatorRead,
+    session: AsyncSession = Depends(get_db_session),
+) -> list[CommunityCommentRead]:
+    await _require_creator_owns_course(session, course_id, auth_subject)
+    viewer_user_id = (
+        auth_subject.subject.id if is_user(auth_subject) else None
+    )
+    post = await community_service.get_post(session, post_id)
+    if post is None or post.course_id != course_id:
+        raise HTTPException(status_code=404, detail="Post not found")
+    comments = await community_service.list_comments(session, post=post)
+    return await _serialize_comments(
+        session,
+        comments,
+        course_id=course_id,
+        viewer_user_id=viewer_user_id,
+    )
+
+
+@creator_router.post(
+    "/{course_id}/posts/{post_id}/comments",
+    response_model=CommunityCommentRead,
+    status_code=201,
+    summary="Create Comment on Community Post (Creator)",
+)
+async def create_comment_creator(
+    course_id: CourseID,
+    post_id: PostID,
+    payload: CommunityCommentCreate,
+    auth_subject: CommunityCreatorWrite,
+    session: AsyncSession = Depends(get_db_session),
+) -> CommunityCommentRead:
+    await _require_creator_owns_course(session, course_id, auth_subject)
+    user_id = _require_user_subject(auth_subject)
+
+    post = await community_service.get_post(session, post_id)
+    if post is None or post.course_id != course_id:
+        raise HTTPException(status_code=404, detail="Post not found")
+
+    comment = await community_service.create_comment(
+        session,
+        post=post,
+        author_user_id=user_id,
+        payload=payload,
+    )
+    serialized = await _serialize_comments(
+        session,
+        [comment],
+        course_id=course_id,
+        viewer_user_id=user_id,
+    )
+    return serialized[0]
+
+
+@creator_router.post(
+    "/{course_id}/posts/{post_id}/react",
+    response_model=CommunityReactionToggleResult,
+    summary="Toggle Reaction on Community Post (Creator)",
+)
+async def react_to_post_creator(
+    course_id: CourseID,
+    post_id: PostID,
+    payload: CommunityReactionToggle,
+    auth_subject: CommunityCreatorWrite,
+    session: AsyncSession = Depends(get_db_session),
+) -> CommunityReactionToggleResult:
+    await _require_creator_owns_course(session, course_id, auth_subject)
+    user_id = _require_user_subject(auth_subject)
+    post = await community_service.get_post(session, post_id)
+    if post is None or post.course_id != course_id:
+        raise HTTPException(status_code=404, detail="Post not found")
+    active, count = await community_service.toggle_reaction(
+        session,
+        target_type="post",
+        target_id=post.id,
+        actor_user_id=user_id,
+        emoji=payload.emoji,
+    )
+    return CommunityReactionToggleResult(
+        emoji=payload.emoji, active=active, count=count
+    )
+
+
+@creator_router.post(
+    "/{course_id}/comments/{comment_id}/react",
+    response_model=CommunityReactionToggleResult,
+    summary="Toggle Reaction on Community Comment (Creator)",
+)
+async def react_to_comment_creator(
+    course_id: CourseID,
+    comment_id: CommentID,
+    payload: CommunityReactionToggle,
+    auth_subject: CommunityCreatorWrite,
+    session: AsyncSession = Depends(get_db_session),
+) -> CommunityReactionToggleResult:
+    await _require_creator_owns_course(session, course_id, auth_subject)
+    user_id = _require_user_subject(auth_subject)
+    comment = await community_service.get_comment(session, comment_id)
+    if comment is None:
+        raise HTTPException(status_code=404, detail="Comment not found")
+    post = await community_service.get_post(session, comment.post_id)
+    if post is None or post.course_id != course_id:
+        raise HTTPException(status_code=404, detail="Comment not found")
+    active, count = await community_service.toggle_reaction(
+        session,
+        target_type="comment",
+        target_id=comment.id,
+        actor_user_id=user_id,
+        emoji=payload.emoji,
+    )
+    return CommunityReactionToggleResult(
+        emoji=payload.emoji, active=active, count=count
+    )
+
+
+# Lightweight "who am I in this community" — used by the editor to seed
+# the composer avatar + selfName without making the frontend stitch
+# together user identity + course.instructor_name. Returns the same
+# instructor display info that posts authored by this user surface.
+@creator_router.get(
+    "/{course_id}/me",
+    response_model=CommunityAuthor,
+    summary="Get Community Identity (Creator)",
+)
+async def get_self_creator(
+    course_id: CourseID,
+    auth_subject: CommunityCreatorRead,
+    session: AsyncSession = Depends(get_db_session),
+) -> CommunityAuthor:
+    await _require_creator_owns_course(session, course_id, auth_subject)
+    user_id = _require_user_subject(auth_subject)
+    authors = await community_service.resolve_authors(
+        session,
+        course_id=course_id,
+        enrollment_ids=set(),
+        user_ids={user_id},
+    )
+    resolved = authors.get(("user", user_id))
+    if resolved is None:
+        return CommunityAuthorInstructor(
+            user_id=user_id, name=None, avatar_url=None
+        )
+    return resolved
+
+
+# ====================================================================
 # CUSTOMER-PORTAL ROUTES — /v1/customer-portal/community/...
 # ====================================================================
 
@@ -627,6 +901,28 @@ async def get_settings_customer(
         session, course_id
     )
     return CommunitySettingsRead.model_validate(settings, from_attributes=True)
+
+
+@customer_router.get(
+    "/{course_id}/members",
+    response_model=list[CommunityMemberRead],
+    summary="List Community Members",
+)
+async def list_members_customer(
+    course_id: CourseID,
+    auth_subject: CommunityCustomerRead,
+    session: AsyncSession = Depends(get_db_session),
+) -> list[CommunityMemberRead]:
+    """Members tab on the customer-portal community surface. Mirrors the
+    creator endpoint but gates on enrollment + community-enabled, so a
+    student visiting a disabled course can't list peers."""
+    customer_id = get_customer_id(auth_subject)
+    await community_service.assert_enrolled(
+        session, customer_id=customer_id, course_id=course_id
+    )
+    await community_service.assert_community_enabled(session, course_id)
+    members = await community_service.list_members(session, course_id=course_id)
+    return list(members)
 
 
 @customer_router.get(
@@ -856,7 +1152,10 @@ async def list_comments_customer(
 
     comments = await community_service.list_comments(session, post=post)
     return await _serialize_comments(
-        session, comments, viewer_enrollment_id=enrollment.id
+        session,
+        comments,
+        course_id=course_id,
+        viewer_enrollment_id=enrollment.id,
     )
 
 
@@ -890,7 +1189,10 @@ async def create_comment_customer(
         payload=payload,
     )
     serialized = await _serialize_comments(
-        session, [comment], viewer_enrollment_id=enrollment.id
+        session,
+        [comment],
+        course_id=course_id,
+        viewer_enrollment_id=enrollment.id,
     )
     return serialized[0]
 
@@ -1007,6 +1309,7 @@ async def _serialize_comments(
     session: AsyncSession,
     comments: Iterable[CommunityComment],
     *,
+    course_id: UUID | None = None,
     viewer_enrollment_id: UUID | None = None,
     viewer_user_id: UUID | None = None,
 ) -> list[CommunityCommentRead]:
@@ -1018,8 +1321,18 @@ async def _serialize_comments(
         c.author_enrollment_id for c in comments if c.author_enrollment_id
     }
     user_ids = {c.author_user_id for c in comments if c.author_user_id}
+    # Pass course_id so resolve_authors can overlay course.instructor_name
+    # on instructor comment authors. Falls back to the comment's own
+    # post.course_id when the caller didn't thread it through.
+    overlay_course_id = course_id
+    if overlay_course_id is None:
+        for c in comments:
+            if hasattr(c, "post") and c.post is not None:
+                overlay_course_id = c.post.course_id
+                break
     authors = await community_service.resolve_authors(
         session,
+        course_id=overlay_course_id,
         enrollment_ids=enrollment_ids,
         user_ids=user_ids,
     )

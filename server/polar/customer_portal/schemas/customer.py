@@ -27,6 +27,7 @@ class CustomerPortalCustomer(IDSchema, TimestampedSchema):
     email: str
     email_verified: bool
     name: str | None
+    avatar_url: str | None = None
     billing_name: str | None
     billing_address: Address | None
     tax_id: TaxID | None
@@ -39,6 +40,14 @@ class CustomerPortalCustomerUpdate(Schema):
     billing_name: Annotated[str | None, EmptyStrToNoneValidator] = None
     billing_address: AddressInput | None = None
     tax_id: Annotated[str | None, EmptyStrToNoneValidator] = None
+
+
+# Lightweight profile update — keyed off a non-billing scope so the
+# first-sign-in onboarding flow can save the customer's chosen
+# display name + avatar without re-prompting for billing permission.
+class CustomerPortalCustomerProfileUpdate(Schema):
+    name: Annotated[str | None, EmptyStrToNoneValidator] = None
+    avatar_url: Annotated[str | None, EmptyStrToNoneValidator] = None
 
 
 CustomerPaymentMethod = Annotated[
