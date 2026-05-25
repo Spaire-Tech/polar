@@ -3,7 +3,6 @@
 import { useCustomerCourse } from '@/hooks/queries/courses'
 import {
   type CommunityPostRead,
-  type CommunitySortProperty,
   type FeedFilters,
   useCommunityFeed,
   useCommunitySettings,
@@ -23,7 +22,6 @@ type Props = {
 }
 
 export function CommunityFeed({ courseId, customerSessionToken }: Props) {
-  const [sort, setSort] = useState<CommunitySortProperty>('recent')
   const [moduleId, setModuleId] = useState<string | null>(null)
   const [lessonId, setLessonId] = useState<string | null>(null)
   const [tagId, setTagId] = useState<string | null>(null)
@@ -31,8 +29,13 @@ export function CommunityFeed({ courseId, customerSessionToken }: Props) {
   const [toast, setToast] = useState<string | null>(null)
 
   const filters: FeedFilters = useMemo(
-    () => ({ sort, module_id: moduleId, lesson_id: lessonId, tag_id: tagId }),
-    [sort, moduleId, lessonId, tagId],
+    () => ({
+      sort: 'recent',
+      module_id: moduleId,
+      lesson_id: lessonId,
+      tag_id: tagId,
+    }),
+    [moduleId, lessonId, tagId],
   )
 
   const settingsQ = useCommunitySettings(customerSessionToken, courseId)
@@ -172,8 +175,6 @@ export function CommunityFeed({ courseId, customerSessionToken }: Props) {
     <div className={styles.root}>
       <div className={styles.layout}>
         <LeftRail
-          sort={sort}
-          onSortChange={setSort}
           moduleId={moduleId}
           onModuleChange={handleModuleChange}
           modules={railModules}

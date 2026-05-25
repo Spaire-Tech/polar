@@ -1,21 +1,14 @@
 'use client'
 
-import type { CommunitySortProperty } from '@/hooks/queries/community'
 import { Avatar } from './Avatar'
 import styles from './community.module.css'
-import { IconBook, IconChat, IconFilter, IconSort, IconStar } from './icons'
+import { IconBook, IconFilter } from './icons'
 
 export type RailModule = {
   id: string
   label: string
   count: number
 }
-
-const SORTS: { id: CommunitySortProperty; label: string; Icon: typeof IconSort }[] = [
-  { id: 'recent', label: 'Recent', Icon: IconSort },
-  { id: 'top_week', label: 'Top this week', Icon: IconStar },
-  { id: 'unanswered', label: 'Unanswered', Icon: IconChat },
-]
 
 type PresenceProps = {
   instructorName: string | null
@@ -24,15 +17,11 @@ type PresenceProps = {
 }
 
 export function LeftRail({
-  sort,
-  onSortChange,
   moduleId,
   onModuleChange,
   modules,
   presence,
 }: {
-  sort: CommunitySortProperty
-  onSortChange: (sort: CommunitySortProperty) => void
   moduleId: string | null
   onModuleChange: (moduleId: string | null) => void
   modules: RailModule[]
@@ -40,23 +29,6 @@ export function LeftRail({
 }) {
   return (
     <aside className={styles.rail}>
-      <div className={styles.railSection}>
-        <div className={styles.railLabel}>Sort</div>
-        {SORTS.map(({ id, label, Icon }) => (
-          <button
-            key={id}
-            type="button"
-            className={`${styles.railItem} ${sort === id ? styles.active : ''}`}
-            onClick={() => onSortChange(id)}
-          >
-            <span className={styles.railIcon}>
-              <Icon size={14} />
-            </span>
-            <span className={styles.railItemLabel}>{label}</span>
-          </button>
-        ))}
-      </div>
-
       {modules.length > 0 && (
         <div className={styles.railSection}>
           <div className={styles.railLabel}>Modules</div>
