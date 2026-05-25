@@ -35,9 +35,9 @@ from datetime import timedelta
 from uuid import UUID
 
 import structlog
+from sqlalchemy import select
 
 from polar.course.repository import CourseRepository
-from polar.course_enrollment.repository import CourseEnrollmentRepository
 from polar.customer_notifications.notification_types import (
     EVENT_LIVE,
     EVENT_PUBLISHED,
@@ -100,24 +100,14 @@ async def _build_payload(session, event) -> dict:
 
 
 async def _enrolled_customer_ids(session, course_id: UUID) -> list[UUID]:
-    enr_repo = CourseEnrollmentRepository.from_session(session)
-    # Best-effort: enrollments expose customer_id. Different repos in the
-    # codebase use different method names — try the conventional one and
-    # fall back to a raw query.
-    try:
-        rows = await enr_repo.list_for_course(course_id)  # type: ignore[attr-defined]
-        return [r.customer_id for r in rows if getattr(r, "deleted_at", None) is None]
-    except AttributeError:
-        from sqlalchemy import select
+    from polar.models.course_enrollment import CourseEnrollment
 
-        from polar.models.course_enrollment import CourseEnrollment
-
-        statement = select(CourseEnrollment.customer_id).where(
-            CourseEnrollment.course_id == course_id,
-            CourseEnrollment.deleted_at.is_(None),
-        )
-        result = await session.execute(statement)
-        return [r[0] for r in result.all()]
+    statement = select(CourseEnrollment.customer_id).where(
+        CourseEnrollment.course_id == course_id,
+        CourseEnrollment.deleted_at.is_(None),
+    )
+    result = await session.execute(statement)
+    return [r[0] for r in result.all()]
 
 
 # ----------------------------------------------------------------------
