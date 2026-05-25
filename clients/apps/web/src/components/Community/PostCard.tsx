@@ -741,9 +741,6 @@ function RegularPostCard({
                 Instructor
               </span>
             )}
-            {post.tag && (
-              <span className={styles.tagPill}>{post.tag.label}</span>
-            )}
           </div>
           <div className={styles.postMeta}>
             {post.published_at ? formatRelative(post.published_at) : 'Draft'}

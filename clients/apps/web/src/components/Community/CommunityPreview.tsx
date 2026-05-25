@@ -6,7 +6,6 @@ import {
   type FeedFilters,
   useCreatorCommunityFeed,
   useCreatorCommunitySettings,
-  useCreatorCommunityTags,
 } from '@/hooks/queries/community'
 import { useMemo, useState } from 'react'
 import styles from './community.module.css'
@@ -32,19 +31,16 @@ export function CommunityPreview({ courseId }: Props) {
   const [sort] = useState<CommunitySortProperty>('recent')
   const [moduleId] = useState<string | null>(null)
   const [lessonId, setLessonId] = useState<string | null>(null)
-  const [tagId, setTagId] = useState<string | null>(null)
 
   const filters: FeedFilters = useMemo(
-    () => ({ sort, module_id: moduleId, lesson_id: lessonId, tag_id: tagId }),
-    [sort, moduleId, lessonId, tagId],
+    () => ({ sort, module_id: moduleId, lesson_id: lessonId, tag_id: null }),
+    [sort, moduleId, lessonId],
   )
 
   const settingsQ = useCreatorCommunitySettings(courseId)
-  const tagsQ = useCreatorCommunityTags(courseId)
   const feedQ = useCreatorCommunityFeed(courseId, filters)
 
   const settings = settingsQ.data
-  const tags = tagsQ.data ?? []
 
   const allPosts: CommunityPostRead[] = useMemo(() => {
     const pages = feedQ.data?.pages ?? []
@@ -89,9 +85,8 @@ export function CommunityPreview({ courseId }: Props) {
     return (
       <div className={styles.root}>
         <div className={styles.disabledBanner}>
-          Community is off. Toggle{' '}
-          <strong>Community enabled</strong> on the left to render the
-          student-facing view here.
+          Community is off. Toggle <strong>Community enabled</strong> on the
+          left to render the student-facing view here.
         </div>
       </div>
     )
@@ -156,34 +151,12 @@ export function CommunityPreview({ courseId }: Props) {
           </div>
         )}
 
-        <div className={styles.filterbar}>
-          <button
-            type="button"
-            className={`${styles.filterChip} ${tagId == null ? styles.active : ''}`}
-            onClick={() => setTagId(null)}
-          >
-            All
-          </button>
-          {tags.map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              className={`${styles.filterChip} ${tagId === t.id ? styles.active : ''}`}
-              onClick={() => setTagId(t.id)}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
-
         <div className={styles.feedList}>
           {feedQ.isLoading && allPosts.length === 0 ? (
             <div className={styles.empty}>Loading…</div>
           ) : allPosts.length === 0 ? (
             <div className={styles.empty}>
-              {tagId
-                ? 'No posts match this filter.'
-                : 'No posts yet — when a student writes one, it shows here.'}
+              No posts yet — when a student writes one, it shows here.
             </div>
           ) : (
             allPosts.map((post) => (

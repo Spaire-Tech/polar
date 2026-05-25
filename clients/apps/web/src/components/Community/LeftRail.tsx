@@ -72,10 +72,7 @@ export function LeftRail({
             <div>
               <div className={styles.presenceName}>
                 {presence.instructorName ?? 'Instructor'}{' '}
-                <span
-                  className={styles.presenceDot}
-                  title="Active recently"
-                />
+                <span className={styles.presenceDot} title="Active recently" />
               </div>
               <div className={styles.presenceRole}>Instructor</div>
             </div>

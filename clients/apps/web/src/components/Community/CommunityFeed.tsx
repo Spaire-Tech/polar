@@ -1,13 +1,12 @@
 'use client'
 
-import { useCustomerCourse } from '@/hooks/queries/courses'
 import {
   type CommunityPostRead,
   type FeedFilters,
   useCommunityFeed,
   useCommunitySettings,
-  useCommunityTags,
 } from '@/hooks/queries/community'
+import { useCustomerCourse } from '@/hooks/queries/courses'
 import { useEffect, useMemo, useState } from 'react'
 import { Avatar } from './Avatar'
 import { Composer } from './Composer'
@@ -24,7 +23,6 @@ type Props = {
 export function CommunityFeed({ courseId, customerSessionToken }: Props) {
   const [moduleId, setModuleId] = useState<string | null>(null)
   const [lessonId, setLessonId] = useState<string | null>(null)
-  const [tagId, setTagId] = useState<string | null>(null)
   const [composerForceOpen, setComposerForceOpen] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
 
@@ -33,13 +31,12 @@ export function CommunityFeed({ courseId, customerSessionToken }: Props) {
       sort: 'recent',
       module_id: moduleId,
       lesson_id: lessonId,
-      tag_id: tagId,
+      tag_id: null,
     }),
-    [moduleId, lessonId, tagId],
+    [moduleId, lessonId],
   )
 
   const settingsQ = useCommunitySettings(customerSessionToken, courseId)
-  const tagsQ = useCommunityTags(customerSessionToken, courseId)
   const courseQ = useCustomerCourse(customerSessionToken, courseId)
   const feedQ = useCommunityFeed(customerSessionToken, courseId, filters)
 
@@ -51,7 +48,6 @@ export function CommunityFeed({ courseId, customerSessionToken }: Props) {
   }, [toast])
 
   const settings = settingsQ.data
-  const tags = tagsQ.data ?? []
   const courseDetail = courseQ.data
   const modules = useMemo(
     () => courseDetail?.course.modules ?? [],
@@ -88,7 +84,9 @@ export function CommunityFeed({ courseId, customerSessionToken }: Props) {
   const promptPostId = settings?.prompt_of_week_post_id ?? null
   const promptPost = useMemo(
     () =>
-      promptPostId ? (allPosts.find((p) => p.id === promptPostId) ?? null) : null,
+      promptPostId
+        ? (allPosts.find((p) => p.id === promptPostId) ?? null)
+        : null,
     [allPosts, promptPostId],
   )
 
@@ -146,9 +144,7 @@ export function CommunityFeed({ courseId, customerSessionToken }: Props) {
   const instructorName = courseDetail?.course.instructor_name ?? null
 
   const heroThumbnailUrl =
-    settings?.hero_thumbnail_url ??
-    courseDetail?.course.thumbnail_url ??
-    null
+    settings?.hero_thumbnail_url ?? courseDetail?.course.thumbnail_url ?? null
 
   const handleLessonChipClick = (lessonIdFromChip: string) => {
     // Filter the feed to this specific lesson — the chip says
@@ -166,8 +162,6 @@ export function CommunityFeed({ courseId, customerSessionToken }: Props) {
     setModuleId(next)
     setLessonId(null)
   }
-
-  const handleTagFilter = (id: string | null) => setTagId(id)
 
   // ---------- Render ----------
 
@@ -259,25 +253,8 @@ export function CommunityFeed({ courseId, customerSessionToken }: Props) {
             </div>
           )}
 
-          {/* Filter chips */}
+          {/* New-post trigger — the composer renders inline below */}
           <div className={styles.filterbar}>
-            <button
-              type="button"
-              className={`${styles.filterChip} ${tagId == null ? styles.active : ''}`}
-              onClick={() => handleTagFilter(null)}
-            >
-              All
-            </button>
-            {tags.map((t) => (
-              <button
-                key={t.id}
-                type="button"
-                className={`${styles.filterChip} ${tagId === t.id ? styles.active : ''}`}
-                onClick={() => handleTagFilter(t.id)}
-              >
-                {t.label}
-              </button>
-            ))}
             <span className={styles.filterSpacer} />
             <button
               type="button"
@@ -293,7 +270,6 @@ export function CommunityFeed({ courseId, customerSessionToken }: Props) {
             token={customerSessionToken}
             courseId={courseId}
             selfName={courseDetail?.customer_name}
-            tags={tags}
             modules={railModules.map(({ id, label }) => ({ id, label }))}
             defaultModuleId={moduleId}
             forceOpen={composerForceOpen}
@@ -310,7 +286,7 @@ export function CommunityFeed({ courseId, customerSessionToken }: Props) {
               <div className={styles.empty}>Loading…</div>
             ) : feedPosts.length === 0 && !promptPost ? (
               <div className={styles.empty}>
-                {tagId || moduleId
+                {moduleId
                   ? 'No posts match this filter yet.'
                   : 'No posts yet — be the first to start a conversation.'}
               </div>

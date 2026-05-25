@@ -1,7 +1,6 @@
 'use client'
 
 import {
-  type CommunityTagRead,
   useCreateCommunityPost,
   useUploadPostImage,
   useUploadPostVideo,
@@ -33,7 +32,6 @@ type Props = {
   token: string
   courseId: string
   selfName?: string | null
-  tags: CommunityTagRead[]
   modules: { id: string; label: string }[]
   defaultModuleId?: string | null
   // When the user clicks the top-right "+ New post" button.
@@ -46,7 +44,6 @@ export function Composer({
   token,
   courseId,
   selfName,
-  tags,
   modules,
   defaultModuleId,
   forceOpen,
@@ -56,7 +53,6 @@ export function Composer({
   const [expanded, setExpanded] = useState(false)
   const isOpen = forceOpen ?? expanded
   const [body, setBody] = useState('')
-  const [tagId, setTagId] = useState<string>('')
   const [lessonModuleId, setLessonModuleId] = useState<string>(
     defaultModuleId ?? '',
   )
@@ -72,7 +68,6 @@ export function Composer({
 
   const reset = () => {
     setBody('')
-    setTagId('')
     setLessonModuleId(defaultModuleId ?? '')
     setImages([])
     if (video) URL.revokeObjectURL(video.preview_url)
@@ -178,7 +173,6 @@ export function Composer({
           type: 'video',
           body: trimmed || ' ',
           body_format: 'plain',
-          tag_id: tagId || null,
           media: [
             {
               media_type: 'video',
@@ -191,7 +185,6 @@ export function Composer({
         await create.mutateAsync({
           body: trimmed || ' ', // body is min_length=1 on the server
           body_format: 'plain',
-          tag_id: tagId || null,
           media: images.map((img, idx) => ({
             media_type: 'image',
             file_id: img.file_id,
@@ -462,21 +455,6 @@ export function Composer({
               >
                 <IconVideo size={16} />
               </button>
-              {tags.length > 0 && (
-                <select
-                  className={styles.composerSelect}
-                  value={tagId}
-                  onChange={(e) => setTagId(e.target.value)}
-                  aria-label="Tag"
-                >
-                  <option value="">No tag</option>
-                  {tags.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.label}
-                    </option>
-                  ))}
-                </select>
-              )}
               {modules.length > 0 && (
                 <select
                   className={styles.composerSelect}
