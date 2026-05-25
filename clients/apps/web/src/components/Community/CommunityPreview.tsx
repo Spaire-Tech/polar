@@ -1,9 +1,12 @@
 'use client'
 
 import {
+  type CommunityEventRead,
   type CommunityPostRead,
   type CommunitySortProperty,
   type FeedFilters,
+  useCommunityEvents,
+  useCreateCommunityEvent,
   useCreatorCommunityFeed,
   useCreatorCommunityIdentity,
   useCreatorCommunityMembers,
@@ -13,7 +16,11 @@ import {
 import { useEffect, useMemo, useState } from 'react'
 import { ActivitiesView, type CommunityActivity } from './ActivitiesView'
 import { Composer } from './Composer'
-import { type CommunityEvent, EventsView } from './EventsView'
+import {
+  type CommunityEvent,
+  type CommunityEventCreateInput,
+  EventsView,
+} from './EventsView'
 import {
   type CommunityView,
   type DiscussionsKind,
@@ -52,8 +59,17 @@ export function CommunityPreview({
   const [lessonId, setLessonId] = useState<string | null>(null)
   const [tagId, setTagId] = useState<string | null>(null)
   const [sort] = useState<CommunitySortProperty>('recent')
-  const [events, setEvents] = useState<CommunityEvent[]>([])
   const [activities, setActivities] = useState<CommunityActivity[]>([])
+
+  // Events come from the creator-side endpoint (host sees own events,
+  // students see filtered list via /customer-portal). Creator can create
+  // here; RSVP is meaningless for the host (it's the host's own event).
+  const eventsQ = useCommunityEvents(null, courseId, 'creator')
+  const createEventMut = useCreateCommunityEvent(null, courseId, 'creator')
+  const events: CommunityEvent[] = useMemo(
+    () => (eventsQ.data ?? []).map(mapEventReadToUI),
+    [eventsQ.data],
+  )
   const [composerForceOpen, setComposerForceOpen] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
 
@@ -164,23 +180,18 @@ export function CommunityPreview({
             <EventsView
               hostName={selfName ?? 'You'}
               events={events}
-              onCreate={(e) => setEvents((prev) => [e, ...prev])}
-              onToggleGoing={(id) =>
-                setEvents((prev) =>
-                  prev.map((e) =>
-                    e.id === id
-                      ? {
-                          ...e,
-                          going: !e.going,
-                          rsvpCount: Math.max(
-                            0,
-                            e.rsvpCount + (e.going ? -1 : 1),
-                          ),
-                        }
-                      : e,
-                  ),
-                )
-              }
+              canCreate
+              onCreate={async (input: CommunityEventCreateInput) => {
+                try {
+                  await createEventMut.mutateAsync(buildEventCreateBody(input))
+                  setToast('Event created')
+                } catch {
+                  setToast('Could not create event')
+                }
+              }}
+              onToggleGoing={() => {
+                /* host doesn't RSVP to own events */
+              }}
             />
           ) : view === 'activities' ? (
             <ActivitiesView
@@ -308,4 +319,80 @@ export function CommunityPreview({
       {toast && <div className={styles.toast}>{toast}</div>}
     </div>
   )
+}
+
+// ---------------------------------------------------------------------
+// Event mappers — duplicated from CommunityFeed.tsx because both
+// surfaces consume CommunityEventRead but have no shared parent. If a
+// third caller appears, lift these into a util.
+// ---------------------------------------------------------------------
+
+function mapEventReadToUI(e: CommunityEventRead): CommunityEvent {
+  return {
+    id: e.id,
+    title: e.title,
+    type: e.type,
+    desc: e.description ?? '',
+    startAt: e.start_at,
+    timezone: e.timezone || 'UTC',
+    duration: String(e.duration_minutes),
+    location: e.location ?? '',
+    meetingUrl: e.meeting_url,
+    replayUrl: e.replay_url,
+    hostName: e.host.name,
+    rsvpCount: e.rsvp_count,
+    going: e.going,
+    live: e.live,
+    past: e.past,
+  }
+}
+
+function buildEventCreateBody(input: CommunityEventCreateInput) {
+  const start_at = wallClockInTzToUtcIso(
+    input.date,
+    input.startTime,
+    input.timezone,
+  )
+  return {
+    title: input.title,
+    type: input.type,
+    description: input.desc || null,
+    start_at,
+    timezone: input.timezone,
+    duration_minutes: parseInt(input.duration, 10) || 60,
+    meeting_url: input.meetingUrl || null,
+    location: input.location || null,
+    notify_on_publish: input.notify,
+    recurring_weekly: input.recurring,
+  }
+}
+
+function wallClockInTzToUtcIso(
+  date: string,
+  time: string,
+  tz: string,
+): string {
+  const naiveUtc = new Date(`${date}T${time || '00:00'}:00Z`)
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: tz,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  }).formatToParts(naiveUtc)
+  const get = (t: string) =>
+    parseInt(parts.find((p) => p.type === t)?.value ?? '0', 10)
+  const asTz = Date.UTC(
+    get('year'),
+    get('month') - 1,
+    get('day'),
+    get('hour') % 24,
+    get('minute'),
+    get('second'),
+  )
+  const offsetMs = asTz - naiveUtc.getTime()
+  return new Date(naiveUtc.getTime() - offsetMs).toISOString()
 }

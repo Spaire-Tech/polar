@@ -1041,3 +1041,253 @@ export const useCreatorCommunityIdentity = (courseId: string | undefined) =>
       creatorFetch<CommunityAuthor>(`/v1/community/${courseId}/me`),
     enabled: !!courseId,
   })
+
+// =====================================================================
+// Events — community_event + community_event_rsvp
+// =====================================================================
+
+export type CommunityEventType = 'workshop' | 'office' | 'cohort' | 'guest'
+
+export interface CommunityEventHostRead {
+  user_id: string
+  name: string
+  avatar_url: string | null
+}
+
+export interface CommunityEventRead {
+  id: string
+  course_id: string
+  title: string
+  type: CommunityEventType
+  description: string | null
+  start_at: string // ISO timestamp (UTC)
+  timezone: string // IANA tz the host scheduled in
+  duration_minutes: number
+  meeting_url: string | null
+  location: string | null
+  replay_url: string | null
+  cover_url: string | null
+  recurring_weekly: boolean
+  notify_on_publish: boolean
+  rsvp_count: number
+  host: CommunityEventHostRead
+  going: boolean
+  live: boolean
+  past: boolean
+  created_at: string
+  modified_at: string | null
+}
+
+export interface CommunityEventCreateBody {
+  title: string
+  type: CommunityEventType
+  description?: string | null
+  start_at: string
+  timezone?: string
+  duration_minutes: number
+  meeting_url?: string | null
+  location?: string | null
+  cover_url?: string | null
+  recurring_weekly?: boolean
+  notify_on_publish?: boolean
+}
+
+export interface CommunityEventUpdateBody {
+  title?: string
+  type?: CommunityEventType
+  description?: string | null
+  start_at?: string
+  duration_minutes?: number
+  meeting_url?: string | null
+  location?: string | null
+  replay_url?: string | null
+  cover_url?: string | null
+  recurring_weekly?: boolean
+}
+
+export interface CommunityEventRsvpResult {
+  going: boolean
+  rsvp_count: number
+}
+
+const eventsKey = (mode: CommunityIOMode, token: string, courseId: string) =>
+  ['community-events', mode, token, courseId] as const
+
+const invalidateEvents = (
+  mode: CommunityIOMode,
+  token: string | null | undefined,
+  courseId: string,
+) => {
+  getQueryClient().invalidateQueries({
+    queryKey: ['community-events', mode, token ?? mode, courseId],
+  })
+}
+
+export const useCommunityEvents = (
+  token: string | null | undefined,
+  courseId: string | undefined,
+  mode: CommunityIOMode = 'customer',
+) =>
+  useQuery<CommunityEventRead[]>({
+    queryKey: eventsKey(mode, token ?? mode, courseId ?? ''),
+    queryFn: () =>
+      communityFetch<CommunityEventRead[]>(
+        mode,
+        token,
+        `${communityBase(mode, courseId!)}/events`,
+      ),
+    enabled: !!courseId && (mode === 'creator' || !!token),
+  })
+
+export const useCreateCommunityEvent = (
+  token: string | null | undefined,
+  courseId: string | undefined,
+  mode: CommunityIOMode = 'creator',
+) =>
+  useMutation({
+    mutationFn: (body: CommunityEventCreateBody) =>
+      communityFetch<CommunityEventRead>(
+        mode,
+        token,
+        `${communityBase(mode, courseId!)}/events`,
+        { method: 'POST', body: JSON.stringify(body) },
+      ),
+    onSuccess: () => {
+      if (courseId) invalidateEvents(mode, token, courseId)
+    },
+  })
+
+export const useUpdateCommunityEvent = (
+  token: string | null | undefined,
+  courseId: string | undefined,
+  mode: CommunityIOMode = 'creator',
+) =>
+  useMutation({
+    mutationFn: ({
+      eventId,
+      body,
+    }: {
+      eventId: string
+      body: CommunityEventUpdateBody
+    }) =>
+      communityFetch<CommunityEventRead>(
+        mode,
+        token,
+        `${communityBase(mode, courseId!)}/events/${eventId}`,
+        { method: 'PATCH', body: JSON.stringify(body) },
+      ),
+    onSuccess: () => {
+      if (courseId) invalidateEvents(mode, token, courseId)
+    },
+  })
+
+export const useDeleteCommunityEvent = (
+  token: string | null | undefined,
+  courseId: string | undefined,
+  mode: CommunityIOMode = 'creator',
+) =>
+  useMutation({
+    mutationFn: (eventId: string) =>
+      communityFetch<void>(
+        mode,
+        token,
+        `${communityBase(mode, courseId!)}/events/${eventId}`,
+        { method: 'DELETE' },
+      ),
+    onSuccess: () => {
+      if (courseId) invalidateEvents(mode, token, courseId)
+    },
+  })
+
+export const useRsvpCommunityEvent = (
+  token: string | null | undefined,
+  courseId: string | undefined,
+) =>
+  useMutation({
+    mutationFn: ({ eventId, going }: { eventId: string; going: boolean }) =>
+      communityFetch<CommunityEventRsvpResult>(
+        'customer',
+        token,
+        `${communityBase('customer', courseId!)}/events/${eventId}/rsvp`,
+        { method: going ? 'POST' : 'DELETE' },
+      ),
+    onSuccess: () => {
+      if (courseId) invalidateEvents('customer', token, courseId)
+    },
+  })
+
+// =====================================================================
+// Customer-portal notifications (the bell)
+// =====================================================================
+
+export interface CustomerNotificationRead {
+  id: string
+  type: string
+  payload: Record<string, unknown>
+  read_at: string | null
+  created_at: string
+  modified_at: string | null
+}
+
+export const useCustomerNotifications = (token: string | null | undefined) =>
+  useQuery<CustomerNotificationRead[]>({
+    queryKey: ['customer-notifications', token ?? ''],
+    queryFn: () =>
+      portalFetch<CustomerNotificationRead[]>(
+        `/v1/customer-portal/notifications/`,
+        token!,
+      ),
+    enabled: !!token,
+  })
+
+export const useCustomerNotificationUnreadCount = (
+  token: string | null | undefined,
+) =>
+  useQuery<{ unread: number }>({
+    queryKey: ['customer-notifications-unread', token ?? ''],
+    queryFn: () =>
+      portalFetch<{ unread: number }>(
+        `/v1/customer-portal/notifications/unread-count`,
+        token!,
+      ),
+    enabled: !!token,
+    refetchInterval: 60_000,
+  })
+
+export const useMarkCustomerNotificationRead = (
+  token: string | null | undefined,
+) =>
+  useMutation({
+    mutationFn: (notificationId: string) =>
+      portalFetch<void>(
+        `/v1/customer-portal/notifications/${notificationId}/read`,
+        token!,
+        { method: 'POST' },
+      ),
+    onSuccess: () => {
+      getQueryClient().invalidateQueries({
+        queryKey: ['customer-notifications', token ?? ''],
+      })
+      getQueryClient().invalidateQueries({
+        queryKey: ['customer-notifications-unread', token ?? ''],
+      })
+    },
+  })
+
+export const useMarkAllCustomerNotificationsRead = (
+  token: string | null | undefined,
+) =>
+  useMutation({
+    mutationFn: () =>
+      portalFetch<void>(`/v1/customer-portal/notifications/read-all`, token!, {
+        method: 'POST',
+      }),
+    onSuccess: () => {
+      getQueryClient().invalidateQueries({
+        queryKey: ['customer-notifications', token ?? ''],
+      })
+      getQueryClient().invalidateQueries({
+        queryKey: ['customer-notifications-unread', token ?? ''],
+      })
+    },
+  })

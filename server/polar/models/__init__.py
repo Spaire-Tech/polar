@@ -12,6 +12,8 @@ from .checkout_link_product import CheckoutLinkProduct
 from .checkout_product import CheckoutProduct
 from .client_invoice import ClientInvoice, ClientInvoiceLineItem, ClientInvoiceStatus
 from .community_comment import CommunityComment
+from .community_event import CommunityEvent
+from .community_event_rsvp import CommunityEventRsvp
 from .community_post import CommunityPost
 from .community_post_media import CommunityPostMedia
 from .community_reaction import CommunityReaction
@@ -26,6 +28,10 @@ from .course_note import CourseNote
 from .custom_field import CustomField
 from .customer import Customer
 from .customer_meter import CustomerMeter
+from .customer_notification import (
+    CustomerNotification,
+    CustomerNotificationPreferences,
+)
 from .customer_seat import CustomerSeat, SeatStatus
 from .customer_session import CustomerSession
 from .customer_session_code import CustomerSessionCode
@@ -131,6 +137,8 @@ __all__ = [
     "ClientInvoiceLineItem",
     "ClientInvoiceStatus",
     "CommunityComment",
+    "CommunityEvent",
+    "CommunityEventRsvp",
     "CommunityPost",
     "CommunityPostMedia",
     "CommunityReaction",
@@ -145,6 +153,8 @@ __all__ = [
     "CustomField",
     "Customer",
     "CustomerMeter",
+    "CustomerNotification",
+    "CustomerNotificationPreferences",
     "CustomerSeat",
     "CustomerSession",
     "CustomerSessionCode",

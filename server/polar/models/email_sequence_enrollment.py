@@ -2,7 +2,15 @@ from datetime import datetime
 from enum import StrEnum
 from uuid import UUID
 
-from sqlalchemy import TIMESTAMP, ForeignKey, Index, Integer, String, UniqueConstraint, Uuid
+from sqlalchemy import (
+    TIMESTAMP,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    UniqueConstraint,
+    Uuid,
+)
 from sqlalchemy.orm import Mapped, declared_attr, mapped_column, relationship
 
 from polar.kit.db.models import RecordModel

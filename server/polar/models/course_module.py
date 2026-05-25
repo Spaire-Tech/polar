@@ -2,8 +2,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from sqlalchemy import ForeignKey, Integer, String, Text, Uuid
-from sqlalchemy import TIMESTAMP
+from sqlalchemy import TIMESTAMP, ForeignKey, Integer, String, Text, Uuid
 from sqlalchemy.orm import Mapped, declared_attr, mapped_column, relationship
 
 from polar.kit.db.models import RecordModel

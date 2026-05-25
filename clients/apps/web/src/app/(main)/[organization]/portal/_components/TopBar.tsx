@@ -4,6 +4,13 @@ import {
   useAuthenticatedCustomer,
   usePortalAuthenticatedUser,
 } from '@/hooks/queries'
+import {
+  type CustomerNotificationRead,
+  useCustomerNotificationUnreadCount,
+  useCustomerNotifications,
+  useMarkAllCustomerNotificationsRead,
+  useMarkCustomerNotificationRead,
+} from '@/hooks/queries/community'
 import { createClientSideAPI } from '@/utils/client'
 import { hasBillingPermission } from '@/utils/customerPortal'
 import { schemas } from '@spaire/client'
@@ -173,15 +180,7 @@ export const TopBar = ({
           >
             <SearchIcon size={18} />
           </button>
-          <button
-            type="button"
-            className="sp-iconbtn"
-            aria-label="Notifications"
-            title="Notifications"
-          >
-            <BellIcon />
-            <span className="sp-dot" aria-hidden />
-          </button>
+          <NotificationsBell token={token} />
           <Link
             href={buildHref(`/${organization.slug}/portal/bookmarks`)}
             className={
@@ -375,4 +374,154 @@ function AccountAvatar({
       )}
     </>
   )
+}
+
+// ---------------------------------------------------------------------
+// Notifications bell — dropdown over the existing bell icon. Only the
+// red dot is conditional; the icon button stays put when there's no
+// token (preview/anonymous viewer) but the dropdown is then disabled.
+// ---------------------------------------------------------------------
+
+function NotificationsBell({ token }: { token: string | null }) {
+  const [open, setOpen] = React.useState(false)
+  const unreadQ = useCustomerNotificationUnreadCount(token)
+  const listQ = useCustomerNotifications(open ? token : null)
+  const markRead = useMarkCustomerNotificationRead(token)
+  const markAllRead = useMarkAllCustomerNotificationsRead(token)
+
+  const unread = unreadQ.data?.unread ?? 0
+  const list = listQ.data ?? []
+
+  return (
+    <div className="sp-account" style={{ position: 'relative' }}>
+      <button
+        type="button"
+        className="sp-iconbtn"
+        aria-label="Notifications"
+        title="Notifications"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+        disabled={!token}
+      >
+        <BellIcon />
+        {unread > 0 && <span className="sp-dot" aria-hidden />}
+      </button>
+      {open && (
+        <div
+          className="sp-account-menu"
+          role="menu"
+          style={{ width: 360, maxHeight: 480, overflow: 'auto' }}
+          onMouseLeave={() => setOpen(false)}
+        >
+          <div
+            className="sp-account-menu-head"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            }}
+          >
+            <div className="sp-account-menu-name">Notifications</div>
+            {unread > 0 && (
+              <button
+                type="button"
+                className="sp-account-menu-item"
+                style={{ padding: '4px 8px', fontSize: 12 }}
+                onClick={() => markAllRead.mutate()}
+              >
+                Mark all read
+              </button>
+            )}
+          </div>
+          {listQ.isLoading ? (
+            <div
+              style={{
+                padding: 16,
+                color: 'var(--c-muted, #6b7280)',
+                fontSize: 13,
+              }}
+            >
+              Loading…
+            </div>
+          ) : list.length === 0 ? (
+            <div
+              style={{
+                padding: 16,
+                color: 'var(--c-muted, #6b7280)',
+                fontSize: 13,
+              }}
+            >
+              You&apos;re all caught up.
+            </div>
+          ) : (
+            list.map((n) => (
+              <NotificationRow
+                key={n.id}
+                notif={n}
+                onMarkRead={() => markRead.mutate(n.id)}
+              />
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function NotificationRow({
+  notif,
+  onMarkRead,
+}: {
+  notif: CustomerNotificationRead
+  onMarkRead: () => void
+}) {
+  const title = String(
+    (notif.payload as Record<string, unknown>).title ?? 'Community update',
+  )
+  const courseName = String(
+    (notif.payload as Record<string, unknown>).course_name ?? '',
+  )
+  const subtitle = typeForCopy(notif.type, courseName)
+  const unread = notif.read_at === null
+  return (
+    <button
+      type="button"
+      role="menuitem"
+      className="sp-account-menu-item"
+      onClick={onMarkRead}
+      style={{
+        display: 'block',
+        textAlign: 'left',
+        width: '100%',
+        padding: '10px 12px',
+        background: unread ? 'var(--c-panel-hover, #f9fafb)' : 'transparent',
+      }}
+    >
+      <div style={{ fontWeight: unread ? 600 : 400, fontSize: 13 }}>
+        {title}
+      </div>
+      <div style={{ fontSize: 12, color: 'var(--c-muted, #6b7280)' }}>
+        {subtitle}
+      </div>
+    </button>
+  )
+}
+
+function typeForCopy(t: string, course: string) {
+  switch (t) {
+    case 'community.event.published':
+      return course ? `New event in ${course}` : 'New event scheduled'
+    case 'community.event.starting_soon_24h':
+      return 'Starts tomorrow'
+    case 'community.event.starting_soon_15m':
+      return 'Starts in 15 minutes'
+    case 'community.event.live':
+      return 'Live now'
+    case 'community.event.replay_nag_t2h':
+    case 'community.event.replay_nag_t24h':
+      return 'Add a replay?'
+    default:
+      return ''
+  }
 }
