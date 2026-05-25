@@ -1042,10 +1042,15 @@
   font-family: inherit;
   font-size: 12px;
   padding: 0;
+  white-space: nowrap;
 }
-.statsRight:hover {
+.statsRight:hover:not(:disabled) {
   color: var(--c-ink);
   text-decoration: underline;
+}
+.statsRight:disabled {
+  cursor: default;
+  opacity: 0.7;
 }
 .reactionStack {
   display: flex;

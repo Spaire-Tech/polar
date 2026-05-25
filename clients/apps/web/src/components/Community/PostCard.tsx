@@ -322,15 +322,14 @@ function StatsBar({
         )}
         {totalReactions > 0 && <span>{totalReactions}</span>}
       </div>
-      {commentCount > 0 && (
-        <button
-          type="button"
-          className={styles.statsRight}
-          onClick={onCommentsClick}
-        >
-          {commentCount} {commentCount === 1 ? 'comment' : 'comments'}
-        </button>
-      )}
+      <button
+        type="button"
+        className={styles.statsRight}
+        onClick={onCommentsClick}
+        disabled={commentCount === 0 && !onCommentsClick}
+      >
+        {commentCount} {commentCount === 1 ? 'comment' : 'comments'}
+      </button>
     </div>
   )
 }
@@ -888,9 +887,9 @@ function PostImageLightbox({
             </div>
           </div>
           {post.body && post.body.trim().length > 0 && (
-            <p className={styles.postBody} style={{ marginTop: 6 }}>
-              {post.body}
-            </p>
+            <div style={{ marginTop: 6 }}>
+              <ExpandableBody body={post.body} />
+            </div>
           )}
           <StatsBar
             reactions={post.reactions}
