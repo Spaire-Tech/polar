@@ -465,19 +465,62 @@ class CommunityPostRepository(
 
     async def list_student_author_rows(
         self, enrollment_ids: set[UUID]
-    ) -> Sequence[tuple[UUID, str | None, str]]:
-        """Return (enrollment_id, customer_name, customer_email) for each
-        requested enrollment. The customer table has no avatar_url today
-        — Phase 1 falls back to initials in the UI."""
+    ) -> Sequence[
+        tuple[UUID, str | None, str, str | None, str | None, UUID]
+    ]:
+        """Return (enrollment_id, customer_name, customer_email,
+        customer_avatar_url, org_avatar_url, org_id) for each requested
+        enrollment. Customer has no native avatar column; we join the
+        course's organization so the service can fall back to the
+        org's logo (the same `img.logo.dev` URL surfaced everywhere
+        else in the dashboard) when the customer is a preview
+        customer for the admin."""
         if not enrollment_ids:
             return []
+        from polar.models.course import Course
+        from polar.models.organization import Organization
+
         statement = (
-            select(CourseEnrollment.id, Customer.name, Customer.email)
+            select(
+                CourseEnrollment.id,
+                Customer.name,
+                Customer.email,
+                # Organization.avatar_url is a @property, not a column —
+                # we resolve it in Python by hydrating the row instead
+                # of selecting the underlying _avatar_url string and
+                # losing the logo.dev fallback. Selecting the org id
+                # lets us look it up after.
+                Organization.id.label("org_id"),
+            )
             .join(Customer, Customer.id == CourseEnrollment.customer_id)
+            .join(Course, Course.id == CourseEnrollment.course_id)
+            .join(Organization, Organization.id == Course.organization_id)
             .where(CourseEnrollment.id.in_(enrollment_ids))
         )
         result = await self.session.execute(statement)
-        return [(row.id, row.name, row.email) for row in result]
+        rows = list(result)
+        # Bulk-hydrate orgs so we can call the avatar_url property
+        # (which mints the logo.dev URL when _avatar_url is unset).
+        org_ids = {row.org_id for row in rows}
+        orgs = (
+            await self.session.execute(
+                select(Organization).where(Organization.id.in_(org_ids))
+            )
+        ).scalars()
+        org_avatars: dict[UUID, str | None] = {
+            org.id: org.avatar_url for org in orgs
+        }
+        return [
+            (
+                row.id,
+                row.name,
+                row.email,
+                None,  # customer has no avatar column today
+                org_avatars.get(row.org_id),
+                row.org_id,
+            )
+            for row in rows
+        ]
 
     async def list_instructor_author_rows(
         self, user_ids: set[UUID]

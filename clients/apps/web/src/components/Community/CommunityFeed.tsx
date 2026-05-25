@@ -179,6 +179,7 @@ export function CommunityFeed({ courseId, customerSessionToken }: Props) {
 
   const courseTitle = courseDetail?.course.title ?? 'Course'
   const selfName = courseDetail?.customer_name ?? null
+  const selfAvatarUrl = courseDetail?.customer_avatar_url ?? null
   const members = membersQ.data ?? []
   const memberCount = members.length
   const tags = tagsQ.data ?? []
@@ -322,6 +323,7 @@ export function CommunityFeed({ courseId, customerSessionToken }: Props) {
                 token={customerSessionToken}
                 courseId={courseId}
                 selfName={selfName}
+                selfAvatarUrl={selfAvatarUrl}
                 categories={composerCategories}
                 categoryKind={discussionsKind}
                 tags={tags}
@@ -423,6 +425,7 @@ export function CommunityFeed({ courseId, customerSessionToken }: Props) {
                       token={customerSessionToken}
                       courseId={courseId}
                       selfName={selfName}
+                      selfAvatarUrl={selfAvatarUrl}
                       selfEnrollmentId={courseDetail?.enrollment_id}
                       reactionsEnabled={settings?.reactions_enabled ?? true}
                       onLessonChipClick={handleLessonChipClick}

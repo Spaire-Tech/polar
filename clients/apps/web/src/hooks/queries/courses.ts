@@ -606,6 +606,7 @@ export type CustomerCourseDetail = {
   enrollment_id: string
   enrolled_at: string
   customer_name: string | null
+  customer_avatar_url: string | null
   progress: CustomerCourseProgress
   course: {
     id: string
