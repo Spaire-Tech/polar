@@ -79,6 +79,22 @@ const formatTimestamp = (seconds: number): string => {
 
 const isInstructor = (a: CommunityAuthor): boolean => a.kind === 'instructor'
 
+// Map a tag slug to its colored-pill CSS variant. The v4 design only
+// defines colors for the seeded set — everything else falls back to the
+// neutral panel pill.
+const tagPillClass = (slug: string): string => {
+  switch (slug) {
+    case 'activity':
+      return styles.tagPillActivity
+    case 'question':
+      return styles.tagPillQuestion
+    case 'win':
+      return styles.tagPillWin
+    default:
+      return ''
+  }
+}
+
 // ---------------------------------------------------------------------
 // Like button — collapsed default + hover-reveal reaction picker.
 // Replaces the old always-visible inline emoji row. The stats bar above
@@ -818,6 +834,11 @@ function RegularPostCard({
             <IconGlobe size={11} />
           </div>
         </div>
+        {post.tag && (
+          <span className={`${styles.tagPill} ${tagPillClass(post.tag.slug)}`}>
+            {post.tag.label}
+          </span>
+        )}
         {ownPost && !previewMode && (
           <div style={{ position: 'relative' }}>
             <button

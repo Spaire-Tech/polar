@@ -15,7 +15,7 @@ import { type CommunityView, LeftRail, type RailLesson } from './LeftRail'
 import { MembersView } from './MembersView'
 import { PostCard } from './PostCard'
 import styles from './community.module.css'
-import { IconImage, IconPin } from './icons'
+import { IconPin } from './icons'
 
 type Props = {
   courseId: string
@@ -24,9 +24,6 @@ type Props = {
   lessons?: RailLesson[]
   // Read-only fallback header copy when settings haven't loaded yet.
   courseTitle?: string
-  // Hero falls back to the course thumbnail when the creator hasn't
-  // overridden it in settings.
-  courseThumbnailUrl?: string | null
 }
 
 // Read-only preview of the student-facing feed for the course-editor
@@ -39,7 +36,6 @@ export function CommunityPreview({
   courseId,
   lessons = [],
   courseTitle,
-  courseThumbnailUrl,
 }: Props) {
   const [view, setView] = useState<CommunityView>('home')
   const [lessonId, setLessonId] = useState<string | null>(null)
@@ -109,8 +105,6 @@ export function CommunityPreview({
     )
   }
 
-  const heroThumbnailUrl =
-    settings?.hero_thumbnail_url ?? courseThumbnailUrl ?? null
   const members = membersQ.data ?? []
   const memberCount = members.length
   const tags = tagsQ.data ?? []
@@ -190,19 +184,6 @@ export function CommunityPreview({
                     `Discussions, wins, and questions for ${displayCourseTitle}.`}
                 </p>
               </header>
-
-              <div
-                className={styles.thumb}
-                style={
-                  heroThumbnailUrl
-                    ? { backgroundImage: `url(${heroThumbnailUrl})` }
-                    : undefined
-                }
-              >
-                {!heroThumbnailUrl && (
-                  <IconImage size={56} className={styles.thumbIcon} />
-                )}
-              </div>
 
               {promptPost && (
                 <div className={styles.prompt}>

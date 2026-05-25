@@ -91,13 +91,17 @@ from .sorting import CommunityPostSortProperty
 # Default pin lifetime when the creator doesn't specify expires_at.
 DEFAULT_PIN_DURATION = timedelta(days=7)
 
-# Tags that get seeded on first enable. Keep slugs in sync with
-# COMMUNITY_TAG_SLUGS_SEEDED in sorting.py.
+# Tags that get seeded on first enable. Matches the v4 design's filter
+# row (Activity / Question / Win / Discussion). The legacy `milestone`
+# slug was dropped here on 2026-05-25 — existing courses with a
+# milestone tag aren't auto-removed but the tag-editor UI lets the
+# creator delete it, and create_milestone_post tolerates a missing
+# tag gracefully (no-ops).
 _SEED_TAGS: list[tuple[str, str, int]] = [
-    ("question", "Question", 0),
-    ("win", "Win", 1),
-    ("prompt", "Prompt", 2),
-    ("milestone", "Milestone", 3),
+    ("activity", "Activity", 0),
+    ("question", "Question", 1),
+    ("win", "Win", 2),
+    ("discussion", "Discussion", 3),
 ]
 
 

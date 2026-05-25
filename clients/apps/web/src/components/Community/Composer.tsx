@@ -1,6 +1,7 @@
 'use client'
 
 import {
+  type CommunityTagRead,
   useCreateCommunityPost,
   useUploadPostImage,
   useUploadPostVideo,
@@ -38,6 +39,10 @@ type Props = {
   selfName?: string | null
   modules: { id: string; label: string }[]
   defaultModuleId?: string | null
+  // Available tags surfaced as chips in the modal. When empty, the
+  // tag selector is hidden so the creator hasn't accidentally exposed
+  // an empty row.
+  tags?: CommunityTagRead[]
   forceOpen?: boolean
   onOpenChange?: (open: boolean) => void
   onPosted?: () => void
@@ -49,6 +54,7 @@ export function Composer({
   selfName,
   modules,
   defaultModuleId,
+  tags = [],
   forceOpen,
   onOpenChange,
   onPosted,
@@ -59,6 +65,7 @@ export function Composer({
   const [lessonModuleId, setLessonModuleId] = useState<string>(
     defaultModuleId ?? '',
   )
+  const [tagId, setTagId] = useState<string | null>(null)
   const [images, setImages] = useState<AttachedImage[]>([])
   const [video, setVideo] = useState<AttachedVideo | null>(null)
   const [uploadError, setUploadError] = useState<string | null>(null)
@@ -93,6 +100,7 @@ export function Composer({
   const reset = () => {
     setBody('')
     setLessonModuleId(defaultModuleId ?? '')
+    setTagId(null)
     setImages([])
     if (video) URL.revokeObjectURL(video.preview_url)
     setVideo(null)
@@ -194,6 +202,7 @@ export function Composer({
           type: 'video',
           body: trimmed || ' ',
           body_format: 'plain',
+          tag_id: tagId,
           media: [
             {
               media_type: 'video',
@@ -206,6 +215,7 @@ export function Composer({
         await create.mutateAsync({
           body: trimmed || ' ',
           body_format: 'plain',
+          tag_id: tagId,
           media: images.map((img, idx) => ({
             media_type: 'image',
             file_id: img.file_id,
@@ -372,6 +382,26 @@ export function Composer({
                   }
                 }}
               />
+
+              {tags.length > 0 && (
+                <div className={styles.modalTagRow}>
+                  <span className={styles.modalTagLabel}>Tag your post:</span>
+                  {tags.map((t) => (
+                    <button
+                      key={t.id}
+                      type="button"
+                      className={`${styles.modalTagChip} ${
+                        tagId === t.id ? styles.active : ''
+                      }`}
+                      onClick={() =>
+                        setTagId((prev) => (prev === t.id ? null : t.id))
+                      }
+                    >
+                      {t.label}
+                    </button>
+                  ))}
+                </div>
+              )}
 
               {video && (
                 <div className={styles.composerVideoPreview}>

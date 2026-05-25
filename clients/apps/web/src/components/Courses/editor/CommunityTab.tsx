@@ -5,9 +5,13 @@ import { toast } from '@/components/Toast/use-toast'
 import {
   type CommunityPostRead,
   type CommunitySettingsRead,
+  type CommunityTagRead,
+  useCreateCommunityTag,
   useCreatorCommunityPosts,
   useCreatorCommunitySettings,
+  useCreatorCommunityTags,
   useCreatorDeletePost,
+  useDeleteCommunityTag,
   usePinPost,
   useUnpinPost,
   useUpdateCommunitySettings,
@@ -175,29 +179,14 @@ export function CommunityTab({ course }: Props) {
           </div>
         </ShadowBox>
 
-        {/* Hero */}
+        {/* Header */}
         <ShadowBox>
-          <h2 className="text-base font-medium text-gray-900">Hero</h2>
+          <h2 className="text-base font-medium text-gray-900">Header</h2>
           <p className="mt-1 text-sm text-gray-500">
-            The big banner at the top of the feed. Falls back to the course’s
-            thumbnail when blank.
+            Text shown at the top of the feed. Defaults to the course title + a
+            generic blurb when blank.
           </p>
           <div className="mt-5 flex flex-col gap-4">
-            <div>
-              <label className="text-sm font-medium text-gray-700">
-                Thumbnail URL
-              </label>
-              <Input
-                className="mt-1.5"
-                placeholder="https://…"
-                defaultValue={current.hero_thumbnail_url ?? ''}
-                onBlur={(e: FocusEvent<HTMLInputElement>) => {
-                  const v = e.currentTarget.value.trim() || null
-                  if (v === (current.hero_thumbnail_url ?? null)) return
-                  commitField('hero_thumbnail_url', v)
-                }}
-              />
-            </div>
             <div>
               <label className="text-sm font-medium text-gray-700">
                 Title override
@@ -215,11 +204,11 @@ export function CommunityTab({ course }: Props) {
             </div>
             <div>
               <label className="text-sm font-medium text-gray-700">
-                Eyebrow override
+                Subtitle override
               </label>
               <Input
                 className="mt-1.5"
-                placeholder="e.g. 236 members · 14 active today"
+                placeholder="e.g. Discussions, wins, and questions for the cohort"
                 defaultValue={current.feed_eyebrow_override ?? ''}
                 onBlur={(e: FocusEvent<HTMLInputElement>) => {
                   const v = e.currentTarget.value.trim() || null
@@ -230,6 +219,9 @@ export function CommunityTab({ course }: Props) {
             </div>
           </div>
         </ShadowBox>
+
+        {/* Tags */}
+        <TagsSection courseId={courseId} />
 
         {/* Features */}
         <ShadowBox>
@@ -368,7 +360,6 @@ export function CommunityTab({ course }: Props) {
         <CommunityPreview
           courseId={courseId}
           courseTitle={course.title ?? undefined}
-          courseThumbnailUrl={course.thumbnail_url ?? null}
           lessons={course.modules.flatMap((m) =>
             (m.lessons ?? []).map((l) => ({ id: l.id, label: l.title })),
           )}
@@ -489,5 +480,105 @@ function ModerationRow({
         </Button>
       </div>
     </li>
+  )
+}
+
+// --- Tags section --------------------------------------------------------
+// Lets the creator add/remove discussion tags. We seed activity / question /
+// win / discussion by default; this UI is the only way to drop one (e.g.
+// the legacy `milestone` tag on existing courses).
+
+function TagsSection({ courseId }: { courseId: string }) {
+  const tagsQ = useCreatorCommunityTags(courseId)
+  const create = useCreateCommunityTag(courseId)
+  const del = useDeleteCommunityTag(courseId)
+  const [newLabel, setNewLabel] = useState('')
+
+  const tags = tagsQ.data ?? []
+
+  const onAdd = async () => {
+    const label = newLabel.trim()
+    if (!label) return
+    try {
+      await create.mutateAsync({ label })
+      setNewLabel('')
+    } catch (e) {
+      toast({
+        title: 'Couldn’t add tag',
+        description: e instanceof Error ? e.message : undefined,
+      })
+    }
+  }
+
+  const onDelete = (tag: CommunityTagRead) => {
+    if (!window.confirm(`Remove the "${tag.label}" tag?`)) return
+    del.mutate(tag.id, {
+      onError: (e) =>
+        toast({
+          title: 'Couldn’t remove tag',
+          description: e instanceof Error ? e.message : undefined,
+        }),
+    })
+  }
+
+  return (
+    <ShadowBox>
+      <h2 className="text-base font-medium text-gray-900">Tags</h2>
+      <p className="mt-1 text-sm text-gray-500">
+        Filter chips on the feed. Students pick one when they post. Default set
+        is Activity / Question / Win / Discussion — drop any you don’t want, or
+        add your own.
+      </p>
+
+      {tagsQ.isLoading ? (
+        <div className="mt-4 h-10 animate-pulse rounded-lg bg-gray-100" />
+      ) : tags.length === 0 ? (
+        <div className="mt-4 rounded-lg border border-dashed border-gray-200 py-6 text-center text-sm text-gray-500">
+          No tags yet. Add one below.
+        </div>
+      ) : (
+        <ul className="mt-4 divide-y divide-gray-100">
+          {tags.map((tag) => (
+            <li
+              key={tag.id}
+              className="flex items-center justify-between gap-3 py-3"
+            >
+              <div className="min-w-0">
+                <div className="text-sm font-medium text-gray-900">
+                  {tag.label}
+                </div>
+                <div className="text-xs text-gray-500">{tag.slug}</div>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => onDelete(tag)}
+                disabled={del.isPending}
+              >
+                Remove
+              </Button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <div className="mt-4 flex gap-2">
+        <Input
+          className="flex-1"
+          placeholder="New tag label (e.g. Recipe)"
+          value={newLabel}
+          onChange={(e) => setNewLabel(e.currentTarget.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault()
+              onAdd()
+            }
+          }}
+        />
+        <Button onClick={onAdd} disabled={!newLabel.trim() || create.isPending}>
+          Add
+        </Button>
+      </div>
+    </ShadowBox>
   )
 }

@@ -18,7 +18,7 @@ import { type CommunityView, LeftRail, type RailLesson } from './LeftRail'
 import { MembersView } from './MembersView'
 import { PostCard } from './PostCard'
 import styles from './community.module.css'
-import { IconImage, IconPin } from './icons'
+import { IconPin } from './icons'
 
 type Props = {
   courseId: string
@@ -150,8 +150,6 @@ export function CommunityFeed({ courseId, customerSessionToken }: Props) {
   // ---------- Computed display values ----------
 
   const courseTitle = courseDetail?.course.title ?? 'Course'
-  const heroThumbnailUrl =
-    settings?.hero_thumbnail_url ?? courseDetail?.course.thumbnail_url ?? null
   const selfName = courseDetail?.customer_name ?? null
   const members = membersQ.data ?? []
   const memberCount = members.length
@@ -226,19 +224,6 @@ export function CommunityFeed({ courseId, customerSessionToken }: Props) {
               </header>
 
               {/* Course thumbnail */}
-              <div
-                className={styles.thumb}
-                style={
-                  heroThumbnailUrl
-                    ? { backgroundImage: `url(${heroThumbnailUrl})` }
-                    : undefined
-                }
-              >
-                {!heroThumbnailUrl && (
-                  <IconImage size={56} className={styles.thumbIcon} />
-                )}
-              </div>
-
               {/* Prompt of the week */}
               {promptPost && (
                 <div className={styles.prompt}>
@@ -298,6 +283,7 @@ export function CommunityFeed({ courseId, customerSessionToken }: Props) {
                 selfName={selfName}
                 modules={modules.map((m) => ({ id: m.id, label: m.title }))}
                 defaultModuleId={null}
+                tags={tags}
                 forceOpen={composerForceOpen}
                 onOpenChange={setComposerForceOpen}
                 onPosted={() => {
