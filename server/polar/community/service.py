@@ -288,6 +288,17 @@ class CommunityService:
         post_repo = CommunityPostRepository.from_session(session)
         enrollment_rows = await post_repo.list_course_members(course_id)
 
+        # Instructor avatar falls back to the course org's logo (same
+        # logo.dev URL the dashboard uses) so the Members tab never
+        # renders the instructor as a blank initial.
+        instructor_avatar: str | None = None
+        if course is not None:
+            from polar.models.organization import Organization
+
+            org = await session.get(Organization, course.organization_id)
+            if org is not None:
+                instructor_avatar = org.avatar_url
+
         members: list[CommunityMemberRead] = []
         if course is not None:
             instructor_name = (course.instructor_name or "").strip() or "Instructor"
@@ -296,17 +307,17 @@ class CommunityService:
                     id=course.id,
                     kind="instructor",
                     name=instructor_name,
-                    avatar_url=None,
+                    avatar_url=instructor_avatar,
                     joined_at=course.created_at,
                 )
             )
-        for enrollment_id, name, email, joined_at in enrollment_rows:
+        for enrollment_id, name, email, avatar_url, joined_at in enrollment_rows:
             members.append(
                 CommunityMemberRead(
                     id=enrollment_id,
                     kind="student",
                     name=_resolve_display_name(name, email),
-                    avatar_url=None,
+                    avatar_url=avatar_url,
                     joined_at=joined_at,
                 )
             )

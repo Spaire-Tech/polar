@@ -14,7 +14,14 @@ if TYPE_CHECKING:
 # Fixed reaction set for v1. Stored as a CHECK constraint in the migration
 # rather than an enum so adding/removing emojis later is a one-line
 # migration instead of a Postgres enum rebuild.
-COMMUNITY_REACTION_EMOJIS = ("clap", "heart", "fire", "idea", "pray")
+COMMUNITY_REACTION_EMOJIS = (
+    "thumbsup",
+    "clap",
+    "heart",
+    "fire",
+    "idea",
+    "pray",
+)
 
 # Target discriminator — extend if reactions ever land on something other
 # than posts or comments.
@@ -35,7 +42,7 @@ class CommunityReaction(RecordModel):
             name="community_reactions_actor_exactly_one_check",
         ),
         CheckConstraint(
-            "emoji IN ('clap', 'heart', 'fire', 'idea', 'pray')",
+            "emoji IN ('thumbsup', 'clap', 'heart', 'fire', 'idea', 'pray')",
             name="community_reactions_emoji_check",
         ),
         CheckConstraint(
