@@ -10,8 +10,14 @@ import {
   useCreatorCommunityTags,
 } from '@/hooks/queries/community'
 import { useMemo, useState } from 'react'
+import { ActivitiesView, type CommunityActivity } from './ActivitiesView'
 import { type CommunityEvent, EventsView } from './EventsView'
-import { type CommunityView, LeftRail, type RailLesson } from './LeftRail'
+import {
+  type CommunityView,
+  type DiscussionsKind,
+  LeftRail,
+  type RailLesson,
+} from './LeftRail'
 import { MembersView } from './MembersView'
 import { PostCard } from './PostCard'
 import styles from './community.module.css'
@@ -19,9 +25,12 @@ import { IconPin } from './icons'
 
 type Props = {
   courseId: string
-  // Per-course lesson list lifted from the editor's course query so the
-  // preview rail shows the same "Discussions" channels students see.
+  // Per-course rail items. For series we pass lessons; for course
+  // format we pass modules. The label adapts in LeftRail.
   lessons?: RailLesson[]
+  // 'episode' (series) vs 'module' (course) — drives the rail's
+  // "All ..." label + the composer category dropdown's wording.
+  discussionsKind?: DiscussionsKind
   // Read-only fallback header copy when settings haven't loaded yet.
   courseTitle?: string
 }
@@ -35,6 +44,7 @@ type Props = {
 export function CommunityPreview({
   courseId,
   lessons = [],
+  discussionsKind = 'module',
   courseTitle,
 }: Props) {
   const [view, setView] = useState<CommunityView>('home')
@@ -42,6 +52,7 @@ export function CommunityPreview({
   const [tagId, setTagId] = useState<string | null>(null)
   const [sort] = useState<CommunitySortProperty>('recent')
   const [events, setEvents] = useState<CommunityEvent[]>([])
+  const [activities, setActivities] = useState<CommunityActivity[]>([])
 
   const filters: FeedFilters = useMemo(
     () => ({ sort, module_id: null, lesson_id: lessonId, tag_id: tagId }),
@@ -122,6 +133,8 @@ export function CommunityPreview({
           onLessonChange={setLessonId}
           memberCount={memberCount}
           eventCount={upcomingEventCount}
+          activityCount={activities.length}
+          discussionsKind={discussionsKind}
         />
 
         <main className={styles.main}>
@@ -169,6 +182,14 @@ export function CommunityPreview({
                   ),
                 )
               }
+            />
+          ) : view === 'activities' ? (
+            <ActivitiesView
+              channelKind={discussionsKind}
+              channels={lessons.map((l) => ({ id: l.id, label: l.label }))}
+              activities={activities}
+              totalMembers={memberCount}
+              onCreate={(a) => setActivities((prev) => [a, ...prev])}
             />
           ) : (
             <>

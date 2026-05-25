@@ -360,9 +360,17 @@ export function CommunityTab({ course }: Props) {
         <CommunityPreview
           courseId={courseId}
           courseTitle={course.title ?? undefined}
-          lessons={course.modules.flatMap((m) =>
-            (m.lessons ?? []).map((l) => ({ id: l.id, label: l.title })),
-          )}
+          discussionsKind={course.format === 'series' ? 'episode' : 'module'}
+          lessons={
+            course.format === 'series'
+              ? course.modules.flatMap((m) =>
+                  (m.lessons ?? []).map((l) => ({
+                    id: l.id,
+                    label: l.title,
+                  })),
+                )
+              : course.modules.map((m) => ({ id: m.id, label: m.title }))
+          }
         />
       </div>
     </div>

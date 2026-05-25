@@ -4,6 +4,7 @@ import styles from './community.module.css'
 import {
   IconBook,
   IconCalendar,
+  IconCamera,
   IconFilter,
   IconHome,
   IconUsers,
@@ -15,7 +16,11 @@ export type RailLesson = {
   count?: number
 }
 
-export type CommunityView = 'home' | 'members' | 'events'
+export type CommunityView = 'home' | 'members' | 'events' | 'activities'
+
+// `series` → label items "episodes"; anything else → "modules". Mirrors
+// the composer's category selector so the rail and modal agree.
+export type DiscussionsKind = 'episode' | 'module'
 
 type Props = {
   view: CommunityView
@@ -25,6 +30,8 @@ type Props = {
   onLessonChange: (lessonId: string | null) => void
   memberCount: number | null
   eventCount: number | null
+  activityCount?: number | null
+  discussionsKind: DiscussionsKind
 }
 
 export function LeftRail({
@@ -35,7 +42,12 @@ export function LeftRail({
   onLessonChange,
   memberCount,
   eventCount,
+  activityCount,
+  discussionsKind,
 }: Props) {
+  const allLabel =
+    discussionsKind === 'episode' ? 'All episodes' : 'All modules'
+
   return (
     <aside className={styles.rail}>
       <div className={styles.railSection}>
@@ -75,6 +87,19 @@ export function LeftRail({
             <span className={styles.railCount}>{eventCount}</span>
           )}
         </button>
+        <button
+          type="button"
+          className={`${styles.railItem} ${view === 'activities' ? styles.active : ''}`}
+          onClick={() => onViewChange('activities')}
+        >
+          <span className={styles.railIcon}>
+            <IconCamera size={14} />
+          </span>
+          <span className={styles.railItemLabel}>Activities</span>
+          {activityCount != null && activityCount > 0 && (
+            <span className={styles.railCount}>{activityCount}</span>
+          )}
+        </button>
       </div>
 
       {lessons.length > 0 && (
@@ -93,7 +118,7 @@ export function LeftRail({
             <span className={styles.railIcon}>
               <IconFilter size={14} />
             </span>
-            <span className={styles.railItemLabel}>All discussions</span>
+            <span className={styles.railItemLabel}>{allLabel}</span>
           </button>
           {lessons.map((l) => (
             <button

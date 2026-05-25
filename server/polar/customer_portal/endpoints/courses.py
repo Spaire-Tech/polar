@@ -400,6 +400,7 @@ async def get_enrolled_course(
             "instructor_name_bold": course.instructor_name_bold,
             "instructor_name_uppercase": course.instructor_name_uppercase,
             "course_type": course.course_type,
+            "format": course.format,
             "paywall_enabled": course.paywall_enabled,
             "paywall_position": course.paywall_position,
             "landing_overrides": course.landing_overrides,

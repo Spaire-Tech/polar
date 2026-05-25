@@ -498,6 +498,17 @@
   min-height: 140px;
   resize: none;
   font-family: inherit;
+  box-shadow: none;
+}
+/* Defensive: kill the user-agent / global focus underline so the
+   textarea reads as a plain bottomless input on every browser. */
+.modalTextarea:focus,
+.modalTextarea:focus-visible,
+.modalTextarea:focus-within,
+.modalTextarea:active {
+  outline: none;
+  border: none;
+  box-shadow: none;
 }
 .modalTextarea::placeholder {
   color: var(--c-dim);
@@ -544,6 +555,18 @@
 .modalToolVideo:hover {
   color: #5cc069;
   background: rgba(92, 192, 105, 0.1);
+}
+.modalToolFile:hover {
+  color: #c77dff;
+  background: rgba(199, 125, 255, 0.1);
+}
+.modalToolGif:hover {
+  color: #ff6b6b;
+  background: rgba(255, 107, 107, 0.1);
+}
+.modalToolPoll:hover {
+  color: #f5a623;
+  background: rgba(245, 166, 35, 0.1);
 }
 .modalPostBtn {
   height: 38px;
@@ -2197,6 +2220,150 @@
 }
 .ceBtnPrimary:not(:disabled):hover {
   opacity: 0.88;
+}
+
+/* ======================================================================
+ * Activities tab — list cards + create modal extras
+ * ====================================================================== */
+
+.activityListCard {
+  padding: 22px 24px;
+  background: #fff;
+  border: 1px solid var(--c-hair);
+  border-radius: 16px;
+  margin-bottom: 14px;
+  transition:
+    border-color 0.12s ease,
+    box-shadow 0.12s ease;
+}
+.activityListCard:hover {
+  border-color: var(--c-line);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+}
+.activityListTop {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+.activityChannelChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 9px;
+  background: var(--c-panel);
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--c-ink);
+}
+.activityStatus {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.activityStatusActive {
+  background: #e5f7ec;
+  color: #1f7a3e;
+}
+.activityStatusDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: #34c759;
+}
+.activitySubmitType {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11.5px;
+  color: var(--c-muted);
+}
+.activityListTitle {
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.012em;
+  line-height: 1.3;
+  margin-bottom: 6px;
+}
+.activityListDesc {
+  font-size: 13.5px;
+  color: var(--c-muted);
+  line-height: 1.55;
+  margin-bottom: 14px;
+  max-width: 60ch;
+}
+.activityListFoot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.activityListProgress {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-size: 12.5px;
+  color: var(--c-muted);
+  flex-wrap: wrap;
+}
+.activityProgressBar {
+  width: 140px;
+  height: 4px;
+  background: var(--c-hair);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.activityProgressFill {
+  height: 100%;
+  background: var(--c-ink);
+  border-radius: 999px;
+}
+.activityListActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.activitySubmitBtn {
+  height: 32px;
+  padding: 0 14px;
+  border-radius: 999px;
+  background: var(--c-ink);
+  color: #fff;
+  font-weight: 500;
+  font-size: 12.5px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+}
+.activitySubmitBtn:hover {
+  opacity: 0.85;
+}
+.activityViewBtn {
+  height: 32px;
+  padding: 0 14px;
+  border-radius: 999px;
+  background: var(--c-panel);
+  color: var(--c-ink);
+  font-weight: 500;
+  font-size: 12.5px;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+}
+.activityViewBtn:hover {
+  background: var(--c-hair);
 }
 
 @media (max-width: 900px) {

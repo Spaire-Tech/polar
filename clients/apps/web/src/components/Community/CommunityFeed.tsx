@@ -11,10 +11,16 @@ import {
 } from '@/hooks/queries/community'
 import { useCustomerCourse } from '@/hooks/queries/courses'
 import { useEffect, useMemo, useState } from 'react'
+import { ActivitiesView, type CommunityActivity } from './ActivitiesView'
 import { Avatar } from './Avatar'
 import { Composer } from './Composer'
 import { type CommunityEvent, EventsView } from './EventsView'
-import { type CommunityView, LeftRail, type RailLesson } from './LeftRail'
+import {
+  type CommunityView,
+  type DiscussionsKind,
+  LeftRail,
+  type RailLesson,
+} from './LeftRail'
 import { MembersView } from './MembersView'
 import { PostCard } from './PostCard'
 import styles from './community.module.css'
@@ -33,23 +39,29 @@ export function CommunityFeed({ courseId, customerSessionToken }: Props) {
   const [sortMenuOpen, setSortMenuOpen] = useState(false)
   const [composerForceOpen, setComposerForceOpen] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
-  // Events are client-state only — no backend yet. Persist nothing across
-  // reloads in Phase 3C; the UI is functional but ephemeral so creators
-  // can preview the flow.
+  // Events + activities are client-state only — no backend yet. Persist
+  // nothing across reloads in Phase 3; the UIs are functional but
+  // ephemeral so creators can preview the flow.
   const [events, setEvents] = useState<CommunityEvent[]>([])
-
-  const filters: FeedFilters = useMemo(
-    () => ({
-      sort,
-      module_id: null,
-      lesson_id: lessonId,
-      tag_id: tagId,
-    }),
-    [sort, lessonId, tagId],
-  )
+  const [activities, setActivities] = useState<CommunityActivity[]>([])
 
   const settingsQ = useCommunitySettings(customerSessionToken, courseId)
   const courseQ = useCustomerCourse(customerSessionToken, courseId)
+  // We have to peek the courseDetail BEFORE the filters memo so we can
+  // route the rail's selection to module_id (course format) vs
+  // lesson_id (series). Both can't be set, so feed/repo logic stays
+  // exactly the same.
+  const isSeriesEarly = courseQ.data?.course.format === 'series'
+  const filters: FeedFilters = useMemo(
+    () => ({
+      sort,
+      module_id: isSeriesEarly ? null : lessonId,
+      lesson_id: isSeriesEarly ? lessonId : null,
+      tag_id: tagId,
+    }),
+    [sort, lessonId, tagId, isSeriesEarly],
+  )
+
   const feedQ = useCommunityFeed(customerSessionToken, courseId, filters)
   const tagsQ = useCommunityTags(customerSessionToken, courseId)
   const membersQ = useCommunityMembers(customerSessionToken, courseId)
@@ -68,17 +80,33 @@ export function CommunityFeed({ courseId, customerSessionToken }: Props) {
     [courseDetail],
   )
 
-  // Lessons are the per-episode discussion channels under "Discussions".
-  // Flatten in module → lesson order so series courses read top-down.
+  // Series courses are flat episode lists — the rail shows lessons.
+  // Course-format courses bucket the rail by module instead. Composer
+  // mirrors the same kind so the category selector and the discussion
+  // channels agree.
+  const isSeries = isSeriesEarly
+  const discussionsKind: DiscussionsKind = isSeries ? 'episode' : 'module'
+
   const railLessons: RailLesson[] = useMemo(() => {
-    const out: RailLesson[] = []
-    for (const m of modules) {
-      for (const l of m.lessons ?? []) {
-        out.push({ id: l.id, label: l.title })
+    if (isSeries) {
+      const out: RailLesson[] = []
+      for (const m of modules) {
+        for (const l of m.lessons ?? []) {
+          out.push({ id: l.id, label: l.title })
+        }
       }
+      return out
     }
-    return out
-  }, [modules])
+    return modules.map((m) => ({ id: m.id, label: m.title }))
+  }, [modules, isSeries])
+
+  // Composer's "Channel" selector — same source as the rail. We track
+  // a single `categoryId` that the composer passes to the backend via
+  // module_id or lesson_id depending on `discussionsKind`.
+  const composerCategories = railLessons.map((l) => ({
+    id: l.id,
+    label: l.label,
+  }))
 
   // Flatten the infinite query's pages into a single list. Computing
   // the prompt-of-week and feed-list slices inline keeps both memos
@@ -195,6 +223,8 @@ export function CommunityFeed({ courseId, customerSessionToken }: Props) {
           onLessonChange={setLessonId}
           memberCount={memberCount}
           eventCount={upcomingEventCount}
+          activityCount={activities.length}
+          discussionsKind={discussionsKind}
         />
 
         <main className={styles.main}>
@@ -206,6 +236,17 @@ export function CommunityFeed({ courseId, customerSessionToken }: Props) {
               events={events}
               onCreate={onCreateEvent}
               onToggleGoing={onToggleGoing}
+            />
+          ) : view === 'activities' ? (
+            <ActivitiesView
+              channelKind={discussionsKind}
+              channels={composerCategories}
+              activities={activities}
+              totalMembers={memberCount}
+              onCreate={(a) => {
+                setActivities((prev) => [a, ...prev])
+                setToast('Activity created')
+              }}
             />
           ) : (
             <>
@@ -281,8 +322,8 @@ export function CommunityFeed({ courseId, customerSessionToken }: Props) {
                 token={customerSessionToken}
                 courseId={courseId}
                 selfName={selfName}
-                modules={modules.map((m) => ({ id: m.id, label: m.title }))}
-                defaultModuleId={null}
+                categories={composerCategories}
+                categoryKind={discussionsKind}
                 tags={tags}
                 forceOpen={composerForceOpen}
                 onOpenChange={setComposerForceOpen}

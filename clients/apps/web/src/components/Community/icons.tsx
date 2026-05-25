@@ -213,3 +213,29 @@ export const IconPlayCircle = (p: Props = {}) => (
     <path d="M10 8l6 4-6 4V8z" />
   </svg>
 )
+
+export const IconPoll = (p: Props = {}) => (
+  <svg {...withSize(p)}>
+    <path d="M6 20V10M12 20V4M18 20v-7" />
+  </svg>
+)
+
+export const IconGif = (p: Props = {}) => (
+  <svg {...withSize(p)}>
+    <rect x="2" y="6" width="20" height="12" rx="2" />
+    <path d="M6 10v4M6 12h2M12 10v4M16 10v4M16 10h2M16 12h2" />
+  </svg>
+)
+
+export const IconCamera = (p: Props = {}) => (
+  <svg {...withSize(p)}>
+    <path d="M3 7h3l2-3h8l2 3h3a1 1 0 011 1v11a1 1 0 01-1 1H3a1 1 0 01-1-1V8a1 1 0 011-1z" />
+    <circle cx="12" cy="13" r="4" />
+  </svg>
+)
+
+export const IconPaperclip = (p: Props = {}) => (
+  <svg {...withSize(p)}>
+    <path d="M21 12.5l-9 9a5 5 0 01-7-7l9-9a3.5 3.5 0 015 5l-9 9a2 2 0 01-3-3l8-8" />
+  </svg>
+)

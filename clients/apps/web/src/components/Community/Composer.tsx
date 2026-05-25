@@ -10,8 +10,11 @@ import { useEffect, useRef, useState } from 'react'
 import { Avatar } from './Avatar'
 import styles from './community.module.css'
 import {
+  IconCalendar,
   IconFile,
+  IconGif,
   IconImage,
+  IconPoll,
   IconSend,
   IconSmile,
   IconVideo,
@@ -37,8 +40,14 @@ type Props = {
   token: string
   courseId: string
   selfName?: string | null
-  modules: { id: string; label: string }[]
-  defaultModuleId?: string | null
+  // The category dropdown's option list. For series courses this is
+  // every episode (lesson). For course-format it's every module. The
+  // composer doesn't care which — it shows the labels and passes the
+  // selected id back as lesson_id when categoryKind === 'episode'.
+  // Module-only selections are kept client-side until the backend
+  // gains a module_id column on community_post.
+  categories: { id: string; label: string }[]
+  categoryKind: 'episode' | 'module'
   // Available tags surfaced as chips in the modal. When empty, the
   // tag selector is hidden so the creator hasn't accidentally exposed
   // an empty row.
@@ -52,8 +61,8 @@ export function Composer({
   token,
   courseId,
   selfName,
-  modules,
-  defaultModuleId,
+  categories,
+  categoryKind,
   tags = [],
   forceOpen,
   onOpenChange,
@@ -62,9 +71,7 @@ export function Composer({
   const [expanded, setExpanded] = useState(false)
   const isOpen = forceOpen ?? expanded
   const [body, setBody] = useState('')
-  const [lessonModuleId, setLessonModuleId] = useState<string>(
-    defaultModuleId ?? '',
-  )
+  const [categoryId, setCategoryId] = useState<string>('')
   const [tagId, setTagId] = useState<string | null>(null)
   const [images, setImages] = useState<AttachedImage[]>([])
   const [video, setVideo] = useState<AttachedVideo | null>(null)
@@ -99,7 +106,7 @@ export function Composer({
 
   const reset = () => {
     setBody('')
-    setLessonModuleId(defaultModuleId ?? '')
+    setCategoryId('')
     setTagId(null)
     setImages([])
     if (video) URL.revokeObjectURL(video.preview_url)
@@ -203,6 +210,7 @@ export function Composer({
           body: trimmed || ' ',
           body_format: 'plain',
           tag_id: tagId,
+          lesson_id: selectedLessonId,
           media: [
             {
               media_type: 'video',
@@ -216,6 +224,7 @@ export function Composer({
           body: trimmed || ' ',
           body_format: 'plain',
           tag_id: tagId,
+          lesson_id: selectedLessonId,
           media: images.map((img, idx) => ({
             media_type: 'image',
             file_id: img.file_id,
@@ -239,8 +248,16 @@ export function Composer({
     !uploadVideo.isPending &&
     (body.trim().length > 0 || images.length > 0 || videoReady)
 
-  const moduleLabel =
-    modules.find((m) => m.id === lessonModuleId)?.label ?? 'No module'
+  const categoryLabel =
+    categories.find((c) => c.id === categoryId)?.label ??
+    (categoryKind === 'episode' ? 'All episodes' : 'All modules')
+
+  // We only send lesson_id when the picker is series (= lessons). Course
+  // format selections are module-level and the backend has no module_id
+  // column on community_post yet, so we keep them local until that
+  // lands.
+  const selectedLessonId =
+    categoryKind === 'episode' && categoryId ? categoryId : null
 
   // Photo/Video tool buttons open the OS file picker directly, then
   // expand the modal so the user lands on a draft with the file already
@@ -312,12 +329,25 @@ export function Composer({
             type="button"
             className={styles.composerTool}
             onClick={open}
-            aria-label="Write a post"
+            aria-label="Create poll"
+            title="Polls coming soon"
           >
             <span className={styles.composerToolPoll}>
-              <IconFile size={18} />
+              <IconPoll size={18} />
             </span>
-            Write
+            Poll
+          </button>
+          <button
+            type="button"
+            className={styles.composerTool}
+            onClick={open}
+            aria-label="Create event"
+            title="Open events from the rail to schedule one"
+          >
+            <span className={styles.composerToolEvent}>
+              <IconCalendar size={18} />
+            </span>
+            Event
           </button>
         </div>
       </div>
@@ -338,18 +368,24 @@ export function Composer({
                   <div className={styles.modalAuthorName}>
                     {selfName ?? 'You'}
                   </div>
-                  {modules.length > 0 && (
+                  {categories.length > 0 && (
                     <select
                       className={styles.modalAuthorMeta}
-                      value={lessonModuleId}
-                      onChange={(e) => setLessonModuleId(e.target.value)}
-                      aria-label="Module"
-                      title={moduleLabel}
+                      value={categoryId}
+                      onChange={(e) => setCategoryId(e.target.value)}
+                      aria-label={
+                        categoryKind === 'episode' ? 'Episode' : 'Module'
+                      }
+                      title={categoryLabel}
                     >
-                      <option value="">No module</option>
-                      {modules.map((m) => (
-                        <option key={m.id} value={m.id}>
-                          {m.label}
+                      <option value="">
+                        {categoryKind === 'episode'
+                          ? 'No episode'
+                          : 'No module'}
+                      </option>
+                      {categories.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.label}
                         </option>
                       ))}
                     </select>
@@ -503,6 +539,33 @@ export function Composer({
                   }
                 >
                   <IconVideo size={18} />
+                </button>
+                <button
+                  type="button"
+                  className={`${styles.modalTool} ${styles.modalToolFile}`}
+                  aria-label="Attach file"
+                  disabled
+                  title="File attachments coming soon"
+                >
+                  <IconFile size={18} />
+                </button>
+                <button
+                  type="button"
+                  className={`${styles.modalTool} ${styles.modalToolGif}`}
+                  aria-label="Add GIF"
+                  disabled
+                  title="GIF picker coming soon"
+                >
+                  <IconGif size={18} />
+                </button>
+                <button
+                  type="button"
+                  className={`${styles.modalTool} ${styles.modalToolPoll}`}
+                  aria-label="Create poll"
+                  disabled
+                  title="Polls coming soon"
+                >
+                  <IconPoll size={18} />
                 </button>
                 <button
                   type="button"
