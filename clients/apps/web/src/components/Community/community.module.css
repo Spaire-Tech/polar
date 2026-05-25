@@ -873,6 +873,22 @@
 .postBody strong {
   font-weight: 600;
 }
+/* LinkedIn-style "...see more" expander. Inline, muted, hover bumps
+   to ink so the affordance is unambiguous. */
+.seeMore {
+  background: transparent;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: var(--c-muted);
+  cursor: pointer;
+  font-weight: 500;
+}
+.seeMore:hover {
+  color: var(--c-ink);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
 
 /* Image grid */
 .postMediaGrid {

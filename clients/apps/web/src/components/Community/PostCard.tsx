@@ -97,6 +97,54 @@ const tagPillClass = (slug: string): string => {
 }
 
 // ---------------------------------------------------------------------
+// Body — LinkedIn-style truncation. Posts cap visibly at ~210
+// characters with a "...see more" expander; once expanded the post
+// stays expanded for the remainder of the session (per-post local
+// state). The cutoff is character-based — line breaks, emojis and
+// spaces all count — to match the rhythm LinkedIn creators write to.
+// ---------------------------------------------------------------------
+
+const BODY_TRUNCATE_AT = 210
+
+// Find the last whitespace before `limit` so we don't snip a word in
+// half. Falls back to the hard limit when the whole prefix is
+// whitespace-free (one giant URL, etc).
+const findTruncationPoint = (body: string, limit: number): number => {
+  if (body.length <= limit) return body.length
+  const window = body.slice(0, limit)
+  // Prefer breaking at a newline first — LinkedIn-style posts use the
+  // line-break drama, so the natural visual cliff is at one.
+  const lastNewline = window.lastIndexOf('\n')
+  if (lastNewline >= limit * 0.6) return lastNewline
+  const lastSpace = window.lastIndexOf(' ')
+  if (lastSpace >= limit * 0.6) return lastSpace
+  return limit
+}
+
+function ExpandableBody({ body }: { body: string }) {
+  const [expanded, setExpanded] = useState(false)
+  const needsTruncation = body.length > BODY_TRUNCATE_AT
+  if (!needsTruncation || expanded) {
+    return <p className={styles.postBody}>{body}</p>
+  }
+  const cut = findTruncationPoint(body, BODY_TRUNCATE_AT)
+  const head = body.slice(0, cut).replace(/\s+$/, '')
+  return (
+    <p className={styles.postBody}>
+      {head}
+      {'… '}
+      <button
+        type="button"
+        className={styles.seeMore}
+        onClick={() => setExpanded(true)}
+      >
+        see more
+      </button>
+    </p>
+  )
+}
+
+// ---------------------------------------------------------------------
 // Like button — collapsed default + hover-reveal reaction picker.
 // Replaces the old always-visible inline emoji row. The stats bar above
 // the action row carries the aggregate count.
@@ -916,7 +964,7 @@ function RegularPostCard({
       <div className={styles.postBodyWrap}>
         {post.title && <h3 className={styles.postTitle}>{post.title}</h3>}
         {post.body && post.body.trim().length > 0 && (
-          <p className={styles.postBody}>{post.body}</p>
+          <ExpandableBody body={post.body} />
         )}
       </div>
 
