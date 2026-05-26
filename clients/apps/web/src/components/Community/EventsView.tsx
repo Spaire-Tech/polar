@@ -7,6 +7,7 @@ import {
   IconCalendar,
   IconChat,
   IconClock,
+  IconImage,
   IconMapPin,
   IconPlayCircle,
   IconPlus,
@@ -36,6 +37,7 @@ export type CommunityEvent = {
   location: string
   meetingUrl?: string | null
   replayUrl?: string | null
+  coverUrl?: string | null
   hostName: string
   rsvpCount: number
   going: boolean
@@ -57,6 +59,7 @@ export type CommunityEventCreateInput = {
   duration: string
   location: string
   meetingUrl: string
+  coverUrl: string
   notify: boolean
   recurring: boolean
 }
@@ -157,11 +160,7 @@ const COMMON_TIMEZONES = [
   'Australia/Sydney',
 ].filter((v, i, a) => a.indexOf(v) === i)
 
-const previewWhen = (
-  date: string,
-  startTime: string,
-  tz: string,
-): string => {
+const previewWhen = (date: string, startTime: string, tz: string): string => {
   // Interpret `date + startTime` as a wall clock in `tz` and show the
   // host what "8pm PT" actually maps to in their viewer-local time —
   // a sanity check before they hit publish.
@@ -307,30 +306,36 @@ export function EventsView({
         upcoming.length > 0 && (
           <div className={styles.eventsSection}>
             <div className={styles.eventsSectionTitle}>Upcoming</div>
-            {upcoming.map((e) => (
-              <EventCard
-                key={e.id}
-                event={e}
-                onToggleGoing={onToggleGoing}
-                canRsvp={!canCreate}
-              />
-            ))}
+            <div className={styles.eventsGrid}>
+              {upcoming.map((e) => (
+                <EventCard
+                  key={e.id}
+                  event={e}
+                  onToggleGoing={onToggleGoing}
+                  canRsvp={!canCreate}
+                />
+              ))}
+            </div>
           </div>
         )
       )}
 
       {past.length > 0 && filter !== 'mine' && (
         <div className={styles.eventsSection}>
-          <div className={styles.eventsSectionTitle}>Past · Replays</div>
-          {past.map((e) => (
-            <EventCard
-              key={e.id}
-              event={e}
-              onToggleGoing={onToggleGoing}
-              past
-              canRsvp={!canCreate}
-            />
-          ))}
+          <div className={styles.eventsSectionTitle}>
+            Past · Replays available
+          </div>
+          <div className={styles.eventsGrid}>
+            {past.map((e) => (
+              <EventCard
+                key={e.id}
+                event={e}
+                onToggleGoing={onToggleGoing}
+                past
+                canRsvp={!canCreate}
+              />
+            ))}
+          </div>
         </div>
       )}
 
@@ -416,109 +421,119 @@ function EventCard({
   const chip = formatDateChip(event.startAt, event.timezone)
   const whenHost = formatHostWhen(event.startAt, event.timezone)
   const whenViewer = formatViewerWhen(event.startAt, event.timezone)
+  const coverBg = event.coverUrl
+    ? `url(${event.coverUrl}) center/cover`
+    : `linear-gradient(135deg, #1f1f1f, #4a4a4a)`
 
-  if (past) {
-    return (
-      <div className={`${styles.eventCard} ${styles.eventCardPast}`}>
-        <div className={styles.eventDate}>
-          <span className={styles.eventDateMonth}>{chip.month}</span>
-          <span className={styles.eventDateDay}>{chip.day}</span>
-        </div>
-        <div className={styles.eventMain}>
-          <div className={styles.eventTop}>
-            <span
-              className={`${styles.eventType} ${styles[`eventType_${event.type}`]}`}
-            >
-              {TYPE_LABEL[event.type]}
-            </span>
-          </div>
-          <div className={styles.eventTitle}>{event.title}</div>
-          <div className={styles.eventHost}>
-            <Avatar name={event.hostName} size={18} />
-            <span>
-              <strong>{event.hostName}</strong> · {event.duration} min
-            </span>
-            <span>· {event.rsvpCount} attended</span>
-          </div>
-        </div>
-        <div className={styles.eventActions}>
-          {event.replayUrl ? (
-            <a
-              href={event.replayUrl}
-              target="_blank"
-              rel="noreferrer noopener"
-              className={`${styles.eventCta} ${styles.eventCtaReplay}`}
-            >
-              <IconPlayCircle size={13} /> Watch replay
-            </a>
-          ) : (
-            <button
-              type="button"
-              className={`${styles.eventCta} ${styles.eventCtaReplay}`}
-              disabled
-              title="No replay posted yet."
-            >
-              <IconPlayCircle size={13} /> Watch replay
-            </button>
-          )}
-        </div>
-      </div>
-    )
-  }
+  const cardCls = `${styles.eventCard} ${event.live ? styles.eventCardLive : ''} ${past ? styles.eventCardPast : ''}`
 
   return (
-    <div className={styles.eventCard}>
-      <div className={styles.eventDate}>
-        <span className={styles.eventDateMonth}>{chip.month}</span>
-        <span className={styles.eventDateDay}>{chip.day}</span>
-      </div>
-      <div className={styles.eventMain}>
-        <div className={styles.eventTop}>
-          <span
-            className={`${styles.eventType} ${styles[`eventType_${event.type}`]}`}
-          >
-            {TYPE_LABEL[event.type]}
-          </span>
+    <article className={cardCls}>
+      <div className={styles.eventCover}>
+        <div className={styles.eventCoverImg} style={{ background: coverBg }} />
+        <div className={styles.eventCoverOverlay}>
+          {event.live ? (
+            <span className={styles.eventCoverLive}>
+              <span className="dot" /> Live
+            </span>
+          ) : (
+            <span className={styles.eventCoverDate}>
+              <IconCalendar size={11} />
+              <span className="day">
+                {chip.month} {chip.day}
+              </span>
+            </span>
+          )}
         </div>
-        <div className={styles.eventTitle}>{event.title}</div>
-        <div className={styles.eventMeta}>
-          <span className={styles.eventMetaBit}>
-            <IconClock size={11} />
-            {whenHost} · {event.duration}m
+        <span className={styles.eventCoverType}>{TYPE_LABEL[event.type]}</span>
+        {past && (
+          <div className={styles.eventCoverReplay}>
+            <span className="play">
+              <IconPlayCircle size={20} />
+            </span>
+          </div>
+        )}
+      </div>
+
+      <div className={styles.eventBody}>
+        <div className={styles.eventTitleV4}>{event.title}</div>
+        <div className={styles.eventMetaV4}>
+          <span className={styles.eventMetaBitV4}>
+            <IconClock size={11} /> {whenHost} · {event.duration}m
           </span>
           {whenViewer && (
-            <span className={styles.eventMetaBit} style={{ opacity: 0.7 }}>
+            <span className={styles.eventMetaBitV4} style={{ opacity: 0.7 }}>
               {whenViewer}
             </span>
           )}
-          {event.location && (
-            <span className={styles.eventMetaBit}>
+          {!past && event.location && (
+            <span className={styles.eventMetaBitV4}>
               <IconMapPin size={11} /> {event.location}
             </span>
           )}
         </div>
-        <div className={styles.eventHost}>
-          <Avatar name={event.hostName} size={18} />
+        <div className={styles.eventHostV4}>
+          <Avatar name={event.hostName} size={20} />
           <span>
             <strong>{event.hostName}</strong>
           </span>
-          <span>· {event.rsvpCount} going</span>
         </div>
       </div>
-      {canRsvp && (
-        <div className={styles.eventActions}>
+
+      <div className={styles.eventFoot}>
+        <span className={styles.eventFootGoing}>
+          <strong>{event.rsvpCount}</strong> {past ? 'attended' : 'going'}
+        </span>
+        {past ? (
+          event.replayUrl ? (
+            <a
+              href={event.replayUrl}
+              target="_blank"
+              rel="noreferrer noopener"
+              className={`${styles.eventCtaV4} ${styles.eventCtaV4Replay}`}
+            >
+              <IconPlayCircle size={13} /> Replay
+            </a>
+          ) : (
+            <button
+              type="button"
+              className={`${styles.eventCtaV4} ${styles.eventCtaV4Replay}`}
+              disabled
+              title="No replay posted yet."
+            >
+              <IconPlayCircle size={13} /> Replay
+            </button>
+          )
+        ) : event.live ? (
+          event.meetingUrl ? (
+            <a
+              href={event.meetingUrl}
+              target="_blank"
+              rel="noreferrer noopener"
+              className={`${styles.eventCtaV4} ${styles.eventCtaV4Live}`}
+            >
+              <IconVideo size={13} /> Join live
+            </a>
+          ) : (
+            <button
+              type="button"
+              className={`${styles.eventCtaV4} ${styles.eventCtaV4Live}`}
+              disabled
+            >
+              <IconVideo size={13} /> Join live
+            </button>
+          )
+        ) : canRsvp ? (
           <button
             type="button"
-            className={`${styles.eventCta} ${styles.eventCtaOutline} ${
-              event.going ? styles.eventCtaGoing : ''
-            }`}
+            className={`${styles.eventCtaV4} ${styles.eventCtaV4Outline} ${event.going ? styles.eventCtaV4Going : ''}`}
             onClick={() => onToggleGoing(event.id)}
           >
             {event.going ? '✓ Going' : 'RSVP'}
           </button>
-        </div>
-      )}
-    </div>
+        ) : null}
+      </div>
+    </article>
   )
 }
 
@@ -607,6 +622,7 @@ function CreateEventModal({
   const [timezone, setTimezone] = useState<string>(VIEWER_TZ)
   const [location, setLocation] = useState('')
   const [meetingUrl, setMeetingUrl] = useState('')
+  const [coverDataUrl, setCoverDataUrl] = useState<string>('')
   const [desc, setDesc] = useState('')
   const [notify, setNotify] = useState(true)
   const [recurring, setRecurring] = useState(false)
@@ -622,6 +638,7 @@ function CreateEventModal({
       setDuration('60')
       setTimezone(VIEWER_TZ)
       setLocation('')
+      setCoverDataUrl('')
       setMeetingUrl('')
       setDesc('')
       setNotify(true)
@@ -662,6 +679,7 @@ function CreateEventModal({
       duration,
       location: location.trim(),
       meetingUrl: meetingUrl.trim(),
+      coverUrl: coverDataUrl,
       notify,
       recurring,
     })
@@ -687,13 +705,13 @@ function CreateEventModal({
           </button>
         </div>
         <div className={styles.ceBody}>
-          <div className={styles.ceCover}>
-            <span className={styles.ceCoverLabel}>
-              <IconCalendar size={13} /> Add cover image
-            </span>
+          <div className={styles.ceField}>
+            <span className={styles.ceLabel}>Cover image</span>
+            <CoverUploader value={coverDataUrl} onChange={setCoverDataUrl} />
           </div>
 
           <div className={styles.ceField}>
+            <span className={styles.ceLabel}>Title</span>
             <input
               ref={titleRef}
               className={`${styles.ceInput} ${styles.ceInputTitle}`}
@@ -866,5 +884,56 @@ function CreateEventModal({
         </div>
       </div>
     </div>
+  )
+}
+
+// ---------------------------------------------------------------------
+// Shared cover-image uploader for the create modals.
+// v1 keeps it client-side: we read the picked file into a data: URL and
+// stash it on the form payload. Wiring it into the existing community
+// image-upload endpoint (and storing a real file_id) is the obvious
+// next slice — keeps the v4 design landing without blocking on the
+// upload pipeline.
+// ---------------------------------------------------------------------
+
+export function CoverUploader({
+  value,
+  onChange,
+}: {
+  value: string
+  onChange: (dataUrl: string) => void
+}) {
+  const onFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0]
+    if (!f) return
+    const reader = new FileReader()
+    reader.onload = () => {
+      if (typeof reader.result === 'string') onChange(reader.result)
+    }
+    reader.readAsDataURL(f)
+  }
+  const hasImage = !!value
+  return (
+    <label
+      className={`${styles.ceCover} ${hasImage ? styles.ceCoverHasImage : ''}`}
+      style={hasImage ? { backgroundImage: `url(${value})` } : undefined}
+    >
+      <span className={styles.ceCoverIcon}>
+        <IconImage size={20} />
+      </span>
+      <span className={styles.ceCoverText}>Upload a cover image</span>
+      <span className={styles.ceCoverSub}>
+        PNG or JPG · 1600×900 recommended
+      </span>
+      <span className={styles.ceCoverChange}>
+        <IconImage size={12} /> {hasImage ? 'Change image' : 'Upload image'}
+      </span>
+      <input
+        className={styles.ceCoverInput}
+        type="file"
+        accept="image/*"
+        onChange={onFile}
+      />
+    </label>
   )
 }

@@ -62,6 +62,7 @@ def upgrade() -> None:
         ),
         sa.Column("title", sa.String(length=200), nullable=False),
         sa.Column("description", sa.Text(), nullable=True),
+        sa.Column("cover_url", sa.Text(), nullable=True),
         sa.Column("submission_type", sa.String(length=20), nullable=False),
         sa.Column(
             "status",

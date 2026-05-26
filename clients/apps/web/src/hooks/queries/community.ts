@@ -1309,6 +1309,7 @@ export interface CommunityActivityRead {
   channel_label: string | null
   title: string
   description: string | null
+  cover_url: string | null
   submission_type: ActivitySubmissionType
   status: ActivityStatus
   pin_to_feed: boolean
@@ -1327,6 +1328,7 @@ export interface CommunityActivityCreateBody {
   lesson_id?: string | null
   title: string
   description?: string | null
+  cover_url?: string | null
   submission_type: ActivitySubmissionType
   pin_to_feed?: boolean
   notify_on_publish?: boolean
@@ -1335,6 +1337,7 @@ export interface CommunityActivityCreateBody {
 export interface CommunityActivityUpdateBody {
   title?: string
   description?: string | null
+  cover_url?: string | null
   submission_type?: ActivitySubmissionType
   pin_to_feed?: boolean
   status?: ActivityStatus

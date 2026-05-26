@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { CoverUploader } from './EventsView'
 import styles from './community.module.css'
 import {
   IconCamera,
@@ -44,6 +45,7 @@ export type CommunityActivity = {
   channelLabel: string
   title: string
   desc: string
+  coverUrl?: string | null
   submissionType: SubmissionType
   status: ActivityStatus
   pinFeed: boolean
@@ -61,6 +63,7 @@ export type CommunityActivityCreateInput = {
   channelLabel: string
   title: string
   desc: string
+  coverUrl: string
   submissionType: SubmissionType
   pinFeed: boolean
   notify: boolean
@@ -207,12 +210,13 @@ export function ActivitiesView({
           </div>
         </div>
       ) : (
-        <div className={styles.eventsSection}>
-          {visible.map((a) => (
+        <div className={styles.activitiesGrid}>
+          {visible.map((a, idx) => (
             <ActivityListCard
               key={a.id}
               activity={a}
               channelKind={channelKind}
+              indexNum={idx + 1}
               canSubmit={!canCreate && a.status === 'open'}
               onSubmit={() => setSubmitFor(a)}
               onViewSubmissions={() => onViewSubmissions(a.id)}
@@ -255,12 +259,14 @@ export function ActivitiesView({
 function ActivityListCard({
   activity,
   channelKind,
+  indexNum,
   canSubmit,
   onSubmit,
   onViewSubmissions,
 }: {
   activity: CommunityActivity
   channelKind: 'episode' | 'module'
+  indexNum: number
   canSubmit: boolean
   onSubmit: () => void
   onViewSubmissions: () => void
@@ -270,77 +276,89 @@ function ActivityListCard({
       ? Math.round((activity.distinctSubmitters / activity.totalMembers) * 100)
       : 0
   const closed = activity.status === 'closed'
+  const coverBg = activity.coverUrl
+    ? `url(${activity.coverUrl}) center/cover`
+    : `linear-gradient(135deg, #1f1f1f, #4a4a4a)`
+  const channelWord = channelKind === 'episode' ? 'Episode' : 'Module'
 
   return (
-    <div className={styles.activityListCard}>
-      <div className={styles.activityListTop}>
-        <span className={styles.activityChannelChip}>
-          {channelKind === 'episode' ? 'Episode' : 'Module'} ·{' '}
-          {activity.channelLabel}
-        </span>
+    <article className={styles.activityCard}>
+      <div className={styles.activityCover}>
+        <div
+          className={styles.activityCoverImg}
+          style={{ background: coverBg }}
+        />
+        <div className={styles.activityCoverOverlay}>
+          <span className={styles.activityCoverChannel}>
+            <span className="num">{indexNum}</span>
+            {channelWord} {indexNum}
+          </span>
+        </div>
         <span
-          className={`${styles.activityStatus} ${closed ? '' : styles.activityStatusActive}`}
+          className={`${styles.activityCoverStatus} ${closed ? styles.activityCoverStatusClosed : ''}`}
         >
-          <span className={styles.activityStatusDot} />{' '}
-          {closed ? 'Closed' : 'Open'}
-        </span>
-        <span className={styles.activitySubmitType}>
-          {activity.submissionType === 'video' ? (
-            <IconVideo size={11} />
-          ) : activity.submissionType === 'text' ? (
-            <IconChat size={11} />
-          ) : activity.submissionType === 'link' ? (
-            <IconPaperclip size={11} />
-          ) : (
-            <IconImage size={11} />
-          )}
-          {TYPE_LABEL[activity.submissionType]}
+          <span className="dot" /> {closed ? 'Closed' : 'Open'}
         </span>
       </div>
 
-      <div className={styles.activityListTitle}>{activity.title}</div>
-      {activity.desc && (
-        <div className={styles.activityListDesc}>{activity.desc}</div>
-      )}
+      <div className={styles.activityBody}>
+        <div className={styles.activityBodyTop}>
+          <span className={styles.activityTypePill}>
+            {activity.submissionType === 'video' ? (
+              <IconVideo size={12} />
+            ) : activity.submissionType === 'text' ? (
+              <IconChat size={12} />
+            ) : activity.submissionType === 'link' ? (
+              <IconPaperclip size={12} />
+            ) : (
+              <IconImage size={12} />
+            )}
+            {TYPE_LABEL[activity.submissionType]} ·{' '}
+            {activity.channelLabel || channelWord}
+          </span>
+        </div>
+        <div className={styles.activityTitle}>{activity.title}</div>
+        {activity.desc && (
+          <div className={styles.activityDesc}>{activity.desc}</div>
+        )}
 
-      <div className={styles.activityListFoot}>
-        <div className={styles.activityListProgress}>
-          <div>
-            <div style={{ marginBottom: 4 }}>
-              <strong style={{ color: 'var(--c-ink)', fontWeight: 600 }}>
-                {activity.distinctSubmitters}
-              </strong>{' '}
-              of {activity.totalMembers} submitted
+        <div className={styles.activityFoot}>
+          <div className={styles.activityFootProgress}>
+            <div className={styles.activityFootStats}>
+              <span>
+                <strong>{activity.distinctSubmitters}</strong> of{' '}
+                {activity.totalMembers} submitted
+              </span>
             </div>
-            <div className={styles.activityProgressBar}>
+            <div className={styles.activityFootProgressBar}>
               <div
-                className={styles.activityProgressFill}
+                className={styles.activityFootProgressFill}
                 style={{ width: `${pct}%` }}
               />
             </div>
           </div>
-        </div>
-        <div className={styles.activityListActions}>
-          <button
-            type="button"
-            className={styles.activityViewBtn}
-            onClick={onViewSubmissions}
-          >
-            View submissions ({activity.submissionCount})
-          </button>
-          {canSubmit && (
+          <div className={styles.activityFootActions}>
             <button
               type="button"
-              className={styles.activitySubmitBtn}
-              onClick={onSubmit}
+              className={`${styles.activityFootCta} ${styles.activityFootCtaGhost}`}
+              onClick={onViewSubmissions}
             >
-              <IconCamera size={13} />{' '}
-              {activity.hasOwnSubmission ? 'Submit again' : 'Submit'}
+              View ({activity.submissionCount})
             </button>
-          )}
+            {canSubmit && (
+              <button
+                type="button"
+                className={styles.activityFootCta}
+                onClick={onSubmit}
+              >
+                <IconCamera size={14} />{' '}
+                {activity.hasOwnSubmission ? 'Submit again' : 'Submit'}
+              </button>
+            )}
+          </div>
         </div>
       </div>
-    </div>
+    </article>
   )
 }
 
@@ -365,6 +383,7 @@ function CreateActivityModal({
   const [channelId, setChannelId] = useState<string>('')
   const [submissionType, setSubmissionType] = useState<SubmissionType>('photo')
   const [desc, setDesc] = useState('')
+  const [coverDataUrl, setCoverDataUrl] = useState<string>('')
   const [notify, setNotify] = useState(true)
   const [pinFeed, setPinFeed] = useState(true)
   const titleRef = useRef<HTMLInputElement | null>(null)
@@ -375,6 +394,7 @@ function CreateActivityModal({
       setChannelId(channels[0]?.id ?? '')
       setSubmissionType('photo')
       setDesc('')
+      setCoverDataUrl('')
       setNotify(true)
       setPinFeed(true)
       setTimeout(() => titleRef.current?.focus(), 50)
@@ -414,6 +434,7 @@ function CreateActivityModal({
       channelLabel: channel?.label ?? '',
       title: title.trim(),
       desc: desc.trim(),
+      coverUrl: coverDataUrl,
       submissionType,
       pinFeed,
       notify,
@@ -440,6 +461,10 @@ function CreateActivityModal({
           </button>
         </div>
         <div className={styles.ceBody}>
+          <div className={styles.ceField}>
+            <span className={styles.ceLabel}>Cover image</span>
+            <CoverUploader value={coverDataUrl} onChange={setCoverDataUrl} />
+          </div>
           <div className={styles.ceField}>
             <span className={styles.ceLabel}>
               {channelKind === 'episode' ? 'Episode' : 'Module'}

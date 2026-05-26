@@ -44,6 +44,7 @@ class CommunityActivityRead(TimestampedSchema):
     channel_label: str | None = None  # resolved server-side for the card chip
     title: str
     description: str | None = None
+    cover_url: str | None = None
     submission_type: ActivitySubmissionType
     status: ActivityStatus
     pin_to_feed: bool
@@ -63,6 +64,7 @@ class CommunityActivityCreate(Schema):
     lesson_id: UUID4 | None = None
     title: str = Field(min_length=1, max_length=200)
     description: str | None = Field(default=None, max_length=4000)
+    cover_url: str | None = Field(default=None, max_length=2000)
     submission_type: ActivitySubmissionType
     pin_to_feed: bool = False
     notify_on_publish: bool = True
@@ -71,6 +73,7 @@ class CommunityActivityCreate(Schema):
 class CommunityActivityUpdate(Schema):
     title: str | None = Field(default=None, min_length=1, max_length=200)
     description: str | None = Field(default=None, max_length=4000)
+    cover_url: str | None = Field(default=None, max_length=2000)
     submission_type: ActivitySubmissionType | None = None
     pin_to_feed: bool | None = None
     status: ActivityStatus | None = None

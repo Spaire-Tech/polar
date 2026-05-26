@@ -95,6 +95,7 @@ class CommunityActivityService:
             lesson_id=payload.lesson_id,
             title=payload.title.strip(),
             description=(payload.description or None),
+            cover_url=(payload.cover_url or None),
             submission_type=payload.submission_type,
             status="open",
             pin_to_feed=payload.pin_to_feed,

@@ -85,6 +85,7 @@ class CommunityActivity(RecordModel):
 
     title: Mapped[str] = mapped_column(String(200), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True, default=None)
+    cover_url: Mapped[str | None] = mapped_column(Text, nullable=True, default=None)
 
     submission_type: Mapped[str] = mapped_column(String(20), nullable=False)
     status: Mapped[str] = mapped_column(

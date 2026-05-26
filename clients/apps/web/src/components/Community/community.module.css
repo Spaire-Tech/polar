@@ -2431,3 +2431,619 @@
     grid-template-columns: repeat(2, 1fr);
   }
 }
+
+/* ====================================================================
+   Community v4 — cover-image cards for Events + Activities
+   Variables are renamed to the project's --c-* tokens. Old card rules
+   (.eventCard, .eventCardPast) are overridden later in the file; CSS
+   cascade keeps the v4 rules winning.
+==================================================================== */
+
+/* ------- shared toolbar override (chips + Create button) ------- */
+.eventsToolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+.eventsToolbar .filterSpacer {
+  flex: 1;
+}
+.filterSpacer {
+  flex: 1;
+}
+.newEventBtn {
+  height: 34px;
+  padding: 0 14px;
+  border-radius: 999px;
+  background: var(--c-ink);
+  color: #fff;
+  font-weight: 500;
+  font-size: 12.5px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  cursor: pointer;
+}
+.newEventBtn:hover {
+  opacity: 0.85;
+}
+
+.eventsSection {
+  margin-bottom: 36px;
+}
+.eventsSectionTitle {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--c-muted);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-bottom: 12px;
+  padding: 0 4px;
+}
+
+/* ------- EVENT CARDS v4 (cover image grid) ------- */
+.eventsGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+/* Override v3 horizontal layout with v4 vertical cover-image layout */
+.eventCard {
+  background: #fff;
+  border: 1px solid var(--c-hair);
+  border-radius: 16px;
+  overflow: hidden;
+  transition:
+    transform 0.18s ease,
+    border-color 0.12s ease,
+    box-shadow 0.18s ease;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  /* Reset legacy grid layout */
+  grid-template-columns: none;
+  padding: 0;
+  margin-bottom: 0;
+  gap: 0;
+  align-items: stretch;
+}
+.eventCard:hover {
+  border-color: var(--c-line);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
+  transform: translateY(-1px);
+}
+.eventCardLive {
+  border-color: #ff3b30;
+  box-shadow: 0 0 0 1px #ff3b30;
+}
+.eventCardPast {
+  opacity: 0.85;
+  /* reset legacy */
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+}
+.eventCardPast:hover {
+  opacity: 1;
+}
+
+.eventCover {
+  height: 0;
+  padding-bottom: 52%;
+  position: relative;
+  overflow: hidden;
+  background: var(--c-panel);
+}
+.eventCoverImg {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  transition: transform 0.4s ease;
+}
+.eventCard:hover .eventCoverImg {
+  transform: scale(1.04);
+}
+.eventCoverOverlay {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.eventCoverDate {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(8px);
+  color: var(--c-ink);
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  white-space: nowrap;
+}
+.eventCoverDate .day {
+  font-weight: 700;
+}
+.eventCoverLive {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #fff;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #ff3b30;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.eventCoverLive .dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: #fff;
+  animation: livePulse 1.2s ease-in-out infinite;
+}
+.eventCoverType {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  font-size: 10.5px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(8px);
+  color: #fff;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.eventCoverReplay {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(0, 0, 0, 0.35);
+  opacity: 0;
+  transition: opacity 0.18s ease;
+}
+.eventCardPast:hover .eventCoverReplay {
+  opacity: 1;
+}
+.eventCoverReplay .play {
+  width: 56px;
+  height: 56px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.96);
+  color: var(--c-ink);
+  display: grid;
+  place-items: center;
+}
+
+.eventBody {
+  padding: 16px 18px 18px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1;
+}
+.eventTitleV4 {
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.012em;
+  line-height: 1.3;
+}
+.eventMetaV4 {
+  font-size: 12.5px;
+  color: var(--c-muted);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.eventMetaBitV4 {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.eventHostV4 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--c-muted);
+}
+.eventHostV4 strong {
+  color: var(--c-ink);
+  font-weight: 500;
+}
+
+.eventFoot {
+  padding: 12px 18px 16px 18px;
+  border-top: 1px solid var(--c-hair);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.eventFootGoing {
+  font-size: 11.5px;
+  color: var(--c-muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.eventFootGoing strong {
+  color: var(--c-ink);
+  font-weight: 600;
+}
+
+.eventCtaV4 {
+  height: 32px;
+  padding: 0 14px;
+  border-radius: 999px;
+  font-weight: 500;
+  font-size: 12px;
+  background: var(--c-ink);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  border: none;
+  cursor: pointer;
+  text-decoration: none;
+}
+.eventCtaV4:hover {
+  opacity: 0.85;
+}
+.eventCtaV4Live {
+  background: #ff3b30;
+}
+.eventCtaV4Outline {
+  background: transparent;
+  color: var(--c-ink);
+  box-shadow: inset 0 0 0 1px var(--c-line);
+}
+.eventCtaV4Outline:hover {
+  background: var(--c-panel);
+  opacity: 1;
+}
+.eventCtaV4Going {
+  background: var(--c-ink);
+  color: #fff;
+  box-shadow: none;
+}
+.eventCtaV4Replay {
+  background: var(--c-panel);
+  color: var(--c-ink);
+}
+.eventCtaV4Replay:hover {
+  background: var(--c-hair);
+  opacity: 1;
+}
+
+@keyframes livePulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+
+/* ------- COVER UPLOAD (create modal) ------- */
+.ceCover {
+  height: 160px;
+  border-radius: 12px;
+  background: var(--c-panel-2);
+  border: 1.5px dashed var(--c-line);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: var(--c-muted);
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease;
+}
+.ceCover:hover {
+  border-color: var(--c-ink);
+  background: #fff;
+  color: var(--c-ink);
+}
+.ceCoverHasImage {
+  border-style: solid;
+  border-color: transparent;
+  background-size: cover;
+  background-position: center;
+}
+.ceCoverIcon {
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  background: #fff;
+  display: grid;
+  place-items: center;
+  color: var(--c-ink);
+  margin-bottom: 10px;
+  box-shadow: 0 1px 0 var(--c-hair);
+}
+.ceCoverText {
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--c-ink);
+}
+.ceCoverSub {
+  margin-top: 4px;
+  font-size: 11.5px;
+  color: var(--c-muted);
+}
+.ceCoverHasImage .ceCoverIcon,
+.ceCoverHasImage .ceCoverText,
+.ceCoverHasImage .ceCoverSub {
+  display: none;
+}
+.ceCoverChange {
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
+  display: none;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(8px);
+  color: var(--c-ink);
+  font-size: 11.5px;
+  font-weight: 500;
+}
+.ceCoverHasImage .ceCoverChange {
+  display: inline-flex;
+}
+.ceCoverInput {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+/* ------- ACTIVITY CARDS v4 (240px cover left + body right) ------- */
+.activitiesGrid {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.activityCard {
+  background: #fff;
+  border: 1px solid var(--c-hair);
+  border-radius: 20px;
+  overflow: hidden;
+  transition:
+    transform 0.2s ease,
+    border-color 0.12s ease,
+    box-shadow 0.2s ease;
+  cursor: pointer;
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  min-height: 200px;
+}
+.activityCard:hover {
+  border-color: var(--c-line);
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.06);
+  transform: translateY(-1px);
+}
+
+.activityCover {
+  position: relative;
+  overflow: hidden;
+  background: var(--c-panel);
+  height: 100%;
+}
+.activityCoverImg {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  transition: transform 0.5s ease;
+}
+.activityCard:hover .activityCoverImg {
+  transform: scale(1.04);
+}
+.activityCoverOverlay {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.activityCoverChannel {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 11px 5px 5px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(8px);
+  color: var(--c-ink);
+  font-size: 11.5px;
+  font-weight: 500;
+  letter-spacing: -0.005em;
+}
+.activityCoverChannel .num {
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  background: var(--c-ink);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font-size: 10.5px;
+  font-weight: 700;
+}
+.activityCoverStatus {
+  position: absolute;
+  bottom: 14px;
+  left: 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10.5px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(8px);
+  color: #1f7a3e;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.activityCoverStatus .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: #34c759;
+}
+.activityCoverStatusClosed {
+  color: var(--c-muted);
+}
+.activityCoverStatusClosed .dot {
+  background: var(--c-muted);
+}
+
+.activityBody {
+  padding: 26px 28px 22px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  flex: 1;
+  min-width: 0;
+}
+.activityBodyTop {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.activityTypePill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--c-muted);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.activityTitle {
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.018em;
+  line-height: 1.2;
+  margin-bottom: 10px;
+}
+.activityDesc {
+  font-size: 14px;
+  color: var(--c-muted);
+  line-height: 1.55;
+  margin-bottom: auto;
+  max-width: 56ch;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.activityFoot {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--c-hair);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.activityFootProgress {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  flex: 1;
+  max-width: 320px;
+}
+.activityFootStats {
+  font-size: 12.5px;
+  color: var(--c-muted);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.activityFootStats strong {
+  color: var(--c-ink);
+  font-weight: 600;
+}
+.activityFootProgressBar {
+  width: 100%;
+  height: 4px;
+  background: var(--c-hair);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.activityFootProgressFill {
+  height: 100%;
+  background: var(--c-ink);
+  border-radius: 999px;
+  transition: width 0.4s ease;
+}
+.activityFootActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.activityFootCta {
+  height: 38px;
+  padding: 0 18px;
+  border-radius: 999px;
+  background: var(--c-ink);
+  color: #fff;
+  font-weight: 500;
+  font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  border: none;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+.activityFootCta:hover {
+  opacity: 0.85;
+}
+.activityFootCtaGhost {
+  background: transparent;
+  color: var(--c-ink);
+}
+.activityFootCtaGhost:hover {
+  background: var(--c-panel);
+  opacity: 1;
+}
