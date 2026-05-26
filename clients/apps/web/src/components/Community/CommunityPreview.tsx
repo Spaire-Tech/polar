@@ -19,6 +19,7 @@ import {
   useDeleteCommunityEvent,
   useUpdateCommunityActivity,
   useUpdateCommunityEvent,
+  useUpdateCommunitySettings,
 } from '@/hooks/queries/community'
 import { useEffect, useMemo, useState } from 'react'
 import {
@@ -27,6 +28,7 @@ import {
   type CommunityActivity,
   type CommunityActivityCreateInput,
 } from './ActivitiesView'
+import { CommunityPreviewSettings } from './CommunityPreviewSettings'
 import { Composer } from './Composer'
 import {
   type CommunityEvent,
@@ -108,6 +110,7 @@ export function CommunityPreview({
   )
 
   const settingsQ = useCreatorCommunitySettings(courseId)
+  const updateSettingsMut = useUpdateCommunitySettings(courseId)
   const feedQ = useCreatorCommunityFeed(courseId, filters)
   const tagsQ = useCreatorCommunityTags(courseId)
   const membersQ = useCreatorCommunityMembers(courseId)
@@ -161,16 +164,12 @@ export function CommunityPreview({
     )
   }
 
-  if (settings && !settings.enabled) {
-    return (
-      <div className={styles.root}>
-        <div className={styles.disabledBanner}>
-          Community is off. Toggle <strong>Community enabled</strong> on the
-          left to render the live student-facing view here.
-        </div>
-      </div>
-    )
-  }
+  // When community is off, the live student-facing views (Home, Members,
+  // Events, Activities) all render against the same "disabled" no-op the
+  // student would see. We DON'T early-return any more — the host has to
+  // be able to flip the toggle from the Settings tab, so we keep the
+  // shell + LeftRail rendered and short-circuit only the per-view body.
+  const communityOff = !!(settings && !settings.enabled)
 
   const members = membersQ.data ?? []
   const memberCount = members.length
@@ -196,6 +195,20 @@ export function CommunityPreview({
         <LeftRail
           view={view}
           onViewChange={setView}
+          settings={
+            settings
+              ? {
+                  enabled: settings.enabled,
+                  onToggleEnabled: (next) =>
+                    updateSettingsMut
+                      .mutateAsync({ enabled: next })
+                      .catch(() => {
+                        /* toast handled inside the settings tab; the rail
+                           toggle is fire-and-forget. */
+                      }),
+                }
+              : null
+          }
           lessons={lessons}
           lessonId={lessonId}
           onLessonChange={setLessonId}
@@ -206,7 +219,14 @@ export function CommunityPreview({
         />
 
         <main className={styles.main}>
-          {view === 'members' ? (
+          {view === 'settings' ? (
+            <CommunityPreviewSettings courseId={courseId} />
+          ) : communityOff ? (
+            <div className={styles.disabledBanner}>
+              Community is off. Open <strong>Settings</strong> in the left rail
+              (or flip the toggle next to it) to turn it back on.
+            </div>
+          ) : view === 'members' ? (
             <MembersView members={members} isLoading={membersQ.isLoading} />
           ) : view === 'events' ? (
             <EventsView
