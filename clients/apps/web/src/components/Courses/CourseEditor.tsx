@@ -20,8 +20,8 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { useCallback, useRef, useState } from 'react'
 import { toast } from '../Toast/use-toast'
 import { AutomationsPanel } from './editor/AutomationsPanel'
-import { CourseHeader, TabId } from './editor/CourseHeader'
 import { CommunityTab } from './editor/CommunityTab'
+import { CourseHeader, TabId } from './editor/CourseHeader'
 import { CustomersTab } from './editor/CustomersTab'
 import { CustomizeTab } from './editor/CustomizeTab'
 import { LessonDetail, LessonEdits } from './editor/LessonDetail'
@@ -449,7 +449,9 @@ export default function CourseEditor({
   } else if (activeTab === 'customize') {
     mainContent = <CustomizeTab course={course} organization={organization} />
   } else if (activeTab === 'community') {
-    mainContent = <CommunityTab course={course} />
+    mainContent = (
+      <CommunityTab course={course} organizationSlug={organization.slug} />
+    )
   } else if (activeTab === 'automations') {
     mainContent = (
       <div className="mx-auto w-full max-w-3xl px-8 py-8">

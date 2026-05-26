@@ -28,6 +28,7 @@ import {
   type CommunityActivity,
   type CommunityActivityCreateInput,
 } from './ActivitiesView'
+import { CommunityNotificationsView } from './CommunityNotificationsView'
 import { CommunityPreviewSettings } from './CommunityPreviewSettings'
 import { Composer } from './Composer'
 import {
@@ -56,6 +57,9 @@ type Props = {
   discussionsKind?: DiscussionsKind
   // Read-only fallback header copy when settings haven't loaded yet.
   courseTitle?: string
+  // Owning org slug so the editor can deep-link into the customer
+  // portal community via the "Preview" button.
+  organizationSlug?: string
 }
 
 // Live, interactive community surface embedded in the course editor.
@@ -68,6 +72,7 @@ export function CommunityPreview({
   lessons = [],
   discussionsKind = 'module',
   courseTitle,
+  organizationSlug,
 }: Props) {
   const [view, setView] = useState<CommunityView>('home')
   const [lessonId, setLessonId] = useState<string | null>(null)
@@ -190,7 +195,35 @@ export function CommunityPreview({
   const selfUserId = me?.kind === 'instructor' ? me.user_id : null
 
   return (
-    <div className={styles.root}>
+    <div className={styles.root} style={{ position: 'relative' }}>
+      {organizationSlug && (
+        <a
+          href={`/${organizationSlug}/portal/community`}
+          target="_blank"
+          rel="noreferrer noopener"
+          title="Open the live student-facing community in a new tab"
+          style={{
+            position: 'absolute',
+            top: 16,
+            right: 16,
+            zIndex: 30,
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 6,
+            height: 32,
+            padding: '0 14px',
+            borderRadius: 999,
+            background: 'var(--c-ink)',
+            color: '#fff',
+            fontSize: 12.5,
+            fontWeight: 500,
+            textDecoration: 'none',
+            boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+          }}
+        >
+          ↗ Preview as student
+        </a>
+      )}
       <div className={styles.layout}>
         <LeftRail
           view={view}
@@ -209,6 +242,7 @@ export function CommunityPreview({
                 }
               : null
           }
+          notifications={{ unreadCount: null }}
           lessons={lessons}
           lessonId={lessonId}
           onLessonChange={setLessonId}
@@ -221,6 +255,8 @@ export function CommunityPreview({
         <main className={styles.main}>
           {view === 'settings' ? (
             <CommunityPreviewSettings courseId={courseId} />
+          ) : view === 'notifications' ? (
+            <CommunityNotificationsView courseId={courseId} />
           ) : communityOff ? (
             <div className={styles.disabledBanner}>
               Community is off. Open <strong>Settings</strong> in the left rail
@@ -275,6 +311,7 @@ export function CommunityPreview({
               channels={lessons.map((l) => ({ id: l.id, label: l.label }))}
               activities={activities}
               totalMembers={memberCount}
+              uploadMode="creator"
               canCreate
               onCreate={async (input: CommunityActivityCreateInput) => {
                 try {

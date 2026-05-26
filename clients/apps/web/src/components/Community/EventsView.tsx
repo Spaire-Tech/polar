@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { Avatar } from './Avatar'
+import { EventDetailModal } from './EventDetailModal'
 import styles from './community.module.css'
 import {
   IconCalendar,
@@ -236,6 +237,7 @@ export function EventsView({
 }: Props) {
   const [createOpen, setCreateOpen] = useState(false)
   const [editing, setEditing] = useState<CommunityEvent | null>(null)
+  const [openEvent, setOpenEvent] = useState<CommunityEvent | null>(null)
   // "mine" = Going (student) or Hosting (creator). Label flips based on
   // canCreate; the underlying filter is the same `going` boolean.
   const [filter, setFilter] = useState<'all' | EventType | 'mine'>('all')
@@ -321,6 +323,7 @@ export function EventsView({
                   key={e.id}
                   event={e}
                   onToggleGoing={onToggleGoing}
+                  onOpen={() => setOpenEvent(e)}
                   canRsvp={!canCreate}
                   canManage={canCreate}
                   onEdit={() => setEditing(e)}
@@ -351,6 +354,7 @@ export function EventsView({
                 key={e.id}
                 event={e}
                 onToggleGoing={onToggleGoing}
+                onOpen={() => setOpenEvent(e)}
                 past
                 canRsvp={!canCreate}
                 canManage={canCreate}
@@ -397,6 +401,14 @@ export function EventsView({
           }}
         />
       )}
+
+      <EventDetailModal
+        event={openEvent}
+        onClose={() => setOpenEvent(null)}
+        onToggleGoing={() => {
+          if (openEvent) onToggleGoing(openEvent.id)
+        }}
+      />
     </>
   )
 }
@@ -458,6 +470,7 @@ function EventCard({
   event,
   past,
   onToggleGoing,
+  onOpen,
   canRsvp,
   canManage,
   onEdit,
@@ -466,12 +479,18 @@ function EventCard({
   event: CommunityEvent
   past?: boolean
   onToggleGoing: (id: string) => void
+  onOpen: () => void
   canRsvp: boolean
   canManage: boolean
   onEdit: () => void
   onDelete: () => void
 }) {
   const [menuOpen, setMenuOpen] = useState(false)
+  const handleCardClick = (e: React.MouseEvent) => {
+    // Don't trigger when the click came from an inner button / link.
+    if ((e.target as HTMLElement).closest('button, a, label')) return
+    onOpen()
+  }
   const chip = formatDateChip(event.startAt, event.timezone)
   const whenHost = formatHostWhen(event.startAt, event.timezone)
   const whenViewer = formatViewerWhen(event.startAt, event.timezone)
@@ -487,7 +506,11 @@ function EventCard({
   const cardCls = `${styles.eventCard} ${event.live ? styles.eventCardLive : ''} ${past ? styles.eventCardPast : ''}`
 
   return (
-    <article className={cardCls}>
+    <article
+      className={cardCls}
+      onClick={handleCardClick}
+      style={{ cursor: 'pointer' }}
+    >
       <div className={styles.eventCover}>
         <div className={styles.eventCoverImg} style={coverStyle} />
         <div className={styles.eventCoverOverlay}>
