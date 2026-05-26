@@ -1,52 +1,63 @@
-/* Email Marketing — slate-leaning palette and tokens. Scoped to
-   .spaire-email-app so the existing screens keep their look while we
-   incrementally migrate them onto the project design system in later
-   phases. The Google Fonts @import was removed (render-blocking, ignores
-   Next.js's font-optimisation pipeline); we now inherit the application's
-   stack. The body `zoom: 0.9` was removed — it broke browser zoom,
-   keyboard-driven scaling, and pointer hit-testing. */
+/* Email Marketing — scoped under `.spaire-email-app`.
+
+   Re-skinned to match the project dashboard design system: Tailwind gray
+   palette, blue-500 accent, dashboard radii (rounded-lg/xl/2xl), dashboard
+   shadows, normal-weight headings without negative letter-spacing, and
+   sentence-case labels. The bespoke `--ink*`, `--line*`, `--indigo*`,
+   `--bg-soft*`, `--black` tokens are kept as alias variables that resolve
+   to dashboard tokens so the many inline `style={{ color: 'var(--indigo-2)' }}`
+   sites across the screens (sequences, broadcasts, analytics, block editor,
+   flow preview) re-skin automatically without per-file rewrites.
+
+   The top nav chrome (sticky bar, pill tab group) and the brand lockup
+   are intentionally preserved — only typography / colours are normalised.
+*/
 
 .spaire-email-app {
-  /* Stripe-style palette — cool slate neutrals, single violet accent. */
+  /* Greys — mapped to Tailwind/oklch dashboard gray scale. */
   --bg: #ffffff;
-  --bg-soft: #f6f9fc; /* Stripe canvas */
-  --bg-softer: #f1f4f9;
-  --ink: #0a2540; /* Stripe near-black slate */
-  --ink-2: #425466;
-  --ink-3: #6b7c93;
-  --ink-4: #8898aa;
-  --line: #e6ebf1;
-  --line-2: #cfd7e0;
-  --black: #0a2540;
-  --black-hover: #002558;
+  --bg-soft: oklch(0.985 0.002 247.839);   /* gray-50  */
+  --bg-softer: oklch(0.967 0.003 264.542); /* gray-100 */
+  --ink: oklch(0.21 0.034 264.665);        /* gray-900 */
+  --ink-2: oklch(0.446 0.03 256.802);      /* gray-600 */
+  --ink-3: oklch(0.551 0.027 264.364);     /* gray-500 */
+  --ink-4: oklch(0.707 0.022 261.325);     /* gray-400 */
+  --line: oklch(0.928 0.006 264.531);      /* gray-200 */
+  --line-2: oklch(0.928 0.006 264.531);    /* gray-200 */
+  --black: oklch(0.21 0.034 264.665);      /* gray-900 */
+  --black-hover: oklch(0.278 0.033 256.848); /* gray-800 */
 
-  /* Status — desaturated, slate-leaning */
-  --green: #237e5e;
-  --green-soft: #e6f4ee;
-  --red: #b34b4b;
-  --red-soft: #f9ecec;
-  --amber: #826013;
-  --amber-soft: #f6efdb;
-  --blue: #3a6ea5;
-  --blue-soft: #ecf2f9;
+  /* Status — dashboard tinted */
+  --green: oklch(0.508 0.118 165.612);     /* green-700 */
+  --green-soft: oklch(0.95 0.052 163.051); /* green-100 */
+  --red: oklch(0.577 0.245 27.325);        /* red-600 */
+  --red-soft: oklch(0.936 0.032 17.717);   /* red-100 */
+  --amber: oklch(0.55 0.13 75);
+  --amber-soft: oklch(0.96 0.05 90);
+  --blue: oklch(0.580 0.140 235.243);      /* blue-500 */
+  --blue-soft: oklch(0.932 0.032 235.243); /* blue-100 */
 
-  /* Stripe violet accent — used for state, links, active selections, focus rings */
-  --indigo: #635bff;
-  --indigo-2: #4f46db;
-  --indigo-soft: #f0eefe;
-  --indigo-soft-2: #e3e0fc;
-  --indigo-line: #cfcafa;
-  --pink: #d96aa1;
+  /* Accent — was Stripe indigo, now dashboard blue. Kept under the same
+     variable names because TSX files reference `var(--indigo*)` in many
+     inline-style sites. */
+  --indigo: oklch(0.580 0.140 235.243);          /* blue-500 */
+  --indigo-2: oklch(0.372 0.079 235.243);        /* blue-600 */
+  --indigo-soft: oklch(0.970 0.014 235.243);     /* blue-50  */
+  --indigo-soft-2: oklch(0.932 0.032 235.243);   /* blue-100 */
+  --indigo-line: oklch(0.882 0.059 235.243);     /* blue-200 */
+  --pink: oklch(0.704 0.191 22.216);             /* red-400 */
 
-  --r-sm: 8px;
-  --r-md: 12px;
-  --r-lg: 16px;
-  --r-xl: 22px;
+  /* Radii — match Tailwind rounded-lg / -xl / -2xl. */
+  --r-sm: 8px;   /* rounded-lg */
+  --r-md: 12px;  /* rounded-xl  (dashboard default for buttons/cards) */
+  --r-lg: 16px;  /* rounded-2xl */
+  --r-xl: 16px;
   --r-pill: 999px;
 
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
-  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.06);
-  --shadow-lg: 0 24px 48px -12px rgba(0, 0, 0, 0.12);
+  /* Shadows — match dashboard's softer system. */
+  --shadow-sm: 0 0px 8px rgba(0, 0, 0, 0.03);
+  --shadow-md: 0 0px 15px rgba(0, 0, 0, 0.04), 0 0px 2px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 0px 20px rgba(0, 0, 0, 0.04), 0 0px 5px rgba(0, 0, 0, 0.06);
 
   font-family: inherit;
   font-optical-sizing: auto;
@@ -58,23 +69,6 @@
   font-weight: 400;
   min-height: 100vh;
   position: relative;
-}
-
-/* Subtle slate wash at the top of the page — Stripe-style cool neutral. */
-.spaire-email-app::before {
-  content: '';
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 320px;
-  background: linear-gradient(
-    180deg,
-    rgba(246, 249, 252, 0.9) 0%,
-    rgba(246, 249, 252, 0) 100%
-  );
-  pointer-events: none;
-  z-index: 0;
 }
 
 .spaire-email-app *,
@@ -98,37 +92,36 @@
   color: inherit;
 }
 
-/* Buttons */
+/* Buttons — match dashboard Button atom: rounded-xl, h-10, blue-500 fill. */
 .spaire-email-app .btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 10px 18px;
-  border-radius: 10px;
+  height: 40px;
+  padding: 0 16px;
+  border-radius: 12px;
   font-size: 14px;
-  font-weight: 400;
+  font-weight: 500;
   letter-spacing: 0;
-  transition: all 0.15s ease;
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
   white-space: nowrap;
   border: 1px solid transparent;
 }
 .spaire-email-app .btn-primary {
-  background: var(--black);
+  background: var(--indigo); /* blue-500 */
   color: #fff;
 }
 .spaire-email-app .btn-primary:hover {
-  background: #000;
-  transform: translateY(-1px);
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
+  background: var(--indigo-2); /* blue-600 */
 }
 .spaire-email-app .btn-secondary {
-  background: #fff;
+  background: var(--bg-softer); /* gray-100 */
   color: var(--ink);
-  border-color: var(--line-2);
+  border-color: transparent;
 }
 .spaire-email-app .btn-secondary:hover {
-  background: var(--bg-softer);
+  background: var(--bg-soft);
 }
 .spaire-email-app .btn-ghost {
   background: transparent;
@@ -139,122 +132,127 @@
   color: var(--ink);
 }
 .spaire-email-app .btn-icon {
-  width: 38px;
-  height: 38px;
-  border-radius: 10px;
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   background: #fff;
-  border: 1px solid var(--line-2);
+  border: 1px solid var(--line);
   color: var(--ink-2);
-  transition: all 0.15s;
+  transition: background-color 0.15s, color 0.15s, border-color 0.15s;
 }
 .spaire-email-app .btn-icon:hover {
   background: var(--bg-softer);
   color: var(--ink);
 }
 .spaire-email-app .btn-icon-dark {
-  background: var(--black);
+  background: var(--ink);
   color: #fff;
-  border-color: var(--black);
+  border-color: var(--ink);
 }
 .spaire-email-app .btn-icon-dark:hover {
-  background: #000;
+  background: var(--black-hover);
 }
 .spaire-email-app .btn-sm {
-  padding: 7px 12px;
-  font-size: 12.5px;
-  border-radius: 8px;
+  height: 32px;
+  padding: 0 12px;
+  font-size: 13px;
+  border-radius: 10px;
 }
 .spaire-email-app .btn-lg {
-  padding: 13px 22px;
+  height: 48px;
+  padding: 0 20px;
   font-size: 14px;
   border-radius: 12px;
 }
 
+/* Inputs — match dashboard atoms/Input: gray-200 border, rounded-xl,
+   blue focus ring. */
 .spaire-email-app .input,
 .spaire-email-app .textarea,
 .spaire-email-app .select {
   width: 100%;
-  padding: 11px 14px;
+  padding: 10px 14px;
   border: 1px solid var(--line);
-  border-radius: 10px;
-  font-size: 13.5px;
+  border-radius: 12px;
+  font-size: 14px;
   background: #fff;
   color: var(--ink);
-  transition: all 0.15s;
+  transition: border-color 0.15s, box-shadow 0.15s;
   outline: none;
 }
 .spaire-email-app .input:focus,
 .spaire-email-app .textarea:focus,
 .spaire-email-app .select:focus {
   border-color: var(--indigo);
-  box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.12);
+  box-shadow: 0 0 0 3px oklch(0.932 0.032 235.243 / 0.5); /* blue-100 ring */
 }
-.spaire-email-app .input::placeholder {
+.spaire-email-app .input::placeholder,
+.spaire-email-app .textarea::placeholder {
   color: var(--ink-4);
 }
 
+/* Cards — dashboard `rounded-xl border border-gray-200 bg-white`. */
 .spaire-email-app .card {
   background: #fff;
-  border: 1px solid var(--line-2);
-  border-radius: var(--r-lg);
+  border: 1px solid var(--line);
+  border-radius: 12px;
 }
-
-/* Lifted variant — used on key panels for more presence */
 .spaire-email-app .card-lift {
   background: #fff;
-  border: 1px solid var(--line-2);
-  border-radius: var(--r-lg);
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.6) inset,
-    0 12px 28px -18px rgba(15, 23, 42, 0.18);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: var(--shadow-md);
 }
 
+/* Form labels — sentence-case, normal weight. No uppercase tracking. */
 .spaire-email-app .label {
-  font-size: 10.5px;
-  font-weight: 400;
-  color: var(--ink-2);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  display: block;
-  margin-bottom: 8px;
-}
-
-.spaire-email-app .eyebrow {
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 500;
-  color: var(--indigo-2);
-  text-transform: uppercase;
-  letter-spacing: 0.18em;
+  color: var(--ink);
+  letter-spacing: 0;
+  text-transform: none;
+  display: block;
+  margin-bottom: 6px;
 }
 
+/* Eyebrow — secondary muted line above a heading. No indigo accent. */
+.spaire-email-app .eyebrow {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink-3);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/* Headings — dashboard scale. No negative letter-spacing, weight 500. */
 .spaire-email-app .h-display {
-  font-size: 58px;
-  font-weight: 400;
-  letter-spacing: -0.025em;
-  line-height: 1.02;
+  font-size: 30px;
+  font-weight: 500;
+  letter-spacing: 0;
+  line-height: 1.15;
   margin: 0;
 }
 .spaire-email-app .h1 {
-  font-size: 36px;
-  font-weight: 400;
-  letter-spacing: -0.02em;
-  line-height: 1.1;
-  margin: 0;
-}
-.spaire-email-app .h2 {
   font-size: 24px;
-  font-weight: 400;
-  letter-spacing: -0.015em;
+  font-weight: 500;
+  letter-spacing: 0;
   line-height: 1.2;
   margin: 0;
 }
-.spaire-email-app .h3 {
-  font-size: 17px;
+.spaire-email-app .h2 {
+  font-size: 18px;
   font-weight: 500;
-  letter-spacing: -0.005em;
+  letter-spacing: 0;
+  line-height: 1.3;
+  margin: 0;
+}
+.spaire-email-app .h3 {
+  font-size: 16px;
+  font-weight: 500;
+  letter-spacing: 0;
   margin: 0;
 }
 
@@ -271,18 +269,19 @@
   border: none;
 }
 
+/* Chips — dashboard-aligned pill, sentence-case. */
 .spaire-email-app .chip {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   padding: 4px 10px;
   border-radius: var(--r-pill);
-  font-size: 11.5px;
-  font-weight: 400;
+  font-size: 12px;
+  font-weight: 500;
   letter-spacing: 0;
   background: var(--bg-softer);
   color: var(--ink-2);
-  border: 1px solid var(--line);
+  border: 1px solid transparent;
 }
 .spaire-email-app .chip-success {
   background: var(--green-soft);
@@ -301,7 +300,7 @@
 }
 .spaire-email-app .chip-info {
   background: var(--blue-soft);
-  color: var(--blue);
+  color: var(--indigo-2);
   border-color: transparent;
 }
 .spaire-email-app .chip-dark {
@@ -312,7 +311,7 @@
 .spaire-email-app .chip-indigo {
   background: var(--indigo-soft);
   color: var(--indigo-2);
-  border-color: var(--indigo-line);
+  border-color: transparent;
 }
 
 .spaire-email-app .dot {
@@ -323,7 +322,8 @@
   display: inline-block;
 }
 
-/* Tab nav */
+/* Top-nav tab pill group — preserved (user kept the top nav style).
+   Greys retuned to dashboard tokens. */
 .spaire-email-app .tabs {
   display: flex;
   gap: 2px;
@@ -334,12 +334,12 @@
 }
 .spaire-email-app .tab {
   position: relative;
-  padding: 8px 18px;
+  padding: 8px 16px;
   font-size: 13.5px;
-  font-weight: 400;
-  border-radius: 9px;
+  font-weight: 500;
+  border-radius: 8px;
   color: var(--ink-3);
-  transition: all 0.18s;
+  transition: background-color 0.15s, color 0.15s;
 }
 .spaire-email-app .tab:hover {
   color: var(--ink);
@@ -348,11 +348,12 @@
   background: #fff;
   color: var(--ink);
   box-shadow:
-    0 1px 3px rgba(0, 0, 0, 0.08),
-    0 0 0 1px rgba(15, 23, 42, 0.04);
+    0 1px 2px rgba(0, 0, 0, 0.06),
+    0 0 0 1px var(--line);
 }
 
-/* Brand lockup — custom Spaire mark */
+/* Brand lockup — preserved as part of top nav. League Spartan removed
+   to match the dashboard's inherited font. */
 .spaire-email-app .brand {
   display: inline-flex;
   align-items: center;
@@ -366,20 +367,20 @@
   line-height: 1;
 }
 .spaire-email-app .brand-name {
-  font-family: 'League Spartan', system-ui, sans-serif;
-  font-size: 18px;
-  font-weight: 400;
-  letter-spacing: -0.005em;
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 500;
+  letter-spacing: 0;
   color: var(--ink);
 }
 .spaire-email-app .brand-divider {
   width: 1px;
-  height: 28px;
-  background: linear-gradient(180deg, transparent, var(--line-2), transparent);
+  height: 24px;
+  background: var(--line);
   margin: 0 4px;
 }
 
-/* Selectable card — indigo when active (trigger picker, schedule, segment) */
+/* Selectable card — blue accent when active (was indigo). */
 .spaire-email-app .option-card {
   border: 1px solid var(--line);
   border-radius: 12px;
@@ -387,15 +388,15 @@
   padding: 16px;
   text-align: left;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: border-color 0.15s, background-color 0.15s, box-shadow 0.15s;
   position: relative;
 }
 .spaire-email-app .option-card:hover {
-  border-color: var(--line-2);
+  border-color: var(--ink-4);
 }
 .spaire-email-app .option-card.is-active {
-  border-color: var(--indigo);
-  background: #fff;
+  border-color: var(--indigo); /* blue-500 */
+  background: var(--indigo-soft); /* blue-50 */
   box-shadow: 0 0 0 1px var(--indigo) inset;
 }
 
@@ -432,34 +433,41 @@
 .spaire-email-app .container {
   max-width: 1440px;
   margin: 0 auto;
-  padding: 0 64px;
+  padding: 0 32px;
   position: relative;
   z-index: 1;
 }
+@media (min-width: 768px) {
+  .spaire-email-app .container {
+    padding: 0 48px;
+  }
+}
 .spaire-email-app .page-header {
-  padding: 56px 0 40px;
+  padding: 40px 0 32px;
 }
 
-/* Metric tile — clean slate-bordered card */
+/* Metric tile — dashboard card proportions. */
 .spaire-email-app .metric {
-  padding: 28px 28px 24px;
+  padding: 24px;
 }
 .spaire-email-app .metric-tile {
   position: relative;
   overflow: hidden;
-  border: 1px solid var(--line-2);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
 }
 .spaire-email-app .metric-value {
-  font-size: 48px;
-  font-weight: 400;
-  letter-spacing: -0.025em;
-  line-height: 1;
+  font-size: 30px;
+  font-weight: 500;
+  letter-spacing: 0;
+  line-height: 1.1;
   color: var(--ink);
 }
 .spaire-email-app .metric-label {
   font-size: 13px;
   color: var(--ink-3);
-  margin-top: 10px;
+  margin-top: 8px;
   letter-spacing: 0;
 }
 .spaire-email-app .metric-delta {
@@ -468,33 +476,33 @@
   gap: 4px;
   font-size: 12px;
   font-weight: 500;
-  margin-top: 14px;
+  margin-top: 12px;
   color: var(--green);
 }
 .spaire-email-app .metric-delta-down {
   color: var(--red);
 }
 
-/* Table */
+/* Table — dashboard list pattern. */
 .spaire-email-app .table {
   width: 100%;
   border-collapse: collapse;
 }
 .spaire-email-app .table th {
   text-align: left;
-  font-size: 11px;
-  font-weight: 400;
+  font-size: 12px;
+  font-weight: 500;
   color: var(--ink-3);
-  padding: 16px;
+  padding: 12px 16px;
   border-bottom: 1px solid var(--line);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
 }
 .spaire-email-app .table td {
-  padding: 18px 16px;
+  padding: 14px 16px;
   font-size: 14px;
   border-bottom: 1px solid var(--line);
-  color: var(--ink-2);
+  color: var(--ink);
 }
 .spaire-email-app .table tr:last-child td {
   border-bottom: none;
@@ -506,12 +514,12 @@
   background: var(--bg-soft);
 }
 
-/* Empty/placeholder image area */
+/* Empty / placeholder image area */
 .spaire-email-app .placeholder-img {
   background: repeating-linear-gradient(
     135deg,
-    #f5f5f7,
-    #f5f5f7 8px,
+    var(--bg-soft),
+    var(--bg-soft) 8px,
     #ffffff 8px,
     #ffffff 16px
   );
@@ -520,19 +528,19 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono, ui-monospace, monospace);
   font-size: 11px;
   color: var(--ink-4);
   letter-spacing: 0;
 }
 
-/* Hatched cover/image placeholder — used wherever a product has no cover image. */
+/* Hatched cover/image placeholder. */
 .spaire-email-app .cover-placeholder {
-  background-color: #eef1f5;
+  background-color: var(--bg-softer);
   background-image: repeating-linear-gradient(
     45deg,
-    rgba(10, 37, 64, 0.07) 0px,
-    rgba(10, 37, 64, 0.07) 1.5px,
+    rgba(15, 23, 42, 0.05) 0px,
+    rgba(15, 23, 42, 0.05) 1.5px,
     transparent 1.5px,
     transparent 7px
   );
@@ -555,9 +563,7 @@
   animation: spaire-email-fade-in 0.18s ease-out;
 }
 
-/* Empty contentEditable placeholder for the EditableText primitive. The
-   placeholder lives in a data attribute so it never enters the editable DOM
-   (and never gets typed into / saved to state). */
+/* Empty contentEditable placeholder for the EditableText primitive. */
 .spaire-email-app
   [contenteditable][data-placeholder][data-empty]:empty::before {
   content: attr(data-placeholder);
