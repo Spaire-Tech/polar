@@ -2,6 +2,7 @@
 
 import styles from './community.module.css'
 import {
+  IconBell,
   IconBook,
   IconCalendar,
   IconCamera,
@@ -22,6 +23,7 @@ export type CommunityView =
   | 'members'
   | 'events'
   | 'activities'
+  | 'notifications'
   | 'settings'
 
 // `series` → label items "episodes"; anything else → "modules". Mirrors
@@ -44,6 +46,11 @@ type Props = {
     enabled: boolean
     onToggleEnabled: (next: boolean) => void
   } | null
+  // Host-only: render the Notifications tab. When null the rail item
+  // doesn't render. notificationCount renders as a red badge.
+  notifications?: {
+    unreadCount?: number | null
+  } | null
 }
 
 export function LeftRail({
@@ -57,6 +64,7 @@ export function LeftRail({
   activityCount,
   discussionsKind,
   settings,
+  notifications,
 }: Props) {
   const allLabel =
     discussionsKind === 'episode' ? 'All episodes' : 'All modules'
@@ -113,6 +121,30 @@ export function LeftRail({
             <span className={styles.railCount}>{activityCount}</span>
           )}
         </button>
+        {notifications && (
+          <button
+            type="button"
+            className={`${styles.railItem} ${view === 'notifications' ? styles.active : ''}`}
+            onClick={() => onViewChange('notifications')}
+          >
+            <span className={styles.railIcon}>
+              <IconBell size={14} />
+            </span>
+            <span className={styles.railItemLabel}>Notifications</span>
+            {notifications.unreadCount != null &&
+              notifications.unreadCount > 0 && (
+                <span
+                  className={styles.railCount}
+                  style={{
+                    background: '#dc2626',
+                    color: '#fff',
+                  }}
+                >
+                  {notifications.unreadCount}
+                </span>
+              )}
+          </button>
+        )}
         {settings && (
           <div
             style={{

@@ -5,19 +5,19 @@ import { type CourseRead } from '@/hooks/queries/courses'
 
 type Props = {
   course: CourseRead
+  organizationSlug: string
 }
 
-// Full-page community surface inside the course editor. The split-pane
-// settings panel that used to live here has moved into the community
-// itself as a `settings` tab (rendered when LeftRail.view === 'settings').
-// CommunityPreview already gates everything on the host identity, so the
-// editor route just hands it the course context and lets it own the page.
-export function CommunityTab({ course }: Props) {
+// Full-page community surface inside the course editor.  Threads the
+// org slug so the preview can deep-link into the live customer-portal
+// community.
+export function CommunityTab({ course, organizationSlug }: Props) {
   return (
     <div className="h-full w-full">
       <CommunityPreview
         courseId={course.id}
         courseTitle={course.title ?? undefined}
+        organizationSlug={organizationSlug}
         discussionsKind={course.format === 'series' ? 'episode' : 'module'}
         lessons={
           course.format === 'series'
