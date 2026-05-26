@@ -1,21 +1,30 @@
 'use client'
 
 import {
+  type CommunityActivityRead,
   type CommunityEventRead,
   type CommunityPostRead,
   type CommunitySortProperty,
   type FeedFilters,
+  useCommunityActivities,
   useCommunityEvents,
   useCommunityFeed,
   useCommunityMembers,
   useCommunitySettings,
   useCommunityTags,
+  useCreateCommunityActivity,
   useCreateCommunityEvent,
   useRsvpCommunityEvent,
+  useSubmitToCommunityActivity,
 } from '@/hooks/queries/community'
 import { useCustomerCourse } from '@/hooks/queries/courses'
 import { useEffect, useMemo, useState } from 'react'
-import { ActivitiesView, type CommunityActivity } from './ActivitiesView'
+import {
+  ActivitiesView,
+  type ActivitySubmissionInput,
+  type CommunityActivity,
+  type CommunityActivityCreateInput,
+} from './ActivitiesView'
 import { Avatar } from './Avatar'
 import { Composer } from './Composer'
 import {
@@ -47,9 +56,21 @@ export function CommunityFeed({ courseId, customerSessionToken }: Props) {
   const [sortMenuOpen, setSortMenuOpen] = useState(false)
   const [composerForceOpen, setComposerForceOpen] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
-  // Activities are still client-state only (Phase 3 placeholder).
-  // Events are backed by /v1/customer-portal/community/.../events.
-  const [activities, setActivities] = useState<CommunityActivity[]>([])
+  // Activities + events are both backed by their respective endpoints.
+  const activitiesQ = useCommunityActivities(
+    customerSessionToken,
+    courseId,
+    'customer',
+  )
+  const createActivityMut = useCreateCommunityActivity(
+    customerSessionToken,
+    courseId,
+    'customer',
+  )
+  const submitActivityMut = useSubmitToCommunityActivity(
+    customerSessionToken,
+    courseId,
+  )
 
   const eventsQ = useCommunityEvents(customerSessionToken, courseId, 'customer')
   const createEventMut = useCreateCommunityEvent(
@@ -202,6 +223,9 @@ export function CommunityFeed({ courseId, customerSessionToken }: Props) {
   const memberCount = members.length
   const tags = tagsQ.data ?? []
   const upcomingEventCount = events.filter((e) => !e.past).length
+  const activities: CommunityActivity[] = (activitiesQ.data ?? []).map((a) =>
+    mapActivityReadToUI(a, memberCount),
+  )
 
   const handleLessonChipClick = (lessonIdFromChip: string) => {
     setLessonId(lessonIdFromChip)
@@ -259,9 +283,31 @@ export function CommunityFeed({ courseId, customerSessionToken }: Props) {
               channels={composerCategories}
               activities={activities}
               totalMembers={memberCount}
-              onCreate={(a) => {
-                setActivities((prev) => [a, ...prev])
-                setToast('Activity created')
+              canCreate={false}
+              onCreate={async (input: CommunityActivityCreateInput) => {
+                try {
+                  await createActivityMut.mutateAsync(
+                    buildActivityCreateBody(input),
+                  )
+                  setToast('Activity created')
+                } catch {
+                  setToast('Could not create activity')
+                }
+              }}
+              onSubmit={async (
+                activityId: string,
+                sub: ActivitySubmissionInput,
+              ) => {
+                await submitActivityMut.mutateAsync({
+                  activityId,
+                  body: buildSubmissionBody(sub),
+                })
+                setToast('Submitted')
+              }}
+              onViewSubmissions={() => {
+                /* TODO: gallery modal. The submissions endpoint exists
+                   on the API; wiring the gallery UI is the next slice. */
+                setToast('Submissions view coming next')
               }}
             />
           ) : (
@@ -488,6 +534,7 @@ function mapEventReadToUI(e: CommunityEventRead): CommunityEvent {
     location: e.location ?? '',
     meetingUrl: e.meeting_url,
     replayUrl: e.replay_url,
+    coverUrl: e.cover_url,
     hostName: e.host.name,
     rsvpCount: e.rsvp_count,
     going: e.going,
@@ -515,6 +562,7 @@ function buildEventCreateBody(input: CommunityEventCreateInput) {
     duration_minutes: parseInt(input.duration, 10) || 60,
     meeting_url: input.meetingUrl || null,
     location: input.location || null,
+    cover_url: input.coverUrl || null,
     notify_on_publish: input.notify,
     recurring_weekly: input.recurring,
   }
@@ -522,11 +570,7 @@ function buildEventCreateBody(input: CommunityEventCreateInput) {
 
 // Convert "YYYY-MM-DD HH:mm in IANA tz X" to the UTC ISO instant.
 // Uses Intl to compute the offset of `tz` at that wall clock.
-function wallClockInTzToUtcIso(
-  date: string,
-  time: string,
-  tz: string,
-): string {
+function wallClockInTzToUtcIso(date: string, time: string, tz: string): string {
   // First, build a UTC interpretation of the wall clock as a starting
   // point.
   const naiveUtc = new Date(`${date}T${time || '00:00'}:00Z`)
@@ -555,4 +599,57 @@ function wallClockInTzToUtcIso(
   )
   const offsetMs = asTz - naiveUtc.getTime()
   return new Date(naiveUtc.getTime() - offsetMs).toISOString()
+}
+
+// ---------------------------------------------------------------------
+// Activity mappers — translate server CommunityActivityRead to the
+// UI-shaped CommunityActivity, and translate the modal's input back
+// into the server's create payload.
+// ---------------------------------------------------------------------
+
+function mapActivityReadToUI(
+  a: CommunityActivityRead,
+  totalMembers: number,
+): CommunityActivity {
+  return {
+    id: a.id,
+    channelKind: a.channel_kind,
+    channelId: a.module_id ?? a.lesson_id,
+    channelLabel: a.channel_label ?? '',
+    title: a.title,
+    desc: a.description ?? '',
+    coverUrl: a.cover_url,
+    submissionType: a.submission_type,
+    status: a.status,
+    pinFeed: a.pin_to_feed,
+    notify: a.notify_on_publish,
+    submissionCount: a.submission_count,
+    distinctSubmitters: a.distinct_submitter_count,
+    totalMembers,
+    hasOwnSubmission: a.has_own_submission,
+  }
+}
+
+function buildActivityCreateBody(input: CommunityActivityCreateInput) {
+  return {
+    channel_kind: input.channelKind,
+    module_id: input.channelKind === 'module' ? input.channelId : null,
+    lesson_id: input.channelKind === 'lesson' ? input.channelId : null,
+    title: input.title,
+    description: input.desc || null,
+    cover_url: input.coverUrl || null,
+    submission_type: input.submissionType,
+    pin_to_feed: input.pinFeed,
+    notify_on_publish: input.notify,
+  }
+}
+
+function buildSubmissionBody(sub: ActivitySubmissionInput) {
+  return {
+    submission_type: sub.submissionType,
+    body: sub.body ?? null,
+    file_id: sub.fileId ?? null,
+    mux_upload_id: sub.muxUploadId ?? null,
+    link_url: sub.linkUrl ?? null,
+  }
 }

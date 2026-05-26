@@ -26,6 +26,9 @@ EVENT_LIVE = "community.event.live"
 EVENT_REPLAY_NAG_T2H = "community.event.replay_nag_t2h"
 EVENT_REPLAY_NAG_T24H = "community.event.replay_nag_t24h"
 
+ACTIVITY_PUBLISHED = "community.activity.published"
+ACTIVITY_SUBMISSION_RECEIVED = "community.activity.submission_received"
+
 ALL_TYPES = (
     EVENT_PUBLISHED,
     EVENT_STARTING_SOON_24H,
@@ -33,21 +36,38 @@ ALL_TYPES = (
     EVENT_LIVE,
     EVENT_REPLAY_NAG_T2H,
     EVENT_REPLAY_NAG_T24H,
+    ACTIVITY_PUBLISHED,
+    ACTIVITY_SUBMISSION_RECEIVED,
 )
 
 # Per-type channel policy. Notifications always create a bell row; this
 # governs whether the same notification also sends an email.
 #
 # Replay nags only go to the host, not attendees — they're filtered at the
-# enqueue site, not here. This map is just "what channel does this type use."
+# enqueue site, not here. Activity submission notifications go to the host
+# only (bell, no email — high volume).
 EMAIL_TYPES: frozenset[str] = frozenset(
-    {EVENT_PUBLISHED, EVENT_REPLAY_NAG_T24H}
+    {EVENT_PUBLISHED, EVENT_REPLAY_NAG_T24H, ACTIVITY_PUBLISHED}
 )
 
 
 # ----------------------------------------------------------------------
 # Payloads
 # ----------------------------------------------------------------------
+
+
+class ActivityNotificationPayload(BaseModel):
+    """Payload for community.activity.* notifications."""
+
+    activity_id: str
+    course_id: str
+    title: str
+    host_name: str
+    course_name: str
+    submission_type: str = "photo"
+    channel_label: str | None = None
+    # Set on submission_received so the host can see who just posted.
+    submitter_name: str | None = None
 
 
 class EventNotificationPayload(BaseModel):
@@ -78,6 +98,35 @@ def render(notification_type: str, payload: dict[str, Any]) -> tuple[str, str]:
 
     Falls back to a generic subject/body if the type isn't recognized —
     we never want a missing render to break the dramatiq actor."""
+    # Activity-type renders first so the EventNotificationPayload parse
+    # below doesn't reject activity payloads (different shape).
+    if notification_type in (ACTIVITY_PUBLISHED, ACTIVITY_SUBMISSION_RECEIVED):
+        try:
+            ap = ActivityNotificationPayload.model_validate(payload)
+        except Exception:
+            return (
+                "New activity in your community",
+                "<p>You have a new community notification.</p>",
+            )
+        if notification_type == ACTIVITY_PUBLISHED:
+            subject = f"New activity: {ap.title}"
+            channel = f" — {ap.channel_label}" if ap.channel_label else ""
+            body = (
+                f"<p><strong>{ap.host_name}</strong> opened a new activity in "
+                f"<em>{ap.course_name}</em>{channel}: "
+                f"<strong>{ap.title}</strong>.</p>"
+                f'<p><a href="#">Open in portal</a></p>'
+            )
+            return subject, body
+        # submission_received
+        subject = f"New submission to {ap.title}"
+        who = ap.submitter_name or "Someone"
+        body = (
+            f"<p><strong>{who}</strong> just submitted to your activity "
+            f"<strong>{ap.title}</strong>.</p>"
+        )
+        return subject, body
+
     try:
         ep = EventNotificationPayload.model_validate(payload)
     except Exception:
