@@ -1067,6 +1067,7 @@ export interface CommunityEventRead {
   location: string | null
   replay_url: string | null
   cover_url: string | null
+  cover_object_position: string | null
   recurring_weekly: boolean
   notify_on_publish: boolean
   rsvp_count: number
@@ -1088,6 +1089,7 @@ export interface CommunityEventCreateBody {
   meeting_url?: string | null
   location?: string | null
   cover_url?: string | null
+  cover_object_position?: string | null
   recurring_weekly?: boolean
   notify_on_publish?: boolean
 }
@@ -1316,6 +1318,7 @@ export interface CommunityActivityRead {
   title: string
   description: string | null
   cover_url: string | null
+  cover_object_position: string | null
   submission_type: ActivitySubmissionType
   status: ActivityStatus
   pin_to_feed: boolean
@@ -1335,6 +1338,7 @@ export interface CommunityActivityCreateBody {
   title: string
   description?: string | null
   cover_url?: string | null
+  cover_object_position?: string | null
   submission_type: ActivitySubmissionType
   pin_to_feed?: boolean
   notify_on_publish?: boolean
@@ -1344,6 +1348,7 @@ export interface CommunityActivityUpdateBody {
   title?: string
   description?: string | null
   cover_url?: string | null
+  cover_object_position?: string | null
   submission_type?: ActivitySubmissionType
   pin_to_feed?: boolean
   status?: ActivityStatus

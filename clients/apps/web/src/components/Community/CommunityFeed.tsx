@@ -271,6 +271,7 @@ export function CommunityFeed({ courseId, customerSessionToken }: Props) {
             <MembersView members={members} isLoading={membersQ.isLoading} />
           ) : view === 'events' ? (
             <EventsView
+              courseId={courseId}
               hostName={selfName ?? 'You'}
               events={events}
               onCreate={onCreateEvent}
@@ -279,6 +280,7 @@ export function CommunityFeed({ courseId, customerSessionToken }: Props) {
             />
           ) : view === 'activities' ? (
             <ActivitiesView
+              courseId={courseId}
               channelKind={discussionsKind}
               channels={composerCategories}
               activities={activities}
@@ -535,6 +537,7 @@ function mapEventReadToUI(e: CommunityEventRead): CommunityEvent {
     meetingUrl: e.meeting_url,
     replayUrl: e.replay_url,
     coverUrl: e.cover_url,
+    coverObjectPosition: e.cover_object_position,
     hostName: e.host.name,
     rsvpCount: e.rsvp_count,
     going: e.going,
@@ -563,6 +566,7 @@ function buildEventCreateBody(input: CommunityEventCreateInput) {
     meeting_url: input.meetingUrl || null,
     location: input.location || null,
     cover_url: input.coverUrl || null,
+    cover_object_position: input.coverObjectPosition || null,
     notify_on_publish: input.notify,
     recurring_weekly: input.recurring,
   }
@@ -619,6 +623,7 @@ function mapActivityReadToUI(
     title: a.title,
     desc: a.description ?? '',
     coverUrl: a.cover_url,
+    coverObjectPosition: a.cover_object_position,
     submissionType: a.submission_type,
     status: a.status,
     pinFeed: a.pin_to_feed,
@@ -638,6 +643,7 @@ function buildActivityCreateBody(input: CommunityActivityCreateInput) {
     title: input.title,
     description: input.desc || null,
     cover_url: input.coverUrl || null,
+    cover_object_position: input.coverObjectPosition || null,
     submission_type: input.submissionType,
     pin_to_feed: input.pinFeed,
     notify_on_publish: input.notify,

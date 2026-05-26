@@ -46,6 +46,7 @@ export type CommunityActivity = {
   title: string
   desc: string
   coverUrl?: string | null
+  coverObjectPosition?: string | null
   submissionType: SubmissionType
   status: ActivityStatus
   pinFeed: boolean
@@ -64,6 +65,7 @@ export type CommunityActivityCreateInput = {
   title: string
   desc: string
   coverUrl: string
+  coverObjectPosition: string
   submissionType: SubmissionType
   pinFeed: boolean
   notify: boolean
@@ -81,6 +83,7 @@ export type ActivitySubmissionInput = {
 type Props = {
   // Label shown next to the section header — "Episodes" or "Modules"
   // depending on course format.
+  courseId: string | undefined
   channelKind: 'episode' | 'module'
   channels: ActivityChannel[]
   activities: CommunityActivity[]
@@ -95,6 +98,7 @@ type Props = {
 }
 
 export function ActivitiesView({
+  courseId,
   channelKind,
   channels,
   activities,
@@ -228,6 +232,7 @@ export function ActivitiesView({
       {canCreate && (
         <CreateActivityModal
           open={createOpen}
+          courseId={courseId}
           channelKind={channelKind}
           channels={channels}
           onClose={() => setCreateOpen(false)}
@@ -276,18 +281,20 @@ function ActivityListCard({
       ? Math.round((activity.distinctSubmitters / activity.totalMembers) * 100)
       : 0
   const closed = activity.status === 'closed'
-  const coverBg = activity.coverUrl
-    ? `url(${activity.coverUrl}) center/cover`
-    : `linear-gradient(135deg, #1f1f1f, #4a4a4a)`
+  const coverPos = activity.coverObjectPosition || '50% 50%'
+  const coverStyle: React.CSSProperties = activity.coverUrl
+    ? {
+        backgroundImage: `url(${activity.coverUrl})`,
+        backgroundPosition: coverPos,
+        backgroundSize: 'cover',
+      }
+    : { background: `linear-gradient(135deg, #1f1f1f, #4a4a4a)` }
   const channelWord = channelKind === 'episode' ? 'Episode' : 'Module'
 
   return (
     <article className={styles.activityCard}>
       <div className={styles.activityCover}>
-        <div
-          className={styles.activityCoverImg}
-          style={{ background: coverBg }}
-        />
+        <div className={styles.activityCoverImg} style={coverStyle} />
         <div className={styles.activityCoverOverlay}>
           <span className={styles.activityCoverChannel}>
             <span className="num">{indexNum}</span>
@@ -368,12 +375,14 @@ function ActivityListCard({
 
 function CreateActivityModal({
   open,
+  courseId,
   channelKind,
   channels,
   onClose,
   onCreate,
 }: {
   open: boolean
+  courseId: string | undefined
   channelKind: 'episode' | 'module'
   channels: ActivityChannel[]
   onClose: () => void
@@ -383,7 +392,9 @@ function CreateActivityModal({
   const [channelId, setChannelId] = useState<string>('')
   const [submissionType, setSubmissionType] = useState<SubmissionType>('photo')
   const [desc, setDesc] = useState('')
-  const [coverDataUrl, setCoverDataUrl] = useState<string>('')
+  const [coverUrl, setCoverUrl] = useState<string>('')
+  const [coverObjectPosition, setCoverObjectPosition] =
+    useState<string>('50% 50%')
   const [notify, setNotify] = useState(true)
   const [pinFeed, setPinFeed] = useState(true)
   const titleRef = useRef<HTMLInputElement | null>(null)
@@ -394,7 +405,8 @@ function CreateActivityModal({
       setChannelId(channels[0]?.id ?? '')
       setSubmissionType('photo')
       setDesc('')
-      setCoverDataUrl('')
+      setCoverUrl('')
+      setCoverObjectPosition('50% 50%')
       setNotify(true)
       setPinFeed(true)
       setTimeout(() => titleRef.current?.focus(), 50)
@@ -434,7 +446,8 @@ function CreateActivityModal({
       channelLabel: channel?.label ?? '',
       title: title.trim(),
       desc: desc.trim(),
-      coverUrl: coverDataUrl,
+      coverUrl,
+      coverObjectPosition,
       submissionType,
       pinFeed,
       notify,
@@ -463,7 +476,15 @@ function CreateActivityModal({
         <div className={styles.ceBody}>
           <div className={styles.ceField}>
             <span className={styles.ceLabel}>Cover image</span>
-            <CoverUploader value={coverDataUrl} onChange={setCoverDataUrl} />
+            <CoverUploader
+              courseId={courseId}
+              value={coverUrl}
+              position={coverObjectPosition}
+              onChange={({ coverUrl: u, coverObjectPosition: p }) => {
+                setCoverUrl(u)
+                setCoverObjectPosition(p)
+              }}
+            />
           </div>
           <div className={styles.ceField}>
             <span className={styles.ceLabel}>

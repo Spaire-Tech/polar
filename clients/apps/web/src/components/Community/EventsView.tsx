@@ -38,6 +38,7 @@ export type CommunityEvent = {
   meetingUrl?: string | null
   replayUrl?: string | null
   coverUrl?: string | null
+  coverObjectPosition?: string | null
   hostName: string
   rsvpCount: number
   going: boolean
@@ -60,6 +61,7 @@ export type CommunityEventCreateInput = {
   location: string
   meetingUrl: string
   coverUrl: string
+  coverObjectPosition: string
   notify: boolean
   recurring: boolean
 }
@@ -212,6 +214,7 @@ const formatViewerWhen = (startAt: string, hostTz: string): string | null => {
 }
 
 type Props = {
+  courseId: string | undefined
   hostName: string
   events: CommunityEvent[]
   onCreate: (event: CommunityEventCreateInput) => void
@@ -220,6 +223,7 @@ type Props = {
 }
 
 export function EventsView({
+  courseId,
   hostName,
   events,
   onCreate,
@@ -342,6 +346,7 @@ export function EventsView({
       {canCreate && (
         <CreateEventModal
           open={createOpen}
+          courseId={courseId}
           hostName={hostName}
           onClose={() => setCreateOpen(false)}
           onCreate={(payload) => {
@@ -421,16 +426,21 @@ function EventCard({
   const chip = formatDateChip(event.startAt, event.timezone)
   const whenHost = formatHostWhen(event.startAt, event.timezone)
   const whenViewer = formatViewerWhen(event.startAt, event.timezone)
-  const coverBg = event.coverUrl
-    ? `url(${event.coverUrl}) center/cover`
-    : `linear-gradient(135deg, #1f1f1f, #4a4a4a)`
+  const coverPos = event.coverObjectPosition || '50% 50%'
+  const coverStyle: React.CSSProperties = event.coverUrl
+    ? {
+        backgroundImage: `url(${event.coverUrl})`,
+        backgroundPosition: coverPos,
+        backgroundSize: 'cover',
+      }
+    : { background: `linear-gradient(135deg, #1f1f1f, #4a4a4a)` }
 
   const cardCls = `${styles.eventCard} ${event.live ? styles.eventCardLive : ''} ${past ? styles.eventCardPast : ''}`
 
   return (
     <article className={cardCls}>
       <div className={styles.eventCover}>
-        <div className={styles.eventCoverImg} style={{ background: coverBg }} />
+        <div className={styles.eventCoverImg} style={coverStyle} />
         <div className={styles.eventCoverOverlay}>
           {event.live ? (
             <span className={styles.eventCoverLive}>
@@ -605,11 +615,13 @@ function EmptyEvents({
 
 function CreateEventModal({
   open,
+  courseId,
   hostName,
   onClose,
   onCreate,
 }: {
   open: boolean
+  courseId: string | undefined
   hostName: string
   onClose: () => void
   onCreate: (e: CommunityEventCreateInput) => void
@@ -622,7 +634,9 @@ function CreateEventModal({
   const [timezone, setTimezone] = useState<string>(VIEWER_TZ)
   const [location, setLocation] = useState('')
   const [meetingUrl, setMeetingUrl] = useState('')
-  const [coverDataUrl, setCoverDataUrl] = useState<string>('')
+  const [coverUrl, setCoverUrl] = useState<string>('')
+  const [coverObjectPosition, setCoverObjectPosition] =
+    useState<string>('50% 50%')
   const [desc, setDesc] = useState('')
   const [notify, setNotify] = useState(true)
   const [recurring, setRecurring] = useState(false)
@@ -638,7 +652,8 @@ function CreateEventModal({
       setDuration('60')
       setTimezone(VIEWER_TZ)
       setLocation('')
-      setCoverDataUrl('')
+      setCoverUrl('')
+      setCoverObjectPosition('50% 50%')
       setMeetingUrl('')
       setDesc('')
       setNotify(true)
@@ -679,7 +694,8 @@ function CreateEventModal({
       duration,
       location: location.trim(),
       meetingUrl: meetingUrl.trim(),
-      coverUrl: coverDataUrl,
+      coverUrl,
+      coverObjectPosition,
       notify,
       recurring,
     })
@@ -707,7 +723,15 @@ function CreateEventModal({
         <div className={styles.ceBody}>
           <div className={styles.ceField}>
             <span className={styles.ceLabel}>Cover image</span>
-            <CoverUploader value={coverDataUrl} onChange={setCoverDataUrl} />
+            <CoverUploader
+              courseId={courseId}
+              value={coverUrl}
+              position={coverObjectPosition}
+              onChange={({ coverUrl: u, coverObjectPosition: p }) => {
+                setCoverUrl(u)
+                setCoverObjectPosition(p)
+              }}
+            />
           </div>
 
           <div className={styles.ceField}>
@@ -889,50 +913,119 @@ function CreateEventModal({
 
 // ---------------------------------------------------------------------
 // Shared cover-image uploader for the create modals.
-// v1 keeps it client-side: we read the picked file into a data: URL and
-// stash it on the form payload. Wiring it into the existing community
-// image-upload endpoint (and storing a real file_id) is the obvious
-// next slice — keeps the v4 design landing without blocking on the
-// upload pipeline.
+//
+// Uses the existing /v1/community/{course_id}/media/image-upload S3
+// pipeline (the same one community-post images ride), then surfaces
+// the project-wide ThumbnailPositioner so the host can pick the
+// focal point — same UX as course thumbnails. The position is stored
+// alongside cover_url as `cover_object_position` (a CSS object-position
+// string like '43.5% 62.0%').
 // ---------------------------------------------------------------------
 
+import { useUploadPostImage } from '@/hooks/queries/community'
+import { ThumbnailPositioner } from '../Courses/editor/ThumbnailPositioner'
+
 export function CoverUploader({
+  courseId,
   value,
+  position,
   onChange,
 }: {
+  courseId: string | undefined
   value: string
-  onChange: (dataUrl: string) => void
+  position: string
+  onChange: (next: { coverUrl: string; coverObjectPosition: string }) => void
 }) {
-  const onFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const upload = useUploadPostImage(null, courseId, 'creator')
+
+  const onFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0]
     if (!f) return
-    const reader = new FileReader()
-    reader.onload = () => {
-      if (typeof reader.result === 'string') onChange(reader.result)
+    try {
+      const result = await upload.mutateAsync(f)
+      onChange({
+        coverUrl: result.public_url,
+        coverObjectPosition: position || '50% 50%',
+      })
+    } catch (err) {
+      console.error('[CoverUploader] upload failed', err)
+    } finally {
+      // Reset so picking the same file twice still fires onChange.
+      e.target.value = ''
     }
-    reader.readAsDataURL(f)
   }
+
   const hasImage = !!value
+
+  if (hasImage) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div style={{ borderRadius: 12, overflow: 'hidden' }}>
+          <ThumbnailPositioner
+            src={value}
+            value={position || '50% 50%'}
+            onChange={(next) =>
+              onChange({ coverUrl: value, coverObjectPosition: next })
+            }
+          />
+        </div>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            fontSize: 12,
+            color: 'var(--c-muted, #6b7280)',
+          }}
+        >
+          <span>Drag the image to pick the focal point.</span>
+          <label
+            style={{
+              cursor: upload.isPending ? 'wait' : 'pointer',
+              padding: '6px 12px',
+              borderRadius: 999,
+              background: 'var(--c-panel)',
+              color: 'var(--c-ink)',
+              fontSize: 11.5,
+              fontWeight: 500,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              border: '1px solid var(--c-line)',
+            }}
+          >
+            <IconImage size={12} />{' '}
+            {upload.isPending ? 'Uploading…' : 'Replace image'}
+            <input
+              type="file"
+              accept="image/*"
+              onChange={onFile}
+              style={{ display: 'none' }}
+              disabled={upload.isPending}
+            />
+          </label>
+        </div>
+      </div>
+    )
+  }
+
   return (
-    <label
-      className={`${styles.ceCover} ${hasImage ? styles.ceCoverHasImage : ''}`}
-      style={hasImage ? { backgroundImage: `url(${value})` } : undefined}
-    >
+    <label className={styles.ceCover} aria-busy={upload.isPending}>
       <span className={styles.ceCoverIcon}>
         <IconImage size={20} />
       </span>
-      <span className={styles.ceCoverText}>Upload a cover image</span>
+      <span className={styles.ceCoverText}>
+        {upload.isPending ? 'Uploading…' : 'Upload a cover image'}
+      </span>
       <span className={styles.ceCoverSub}>
         PNG or JPG · 1600×900 recommended
-      </span>
-      <span className={styles.ceCoverChange}>
-        <IconImage size={12} /> {hasImage ? 'Change image' : 'Upload image'}
       </span>
       <input
         className={styles.ceCoverInput}
         type="file"
         accept="image/*"
         onChange={onFile}
+        disabled={upload.isPending}
       />
     </label>
   )

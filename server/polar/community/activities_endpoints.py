@@ -141,6 +141,7 @@ async def _activity_to_read(
         title=activity.title,
         description=activity.description,
         cover_url=activity.cover_url,
+        cover_object_position=activity.cover_object_position,
         submission_type=activity.submission_type,  # type: ignore[arg-type]
         status=activity.status,  # type: ignore[arg-type]
         pin_to_feed=activity.pin_to_feed,

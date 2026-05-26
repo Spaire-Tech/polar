@@ -120,6 +120,7 @@ class CommunityEventService:
             meeting_url=payload.meeting_url,
             location=payload.location,
             cover_url=payload.cover_url,
+            cover_object_position=payload.cover_object_position,
             recurring_weekly=payload.recurring_weekly,
             notify_on_publish=payload.notify_on_publish,
             rsvp_count=0,
