@@ -15,6 +15,11 @@ import {
   useCreatorCommunityMembers,
   useCreatorCommunitySettings,
   useCreatorCommunityTags,
+  useDeleteCommunityActivity,
+  useDeleteCommunityEvent,
+  useUpdateCommunityActivity,
+  useUpdateCommunityEvent,
+  useUpdateCommunitySettings,
 } from '@/hooks/queries/community'
 import { useEffect, useMemo, useState } from 'react'
 import {
@@ -23,6 +28,7 @@ import {
   type CommunityActivity,
   type CommunityActivityCreateInput,
 } from './ActivitiesView'
+import { CommunityPreviewSettings } from './CommunityPreviewSettings'
 import { Composer } from './Composer'
 import {
   type CommunityEvent,
@@ -73,12 +79,24 @@ export function CommunityPreview({
     courseId,
     'creator',
   )
+  const updateActivityMut = useUpdateCommunityActivity(
+    null,
+    courseId,
+    'creator',
+  )
+  const deleteActivityMut = useDeleteCommunityActivity(
+    null,
+    courseId,
+    'creator',
+  )
 
   // Events come from the creator-side endpoint (host sees own events,
   // students see filtered list via /customer-portal). Creator can create
   // here; RSVP is meaningless for the host (it's the host's own event).
   const eventsQ = useCommunityEvents(null, courseId, 'creator')
   const createEventMut = useCreateCommunityEvent(null, courseId, 'creator')
+  const updateEventMut = useUpdateCommunityEvent(null, courseId, 'creator')
+  const deleteEventMut = useDeleteCommunityEvent(null, courseId, 'creator')
   const events: CommunityEvent[] = useMemo(
     () => (eventsQ.data ?? []).map(mapEventReadToUI),
     [eventsQ.data],
@@ -92,6 +110,7 @@ export function CommunityPreview({
   )
 
   const settingsQ = useCreatorCommunitySettings(courseId)
+  const updateSettingsMut = useUpdateCommunitySettings(courseId)
   const feedQ = useCreatorCommunityFeed(courseId, filters)
   const tagsQ = useCreatorCommunityTags(courseId)
   const membersQ = useCreatorCommunityMembers(courseId)
@@ -145,16 +164,12 @@ export function CommunityPreview({
     )
   }
 
-  if (settings && !settings.enabled) {
-    return (
-      <div className={styles.root}>
-        <div className={styles.disabledBanner}>
-          Community is off. Toggle <strong>Community enabled</strong> on the
-          left to render the live student-facing view here.
-        </div>
-      </div>
-    )
-  }
+  // When community is off, the live student-facing views (Home, Members,
+  // Events, Activities) all render against the same "disabled" no-op the
+  // student would see. We DON'T early-return any more — the host has to
+  // be able to flip the toggle from the Settings tab, so we keep the
+  // shell + LeftRail rendered and short-circuit only the per-view body.
+  const communityOff = !!(settings && !settings.enabled)
 
   const members = membersQ.data ?? []
   const memberCount = members.length
@@ -180,6 +195,20 @@ export function CommunityPreview({
         <LeftRail
           view={view}
           onViewChange={setView}
+          settings={
+            settings
+              ? {
+                  enabled: settings.enabled,
+                  onToggleEnabled: (next) =>
+                    updateSettingsMut
+                      .mutateAsync({ enabled: next })
+                      .catch(() => {
+                        /* toast handled inside the settings tab; the rail
+                           toggle is fire-and-forget. */
+                      }),
+                }
+              : null
+          }
           lessons={lessons}
           lessonId={lessonId}
           onLessonChange={setLessonId}
@@ -190,7 +219,14 @@ export function CommunityPreview({
         />
 
         <main className={styles.main}>
-          {view === 'members' ? (
+          {view === 'settings' ? (
+            <CommunityPreviewSettings courseId={courseId} />
+          ) : communityOff ? (
+            <div className={styles.disabledBanner}>
+              Community is off. Open <strong>Settings</strong> in the left rail
+              (or flip the toggle next to it) to turn it back on.
+            </div>
+          ) : view === 'members' ? (
             <MembersView members={members} isLoading={membersQ.isLoading} />
           ) : view === 'events' ? (
             <EventsView
@@ -204,6 +240,28 @@ export function CommunityPreview({
                   setToast('Event created')
                 } catch {
                   setToast('Could not create event')
+                }
+              }}
+              onUpdate={async (
+                eventId: string,
+                input: CommunityEventCreateInput,
+              ) => {
+                try {
+                  await updateEventMut.mutateAsync({
+                    eventId,
+                    body: buildEventCreateBody(input),
+                  })
+                  setToast('Event updated')
+                } catch {
+                  setToast('Could not update event')
+                }
+              }}
+              onDelete={async (eventId: string) => {
+                try {
+                  await deleteEventMut.mutateAsync(eventId)
+                  setToast('Event deleted')
+                } catch {
+                  setToast('Could not delete event')
                 }
               }}
               onToggleGoing={() => {
@@ -226,6 +284,28 @@ export function CommunityPreview({
                   setToast('Activity created')
                 } catch {
                   setToast('Could not create activity')
+                }
+              }}
+              onUpdate={async (
+                activityId: string,
+                input: CommunityActivityCreateInput,
+              ) => {
+                try {
+                  await updateActivityMut.mutateAsync({
+                    activityId,
+                    body: buildActivityCreateBody(input),
+                  })
+                  setToast('Activity updated')
+                } catch {
+                  setToast('Could not update activity')
+                }
+              }}
+              onDelete={async (activityId: string) => {
+                try {
+                  await deleteActivityMut.mutateAsync(activityId)
+                  setToast('Activity deleted')
+                } catch {
+                  setToast('Could not delete activity')
                 }
               }}
               onSubmit={async (_id, _sub: ActivitySubmissionInput) => {

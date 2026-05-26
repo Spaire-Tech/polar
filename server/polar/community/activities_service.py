@@ -11,6 +11,7 @@ from polar.kit.utils import utc_now
 from polar.models.community_activity import CommunityActivity
 from polar.models.community_activity_submission import CommunityActivitySubmission
 from polar.models.community_post import CommunityPost
+from polar.models.community_tag import CommunityTag
 from polar.postgres import AsyncSession
 from polar.worker import enqueue_job
 
@@ -23,6 +24,7 @@ from .activities_schemas import (
     CommunityActivitySubmissionCreate,
     CommunityActivityUpdate,
 )
+from .repository import CommunityTagRepository
 
 
 class ActivityNotFound(Exception):
@@ -246,14 +248,15 @@ class CommunityActivityService:
         activity: CommunityActivity,
         host_user_id: UUID,
     ) -> None:
-        """Create a community_posts row with pin_type='activity' and
-        link it from the activity. The post body carries a short blurb
-        + the activity_id in a known location so the feed renderer can
-        upgrade it into an activity card."""
-        body = (
-            f"📝 New activity: **{activity.title}**\n\n"
-            f"{activity.description or ''}".strip()
+        """Create a community_posts row with pin_type='activity', tagged
+        with the course's auto-managed 'Activity' tag, and (when the
+        activity is scoped to a lesson) the lesson_id chip set. The
+        body is the activity's description verbatim — the tag pill +
+        the inline activity-CTA in the feed convey the rest."""
+        tag = await self._get_or_create_activity_tag(
+            session, course_id=activity.course_id
         )
+        body = (activity.description or activity.title).strip()
         post = CommunityPost(
             course_id=activity.course_id,
             author_user_id=host_user_id,
@@ -264,12 +267,38 @@ class CommunityActivityService:
             published_at=utc_now(),
             pinned_at=utc_now(),
             pin_type="activity",
+            tag_id=tag.id,
+            lesson_id=(
+                activity.lesson_id
+                if activity.channel_kind == "lesson"
+                else None
+            ),
         )
         session.add(post)
         await session.flush()
         activity.pinned_post_id = post.id
         session.add(activity)
         await session.flush()
+
+    async def _get_or_create_activity_tag(
+        self, session: AsyncSession, *, course_id: UUID
+    ) -> CommunityTag:
+        """Each course gets a single auto-managed 'Activity' tag the
+        host can't edit (slug='activity'). We attach it to every pinned
+        activity post so the tag-pill renders with the design's inverted
+        Activity styling. If the host has deleted it (soft delete), we
+        re-create it; tags are cheap."""
+        repo = CommunityTagRepository.from_session(session)
+        existing = await repo.get_by_slug(course_id, "activity")
+        if existing is not None and existing.deleted_at is None:
+            return existing
+        # Slot it at position 0 so it sorts to the top of the tag list,
+        # next to Question / Win / Discussion.
+        tag = CommunityTag(
+            course_id=course_id, slug="activity", label="Activity", position=0
+        )
+        await repo.create(tag, flush=True)
+        return tag
 
     async def _unpin_activity(
         self, session: AsyncSession, *, activity: CommunityActivity
