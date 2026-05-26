@@ -292,6 +292,8 @@ export function CommunityFeed({ courseId, customerSessionToken }: Props) {
               activities={activities}
               totalMembers={memberCount}
               canCreate={false}
+              uploadMode="customer"
+              customerSessionToken={customerSessionToken}
               onUpdate={() => {
                 /* students can't edit */
               }}

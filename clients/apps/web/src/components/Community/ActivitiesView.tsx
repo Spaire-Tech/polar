@@ -1,7 +1,9 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { ActivityDetailView } from './ActivityDetailView'
 import { CardManageMenu, CoverUploader } from './EventsView'
+import { SubmitActivityModal } from './SubmitActivityModal'
 import styles from './community.module.css'
 import {
   IconCamera,
@@ -97,6 +99,11 @@ type Props = {
   onViewSubmissions: (activityId: string) => void
   totalMembers: number
   canCreate: boolean
+  // Submission upload mode + token. 'customer' uses
+  // /customer-portal/community/.../media/upload; 'creator' uses the
+  // dashboard cookie. The token is only required in customer mode.
+  uploadMode: 'creator' | 'customer'
+  customerSessionToken?: string | null
 }
 
 export function ActivitiesView({
@@ -108,14 +115,43 @@ export function ActivitiesView({
   onUpdate,
   onDelete,
   onSubmit,
-  onViewSubmissions,
   totalMembers,
   canCreate,
+  uploadMode,
+  customerSessionToken,
 }: Props) {
   const [createOpen, setCreateOpen] = useState(false)
   const [editing, setEditing] = useState<CommunityActivity | null>(null)
   const [submitFor, setSubmitFor] = useState<CommunityActivity | null>(null)
+  const [openActivity, setOpenActivity] = useState<CommunityActivity | null>(
+    null,
+  )
   const [filter, setFilter] = useState<'all' | string | 'mine'>('all')
+
+  // Detail view takes over the whole pane when an activity is opened.
+  if (openActivity) {
+    return (
+      <>
+        <ActivityDetailView
+          activity={openActivity}
+          courseId={courseId}
+          customerSessionToken={customerSessionToken}
+          mode={uploadMode}
+          onBack={() => setOpenActivity(null)}
+          onSubmit={onSubmit}
+          onOpenSubmit={() => setSubmitFor(openActivity)}
+        />
+        <SubmitActivityModal
+          activity={submitFor}
+          courseId={courseId}
+          customerSessionToken={customerSessionToken}
+          mode={uploadMode}
+          onClose={() => setSubmitFor(null)}
+          onSubmit={onSubmit}
+        />
+      </>
+    )
+  }
 
   const channelLabelAll =
     channelKind === 'episode' ? 'All episodes' : 'All modules'
@@ -229,7 +265,8 @@ export function ActivitiesView({
               canSubmit={!canCreate && a.status === 'open'}
               canManage={canCreate}
               onSubmit={() => setSubmitFor(a)}
-              onViewSubmissions={() => onViewSubmissions(a.id)}
+              onViewSubmissions={() => setOpenActivity(a)}
+              onOpen={() => setOpenActivity(a)}
               onEdit={() => setEditing(a)}
               onDelete={() => {
                 if (
@@ -275,15 +312,13 @@ export function ActivitiesView({
         />
       )}
 
-      <SubmitModal
+      <SubmitActivityModal
         activity={submitFor}
+        courseId={courseId}
+        customerSessionToken={customerSessionToken}
+        mode={uploadMode}
         onClose={() => setSubmitFor(null)}
-        onSubmit={async (sub) => {
-          if (submitFor) {
-            await onSubmit(submitFor.id, sub)
-            setSubmitFor(null)
-          }
-        }}
+        onSubmit={onSubmit}
       />
     </>
   )
@@ -301,6 +336,7 @@ function ActivityListCard({
   canManage,
   onSubmit,
   onViewSubmissions,
+  onOpen,
   onEdit,
   onDelete,
 }: {
@@ -311,10 +347,15 @@ function ActivityListCard({
   canManage: boolean
   onSubmit: () => void
   onViewSubmissions: () => void
+  onOpen: () => void
   onEdit: () => void
   onDelete: () => void
 }) {
   const [menuOpen, setMenuOpen] = useState(false)
+  const handleCardClick = (e: React.MouseEvent) => {
+    if ((e.target as HTMLElement).closest('button, a, label')) return
+    onOpen()
+  }
   const pct =
     activity.totalMembers > 0
       ? Math.round((activity.distinctSubmitters / activity.totalMembers) * 100)
@@ -331,7 +372,11 @@ function ActivityListCard({
   const channelWord = channelKind === 'episode' ? 'Episode' : 'Module'
 
   return (
-    <article className={styles.activityCard}>
+    <article
+      className={styles.activityCard}
+      onClick={handleCardClick}
+      style={{ cursor: 'pointer' }}
+    >
       <div className={styles.activityCover}>
         <div className={styles.activityCoverImg} style={coverStyle} />
         <div className={styles.activityCoverOverlay}>

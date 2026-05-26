@@ -311,6 +311,7 @@ export function CommunityPreview({
               channels={lessons.map((l) => ({ id: l.id, label: l.label }))}
               activities={activities}
               totalMembers={memberCount}
+              uploadMode="creator"
               canCreate
               onCreate={async (input: CommunityActivityCreateInput) => {
                 try {
