@@ -261,7 +261,7 @@ class CommunityPostUpdate(Schema):
 
 
 class CommunityPinPayload(Schema):
-    pin_type: Literal["announcement", "prompt_of_week"]
+    pin_type: Literal["announcement", "prompt_of_week", "activity"]
     # When null, the pin sticks until manually unpinned. Default cap of
     # 7 days is applied in the service when omitted.
     expires_at: datetime | None = None
@@ -280,7 +280,7 @@ class CommunityPostRead(TimestampedSchema):
     media: list[CommunityPostMediaRead] = Field(default_factory=list)
     published_at: datetime | None
     pinned_at: datetime | None = None
-    pin_type: Literal["announcement", "prompt_of_week"] | None = None
+    pin_type: Literal["announcement", "prompt_of_week", "activity"] | None = None
     pin_expires_at: datetime | None = None
     comments_mode: Literal["visible", "hidden", "locked"] | None = None
     reaction_count: int = 0
