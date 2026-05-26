@@ -231,25 +231,11 @@ export function CommunityPreviewSettings({ courseId }: { courseId: string }) {
               }}
             />
           </Row>
-          <div>
-            <label className="text-sm font-medium text-gray-700">
-              Presence blurb
-            </label>
-            <p className="mt-1 text-xs text-gray-500">
-              Short line under your avatar in the left rail. Leave blank to
-              auto-compute weekly.
-            </p>
-            <Input
-              className="mt-1.5"
-              placeholder="e.g. Mira replied 4 times this week"
-              defaultValue={current.presence_blurb ?? ''}
-              onBlur={(e: FocusEvent<HTMLInputElement>) => {
-                const v = e.currentTarget.value.trim() || null
-                if (v === (current.presence_blurb ?? null)) return
-                commitField('presence_blurb', v)
-              }}
-            />
-          </div>
+          {/* Presence blurb is set by the weekly cron and stored on the
+              settings row, but the LeftRail consumer that renders it
+              hasn't shipped yet. Hiding the manual override here keeps
+              the settings UI honest — bring it back once the rail
+              displays the value. */}
         </div>
       </ShadowBox>
 

@@ -10,6 +10,9 @@ from uuid import UUID
 from polar.kit.utils import utc_now
 from polar.models.community_activity import CommunityActivity
 from polar.models.community_activity_submission import CommunityActivitySubmission
+from polar.models.community_activity_submission_comment import (
+    CommunityActivitySubmissionComment,
+)
 from polar.models.community_post import CommunityPost
 from polar.models.community_tag import CommunityTag
 from polar.postgres import AsyncSession
@@ -17,10 +20,12 @@ from polar.worker import enqueue_job
 
 from .activities_repository import (
     CommunityActivityRepository,
+    CommunityActivitySubmissionCommentRepository,
     CommunityActivitySubmissionRepository,
 )
 from .activities_schemas import (
     CommunityActivityCreate,
+    CommunityActivitySubmissionCommentCreate,
     CommunityActivitySubmissionCreate,
     CommunityActivityUpdate,
 )
@@ -46,6 +51,10 @@ class ActivityChannelInvalid(Exception):
 class ActivitySubmissionInvalid(Exception):
     """Raised when the submission payload doesn't match the activity's
     submission_type (e.g. video submission with no mux_upload_id)."""
+
+
+class ActivitySubmissionNotFound(Exception):
+    pass
 
 
 class CommunityActivityService:
@@ -152,10 +161,20 @@ class CommunityActivityService:
             await self._unpin_activity(session, activity=activity)
             data["pin_to_feed"] = False
 
+        # Capture the prior cover so we can clean up S3 if it changed.
+        prev_cover = activity.cover_url
         for k, v in data.items():
             setattr(activity, k, v)
 
         await session.flush()
+
+        if (
+            "cover_url" in data
+            and prev_cover
+            and prev_cover != activity.cover_url
+        ):
+            enqueue_job("community.cover.cleanup", cover_url=prev_cover)
+
         return activity
 
     async def delete(
@@ -175,6 +194,8 @@ class CommunityActivityService:
             await self._unpin_activity(session, activity=activity)
         repo = CommunityActivityRepository.from_session(session)
         await repo.soft_delete(activity)
+        if activity.cover_url:
+            enqueue_job("community.cover.cleanup", cover_url=activity.cover_url)
 
     # ------------------------------------------------------------------
     # Submissions (customer)
@@ -210,6 +231,13 @@ class CommunityActivityService:
         if st == "text" and not (payload.body and payload.body.strip()):
             raise ActivitySubmissionInvalid()
 
+        # Video submissions start in 'waiting' so the UI can show an
+        # "encoding…" state until the Mux webhook flips it to 'ready'
+        # (or 'errored'). Non-video types leave mux_status NULL.
+        initial_mux_status: str | None = None
+        if st == "video" and payload.mux_upload_id:
+            initial_mux_status = "waiting"
+
         submission = CommunityActivitySubmission(
             activity_id=activity_id,
             customer_id=customer_id,
@@ -217,7 +245,9 @@ class CommunityActivityService:
             body=(payload.body.strip() if payload.body else None),
             file_id=payload.file_id,
             mux_upload_id=payload.mux_upload_id,
+            mux_status=initial_mux_status,
             link_url=payload.link_url,
+            visibility=payload.visibility,
         )
         sub_repo = CommunityActivitySubmissionRepository.from_session(session)
         await sub_repo.create(submission, flush=True)
@@ -313,6 +343,41 @@ class CommunityActivityService:
         activity.pinned_post_id = None
         session.add(activity)
         await session.flush()
+
+
+    # ------------------------------------------------------------------
+    # Submission comments
+    # ------------------------------------------------------------------
+
+    async def list_submission_comments(
+        self,
+        session: AsyncSession,
+        *,
+        submission_id: UUID,
+    ) -> list[CommunityActivitySubmissionComment]:
+        repo = CommunityActivitySubmissionCommentRepository.from_session(session)
+        return list(await repo.list_for_submission(submission_id))
+
+    async def create_submission_comment(
+        self,
+        session: AsyncSession,
+        *,
+        submission_id: UUID,
+        payload: CommunityActivitySubmissionCommentCreate,
+        author_user_id: UUID | None = None,
+        author_enrollment_id: UUID | None = None,
+    ) -> CommunityActivitySubmissionComment:
+        # Caller resolves which author kind applies. Endpoint layer
+        # enforces that exactly one is set per the auth subject.
+        comment = CommunityActivitySubmissionComment(
+            submission_id=submission_id,
+            body=payload.body.strip(),
+            author_user_id=author_user_id,
+            author_enrollment_id=author_enrollment_id,
+        )
+        repo = CommunityActivitySubmissionCommentRepository.from_session(session)
+        await repo.create(comment, flush=True)
+        return comment
 
 
 activities_service = CommunityActivityService()

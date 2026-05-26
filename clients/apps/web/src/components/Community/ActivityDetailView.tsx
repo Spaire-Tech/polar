@@ -61,6 +61,7 @@ export function ActivityDetailView({
   useEffect(() => {
     const el = rootRef.current
     if (!el) return
+    let foundScrollable = false
     let node: HTMLElement | null = el.parentElement
     while (node && node !== document.body) {
       const style = getComputedStyle(node)
@@ -70,13 +71,21 @@ export function ActivityDetailView({
         node.scrollHeight > node.clientHeight
       ) {
         node.scrollTo({ top: 0, behavior: 'auto' })
+        foundScrollable = true
         break
       }
       node = node.parentElement
     }
-    // Also reset the document scroll for browsers where the page itself
-    // is the scroll container.
+    // Always also reset the document scroll — covers browsers where the
+    // page itself is the scroll container, and acts as a fallback when
+    // no scrollable ancestor was found (e.g. nested iframe layouts).
     window.scrollTo({ top: 0, behavior: 'auto' })
+    if (!foundScrollable && process.env.NODE_ENV !== 'production') {
+      // eslint-disable-next-line no-console
+      console.debug(
+        '[ActivityDetailView] No scrollable ancestor found; fell back to window.scrollTo.',
+      )
+    }
   }, [activity.id])
   const [openSub, setOpenSub] =
     useState<CommunityActivitySubmissionRead | null>(null)
@@ -286,10 +295,14 @@ export function ActivityDetailView({
         </div>
       )}
 
-      {openSub && (
+      {openSub && courseId && (
         <SubmissionThreadModal
           submission={openSub}
           submissions={subs}
+          customerSessionToken={customerSessionToken}
+          courseId={courseId}
+          activityId={activity.id}
+          mode={mode}
           onClose={() => setOpenSub(null)}
           onNavigate={navigate}
         />

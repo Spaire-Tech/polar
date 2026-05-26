@@ -13,9 +13,9 @@ from __future__ import annotations
 from uuid import UUID
 
 import structlog
-from sqlalchemy import select
 
-from polar.course.repository import CourseRepository
+from polar.course.repository import CourseEnrollmentRepository, CourseRepository
+from polar.customer.repository import CustomerRepository
 from polar.customer_notifications.notification_types import (
     ACTIVITY_PUBLISHED,
     ACTIVITY_SUBMISSION_RECEIVED,
@@ -75,14 +75,9 @@ async def _build_payload(
 
 
 async def _enrolled_customer_ids(session, course_id: UUID) -> list[UUID]:
-    from polar.models.course_enrollment import CourseEnrollment
-
-    statement = select(CourseEnrollment.customer_id).where(
-        CourseEnrollment.course_id == course_id,
-        CourseEnrollment.deleted_at.is_(None),
-    )
-    result = await session.execute(statement)
-    return [r[0] for r in result.all()]
+    return await CourseEnrollmentRepository.from_session(
+        session
+    ).list_customer_ids_for_course(course_id)
 
 
 @actor(actor_name="community.activity.published", priority=TaskPriority.LOW)
@@ -135,9 +130,9 @@ async def activity_submission_received(
         host = await session.get(User, activity.host_user_id)
         if host is None or not getattr(host, "email", None):
             return
-        stmt = select(Customer.id).where(Customer.email == host.email).limit(1)
-        result = await session.execute(stmt)
-        host_customer_id = result.scalar_one_or_none()
+        host_customer_id = await CustomerRepository.from_session(
+            session
+        ).get_id_by_email(host.email)
         if host_customer_id is None:
             return
 

@@ -34,12 +34,16 @@ from polar.models.user import User
 from polar.postgres import AsyncSession, get_db_session
 
 from .activities_repository import (
+    CommunityActivityRepository,
     CommunityActivitySubmissionRepository,
 )
 from .activities_schemas import (
     CommunityActivityCreate,
     CommunityActivityHost,
     CommunityActivityRead,
+    CommunityActivitySubmissionCommentAuthor,
+    CommunityActivitySubmissionCommentCreate,
+    CommunityActivitySubmissionCommentRead,
     CommunityActivitySubmissionCreate,
     CommunityActivitySubmissionRead,
     CommunityActivityUpdate,
@@ -91,6 +95,8 @@ async def _require_creator_owns_course(
 async def _resolve_channel_label(
     session: AsyncSession, activity: CommunityActivity
 ) -> str | None:
+    """Single-activity channel-label lookup. Use the repository's
+    `bulk_load_channel_labels` for list endpoints to avoid N+1."""
     if activity.channel_kind == "module" and activity.module_id:
         row = await session.get(CourseModule, activity.module_id)
         return row.title if row else None
@@ -128,9 +134,18 @@ async def _activity_to_read(
     instructor_name: str | None,
     distinct_submitters: int,
     has_own: bool,
+    hosts_cache: dict[UUID, User] | None = None,
+    channel_labels: dict[UUID, str | None] | None = None,
 ) -> CommunityActivityRead:
-    host_user = await session.get(User, activity.host_user_id)
-    channel_label = await _resolve_channel_label(session, activity)
+    host_user: User | None
+    if hosts_cache is not None:
+        host_user = hosts_cache.get(activity.host_user_id)
+    else:
+        host_user = await session.get(User, activity.host_user_id)
+    if channel_labels is not None:
+        channel_label = channel_labels.get(activity.id)
+    else:
+        channel_label = await _resolve_channel_label(session, activity)
     return CommunityActivityRead(
         id=activity.id,
         course_id=activity.course_id,
@@ -160,8 +175,12 @@ async def _submission_to_read(
     submission: CommunityActivitySubmission,
     *,
     viewer_customer_id: UUID | None,
+    authors_cache: dict[UUID, Customer] | None = None,
 ) -> CommunityActivitySubmissionRead:
-    customer = await session.get(Customer, submission.customer_id)
+    if authors_cache is not None:
+        customer = authors_cache.get(submission.customer_id)
+    else:
+        customer = await session.get(Customer, submission.customer_id)
     author_name = (
         (getattr(customer, "name", None) or "").strip()
         or (getattr(customer, "email", None) or "Member")
@@ -186,7 +205,9 @@ async def _submission_to_read(
         file_id=submission.file_id,
         file_url=file_url,
         mux_playback_id=submission.mux_playback_id,
+        mux_status=submission.mux_status,
         link_url=submission.link_url,
+        visibility=submission.visibility,  # type: ignore[arg-type]
         author_name=author_name,
         author_avatar_url=avatar,
         is_own=(
@@ -223,6 +244,9 @@ async def list_activities_creator(
     )
     sub_repo = CommunityActivitySubmissionRepository.from_session(session)
     counts = await sub_repo.distinct_submitter_counts([a.id for a in activities])
+    act_repo = CommunityActivityRepository.from_session(session)
+    hosts = await act_repo.bulk_load_hosts({a.host_user_id for a in activities})
+    channel_labels = await act_repo.bulk_load_channel_labels(activities)
 
     return [
         await _activity_to_read(
@@ -231,6 +255,8 @@ async def list_activities_creator(
             instructor_name=instructor_name,
             distinct_submitters=counts.get(a.id, 0),
             has_own=False,
+            hosts_cache=hosts,
+            channel_labels=channel_labels,
         )
         for a in activities
     ]
@@ -362,8 +388,11 @@ async def list_submissions_creator(
         raise HTTPException(status_code=404, detail="Activity not found") from None
     sub_repo = CommunityActivitySubmissionRepository.from_session(session)
     rows = await sub_repo.list_for_activity(activity_id)
+    authors = await sub_repo.bulk_load_authors({s.customer_id for s in rows})
     return [
-        await _submission_to_read(session, s, viewer_customer_id=None)
+        await _submission_to_read(
+            session, s, viewer_customer_id=None, authors_cache=authors
+        )
         for s in rows
     ]
 
@@ -399,6 +428,9 @@ async def list_activities_customer(
     ids = [a.id for a in activities]
     distinct_map = await sub_repo.distinct_submitter_counts(ids)
     own_ids = await sub_repo.activity_ids_with_own_submission(ids, customer_id)
+    act_repo = CommunityActivityRepository.from_session(session)
+    hosts = await act_repo.bulk_load_hosts({a.host_user_id for a in activities})
+    channel_labels = await act_repo.bulk_load_channel_labels(activities)
 
     return [
         await _activity_to_read(
@@ -407,6 +439,8 @@ async def list_activities_customer(
             instructor_name=course.instructor_name if course else None,
             distinct_submitters=distinct_map.get(a.id, 0),
             has_own=a.id in own_ids,
+            hosts_cache=hosts,
+            channel_labels=channel_labels,
         )
         for a in activities
     ]
@@ -435,10 +469,16 @@ async def list_submissions_customer(
     except ActivityNotFound:
         raise HTTPException(status_code=404, detail="Activity not found") from None
     sub_repo = CommunityActivitySubmissionRepository.from_session(session)
-    rows = await sub_repo.list_for_activity(activity_id)
+    rows = await sub_repo.list_for_activity_for_customer(
+        activity_id, customer_id
+    )
+    authors = await sub_repo.bulk_load_authors({s.customer_id for s in rows})
     return [
         await _submission_to_read(
-            session, s, viewer_customer_id=customer_id
+            session,
+            s,
+            viewer_customer_id=customer_id,
+            authors_cache=authors,
         )
         for s in rows
     ]
@@ -482,6 +522,295 @@ async def submit_activity_customer(
         ) from None
     return await _submission_to_read(
         session, submission, viewer_customer_id=customer_id
+    )
+
+
+# ====================================================================
+# SUBMISSION COMMENTS — shared serializer + creator/customer routes
+# ====================================================================
+
+
+async def _comment_to_read(
+    session: AsyncSession,
+    comment,  # CommunityActivitySubmissionComment
+    *,
+    viewer_user_id: UUID | None,
+    viewer_enrollment_id: UUID | None,
+    instructor_name: str | None,
+) -> CommunityActivitySubmissionCommentRead:
+    """Resolve the author identity for a submission comment.
+
+    No bulk-load helper yet — thread depth is bounded (the modal renders
+    a single submission's comments at a time, typically <20 rows), so a
+    per-row session.get is acceptable. Promote to a bulk-load if the
+    typical thread length grows."""
+    from polar.models.course_enrollment import CourseEnrollment
+
+    author: CommunityActivitySubmissionCommentAuthor
+    is_own = False
+    if comment.author_user_id is not None:
+        user = await session.get(User, comment.author_user_id)
+        name = (
+            (instructor_name or "").strip()
+            or (getattr(user, "public_name", None) or "").strip()
+            or getattr(user, "username", None)
+            or getattr(user, "email", None)
+            or "Instructor"
+        )
+        author = CommunityActivitySubmissionCommentAuthor(
+            kind="instructor",
+            name=name,
+            avatar_url=getattr(user, "avatar_url", None) if user else None,
+        )
+        if viewer_user_id is not None and viewer_user_id == comment.author_user_id:
+            is_own = True
+    else:
+        enr = (
+            await session.get(CourseEnrollment, comment.author_enrollment_id)
+            if comment.author_enrollment_id is not None
+            else None
+        )
+        cust = (
+            await session.get(Customer, enr.customer_id) if enr is not None else None
+        )
+        name = (
+            (getattr(cust, "name", None) or "").strip()
+            or (getattr(cust, "email", None) or "Member")
+        )
+        author = CommunityActivitySubmissionCommentAuthor(
+            kind="student",
+            name=name,
+            avatar_url=getattr(cust, "avatar_url", None) if cust else None,
+        )
+        if (
+            viewer_enrollment_id is not None
+            and comment.author_enrollment_id == viewer_enrollment_id
+        ):
+            is_own = True
+
+    return CommunityActivitySubmissionCommentRead(
+        id=comment.id,
+        submission_id=comment.submission_id,
+        body=comment.body,
+        author=author,
+        is_own=is_own,
+        created_at=comment.created_at,
+        modified_at=comment.modified_at,
+    )
+
+
+SubmissionID = Annotated[UUID4, ...]
+
+
+async def _assert_submission_in_course(
+    session: AsyncSession,
+    *,
+    submission_id: UUID,
+    activity_id: UUID,
+    course_id: UUID,
+):
+    """Verify the (submission, activity, course) chain so a comment write
+    can't address a submission that doesn't actually belong to the
+    course on the path."""
+    try:
+        activity = await activities_service.get(
+            session, activity_id=activity_id, course_id=course_id
+        )
+    except ActivityNotFound:
+        raise HTTPException(status_code=404, detail="Activity not found") from None
+    sub_repo = CommunityActivitySubmissionRepository.from_session(session)
+    submission = await sub_repo.get_by_id(submission_id)
+    if submission is None or submission.activity_id != activity.id:
+        raise HTTPException(status_code=404, detail="Submission not found")
+    return submission
+
+
+@creator_router.get(
+    "/{course_id}/activities/{activity_id}/submissions/{submission_id}/comments",
+    response_model=list[CommunityActivitySubmissionCommentRead],
+    summary="List Submission Comments (Creator)",
+)
+async def list_submission_comments_creator(
+    course_id: CourseID,
+    activity_id: ActivityID,
+    submission_id: SubmissionID,
+    auth_subject: CommunityCreatorRead,
+    session: AsyncSession = Depends(get_db_session),
+) -> list[CommunityActivitySubmissionCommentRead]:
+    await _require_creator_owns_course(session, course_id, auth_subject)
+    await _assert_submission_in_course(
+        session,
+        submission_id=submission_id,
+        activity_id=activity_id,
+        course_id=course_id,
+    )
+    course_repo = CourseRepository.from_session(session)
+    course = await course_repo.get_by_id(course_id)
+    instructor_name = course.instructor_name if course else None
+    viewer_user_id = (
+        auth_subject.subject.id if is_user(auth_subject) else None
+    )
+    rows = await activities_service.list_submission_comments(
+        session, submission_id=submission_id
+    )
+    return [
+        await _comment_to_read(
+            session,
+            c,
+            viewer_user_id=viewer_user_id,
+            viewer_enrollment_id=None,
+            instructor_name=instructor_name,
+        )
+        for c in rows
+    ]
+
+
+@creator_router.post(
+    "/{course_id}/activities/{activity_id}/submissions/{submission_id}/comments",
+    response_model=CommunityActivitySubmissionCommentRead,
+    status_code=201,
+    summary="Comment on a Submission (Creator)",
+)
+async def create_submission_comment_creator(
+    course_id: CourseID,
+    activity_id: ActivityID,
+    submission_id: SubmissionID,
+    payload: CommunityActivitySubmissionCommentCreate,
+    auth_subject: CommunityCreatorWrite,
+    session: AsyncSession = Depends(get_db_session),
+) -> CommunityActivitySubmissionCommentRead:
+    await _require_creator_owns_course(session, course_id, auth_subject)
+    user_id = _require_user_subject(auth_subject)
+    await _assert_submission_in_course(
+        session,
+        submission_id=submission_id,
+        activity_id=activity_id,
+        course_id=course_id,
+    )
+    comment = await activities_service.create_submission_comment(
+        session,
+        submission_id=submission_id,
+        payload=payload,
+        author_user_id=user_id,
+    )
+    course_repo = CourseRepository.from_session(session)
+    course = await course_repo.get_by_id(course_id)
+    return await _comment_to_read(
+        session,
+        comment,
+        viewer_user_id=user_id,
+        viewer_enrollment_id=None,
+        instructor_name=course.instructor_name if course else None,
+    )
+
+
+@customer_router.get(
+    "/{course_id}/activities/{activity_id}/submissions/{submission_id}/comments",
+    response_model=list[CommunityActivitySubmissionCommentRead],
+    summary="List Submission Comments (Customer Portal)",
+)
+async def list_submission_comments_customer(
+    course_id: CourseID,
+    activity_id: ActivityID,
+    submission_id: SubmissionID,
+    auth_subject: CommunityCustomerRead,
+    session: AsyncSession = Depends(get_db_session),
+) -> list[CommunityActivitySubmissionCommentRead]:
+    customer_id = get_customer_id(auth_subject)
+    await community_service.assert_enrolled(
+        session, customer_id=customer_id, course_id=course_id
+    )
+    await community_service.assert_community_enabled(session, course_id)
+    submission = await _assert_submission_in_course(
+        session,
+        submission_id=submission_id,
+        activity_id=activity_id,
+        course_id=course_id,
+    )
+    # Hide threads under instr-only submissions from peer customers.
+    if (
+        submission.visibility == "instr"
+        and submission.customer_id != customer_id
+    ):
+        raise HTTPException(status_code=404, detail="Submission not found")
+
+    from polar.course.repository import CourseEnrollmentRepository
+
+    enrollment = await CourseEnrollmentRepository.from_session(
+        session
+    ).get_active_for_customer_course(customer_id, course_id)
+    viewer_enrollment_id = enrollment.id if enrollment else None
+    course_repo = CourseRepository.from_session(session)
+    course = await course_repo.get_by_id(course_id)
+    rows = await activities_service.list_submission_comments(
+        session, submission_id=submission_id
+    )
+    return [
+        await _comment_to_read(
+            session,
+            c,
+            viewer_user_id=None,
+            viewer_enrollment_id=viewer_enrollment_id,
+            instructor_name=course.instructor_name if course else None,
+        )
+        for c in rows
+    ]
+
+
+@customer_router.post(
+    "/{course_id}/activities/{activity_id}/submissions/{submission_id}/comments",
+    response_model=CommunityActivitySubmissionCommentRead,
+    status_code=201,
+    summary="Comment on a Submission (Customer Portal)",
+)
+async def create_submission_comment_customer(
+    course_id: CourseID,
+    activity_id: ActivityID,
+    submission_id: SubmissionID,
+    payload: CommunityActivitySubmissionCommentCreate,
+    auth_subject: CommunityCustomerWrite,
+    session: AsyncSession = Depends(get_db_session),
+) -> CommunityActivitySubmissionCommentRead:
+    customer_id = get_customer_id(auth_subject)
+    await community_service.assert_enrolled(
+        session, customer_id=customer_id, course_id=course_id
+    )
+    await community_service.assert_community_enabled(session, course_id)
+    submission = await _assert_submission_in_course(
+        session,
+        submission_id=submission_id,
+        activity_id=activity_id,
+        course_id=course_id,
+    )
+    # Same visibility gate as the read path — a peer can't reply under
+    # an instructor-only submission they shouldn't be able to see.
+    if (
+        submission.visibility == "instr"
+        and submission.customer_id != customer_id
+    ):
+        raise HTTPException(status_code=404, detail="Submission not found")
+
+    from polar.course.repository import CourseEnrollmentRepository
+
+    enrollment = await CourseEnrollmentRepository.from_session(
+        session
+    ).get_active_for_customer_course(customer_id, course_id)
+    if enrollment is None:
+        raise HTTPException(status_code=403, detail="Not enrolled in this course.")
+    comment = await activities_service.create_submission_comment(
+        session,
+        submission_id=submission_id,
+        payload=payload,
+        author_enrollment_id=enrollment.id,
+    )
+    course_repo = CourseRepository.from_session(session)
+    course = await course_repo.get_by_id(course_id)
+    return await _comment_to_read(
+        session,
+        comment,
+        viewer_user_id=None,
+        viewer_enrollment_id=enrollment.id,
+        instructor_name=course.instructor_name if course else None,
     )
 
 

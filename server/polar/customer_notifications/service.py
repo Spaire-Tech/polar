@@ -32,45 +32,72 @@ class CustomerNotificationService:
         customer_id: UUID,
         notification_type: str,
         payload: dict,
-    ) -> CustomerNotification:
+    ) -> CustomerNotification | None:
         """Insert a notification row + publish SSE + queue email.
 
-        Returns the inserted row. Email is enqueued via dramatiq so the
-        request thread isn't blocked on render."""
-        repo = CustomerNotificationRepository.from_session(session)
-        notif = CustomerNotification(
-            customer_id=customer_id,
-            type=notification_type,
-            payload=payload,
+        Returns the inserted row (or None when the customer has muted
+        the bell channel and there's nothing to insert). Email is
+        enqueued via dramatiq so the request thread isn't blocked on
+        render."""
+        prefs_repo = CustomerNotificationPreferencesRepository.from_session(
+            session
         )
-        await repo.create(notif, flush=True)
+        # Load prefs once; cheap and avoids two roundtrips.
+        prefs = await prefs_repo.get_for_customer(customer_id)
+        bell_on = True if prefs is None else prefs.bell_enabled
+        email_on = True if prefs is None else prefs.email_enabled
 
-        # Live bell badge — fire and forget. The receiver simply
-        # increments its unread count, then refetches the list when
-        # the dropdown is opened.
-        try:
-            await publish_event(
-                key="customer_notification.created",
-                payload={
-                    "notification_id": str(notif.id),
-                    "type": notification_type,
-                },
+        notif: CustomerNotification | None = None
+        if bell_on:
+            repo = CustomerNotificationRepository.from_session(session)
+            notif = CustomerNotification(
                 customer_id=customer_id,
+                type=notification_type,
+                payload=payload,
             )
-        except Exception:
-            # SSE is best-effort; don't break the write path.
-            pass
+            await repo.create(notif, flush=True)
+
+            # Live bell badge — fire and forget. The receiver simply
+            # increments its unread count, then refetches the list when
+            # the dropdown is opened.
+            try:
+                await publish_event(
+                    key="customer_notification.created",
+                    payload={
+                        "notification_id": str(notif.id),
+                        "type": notification_type,
+                    },
+                    customer_id=customer_id,
+                )
+            except Exception:
+                # SSE is best-effort; don't break the write path.
+                pass
 
         # Email channel — gated by per-customer prefs + the type allowlist.
-        if notification_type in EMAIL_TYPES:
-            prefs_repo = CustomerNotificationPreferencesRepository.from_session(
-                session
-            )
-            if await prefs_repo.email_enabled(customer_id):
+        # When the bell row was created we can route via the existing
+        # send-email actor (which loads body/recipient off the row). With
+        # the bell muted we send directly so a "emails on, bell off"
+        # customer still gets the email.
+        if notification_type in EMAIL_TYPES and email_on:
+            if notif is not None:
                 enqueue_job(
                     "customer_notification.send_email",
                     notification_id=notif.id,
                 )
+            else:
+                from polar.customer.repository import CustomerRepository
+                from polar.email.sender import enqueue_email
+
+                customer = await CustomerRepository.from_session(
+                    session
+                ).get_by_id(customer_id)
+                if customer is not None and customer.email:
+                    subject, body = render(notification_type, payload)
+                    enqueue_email(
+                        to_email_addr=customer.email,
+                        subject=subject,
+                        html_content=body,
+                    )
 
         return notif
 

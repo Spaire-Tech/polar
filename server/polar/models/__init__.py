@@ -13,6 +13,9 @@ from .checkout_product import CheckoutProduct
 from .client_invoice import ClientInvoice, ClientInvoiceLineItem, ClientInvoiceStatus
 from .community_activity import CommunityActivity
 from .community_activity_submission import CommunityActivitySubmission
+from .community_activity_submission_comment import (
+    CommunityActivitySubmissionComment,
+)
 from .community_comment import CommunityComment
 from .community_event import CommunityEvent
 from .community_event_rsvp import CommunityEventRsvp
@@ -140,6 +143,7 @@ __all__ = [
     "ClientInvoiceStatus",
     "CommunityActivity",
     "CommunityActivitySubmission",
+    "CommunityActivitySubmissionComment",
     "CommunityComment",
     "CommunityEvent",
     "CommunityEventRsvp",

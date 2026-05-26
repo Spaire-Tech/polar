@@ -679,5 +679,6 @@ function buildSubmissionBody(sub: ActivitySubmissionInput) {
     file_id: sub.fileId ?? null,
     mux_upload_id: sub.muxUploadId ?? null,
     link_url: sub.linkUrl ?? null,
+    visibility: sub.visibility ?? 'cohort',
   }
 }

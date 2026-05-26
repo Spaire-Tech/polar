@@ -14,6 +14,13 @@ from polar.kit.repository import (
 )
 from polar.models.community_activity import CommunityActivity
 from polar.models.community_activity_submission import CommunityActivitySubmission
+from polar.models.community_activity_submission_comment import (
+    CommunityActivitySubmissionComment,
+)
+from polar.models.course_lesson import CourseLesson
+from polar.models.course_module import CourseModule
+from polar.models.customer import Customer
+from polar.models.user import User
 
 
 class CommunityActivityRepository(
@@ -58,6 +65,93 @@ class CommunityActivityRepository(
         result = await self.session.execute(statement)
         return {row[0]: row[1] for row in result.all() if row[0] is not None}
 
+    async def bulk_load_hosts(self, user_ids: set[UUID]) -> dict[UUID, User]:
+        if not user_ids:
+            return {}
+        statement = select(User).where(User.id.in_(user_ids))
+        result = await self.session.execute(statement)
+        return {u.id: u for u in result.scalars().all()}
+
+    async def bulk_load_channel_labels(
+        self, activities: Sequence[CommunityActivity]
+    ) -> dict[UUID, str | None]:
+        """Resolve {activity_id: channel_label} for every row on the
+        list page in two IN-queries instead of one session.get per row.
+
+        channel_label is the title of the activity's lesson (lesson-
+        scoped) or module (module-scoped). Returns None for activities
+        whose channel target was hard-deleted out from under them."""
+        module_ids = {
+            a.module_id
+            for a in activities
+            if a.channel_kind == "module" and a.module_id is not None
+        }
+        lesson_ids = {
+            a.lesson_id
+            for a in activities
+            if a.channel_kind == "lesson" and a.lesson_id is not None
+        }
+
+        module_titles: dict[UUID, str] = {}
+        if module_ids:
+            stmt = select(CourseModule.id, CourseModule.title).where(
+                CourseModule.id.in_(module_ids)
+            )
+            rows = (await self.session.execute(stmt)).all()
+            module_titles = {row[0]: row[1] for row in rows}
+
+        lesson_titles: dict[UUID, str] = {}
+        if lesson_ids:
+            stmt2 = select(CourseLesson.id, CourseLesson.title).where(
+                CourseLesson.id.in_(lesson_ids)
+            )
+            rows2 = (await self.session.execute(stmt2)).all()
+            lesson_titles = {row[0]: row[1] for row in rows2}
+
+        out: dict[UUID, str | None] = {}
+        for a in activities:
+            if a.channel_kind == "module" and a.module_id is not None:
+                out[a.id] = module_titles.get(a.module_id)
+            elif a.channel_kind == "lesson" and a.lesson_id is not None:
+                out[a.id] = lesson_titles.get(a.lesson_id)
+            else:
+                out[a.id] = None
+        return out
+
+    async def module_info_by_pinned_post_ids(
+        self, post_ids: set[UUID]
+    ) -> dict[UUID, tuple[UUID, str | None]]:
+        """Return {pinned_post_id: (module_id, module_title)} for module-
+        scoped activity pins. Lesson-scoped pins are omitted — the
+        existing lesson chip already covers them.
+
+        Composed here (rather than in two queries on the service) so the
+        feed render context can pull module chips in O(1) per page."""
+        if not post_ids:
+            return {}
+        from polar.models.course_module import CourseModule
+
+        statement = (
+            select(
+                CommunityActivity.pinned_post_id,
+                CommunityActivity.module_id,
+                CourseModule.title,
+            )
+            .join(CourseModule, CourseModule.id == CommunityActivity.module_id)
+            .where(
+                CommunityActivity.pinned_post_id.in_(post_ids),
+                CommunityActivity.deleted_at.is_(None),
+                CommunityActivity.channel_kind == "module",
+                CommunityActivity.module_id.is_not(None),
+            )
+        )
+        result = await self.session.execute(statement)
+        return {
+            row[0]: (row[1], row[2])
+            for row in result.all()
+            if row[0] is not None
+        }
+
 
 class CommunityActivitySubmissionRepository(
     RepositorySoftDeletionIDMixin[CommunityActivitySubmission, UUID],
@@ -72,6 +166,29 @@ class CommunityActivitySubmissionRepository(
         statement = (
             self.get_base_statement()
             .where(CommunityActivitySubmission.activity_id == activity_id)
+            .order_by(CommunityActivitySubmission.created_at.desc())
+        )
+        return await self.get_all(statement)
+
+    async def list_for_activity_for_customer(
+        self, activity_id: UUID, viewer_customer_id: UUID
+    ) -> Sequence[CommunityActivitySubmission]:
+        """Customer-side listing — applies visibility filtering.
+
+        Submissions marked 'instr' (instructor-only) are hidden from
+        peer customers but stay visible to their author so the
+        submitter doesn't lose track of their own work."""
+        from sqlalchemy import or_
+
+        statement = (
+            self.get_base_statement()
+            .where(
+                CommunityActivitySubmission.activity_id == activity_id,
+                or_(
+                    CommunityActivitySubmission.visibility != "instr",
+                    CommunityActivitySubmission.customer_id == viewer_customer_id,
+                ),
+            )
             .order_by(CommunityActivitySubmission.created_at.desc())
         )
         return await self.get_all(statement)
@@ -132,6 +249,17 @@ class CommunityActivitySubmissionRepository(
         result = await self.session.execute(statement)
         return {row[0]: int(row[1]) for row in result.all()}
 
+    async def bulk_load_authors(
+        self, customer_ids: set[UUID]
+    ) -> dict[UUID, Customer]:
+        """Bulk-load Customer rows so the submission list serializer
+        doesn't issue one session.get per row."""
+        if not customer_ids:
+            return {}
+        statement = select(Customer).where(Customer.id.in_(customer_ids))
+        result = await self.session.execute(statement)
+        return {c.id: c for c in result.scalars().all()}
+
     async def activity_ids_with_own_submission(
         self, activity_ids: Sequence[UUID], customer_id: UUID
     ) -> set[UUID]:
@@ -144,3 +272,24 @@ class CommunityActivitySubmissionRepository(
         )
         result = await self.session.execute(statement)
         return {row[0] for row in result.all()}
+
+
+class CommunityActivitySubmissionCommentRepository(
+    RepositorySoftDeletionIDMixin[CommunityActivitySubmissionComment, UUID],
+    RepositorySoftDeletionMixin[CommunityActivitySubmissionComment],
+    RepositoryBase[CommunityActivitySubmissionComment],
+):
+    model = CommunityActivitySubmissionComment
+
+    async def list_for_submission(
+        self, submission_id: UUID
+    ) -> Sequence[CommunityActivitySubmissionComment]:
+        statement = (
+            self.get_base_statement()
+            .where(
+                CommunityActivitySubmissionComment.submission_id
+                == submission_id
+            )
+            .order_by(CommunityActivitySubmissionComment.created_at.asc())
+        )
+        return await self.get_all(statement)

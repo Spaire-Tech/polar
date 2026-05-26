@@ -85,7 +85,13 @@ export function EventDetailModal({ event, onClose, onToggleGoing }: Props) {
 
   return (
     <div className={styles.eventIframeOverlay} onClick={onClose}>
-      <div className={styles.eventIframe} onClick={(e) => e.stopPropagation()}>
+      <div
+        className={styles.eventIframe}
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Event details"
+      >
         <div className={styles.eventIframeChrome}>
           <div className={styles.eventIframeDots}>
             <span />

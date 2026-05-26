@@ -48,6 +48,11 @@ export interface CommunityReactionSummaryEntry {
   mine: boolean
 }
 
+export interface CommunityModuleChip {
+  module_id: string
+  module_title: string | null
+}
+
 export interface CommunityLessonChip {
   lesson_id: string
   lesson_title: string
@@ -77,6 +82,9 @@ export interface CommunityPostRead {
   body_format: 'markdown' | 'plain'
   author: CommunityAuthor
   lesson: CommunityLessonChip | null
+  /** Set on activity pins whose underlying activity is module-scoped
+   * (no lesson). The FE renders a "re: Module" chip in that case. */
+  module: CommunityModuleChip | null
   tag: CommunityTagRead | null
   media: CommunityPostMediaRead[]
   published_at: string | null
@@ -1357,6 +1365,8 @@ export interface CommunityActivityUpdateBody {
   status?: ActivityStatus
 }
 
+export type ActivitySubmissionVisibility = 'cohort' | 'all' | 'instr'
+
 export interface CommunityActivitySubmissionRead {
   id: string
   activity_id: string
@@ -1365,7 +1375,9 @@ export interface CommunityActivitySubmissionRead {
   file_id: string | null
   file_url: string | null
   mux_playback_id: string | null
+  mux_status: string | null
   link_url: string | null
+  visibility: ActivitySubmissionVisibility
   author_name: string
   author_avatar_url: string | null
   is_own: boolean
@@ -1379,6 +1391,7 @@ export interface CommunityActivitySubmissionCreateBody {
   file_id?: string | null
   mux_upload_id?: string | null
   link_url?: string | null
+  visibility?: ActivitySubmissionVisibility
 }
 
 const activitiesKey = (
@@ -1522,6 +1535,78 @@ export const useSubmitToCommunityActivity = (
       // Touch the specific submissions key so the modal refreshes.
       getQueryClient().invalidateQueries({
         queryKey: submissionsKey('customer', token ?? '', vars.activityId),
+      })
+    },
+  })
+
+// =====================================================================
+// Submission comments
+// =====================================================================
+
+export interface CommunityActivitySubmissionCommentAuthor {
+  kind: 'student' | 'instructor'
+  name: string
+  avatar_url: string | null
+}
+
+export interface CommunityActivitySubmissionCommentRead {
+  id: string
+  submission_id: string
+  body: string
+  author: CommunityActivitySubmissionCommentAuthor
+  is_own: boolean
+  created_at: string
+  modified_at: string | null
+}
+
+const submissionCommentsKey = (
+  mode: CommunityIOMode,
+  token: string,
+  submissionId: string,
+) =>
+  ['community-activity-submission-comments', mode, token, submissionId] as const
+
+export const useSubmissionComments = (
+  token: string | null | undefined,
+  courseId: string | undefined,
+  activityId: string | undefined,
+  submissionId: string | undefined,
+  mode: CommunityIOMode = 'customer',
+) =>
+  useQuery<CommunityActivitySubmissionCommentRead[]>({
+    queryKey: submissionCommentsKey(mode, token ?? mode, submissionId ?? ''),
+    queryFn: () =>
+      communityFetch<CommunityActivitySubmissionCommentRead[]>(
+        mode,
+        token,
+        `${communityBase(mode, courseId!)}/activities/${activityId}/submissions/${submissionId}/comments`,
+      ),
+    enabled:
+      !!courseId &&
+      !!activityId &&
+      !!submissionId &&
+      (mode === 'creator' || !!token),
+  })
+
+export const usePostSubmissionComment = (
+  token: string | null | undefined,
+  courseId: string | undefined,
+  activityId: string | undefined,
+  submissionId: string | undefined,
+  mode: CommunityIOMode = 'customer',
+) =>
+  useMutation({
+    mutationFn: (body: { body: string }) =>
+      communityFetch<CommunityActivitySubmissionCommentRead>(
+        mode,
+        token,
+        `${communityBase(mode, courseId!)}/activities/${activityId}/submissions/${submissionId}/comments`,
+        { method: 'POST', body: JSON.stringify(body) },
+      ),
+    onSuccess: () => {
+      if (!submissionId) return
+      getQueryClient().invalidateQueries({
+        queryKey: submissionCommentsKey(mode, token ?? mode, submissionId),
       })
     },
   })

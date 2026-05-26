@@ -229,6 +229,15 @@ class CommunityLessonChip(Schema):
     module_title: str | None = None
 
 
+class CommunityModuleChip(Schema):
+    """Module-only chip used on activity pins where the activity is
+    scoped to a module (no lesson). Mirrors CommunityLessonChip's shape
+    so the FE can render the same pill component."""
+
+    module_id: UUID4
+    module_title: str | None = None
+
+
 class CommunityPostCreate(Schema):
     # Phase 1 ships text only. Video lands in Phase 3 alongside Mux.
     type: Literal["text"] = "text"
@@ -276,6 +285,10 @@ class CommunityPostRead(TimestampedSchema):
     body_format: Literal["markdown", "plain"]
     author: CommunityAuthor = Field(discriminator="kind")
     lesson: CommunityLessonChip | None = None
+    # Set on activity pins whose underlying activity is module-scoped
+    # (channel_kind='module'); these don't have a lesson chip but the
+    # feed should still show "re: Module N" so the pin is contextual.
+    module: CommunityModuleChip | None = None
     tag: CommunityTagRead | None = None
     media: list[CommunityPostMediaRead] = Field(default_factory=list)
     published_at: datetime | None

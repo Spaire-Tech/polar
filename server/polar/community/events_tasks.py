@@ -35,10 +35,11 @@ from datetime import timedelta
 from uuid import UUID
 
 import structlog
-from sqlalchemy import select
 
-from polar.course.repository import CourseRepository
+from polar.course.repository import CourseEnrollmentRepository, CourseRepository
+from polar.customer.repository import CustomerRepository
 from polar.customer_notifications.notification_types import (
+    EMAIL_TYPES,
     EVENT_LIVE,
     EVENT_PUBLISHED,
     EVENT_REPLAY_NAG_T2H,
@@ -46,8 +47,10 @@ from polar.customer_notifications.notification_types import (
     EVENT_STARTING_SOON_15M,
     EVENT_STARTING_SOON_24H,
     EventNotificationPayload,
+    render,
 )
 from polar.customer_notifications.service import customer_notifications
+from polar.email.sender import enqueue_email
 from polar.exceptions import PolarTaskError
 from polar.kit.utils import utc_now
 from polar.logging import Logger
@@ -100,14 +103,9 @@ async def _build_payload(session, event) -> dict:
 
 
 async def _enrolled_customer_ids(session, course_id: UUID) -> list[UUID]:
-    from polar.models.course_enrollment import CourseEnrollment
-
-    statement = select(CourseEnrollment.customer_id).where(
-        CourseEnrollment.course_id == course_id,
-        CourseEnrollment.deleted_at.is_(None),
-    )
-    result = await session.execute(statement)
-    return [r[0] for r in result.all()]
+    return await CourseEnrollmentRepository.from_session(
+        session
+    ).list_customer_ids_for_course(course_id)
 
 
 # ----------------------------------------------------------------------
@@ -181,9 +179,19 @@ async def _fire_window(
             return
         if only_if_within_minutes is not None:
             # If start_at moved more than the slack window in either
-            # direction, this scheduled fire is stale — drop it.
+            # direction, this scheduled fire is stale — drop it. We log
+            # so it's debuggable: silently dropping reminders for
+            # rescheduled events used to look like the system was just
+            # broken.
             delta_min = abs((event.start_at - utc_now()).total_seconds() / 60.0)
             if delta_min > only_if_within_minutes:
+                log.info(
+                    "community.event.reminder.stale_drop",
+                    event_id=str(event_id),
+                    notification_type=notification_type,
+                    delta_minutes=round(delta_min, 1),
+                    slack_minutes=only_if_within_minutes,
+                )
                 return
 
         rsvp_repo = CommunityEventRsvpRepository.from_session(session)
@@ -257,36 +265,49 @@ async def replay_nag_cron() -> None:
 async def _send_replay_nag(
     session, event, notification_type: str, *, next_state: str
 ) -> None:
-    # Find the host's customer-portal identity. The host is an org User —
-    # not a Customer. Replay nags go to the host's email + bell (org-side),
-    # but for v1 we route them via the customer-notifications surface only
-    # if the host also has a Customer row with the same email. Otherwise
-    # we just bump state and log — the host can see "no replay yet" UI
-    # in the dashboard.
+    # Replay nags go to the event's host. Hosts are org Users, not
+    # Customers, so we try two paths:
+    #
+    #   1. If the host happens to also have a Customer row with the same
+    #      email (e.g. enrolled in their own course), route through the
+    #      customer-notifications surface so the bell badge updates too.
+    #   2. Otherwise — the common case for instructors — fall back to a
+    #      direct email to the User's address. Without this, hosts who
+    #      aren't customers never get nudged about pasting a replay URL.
     host = await session.get(User, event.host_user_id)
     if host is None or not getattr(host, "email", None):
         event.replay_nag_state = next_state
         session.add(event)
         return
 
-    from sqlalchemy import select
+    customer_id = await CustomerRepository.from_session(
+        session
+    ).get_id_by_email(host.email)
 
-    from polar.models.customer import Customer
-
-    stmt = select(Customer.id).where(Customer.email == host.email).limit(1)
-    result = await session.execute(stmt)
-    customer_id = result.scalar_one_or_none()
+    payload = await _build_payload(session, event)
 
     if customer_id is not None:
-        from polar.community.events_tasks import _build_payload  # self-ref ok
-
-        payload = await _build_payload(session, event)
         await customer_notifications.send_to_customer(
             session,
             customer_id=customer_id,
             notification_type=notification_type,
             payload=payload,
         )
+    elif notification_type in EMAIL_TYPES:
+        # Direct-to-host email fallback — no bell row exists for users
+        # outside the customer portal, so the email is the only surface.
+        try:
+            subject, body = render(notification_type, payload)
+            enqueue_email(
+                to_email_addr=host.email,
+                subject=subject,
+                html_content=body,
+            )
+        except Exception:
+            log.exception(
+                "community.event.replay_nag.host_email_failed",
+                event_id=str(event.id),
+            )
 
     event.replay_nag_state = next_state
     session.add(event)

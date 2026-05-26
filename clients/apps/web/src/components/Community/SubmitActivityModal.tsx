@@ -45,6 +45,63 @@ type Props = {
   ) => Promise<void> | void
 }
 
+// Drafts are persisted in localStorage so a refresh mid-submission
+// doesn't orphan the uploaded file. Keyed by activity + mode + token so
+// two browsers / two cohorts on the same machine don't collide.
+type DraftState = {
+  fileId: string | null
+  muxUploadId: string | null
+  fileName: string | null
+  caption: string
+  linkUrl: string
+  visibility: Visibility
+}
+
+const DRAFT_STORAGE_PREFIX = 'community.activity.draft.v1'
+
+const draftKey = (
+  activityId: string,
+  mode: 'creator' | 'customer',
+  token: string | null | undefined,
+) => `${DRAFT_STORAGE_PREFIX}:${mode}:${token ?? 'anon'}:${activityId}`
+
+const loadDraft = (key: string): DraftState | null => {
+  if (typeof window === 'undefined') return null
+  try {
+    const raw = window.localStorage.getItem(key)
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as Partial<DraftState>
+    return {
+      fileId: parsed.fileId ?? null,
+      muxUploadId: parsed.muxUploadId ?? null,
+      fileName: parsed.fileName ?? null,
+      caption: parsed.caption ?? '',
+      linkUrl: parsed.linkUrl ?? '',
+      visibility: (parsed.visibility as Visibility) ?? 'cohort',
+    }
+  } catch {
+    return null
+  }
+}
+
+const saveDraft = (key: string, draft: DraftState) => {
+  if (typeof window === 'undefined') return
+  try {
+    window.localStorage.setItem(key, JSON.stringify(draft))
+  } catch {
+    // Quota or private-mode — fall back silently.
+  }
+}
+
+const clearDraft = (key: string) => {
+  if (typeof window === 'undefined') return
+  try {
+    window.localStorage.removeItem(key)
+  } catch {
+    // ignore
+  }
+}
+
 export function SubmitActivityModal({
   activity,
   courseId,
@@ -69,19 +126,73 @@ export function SubmitActivityModal({
   const uploadImage = useUploadPostImage(customerSessionToken, courseId, mode)
   const uploadVideo = useUploadPostVideo(customerSessionToken, courseId, mode)
 
-  // Reset state whenever the active activity changes.
+  // Rehydrate any in-progress draft so a refresh mid-submission doesn't
+  // orphan the upload. The preview blob URL is gone after a refresh
+  // (object URLs are session-local), but we keep the file name so the
+  // user sees "X uploaded — submit to finish" instead of a blank zone.
   useEffect(() => {
-    setFile(null)
-    setFileId(null)
-    setMuxUploadId(null)
-    setCaption('')
-    setLinkUrl('')
-    setVisibility('cohort')
+    if (!activity?.id) return
+    const key = draftKey(activity.id, mode, customerSessionToken)
+    const draft = loadDraft(key)
+    if (draft) {
+      setFileId(draft.fileId)
+      setMuxUploadId(draft.muxUploadId)
+      setCaption(draft.caption)
+      setLinkUrl(draft.linkUrl)
+      setVisibility(draft.visibility)
+      if (draft.fileName && (draft.fileId || draft.muxUploadId)) {
+        setFile({ name: draft.fileName, previewUrl: '' })
+      } else {
+        setFile(null)
+      }
+    } else {
+      setFile(null)
+      setFileId(null)
+      setMuxUploadId(null)
+      setCaption('')
+      setLinkUrl('')
+      setVisibility('cohort')
+    }
     setUploading(false)
     setProgress(0)
     setError(null)
     setSubmitting(false)
-  }, [activity?.id])
+  }, [activity?.id, mode, customerSessionToken])
+
+  // Mirror state to localStorage so a refresh recovers it. Skipped
+  // while uploading — the half-uploaded ref isn't safe to revive.
+  useEffect(() => {
+    if (!activity?.id || uploading) return
+    const key = draftKey(activity.id, mode, customerSessionToken)
+    const hasContent =
+      fileId !== null ||
+      muxUploadId !== null ||
+      caption.trim().length > 0 ||
+      linkUrl.trim().length > 0
+    if (!hasContent) {
+      clearDraft(key)
+      return
+    }
+    saveDraft(key, {
+      fileId,
+      muxUploadId,
+      fileName: file?.name ?? null,
+      caption,
+      linkUrl,
+      visibility,
+    })
+  }, [
+    activity?.id,
+    mode,
+    customerSessionToken,
+    fileId,
+    muxUploadId,
+    file?.name,
+    caption,
+    linkUrl,
+    visibility,
+    uploading,
+  ])
 
   useEffect(() => {
     if (!activity) return
@@ -157,7 +268,9 @@ export function SubmitActivityModal({
         fileId: fileId ?? undefined,
         muxUploadId: muxUploadId ?? undefined,
         linkUrl: linkUrl.trim() || undefined,
+        visibility,
       })
+      clearDraft(draftKey(activity.id, mode, customerSessionToken))
       onClose()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Submission failed')
@@ -170,7 +283,13 @@ export function SubmitActivityModal({
 
   return (
     <div className={styles.modalBackdrop} onClick={onClose}>
-      <div className={styles.saModal} onClick={(e) => e.stopPropagation()}>
+      <div
+        className={styles.saModal}
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-label={`Submit to ${activity.title}`}
+      >
         <div className={styles.saHead}>
           <div className={styles.saHeadInfo}>
             <span className={styles.saEyebrow}>
@@ -339,8 +458,8 @@ export function SubmitActivityModal({
                 color: 'var(--c-muted)',
               }}
             >
-              Visibility scoping ships with the next backend slice; for now
-              every submission is visible to the whole cohort.
+              Choose who sees your submission. Instructor-only hides it from
+              peers but keeps it visible to you and your instructor.
             </div>
           </div>
 

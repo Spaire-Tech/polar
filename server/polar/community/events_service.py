@@ -157,12 +157,22 @@ class CommunityEventService:
         if "replay_url" in data and data["replay_url"]:
             event.replay_nag_state = "done"
 
+        # Cover replacement: enqueue cleanup of the old image so we
+        # don't accumulate orphans in S3 when the host swaps covers.
+        prev_cover = event.cover_url
         for k, v in data.items():
             if k == "start_at" and v is not None and v.tzinfo is None:
                 v = v.replace(tzinfo=UTC)
             setattr(event, k, v)
 
         await session.flush()
+
+        if (
+            "cover_url" in data
+            and prev_cover
+            and prev_cover != event.cover_url
+        ):
+            enqueue_job("community.cover.cleanup", cover_url=prev_cover)
 
         # If start_at changed, re-schedule reminders.
         if "start_at" in data or "duration_minutes" in data:
@@ -183,6 +193,8 @@ class CommunityEventService:
             raise EventHostMismatch()
         repo = CommunityEventRepository.from_session(session)
         await repo.soft_delete(event)
+        if event.cover_url:
+            enqueue_job("community.cover.cleanup", cover_url=event.cover_url)
 
     # ------------------------------------------------------------------
     # Writes — RSVP (customer side)

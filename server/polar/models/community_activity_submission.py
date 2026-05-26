@@ -33,6 +33,10 @@ class CommunityActivitySubmission(RecordModel):
             "submission_type IN ('photo', 'video', 'text', 'link')",
             name="community_activity_submissions_submission_type_check",
         ),
+        CheckConstraint(
+            "visibility IN ('cohort', 'all', 'instr')",
+            name="community_activity_submissions_visibility_check",
+        ),
     )
 
     activity_id: Mapped[UUID] = mapped_column(
@@ -66,8 +70,33 @@ class CommunityActivitySubmission(RecordModel):
     mux_upload_id: Mapped[str | None] = mapped_column(
         String(64), nullable=True, default=None
     )
+    mux_asset_id: Mapped[str | None] = mapped_column(
+        String(64), nullable=True, default=None
+    )
+
+    # Lifecycle for video submissions. Mirrors community_post_media.mux_status:
+    #   waiting    — direct upload created, bytes not yet finalized
+    #   processing — Mux has the asset and is transcoding
+    #   ready      — playable; mux_playback_id is set
+    #   errored    — upload or transcode failed
+    #   deleted    — asset deleted on Mux side
+    # Non-video submissions leave this NULL.
+    mux_status: Mapped[str | None] = mapped_column(
+        String(20), nullable=True, default=None
+    )
 
     link_url: Mapped[str | None] = mapped_column(Text, nullable=True, default=None)
+
+    # Visibility scope chosen by the submitter:
+    #   cohort — visible to enrolled customers + host (default)
+    #   all    — visible to everyone enrolled across cohorts (same as
+    #            cohort while we have a single cohort per course; kept
+    #            so the UI selection round-trips honestly)
+    #   instr  — visible to the host + the submitter only
+    # Enforced in the customer-side list endpoint.
+    visibility: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="cohort"
+    )
 
     @declared_attr
     def activity(cls) -> Mapped["CommunityActivity"]:

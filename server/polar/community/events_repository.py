@@ -18,6 +18,7 @@ from polar.kit.repository import (
 )
 from polar.models.community_event import CommunityEvent
 from polar.models.community_event_rsvp import CommunityEventRsvp
+from polar.models.user import User
 
 
 class CommunityEventRepository(
@@ -46,6 +47,16 @@ class CommunityEventRepository(
             CommunityEvent.course_id == course_id,
         )
         return await self.get_one_or_none(statement)
+
+    async def bulk_load_hosts(self, user_ids: set[UUID]) -> dict[UUID, User]:
+        """Resolve {user_id: User} for every host on a feed page in one
+        round-trip. Replaces N session.get(User, ...) calls inside the
+        per-row serializer."""
+        if not user_ids:
+            return {}
+        statement = select(User).where(User.id.in_(user_ids))
+        result = await self.session.execute(statement)
+        return {u.id: u for u in result.scalars().all()}
 
     async def list_due_for_replay_nag(
         self,

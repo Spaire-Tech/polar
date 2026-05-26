@@ -195,6 +195,34 @@ class CourseEnrollmentRepository(
             CourseEnrollment.course_id == course_id,
         )
 
+    async def get_active_for_customer_course(
+        self, customer_id: UUID, course_id: UUID
+    ) -> CourseEnrollment | None:
+        """Active (non-soft-deleted) enrollment for the (customer,
+        course) pair. Used as the author_enrollment_id source for
+        student-authored writes (community posts, submission
+        comments)."""
+        statement = self.get_by_customer_and_course_statement(
+            customer_id, course_id
+        ).where(CourseEnrollment.deleted_at.is_(None))
+        return await self.get_one_or_none(statement)
+
+    async def list_customer_ids_for_course(
+        self, course_id: UUID
+    ) -> list[UUID]:
+        """Customer ids with an active (non-deleted) enrollment in a
+        course. Powers the community fan-out tasks; the raw select
+        used to live in events_tasks/activities_tasks duplicated three
+        times — per server/CLAUDE.md, queries belong in repositories."""
+        from sqlalchemy import select
+
+        statement = select(CourseEnrollment.customer_id).where(
+            CourseEnrollment.course_id == course_id,
+            CourseEnrollment.deleted_at.is_(None),
+        )
+        result = await self.session.execute(statement)
+        return [r[0] for r in result.all()]
+
 
 class CourseLessonProgressRepository(
     RepositorySoftDeletionIDMixin[CourseLessonProgress, UUID],
