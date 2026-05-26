@@ -75,6 +75,9 @@ export function CommunityPreview({
   organizationSlug,
 }: Props) {
   const [view, setView] = useState<CommunityView>('home')
+  const [pendingActivityId, setPendingActivityId] = useState<string | null>(
+    null,
+  )
   const [lessonId, setLessonId] = useState<string | null>(null)
   const [tagId, setTagId] = useState<string | null>(null)
   const [sort] = useState<CommunitySortProperty>('recent')
@@ -201,7 +204,7 @@ export function CommunityPreview({
           href={`/${organizationSlug}/portal/community`}
           target="_blank"
           rel="noreferrer noopener"
-          title="Open the live student-facing community in a new tab"
+          title="Open the live community in the customer portal"
           style={{
             position: 'absolute',
             top: 16,
@@ -221,7 +224,7 @@ export function CommunityPreview({
             boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
           }}
         >
-          ↗ Preview as student
+          ↗ Preview
         </a>
       )}
       <div className={styles.layout}>
@@ -312,6 +315,7 @@ export function CommunityPreview({
               activities={activities}
               totalMembers={memberCount}
               uploadMode="creator"
+              initialOpenActivityId={pendingActivityId}
               canCreate
               onCreate={async (input: CommunityActivityCreateInput) => {
                 try {
@@ -447,6 +451,10 @@ export function CommunityPreview({
                       mode="creator"
                       onLessonChipClick={setLessonId}
                       onShareToast={(m) => setToast(m)}
+                      onOpenActivity={(activityId) => {
+                        setPendingActivityId(activityId)
+                        setView('activities')
+                      }}
                     />
                   ))
                 )}

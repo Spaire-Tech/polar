@@ -50,6 +50,9 @@ type Props = {
 
 export function CommunityFeed({ courseId, customerSessionToken }: Props) {
   const [view, setView] = useState<CommunityView>('home')
+  const [pendingActivityId, setPendingActivityId] = useState<string | null>(
+    null,
+  )
   const [lessonId, setLessonId] = useState<string | null>(null)
   const [tagId, setTagId] = useState<string | null>(null)
   const [sort, setSort] = useState<CommunitySortProperty>('recent')
@@ -294,6 +297,7 @@ export function CommunityFeed({ courseId, customerSessionToken }: Props) {
               canCreate={false}
               uploadMode="customer"
               customerSessionToken={customerSessionToken}
+              initialOpenActivityId={pendingActivityId}
               onUpdate={() => {
                 /* students can't edit */
               }}
@@ -507,6 +511,10 @@ export function CommunityFeed({ courseId, customerSessionToken }: Props) {
                       reactionsEnabled={settings?.reactions_enabled ?? true}
                       onLessonChipClick={handleLessonChipClick}
                       onShareToast={(m) => setToast(m)}
+                      onOpenActivity={(activityId) => {
+                        setPendingActivityId(activityId)
+                        setView('activities')
+                      }}
                     />
                   ))
                 )}

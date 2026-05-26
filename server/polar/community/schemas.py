@@ -286,6 +286,9 @@ class CommunityPostRead(TimestampedSchema):
     reaction_count: int = 0
     comment_count: int = 0
     reactions: list[CommunityReactionSummaryEntry] = Field(default_factory=list)
+    # For posts with pin_type='activity', the linked activity id so the
+    # feed renderer can offer an "Open activity" CTA.
+    activity_id: UUID4 | None = None
 
 
 # =====================================================================

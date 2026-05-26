@@ -712,6 +712,10 @@ export type PostCardProps = {
   reactionsEnabled: boolean
   onLessonChipClick?: (lessonId: string) => void
   onShareToast?: (msg: string) => void
+  /** Fired when the user clicks the 'Open activity' button on an
+   * activity-pin post (pin_type === 'activity'). Receives the linked
+   * activity id from the post payload. */
+  onOpenActivity?: (activityId: string) => void
   // 'creator' routes every read/write to the dashboard-auth endpoints
   // and lets the admin interact as themselves. 'customer' is the
   // student-portal default.
@@ -806,8 +810,7 @@ function PostImageLightbox({
       if (e.key === 'Escape') onClose()
       if (e.key === 'ArrowLeft')
         setIndex((i) => (i - 1 + images.length) % images.length)
-      if (e.key === 'ArrowRight')
-        setIndex((i) => (i + 1) % images.length)
+      if (e.key === 'ArrowRight') setIndex((i) => (i + 1) % images.length)
     }
     document.addEventListener('keydown', onKey)
     // Lock body scroll while the lightbox is open.
@@ -1033,6 +1036,7 @@ function RegularPostCard({
   reactionsEnabled,
   onLessonChipClick,
   onShareToast,
+  onOpenActivity,
   mode = 'customer',
 }: PostCardProps) {
   const [commentsOpen, setCommentsOpen] = useState(false)
@@ -1198,6 +1202,31 @@ function RegularPostCard({
           <ExpandableBody body={post.body} />
         )}
       </div>
+
+      {post.pin_type === 'activity' && post.activity_id && onOpenActivity && (
+        <button
+          type="button"
+          onClick={() => onOpenActivity(post.activity_id!)}
+          style={{
+            marginTop: 12,
+            alignSelf: 'flex-start',
+            height: 34,
+            padding: '0 16px',
+            borderRadius: 999,
+            background: 'var(--c-ink)',
+            color: '#fff',
+            fontSize: 12.5,
+            fontWeight: 500,
+            border: 'none',
+            cursor: 'pointer',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 6,
+          }}
+        >
+          Open activity →
+        </button>
+      )}
 
       {post.lesson && (
         <button
