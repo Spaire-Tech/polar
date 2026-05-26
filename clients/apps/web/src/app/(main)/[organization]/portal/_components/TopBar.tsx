@@ -11,9 +11,11 @@ import {
   useMarkAllCustomerNotificationsRead,
   useMarkCustomerNotificationRead,
 } from '@/hooks/queries/community'
+import { useCustomerSSE } from '@/hooks/sse'
 import { createClientSideAPI } from '@/utils/client'
 import { hasBillingPermission } from '@/utils/customerPortal'
 import { schemas } from '@spaire/client'
+import { useQueryClient } from '@tanstack/react-query'
 import Link from 'next/link'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import * as React from 'react'
@@ -388,6 +390,28 @@ function NotificationsBell({ token }: { token: string | null }) {
   const listQ = useCustomerNotifications(open ? token : null)
   const markRead = useMarkCustomerNotificationRead(token)
   const markAllRead = useMarkAllCustomerNotificationsRead(token)
+
+  // Live updates: subscribe to the customer SSE channel and invalidate
+  // the unread count + list the moment the server publishes a new
+  // notification. The 60s polling fallback in the query stays as a
+  // safety net for dropped SSE connections.
+  const queryClient = useQueryClient()
+  const sse = useCustomerSSE(token ?? undefined)
+  React.useEffect(() => {
+    if (!token) return
+    const onCreated = () => {
+      queryClient.invalidateQueries({
+        queryKey: ['customer-notifications-unread', token],
+      })
+      queryClient.invalidateQueries({
+        queryKey: ['customer-notifications', token],
+      })
+    }
+    sse.on('customer_notification.created', onCreated)
+    return () => {
+      sse.off('customer_notification.created', onCreated)
+    }
+  }, [sse, token, queryClient])
 
   const unread = unreadQ.data?.unread ?? 0
   const list = listQ.data ?? []

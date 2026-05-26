@@ -35,6 +35,7 @@ from .auth import (
     CommunityCustomerWrite,
 )
 from .endpoints import creator_router, customer_router
+from .events_repository import CommunityEventRepository
 from .events_schemas import (
     CommunityEventCreate,
     CommunityEventHost,
@@ -94,9 +95,17 @@ async def _event_to_read(
     *,
     going: bool,
     instructor_name: str | None,
+    hosts_cache: dict[UUID, User] | None = None,
 ) -> CommunityEventRead:
-    # Load host_user lazily — we want a single read, not a JOIN per call.
-    host_user = await session.get(User, event.host_user_id)
+    # `hosts_cache` is the bulk-loaded {user_id: User} map populated by
+    # the list endpoint; falls back to a per-row session.get for single-
+    # event paths (create/update/get-by-id) where there's nothing to
+    # bulk-load.
+    host_user: User | None
+    if hosts_cache is not None:
+        host_user = hosts_cache.get(event.host_user_id)
+    else:
+        host_user = await session.get(User, event.host_user_id)
     if host_user is None:
         host = CommunityEventHost(
             user_id=event.host_user_id, name="Instructor", avatar_url=None
@@ -164,9 +173,16 @@ async def list_events_creator(
     events, _ = await events_service.list_for_course(
         session, course_id=course_id, viewer_customer_id=None
     )
+    hosts = await CommunityEventRepository.from_session(session).bulk_load_hosts(
+        {e.host_user_id for e in events}
+    )
     return [
         await _event_to_read(
-            session, e, going=False, instructor_name=instructor_name
+            session,
+            e,
+            going=False,
+            instructor_name=instructor_name,
+            hosts_cache=hosts,
         )
         for e in events
     ]
@@ -307,12 +323,16 @@ async def list_events_customer(
         if end_at >= cutoff:
             visible.append(e)
 
+    hosts = await CommunityEventRepository.from_session(session).bulk_load_hosts(
+        {e.host_user_id for e in visible}
+    )
     return [
         await _event_to_read(
             session,
             e,
             going=going_map.get(e.id, False),
             instructor_name=instructor_name,
+            hosts_cache=hosts,
         )
         for e in visible
     ]

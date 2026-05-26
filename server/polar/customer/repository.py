@@ -158,6 +158,22 @@ class CustomerRepository(
         )
         return await self.get_one_or_none(statement)
 
+    async def get_id_by_email(self, email: str) -> UUID | None:
+        """First customer id with this email, regardless of org. Used by
+        the community notification tasks to route notifications to a
+        User-as-Customer (e.g. an instructor enrolled in their own
+        course). Returns None when there's no match — callers fall back
+        to a direct email."""
+        from sqlalchemy import select
+
+        statement = (
+            select(Customer.id)
+            .where(func.lower(Customer.email) == email.lower())
+            .limit(1)
+        )
+        result = await self.session.execute(statement)
+        return result.scalar_one_or_none()
+
     async def get_by_external_id_and_organization(
         self, external_id: str, organization_id: UUID
     ) -> Customer | None:

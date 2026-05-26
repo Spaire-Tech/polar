@@ -48,6 +48,11 @@ export interface CommunityReactionSummaryEntry {
   mine: boolean
 }
 
+export interface CommunityModuleChip {
+  module_id: string
+  module_title: string | null
+}
+
 export interface CommunityLessonChip {
   lesson_id: string
   lesson_title: string
@@ -77,6 +82,9 @@ export interface CommunityPostRead {
   body_format: 'markdown' | 'plain'
   author: CommunityAuthor
   lesson: CommunityLessonChip | null
+  /** Set on activity pins whose underlying activity is module-scoped
+   * (no lesson). The FE renders a "re: Module" chip in that case. */
+  module: CommunityModuleChip | null
   tag: CommunityTagRead | null
   media: CommunityPostMediaRead[]
   published_at: string | null

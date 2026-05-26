@@ -431,7 +431,25 @@ export function CommunityPreview({
               </div>
 
               <div className={styles.feedList}>
-                {feedQ.isLoading && allPosts.length === 0 ? (
+                {feedQ.isError && allPosts.length === 0 ? (
+                  <div className={styles.empty}>
+                    Couldn&apos;t load the feed.{' '}
+                    <button
+                      type="button"
+                      onClick={() => feedQ.refetch()}
+                      style={{
+                        background: 'none',
+                        border: 0,
+                        color: 'var(--c-link, #2563eb)',
+                        cursor: 'pointer',
+                        padding: 0,
+                        font: 'inherit',
+                      }}
+                    >
+                      Retry
+                    </button>
+                  </div>
+                ) : feedQ.isLoading && allPosts.length === 0 ? (
                   <div className={styles.empty}>Loading…</div>
                 ) : allPosts.length === 0 ? (
                   <div className={styles.empty}>

@@ -84,9 +84,11 @@ const formatTimestamp = (seconds: number): string => {
 
 const isInstructor = (a: CommunityAuthor): boolean => a.kind === 'instructor'
 
-// Map a tag slug to its colored-pill CSS variant. The v4 design only
-// defines colors for the seeded set — everything else falls back to the
-// neutral panel pill.
+// Map a tag slug to its colored-pill CSS variant. The seeded slugs get
+// hand-tuned palettes from the design system; instructor-created slugs
+// fall back to a deterministic HSL palette derived from the slug hash
+// so they at least stay visually distinguishable and stable across
+// renders (the same slug always lands on the same hue).
 const tagPillClass = (slug: string): string => {
   switch (slug) {
     case 'activity':
@@ -97,6 +99,25 @@ const tagPillClass = (slug: string): string => {
       return styles.tagPillWin
     default:
       return ''
+  }
+}
+
+const SEEDED_SLUGS = new Set(['activity', 'question', 'win'])
+
+// djb2-ish hash so the same slug always picks the same hue, no matter
+// where the pill renders. Keeps lightness/saturation locked so the pill
+// stays readable on the panel background.
+const tagPillStyle = (slug: string): React.CSSProperties | undefined => {
+  if (SEEDED_SLUGS.has(slug)) return undefined
+  let hash = 0
+  for (let i = 0; i < slug.length; i++) {
+    hash = (hash * 31 + slug.charCodeAt(i)) | 0
+  }
+  const hue = Math.abs(hash) % 360
+  return {
+    backgroundColor: `hsl(${hue} 70% 94%)`,
+    color: `hsl(${hue} 55% 28%)`,
+    borderColor: `hsl(${hue} 50% 82%)`,
   }
 }
 
@@ -1138,12 +1159,21 @@ function RegularPostCard({
                 <span>{post.lesson.lesson_title}</span>
               </>
             )}
+            {!post.lesson && post.module && (
+              <>
+                <span className={styles.metaSep}>·</span>
+                <span>{post.module.module_title ?? 'Module'}</span>
+              </>
+            )}
             <span className={styles.metaSep}>·</span>
             <IconGlobe size={11} />
           </div>
         </div>
         {post.tag && (
-          <span className={`${styles.tagPill} ${tagPillClass(post.tag.slug)}`}>
+          <span
+            className={`${styles.tagPill} ${tagPillClass(post.tag.slug)}`}
+            style={tagPillStyle(post.tag.slug)}
+          >
             {post.tag.label}
           </span>
         )}
@@ -1236,6 +1266,14 @@ function RegularPostCard({
         >
           <IconBook size={11} /> re: {post.lesson.lesson_title}
         </button>
+      )}
+
+      {/* Module-scoped activity pins use a module chip instead of a
+          lesson chip — they have no lesson context. */}
+      {!post.lesson && post.module && (
+        <span className={styles.lessonChip}>
+          <IconBook size={11} /> re: {post.module.module_title ?? 'Module'}
+        </span>
       )}
 
       <PostMediaGrid

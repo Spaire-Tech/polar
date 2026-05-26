@@ -49,10 +49,13 @@ class CustomerNotification(RecordModel):
 
 
 class CustomerNotificationPreferences(RecordModel):
-    """Per-customer global notification toggles. Currently a single
-    `email_enabled` switch — finer-grained per-type prefs can be added
-    as columns later. A missing row means defaults (email_enabled=True);
-    the service upserts on first write."""
+    """Per-customer global notification toggles. Two booleans:
+
+    - `email_enabled`: gate the email channel (default True)
+    - `bell_enabled`:  gate the in-portal bell row (default True)
+
+    A missing row means defaults (both True). The settings UI lets the
+    customer toggle either independently."""
 
     __tablename__ = "customer_notification_preferences"
 
@@ -64,6 +67,7 @@ class CustomerNotificationPreferences(RecordModel):
     )
 
     email_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    bell_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
 
     @declared_attr
     def customer(cls) -> Mapped["Customer"]:

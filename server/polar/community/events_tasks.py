@@ -35,9 +35,9 @@ from datetime import timedelta
 from uuid import UUID
 
 import structlog
-from sqlalchemy import select
 
-from polar.course.repository import CourseRepository
+from polar.course.repository import CourseEnrollmentRepository, CourseRepository
+from polar.customer.repository import CustomerRepository
 from polar.customer_notifications.notification_types import (
     EMAIL_TYPES,
     EVENT_LIVE,
@@ -103,14 +103,9 @@ async def _build_payload(session, event) -> dict:
 
 
 async def _enrolled_customer_ids(session, course_id: UUID) -> list[UUID]:
-    from polar.models.course_enrollment import CourseEnrollment
-
-    statement = select(CourseEnrollment.customer_id).where(
-        CourseEnrollment.course_id == course_id,
-        CourseEnrollment.deleted_at.is_(None),
-    )
-    result = await session.execute(statement)
-    return [r[0] for r in result.all()]
+    return await CourseEnrollmentRepository.from_session(
+        session
+    ).list_customer_ids_for_course(course_id)
 
 
 # ----------------------------------------------------------------------
@@ -184,9 +179,19 @@ async def _fire_window(
             return
         if only_if_within_minutes is not None:
             # If start_at moved more than the slack window in either
-            # direction, this scheduled fire is stale — drop it.
+            # direction, this scheduled fire is stale — drop it. We log
+            # so it's debuggable: silently dropping reminders for
+            # rescheduled events used to look like the system was just
+            # broken.
             delta_min = abs((event.start_at - utc_now()).total_seconds() / 60.0)
             if delta_min > only_if_within_minutes:
+                log.info(
+                    "community.event.reminder.stale_drop",
+                    event_id=str(event_id),
+                    notification_type=notification_type,
+                    delta_minutes=round(delta_min, 1),
+                    slack_minutes=only_if_within_minutes,
+                )
                 return
 
         rsvp_repo = CommunityEventRsvpRepository.from_session(session)
@@ -275,11 +280,9 @@ async def _send_replay_nag(
         session.add(event)
         return
 
-    from polar.models.customer import Customer
-
-    stmt = select(Customer.id).where(Customer.email == host.email).limit(1)
-    result = await session.execute(stmt)
-    customer_id = result.scalar_one_or_none()
+    customer_id = await CustomerRepository.from_session(
+        session
+    ).get_id_by_email(host.email)
 
     payload = await _build_payload(session, event)
 

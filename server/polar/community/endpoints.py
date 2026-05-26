@@ -52,6 +52,7 @@ from .schemas import (
     CommunityCourseSummary,
     CommunityLessonChip,
     CommunityMemberRead,
+    CommunityModuleChip,
     CommunityPinPayload,
     CommunityPostCreate,
     CommunityPostImageUploadResult,
@@ -190,6 +191,21 @@ def _media_to_read(post: CommunityPost) -> list[CommunityPostMediaRead]:
     return out
 
 
+def _module_chip_from_ctx(
+    post: CommunityPost, ctx: dict
+) -> CommunityModuleChip | None:
+    """Resolve a CommunityModuleChip for activity-pin posts whose
+    underlying activity is module-scoped. Returns None for posts that
+    aren't activity pins or are lesson-scoped (those use lesson_chip)."""
+    if post.pin_type != "activity":
+        return None
+    info = ctx.get("modules", {}).get(post.id)
+    if info is None:
+        return None
+    module_id, module_title = info
+    return CommunityModuleChip(module_id=module_id, module_title=module_title)
+
+
 def _post_to_read(
     post: CommunityPost,
     *,
@@ -197,6 +213,7 @@ def _post_to_read(
     lesson_chip: CommunityLessonChip | None,
     reactions: list[CommunityReactionSummaryEntry],
     activity_id: UUID | None = None,
+    module_chip: CommunityModuleChip | None = None,
 ) -> CommunityPostRead:
     return CommunityPostRead(
         id=post.id,
@@ -207,6 +224,7 @@ def _post_to_read(
         body_format=post.body_format,  # type: ignore[arg-type]
         author=author,
         lesson=lesson_chip,
+        module=module_chip,
         tag=(
             CommunityTagRead.model_validate(post.tag, from_attributes=True)
             if post.tag is not None
@@ -248,6 +266,7 @@ async def _render_single_post(
         lesson_chip=ctx["lessons"].get(post.lesson_id) if post.lesson_id else None,
         reactions=ctx["reactions"].get(post.id, []),
         activity_id=ctx.get("activities", {}).get(post.id),
+        module_chip=_module_chip_from_ctx(post, ctx),
     )
 
 
@@ -330,6 +349,7 @@ async def list_posts_creator(
             lesson_chip=ctx["lessons"].get(p.lesson_id) if p.lesson_id else None,
             reactions=ctx["reactions"].get(p.id, []),
             activity_id=ctx.get("activities", {}).get(p.id),
+            module_chip=_module_chip_from_ctx(p, ctx),
         )
         for p in posts
     ]
@@ -383,6 +403,7 @@ async def preview_feed_creator(
             lesson_chip=ctx["lessons"].get(p.lesson_id) if p.lesson_id else None,
             reactions=ctx["reactions"].get(p.id, []),
             activity_id=ctx.get("activities", {}).get(p.id),
+            module_chip=_module_chip_from_ctx(p, ctx),
         )
         for p in posts
     ]
@@ -667,6 +688,14 @@ async def upload_post_image_creator(
     content_type = file.content_type or "application/octet-stream"
     if not content_type.startswith("image/"):
         raise HTTPException(status_code=400, detail="File must be an image.")
+    # SVG can carry inline <script> — served from our public bucket on a
+    # trusted origin, that's an XSS gun pointed at the customer portal.
+    # Block it explicitly; raster formats only.
+    if content_type in ("image/svg+xml", "image/svg"):
+        raise HTTPException(
+            status_code=400,
+            detail="SVG uploads are not supported. Use JPG, PNG, or WEBP.",
+        )
 
     data = await file.read()
     if len(data) > 10 * 1024 * 1024:
@@ -991,6 +1020,7 @@ async def list_feed_customer(
             lesson_chip=ctx["lessons"].get(p.lesson_id) if p.lesson_id else None,
             reactions=ctx["reactions"].get(p.id, []),
             activity_id=ctx.get("activities", {}).get(p.id),
+            module_chip=_module_chip_from_ctx(p, ctx),
         )
         for p in posts
     ]

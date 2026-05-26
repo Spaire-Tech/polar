@@ -7,6 +7,8 @@ from pydantic import UUID4, Field
 
 from polar.kit.schemas import Schema, TimestampedSchema
 
+from .events_schemas import COVER_OBJECT_POSITION_PATTERN
+
 ActivitySubmissionType = Literal["photo", "video", "text", "link"]
 ActivityStatus = Literal["open", "closed"]
 ActivityChannelKind = Literal["module", "lesson"]
@@ -70,7 +72,9 @@ class CommunityActivityCreate(Schema):
     title: str = Field(min_length=1, max_length=200)
     description: str | None = Field(default=None, max_length=4000)
     cover_url: str | None = Field(default=None, max_length=2000)
-    cover_object_position: str | None = Field(default=None, max_length=32)
+    cover_object_position: str | None = Field(
+        default=None, max_length=32, pattern=COVER_OBJECT_POSITION_PATTERN
+    )
     submission_type: ActivitySubmissionType
     pin_to_feed: bool = False
     notify_on_publish: bool = True
@@ -80,7 +84,9 @@ class CommunityActivityUpdate(Schema):
     title: str | None = Field(default=None, min_length=1, max_length=200)
     description: str | None = Field(default=None, max_length=4000)
     cover_url: str | None = Field(default=None, max_length=2000)
-    cover_object_position: str | None = Field(default=None, max_length=32)
+    cover_object_position: str | None = Field(
+        default=None, max_length=32, pattern=COVER_OBJECT_POSITION_PATTERN
+    )
     submission_type: ActivitySubmissionType | None = None
     pin_to_feed: bool | None = None
     status: ActivityStatus | None = None

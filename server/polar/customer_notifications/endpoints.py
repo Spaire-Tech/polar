@@ -56,10 +56,15 @@ class UnreadCountRead(Schema):
 
 class CustomerNotificationPreferencesRead(Schema):
     email_enabled: bool
+    bell_enabled: bool = True
 
 
 class CustomerNotificationPreferencesUpdate(Schema):
-    email_enabled: bool
+    """Both fields optional — PATCH semantics; pass only what you want
+    to change."""
+
+    email_enabled: bool | None = None
+    bell_enabled: bool | None = None
 
 
 # ----------------------------------------------------------------------
@@ -142,7 +147,8 @@ async def get_preferences(
     repo = CustomerNotificationPreferencesRepository.from_session(session)
     prefs = await repo.get_for_customer(customer_id)
     return CustomerNotificationPreferencesRead(
-        email_enabled=True if prefs is None else prefs.email_enabled
+        email_enabled=True if prefs is None else prefs.email_enabled,
+        bell_enabled=True if prefs is None else prefs.bell_enabled,
     )
 
 
@@ -158,8 +164,15 @@ async def update_preferences(
 ) -> CustomerNotificationPreferencesRead:
     customer_id = get_customer_id(auth_subject)
     repo = CustomerNotificationPreferencesRepository.from_session(session)
-    prefs = await repo.upsert(customer_id, email_enabled=payload.email_enabled)
-    return CustomerNotificationPreferencesRead(email_enabled=prefs.email_enabled)
+    prefs = await repo.upsert(
+        customer_id,
+        email_enabled=payload.email_enabled,
+        bell_enabled=payload.bell_enabled,
+    )
+    return CustomerNotificationPreferencesRead(
+        email_enabled=prefs.email_enabled,
+        bell_enabled=prefs.bell_enabled,
+    )
 
 
 # Silence helper

@@ -82,7 +82,13 @@ export function SubmissionThreadModal({
 
   return (
     <div className={styles.subThreadOverlay} onClick={onClose}>
-      <div className={styles.subThread} onClick={(e) => e.stopPropagation()}>
+      <div
+        className={styles.subThread}
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Activity submission"
+      >
         <div className={styles.subThreadMedia}>
           {photo && (
             <div

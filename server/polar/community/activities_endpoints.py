@@ -34,6 +34,7 @@ from polar.models.user import User
 from polar.postgres import AsyncSession, get_db_session
 
 from .activities_repository import (
+    CommunityActivityRepository,
     CommunityActivitySubmissionRepository,
 )
 from .activities_schemas import (
@@ -91,6 +92,8 @@ async def _require_creator_owns_course(
 async def _resolve_channel_label(
     session: AsyncSession, activity: CommunityActivity
 ) -> str | None:
+    """Single-activity channel-label lookup. Use the repository's
+    `bulk_load_channel_labels` for list endpoints to avoid N+1."""
     if activity.channel_kind == "module" and activity.module_id:
         row = await session.get(CourseModule, activity.module_id)
         return row.title if row else None
@@ -128,9 +131,18 @@ async def _activity_to_read(
     instructor_name: str | None,
     distinct_submitters: int,
     has_own: bool,
+    hosts_cache: dict[UUID, User] | None = None,
+    channel_labels: dict[UUID, str | None] | None = None,
 ) -> CommunityActivityRead:
-    host_user = await session.get(User, activity.host_user_id)
-    channel_label = await _resolve_channel_label(session, activity)
+    host_user: User | None
+    if hosts_cache is not None:
+        host_user = hosts_cache.get(activity.host_user_id)
+    else:
+        host_user = await session.get(User, activity.host_user_id)
+    if channel_labels is not None:
+        channel_label = channel_labels.get(activity.id)
+    else:
+        channel_label = await _resolve_channel_label(session, activity)
     return CommunityActivityRead(
         id=activity.id,
         course_id=activity.course_id,
@@ -160,8 +172,12 @@ async def _submission_to_read(
     submission: CommunityActivitySubmission,
     *,
     viewer_customer_id: UUID | None,
+    authors_cache: dict[UUID, Customer] | None = None,
 ) -> CommunityActivitySubmissionRead:
-    customer = await session.get(Customer, submission.customer_id)
+    if authors_cache is not None:
+        customer = authors_cache.get(submission.customer_id)
+    else:
+        customer = await session.get(Customer, submission.customer_id)
     author_name = (
         (getattr(customer, "name", None) or "").strip()
         or (getattr(customer, "email", None) or "Member")
@@ -224,6 +240,9 @@ async def list_activities_creator(
     )
     sub_repo = CommunityActivitySubmissionRepository.from_session(session)
     counts = await sub_repo.distinct_submitter_counts([a.id for a in activities])
+    act_repo = CommunityActivityRepository.from_session(session)
+    hosts = await act_repo.bulk_load_hosts({a.host_user_id for a in activities})
+    channel_labels = await act_repo.bulk_load_channel_labels(activities)
 
     return [
         await _activity_to_read(
@@ -232,6 +251,8 @@ async def list_activities_creator(
             instructor_name=instructor_name,
             distinct_submitters=counts.get(a.id, 0),
             has_own=False,
+            hosts_cache=hosts,
+            channel_labels=channel_labels,
         )
         for a in activities
     ]
@@ -363,8 +384,11 @@ async def list_submissions_creator(
         raise HTTPException(status_code=404, detail="Activity not found") from None
     sub_repo = CommunityActivitySubmissionRepository.from_session(session)
     rows = await sub_repo.list_for_activity(activity_id)
+    authors = await sub_repo.bulk_load_authors({s.customer_id for s in rows})
     return [
-        await _submission_to_read(session, s, viewer_customer_id=None)
+        await _submission_to_read(
+            session, s, viewer_customer_id=None, authors_cache=authors
+        )
         for s in rows
     ]
 
@@ -400,6 +424,9 @@ async def list_activities_customer(
     ids = [a.id for a in activities]
     distinct_map = await sub_repo.distinct_submitter_counts(ids)
     own_ids = await sub_repo.activity_ids_with_own_submission(ids, customer_id)
+    act_repo = CommunityActivityRepository.from_session(session)
+    hosts = await act_repo.bulk_load_hosts({a.host_user_id for a in activities})
+    channel_labels = await act_repo.bulk_load_channel_labels(activities)
 
     return [
         await _activity_to_read(
@@ -408,6 +435,8 @@ async def list_activities_customer(
             instructor_name=course.instructor_name if course else None,
             distinct_submitters=distinct_map.get(a.id, 0),
             has_own=a.id in own_ids,
+            hosts_cache=hosts,
+            channel_labels=channel_labels,
         )
         for a in activities
     ]
@@ -437,9 +466,13 @@ async def list_submissions_customer(
         raise HTTPException(status_code=404, detail="Activity not found") from None
     sub_repo = CommunityActivitySubmissionRepository.from_session(session)
     rows = await sub_repo.list_for_activity(activity_id)
+    authors = await sub_repo.bulk_load_authors({s.customer_id for s in rows})
     return [
         await _submission_to_read(
-            session, s, viewer_customer_id=customer_id
+            session,
+            s,
+            viewer_customer_id=customer_id,
+            authors_cache=authors,
         )
         for s in rows
     ]

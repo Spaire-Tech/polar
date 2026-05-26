@@ -12,6 +12,11 @@ from polar.kit.schemas import Schema, TimestampedSchema
 
 EventType = Literal["workshop", "office", "cohort", "guest"]
 
+# `object-position: <X>% <Y>%` only. The string is dropped straight into
+# an inline style on the cover image so anything outside this shape is a
+# CSS-injection footgun.
+COVER_OBJECT_POSITION_PATTERN = r"^\d{1,3}(\.\d+)?%\s+\d{1,3}(\.\d+)?%$"
+
 
 class CommunityEventHost(Schema):
     """Lightweight host identity. The host is always the course owner
@@ -61,7 +66,9 @@ class CommunityEventCreate(Schema):
     meeting_url: str | None = Field(default=None, max_length=2000)
     location: str | None = Field(default=None, max_length=500)
     cover_url: str | None = Field(default=None, max_length=2000)
-    cover_object_position: str | None = Field(default=None, max_length=32)
+    cover_object_position: str | None = Field(
+        default=None, max_length=32, pattern=COVER_OBJECT_POSITION_PATTERN
+    )
     recurring_weekly: bool = False
     notify_on_publish: bool = True
 
@@ -80,7 +87,9 @@ class CommunityEventUpdate(Schema):
     location: str | None = Field(default=None, max_length=500)
     replay_url: str | None = Field(default=None, max_length=2000)
     cover_url: str | None = Field(default=None, max_length=2000)
-    cover_object_position: str | None = Field(default=None, max_length=32)
+    cover_object_position: str | None = Field(
+        default=None, max_length=32, pattern=COVER_OBJECT_POSITION_PATTERN
+    )
     recurring_weekly: bool | None = None
 
 

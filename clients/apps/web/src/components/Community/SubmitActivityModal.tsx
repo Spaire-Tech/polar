@@ -282,7 +282,13 @@ export function SubmitActivityModal({
 
   return (
     <div className={styles.modalBackdrop} onClick={onClose}>
-      <div className={styles.saModal} onClick={(e) => e.stopPropagation()}>
+      <div
+        className={styles.saModal}
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-label={`Submit to ${activity.title}`}
+      >
         <div className={styles.saHead}>
           <div className={styles.saHeadInfo}>
             <span className={styles.saEyebrow}>
