@@ -526,8 +526,10 @@ function EventCard({
               </span>
             </span>
           )}
+          <span className={styles.eventCoverType}>
+            {TYPE_LABEL[event.type]}
+          </span>
         </div>
-        <span className={styles.eventCoverType}>{TYPE_LABEL[event.type]}</span>
         {canManage && (
           <CardManageMenu
             open={menuOpen}
@@ -1178,7 +1180,7 @@ export function CardManageMenu({
 }) {
   return (
     <div
-      style={{ position: 'absolute', top: 10, right: 56, zIndex: 5 }}
+      style={{ position: 'absolute', top: 10, right: 10, zIndex: 6 }}
       onMouseLeave={onClose}
     >
       <button

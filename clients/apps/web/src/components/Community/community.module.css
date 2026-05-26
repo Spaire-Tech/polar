@@ -2589,9 +2589,8 @@
   animation: livePulse 1.2s ease-in-out infinite;
 }
 .eventCoverType {
-  position: absolute;
-  top: 12px;
-  right: 12px;
+  /* Inline next to the date / live pill in the cover overlay so the
+     top-right corner stays free for the host's ⋯ manage menu. */
   font-size: 10.5px;
   font-weight: 600;
   padding: 4px 10px;

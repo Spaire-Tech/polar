@@ -360,6 +360,18 @@ class CommunityPostRepository(
             statement = statement.where(
                 CommunityPost.lesson_id.in_(module_lesson_ids)
             )
+        else:
+            # No lesson/module filter — hide activity-pin posts from the
+            # global "All" feed. Activity pins should only surface when
+            # the viewer has navigated to the lesson the activity belongs
+            # to. (Without this scoping every published activity would
+            # spam the top of Home for everyone.)
+            statement = statement.where(
+                or_(
+                    CommunityPost.pin_type.is_(None),
+                    CommunityPost.pin_type != "activity",
+                )
+            )
 
         if tag_id is not None:
             statement = statement.where(CommunityPost.tag_id == tag_id)

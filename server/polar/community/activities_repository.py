@@ -41,6 +41,24 @@ class CommunityActivityRepository(
         return await self.get_one_or_none(statement)
 
 
+    async def map_by_pinned_post_ids(
+        self, post_ids: set[UUID]
+    ) -> dict[UUID, UUID]:
+        """Return {pinned_post_id: activity_id} for the given posts.
+        Used by the feed serializer to surface an 'Open activity' CTA
+        on synthetic activity-pin posts."""
+        if not post_ids:
+            return {}
+        statement = select(
+            CommunityActivity.pinned_post_id, CommunityActivity.id
+        ).where(
+            CommunityActivity.pinned_post_id.in_(post_ids),
+            CommunityActivity.deleted_at.is_(None),
+        )
+        result = await self.session.execute(statement)
+        return {row[0]: row[1] for row in result.all() if row[0] is not None}
+
+
 class CommunityActivitySubmissionRepository(
     RepositorySoftDeletionIDMixin[CommunityActivitySubmission, UUID],
     RepositorySoftDeletionMixin[CommunityActivitySubmission],

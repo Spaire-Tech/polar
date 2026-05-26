@@ -12,7 +12,7 @@ import {
   type CommunityActivitySubmissionRead,
   useCommunityActivitySubmissions,
 } from '@/hooks/queries/community'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type {
   ActivitySubmissionInput,
   CommunityActivity,
@@ -52,6 +52,32 @@ export function ActivityDetailView({
   onOpenSubmit,
 }: Props) {
   const [tab, setTab] = useState<'subs' | 'disc' | 'res'>('subs')
+  const rootRef = useRef<HTMLDivElement | null>(null)
+
+  // The activities list may have left the scroll position halfway down
+  // the page. When we mount the detail view, walk up the DOM to find
+  // the closest scrollable ancestor and snap it back to the top so the
+  // hero is what the user sees first.
+  useEffect(() => {
+    const el = rootRef.current
+    if (!el) return
+    let node: HTMLElement | null = el.parentElement
+    while (node && node !== document.body) {
+      const style = getComputedStyle(node)
+      const overflowY = style.overflowY
+      if (
+        (overflowY === 'auto' || overflowY === 'scroll') &&
+        node.scrollHeight > node.clientHeight
+      ) {
+        node.scrollTo({ top: 0, behavior: 'auto' })
+        break
+      }
+      node = node.parentElement
+    }
+    // Also reset the document scroll for browsers where the page itself
+    // is the scroll container.
+    window.scrollTo({ top: 0, behavior: 'auto' })
+  }, [activity.id])
   const [openSub, setOpenSub] =
     useState<CommunityActivitySubmissionRead | null>(null)
 
@@ -90,7 +116,7 @@ export function ActivityDetailView({
   }
 
   return (
-    <>
+    <div ref={rootRef}>
       <button type="button" className={styles.detailBack} onClick={onBack}>
         ‹ Back to activities
       </button>
@@ -102,11 +128,13 @@ export function ActivityDetailView({
           <span className={styles.adHeroOverline}>
             <span className="num">∙</span>
             {channelWord} · {activity.channelLabel || 'Activity'}
-            <span
-              className={`${styles.adHeroStatus} ${closed ? styles.adHeroStatusClosed : ''}`}
-            >
-              {closed ? 'Closed' : 'Open'}
-            </span>
+            {closed && (
+              <span
+                className={`${styles.adHeroStatus} ${styles.adHeroStatusClosed}`}
+              >
+                Closed
+              </span>
+            )}
           </span>
           <div className={styles.adHeroTitle}>{activity.title}</div>
         </div>
@@ -116,7 +144,7 @@ export function ActivityDetailView({
         <div className={styles.adPromptBody}>
           {activity.desc || 'No prompt yet.'}
         </div>
-        {!closed && mode === 'customer' && (
+        {!closed && (
           <div className={styles.adPromptActions}>
             <button
               type="button"
@@ -141,12 +169,14 @@ export function ActivityDetailView({
             {activity.totalMembers} submitted
           </span>
         </span>
-        <span className={styles.adMetaStripBit}>
-          <IconClock size={12} />
-          <span>
-            {closed ? <strong>Closed</strong> : <strong>Open</strong>}
+        {closed && (
+          <span className={styles.adMetaStripBit}>
+            <IconClock size={12} />
+            <span>
+              <strong>Closed</strong>
+            </span>
           </span>
-        </span>
+        )}
         <span
           className={styles.adMetaStripBit}
           style={{ flex: 1, justifyContent: 'flex-end' }}
@@ -206,7 +236,7 @@ export function ActivityDetailView({
                 kick off the gallery.
               </p>
             </div>
-            {!closed && mode === 'customer' && (
+            {!closed && (
               <div className={styles.eventsEmptyActions}>
                 <button
                   type="button"
@@ -264,7 +294,7 @@ export function ActivityDetailView({
           onNavigate={navigate}
         />
       )}
-    </>
+    </div>
   )
 }
 

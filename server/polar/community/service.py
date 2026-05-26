@@ -1467,10 +1467,21 @@ class CommunityService:
                 )
             reactions_summary[post_id] = entries
 
+        # For pin_type='activity' posts, resolve {post_id: activity_id}
+        # so the feed can render an 'Open activity' CTA on the pinned
+        # post.
+        from .activities_repository import CommunityActivityRepository
+
+        activity_post_ids = {p.id for p in posts if p.pin_type == "activity"}
+        activity_by_post = await (
+            CommunityActivityRepository.from_session(session)
+        ).map_by_pinned_post_ids(activity_post_ids)
+
         return {
             "authors": authors,
             "lessons": lessons,
             "reactions": reactions_summary,
+            "activities": activity_by_post,
         }
 
 

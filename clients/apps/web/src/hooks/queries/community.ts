@@ -87,6 +87,9 @@ export interface CommunityPostRead {
   reaction_count: number
   comment_count: number
   reactions: CommunityReactionSummaryEntry[]
+  /** Set on pin_type='activity' posts so the feed can render an
+   * "Open activity" button. */
+  activity_id?: string | null
   created_at: string
   modified_at: string | null
 }

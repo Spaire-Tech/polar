@@ -104,6 +104,10 @@ type Props = {
   // dashboard cookie. The token is only required in customer mode.
   uploadMode: 'creator' | 'customer'
   customerSessionToken?: string | null
+  /** If set on first mount, jump straight into the detail view for
+   * that activity (e.g. from clicking 'Open activity' on a pinned
+   * activity post in the feed). */
+  initialOpenActivityId?: string | null
 }
 
 export function ActivitiesView({
@@ -119,6 +123,7 @@ export function ActivitiesView({
   canCreate,
   uploadMode,
   customerSessionToken,
+  initialOpenActivityId,
 }: Props) {
   const [createOpen, setCreateOpen] = useState(false)
   const [editing, setEditing] = useState<CommunityActivity | null>(null)
@@ -127,6 +132,15 @@ export function ActivitiesView({
     null,
   )
   const [filter, setFilter] = useState<'all' | string | 'mine'>('all')
+
+  // When the parent passes initialOpenActivityId (e.g. from a feed
+  // pinned-activity post), jump to the detail view as soon as the
+  // matching activity is available.
+  useEffect(() => {
+    if (!initialOpenActivityId || openActivity) return
+    const target = activities.find((a) => a.id === initialOpenActivityId)
+    if (target) setOpenActivity(target)
+  }, [initialOpenActivityId, activities, openActivity])
 
   // Detail view takes over the whole pane when an activity is opened.
   if (openActivity) {
@@ -262,7 +276,7 @@ export function ActivitiesView({
               activity={a}
               channelKind={channelKind}
               indexNum={idx + 1}
-              canSubmit={!canCreate && a.status === 'open'}
+              canSubmit={a.status === 'open'}
               canManage={canCreate}
               onSubmit={() => setSubmitFor(a)}
               onViewSubmissions={() => setOpenActivity(a)}
@@ -385,11 +399,13 @@ function ActivityListCard({
             {channelWord} {indexNum}
           </span>
         </div>
-        <span
-          className={`${styles.activityCoverStatus} ${closed ? styles.activityCoverStatusClosed : ''}`}
-        >
-          <span className="dot" /> {closed ? 'Closed' : 'Open'}
-        </span>
+        {closed && (
+          <span
+            className={`${styles.activityCoverStatus} ${styles.activityCoverStatusClosed}`}
+          >
+            <span className="dot" /> Closed
+          </span>
+        )}
         {canManage && (
           <CardManageMenu
             open={menuOpen}
