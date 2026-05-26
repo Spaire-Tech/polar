@@ -652,6 +652,37 @@ export const useTogglePostReaction = (
       ? (['creator-community-feed', courseId] as const)
       : (['community-feed', token, courseId] as const)
 
+  // The customer feed is a useInfiniteQuery — its cached shape is
+  // `{ pages: CommunityFeedPage[]; pageParams: ... }`, not a bare
+  // CommunityFeedPage. The creator-side moderation feed (and any other
+  // single-page caches that share the same key prefix) is a plain
+  // page. This helper walks both shapes so the optimistic update
+  // actually lands on what the UI is rendering — without it, clicks
+  // looked like no-ops until a real refetch synced the server state
+  // back to the screen.
+  type InfiniteFeedCache = {
+    pages: CommunityFeedPage[]
+    pageParams: unknown[]
+  }
+  type FeedCache = CommunityFeedPage | InfiniteFeedCache | undefined
+
+  const mapPosts = (
+    data: FeedCache,
+    update: (p: CommunityPostRead) => CommunityPostRead,
+  ): FeedCache => {
+    if (!data) return data
+    if ('pages' in data) {
+      return {
+        ...data,
+        pages: data.pages.map((page) => ({
+          ...page,
+          items: page.items.map(update),
+        })),
+      }
+    }
+    return { ...data, items: data.items.map(update) }
+  }
+
   return useMutation({
     mutationFn: ({
       postId,
@@ -669,12 +700,14 @@ export const useTogglePostReaction = (
     onMutate: async ({ postId, emoji }) => {
       if (!courseId) return
       const queryClient = getQueryClient()
-      const snapshots = queryClient.getQueriesData<CommunityFeedPage>({
+      // Cancel in-flight feed fetches so a slow GET can't clobber our
+      // optimistic write between onMutate and onSuccess.
+      await queryClient.cancelQueries({ queryKey: feedQueryKey })
+      const snapshots = queryClient.getQueriesData<FeedCache>({
         queryKey: feedQueryKey,
       })
-      for (const [key, page] of snapshots) {
-        if (!page) continue
-        const items = page.items.map((p) => {
+      for (const [key, data] of snapshots) {
+        const next = mapPosts(data, (p) => {
           if (p.id !== postId) return p
           const existing = p.reactions.find((r) => r.emoji === emoji)
           const willBeActive = !(existing?.mine ?? false)
@@ -686,7 +719,7 @@ export const useTogglePostReaction = (
             Math.max(nextCount, 0),
           )
         })
-        queryClient.setQueryData(key, { ...page, items })
+        queryClient.setQueryData(key, next)
       }
       return { snapshots }
     },
@@ -699,17 +732,16 @@ export const useTogglePostReaction = (
     onSuccess: (result, { postId }) => {
       if (!courseId) return
       const queryClient = getQueryClient()
-      const snapshots = queryClient.getQueriesData<CommunityFeedPage>({
+      const snapshots = queryClient.getQueriesData<FeedCache>({
         queryKey: feedQueryKey,
       })
-      for (const [key, page] of snapshots) {
-        if (!page) continue
-        const items = page.items.map((p) =>
+      for (const [key, data] of snapshots) {
+        const next = mapPosts(data, (p) =>
           p.id === postId
             ? applyReactionDelta(p, result.emoji, result.active, result.count)
             : p,
         )
-        queryClient.setQueryData(key, { ...page, items })
+        queryClient.setQueryData(key, next)
       }
     },
   })

@@ -56,7 +56,10 @@ class CommunityEventRepository(
             return {}
         statement = select(User).where(User.id.in_(user_ids))
         result = await self.session.execute(statement)
-        return {u.id: u for u in result.scalars().all()}
+        # `.unique()` is required because User has eagerly-joined
+        # collections (organizations etc.); without it SQLAlchemy
+        # raises InvalidRequestError on `.all()`.
+        return {u.id: u for u in result.scalars().unique().all()}
 
     async def list_due_for_replay_nag(
         self,
