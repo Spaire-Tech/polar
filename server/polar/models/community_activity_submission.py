@@ -66,6 +66,20 @@ class CommunityActivitySubmission(RecordModel):
     mux_upload_id: Mapped[str | None] = mapped_column(
         String(64), nullable=True, default=None
     )
+    mux_asset_id: Mapped[str | None] = mapped_column(
+        String(64), nullable=True, default=None
+    )
+
+    # Lifecycle for video submissions. Mirrors community_post_media.mux_status:
+    #   waiting    — direct upload created, bytes not yet finalized
+    #   processing — Mux has the asset and is transcoding
+    #   ready      — playable; mux_playback_id is set
+    #   errored    — upload or transcode failed
+    #   deleted    — asset deleted on Mux side
+    # Non-video submissions leave this NULL.
+    mux_status: Mapped[str | None] = mapped_column(
+        String(20), nullable=True, default=None
+    )
 
     link_url: Mapped[str | None] = mapped_column(Text, nullable=True, default=None)
 

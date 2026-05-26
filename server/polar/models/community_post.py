@@ -54,7 +54,8 @@ class CommunityPost(RecordModel):
             name="community_posts_comments_mode_check",
         ),
         CheckConstraint(
-            "pin_type IS NULL OR pin_type IN ('announcement', 'prompt_of_week')",
+            "pin_type IS NULL OR pin_type IN "
+            "('announcement', 'prompt_of_week', 'activity')",
             name="community_posts_pin_type_check",
         ),
         # If pin_type is set, pinned_at must be set too — guards against

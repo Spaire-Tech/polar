@@ -11,6 +11,7 @@ from polar.customer.repository import CustomerRepository
 from polar.customer_session.service import customer_session
 from polar.kit.pagination import ListResource, PaginationParamsQuery
 from polar.models import Organization, UserOrganization
+from polar.models.community_activity_submission import CommunityActivitySubmission
 from polar.models.community_post_media import CommunityPostMedia
 from polar.models.course_lesson import CourseLesson
 from polar.models.customer import Customer
@@ -795,9 +796,10 @@ async def upload_course_landing_media(
     file: UploadFile = File(...),
     session: AsyncSession = Depends(get_db_session),
 ) -> dict[str, str]:
+    from uuid import uuid4
+
     from polar.config import settings
     from polar.integrations.aws.s3 import S3Service
-    from uuid import uuid4
 
     repo = CourseRepository.from_session(session)
     course = await repo.get_readable_by_id(course_id, auth_subject)
@@ -1056,6 +1058,20 @@ async def mux_webhook(
         res = await session.execute(stmt)
         return res.scalar_one_or_none()
 
+    async def _find_activity_submission_by_upload(
+        upload_id: str,
+    ) -> CommunityActivitySubmission | None:
+        """Community-activity video submissions ride the same Mux
+        pipeline. Without this lookup, video submissions are inserted
+        with mux_upload_id but never get a mux_playback_id, so the
+        portal can't play them back."""
+        stmt = select(CommunityActivitySubmission).where(
+            CommunityActivitySubmission.mux_upload_id == upload_id,
+            CommunityActivitySubmission.deleted_at.is_(None),
+        )
+        res = await session.execute(stmt)
+        return res.scalar_one_or_none()
+
     if event_type == "video.asset.ready":
         upload_id = data.get("upload_id")
         asset_id = data.get("id")
@@ -1064,6 +1080,16 @@ async def mux_webhook(
         duration = data.get("duration")
 
         if upload_id and asset_id and playback_id:
+            activity_submission = await _find_activity_submission_by_upload(
+                upload_id
+            )
+            if activity_submission is not None:
+                activity_submission.mux_asset_id = asset_id
+                activity_submission.mux_playback_id = playback_id
+                activity_submission.mux_status = "ready"
+                session.add(activity_submission)
+                return
+
             community_media = await _find_community_media_by_upload(upload_id)
             if community_media is not None:
                 # Community-post video lifecycle is simpler than lessons:
@@ -1151,6 +1177,14 @@ async def mux_webhook(
     elif event_type in ("video.upload.errored", "video.asset.errored"):
         upload_id = data.get("upload_id") or data.get("id")
         if upload_id:
+            activity_submission = await _find_activity_submission_by_upload(
+                upload_id
+            )
+            if activity_submission is not None:
+                activity_submission.mux_status = "errored"
+                session.add(activity_submission)
+                return
+
             community_media = await _find_community_media_by_upload(upload_id)
             if community_media is not None:
                 community_media.mux_status = "errored"
@@ -1169,6 +1203,15 @@ async def mux_webhook(
     ):
         upload_id = data.get("upload_id") or data.get("id")
         if upload_id:
+            activity_submission = await _find_activity_submission_by_upload(
+                upload_id
+            )
+            if activity_submission is not None:
+                if activity_submission.mux_status != "ready":
+                    activity_submission.mux_status = "processing"
+                    session.add(activity_submission)
+                return
+
             community_media = await _find_community_media_by_upload(upload_id)
             if community_media is not None:
                 if community_media.mux_status != "ready":
@@ -1184,6 +1227,16 @@ async def mux_webhook(
     elif event_type == "video.asset.deleted":
         upload_id = data.get("upload_id")
         if upload_id:
+            activity_submission = await _find_activity_submission_by_upload(
+                upload_id
+            )
+            if activity_submission is not None:
+                activity_submission.mux_status = "deleted"
+                activity_submission.mux_playback_id = None
+                activity_submission.mux_asset_id = None
+                session.add(activity_submission)
+                return
+
             community_media = await _find_community_media_by_upload(upload_id)
             if community_media is not None:
                 community_media.mux_status = "deleted"

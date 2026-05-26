@@ -186,6 +186,7 @@ async def _submission_to_read(
         file_id=submission.file_id,
         file_url=file_url,
         mux_playback_id=submission.mux_playback_id,
+        mux_status=submission.mux_status,
         link_url=submission.link_url,
         author_name=author_name,
         author_avatar_url=avatar,

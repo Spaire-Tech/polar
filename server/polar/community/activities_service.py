@@ -152,10 +152,20 @@ class CommunityActivityService:
             await self._unpin_activity(session, activity=activity)
             data["pin_to_feed"] = False
 
+        # Capture the prior cover so we can clean up S3 if it changed.
+        prev_cover = activity.cover_url
         for k, v in data.items():
             setattr(activity, k, v)
 
         await session.flush()
+
+        if (
+            "cover_url" in data
+            and prev_cover
+            and prev_cover != activity.cover_url
+        ):
+            enqueue_job("community.cover.cleanup", cover_url=prev_cover)
+
         return activity
 
     async def delete(
@@ -175,6 +185,8 @@ class CommunityActivityService:
             await self._unpin_activity(session, activity=activity)
         repo = CommunityActivityRepository.from_session(session)
         await repo.soft_delete(activity)
+        if activity.cover_url:
+            enqueue_job("community.cover.cleanup", cover_url=activity.cover_url)
 
     # ------------------------------------------------------------------
     # Submissions (customer)
@@ -210,6 +222,13 @@ class CommunityActivityService:
         if st == "text" and not (payload.body and payload.body.strip()):
             raise ActivitySubmissionInvalid()
 
+        # Video submissions start in 'waiting' so the UI can show an
+        # "encoding…" state until the Mux webhook flips it to 'ready'
+        # (or 'errored'). Non-video types leave mux_status NULL.
+        initial_mux_status: str | None = None
+        if st == "video" and payload.mux_upload_id:
+            initial_mux_status = "waiting"
+
         submission = CommunityActivitySubmission(
             activity_id=activity_id,
             customer_id=customer_id,
@@ -217,6 +236,7 @@ class CommunityActivityService:
             body=(payload.body.strip() if payload.body else None),
             file_id=payload.file_id,
             mux_upload_id=payload.mux_upload_id,
+            mux_status=initial_mux_status,
             link_url=payload.link_url,
         )
         sub_repo = CommunityActivitySubmissionRepository.from_session(session)

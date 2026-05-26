@@ -26,13 +26,16 @@ duplicate bell rows or SSE events), and they swallow non-fatal errors
 so a deletion mid-fanout doesn't poison the queue.
 """
 
+from urllib.parse import urlparse
 from uuid import UUID
 
 import structlog
 
 from polar.eventstream.service import publish_members
 from polar.exceptions import PolarTaskError
+from polar.file.s3 import S3_SERVICES
 from polar.logging import Logger
+from polar.models.file import FileServiceTypes
 from polar.notifications.notification import (
     CommunityPostNewOnCourseNotificationPayload,
     CommunityPostReplyNotificationPayload,
@@ -347,9 +350,58 @@ async def recompute_presence_blurbs() -> None:
         )
 
 
+def _s3_path_from_public_url(public_url: str) -> str | None:
+    """Extract the S3 key from a cover image's public URL.
+
+    Covers are uploaded via /community/{course_id}/media/image-upload,
+    which stores them under the `community-posts/...` prefix in the
+    community_post_image bucket. We only return a path that matches
+    that prefix so this helper can't be tricked into deleting an
+    unrelated object via a hand-crafted URL.
+    """
+    if not public_url:
+        return None
+    try:
+        parsed = urlparse(public_url)
+    except ValueError:
+        return None
+    path = (parsed.path or "").lstrip("/")
+    if not path.startswith("community-posts/"):
+        return None
+    return path
+
+
+@actor(actor_name="community.cover.cleanup", priority=TaskPriority.LOW)
+async def community_cover_cleanup(cover_url: str) -> None:
+    """Best-effort delete of a cover image from S3 after the parent
+    event/activity is deleted, or after a cover is replaced.
+
+    Idempotent — a missing object is treated as success. We only delete
+    objects under the community-posts/ prefix; any other URL is a no-op
+    (logged) so an accidental call with a foreign URL can't wipe
+    unrelated storage.
+    """
+    path = _s3_path_from_public_url(cover_url)
+    if path is None:
+        log.info(
+            "community.cover.cleanup.skip_foreign_url",
+            cover_url=cover_url,
+        )
+        return
+    try:
+        S3_SERVICES[FileServiceTypes.community_post_image].delete_file(path)
+    except Exception:
+        log.warning(
+            "community.cover.cleanup.delete_failed",
+            path=path,
+            exc_info=True,
+        )
+
+
 # Re-export for unit tests that need to monkeypatch.
 __all__ = [
     "community_comment_created",
+    "community_cover_cleanup",
     "community_module_completed_listener",
     "community_post_created",
     "recompute_presence_blurbs",

@@ -26,6 +26,10 @@ class CommunityActivitySubmissionRead(TimestampedSchema):
     file_id: UUID4 | None = None
     file_url: str | None = None
     mux_playback_id: str | None = None
+    # Video lifecycle: 'waiting' | 'processing' | 'ready' | 'errored' |
+    # 'deleted'. Null for non-video submissions. Clients render an
+    # encoding state when this is set and != 'ready'.
+    mux_status: str | None = None
     link_url: str | None = None
 
     # Submitter identity. We surface the customer's display name +
