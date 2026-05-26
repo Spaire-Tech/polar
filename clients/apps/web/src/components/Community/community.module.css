@@ -3067,6 +3067,7 @@
 .activityFootCtaGhost:hover {
   background: var(--c-panel);
   opacity: 1;
+}
 /* =========================================================
    Lightbox — LinkedIn-style two-pane image viewer
    ========================================================= */
