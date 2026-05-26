@@ -8,7 +8,9 @@
 .root {
   --c-ink: #1d1d1f;
   --c-ink-pure: #000000;
-  --c-bg: #ffffff;
+  /* Page surface uses the hairline color so the white post cards
+     read as cards instead of blending into the page. */
+  --c-bg: #e8e8ed;
   --c-panel: #f5f5f7;
   --c-panel-2: #fafafa;
   --c-line: #d2d2d7;

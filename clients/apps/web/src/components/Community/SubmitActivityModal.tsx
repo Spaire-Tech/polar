@@ -13,6 +13,7 @@ import {
   useUploadPostVideo,
 } from '@/hooks/queries/community'
 import { useEffect, useState } from 'react'
+import { ThumbnailPositioner } from '../Courses/editor/ThumbnailPositioner'
 import type {
   ActivitySubmissionInput,
   CommunityActivity,
@@ -55,7 +56,10 @@ type DraftState = {
   caption: string
   linkUrl: string
   visibility: Visibility
+  imageObjectPosition: string
 }
+
+const DEFAULT_IMAGE_POSITION = '50% 50%'
 
 const DRAFT_STORAGE_PREFIX = 'community.activity.draft.v1'
 
@@ -78,6 +82,7 @@ const loadDraft = (key: string): DraftState | null => {
       caption: parsed.caption ?? '',
       linkUrl: parsed.linkUrl ?? '',
       visibility: (parsed.visibility as Visibility) ?? 'cohort',
+      imageObjectPosition: parsed.imageObjectPosition ?? DEFAULT_IMAGE_POSITION,
     }
   } catch {
     return null
@@ -118,6 +123,7 @@ export function SubmitActivityModal({
   const [caption, setCaption] = useState('')
   const [linkUrl, setLinkUrl] = useState('')
   const [visibility, setVisibility] = useState<Visibility>('cohort')
+  const [imagePos, setImagePos] = useState<string>(DEFAULT_IMAGE_POSITION)
   const [uploading, setUploading] = useState(false)
   const [progress, setProgress] = useState(0)
   const [error, setError] = useState<string | null>(null)
@@ -140,6 +146,7 @@ export function SubmitActivityModal({
       setCaption(draft.caption)
       setLinkUrl(draft.linkUrl)
       setVisibility(draft.visibility)
+      setImagePos(draft.imageObjectPosition || DEFAULT_IMAGE_POSITION)
       if (draft.fileName && (draft.fileId || draft.muxUploadId)) {
         setFile({ name: draft.fileName, previewUrl: '' })
       } else {
@@ -152,6 +159,7 @@ export function SubmitActivityModal({
       setCaption('')
       setLinkUrl('')
       setVisibility('cohort')
+      setImagePos(DEFAULT_IMAGE_POSITION)
     }
     setUploading(false)
     setProgress(0)
@@ -180,6 +188,7 @@ export function SubmitActivityModal({
       caption,
       linkUrl,
       visibility,
+      imageObjectPosition: imagePos,
     })
   }, [
     activity?.id,
@@ -191,6 +200,7 @@ export function SubmitActivityModal({
     caption,
     linkUrl,
     visibility,
+    imagePos,
     uploading,
   ])
 
@@ -268,6 +278,8 @@ export function SubmitActivityModal({
         fileId: fileId ?? undefined,
         muxUploadId: muxUploadId ?? undefined,
         linkUrl: linkUrl.trim() || undefined,
+        imageObjectPosition:
+          activity.submissionType === 'photo' && fileId ? imagePos : undefined,
         visibility,
       })
       clearDraft(draftKey(activity.id, mode, customerSessionToken))
@@ -313,37 +325,91 @@ export function SubmitActivityModal({
               <span className={styles.ceLabel}>
                 {isVideo ? 'Video' : 'Photo'} · required
               </span>
-              <label
-                className={`${styles.uploadZone} ${file ? styles.uploadZoneHasFile : ''}`}
-                style={
-                  file && !isVideo
-                    ? { backgroundImage: `url(${file.previewUrl})` }
-                    : undefined
-                }
-              >
-                {!file && (
-                  <>
-                    <span className={styles.uploadZoneIcon}>
-                      {isVideo ? (
-                        <IconVideo size={22} />
-                      ) : (
-                        <IconImage size={22} />
-                      )}
-                    </span>
-                    <span className={styles.uploadZoneText}>
-                      Drop your {isVideo ? 'video' : 'photo'} here, or click to
-                      browse
-                    </span>
-                    <span className={styles.uploadZoneSub}>
-                      {isVideo
-                        ? 'MP4 or MOV · up to 60 seconds'
-                        : 'JPG or PNG · up to 12MB'}
-                    </span>
-                  </>
-                )}
-                {file && (
-                  <>
-                    {isVideo && (
+              {/* Once a photo has been uploaded (or rehydrated from a
+                  draft), surface the ThumbnailPositioner so the
+                  submitter can pick the focal point — same UX as
+                  activity / event covers. We need both a previewUrl
+                  (fresh upload) OR a fileId (rehydrated draft) to
+                  render; otherwise drop the drag-handle and show the
+                  bare upload zone. */}
+              {file && !isVideo && (file.previewUrl || fileId) ? (
+                <div
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 8,
+                  }}
+                >
+                  <div style={{ borderRadius: 12, overflow: 'hidden' }}>
+                    <ThumbnailPositioner
+                      src={file.previewUrl || ''}
+                      value={imagePos}
+                      onChange={(next) => setImagePos(next)}
+                    />
+                  </div>
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      fontSize: 12,
+                      color: 'var(--c-muted)',
+                    }}
+                  >
+                    <span>Drag the image to pick the focal point.</span>
+                    <label
+                      style={{
+                        cursor: uploading ? 'wait' : 'pointer',
+                        padding: '6px 12px',
+                        borderRadius: 999,
+                        background: 'var(--c-panel)',
+                        color: 'var(--c-ink)',
+                        fontSize: 11.5,
+                        fontWeight: 500,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 6,
+                        border: '1px solid var(--c-line)',
+                      }}
+                    >
+                      <IconImage size={12} />
+                      {uploading ? 'Uploading…' : 'Replace photo'}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={onFile}
+                        style={{ display: 'none' }}
+                        disabled={uploading}
+                      />
+                    </label>
+                  </div>
+                </div>
+              ) : (
+                <label
+                  className={`${styles.uploadZone} ${file ? styles.uploadZoneHasFile : ''}`}
+                >
+                  {!file && (
+                    <>
+                      <span className={styles.uploadZoneIcon}>
+                        {isVideo ? (
+                          <IconVideo size={22} />
+                        ) : (
+                          <IconImage size={22} />
+                        )}
+                      </span>
+                      <span className={styles.uploadZoneText}>
+                        Drop your {isVideo ? 'video' : 'photo'} here, or click
+                        to browse
+                      </span>
+                      <span className={styles.uploadZoneSub}>
+                        {isVideo
+                          ? 'MP4 or MOV · up to 60 seconds'
+                          : 'JPG or PNG · up to 12MB'}
+                      </span>
+                    </>
+                  )}
+                  {file && isVideo && (
+                    <>
                       <div
                         style={{
                           textAlign: 'center',
@@ -364,25 +430,25 @@ export function SubmitActivityModal({
                           {uploading ? `Uploading… ${progress}%` : 'Uploaded'}
                         </div>
                       </div>
-                    )}
-                    <button
-                      type="button"
-                      className={styles.uploadZoneClear}
-                      onClick={clearFile}
-                      aria-label="Remove file"
-                    >
-                      <IconX size={14} />
-                    </button>
-                  </>
-                )}
-                <input
-                  className={styles.uploadZoneInput}
-                  type="file"
-                  accept={isVideo ? 'video/*' : 'image/*'}
-                  onChange={onFile}
-                  disabled={uploading}
-                />
-              </label>
+                      <button
+                        type="button"
+                        className={styles.uploadZoneClear}
+                        onClick={clearFile}
+                        aria-label="Remove file"
+                      >
+                        <IconX size={14} />
+                      </button>
+                    </>
+                  )}
+                  <input
+                    className={styles.uploadZoneInput}
+                    type="file"
+                    accept={isVideo ? 'video/*' : 'image/*'}
+                    onChange={onFile}
+                    disabled={uploading}
+                  />
+                </label>
+              )}
               {!isVideo && uploading && (
                 <div
                   style={{

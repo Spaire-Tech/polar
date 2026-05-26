@@ -335,6 +335,7 @@ function SubmissionCard({
           className={styles.subCoverImg}
           style={{
             backgroundImage: photo ? `url(${photo})` : undefined,
+            backgroundPosition: s.image_object_position || '50% 50%',
             background: photo ? undefined : '#3a2a18',
           }}
         />

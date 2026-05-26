@@ -80,6 +80,7 @@ export type ActivitySubmissionInput = {
   fileId?: string
   muxUploadId?: string
   linkUrl?: string
+  imageObjectPosition?: string
   visibility?: 'cohort' | 'all' | 'instr'
 }
 

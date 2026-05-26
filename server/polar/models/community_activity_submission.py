@@ -87,6 +87,15 @@ class CommunityActivitySubmission(RecordModel):
 
     link_url: Mapped[str | None] = mapped_column(Text, nullable=True, default=None)
 
+    # CSS `object-position` string ("43.5% 62.0%") chosen by the
+    # submitter from the ThumbnailPositioner — applied when the photo
+    # is rendered as a card thumbnail so the focal point survives the
+    # crop. Null = center (50% 50%). Only meaningful for photo
+    # submissions.
+    image_object_position: Mapped[str | None] = mapped_column(
+        String(32), nullable=True, default=None
+    )
+
     # Visibility scope chosen by the submitter:
     #   cohort — visible to enrolled customers + host (default)
     #   all    — visible to everyone enrolled across cohorts (same as
