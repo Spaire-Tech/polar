@@ -70,7 +70,9 @@ class CommunityActivityRepository(
             return {}
         statement = select(User).where(User.id.in_(user_ids))
         result = await self.session.execute(statement)
-        return {u.id: u for u in result.scalars().all()}
+        # User has eagerly-joined collections — `.unique()` is mandatory
+        # or SQLAlchemy throws InvalidRequestError on `.all()`.
+        return {u.id: u for u in result.scalars().unique().all()}
 
     async def bulk_load_channel_labels(
         self, activities: Sequence[CommunityActivity]
@@ -258,7 +260,9 @@ class CommunityActivitySubmissionRepository(
             return {}
         statement = select(Customer).where(Customer.id.in_(customer_ids))
         result = await self.session.execute(statement)
-        return {c.id: c for c in result.scalars().all()}
+        # Customer carries eagerly-joined collections (subscriptions,
+        # benefit grants); `.unique()` is required on `.all()`.
+        return {c.id: c for c in result.scalars().unique().all()}
 
     async def activity_ids_with_own_submission(
         self, activity_ids: Sequence[UUID], customer_id: UUID
