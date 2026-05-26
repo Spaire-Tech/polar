@@ -86,6 +86,9 @@ class CommunityEvent(RecordModel):
     location: Mapped[str | None] = mapped_column(Text, nullable=True, default=None)
     replay_url: Mapped[str | None] = mapped_column(Text, nullable=True, default=None)
     cover_url: Mapped[str | None] = mapped_column(Text, nullable=True, default=None)
+    cover_object_position: Mapped[str | None] = mapped_column(
+        String(32), nullable=True, default=None
+    )
 
     recurring_weekly: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False

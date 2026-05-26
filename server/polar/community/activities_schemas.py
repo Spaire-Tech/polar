@@ -45,6 +45,7 @@ class CommunityActivityRead(TimestampedSchema):
     title: str
     description: str | None = None
     cover_url: str | None = None
+    cover_object_position: str | None = None
     submission_type: ActivitySubmissionType
     status: ActivityStatus
     pin_to_feed: bool
@@ -65,6 +66,7 @@ class CommunityActivityCreate(Schema):
     title: str = Field(min_length=1, max_length=200)
     description: str | None = Field(default=None, max_length=4000)
     cover_url: str | None = Field(default=None, max_length=2000)
+    cover_object_position: str | None = Field(default=None, max_length=32)
     submission_type: ActivitySubmissionType
     pin_to_feed: bool = False
     notify_on_publish: bool = True
@@ -74,6 +76,7 @@ class CommunityActivityUpdate(Schema):
     title: str | None = Field(default=None, min_length=1, max_length=200)
     description: str | None = Field(default=None, max_length=4000)
     cover_url: str | None = Field(default=None, max_length=2000)
+    cover_object_position: str | None = Field(default=None, max_length=32)
     submission_type: ActivitySubmissionType | None = None
     pin_to_feed: bool | None = None
     status: ActivityStatus | None = None
