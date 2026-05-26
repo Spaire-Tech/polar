@@ -275,6 +275,12 @@ export function CommunityFeed({ courseId, customerSessionToken }: Props) {
               hostName={selfName ?? 'You'}
               events={events}
               onCreate={onCreateEvent}
+              onUpdate={() => {
+                /* students can't edit */
+              }}
+              onDelete={() => {
+                /* students can't delete */
+              }}
               onToggleGoing={onToggleGoing}
               canCreate={false}
             />
@@ -286,6 +292,12 @@ export function CommunityFeed({ courseId, customerSessionToken }: Props) {
               activities={activities}
               totalMembers={memberCount}
               canCreate={false}
+              onUpdate={() => {
+                /* students can't edit */
+              }}
+              onDelete={() => {
+                /* students can't delete */
+              }}
               onCreate={async (input: CommunityActivityCreateInput) => {
                 try {
                   await createActivityMut.mutateAsync(

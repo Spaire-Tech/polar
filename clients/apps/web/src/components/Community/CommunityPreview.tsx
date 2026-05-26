@@ -15,6 +15,10 @@ import {
   useCreatorCommunityMembers,
   useCreatorCommunitySettings,
   useCreatorCommunityTags,
+  useDeleteCommunityActivity,
+  useDeleteCommunityEvent,
+  useUpdateCommunityActivity,
+  useUpdateCommunityEvent,
 } from '@/hooks/queries/community'
 import { useEffect, useMemo, useState } from 'react'
 import {
@@ -73,12 +77,24 @@ export function CommunityPreview({
     courseId,
     'creator',
   )
+  const updateActivityMut = useUpdateCommunityActivity(
+    null,
+    courseId,
+    'creator',
+  )
+  const deleteActivityMut = useDeleteCommunityActivity(
+    null,
+    courseId,
+    'creator',
+  )
 
   // Events come from the creator-side endpoint (host sees own events,
   // students see filtered list via /customer-portal). Creator can create
   // here; RSVP is meaningless for the host (it's the host's own event).
   const eventsQ = useCommunityEvents(null, courseId, 'creator')
   const createEventMut = useCreateCommunityEvent(null, courseId, 'creator')
+  const updateEventMut = useUpdateCommunityEvent(null, courseId, 'creator')
+  const deleteEventMut = useDeleteCommunityEvent(null, courseId, 'creator')
   const events: CommunityEvent[] = useMemo(
     () => (eventsQ.data ?? []).map(mapEventReadToUI),
     [eventsQ.data],
@@ -206,6 +222,28 @@ export function CommunityPreview({
                   setToast('Could not create event')
                 }
               }}
+              onUpdate={async (
+                eventId: string,
+                input: CommunityEventCreateInput,
+              ) => {
+                try {
+                  await updateEventMut.mutateAsync({
+                    eventId,
+                    body: buildEventCreateBody(input),
+                  })
+                  setToast('Event updated')
+                } catch {
+                  setToast('Could not update event')
+                }
+              }}
+              onDelete={async (eventId: string) => {
+                try {
+                  await deleteEventMut.mutateAsync(eventId)
+                  setToast('Event deleted')
+                } catch {
+                  setToast('Could not delete event')
+                }
+              }}
               onToggleGoing={() => {
                 /* host doesn't RSVP to own events */
               }}
@@ -226,6 +264,28 @@ export function CommunityPreview({
                   setToast('Activity created')
                 } catch {
                   setToast('Could not create activity')
+                }
+              }}
+              onUpdate={async (
+                activityId: string,
+                input: CommunityActivityCreateInput,
+              ) => {
+                try {
+                  await updateActivityMut.mutateAsync({
+                    activityId,
+                    body: buildActivityCreateBody(input),
+                  })
+                  setToast('Activity updated')
+                } catch {
+                  setToast('Could not update activity')
+                }
+              }}
+              onDelete={async (activityId: string) => {
+                try {
+                  await deleteActivityMut.mutateAsync(activityId)
+                  setToast('Activity deleted')
+                } catch {
+                  setToast('Could not delete activity')
                 }
               }}
               onSubmit={async (_id, _sub: ActivitySubmissionInput) => {

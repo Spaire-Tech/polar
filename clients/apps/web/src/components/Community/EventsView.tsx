@@ -218,6 +218,8 @@ type Props = {
   hostName: string
   events: CommunityEvent[]
   onCreate: (event: CommunityEventCreateInput) => void
+  onUpdate: (eventId: string, patch: CommunityEventCreateInput) => void
+  onDelete: (eventId: string) => void
   onToggleGoing: (id: string) => void
   canCreate: boolean
 }
@@ -227,10 +229,13 @@ export function EventsView({
   hostName,
   events,
   onCreate,
+  onUpdate,
+  onDelete,
   onToggleGoing,
   canCreate,
 }: Props) {
   const [createOpen, setCreateOpen] = useState(false)
+  const [editing, setEditing] = useState<CommunityEvent | null>(null)
   // "mine" = Going (student) or Hosting (creator). Label flips based on
   // canCreate; the underlying filter is the same `going` boolean.
   const [filter, setFilter] = useState<'all' | EventType | 'mine'>('all')
@@ -317,6 +322,17 @@ export function EventsView({
                   event={e}
                   onToggleGoing={onToggleGoing}
                   canRsvp={!canCreate}
+                  canManage={canCreate}
+                  onEdit={() => setEditing(e)}
+                  onDelete={() => {
+                    if (
+                      window.confirm(
+                        `Delete "${e.title}"? Attendees will no longer see it and any RSVPs will be removed.`,
+                      )
+                    ) {
+                      onDelete(e.id)
+                    }
+                  }}
                 />
               ))}
             </div>
@@ -337,6 +353,17 @@ export function EventsView({
                 onToggleGoing={onToggleGoing}
                 past
                 canRsvp={!canCreate}
+                canManage={canCreate}
+                onEdit={() => setEditing(e)}
+                onDelete={() => {
+                  if (
+                    window.confirm(
+                      `Delete "${e.title}"? This past event and its replay will be removed.`,
+                    )
+                  ) {
+                    onDelete(e.id)
+                  }
+                }}
               />
             ))}
           </div>
@@ -348,10 +375,25 @@ export function EventsView({
           open={createOpen}
           courseId={courseId}
           hostName={hostName}
+          editing={null}
           onClose={() => setCreateOpen(false)}
-          onCreate={(payload) => {
+          onSubmit={(payload) => {
             onCreate(payload)
             setCreateOpen(false)
+          }}
+        />
+      )}
+
+      {canCreate && editing && (
+        <CreateEventModal
+          open={!!editing}
+          courseId={courseId}
+          hostName={hostName}
+          editing={editing}
+          onClose={() => setEditing(null)}
+          onSubmit={(payload) => {
+            onUpdate(editing.id, payload)
+            setEditing(null)
           }}
         />
       )}
@@ -417,12 +459,19 @@ function EventCard({
   past,
   onToggleGoing,
   canRsvp,
+  canManage,
+  onEdit,
+  onDelete,
 }: {
   event: CommunityEvent
   past?: boolean
   onToggleGoing: (id: string) => void
   canRsvp: boolean
+  canManage: boolean
+  onEdit: () => void
+  onDelete: () => void
 }) {
+  const [menuOpen, setMenuOpen] = useState(false)
   const chip = formatDateChip(event.startAt, event.timezone)
   const whenHost = formatHostWhen(event.startAt, event.timezone)
   const whenViewer = formatViewerWhen(event.startAt, event.timezone)
@@ -456,6 +505,21 @@ function EventCard({
           )}
         </div>
         <span className={styles.eventCoverType}>{TYPE_LABEL[event.type]}</span>
+        {canManage && (
+          <CardManageMenu
+            open={menuOpen}
+            onToggle={() => setMenuOpen((v) => !v)}
+            onClose={() => setMenuOpen(false)}
+            onEdit={() => {
+              setMenuOpen(false)
+              onEdit()
+            }}
+            onDelete={() => {
+              setMenuOpen(false)
+              onDelete()
+            }}
+          />
+        )}
         {past && (
           <div className={styles.eventCoverReplay}>
             <span className="play">
@@ -617,15 +681,18 @@ function CreateEventModal({
   open,
   courseId,
   hostName,
+  editing,
   onClose,
-  onCreate,
+  onSubmit,
 }: {
   open: boolean
   courseId: string | undefined
   hostName: string
+  editing: CommunityEvent | null
   onClose: () => void
-  onCreate: (e: CommunityEventCreateInput) => void
+  onSubmit: (e: CommunityEventCreateInput) => void
 }) {
+  const isEdit = !!editing
   const [title, setTitle] = useState('')
   const [type, setType] = useState<EventType>('workshop')
   const [date, setDate] = useState('')
@@ -644,7 +711,40 @@ function CreateEventModal({
   const titleRef = useRef<HTMLInputElement | null>(null)
 
   useEffect(() => {
-    if (open) {
+    if (!open) return
+    if (editing) {
+      // Seed every field from the existing event. Split start_at back
+      // into the modal's date/time strings (in the host's tz so the
+      // values match what they originally picked).
+      const d = new Date(editing.startAt)
+      const tz = editing.timezone || VIEWER_TZ
+      const fmt = (opts: Intl.DateTimeFormatOptions) =>
+        new Intl.DateTimeFormat('en-CA', { timeZone: tz, ...opts }).format(d)
+      const yyyy = fmt({ year: 'numeric' })
+      const mm = fmt({ month: '2-digit' })
+      const dd = fmt({ day: '2-digit' })
+      const hh = new Intl.DateTimeFormat('en-GB', {
+        timeZone: tz,
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+      }).format(d)
+      setTitle(editing.title)
+      setType(editing.type)
+      setDate(`${yyyy}-${mm}-${dd}`)
+      setStartTime(hh)
+      setDuration(editing.duration)
+      setTimezone(tz)
+      setLocation(editing.location || '')
+      setCoverUrl(editing.coverUrl || '')
+      setCoverObjectPosition(editing.coverObjectPosition || '50% 50%')
+      setMeetingUrl(editing.meetingUrl || '')
+      setDesc(editing.desc || '')
+      // Notify only fires on publish, not on edit — default off in edit mode
+      // so a save doesn't accidentally re-notify everyone.
+      setNotify(false)
+      setRecurring(false)
+    } else {
       setTitle('')
       setType('workshop')
       setDate('')
@@ -658,9 +758,9 @@ function CreateEventModal({
       setDesc('')
       setNotify(true)
       setRecurring(false)
-      setTimeout(() => titleRef.current?.focus(), 50)
     }
-  }, [open])
+    setTimeout(() => titleRef.current?.focus(), 50)
+  }, [open, editing])
 
   useEffect(() => {
     if (!open) return
@@ -684,7 +784,7 @@ function CreateEventModal({
 
   const submit = () => {
     if (!canSubmit) return
-    onCreate({
+    onSubmit({
       title: title.trim(),
       type,
       desc: desc.trim(),
@@ -710,7 +810,9 @@ function CreateEventModal({
     >
       <div className={styles.ceModal} onClick={(e) => e.stopPropagation()}>
         <div className={styles.ceHead}>
-          <div className={styles.ceTitle}>Create event</div>
+          <div className={styles.ceTitle}>
+            {isEdit ? 'Edit event' : 'Create event'}
+          </div>
           <button
             type="button"
             className={styles.modalClose}
@@ -902,7 +1004,8 @@ function CreateEventModal({
               disabled={!canSubmit}
               onClick={submit}
             >
-              <IconCalendar size={13} /> Publish event
+              <IconCalendar size={13} />{' '}
+              {isEdit ? 'Save changes' : 'Publish event'}
             </button>
           </div>
         </div>
@@ -1028,5 +1131,120 @@ export function CoverUploader({
         disabled={upload.isPending}
       />
     </label>
+  )
+}
+
+// ---------------------------------------------------------------------
+// Card manage menu — the '...' button + dropdown shown on event /
+// activity cards when the viewer can manage the row (host only).
+// Inline-styled so it can ship without a CSS-module addition.
+// ---------------------------------------------------------------------
+
+export function CardManageMenu({
+  open,
+  onToggle,
+  onClose,
+  onEdit,
+  onDelete,
+}: {
+  open: boolean
+  onToggle: () => void
+  onClose: () => void
+  onEdit: () => void
+  onDelete: () => void
+}) {
+  return (
+    <div
+      style={{ position: 'absolute', top: 10, right: 56, zIndex: 5 }}
+      onMouseLeave={onClose}
+    >
+      <button
+        type="button"
+        aria-label="Manage"
+        onClick={(e) => {
+          e.preventDefault()
+          e.stopPropagation()
+          onToggle()
+        }}
+        style={{
+          width: 28,
+          height: 28,
+          borderRadius: 999,
+          background: 'rgba(0,0,0,0.55)',
+          backdropFilter: 'blur(8px)',
+          color: '#fff',
+          border: 'none',
+          cursor: 'pointer',
+          display: 'grid',
+          placeItems: 'center',
+          fontSize: 14,
+          fontWeight: 700,
+          letterSpacing: -1,
+          padding: 0,
+        }}
+      >
+        ⋯
+      </button>
+      {open && (
+        <div
+          role="menu"
+          style={{
+            position: 'absolute',
+            top: 32,
+            right: 0,
+            minWidth: 160,
+            background: '#fff',
+            border: '1px solid var(--c-line)',
+            borderRadius: 12,
+            boxShadow: '0 16px 40px rgba(0,0,0,0.16)',
+            padding: 6,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 2,
+          }}
+        >
+          <button
+            type="button"
+            role="menuitem"
+            onClick={(e) => {
+              e.stopPropagation()
+              onEdit()
+            }}
+            style={{
+              textAlign: 'left',
+              padding: '8px 12px',
+              borderRadius: 8,
+              background: 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+              fontSize: 13,
+              color: 'var(--c-ink)',
+            }}
+          >
+            Edit
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            onClick={(e) => {
+              e.stopPropagation()
+              onDelete()
+            }}
+            style={{
+              textAlign: 'left',
+              padding: '8px 12px',
+              borderRadius: 8,
+              background: 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+              fontSize: 13,
+              color: '#dc2626',
+            }}
+          >
+            Delete
+          </button>
+        </div>
+      )}
+    </div>
   )
 }

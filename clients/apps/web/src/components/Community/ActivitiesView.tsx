@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { CoverUploader } from './EventsView'
+import { CardManageMenu, CoverUploader } from './EventsView'
 import styles from './community.module.css'
 import {
   IconCamera,
@@ -88,6 +88,8 @@ type Props = {
   channels: ActivityChannel[]
   activities: CommunityActivity[]
   onCreate: (a: CommunityActivityCreateInput) => void
+  onUpdate: (activityId: string, patch: CommunityActivityCreateInput) => void
+  onDelete: (activityId: string) => void
   onSubmit: (
     activityId: string,
     submission: ActivitySubmissionInput,
@@ -103,12 +105,15 @@ export function ActivitiesView({
   channels,
   activities,
   onCreate,
+  onUpdate,
+  onDelete,
   onSubmit,
   onViewSubmissions,
   totalMembers,
   canCreate,
 }: Props) {
   const [createOpen, setCreateOpen] = useState(false)
+  const [editing, setEditing] = useState<CommunityActivity | null>(null)
   const [submitFor, setSubmitFor] = useState<CommunityActivity | null>(null)
   const [filter, setFilter] = useState<'all' | string | 'mine'>('all')
 
@@ -222,8 +227,19 @@ export function ActivitiesView({
               channelKind={channelKind}
               indexNum={idx + 1}
               canSubmit={!canCreate && a.status === 'open'}
+              canManage={canCreate}
               onSubmit={() => setSubmitFor(a)}
               onViewSubmissions={() => onViewSubmissions(a.id)}
+              onEdit={() => setEditing(a)}
+              onDelete={() => {
+                if (
+                  window.confirm(
+                    `Delete "${a.title}"? All submissions will be removed.`,
+                  )
+                ) {
+                  onDelete(a.id)
+                }
+              }}
             />
           ))}
         </div>
@@ -235,10 +251,26 @@ export function ActivitiesView({
           courseId={courseId}
           channelKind={channelKind}
           channels={channels}
+          editing={null}
           onClose={() => setCreateOpen(false)}
-          onCreate={(payload) => {
+          onSubmit={(payload) => {
             onCreate(payload)
             setCreateOpen(false)
+          }}
+        />
+      )}
+
+      {canCreate && editing && (
+        <CreateActivityModal
+          open={!!editing}
+          courseId={courseId}
+          channelKind={channelKind}
+          channels={channels}
+          editing={editing}
+          onClose={() => setEditing(null)}
+          onSubmit={(payload) => {
+            onUpdate(editing.id, payload)
+            setEditing(null)
           }}
         />
       )}
@@ -266,16 +298,23 @@ function ActivityListCard({
   channelKind,
   indexNum,
   canSubmit,
+  canManage,
   onSubmit,
   onViewSubmissions,
+  onEdit,
+  onDelete,
 }: {
   activity: CommunityActivity
   channelKind: 'episode' | 'module'
   indexNum: number
   canSubmit: boolean
+  canManage: boolean
   onSubmit: () => void
   onViewSubmissions: () => void
+  onEdit: () => void
+  onDelete: () => void
 }) {
+  const [menuOpen, setMenuOpen] = useState(false)
   const pct =
     activity.totalMembers > 0
       ? Math.round((activity.distinctSubmitters / activity.totalMembers) * 100)
@@ -306,6 +345,21 @@ function ActivityListCard({
         >
           <span className="dot" /> {closed ? 'Closed' : 'Open'}
         </span>
+        {canManage && (
+          <CardManageMenu
+            open={menuOpen}
+            onToggle={() => setMenuOpen((v) => !v)}
+            onClose={() => setMenuOpen(false)}
+            onEdit={() => {
+              setMenuOpen(false)
+              onEdit()
+            }}
+            onDelete={() => {
+              setMenuOpen(false)
+              onDelete()
+            }}
+          />
+        )}
       </div>
 
       <div className={styles.activityBody}>
@@ -378,16 +432,19 @@ function CreateActivityModal({
   courseId,
   channelKind,
   channels,
+  editing,
   onClose,
-  onCreate,
+  onSubmit,
 }: {
   open: boolean
   courseId: string | undefined
   channelKind: 'episode' | 'module'
   channels: ActivityChannel[]
+  editing: CommunityActivity | null
   onClose: () => void
-  onCreate: (payload: CommunityActivityCreateInput) => void
+  onSubmit: (payload: CommunityActivityCreateInput) => void
 }) {
+  const isEdit = !!editing
   const [title, setTitle] = useState('')
   const [channelId, setChannelId] = useState<string>('')
   const [submissionType, setSubmissionType] = useState<SubmissionType>('photo')
@@ -400,7 +457,19 @@ function CreateActivityModal({
   const titleRef = useRef<HTMLInputElement | null>(null)
 
   useEffect(() => {
-    if (open) {
+    if (!open) return
+    if (editing) {
+      setTitle(editing.title)
+      setChannelId(editing.channelId ?? channels[0]?.id ?? '')
+      setSubmissionType(editing.submissionType)
+      setDesc(editing.desc || '')
+      setCoverUrl(editing.coverUrl || '')
+      setCoverObjectPosition(editing.coverObjectPosition || '50% 50%')
+      // notify_on_publish only fires on initial publish; default off on edit
+      // so a save doesn't try to re-notify.
+      setNotify(false)
+      setPinFeed(editing.pinFeed)
+    } else {
       setTitle('')
       setChannelId(channels[0]?.id ?? '')
       setSubmissionType('photo')
@@ -409,9 +478,9 @@ function CreateActivityModal({
       setCoverObjectPosition('50% 50%')
       setNotify(true)
       setPinFeed(true)
-      setTimeout(() => titleRef.current?.focus(), 50)
     }
-  }, [open, channels])
+    setTimeout(() => titleRef.current?.focus(), 50)
+  }, [open, editing, channels])
 
   useEffect(() => {
     if (!open) return
@@ -440,7 +509,7 @@ function CreateActivityModal({
   const submit = () => {
     if (!canSubmit) return
     const channel = channels.find((c) => c.id === channelId)
-    onCreate({
+    onSubmit({
       channelKind: channelKind === 'episode' ? 'lesson' : 'module',
       channelId,
       channelLabel: channel?.label ?? '',
@@ -463,7 +532,9 @@ function CreateActivityModal({
     >
       <div className={styles.ceModal} onClick={(e) => e.stopPropagation()}>
         <div className={styles.ceHead}>
-          <div className={styles.ceTitle}>Create activity</div>
+          <div className={styles.ceTitle}>
+            {isEdit ? 'Edit activity' : 'Create activity'}
+          </div>
           <button
             type="button"
             className={styles.modalClose}
@@ -597,7 +668,8 @@ function CreateActivityModal({
               disabled={!canSubmit}
               onClick={submit}
             >
-              <IconSend size={13} /> Publish activity
+              <IconSend size={13} />{' '}
+              {isEdit ? 'Save changes' : 'Publish activity'}
             </button>
           </div>
         </div>
