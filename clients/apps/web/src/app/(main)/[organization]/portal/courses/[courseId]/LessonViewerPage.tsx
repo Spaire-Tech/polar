@@ -144,6 +144,7 @@ const LessonViewerPage = ({
         lesson={{
           id: currentLesson.id,
           title: currentLesson.title,
+          description: currentLesson.description,
           content_type: currentLesson.content_type,
           duration_seconds: currentLesson.duration_seconds,
           thumbnail_url: currentLesson.thumbnail_url,

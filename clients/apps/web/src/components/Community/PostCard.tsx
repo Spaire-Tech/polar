@@ -14,7 +14,7 @@ import {
   useTogglePostReaction,
 } from '@/hooks/queries/community'
 import { buildCommentTree, type CommentNode } from '@/lib/comments/build-tree'
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { HlsVideo } from '../Courses/HlsVideo'
 import { Avatar } from './Avatar'
 import styles from './community.module.css'
@@ -28,6 +28,7 @@ import {
   IconSend,
   IconThumbsUp,
   IconTrash,
+  IconX,
 } from './icons'
 
 type ReactionDef = {
@@ -37,12 +38,15 @@ type ReactionDef = {
 }
 
 const REACTIONS: ReactionDef[] = [
+  { id: 'thumbsup', emoji: '👍', label: 'Like' },
   { id: 'clap', emoji: '👏', label: 'Celebrate' },
   { id: 'heart', emoji: '❤️', label: 'Love' },
   { id: 'fire', emoji: '🔥', label: 'Fire' },
   { id: 'idea', emoji: '💡', label: 'Insightful' },
   { id: 'pray', emoji: '🙏', label: 'Support' },
 ]
+
+const DEFAULT_REACTION: CommunityReactionEmoji = 'thumbsup'
 
 const REACTION_BY_ID: Record<CommunityReactionEmoji, ReactionDef> =
   REACTIONS.reduce(
@@ -160,27 +164,78 @@ function LikeButton({
   const mine = useMemo(() => reactions.find((r) => r.mine), [reactions])
   const active = mine ? REACTION_BY_ID[mine.emoji] : null
   const [burst, setBurst] = useState(false)
+  const [pickerOpen, setPickerOpen] = useState(false)
+  const wrapRef = useRef<HTMLDivElement>(null)
+  const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const clearHide = () => {
+    if (hideTimer.current) {
+      clearTimeout(hideTimer.current)
+      hideTimer.current = null
+    }
+  }
+
+  const scheduleHide = () => {
+    clearHide()
+    hideTimer.current = setTimeout(() => setPickerOpen(false), 220)
+  }
+
+  // Click anywhere outside the wrap closes the picker — necessary on
+  // touch devices where there is no mouseleave to fall back on.
+  useEffect(() => {
+    if (!pickerOpen) return
+    const onDocClick = (e: MouseEvent) => {
+      if (!wrapRef.current) return
+      if (!wrapRef.current.contains(e.target as Node)) {
+        setPickerOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', onDocClick)
+    return () => document.removeEventListener('mousedown', onDocClick)
+  }, [pickerOpen])
+
+  useEffect(() => () => clearHide(), [])
 
   const choose = (id: CommunityReactionEmoji) => {
     setBurst(true)
     setTimeout(() => setBurst(false), 400)
+    setPickerOpen(false)
+    clearHide()
     onToggle(id)
   }
 
-  // Tapping the button itself (no hover) toggles the default "Like"
-  // reaction — we map that to clap since the backend doesn't ship a
-  // thumbs-up emoji.
-  const onPrimary = () => choose(active ? active.id : 'clap')
+  // Tapping the button toggles the user's current reaction off, or
+  // applies the default 👍 reaction when nothing is set.
+  const onPrimary = () => {
+    setPickerOpen(false)
+    clearHide()
+    choose(active ? active.id : DEFAULT_REACTION)
+  }
 
   return (
-    <div className={styles.likeWrap}>
-      <div className={styles.reactionPicker}>
+    <div
+      ref={wrapRef}
+      className={`${styles.likeWrap} ${pickerOpen ? styles.likeWrapOpen : ''}`}
+      onMouseEnter={() => {
+        clearHide()
+        setPickerOpen(true)
+      }}
+      onMouseLeave={scheduleHide}
+    >
+      <div
+        className={styles.reactionPicker}
+        onMouseEnter={clearHide}
+        onMouseLeave={scheduleHide}
+      >
         {REACTIONS.map((r) => (
           <button
             key={r.id}
             type="button"
             className={styles.rx}
-            onClick={() => choose(r.id)}
+            onClick={(e) => {
+              e.stopPropagation()
+              choose(r.id)
+            }}
             aria-label={r.label}
           >
             <span className={styles.rxLabel}>{r.label}</span>
@@ -192,6 +247,12 @@ function LikeButton({
         type="button"
         className={`${styles.postAction} ${active ? styles.reacted : ''}`}
         onClick={onPrimary}
+        onContextMenu={(e) => {
+          // Long-press / right-click opens the picker without firing a
+          // reaction — mirrors the LinkedIn touch behavior.
+          e.preventDefault()
+          setPickerOpen((v) => !v)
+        }}
       >
         {active ? (
           <>
@@ -261,15 +322,14 @@ function StatsBar({
         )}
         {totalReactions > 0 && <span>{totalReactions}</span>}
       </div>
-      {commentCount > 0 && (
-        <button
-          type="button"
-          className={styles.statsRight}
-          onClick={onCommentsClick}
-        >
-          {commentCount} {commentCount === 1 ? 'comment' : 'comments'}
-        </button>
-      )}
+      <button
+        type="button"
+        className={styles.statsRight}
+        onClick={onCommentsClick}
+        disabled={commentCount === 0 && !onCommentsClick}
+      >
+        {commentCount} {commentCount === 1 ? 'comment' : 'comments'}
+      </button>
     </div>
   )
 }
@@ -661,9 +721,11 @@ export type PostCardProps = {
 function PostMediaGrid({
   media,
   onVideoElement,
+  onOpenLightbox,
 }: {
   media: CommunityPostRead['media']
   onVideoElement?: (el: HTMLVideoElement | null) => void
+  onOpenLightbox?: (index: number) => void
 }) {
   const video = useMemo(
     () => media.find((m) => m.media_type === 'video'),
@@ -679,9 +741,16 @@ function PostMediaGrid({
   )
   if (video) return <PostVideo media={video} onVideoElement={onVideoElement} />
   if (images.length === 0) return null
+  // Single image renders at its natural aspect ratio so we don't crop
+  // portraits or screenshots. Multi-image stays in the cropped grid for
+  // layout sanity — the lightbox always shows the un-cropped original.
+  const isSingle = images.length === 1
   return (
-    <div className={styles.postMediaGrid} data-count={images.length}>
-      {images.map((m) => (
+    <div
+      className={`${styles.postMediaGrid} ${isSingle ? styles.postMediaGridSingle : ''}`}
+      data-count={images.length}
+    >
+      {images.map((m, idx) => (
         // eslint-disable-next-line @next/next/no-img-element
         <img
           key={m.id}
@@ -689,8 +758,159 @@ function PostMediaGrid({
           alt=""
           loading="lazy"
           className={styles.postMediaImage}
+          onClick={() => onOpenLightbox?.(idx)}
         />
       ))}
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------
+// Image lightbox — LinkedIn-style two-pane modal. The clicked image
+// (with prev/next navigation through the other attachments) takes the
+// left side at its natural aspect; the right side renders the post
+// author, body and comment thread so the reader can react without
+// leaving the modal.
+// ---------------------------------------------------------------------
+
+function PostImageLightbox({
+  images,
+  startIndex,
+  onClose,
+  post,
+  token,
+  courseId,
+  selfName,
+  selfAvatarUrl,
+  selfEnrollmentId,
+  reactionsEnabled,
+  mode = 'customer',
+}: {
+  images: { id: string; public_url: string }[]
+  startIndex: number
+  onClose: () => void
+  post: CommunityPostRead
+  token: string
+  courseId: string
+  selfName?: string | null
+  selfAvatarUrl?: string | null
+  selfEnrollmentId?: string | null
+  reactionsEnabled: boolean
+  mode?: CommunityIOMode
+}) {
+  const [index, setIndex] = useState(startIndex)
+  const togglePostReaction = useTogglePostReaction(token, courseId, mode)
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+      if (e.key === 'ArrowLeft')
+        setIndex((i) => (i - 1 + images.length) % images.length)
+      if (e.key === 'ArrowRight')
+        setIndex((i) => (i + 1) % images.length)
+    }
+    document.addEventListener('keydown', onKey)
+    // Lock body scroll while the lightbox is open.
+    const prevOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.removeEventListener('keydown', onKey)
+      document.body.style.overflow = prevOverflow
+    }
+  }, [images.length, onClose])
+
+  const active = images[Math.max(0, Math.min(index, images.length - 1))]
+  const onReact = (emoji: CommunityReactionEmoji) => {
+    togglePostReaction.mutate({ postId: post.id, emoji })
+  }
+
+  return (
+    <div
+      className={styles.lightboxBackdrop}
+      role="dialog"
+      aria-modal="true"
+      onClick={onClose}
+    >
+      <button
+        type="button"
+        className={styles.lightboxClose}
+        onClick={onClose}
+        aria-label="Close"
+      >
+        <IconX size={20} />
+      </button>
+      <div
+        className={styles.lightboxFrame}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className={styles.lightboxImagePane}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={active.public_url} alt="" />
+          {images.length > 1 && (
+            <>
+              <button
+                type="button"
+                className={`${styles.lightboxNav} ${styles.lightboxNavPrev}`}
+                onClick={() =>
+                  setIndex((i) => (i - 1 + images.length) % images.length)
+                }
+                aria-label="Previous image"
+              >
+                ‹
+              </button>
+              <button
+                type="button"
+                className={`${styles.lightboxNav} ${styles.lightboxNavNext}`}
+                onClick={() => setIndex((i) => (i + 1) % images.length)}
+                aria-label="Next image"
+              >
+                ›
+              </button>
+              <div className={styles.lightboxCounter}>
+                {index + 1} / {images.length}
+              </div>
+            </>
+          )}
+        </div>
+        <aside className={styles.lightboxSidebar}>
+          <div className={styles.lightboxAuthor}>
+            <Avatar
+              name={authorName(post.author)}
+              avatarUrl={post.author.avatar_url ?? undefined}
+              size={42}
+            />
+            <div style={{ minWidth: 0 }}>
+              <div className={styles.postAuthor}>{authorName(post.author)}</div>
+              <div className={styles.postMeta}>
+                {post.published_at ? formatRelative(post.published_at) : ''}
+              </div>
+            </div>
+          </div>
+          {post.body && post.body.trim().length > 0 && (
+            <div style={{ marginTop: 6 }}>
+              <ExpandableBody body={post.body} />
+            </div>
+          )}
+          <StatsBar
+            reactions={post.reactions}
+            commentCount={post.comment_count}
+          />
+          {reactionsEnabled && (
+            <div className={styles.postActions}>
+              <LikeButton reactions={post.reactions} onToggle={onReact} />
+            </div>
+          )}
+          <CommentSection
+            token={token}
+            courseId={courseId}
+            postId={post.id}
+            selfName={selfName}
+            selfAvatarUrl={selfAvatarUrl}
+            selfEnrollmentId={selfEnrollmentId}
+            mode={mode}
+          />
+        </aside>
+      </div>
     </div>
   )
 }
@@ -817,6 +1037,17 @@ function RegularPostCard({
 }: PostCardProps) {
   const [commentsOpen, setCommentsOpen] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
+
+  const lightboxImages = useMemo(
+    () =>
+      post.media
+        .filter((m) => m.media_type === 'image' && m.public_url)
+        .slice(0, 4)
+        .sort((a, b) => a.position - b.position)
+        .map((m) => ({ id: m.id, public_url: m.public_url! })),
+    [post.media],
+  )
 
   const videoElementRef = useRef<HTMLVideoElement | null>(null)
   const handleVideoElement = useCallback((el: HTMLVideoElement | null) => {
@@ -981,7 +1212,24 @@ function RegularPostCard({
       <PostMediaGrid
         media={post.media}
         onVideoElement={post.type === 'video' ? handleVideoElement : undefined}
+        onOpenLightbox={(idx) => setLightboxIndex(idx)}
       />
+
+      {lightboxIndex !== null && lightboxImages.length > 0 && (
+        <PostImageLightbox
+          images={lightboxImages}
+          startIndex={lightboxIndex}
+          onClose={() => setLightboxIndex(null)}
+          post={post}
+          token={token}
+          courseId={courseId}
+          selfName={selfName}
+          selfAvatarUrl={selfAvatarUrl}
+          selfEnrollmentId={selfEnrollmentId}
+          reactionsEnabled={reactionsEnabled}
+          mode={mode}
+        />
+      )}
 
       <StatsBar
         reactions={post.reactions}

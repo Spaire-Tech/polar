@@ -137,6 +137,10 @@ export function Composer({
     setUploadError(null)
     const slots = MAX_IMAGES - images.length
     const queue = Array.from(files).slice(0, slots)
+
+    // Validate up front so we don't burn an upload slot on a file we'll
+    // reject. Anything that fails validation is reported and skipped.
+    const valid: File[] = []
     for (const file of queue) {
       if (!file.type.startsWith('image/')) {
         setUploadError('Only images can be attached.')
@@ -146,16 +150,33 @@ export function Composer({
         setUploadError(`"${file.name}" is over 10 MB.`)
         continue
       }
-      try {
-        const result = await upload.mutateAsync(file)
-        setImages((prev) => [
-          ...prev,
-          { file_id: result.file_id, preview_url: result.public_url },
-        ])
-      } catch (e) {
-        setUploadError(e instanceof Error ? e.message : 'Upload failed')
-      }
+      valid.push(file)
     }
+
+    // Fire every upload in parallel — LinkedIn-style instant strip. The
+    // results land in selection order via Promise.all so the thumbs row
+    // matches what the user picked. A single failure no longer blocks
+    // the rest (allSettled), but we surface the first error message.
+    const results = await Promise.allSettled(
+      valid.map((file) => upload.mutateAsync(file)),
+    )
+    const fresh: AttachedImage[] = []
+    let firstError: string | null = null
+    results.forEach((r) => {
+      if (r.status === 'fulfilled') {
+        fresh.push({
+          file_id: r.value.file_id,
+          preview_url: r.value.public_url,
+        })
+      } else if (firstError === null) {
+        firstError =
+          r.reason instanceof Error ? r.reason.message : 'Upload failed'
+      }
+    })
+    if (fresh.length > 0) {
+      setImages((prev) => [...prev, ...fresh])
+    }
+    if (firstError) setUploadError(firstError)
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
 

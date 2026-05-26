@@ -441,15 +441,24 @@ const lessonStyles: Record<string, React.CSSProperties> = {
     padding: 0,
     fontFamily: FONT,
     color: 'inherit',
+    // Apple TV-style pop: faster transform spring + slower shadow ease,
+    // so the card lifts crisply while the glow blooms behind it. Hint
+    // the compositor to keep the animation buttery.
     transition:
-      'transform 250ms cubic-bezier(0.34,1.3,0.64,1), box-shadow 250ms ease',
+      'transform 320ms cubic-bezier(0.22, 1.4, 0.36, 1), box-shadow 360ms cubic-bezier(0.22, 1, 0.36, 1)',
+    transform: 'translateY(0) scale(1)',
+    willChange: 'transform',
+    transformOrigin: 'center center',
     boxShadow:
       '0 1px 2px oklch(0 0 0 / 0.04), 0 4px 16px oklch(0 0 0 / 0.05)',
+    position: 'relative',
+    zIndex: 1,
   },
   cardHover: {
-    transform: 'scale(1.02)',
+    transform: 'translateY(-6px) scale(1.06)',
     boxShadow:
-      '0 16px 48px oklch(0 0 0 / 0.14), 0 2px 8px oklch(0 0 0 / 0.06)',
+      '0 28px 64px oklch(0 0 0 / 0.22), 0 12px 28px oklch(0 0 0 / 0.12), 0 2px 6px oklch(0 0 0 / 0.06)',
+    zIndex: 2,
   },
   thumb: {
     position: 'relative',

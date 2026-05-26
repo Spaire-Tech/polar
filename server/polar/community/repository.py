@@ -539,15 +539,17 @@ class CommunityPostRepository(
 
     async def list_course_members(
         self, course_id: UUID
-    ) -> Sequence[tuple[UUID, str | None, str, datetime]]:
+    ) -> Sequence[tuple[UUID, str | None, str, str | None, datetime]]:
         """Powers the Members tab. Returns (enrollment_id, customer_name,
-        customer_email, enrolled_at) for every active (non-soft-deleted)
-        enrollment in the course, newest enrollment first."""
+        customer_email, customer_avatar_url, enrolled_at) for every active
+        (non-soft-deleted) enrollment in the course, newest enrollment
+        first."""
         statement = (
             select(
                 CourseEnrollment.id,
                 Customer.name,
                 Customer.email,
+                Customer.avatar_url,
                 CourseEnrollment.enrolled_at,
             )
             .join(Customer, Customer.id == CourseEnrollment.customer_id)
@@ -559,7 +561,8 @@ class CommunityPostRepository(
         )
         result = await self.session.execute(statement)
         return [
-            (row.id, row.name, row.email, row.enrolled_at) for row in result
+            (row.id, row.name, row.email, row.avatar_url, row.enrolled_at)
+            for row in result
         ]
 
 
