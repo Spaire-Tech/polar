@@ -34,6 +34,7 @@ class CommunityActivitySubmissionRead(TimestampedSchema):
     # encoding state when this is set and != 'ready'.
     mux_status: str | None = None
     link_url: str | None = None
+    image_object_position: str | None = None
     visibility: ActivitySubmissionVisibility = "cohort"
 
     # Submitter identity. We surface the customer's display name +
@@ -122,6 +123,9 @@ class CommunityActivitySubmissionCreate(Schema):
     file_id: UUID4 | None = None
     mux_upload_id: str | None = None
     link_url: str | None = Field(default=None, max_length=2000)
+    image_object_position: str | None = Field(
+        default=None, max_length=32, pattern=COVER_OBJECT_POSITION_PATTERN
+    )
     visibility: ActivitySubmissionVisibility = "cohort"
 
 

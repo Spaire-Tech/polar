@@ -1409,6 +1409,7 @@ export interface CommunityActivitySubmissionRead {
   mux_playback_id: string | null
   mux_status: string | null
   link_url: string | null
+  image_object_position: string | null
   visibility: ActivitySubmissionVisibility
   author_name: string
   author_avatar_url: string | null
@@ -1423,6 +1424,7 @@ export interface CommunityActivitySubmissionCreateBody {
   file_id?: string | null
   mux_upload_id?: string | null
   link_url?: string | null
+  image_object_position?: string | null
   visibility?: ActivitySubmissionVisibility
 }
 

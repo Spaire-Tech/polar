@@ -105,7 +105,11 @@ export function SubmissionThreadModal({
           {photo && (
             <div
               className={styles.subThreadMediaImg}
-              style={{ backgroundImage: `url(${photo})` }}
+              style={{
+                backgroundImage: `url(${photo})`,
+                backgroundPosition:
+                  submission.image_object_position || '50% 50%',
+              }}
             />
           )}
           <span className={styles.subThreadCounter}>

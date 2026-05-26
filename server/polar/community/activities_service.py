@@ -247,6 +247,7 @@ class CommunityActivityService:
             mux_upload_id=payload.mux_upload_id,
             mux_status=initial_mux_status,
             link_url=payload.link_url,
+            image_object_position=payload.image_object_position,
             visibility=payload.visibility,
         )
         sub_repo = CommunityActivitySubmissionRepository.from_session(session)

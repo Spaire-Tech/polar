@@ -207,6 +207,7 @@ async def _submission_to_read(
         mux_playback_id=submission.mux_playback_id,
         mux_status=submission.mux_status,
         link_url=submission.link_url,
+        image_object_position=submission.image_object_position,
         visibility=submission.visibility,  # type: ignore[arg-type]
         author_name=author_name,
         author_avatar_url=avatar,
