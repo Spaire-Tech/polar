@@ -10,6 +10,9 @@ from uuid import UUID
 from polar.kit.utils import utc_now
 from polar.models.community_activity import CommunityActivity
 from polar.models.community_activity_submission import CommunityActivitySubmission
+from polar.models.community_activity_submission_comment import (
+    CommunityActivitySubmissionComment,
+)
 from polar.models.community_post import CommunityPost
 from polar.models.community_tag import CommunityTag
 from polar.postgres import AsyncSession
@@ -17,10 +20,12 @@ from polar.worker import enqueue_job
 
 from .activities_repository import (
     CommunityActivityRepository,
+    CommunityActivitySubmissionCommentRepository,
     CommunityActivitySubmissionRepository,
 )
 from .activities_schemas import (
     CommunityActivityCreate,
+    CommunityActivitySubmissionCommentCreate,
     CommunityActivitySubmissionCreate,
     CommunityActivityUpdate,
 )
@@ -46,6 +51,10 @@ class ActivityChannelInvalid(Exception):
 class ActivitySubmissionInvalid(Exception):
     """Raised when the submission payload doesn't match the activity's
     submission_type (e.g. video submission with no mux_upload_id)."""
+
+
+class ActivitySubmissionNotFound(Exception):
+    pass
 
 
 class CommunityActivityService:
@@ -238,6 +247,7 @@ class CommunityActivityService:
             mux_upload_id=payload.mux_upload_id,
             mux_status=initial_mux_status,
             link_url=payload.link_url,
+            visibility=payload.visibility,
         )
         sub_repo = CommunityActivitySubmissionRepository.from_session(session)
         await sub_repo.create(submission, flush=True)
@@ -333,6 +343,41 @@ class CommunityActivityService:
         activity.pinned_post_id = None
         session.add(activity)
         await session.flush()
+
+
+    # ------------------------------------------------------------------
+    # Submission comments
+    # ------------------------------------------------------------------
+
+    async def list_submission_comments(
+        self,
+        session: AsyncSession,
+        *,
+        submission_id: UUID,
+    ) -> list[CommunityActivitySubmissionComment]:
+        repo = CommunityActivitySubmissionCommentRepository.from_session(session)
+        return list(await repo.list_for_submission(submission_id))
+
+    async def create_submission_comment(
+        self,
+        session: AsyncSession,
+        *,
+        submission_id: UUID,
+        payload: CommunityActivitySubmissionCommentCreate,
+        author_user_id: UUID | None = None,
+        author_enrollment_id: UUID | None = None,
+    ) -> CommunityActivitySubmissionComment:
+        # Caller resolves which author kind applies. Endpoint layer
+        # enforces that exactly one is set per the auth subject.
+        comment = CommunityActivitySubmissionComment(
+            submission_id=submission_id,
+            body=payload.body.strip(),
+            author_user_id=author_user_id,
+            author_enrollment_id=author_enrollment_id,
+        )
+        repo = CommunityActivitySubmissionCommentRepository.from_session(session)
+        await repo.create(comment, flush=True)
+        return comment
 
 
 activities_service = CommunityActivityService()

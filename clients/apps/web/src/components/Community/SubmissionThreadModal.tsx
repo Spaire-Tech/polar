@@ -2,29 +2,27 @@
 
 // Side-by-side modal viewer for a single submission.
 // Photo/video on the left with prev/next arrows + keyboard ← / →.
-// Comments on the right, with instructor's note styled in amber.
-//
-// Comments are local-state-only for now — there's no backend table
-// for activity-submission comments yet. UI shell is correct so the
-// backend can be slotted in without further UI work.
+// Comments on the right, with instructor notes styled in amber.
 
-import type { CommunityActivitySubmissionRead } from '@/hooks/queries/community'
+import {
+  type CommunityActivitySubmissionRead,
+  usePostSubmissionComment,
+  useSubmissionComments,
+} from '@/hooks/queries/community'
 import { useEffect, useState } from 'react'
 import { Avatar } from './Avatar'
 import styles from './community.module.css'
 import { IconPlayCircle, IconSend, IconX } from './icons'
 
-type Comment = {
-  id: string
-  author: string
-  when: string
-  text: string
-  instr?: boolean
-}
-
 type Props = {
   submission: CommunityActivitySubmissionRead
   submissions: readonly CommunityActivitySubmissionRead[]
+  /** Customer-portal session token; null/undefined in creator mode. */
+  customerSessionToken: string | null | undefined
+  courseId: string
+  activityId: string
+  /** 'creator' = instructor previewing; 'customer' = student. */
+  mode: 'creator' | 'customer'
   onClose: () => void
   onNavigate: (dir: number) => void
 }
@@ -32,11 +30,30 @@ type Props = {
 export function SubmissionThreadModal({
   submission,
   submissions,
+  customerSessionToken,
+  courseId,
+  activityId,
+  mode,
   onClose,
   onNavigate,
 }: Props) {
   const [draft, setDraft] = useState('')
-  const [comments, setComments] = useState<Comment[]>([])
+
+  const commentsQ = useSubmissionComments(
+    customerSessionToken,
+    courseId,
+    activityId,
+    submission.id,
+    mode,
+  )
+  const postCommentMut = usePostSubmissionComment(
+    customerSessionToken,
+    courseId,
+    activityId,
+    submission.id,
+    mode,
+  )
+  const comments = commentsQ.data ?? []
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -48,9 +65,7 @@ export function SubmissionThreadModal({
     return () => document.removeEventListener('keydown', onKey)
   }, [onClose, onNavigate])
 
-  // Reset local comments when the active submission changes.
   useEffect(() => {
-    setComments([])
     setDraft('')
   }, [submission.id])
 
@@ -65,19 +80,16 @@ export function SubmissionThreadModal({
 
   const isVideo = submission.submission_type === 'video'
 
-  const send = () => {
+  const send = async () => {
     const text = draft.trim()
     if (!text) return
-    setComments((prev) => [
-      ...prev,
-      {
-        id: `local-${Date.now()}`,
-        author: 'You',
-        when: 'just now',
-        text,
-      },
-    ])
-    setDraft('')
+    try {
+      await postCommentMut.mutateAsync({ body: text })
+      setDraft('')
+    } catch {
+      // Mutation surfaces error via mut.isError; keep the draft so the
+      // user doesn't lose their typing on a transient failure.
+    }
   }
 
   return (
@@ -167,33 +179,45 @@ export function SubmissionThreadModal({
               )}
 
             <div className={styles.subThreadCommentsLabel}>
-              {comments.length} comments
+              {comments.length} {comments.length === 1 ? 'comment' : 'comments'}
             </div>
             <div className={styles.subThreadComments}>
-              {comments.length === 0 ? (
+              {commentsQ.isLoading ? (
                 <div style={{ fontSize: 12, color: 'var(--c-muted)' }}>
-                  Be the first to comment. (Comments are session-local until the
-                  activity-submission comments endpoint lands.)
+                  Loading…
+                </div>
+              ) : comments.length === 0 ? (
+                <div style={{ fontSize: 12, color: 'var(--c-muted)' }}>
+                  Be the first to comment.
                 </div>
               ) : (
-                comments.map((c) => (
-                  <div
-                    key={c.id}
-                    className={`${styles.cmt} ${c.instr ? styles.cmtInstr : ''}`}
-                  >
-                    <Avatar name={c.author} size={30} />
-                    <div className={styles.cmtBody}>
-                      <div>
-                        <span className={styles.cmtAuthor}>
-                          {c.author}
-                          {c.instr && <span className="instrBadge">INSTR</span>}
-                        </span>
-                        <span className={styles.cmtWhen}>· {c.when}</span>
+                comments.map((c) => {
+                  const instr = c.author.kind === 'instructor'
+                  return (
+                    <div
+                      key={c.id}
+                      className={`${styles.cmt} ${instr ? styles.cmtInstr : ''}`}
+                    >
+                      <Avatar
+                        name={c.author.name}
+                        avatarUrl={c.author.avatar_url ?? undefined}
+                        size={30}
+                      />
+                      <div className={styles.cmtBody}>
+                        <div>
+                          <span className={styles.cmtAuthor}>
+                            {c.author.name}
+                            {instr && <span className="instrBadge">INSTR</span>}
+                          </span>
+                          <span className={styles.cmtWhen}>
+                            · {relativeTime(c.created_at)}
+                          </span>
+                        </div>
+                        <div className={styles.cmtText}>{c.body}</div>
                       </div>
-                      <div className={styles.cmtText}>{c.text}</div>
                     </div>
-                  </div>
-                ))
+                  )
+                })
               )}
             </div>
           </div>
@@ -206,14 +230,15 @@ export function SubmissionThreadModal({
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === 'Enter') send()
+                if (e.key === 'Enter') void send()
               }}
+              disabled={postCommentMut.isPending}
             />
             <button
               type="button"
               className="send"
-              disabled={!draft.trim()}
-              onClick={send}
+              disabled={!draft.trim() || postCommentMut.isPending}
+              onClick={() => void send()}
               aria-label="Send"
             >
               <IconSend size={14} />

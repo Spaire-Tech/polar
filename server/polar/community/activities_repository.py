@@ -14,6 +14,9 @@ from polar.kit.repository import (
 )
 from polar.models.community_activity import CommunityActivity
 from polar.models.community_activity_submission import CommunityActivitySubmission
+from polar.models.community_activity_submission_comment import (
+    CommunityActivitySubmissionComment,
+)
 from polar.models.course_lesson import CourseLesson
 from polar.models.course_module import CourseModule
 from polar.models.customer import Customer
@@ -167,6 +170,29 @@ class CommunityActivitySubmissionRepository(
         )
         return await self.get_all(statement)
 
+    async def list_for_activity_for_customer(
+        self, activity_id: UUID, viewer_customer_id: UUID
+    ) -> Sequence[CommunityActivitySubmission]:
+        """Customer-side listing — applies visibility filtering.
+
+        Submissions marked 'instr' (instructor-only) are hidden from
+        peer customers but stay visible to their author so the
+        submitter doesn't lose track of their own work."""
+        from sqlalchemy import or_
+
+        statement = (
+            self.get_base_statement()
+            .where(
+                CommunityActivitySubmission.activity_id == activity_id,
+                or_(
+                    CommunityActivitySubmission.visibility != "instr",
+                    CommunityActivitySubmission.customer_id == viewer_customer_id,
+                ),
+            )
+            .order_by(CommunityActivitySubmission.created_at.desc())
+        )
+        return await self.get_all(statement)
+
     async def list_own_for_activity(
         self, activity_id: UUID, customer_id: UUID
     ) -> Sequence[CommunityActivitySubmission]:
@@ -246,3 +272,24 @@ class CommunityActivitySubmissionRepository(
         )
         result = await self.session.execute(statement)
         return {row[0] for row in result.all()}
+
+
+class CommunityActivitySubmissionCommentRepository(
+    RepositorySoftDeletionIDMixin[CommunityActivitySubmissionComment, UUID],
+    RepositorySoftDeletionMixin[CommunityActivitySubmissionComment],
+    RepositoryBase[CommunityActivitySubmissionComment],
+):
+    model = CommunityActivitySubmissionComment
+
+    async def list_for_submission(
+        self, submission_id: UUID
+    ) -> Sequence[CommunityActivitySubmissionComment]:
+        statement = (
+            self.get_base_statement()
+            .where(
+                CommunityActivitySubmissionComment.submission_id
+                == submission_id
+            )
+            .order_by(CommunityActivitySubmissionComment.created_at.asc())
+        )
+        return await self.get_all(statement)

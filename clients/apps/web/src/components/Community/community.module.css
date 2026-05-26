@@ -4195,3 +4195,51 @@
 .evFooterBtnGhost:hover {
   background: var(--c-panel);
 }
+
+/* ---- Post 3-dots menu (was inline-styled) ---- */
+.postMoreMenu {
+  position: absolute;
+  right: 0;
+  top: 32px;
+  background: #fff;
+  border: 1px solid var(--c-hair);
+  border-radius: 10px;
+  padding: 4px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.08);
+  /* Sits above sibling cards but stays under our modal layer (which is
+     1000+). 60 covers nested-in-feed cases (filter bar = 30, hero =
+     40) without colliding with modals. */
+  z-index: 60;
+  min-width: 120px;
+}
+.postMoreMenuItem {
+  padding: 6px 10px;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: 0;
+  font: inherit;
+  cursor: pointer;
+  border-radius: 6px;
+}
+.postMoreMenuItem:hover {
+  background: var(--c-panel);
+}
+
+/* ---- Mobile breakpoints ---- */
+@media (max-width: 900px) {
+  .eventsGrid,
+  .subsGrid {
+    grid-template-columns: 1fr;
+  }
+  .activityCard {
+    /* 240px+1fr collapses to a stacked layout on phones. */
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 600px) {
+  .membersGrid {
+    grid-template-columns: 1fr;
+  }
+}

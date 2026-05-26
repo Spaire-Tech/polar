@@ -268,6 +268,7 @@ export function SubmitActivityModal({
         fileId: fileId ?? undefined,
         muxUploadId: muxUploadId ?? undefined,
         linkUrl: linkUrl.trim() || undefined,
+        visibility,
       })
       clearDraft(draftKey(activity.id, mode, customerSessionToken))
       onClose()
@@ -457,8 +458,8 @@ export function SubmitActivityModal({
                 color: 'var(--c-muted)',
               }}
             >
-              Visibility scoping ships with the next backend slice; for now
-              every submission is visible to the whole cohort.
+              Choose who sees your submission. Instructor-only hides it from
+              peers but keeps it visible to you and your instructor.
             </div>
           </div>
 

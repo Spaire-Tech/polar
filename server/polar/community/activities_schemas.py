@@ -12,6 +12,7 @@ from .events_schemas import COVER_OBJECT_POSITION_PATTERN
 ActivitySubmissionType = Literal["photo", "video", "text", "link"]
 ActivityStatus = Literal["open", "closed"]
 ActivityChannelKind = Literal["module", "lesson"]
+ActivitySubmissionVisibility = Literal["cohort", "all", "instr"]
 
 
 class CommunityActivityHost(Schema):
@@ -33,6 +34,7 @@ class CommunityActivitySubmissionRead(TimestampedSchema):
     # encoding state when this is set and != 'ready'.
     mux_status: str | None = None
     link_url: str | None = None
+    visibility: ActivitySubmissionVisibility = "cohort"
 
     # Submitter identity. We surface the customer's display name +
     # avatar; never the customer_id (PII).
@@ -92,12 +94,35 @@ class CommunityActivityUpdate(Schema):
     status: ActivityStatus | None = None
 
 
+class CommunityActivitySubmissionCommentAuthor(Schema):
+    """Display identity for a submission comment. The kind discriminator
+    lines up with CommunityAuthor on posts so the FE can reuse the
+    avatar/name pair."""
+
+    kind: Literal["student", "instructor"]
+    name: str
+    avatar_url: str | None = None
+
+
+class CommunityActivitySubmissionCommentRead(TimestampedSchema):
+    id: UUID4
+    submission_id: UUID4
+    body: str
+    author: CommunityActivitySubmissionCommentAuthor
+    is_own: bool = False
+
+
+class CommunityActivitySubmissionCommentCreate(Schema):
+    body: str = Field(min_length=1, max_length=4000)
+
+
 class CommunityActivitySubmissionCreate(Schema):
     submission_type: ActivitySubmissionType
     body: str | None = Field(default=None, max_length=4000)
     file_id: UUID4 | None = None
     mux_upload_id: str | None = None
     link_url: str | None = Field(default=None, max_length=2000)
+    visibility: ActivitySubmissionVisibility = "cohort"
 
 
 _ = datetime  # for explicit reference where needed

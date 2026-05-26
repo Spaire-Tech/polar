@@ -1190,30 +1190,21 @@ function RegularPostCard({
             {menuOpen && (
               <div
                 role="menu"
-                style={{
-                  position: 'absolute',
-                  right: 0,
-                  top: 32,
-                  background: '#fff',
-                  border: '1px solid var(--c-hair)',
-                  borderRadius: 10,
-                  padding: 4,
-                  boxShadow: '0 6px 24px rgba(0,0,0,0.08)',
-                  zIndex: 5,
-                  minWidth: 120,
-                }}
+                className={styles.postMoreMenu}
                 onMouseLeave={() => setMenuOpen(false)}
+                onClick={(e) => {
+                  // Stop the menu's clicks from bubbling to the card's
+                  // open-handler — otherwise picking "Delete" would
+                  // also navigate into the post.
+                  e.stopPropagation()
+                }}
               >
                 <button
                   role="menuitem"
                   type="button"
-                  className={styles.commentActionBtn}
-                  style={{
-                    padding: '6px 10px',
-                    width: '100%',
-                    textAlign: 'left',
-                  }}
-                  onClick={() => {
+                  className={styles.postMoreMenuItem}
+                  onClick={(e) => {
+                    e.stopPropagation()
                     setMenuOpen(false)
                     onDelete()
                   }}

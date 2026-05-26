@@ -33,6 +33,10 @@ class CommunityActivitySubmission(RecordModel):
             "submission_type IN ('photo', 'video', 'text', 'link')",
             name="community_activity_submissions_submission_type_check",
         ),
+        CheckConstraint(
+            "visibility IN ('cohort', 'all', 'instr')",
+            name="community_activity_submissions_visibility_check",
+        ),
     )
 
     activity_id: Mapped[UUID] = mapped_column(
@@ -82,6 +86,17 @@ class CommunityActivitySubmission(RecordModel):
     )
 
     link_url: Mapped[str | None] = mapped_column(Text, nullable=True, default=None)
+
+    # Visibility scope chosen by the submitter:
+    #   cohort — visible to enrolled customers + host (default)
+    #   all    — visible to everyone enrolled across cohorts (same as
+    #            cohort while we have a single cohort per course; kept
+    #            so the UI selection round-trips honestly)
+    #   instr  — visible to the host + the submitter only
+    # Enforced in the customer-side list endpoint.
+    visibility: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="cohort"
+    )
 
     @declared_attr
     def activity(cls) -> Mapped["CommunityActivity"]:
