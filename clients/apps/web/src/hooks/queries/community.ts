@@ -1377,6 +1377,10 @@ export interface CommunityActivityRead {
   distinct_submitter_count: number
   host: CommunityActivityHostRead
   has_own_submission: boolean
+  /** Latest photo/video submission thumbnail URL — when present the
+   * activity card cover renders this instead of the static cover. */
+  latest_submission_thumb_url?: string | null
+  latest_submission_object_position?: string | null
   created_at: string
   modified_at: string | null
 }

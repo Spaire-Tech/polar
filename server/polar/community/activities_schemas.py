@@ -66,6 +66,12 @@ class CommunityActivityRead(TimestampedSchema):
     host: CommunityActivityHost
     # Per-viewer.
     has_own_submission: bool = False
+    # Latest photo/video submission thumbnail URL. When present the
+    # card cover renders this instead of the static cover_url so the
+    # most recent submitted work is what the cohort sees first. Falls
+    # back to cover_url when no submissions exist yet.
+    latest_submission_thumb_url: str | None = None
+    latest_submission_object_position: str | None = None
 
 
 class CommunityActivityCreate(Schema):
