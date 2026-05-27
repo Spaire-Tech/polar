@@ -191,45 +191,6 @@ class CommunityActivitySubmissionRepository(
 ):
     model = CommunityActivitySubmission
 
-    async def latest_thumb_per_activity(
-        self, activity_ids: Sequence[UUID]
-    ) -> dict[UUID, CommunityActivitySubmission]:
-        """Return {activity_id: latest non-deleted photo/video submission}
-        for the given activities. Used by the activity card cover so
-        the most recent submitted bake is what the cohort sees first;
-        when there are no submissions the card falls back to the
-        activity's own cover_url.
-
-        Implemented as a DISTINCT ON (activity_id) — one round-trip
-        for the whole feed page; the alternative was N+1 selects from
-        the serializer."""
-        if not activity_ids:
-            return {}
-        # Pull a window of recent photo/video submissions per activity,
-        # then keep the most recent per (activity_id) in Python. The
-        # window cap keeps the query cheap even when an activity has
-        # hundreds of submissions.
-        statement = (
-            self.get_base_statement()
-            .where(
-                CommunityActivitySubmission.activity_id.in_(activity_ids),
-                CommunityActivitySubmission.submission_type.in_(
-                    ("photo", "video")
-                ),
-            )
-            .order_by(
-                CommunityActivitySubmission.activity_id,
-                CommunityActivitySubmission.created_at.desc(),
-            )
-        )
-        rows = await self.get_all(statement)
-        out: dict[UUID, CommunityActivitySubmission] = {}
-        for row in rows:
-            if row.activity_id in out:
-                continue
-            out[row.activity_id] = row
-        return out
-
     async def list_for_activity(
         self, activity_id: UUID
     ) -> Sequence[CommunityActivitySubmission]:

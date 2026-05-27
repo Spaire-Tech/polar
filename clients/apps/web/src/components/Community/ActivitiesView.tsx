@@ -58,11 +58,6 @@ export type CommunityActivity = {
   distinctSubmitters: number
   totalMembers: number
   hasOwnSubmission: boolean
-  /** Latest submission's photo/video thumbnail. When present the
-   * card cover renders this instead of the static activity cover so
-   * the cohort sees the freshest submitted work first. */
-  latestSubmissionThumbUrl?: string | null
-  latestSubmissionObjectPosition?: string | null
 }
 
 // Modal payload — what the host submits when publishing an activity.
@@ -489,18 +484,11 @@ function ActivityListCard({
       ? Math.round((activity.distinctSubmitters / activity.totalMembers) * 100)
       : 0
   const closed = activity.status === 'closed'
-  // Prefer the latest submission's thumbnail when one exists — the
-  // cohort sees the freshest submitted work first. Falls back to the
-  // activity's own cover, then a dark placeholder.
-  const heroUrl = activity.latestSubmissionThumbUrl ?? activity.coverUrl
-  const heroPos =
-    (activity.latestSubmissionThumbUrl
-      ? activity.latestSubmissionObjectPosition
-      : activity.coverObjectPosition) || '50% 50%'
-  const coverStyle: React.CSSProperties = heroUrl
+  const coverPos = activity.coverObjectPosition || '50% 50%'
+  const coverStyle: React.CSSProperties = activity.coverUrl
     ? {
-        backgroundImage: `url(${heroUrl})`,
-        backgroundPosition: heroPos,
+        backgroundImage: `url(${activity.coverUrl})`,
+        backgroundPosition: coverPos,
         backgroundSize: 'cover',
       }
     : { background: `linear-gradient(135deg, #1f1f1f, #4a4a4a)` }

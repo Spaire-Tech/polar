@@ -21,7 +21,6 @@ from pydantic import UUID4
 from sqlalchemy import select
 
 from polar.auth.models import is_user
-from polar.course import mux as mux_client
 from polar.course.repository import CourseRepository
 from polar.customer_portal.utils import get_customer_id
 from polar.file.s3 import S3_SERVICES
@@ -128,34 +127,6 @@ def _host_from_user(
     )
 
 
-async def _resolve_submission_thumb(
-    session: AsyncSession, submission: CommunityActivitySubmission | None
-) -> tuple[str | None, str | None]:
-    """Resolve (thumb_url, object_position) for a latest submission.
-    photo → community-post S3 public URL via the File row.
-    video → Mux thumbnail URL signed if signing keys are configured.
-    Returns (None, None) when neither is available."""
-    if submission is None:
-        return None, None
-    if submission.submission_type == "photo" and submission.file_id:
-        f = await session.get(File, submission.file_id)
-        if f is not None:
-            try:
-                s3 = S3_SERVICES[FileServiceTypes.community_post_image]
-                return (
-                    s3.get_public_url(f.path),  # type: ignore[attr-defined]
-                    submission.image_object_position,
-                )
-            except Exception:
-                return None, None
-    if submission.submission_type == "video" and submission.mux_playback_id:
-        try:
-            return mux_client.thumbnail_url(submission.mux_playback_id), None
-        except Exception:
-            return None, None
-    return None, None
-
-
 async def _activity_to_read(
     session: AsyncSession,
     activity: CommunityActivity,
@@ -165,7 +136,6 @@ async def _activity_to_read(
     has_own: bool,
     hosts_cache: dict[UUID, User] | None = None,
     channel_labels: dict[UUID, str | None] | None = None,
-    latest_thumbs: dict[UUID, CommunityActivitySubmission] | None = None,
 ) -> CommunityActivityRead:
     host_user: User | None
     if hosts_cache is not None:
@@ -176,10 +146,6 @@ async def _activity_to_read(
         channel_label = channel_labels.get(activity.id)
     else:
         channel_label = await _resolve_channel_label(session, activity)
-    latest_sub = (
-        latest_thumbs.get(activity.id) if latest_thumbs is not None else None
-    )
-    thumb_url, thumb_pos = await _resolve_submission_thumb(session, latest_sub)
     return CommunityActivityRead(
         id=activity.id,
         course_id=activity.course_id,
@@ -199,8 +165,6 @@ async def _activity_to_read(
         distinct_submitter_count=distinct_submitters,
         host=_host_from_user(host_user, instructor_name),
         has_own_submission=has_own,
-        latest_submission_thumb_url=thumb_url,
-        latest_submission_object_position=thumb_pos,
         created_at=activity.created_at,
         modified_at=activity.modified_at,
     )
@@ -281,9 +245,6 @@ async def list_activities_creator(
     )
     sub_repo = CommunityActivitySubmissionRepository.from_session(session)
     counts = await sub_repo.distinct_submitter_counts([a.id for a in activities])
-    latest_thumbs = await sub_repo.latest_thumb_per_activity(
-        [a.id for a in activities]
-    )
     act_repo = CommunityActivityRepository.from_session(session)
     hosts = await act_repo.bulk_load_hosts({a.host_user_id for a in activities})
     channel_labels = await act_repo.bulk_load_channel_labels(activities)
@@ -295,7 +256,6 @@ async def list_activities_creator(
             instructor_name=instructor_name,
             distinct_submitters=counts.get(a.id, 0),
             has_own=False,
-            latest_thumbs=latest_thumbs,
             hosts_cache=hosts,
             channel_labels=channel_labels,
         )
@@ -469,7 +429,6 @@ async def list_activities_customer(
     ids = [a.id for a in activities]
     distinct_map = await sub_repo.distinct_submitter_counts(ids)
     own_ids = await sub_repo.activity_ids_with_own_submission(ids, customer_id)
-    latest_thumbs = await sub_repo.latest_thumb_per_activity(ids)
     act_repo = CommunityActivityRepository.from_session(session)
     hosts = await act_repo.bulk_load_hosts({a.host_user_id for a in activities})
     channel_labels = await act_repo.bulk_load_channel_labels(activities)
@@ -483,7 +442,6 @@ async def list_activities_customer(
             has_own=a.id in own_ids,
             hosts_cache=hosts,
             channel_labels=channel_labels,
-            latest_thumbs=latest_thumbs,
         )
         for a in activities
     ]

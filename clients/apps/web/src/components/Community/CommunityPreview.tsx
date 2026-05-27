@@ -623,8 +623,6 @@ function mapActivityReadToUI(
     distinctSubmitters: a.distinct_submitter_count,
     totalMembers,
     hasOwnSubmission: a.has_own_submission,
-    latestSubmissionThumbUrl: a.latest_submission_thumb_url ?? null,
-    latestSubmissionObjectPosition: a.latest_submission_object_position ?? null,
   }
 }
 
