@@ -44,6 +44,7 @@ export type CommunityEvent = {
   coverUrl?: string | null
   coverObjectPosition?: string | null
   hostName: string
+  hostAvatarUrl?: string | null
   rsvpCount: number
   going: boolean
   live: boolean
@@ -228,6 +229,11 @@ type Props = {
   onDelete: (eventId: string) => void
   onToggleGoing: (id: string) => void
   canCreate: boolean
+  /** Course cover image — surfaced on the PageHero so every view
+   * uses the same illustrated hero as Home. Null falls back to a
+   * flat dark panel. */
+  courseCoverUrl?: string | null
+  courseCoverPosition?: string | null
 }
 
 export function EventsView({
@@ -240,6 +246,8 @@ export function EventsView({
   onDelete,
   onToggleGoing,
   canCreate,
+  courseCoverUrl,
+  courseCoverPosition,
 }: Props) {
   const [createOpen, setCreateOpen] = useState(false)
   const [editing, setEditing] = useState<CommunityEvent | null>(null)
@@ -343,6 +351,8 @@ export function EventsView({
         live={!!live}
         title="Events"
         subtitle="Live workshops, office hours, cohort meetups, and guest sessions. Replays show up here for anything you miss."
+        coverUrl={courseCoverUrl ?? null}
+        coverPosition={courseCoverPosition ?? null}
       />
 
       <div className={styles.actToolbar}>
@@ -641,7 +651,11 @@ function FeaturedLive({ event }: { event: CommunityEvent }) {
       {event.desc && <p className={styles.eventFeaturedDesc}>{event.desc}</p>}
       <div className={styles.eventFeaturedFoot}>
         <div className={styles.eventFeaturedHost}>
-          <Avatar name={event.hostName} size={36} />
+          <Avatar
+            name={event.hostName}
+            avatarUrl={event.hostAvatarUrl ?? undefined}
+            size={36}
+          />
           <div>
             <div>
               <strong>{event.hostName}</strong>
@@ -741,10 +755,12 @@ function EventCard({
               </span>
             </span>
           )}
-          <span className={styles.eventCoverType}>
-            {TYPE_LABEL[event.type]}
-          </span>
         </div>
+        {/* Type pill sits in the top-right of the cover (date / live
+            pill stays in top-left). Hoisted out of .eventCoverOverlay
+            so its absolute top/right resolves against the cover, not
+            the overlay flex container. */}
+        <span className={styles.eventCoverType}>{TYPE_LABEL[event.type]}</span>
         {past && (
           <div className={styles.eventCoverReplay}>
             <span className={styles.play}>
@@ -772,7 +788,11 @@ function EventCard({
           )}
         </div>
         <div className={styles.eventHostV5}>
-          <Avatar name={event.hostName} size={20} />
+          <Avatar
+            name={event.hostName}
+            avatarUrl={event.hostAvatarUrl ?? undefined}
+            size={20}
+          />
           <span>
             <strong>{event.hostName}</strong>
           </span>

@@ -20,6 +20,7 @@ import {
 } from '@/hooks/queries/community'
 import { useMemo, useState } from 'react'
 import { Avatar } from './Avatar'
+import { PageHero } from './PageHero'
 import styles from './community.module.css'
 import { IconBell, IconChat, IconCheck, IconHeart } from './icons'
 
@@ -87,7 +88,15 @@ const buildNotifs = (posts: CommunityPostRead[]): NotifItem[] =>
     }
   })
 
-export function CommunityNotificationsView({ courseId }: { courseId: string }) {
+export function CommunityNotificationsView({
+  courseId,
+  courseCoverUrl,
+  courseCoverPosition,
+}: {
+  courseId: string
+  courseCoverUrl?: string | null
+  courseCoverPosition?: string | null
+}) {
   const postsQ = useCreatorCommunityPosts(courseId)
   const [filter, setFilter] = useState<FilterId>('all')
 
@@ -152,30 +161,29 @@ export function CommunityNotificationsView({ courseId }: { courseId: string }) {
 
   return (
     <div data-screen-label="Notifications">
-      <div className={styles.notifHead}>
-        <div className={styles.notifHeadTitleRow}>
-          <h1 className={styles.notifHeadTitle}>Notifications</h1>
-          {counts.unread > 0 && (
-            <span className={styles.notifHeadUnreadPill}>
-              <span className={styles.dot} /> {counts.unread} new
-            </span>
-          )}
-        </div>
-        <div className={styles.notifHeadSub}>
-          {counts.unread > 0
+      <PageHero
+        eyebrow={
+          counts.unread > 0 ? `${counts.unread} unread` : 'All caught up'
+        }
+        title="Notifications"
+        subtitle={
+          counts.unread > 0
             ? `You have ${counts.unread} unread — mostly recent posts in your community.`
-            : "You're all caught up. Lovely."}
-        </div>
-        <div className={styles.notifHeadActions}>
+            : "You're all caught up. Lovely."
+        }
+        coverUrl={courseCoverUrl ?? null}
+        coverPosition={courseCoverPosition ?? null}
+        actions={
           <button
             type="button"
-            className={styles.notifHeadBtn}
+            className={styles.pageHeroActionGhost + ' ' + styles.pageHeroAction}
             disabled={counts.unread === 0}
+            style={counts.unread === 0 ? { opacity: 0.5 } : undefined}
           >
             <IconCheck size={13} /> Mark all read
           </button>
-        </div>
-      </div>
+        }
+      />
 
       <div className={styles.notifTabs}>
         {filters.map((f) => {
