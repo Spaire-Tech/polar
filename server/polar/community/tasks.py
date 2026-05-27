@@ -136,7 +136,13 @@ async def community_post_created(post_id: UUID) -> None:
                 {post.author_enrollment_id}
             )
             if rows:
-                _, name, email = rows[0]
+                # `list_student_author_rows` returns a 6-tuple
+                # (enrollment_id, name, email, customer_avatar,
+                # org_avatar, org_id). We only need name + email to
+                # compose the bell-card author label; `*_` swallows
+                # the avatar/org fields so further additions to the
+                # row don't crash this actor again.
+                _, name, email, *_ = rows[0]
                 author_name = name or (
                     email.split("@", 1)[0] if email else None
                 )

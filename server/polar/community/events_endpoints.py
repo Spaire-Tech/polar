@@ -514,7 +514,7 @@ async def _load_public_event(
     if organization is None or organization.deleted_at is not None:
         raise HTTPException(status_code=404, detail="Event not found")
 
-    return event, (course.name or "Course"), organization.slug
+    return event, (course.title or "Course"), organization.slug
 
 
 @public_router.get(

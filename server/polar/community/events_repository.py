@@ -29,8 +29,14 @@ class CommunityEventRepository(
 ):
     model = CommunityEvent
 
-    def get_base_statement(self) -> Select[tuple[CommunityEvent]]:
-        return super().get_base_statement()
+    def get_base_statement(
+        self, *, include_deleted: bool = False
+    ) -> Select[tuple[CommunityEvent]]:
+        # Mirror the parent signature exactly. The previous override
+        # dropped the `include_deleted` kwarg, which broke every call
+        # site that goes through the mixin (e.g. `get_by_id`) because
+        # the base class always passes `include_deleted=False` through.
+        return super().get_base_statement(include_deleted=include_deleted)
 
     async def list_for_course(self, course_id: UUID) -> Sequence[CommunityEvent]:
         statement = (
