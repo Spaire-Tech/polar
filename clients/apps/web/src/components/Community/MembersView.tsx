@@ -1,8 +1,19 @@
 'use client'
 
+// v5 Members view. PageHero on top, a single white toolbar card
+// (search + filter chips), then a vertical stack of horizontal
+// member rows with avatar + name + role + (when known) an online
+// pip. The Member model doesn't carry presence yet — the online
+// filter / pip render only when a member is flagged online via an
+// extension to the read model.
+//
+// Design: __design/Community-v5.html — `.members-tools`,
+// `.members-grid`, `.member-card`, `.member-info`.
+
 import type { CommunityMemberRead } from '@/hooks/queries/community'
 import { useMemo, useState } from 'react'
 import { Avatar } from './Avatar'
+import { PageHero } from './PageHero'
 import styles from './community.module.css'
 import { IconSearch } from './icons'
 
@@ -38,25 +49,24 @@ export function MembersView({ members, isLoading }: Props) {
 
   const filters: { id: FilterId; label: string; count: number }[] = [
     { id: 'all', label: 'All', count: counts.all },
-    { id: 'instructors', label: 'Instructors', count: counts.instructors },
+    {
+      id: 'instructors',
+      label: 'Instructors',
+      count: counts.instructors,
+    },
     { id: 'students', label: 'Students', count: counts.students },
   ]
 
   return (
     <>
-      <header className={styles.feedHeader}>
-        <div className={styles.feedEyebrow}>
-          {counts.all} {counts.all === 1 ? 'member' : 'members'}
-        </div>
-        <h1 className={styles.feedTitle}>Members</h1>
-        <p className={styles.feedSub}>
-          Everyone enrolled in this course. Tap someone to see what they’ve
-          shared.
-        </p>
-      </header>
+      <PageHero
+        eyebrow={`${counts.all} ${counts.all === 1 ? 'member' : 'members'}`}
+        title="Members"
+        subtitle="Everyone enrolled in this course. Tap someone to see what they've shared."
+      />
 
-      <div className={styles.membersToolbar}>
-        <div className={styles.membersSearchWrap}>
+      <div className={styles.membersToolsV5}>
+        <div className={styles.membersSearchWrap} style={{ flex: 1 }}>
           <IconSearch size={15} />
           <input
             className={styles.membersSearch}
@@ -65,25 +75,21 @@ export function MembersView({ members, isLoading }: Props) {
             onChange={(e) => setQuery(e.target.value)}
           />
         </div>
-      </div>
-
-      <div
-        className={styles.filterbar}
-        style={{ marginTop: 0, marginBottom: 24 }}
-      >
-        {filters.map((f) => (
-          <button
-            key={f.id}
-            type="button"
-            className={`${styles.filterChip} ${
-              filter === f.id ? styles.active : ''
-            }`}
-            onClick={() => setFilter(f.id)}
-          >
-            {f.label}
-            <span className={styles.filterChipCount}>{f.count}</span>
-          </button>
-        ))}
+        <div className={styles.membersFilterRow}>
+          {filters.map((f) => (
+            <button
+              key={f.id}
+              type="button"
+              className={`${styles.membersFilter} ${
+                filter === f.id ? styles.membersFilterActive : ''
+              }`}
+              onClick={() => setFilter(f.id)}
+            >
+              {f.label}
+              <span className={styles.ct}>{f.count}</span>
+            </button>
+          ))}
+        </div>
       </div>
 
       {isLoading ? (
@@ -95,27 +101,33 @@ export function MembersView({ members, isLoading }: Props) {
             : 'No members in this community yet.'}
         </div>
       ) : (
-        <div className={styles.membersGrid}>
-          {visible.map((m) => (
-            <div key={m.id} className={styles.memberCard}>
-              <div className={styles.memberAvatarWrap}>
-                <Avatar
-                  name={
-                    m.name ??
-                    (m.kind === 'instructor' ? 'Instructor' : 'Member')
-                  }
-                  avatarUrl={m.avatar_url ?? undefined}
-                  size={84}
-                />
-              </div>
-              <div className={styles.memberName}>
-                {m.name ?? (m.kind === 'instructor' ? 'Instructor' : 'Member')}
-                {m.kind === 'instructor' && (
-                  <span className={styles.memberInstrBadge}>INSTR</span>
-                )}
-              </div>
-            </div>
-          ))}
+        <div className={styles.membersGridV5}>
+          {visible.map((m) => {
+            const name =
+              m.name ?? (m.kind === 'instructor' ? 'Instructor' : 'Member')
+            return (
+              <button key={m.id} type="button" className={styles.memberCardV5}>
+                <div className={styles.memberAvatarWrapV5}>
+                  <Avatar
+                    name={name}
+                    avatarUrl={m.avatar_url ?? undefined}
+                    size={44}
+                  />
+                </div>
+                <div className={styles.memberInfoV5}>
+                  <div className={styles.memberNameV5}>
+                    {name}
+                    {m.kind === 'instructor' && (
+                      <span className={styles.instrBadge}>INSTR</span>
+                    )}
+                  </div>
+                  <div className={styles.memberRoleV5}>
+                    {m.kind === 'instructor' ? 'Instructor' : 'Student'}
+                  </div>
+                </div>
+              </button>
+            )
+          })}
         </div>
       )}
     </>

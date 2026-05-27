@@ -338,8 +338,10 @@
    Composer — LinkedIn-style collapsed pill + modal pattern
    ========================================================= */
 .composer {
-  margin-top: 22px;
-  padding: 14px;
+  /* v5 composer pill — margins / padding match
+     __design/Community-v5.html `.composer-pill`. */
+  margin-top: 28px;
+  padding: 18px;
   background: #fff;
   border: 1px solid var(--c-hair);
   border-radius: 16px;
@@ -5663,4 +5665,488 @@
   background: #fff;
   animation: livePulse 1.2s ease-in-out infinite;
   display: inline-block;
+}
+
+/* =========================================================
+ * v5 Notifications — ported from __design/Community-v5.html
+ * lines 2968-3333.
+ * ========================================================= */
+
+.notifHead {
+  background: #fff;
+  border: 1px solid var(--c-hair);
+  border-radius: 20px;
+  overflow: hidden;
+  margin-bottom: 24px;
+  padding: 24px 28px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 8px;
+  box-shadow:
+    0 1px 0 rgba(15, 30, 60, 0.04),
+    0 2px 6px rgba(15, 30, 60, 0.03);
+}
+.notifHeadTitleRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+.notifHeadTitle {
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: -0.022em;
+  line-height: 1.1;
+}
+.notifHeadUnreadPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 10px 0 8px;
+  border-radius: 999px;
+  background: var(--c-ink);
+  color: #fff;
+  font-size: 11.5px;
+  font-weight: 600;
+}
+.notifHeadUnreadPill .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: #fff;
+}
+.notifHeadSub {
+  font-size: 13.5px;
+  color: var(--c-muted);
+}
+.notifHeadActions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+}
+.notifHeadBtn {
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 999px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--c-ink);
+  background: transparent;
+  border: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+.notifHeadBtn:hover:not(:disabled) {
+  background: var(--c-panel);
+}
+.notifHeadBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.notifTabs {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  background: #fff;
+  border: 1px solid var(--c-hair);
+  border-radius: 14px;
+  margin: 0 0 18px 0;
+  overflow-x: auto;
+  box-shadow:
+    0 1px 0 rgba(15, 30, 60, 0.04),
+    0 2px 6px rgba(15, 30, 60, 0.03);
+}
+.notifTabs::-webkit-scrollbar {
+  display: none;
+}
+.notifTab {
+  padding: 8px 12px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--c-muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  white-space: nowrap;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  transition:
+    color 0.12s ease,
+    background 0.12s ease;
+}
+.notifTab:hover {
+  color: var(--c-ink);
+  background: var(--c-panel-2);
+}
+.notifTabActive {
+  color: #fff;
+  background: var(--c-ink);
+}
+.notifTab .ct {
+  font-size: 11px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--c-panel);
+  color: var(--c-muted);
+  font-weight: 500;
+}
+.notifTabActive .ct {
+  background: var(--c-ink);
+  color: #fff;
+}
+
+.notifSectionTitle {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--c-muted);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  margin: 26px 4px 10px 4px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.notifSectionTitle:first-of-type {
+  margin-top: 22px;
+}
+.notifSectionTitle .ct {
+  color: var(--c-dim);
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 11.5px;
+}
+.notifSectionTitleDivider {
+  flex: 1;
+  height: 1px;
+  background: var(--c-hair);
+}
+
+.notifList {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  background: #fff;
+  border-radius: 16px;
+  padding: 6px;
+  box-shadow:
+    0 1px 0 rgba(15, 30, 60, 0.04),
+    0 1px 2px rgba(15, 30, 60, 0.03);
+}
+
+.notifRow {
+  display: grid;
+  grid-template-columns: 48px 1fr auto;
+  gap: 14px;
+  padding: 14px;
+  border-radius: 12px;
+  cursor: pointer;
+  position: relative;
+  align-items: start;
+  background: none;
+  border: 0;
+  text-align: left;
+  width: 100%;
+  transition: background 0.12s ease;
+}
+.notifRow:hover {
+  background: var(--c-panel-2);
+}
+.notifRowUnread {
+  background: var(--c-panel-2);
+}
+.notifRowUnread:hover {
+  background: var(--c-panel);
+}
+.notifRowUnread::before {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 22px;
+  border-radius: 999px;
+  background: var(--c-ink);
+}
+
+.notifAvatar {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+}
+.notifAvatarIcon {
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: var(--c-panel);
+  color: var(--c-ink);
+}
+.notifBadge {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  border: 2px solid #fff;
+  background: var(--c-panel);
+  color: var(--c-ink);
+}
+.notifBadgeHeart {
+  background: #ffe2e2;
+  color: #df4040;
+}
+.notifBadgeComment {
+  background: var(--c-ink);
+  color: #fff;
+}
+.notifBadgeFeature {
+  background: #fff1cc;
+  color: #b08500;
+}
+.notifBadgeFeedback {
+  background: var(--c-ink);
+  color: #fff;
+}
+.notifBadgeEvent {
+  background: #e7e7ea;
+  color: var(--c-ink);
+}
+.notifBadgeMember {
+  background: #e1f3e5;
+  color: #1f7a33;
+}
+.notifBadgeActivity {
+  background: var(--c-ink);
+  color: #fff;
+}
+
+.notifBody {
+  min-width: 0;
+  padding-top: 1px;
+}
+.notifText {
+  font-size: 13.5px;
+  line-height: 1.45;
+  color: var(--c-ink);
+}
+.notifText strong {
+  font-weight: 600;
+  color: var(--c-ink);
+}
+.notifText .target {
+  font-weight: 500;
+  color: var(--c-ink);
+}
+.notifQuote {
+  margin-top: 6px;
+  font-size: 12.5px;
+  color: var(--c-muted);
+  line-height: 1.5;
+  padding: 8px 12px;
+  border-left: 2px solid var(--c-hair);
+  background: rgba(0, 0, 0, 0.015);
+  border-radius: 0 8px 8px 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.notifMeta {
+  margin-top: 6px;
+  font-size: 11.5px;
+  color: var(--c-muted);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.notifRight {
+  display: flex;
+  align-items: start;
+  gap: 8px;
+  color: var(--c-muted);
+  font-size: 11.5px;
+  flex-shrink: 0;
+  padding-top: 2px;
+}
+.notifTime {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.notifUnreadDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--c-ink);
+  flex-shrink: 0;
+  margin-top: 5px;
+}
+
+.notifEmpty {
+  text-align: center;
+  padding: 64px 24px;
+  color: var(--c-muted);
+}
+.notifEmptyIcon {
+  width: 56px;
+  height: 56px;
+  border-radius: 999px;
+  background: var(--c-panel);
+  display: inline-grid;
+  place-items: center;
+  color: var(--c-ink);
+  margin-bottom: 14px;
+}
+.notifEmptyTitle {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--c-ink);
+  margin-bottom: 4px;
+}
+.notifEmptySub {
+  font-size: 13px;
+  color: var(--c-muted);
+  max-width: 34ch;
+  margin: 0 auto;
+  line-height: 1.5;
+}
+
+/* =========================================================
+ * v5 Members — ported from __design/Community-v5.html
+ * lines 1003-1119. Replaces the v4 4-col centered grid with
+ * a single white-card toolbar (search + filters) and a
+ * vertical stack of horizontal member rows.
+ * ========================================================= */
+
+.membersToolsV5 {
+  background: #fff;
+  border: 1px solid var(--c-hair);
+  border-radius: 16px;
+  padding: 12px 12px 12px 14px;
+  margin-bottom: 18px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  box-shadow:
+    0 1px 0 rgba(15, 30, 60, 0.04),
+    0 2px 6px rgba(15, 30, 60, 0.03);
+}
+.membersFilterRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.membersFilter {
+  height: 32px;
+  padding: 0 14px;
+  border-radius: 999px;
+  background: var(--c-panel);
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--c-ink);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  cursor: pointer;
+}
+.membersFilter:hover {
+  background: var(--c-hair);
+}
+.membersFilterActive {
+  background: var(--c-ink);
+  color: #fff;
+}
+.membersFilter .ct {
+  font-size: 11px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.08);
+  color: inherit;
+  font-weight: 500;
+}
+.membersFilterActive .ct {
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
+}
+
+.membersGridV5 {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.memberCardV5 {
+  padding: 14px 18px;
+  background: #fff;
+  border: 1px solid var(--c-hair);
+  border-radius: 14px;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 14px;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  transition:
+    border-color 0.12s ease,
+    transform 0.18s ease,
+    box-shadow 0.18s ease;
+  box-shadow: 0 1px 0 rgba(15, 30, 60, 0.04);
+}
+.memberCardV5:hover {
+  border-color: var(--c-line);
+  box-shadow: 0 8px 24px rgba(15, 30, 60, 0.06);
+  transform: translateY(-1px);
+}
+.memberAvatarWrapV5 {
+  position: relative;
+  flex-shrink: 0;
+}
+.memberInfoV5 {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.memberNameV5 {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--c-ink);
+  line-height: 1.25;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.memberNameV5 .instrBadge {
+  font-size: 9px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 999px;
+  background: var(--c-ink);
+  color: #fff;
+  letter-spacing: 0.05em;
+}
+.memberRoleV5 {
+  font-size: 12px;
+  color: var(--c-muted);
+  line-height: 1.3;
 }
