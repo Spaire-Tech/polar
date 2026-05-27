@@ -111,21 +111,56 @@ async def _enrolled_customer_ids(session, course_id: UUID) -> list[UUID]:
 
 @actor(actor_name="community.event.published", priority=TaskPriority.LOW)
 async def event_published(event_id: UUID) -> None:
+    log.info("community.event.published.actor_start", event_id=str(event_id))
     async with AsyncSessionMaker() as session:
         repo = CommunityEventRepository.from_session(session)
         event = await repo.get_by_id(event_id)
         if event is None or event.deleted_at is not None:
+            log.warning(
+                "community.event.published.skipped",
+                event_id=str(event_id),
+                reason="event_missing_or_deleted",
+                exists=event is not None,
+                deleted=event.deleted_at is not None if event else None,
+            )
             return
         if not event.notify_on_publish:
+            log.info(
+                "community.event.published.skipped",
+                event_id=str(event_id),
+                reason="notify_on_publish_false",
+            )
             return
 
         payload = await _build_payload(session, event)
         customer_ids = await _enrolled_customer_ids(session, event.course_id)
+        log.info(
+            "community.event.published.fan_out",
+            event_id=str(event_id),
+            course_id=str(event.course_id),
+            recipient_count=len(customer_ids),
+        )
+        if not customer_ids:
+            # Most common "nothing happened" cause: the host created an
+            # event in a course with zero enrolled customers (e.g. they
+            # were testing on their own). Logged loud so this is obvious
+            # in the worker output instead of a silent no-op.
+            log.warning(
+                "community.event.published.no_recipients",
+                event_id=str(event_id),
+                course_id=str(event.course_id),
+            )
+            return
         await customer_notifications.send_to_customers(
             session,
             customer_ids=customer_ids,
             notification_type=EVENT_PUBLISHED,
             payload=payload,
+        )
+        log.info(
+            "community.event.published.done",
+            event_id=str(event_id),
+            recipient_count=len(customer_ids),
         )
 
 
@@ -140,19 +175,42 @@ async def event_announce(event_id: UUID) -> None:
     Reuses the EVENT_PUBLISHED type/template so attendees see the same
     "new event" card they would have on first publish.
     """
+    log.info("community.event.announce.actor_start", event_id=str(event_id))
     async with AsyncSessionMaker() as session:
         repo = CommunityEventRepository.from_session(session)
         event = await repo.get_by_id(event_id)
         if event is None or event.deleted_at is not None:
+            log.warning(
+                "community.event.announce.skipped",
+                event_id=str(event_id),
+                reason="event_missing_or_deleted",
+            )
             return
 
         payload = await _build_payload(session, event)
         customer_ids = await _enrolled_customer_ids(session, event.course_id)
+        log.info(
+            "community.event.announce.fan_out",
+            event_id=str(event_id),
+            recipient_count=len(customer_ids),
+        )
+        if not customer_ids:
+            log.warning(
+                "community.event.announce.no_recipients",
+                event_id=str(event_id),
+                course_id=str(event.course_id),
+            )
+            return
         await customer_notifications.send_to_customers(
             session,
             customer_ids=customer_ids,
             notification_type=EVENT_PUBLISHED,
             payload=payload,
+        )
+        log.info(
+            "community.event.announce.done",
+            event_id=str(event_id),
+            recipient_count=len(customer_ids),
         )
 
 
@@ -166,10 +224,16 @@ async def schedule_reminders(event_id: UUID) -> None:
     """Schedules T-24h, T-15m, and T-0 (live) reminder actors via
     `enqueue_job(..., delay=...)`. Each reminder actor re-validates the
     event's start_at so a rescheduled event doesn't double-fire."""
+    log.info("community.event.schedule_reminders.actor_start", event_id=str(event_id))
     async with AsyncSessionMaker() as session:
         repo = CommunityEventRepository.from_session(session)
         event = await repo.get_by_id(event_id)
         if event is None or event.deleted_at is not None:
+            log.warning(
+                "community.event.schedule_reminders.skipped",
+                event_id=str(event_id),
+                reason="event_missing_or_deleted",
+            )
             return
 
         now = utc_now()
@@ -178,6 +242,7 @@ async def schedule_reminders(event_id: UUID) -> None:
             ("community.event.reminder_15m", event.start_at - timedelta(minutes=15)),
             ("community.event.live", event.start_at),
         ]
+        scheduled = 0
         for actor_name, fire_at in windows:
             delta = fire_at - now
             if delta.total_seconds() <= 0:
@@ -185,22 +250,37 @@ async def schedule_reminders(event_id: UUID) -> None:
                 continue
             delay_ms = int(delta.total_seconds() * 1000)
             enqueue_job(actor_name, event_id=event.id, delay=delay_ms)
+            scheduled += 1
+        log.info(
+            "community.event.schedule_reminders.done",
+            event_id=str(event_id),
+            scheduled=scheduled,
+            start_at=event.start_at.isoformat(),
+        )
 
 
 async def _fire_window(
     event_id: UUID, notification_type: str, *, only_if_within_minutes: int | None
 ) -> None:
+    log.info(
+        "community.event.reminder.actor_start",
+        event_id=str(event_id),
+        notification_type=notification_type,
+    )
     async with AsyncSessionMaker() as session:
         repo = CommunityEventRepository.from_session(session)
         event = await repo.get_by_id(event_id)
         if event is None or event.deleted_at is not None:
+            log.warning(
+                "community.event.reminder.skipped",
+                event_id=str(event_id),
+                notification_type=notification_type,
+                reason="event_missing_or_deleted",
+            )
             return
         if only_if_within_minutes is not None:
             # If start_at moved more than the slack window in either
-            # direction, this scheduled fire is stale — drop it. We log
-            # so it's debuggable: silently dropping reminders for
-            # rescheduled events used to look like the system was just
-            # broken.
+            # direction, this scheduled fire is stale — drop it.
             delta_min = abs((event.start_at - utc_now()).total_seconds() / 60.0)
             if delta_min > only_if_within_minutes:
                 log.info(
@@ -215,6 +295,11 @@ async def _fire_window(
         rsvp_repo = CommunityEventRsvpRepository.from_session(session)
         customer_ids = list(await rsvp_repo.list_customer_ids_for_event(event_id))
         if not customer_ids:
+            log.warning(
+                "community.event.reminder.no_rsvps",
+                event_id=str(event_id),
+                notification_type=notification_type,
+            )
             return
 
         payload = await _build_payload(session, event)
@@ -223,6 +308,12 @@ async def _fire_window(
             customer_ids=customer_ids,
             notification_type=notification_type,
             payload=payload,
+        )
+        log.info(
+            "community.event.reminder.done",
+            event_id=str(event_id),
+            notification_type=notification_type,
+            recipient_count=len(customer_ids),
         )
 
 
@@ -246,10 +337,21 @@ async def rsvp_confirmed(event_id: UUID, customer_id: UUID) -> None:
     Skipped for past events — a "you're going" + ICS for something that
     already ended is just noise.
     """
+    log.info(
+        "community.event.rsvp_confirmed.actor_start",
+        event_id=str(event_id),
+        customer_id=str(customer_id),
+    )
     async with AsyncSessionMaker() as session:
         repo = CommunityEventRepository.from_session(session)
         event = await repo.get_by_id(event_id)
         if event is None or event.deleted_at is not None:
+            log.warning(
+                "community.event.rsvp_confirmed.skipped",
+                event_id=str(event_id),
+                customer_id=str(customer_id),
+                reason="event_missing_or_deleted",
+            )
             return
 
         # Past-event safety: avoid sending calendar invites for events
@@ -257,10 +359,22 @@ async def rsvp_confirmed(event_id: UUID, customer_id: UUID) -> None:
         # so an RSVP that lands just before start_at still triggers.
         end_at = event.start_at + timedelta(minutes=event.duration_minutes)
         if end_at <= utc_now() - timedelta(minutes=5):
+            log.info(
+                "community.event.rsvp_confirmed.skipped",
+                event_id=str(event_id),
+                customer_id=str(customer_id),
+                reason="event_in_the_past",
+            )
             return
 
         customer = await session.get(Customer, customer_id)
         if customer is None:
+            log.warning(
+                "community.event.rsvp_confirmed.skipped",
+                event_id=str(event_id),
+                customer_id=str(customer_id),
+                reason="customer_not_found",
+            )
             return
 
         payload = await _build_payload(session, event)
@@ -274,10 +388,22 @@ async def rsvp_confirmed(event_id: UUID, customer_id: UUID) -> None:
         )
 
         if not customer.email:
+            log.warning(
+                "community.event.rsvp_confirmed.email_skipped",
+                event_id=str(event_id),
+                customer_id=str(customer_id),
+                reason="customer_has_no_email",
+            )
             return
 
         prefs_repo = CustomerNotificationPreferencesRepository.from_session(session)
         if not await prefs_repo.email_enabled(customer_id):
+            log.info(
+                "community.event.rsvp_confirmed.email_skipped",
+                event_id=str(event_id),
+                customer_id=str(customer_id),
+                reason="customer_email_prefs_off",
+            )
             return
 
         host = await session.get(User, event.host_user_id)
@@ -306,6 +432,12 @@ async def rsvp_confirmed(event_id: UUID, customer_id: UUID) -> None:
                 subject=subject,
                 html_content=body,
                 attachments=[attachment],
+            )
+            log.info(
+                "community.event.rsvp_confirmed.email_enqueued",
+                event_id=str(event.id),
+                customer_id=str(customer_id),
+                to=customer.email,
             )
         except Exception:
             log.exception(

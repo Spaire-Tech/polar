@@ -10,8 +10,11 @@ from __future__ import annotations
 from collections.abc import Sequence
 from uuid import UUID
 
+import structlog
+
 from polar.email.sender import enqueue_email
 from polar.eventstream.service import publish as publish_event
+from polar.logging import Logger
 from polar.models.customer import Customer
 from polar.models.customer_notification import CustomerNotification
 from polar.postgres import AsyncSession
@@ -22,6 +25,8 @@ from .repository import (
     CustomerNotificationPreferencesRepository,
     CustomerNotificationRepository,
 )
+
+log: Logger = structlog.get_logger()
 
 
 class CustomerNotificationService:
@@ -47,6 +52,15 @@ class CustomerNotificationService:
         bell_on = True if prefs is None else prefs.bell_enabled
         email_on = True if prefs is None else prefs.email_enabled
 
+        log.info(
+            "customer_notification.send_to_customer",
+            customer_id=str(customer_id),
+            type=notification_type,
+            bell_on=bell_on,
+            email_on=email_on,
+            in_email_types=notification_type in EMAIL_TYPES,
+        )
+
         notif: CustomerNotification | None = None
         if bell_on:
             repo = CustomerNotificationRepository.from_session(session)
@@ -56,6 +70,12 @@ class CustomerNotificationService:
                 payload=payload,
             )
             await repo.create(notif, flush=True)
+            log.info(
+                "customer_notification.bell_row_created",
+                customer_id=str(customer_id),
+                type=notification_type,
+                notification_id=str(notif.id),
+            )
 
             # Live bell badge — fire and forget. The receiver simply
             # increments its unread count, then refetches the list when
@@ -84,6 +104,12 @@ class CustomerNotificationService:
                     "customer_notification.send_email",
                     notification_id=notif.id,
                 )
+                log.info(
+                    "customer_notification.email_enqueued_via_row",
+                    customer_id=str(customer_id),
+                    type=notification_type,
+                    notification_id=str(notif.id),
+                )
             else:
                 from polar.customer.repository import CustomerRepository
                 from polar.email.sender import enqueue_email
@@ -98,6 +124,26 @@ class CustomerNotificationService:
                         subject=subject,
                         html_content=body,
                     )
+                    log.info(
+                        "customer_notification.email_enqueued_direct",
+                        customer_id=str(customer_id),
+                        type=notification_type,
+                        to=customer.email,
+                    )
+                else:
+                    log.warning(
+                        "customer_notification.email_skipped",
+                        customer_id=str(customer_id),
+                        type=notification_type,
+                        reason="customer_missing_or_no_email",
+                    )
+        elif notification_type in EMAIL_TYPES and not email_on:
+            log.info(
+                "customer_notification.email_skipped",
+                customer_id=str(customer_id),
+                type=notification_type,
+                reason="customer_email_prefs_off",
+            )
 
         return notif
 

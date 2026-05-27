@@ -9,7 +9,10 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
+import structlog
+
 from polar.kit.utils import utc_now
+from polar.logging import Logger
 from polar.models.community_event import CommunityEvent
 from polar.models.community_event_rsvp import CommunityEventRsvp
 from polar.postgres import AsyncSession
@@ -24,6 +27,8 @@ from .events_schemas import (
     CommunityEventUpdate,
 )
 from .exceptions import CommunityNotEnrolled
+
+log: Logger = structlog.get_logger()
 
 
 class EventNotFound(Exception):
@@ -130,7 +135,17 @@ class CommunityEventService:
         await repo.create(event, flush=True)
 
         # Fan out the "event published" notification + schedule reminders.
-        # The actor reads the event back from the DB.
+        # The actor reads the event back from the DB. Logs are intentionally
+        # loud here so we can trace "I created an event but nobody got the
+        # email" issues end-to-end in the worker logs.
+        log.info(
+            "community.event.create.enqueued",
+            event_id=str(event.id),
+            course_id=str(course_id),
+            host_user_id=str(host_user_id),
+            notify_on_publish=payload.notify_on_publish,
+            start_at=event.start_at.isoformat(),
+        )
         if payload.notify_on_publish:
             enqueue_job("community.event.published", event_id=event.id)
         enqueue_job("community.event.schedule_reminders", event_id=event.id)
@@ -260,6 +275,15 @@ class CommunityEventService:
         # Fire the confirmation only on a real transition into "going"
         # (first-time or revived). The actor itself drops past events,
         # so we don't double-check the time here.
+        log.info(
+            "community.event.rsvp.applied",
+            event_id=str(event_id),
+            customer_id=str(customer_id),
+            going=going,
+            was_going=was_going,
+            rsvp_count=count,
+            will_send_confirmation=(going and not was_going),
+        )
         if going and not was_going:
             enqueue_job(
                 "community.event.rsvp_confirmed",
