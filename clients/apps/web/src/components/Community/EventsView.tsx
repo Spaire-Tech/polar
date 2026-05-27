@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Avatar } from './Avatar'
 import { EventDetailModal } from './EventDetailModal'
+import { PageHero } from './PageHero'
 import styles from './community.module.css'
 import {
   IconCalendar,
@@ -238,64 +239,101 @@ export function EventsView({
   const [createOpen, setCreateOpen] = useState(false)
   const [editing, setEditing] = useState<CommunityEvent | null>(null)
   const [openEvent, setOpenEvent] = useState<CommunityEvent | null>(null)
-  // "mine" = Going (student) or Hosting (creator). Label flips based on
-  // canCreate; the underlying filter is the same `going` boolean.
-  const [filter, setFilter] = useState<'all' | EventType | 'mine'>('all')
-
-  const mineLabel = canCreate ? 'Hosting' : 'Going'
-
-  const filters: { id: typeof filter; label: string }[] = [
-    { id: 'all', label: 'All' },
-    { id: 'workshop', label: 'Workshops' },
-    { id: 'office', label: 'Office hours' },
-    { id: 'cohort', label: 'Cohort meetups' },
-    { id: 'guest', label: 'Guests' },
-    { id: 'mine', label: mineLabel },
-  ]
+  // v5 redesign trims the v4 per-type chip row down to two segments:
+  // All events vs Mine (going/hosting). Per-type grouping moves into
+  // the act-module section headers further down.
+  const [filter, setFilter] = useState<'all' | 'mine'>('all')
 
   const matches = (e: CommunityEvent) => {
-    if (filter === 'all') return true
     if (filter === 'mine') return e.going
-    return e.type === filter
+    return true
   }
 
   const live = events.find((e) => e.live && matches(e)) ?? null
   const upcoming = events.filter((e) => !e.live && !e.past && matches(e))
-  const past = events.filter((e) => e.past)
+  const past = events.filter((e) => e.past && filter !== 'mine' && matches(e))
 
-  const upcomingCount = events.filter((e) => !e.past).length
+  const totalCount = events.filter((e) => !e.past).length
+  const mineCount = events.filter((e) => e.going && !e.past).length
+
+  // v5 redesign: only two segmented filters (All / Mine). The per-type
+  // filters from the v4 chip row are folded into the type-group section
+  // headers further down so navigation lives with the content.
+  const segments: { id: 'all' | 'mine'; label: string; count: number }[] = [
+    { id: 'all', label: 'All events', count: totalCount },
+    {
+      id: 'mine',
+      label: canCreate ? 'Hosting' : 'My events',
+      count: mineCount,
+    },
+  ]
+
+  // Group upcoming events by type so each gets its own act-module
+  // section with eyebrow + name + count meta.
+  const TYPE_GROUPS: {
+    id: EventType
+    name: string
+    desc: string
+  }[] = [
+    {
+      id: 'workshop',
+      name: 'Workshops',
+      desc: 'Live bake-alongs and deep-dives',
+    },
+    {
+      id: 'office',
+      name: 'Office hours',
+      desc: `Open Q&A with ${hostName || 'the instructor'}`,
+    },
+    {
+      id: 'cohort',
+      name: 'Cohort meetups',
+      desc: 'Show & tell with your peers',
+    },
+    {
+      id: 'guest',
+      name: 'Guest sessions',
+      desc: 'Outside bakers and authors',
+    },
+  ]
+  const groups = TYPE_GROUPS.map((g) => ({
+    ...g,
+    items: upcoming.filter((e) => e.type === g.id),
+  })).filter((g) => g.items.length > 0)
 
   return (
     <>
-      <header className={styles.feedHeader}>
-        <div className={styles.feedEyebrow}>
-          {upcomingCount === 0
+      <PageHero
+        eyebrow={
+          totalCount === 0
             ? 'No upcoming events yet'
-            : `${upcomingCount} upcoming${live ? ' · 1 live now' : ''}`}
-        </div>
-        <h1 className={styles.feedTitle}>Events</h1>
-        <p className={styles.feedSub}>
-          Live workshops, office hours, cohort meetups, and guest sessions.
-          Replays show up here for anything you miss.
-        </p>
-      </header>
+            : `${totalCount} upcoming${live ? ' · 1 live now' : ''}`
+        }
+        live={!!live}
+        title="Events"
+        subtitle="Live workshops, office hours, cohort meetups, and guest sessions. Replays show up here for anything you miss."
+      />
 
-      <div className={styles.eventsToolbar}>
-        {filters.map((f) => (
-          <button
-            key={f.id}
-            type="button"
-            className={`${styles.filterChip} ${filter === f.id ? styles.active : ''}`}
-            onClick={() => setFilter(f.id)}
-          >
-            {f.label}
-          </button>
-        ))}
-        <span className={styles.filterSpacer} />
+      <div className={styles.actToolbar}>
+        <div className={styles.actSegmented}>
+          {segments.map((s) => (
+            <button
+              key={s.id}
+              type="button"
+              className={`${styles.actSegmentedBtn} ${
+                filter === s.id ? styles.actSegmentedBtnActive : ''
+              }`}
+              onClick={() => setFilter(s.id)}
+            >
+              {s.label} <span className={styles.actSegmentedCt}>{s.count}</span>
+            </button>
+          ))}
+        </div>
+        <span className={styles.eventsToolbarSpacer} />
         {canCreate && (
           <button
             type="button"
-            className={styles.newEventBtn}
+            className={styles.actCreate}
             onClick={() => setCreateOpen(true)}
           >
             <IconPlus size={13} /> Create event
@@ -303,7 +341,30 @@ export function EventsView({
         )}
       </div>
 
-      {live && <FeaturedLive event={live} />}
+      {live && (
+        <section className={styles.eventsSection}>
+          <header className={styles.actModuleHeader}>
+            <div>
+              <div className={styles.actModuleEyebrow}>
+                <span
+                  className={`${styles.actModuleNum} ${styles.actModuleNumLive}`}
+                  aria-hidden
+                >
+                  <span className={styles.actModuleLivePulse} />
+                </span>
+                Live now
+              </div>
+              <div className={styles.actModuleName}>Happening right now</div>
+            </div>
+            <div className={styles.actModuleMeta}>
+              <span>
+                <strong>{live.rsvpCount}</strong> watching
+              </span>
+            </div>
+          </header>
+          <FeaturedLive event={live} />
+        </section>
+      )}
 
       {upcoming.length === 0 && !live ? (
         <EmptyEvents
@@ -313,10 +374,28 @@ export function EventsView({
           activeFilter={filter}
           canCreate={canCreate}
         />
-      ) : (
+      ) : filter === 'mine' ? (
+        // Mine view: single section, "Going / Hosting" eyebrow.
         upcoming.length > 0 && (
-          <div className={styles.eventsSection}>
-            <div className={styles.eventsSectionTitle}>Upcoming</div>
+          <section className={styles.eventsSection}>
+            <header className={styles.actModuleHeader}>
+              <div>
+                <div className={styles.actModuleEyebrow}>
+                  {canCreate ? 'Hosting' : "RSVP'd"}
+                </div>
+                <div className={styles.actModuleName}>
+                  {canCreate
+                    ? 'Events you’re hosting'
+                    : 'Events you’re going to'}
+                </div>
+              </div>
+              <div className={styles.actModuleMeta}>
+                <span>
+                  <strong>{upcoming.length}</strong>{' '}
+                  {upcoming.length === 1 ? 'event' : 'events'}
+                </span>
+              </div>
+            </header>
             <div className={styles.eventsGrid}>
               {upcoming.map((e) => (
                 <EventCard
@@ -339,15 +418,62 @@ export function EventsView({
                 />
               ))}
             </div>
-          </div>
+          </section>
         )
+      ) : (
+        groups.map((g) => (
+          <section key={g.id} className={styles.eventsSection}>
+            <header className={styles.actModuleHeader}>
+              <div>
+                <div className={styles.actModuleEyebrow}>{g.name}</div>
+                <div className={styles.actModuleName}>{g.desc}</div>
+              </div>
+              <div className={styles.actModuleMeta}>
+                <span>
+                  <strong>{g.items.length}</strong> upcoming
+                </span>
+              </div>
+            </header>
+            <div className={styles.eventsGrid}>
+              {g.items.map((e) => (
+                <EventCard
+                  key={e.id}
+                  event={e}
+                  onToggleGoing={onToggleGoing}
+                  onOpen={() => setOpenEvent(e)}
+                  canRsvp={!canCreate}
+                  canManage={canCreate}
+                  onEdit={() => setEditing(e)}
+                  onDelete={() => {
+                    if (
+                      window.confirm(
+                        `Delete "${e.title}"? Attendees will no longer see it and any RSVPs will be removed.`,
+                      )
+                    ) {
+                      onDelete(e.id)
+                    }
+                  }}
+                />
+              ))}
+            </div>
+          </section>
+        ))
       )}
 
-      {past.length > 0 && filter !== 'mine' && (
-        <div className={styles.eventsSection}>
-          <div className={styles.eventsSectionTitle}>
-            Past · Replays available
-          </div>
+      {past.length > 0 && (
+        <section className={styles.eventsSection}>
+          <header className={styles.actModuleHeader}>
+            <div>
+              <div className={styles.actModuleEyebrow}>Past</div>
+              <div className={styles.actModuleName}>Replays available</div>
+            </div>
+            <div className={styles.actModuleMeta}>
+              <span>
+                <strong>{past.length}</strong>{' '}
+                {past.length === 1 ? 'replay' : 'replays'}
+              </span>
+            </div>
+          </header>
           <div className={styles.eventsGrid}>
             {past.map((e) => (
               <EventCard
@@ -371,7 +497,7 @@ export function EventsView({
               />
             ))}
           </div>
-        </div>
+        </section>
       )}
 
       {canCreate && (
