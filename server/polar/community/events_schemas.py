@@ -43,7 +43,6 @@ class CommunityEventRead(TimestampedSchema):
     replay_url: str | None = None
     cover_url: str | None = None
     cover_object_position: str | None = None
-    recurring_weekly: bool
     notify_on_publish: bool
     rsvp_count: int
     host: CommunityEventHost
@@ -69,7 +68,6 @@ class CommunityEventCreate(Schema):
     cover_object_position: str | None = Field(
         default=None, max_length=32, pattern=COVER_OBJECT_POSITION_PATTERN
     )
-    recurring_weekly: bool = False
     notify_on_publish: bool = True
 
 
@@ -90,7 +88,6 @@ class CommunityEventUpdate(Schema):
     cover_object_position: str | None = Field(
         default=None, max_length=32, pattern=COVER_OBJECT_POSITION_PATTERN
     )
-    recurring_weekly: bool | None = None
 
 
 class CommunityEventRsvpResult(Schema):

@@ -127,7 +127,6 @@ async def _event_to_read(
         replay_url=event.replay_url,
         cover_url=event.cover_url,
         cover_object_position=event.cover_object_position,
-        recurring_weekly=event.recurring_weekly,
         notify_on_publish=event.notify_on_publish,
         rsvp_count=event.rsvp_count,
         host=host,

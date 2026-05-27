@@ -48,10 +48,9 @@ export type CommunityEvent = {
   past?: boolean
 }
 
-// Payload emitted from the create modal. Includes the two toggles we
-// previously dropped on the floor (notify + recurring) and the host's
-// chosen timezone — the modal lets them schedule "8pm PT" rather than
-// "8pm browser-local."
+// Payload emitted from the create modal. Includes the notify toggle and
+// the host's chosen timezone — the modal lets them schedule "8pm PT"
+// rather than "8pm browser-local."
 export type CommunityEventCreateInput = {
   title: string
   type: EventType
@@ -65,7 +64,6 @@ export type CommunityEventCreateInput = {
   coverUrl: string
   coverObjectPosition: string
   notify: boolean
-  recurring: boolean
 }
 
 const TYPE_LABEL: Record<EventType, string> = {
@@ -863,7 +861,6 @@ function CreateEventModal({
     useState<string>('50% 50%')
   const [desc, setDesc] = useState('')
   const [notify, setNotify] = useState(true)
-  const [recurring, setRecurring] = useState(false)
 
   const titleRef = useRef<HTMLInputElement | null>(null)
 
@@ -900,7 +897,6 @@ function CreateEventModal({
       // Notify only fires on publish, not on edit — default off in edit mode
       // so a save doesn't accidentally re-notify everyone.
       setNotify(false)
-      setRecurring(false)
     } else {
       setTitle('')
       setType('workshop')
@@ -914,7 +910,6 @@ function CreateEventModal({
       setMeetingUrl('')
       setDesc('')
       setNotify(true)
-      setRecurring(false)
     }
     setTimeout(() => titleRef.current?.focus(), 50)
   }, [open, editing])
@@ -954,7 +949,6 @@ function CreateEventModal({
       coverUrl,
       coverObjectPosition,
       notify,
-      recurring,
     })
   }
 
@@ -1126,22 +1120,6 @@ function CreateEventModal({
               onClick={() => setNotify((v) => !v)}
               aria-pressed={notify}
               aria-label="Notify members"
-            />
-          </div>
-
-          <div className={styles.ceToggleRow}>
-            <div>
-              <div className={styles.ceToggleText}>Recurring weekly</div>
-              <div className={styles.ceToggleSub}>
-                Repeats every week until you cancel.
-              </div>
-            </div>
-            <button
-              type="button"
-              className={`${styles.ceSwitch} ${recurring ? styles.ceSwitchOn : ''}`}
-              onClick={() => setRecurring((v) => !v)}
-              aria-pressed={recurring}
-              aria-label="Recurring weekly"
             />
           </div>
         </div>

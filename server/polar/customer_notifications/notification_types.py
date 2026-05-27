@@ -20,6 +20,7 @@ from pydantic import BaseModel
 # ----------------------------------------------------------------------
 
 EVENT_PUBLISHED = "community.event.published"
+EVENT_RSVP_CONFIRMED = "community.event.rsvp_confirmed"
 EVENT_STARTING_SOON_24H = "community.event.starting_soon_24h"
 EVENT_STARTING_SOON_15M = "community.event.starting_soon_15m"
 EVENT_LIVE = "community.event.live"
@@ -31,6 +32,7 @@ ACTIVITY_SUBMISSION_RECEIVED = "community.activity.submission_received"
 
 ALL_TYPES = (
     EVENT_PUBLISHED,
+    EVENT_RSVP_CONFIRMED,
     EVENT_STARTING_SOON_24H,
     EVENT_STARTING_SOON_15M,
     EVENT_LIVE,
@@ -43,11 +45,27 @@ ALL_TYPES = (
 # Per-type channel policy. Notifications always create a bell row; this
 # governs whether the same notification also sends an email.
 #
+# 15-minute reminders stay bell-only on purpose — by the time the email
+# arrives in the inbox the window has often already started, and the
+# notification arrives every event so the volume would be noisy.
+#
+# RSVP confirmations are intentionally NOT in this set even though they
+# do send an email — the confirmation email carries an `.ics` attachment
+# and so flows through a dedicated send path (community.events_tasks.
+# rsvp_confirmed) rather than the generic customer_notification.send_email
+# actor, which doesn't take attachments.
+#
 # Replay nags only go to the host, not attendees — they're filtered at the
 # enqueue site, not here. Activity submission notifications go to the host
 # only (bell, no email — high volume).
 EMAIL_TYPES: frozenset[str] = frozenset(
-    {EVENT_PUBLISHED, EVENT_REPLAY_NAG_T24H, ACTIVITY_PUBLISHED}
+    {
+        EVENT_PUBLISHED,
+        EVENT_STARTING_SOON_24H,
+        EVENT_LIVE,
+        EVENT_REPLAY_NAG_T24H,
+        ACTIVITY_PUBLISHED,
+    }
 )
 
 
@@ -147,6 +165,21 @@ def render(notification_type: str, payload: dict[str, Any]) -> tuple[str, str]:
             f"in <em>{course}</em>.</p>"
             f"<p>{when}</p>"
             f'<p><a href="#">Open in portal</a></p>'
+        )
+    elif notification_type == EVENT_RSVP_CONFIRMED:
+        subject = f"You're going: {title}"
+        join_line = (
+            f'<p><a href="{ep.meeting_url}">Join link</a></p>'
+            if ep.meeting_url
+            else ""
+        )
+        body = (
+            f"<p>You're confirmed for <strong>{title}</strong> "
+            f"in <em>{course}</em>.</p>"
+            f"<p>{when}</p>"
+            f"{join_line}"
+            "<p>We've attached a calendar invite so you can add it to "
+            "Google Calendar, Apple Calendar, or Outlook in one click.</p>"
         )
     elif notification_type == EVENT_STARTING_SOON_24H:
         subject = f"Tomorrow: {title}"

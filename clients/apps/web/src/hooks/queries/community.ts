@@ -1118,7 +1118,6 @@ export interface CommunityEventRead {
   replay_url: string | null
   cover_url: string | null
   cover_object_position: string | null
-  recurring_weekly: boolean
   notify_on_publish: boolean
   rsvp_count: number
   host: CommunityEventHostRead
@@ -1140,7 +1139,6 @@ export interface CommunityEventCreateBody {
   location?: string | null
   cover_url?: string | null
   cover_object_position?: string | null
-  recurring_weekly?: boolean
   notify_on_publish?: boolean
 }
 
@@ -1154,7 +1152,6 @@ export interface CommunityEventUpdateBody {
   location?: string | null
   replay_url?: string | null
   cover_url?: string | null
-  recurring_weekly?: boolean
 }
 
 export interface CommunityEventRsvpResult {

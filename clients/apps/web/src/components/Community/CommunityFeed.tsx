@@ -597,7 +597,6 @@ function buildEventCreateBody(input: CommunityEventCreateInput) {
     cover_url: input.coverUrl || null,
     cover_object_position: input.coverObjectPosition || null,
     notify_on_publish: input.notify,
-    recurring_weekly: input.recurring,
   }
 }
 

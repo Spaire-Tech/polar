@@ -44,16 +44,21 @@ from polar.customer_notifications.notification_types import (
     EVENT_PUBLISHED,
     EVENT_REPLAY_NAG_T2H,
     EVENT_REPLAY_NAG_T24H,
+    EVENT_RSVP_CONFIRMED,
     EVENT_STARTING_SOON_15M,
     EVENT_STARTING_SOON_24H,
     EventNotificationPayload,
     render,
+)
+from polar.customer_notifications.repository import (
+    CustomerNotificationPreferencesRepository,
 )
 from polar.customer_notifications.service import customer_notifications
 from polar.email.sender import enqueue_email
 from polar.exceptions import PolarTaskError
 from polar.kit.utils import utc_now
 from polar.logging import Logger
+from polar.models.customer import Customer
 from polar.models.user import User
 from polar.worker import (
     AsyncSessionMaker,
@@ -63,6 +68,7 @@ from polar.worker import (
     enqueue_job,
 )
 
+from ._ics import build_event_ics, to_ics_attachment
 from .events_repository import (
     CommunityEventRepository,
     CommunityEventRsvpRepository,
@@ -161,12 +167,7 @@ async def schedule_reminders(event_id: UUID) -> None:
                 # Already past for this window — skip.
                 continue
             delay_ms = int(delta.total_seconds() * 1000)
-            try:
-                enqueue_job(actor_name, event_id=event.id, delay=delay_ms)
-            except TypeError:
-                # If the enqueue_job signature doesn't accept `delay`, fall
-                # back to enqueueing immediately so we don't drop the ping.
-                enqueue_job(actor_name, event_id=event.id)
+            enqueue_job(actor_name, event_id=event.id, delay=delay_ms)
 
 
 async def _fire_window(
@@ -206,6 +207,95 @@ async def _fire_window(
             notification_type=notification_type,
             payload=payload,
         )
+
+
+# ----------------------------------------------------------------------
+# RSVP confirmation — bell + email with .ics attachment
+# ----------------------------------------------------------------------
+
+
+@actor(actor_name="community.event.rsvp_confirmed", priority=TaskPriority.LOW)
+async def rsvp_confirmed(event_id: UUID, customer_id: UUID) -> None:
+    """Send the "you're going" confirmation when a customer RSVPs.
+
+    Two channels:
+      1. Bell row via `send_to_customer`. EVENT_RSVP_CONFIRMED is
+         deliberately NOT in EMAIL_TYPES, so that path won't fan out an
+         email — that would be a duplicate without the calendar invite.
+      2. Email with a `.ics` attachment, sent directly through
+         `enqueue_email` so we can attach the calendar file (the standard
+         `customer_notification.send_email` actor doesn't pass attachments).
+
+    Skipped for past events — a "you're going" + ICS for something that
+    already ended is just noise.
+    """
+    async with AsyncSessionMaker() as session:
+        repo = CommunityEventRepository.from_session(session)
+        event = await repo.get_by_id(event_id)
+        if event is None or event.deleted_at is not None:
+            return
+
+        # Past-event safety: avoid sending calendar invites for events
+        # whose end time has already passed. Soft slack of 5 minutes
+        # so an RSVP that lands just before start_at still triggers.
+        end_at = event.start_at + timedelta(minutes=event.duration_minutes)
+        if end_at <= utc_now() - timedelta(minutes=5):
+            return
+
+        customer = await session.get(Customer, customer_id)
+        if customer is None:
+            return
+
+        payload = await _build_payload(session, event)
+
+        # Bell row (no email — type isn't in EMAIL_TYPES).
+        await customer_notifications.send_to_customer(
+            session,
+            customer_id=customer_id,
+            notification_type=EVENT_RSVP_CONFIRMED,
+            payload=payload,
+        )
+
+        if not customer.email:
+            return
+
+        prefs_repo = CustomerNotificationPreferencesRepository.from_session(session)
+        if not await prefs_repo.email_enabled(customer_id):
+            return
+
+        host = await session.get(User, event.host_user_id)
+        host_email = getattr(host, "email", None) if host else None
+        host_name = payload.get("host_name", "Instructor")
+
+        ics_text = build_event_ics(
+            event_id=str(event.id),
+            title=event.title,
+            description=event.description,
+            start_at=event.start_at,
+            duration_minutes=event.duration_minutes,
+            location=event.location,
+            meeting_url=event.meeting_url,
+            host_name=host_name,
+            host_email=host_email,
+            attendee_email=customer.email,
+        )
+        attachment = to_ics_attachment(ics_text)
+
+        subject, body = render(EVENT_RSVP_CONFIRMED, payload)
+
+        try:
+            enqueue_email(
+                to_email_addr=customer.email,
+                subject=subject,
+                html_content=body,
+                attachments=[attachment],
+            )
+        except Exception:
+            log.exception(
+                "community.event.rsvp_confirmed.email_failed",
+                event_id=str(event.id),
+                customer_id=str(customer_id),
+            )
 
 
 @actor(actor_name="community.event.reminder_24h", priority=TaskPriority.LOW)
