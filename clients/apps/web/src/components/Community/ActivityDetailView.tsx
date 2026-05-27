@@ -135,7 +135,7 @@ export function ActivityDetailView({
         <div className={styles.adHeroGrad} />
         <div className={styles.adHeroContent}>
           <span className={styles.adHeroOverline}>
-            <span className="num">∙</span>
+            <span className={styles.num}>∙</span>
             {channelWord} · {activity.channelLabel || 'Activity'}
             {closed && (
               <span
@@ -203,7 +203,7 @@ export function ActivityDetailView({
           className={`${styles.adTab} ${tab === 'subs' ? styles.adTabActive : ''}`}
           onClick={() => setTab('subs')}
         >
-          Submissions<span className="ct">{subs.length}</span>
+          Submissions<span className={styles.ct}>{subs.length}</span>
         </button>
         <button
           type="button"
@@ -342,13 +342,13 @@ function SubmissionCard({
         {hasFeedback && (
           <div className={styles.subCoverOverlay}>
             <span className={styles.subCoverFb}>
-              <span className="dot" /> Instructor feedback
+              <span className={styles.dot} /> Instructor feedback
             </span>
           </div>
         )}
         {isVideo && (
           <div className={styles.subCoverVideoBtn}>
-            <span className="play">
+            <span className={styles.play}>
               <IconPlayCircle size={20} />
             </span>
           </div>

@@ -478,7 +478,7 @@ function ActivityListCard({
         <div className={styles.activityCoverImg} style={coverStyle} />
         <div className={styles.activityCoverOverlay}>
           <span className={styles.activityCoverChannel}>
-            <span className="num">{indexNum}</span>
+            <span className={styles.num}>{indexNum}</span>
             {channelWord} {indexNum}
           </span>
         </div>
@@ -486,7 +486,7 @@ function ActivityListCard({
           <span
             className={`${styles.activityCoverStatus} ${styles.activityCoverStatusClosed}`}
           >
-            <span className="dot" /> Closed
+            <span className={styles.dot} /> Closed
           </span>
         )}
         {canManage && (

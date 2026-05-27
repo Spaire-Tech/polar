@@ -642,12 +642,12 @@ function EventCard({
         <div className={styles.eventCoverOverlay}>
           {event.live ? (
             <span className={styles.eventCoverLive}>
-              <span className="dot" /> Live
+              <span className={styles.dot} /> Live
             </span>
           ) : (
             <span className={styles.eventCoverDate}>
               <IconCalendar size={11} />
-              <span className="day">
+              <span className={styles.day}>
                 {chip.month} {chip.day}
               </span>
             </span>
@@ -673,7 +673,7 @@ function EventCard({
         )}
         {past && (
           <div className={styles.eventCoverReplay}>
-            <span className="play">
+            <span className={styles.play}>
               <IconPlayCircle size={20} />
             </span>
           </div>
