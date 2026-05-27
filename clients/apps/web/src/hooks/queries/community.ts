@@ -1118,7 +1118,6 @@ export interface CommunityEventRead {
   replay_url: string | null
   cover_url: string | null
   cover_object_position: string | null
-  recurring_weekly: boolean
   notify_on_publish: boolean
   rsvp_count: number
   host: CommunityEventHostRead
@@ -1140,7 +1139,6 @@ export interface CommunityEventCreateBody {
   location?: string | null
   cover_url?: string | null
   cover_object_position?: string | null
-  recurring_weekly?: boolean
   notify_on_publish?: boolean
 }
 
@@ -1154,7 +1152,6 @@ export interface CommunityEventUpdateBody {
   location?: string | null
   replay_url?: string | null
   cover_url?: string | null
-  recurring_weekly?: boolean
 }
 
 export interface CommunityEventRsvpResult {
@@ -1266,6 +1263,49 @@ export const useRsvpCommunityEvent = (
     onSuccess: () => {
       if (courseId) invalidateEvents('customer', token, courseId)
     },
+  })
+
+// ----- Host-side: attendees roster + re-announce -----
+
+export interface CommunityEventAttendeeRead {
+  customer_id: string
+  name: string
+  email: string
+  avatar_url: string | null
+  rsvp_at: string
+}
+
+export const useCommunityEventAttendees = (
+  courseId: string | undefined,
+  eventId: string | undefined,
+) =>
+  useQuery<CommunityEventAttendeeRead[]>({
+    queryKey: ['community-event-attendees', courseId ?? '', eventId ?? ''],
+    queryFn: () =>
+      communityFetch<CommunityEventAttendeeRead[]>(
+        'creator',
+        undefined,
+        `${communityBase('creator', courseId!)}/events/${eventId}/attendees`,
+      ),
+    // Only fetch when the host opens the roster — saves a request on
+    // every page load. The `enabled` is the gate; caller flips it by
+    // passing eventId only when the modal is open.
+    enabled: !!courseId && !!eventId,
+  })
+
+export interface CommunityEventAnnounceResult {
+  enqueued: boolean
+}
+
+export const useAnnounceCommunityEvent = (courseId: string | undefined) =>
+  useMutation({
+    mutationFn: (eventId: string) =>
+      communityFetch<CommunityEventAnnounceResult>(
+        'creator',
+        undefined,
+        `${communityBase('creator', courseId!)}/events/${eventId}/announce`,
+        { method: 'POST' },
+      ),
   })
 
 // =====================================================================

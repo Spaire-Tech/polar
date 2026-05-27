@@ -87,6 +87,13 @@ customer_router = APIRouter(
     tags=["customer_portal_community", APITag.public],
 )
 
+# Unauthenticated public surface — shareable event pages and the matching
+# .ics download. Mounted alongside the other two routers in api.py.
+public_router = APIRouter(
+    prefix="/community/public",
+    tags=["community", APITag.public],
+)
+
 
 # ---------------------------------------------------------------------
 # Path params

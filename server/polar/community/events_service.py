@@ -121,7 +121,6 @@ class CommunityEventService:
             location=payload.location,
             cover_url=payload.cover_url,
             cover_object_position=payload.cover_object_position,
-            recurring_weekly=payload.recurring_weekly,
             notify_on_publish=payload.notify_on_publish,
             rsvp_count=0,
             replay_nag_state="pending",
@@ -196,6 +195,25 @@ class CommunityEventService:
         if event.cover_url:
             enqueue_job("community.cover.cleanup", cover_url=event.cover_url)
 
+    async def announce(
+        self,
+        session: AsyncSession,
+        *,
+        event_id: UUID,
+        course_id: UUID,
+        host_user_id: UUID,
+    ) -> None:
+        """Re-fan the published notification to every enrolled customer.
+
+        Authorization mirrors `update`/`delete` — only the original
+        host can re-announce. The actual fan-out is enqueued; the host
+        sees an immediate ACK and the worker delivers in the background.
+        """
+        event = await self.get(session, event_id=event_id, course_id=course_id)
+        if event.host_user_id != host_user_id:
+            raise EventHostMismatch()
+        enqueue_job("community.event.announce", event_id=event.id)
+
     # ------------------------------------------------------------------
     # Writes — RSVP (customer side)
     # ------------------------------------------------------------------
@@ -215,6 +233,12 @@ class CommunityEventService:
         event = await self.get(session, event_id=event_id, course_id=course_id)
         rsvp_repo = CommunityEventRsvpRepository.from_session(session)
         existing = await rsvp_repo.get_for_event_customer(event_id, customer_id)
+
+        # Was the customer already live-RSVP'd before this call? Used
+        # below to decide whether to fire a confirmation notification —
+        # a repeat RSVP from a customer who's already going shouldn't
+        # re-email a calendar invite.
+        was_going = existing is not None and existing.deleted_at is None
 
         if going:
             if existing is None:
@@ -236,6 +260,16 @@ class CommunityEventService:
         event.rsvp_count = count
         session.add(event)
         await session.flush()
+
+        # Fire the confirmation only on a real transition into "going"
+        # (first-time or revived). The actor itself drops past events,
+        # so we don't double-check the time here.
+        if going and not was_going:
+            enqueue_job(
+                "community.event.rsvp_confirmed",
+                event_id=event_id,
+                customer_id=customer_id,
+            )
 
         return going, count
 

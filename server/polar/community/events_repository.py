@@ -18,6 +18,7 @@ from polar.kit.repository import (
 )
 from polar.models.community_event import CommunityEvent
 from polar.models.community_event_rsvp import CommunityEventRsvp
+from polar.models.customer import Customer
 from polar.models.user import User
 
 
@@ -104,6 +105,27 @@ class CommunityEventRsvpRepository(
         )
         rows = await self.session.execute(statement)
         return [r[0] for r in rows.all()]
+
+    async def list_attendees_for_event(
+        self, event_id: UUID
+    ) -> Sequence[tuple[Customer, datetime]]:
+        """Returns (customer, rsvp_created_at) tuples for everyone with a
+        live RSVP, newest first. Single JOIN — used by the host-facing
+        roster endpoint so we don't N+1 over customer rows."""
+        statement = (
+            select(Customer, CommunityEventRsvp.created_at)
+            .join(
+                CommunityEventRsvp,
+                CommunityEventRsvp.customer_id == Customer.id,
+            )
+            .where(
+                CommunityEventRsvp.event_id == event_id,
+                CommunityEventRsvp.deleted_at.is_(None),
+            )
+            .order_by(CommunityEventRsvp.created_at.desc())
+        )
+        result = await self.session.execute(statement)
+        return [(row[0], row[1]) for row in result.all()]
 
     async def list_event_ids_for_customer(
         self, event_ids: Sequence[UUID], customer_id: UUID

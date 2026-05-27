@@ -43,7 +43,6 @@ class CommunityEventRead(TimestampedSchema):
     replay_url: str | None = None
     cover_url: str | None = None
     cover_object_position: str | None = None
-    recurring_weekly: bool
     notify_on_publish: bool
     rsvp_count: int
     host: CommunityEventHost
@@ -69,7 +68,6 @@ class CommunityEventCreate(Schema):
     cover_object_position: str | None = Field(
         default=None, max_length=32, pattern=COVER_OBJECT_POSITION_PATTERN
     )
-    recurring_weekly: bool = False
     notify_on_publish: bool = True
 
 
@@ -90,7 +88,6 @@ class CommunityEventUpdate(Schema):
     cover_object_position: str | None = Field(
         default=None, max_length=32, pattern=COVER_OBJECT_POSITION_PATTERN
     )
-    recurring_weekly: bool | None = None
 
 
 class CommunityEventRsvpResult(Schema):
@@ -99,3 +96,51 @@ class CommunityEventRsvpResult(Schema):
 
     going: bool
     rsvp_count: int
+
+
+class CommunityEventAttendee(Schema):
+    """One row in the host-facing attendees roster. Name falls back to
+    the email local part when the customer didn't set a display name —
+    matches how customer surfaces elsewhere in the product handle the
+    missing-name case."""
+
+    customer_id: UUID4
+    name: str
+    email: str
+    avatar_url: str | None = None
+    rsvp_at: datetime
+
+
+class CommunityEventAnnounceResult(Schema):
+    """Returned from POST /events/{id}/announce. `enqueued=True` means
+    the fan-out job is on its way; we don't synchronously wait for
+    delivery."""
+
+    enqueued: bool
+
+
+class CommunityEventPublic(Schema):
+    """Trimmed view for the unauthenticated public event page.
+
+    Deliberately omits `going`, `rsvp_count`, and `meeting_url` — the
+    public page has no logged-in customer context, can't show an
+    accurate count without leaking activity, and shouldn't expose a
+    join link to people who haven't RSVP'd.
+    """
+
+    id: UUID4
+    organization_slug: str
+    course_id: UUID4
+    course_name: str
+    title: str
+    type: EventType
+    description: str | None = None
+    start_at: datetime
+    timezone: str = "UTC"
+    duration_minutes: int
+    location: str | None = None
+    cover_url: str | None = None
+    cover_object_position: str | None = None
+    host: CommunityEventHost
+    live: bool = False
+    past: bool = False

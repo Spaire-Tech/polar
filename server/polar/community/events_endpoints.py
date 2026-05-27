@@ -17,7 +17,7 @@ from datetime import timedelta
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import Depends, HTTPException
+from fastapi import Depends, HTTPException, Response
 from pydantic import UUID4
 
 from polar.auth.models import is_user
@@ -26,19 +26,24 @@ from polar.customer_portal.utils import get_customer_id
 from polar.kit.utils import utc_now
 from polar.models.community_event import CommunityEvent
 from polar.models.user import User
+from polar.organization.repository import OrganizationRepository
 from polar.postgres import AsyncSession, get_db_session
 
+from ._ics import build_event_ics
 from .auth import (
     CommunityCreatorRead,
     CommunityCreatorWrite,
     CommunityCustomerRead,
     CommunityCustomerWrite,
 )
-from .endpoints import creator_router, customer_router
-from .events_repository import CommunityEventRepository
+from .endpoints import creator_router, customer_router, public_router
+from .events_repository import CommunityEventRepository, CommunityEventRsvpRepository
 from .events_schemas import (
+    CommunityEventAnnounceResult,
+    CommunityEventAttendee,
     CommunityEventCreate,
     CommunityEventHost,
+    CommunityEventPublic,
     CommunityEventRead,
     CommunityEventRsvpResult,
     CommunityEventUpdate,
@@ -127,7 +132,6 @@ async def _event_to_read(
         replay_url=event.replay_url,
         cover_url=event.cover_url,
         cover_object_position=event.cover_object_position,
-        recurring_weekly=event.recurring_weekly,
         notify_on_publish=event.notify_on_publish,
         rsvp_count=event.rsvp_count,
         host=host,
@@ -394,3 +398,217 @@ async def unrsvp_event_customer(
     except EventNotFound:
         raise HTTPException(status_code=404, detail="Event not found") from None
     return CommunityEventRsvpResult(going=going, rsvp_count=count)
+
+
+# ====================================================================
+# CREATOR — Attendees roster + Announce
+# ====================================================================
+
+
+@creator_router.get(
+    "/{course_id}/events/{event_id}/attendees",
+    response_model=list[CommunityEventAttendee],
+    summary="List Event Attendees (Host)",
+)
+async def list_event_attendees(
+    course_id: CourseID,
+    event_id: EventID,
+    auth_subject: CommunityCreatorRead,
+    session: AsyncSession = Depends(get_db_session),
+) -> list[CommunityEventAttendee]:
+    """Host-only roster: who has a live RSVP, when they made it, with
+    enough metadata for the host to recognise them and follow up.
+
+    Email is included because the host is already the data controller
+    for enrolled customers (they bill them, message them through the
+    portal, etc.) — same trust model as the course members list.
+    """
+    await _require_creator_owns_course(session, course_id, auth_subject)
+    try:
+        await events_service.get(session, event_id=event_id, course_id=course_id)
+    except EventNotFound:
+        raise HTTPException(status_code=404, detail="Event not found") from None
+
+    rows = await CommunityEventRsvpRepository.from_session(
+        session
+    ).list_attendees_for_event(event_id)
+
+    out: list[CommunityEventAttendee] = []
+    for customer, rsvp_at in rows:
+        # `name` fallbacks mirror customer-display logic elsewhere —
+        # `name` is optional, so fall back to the email local-part rather
+        # than rendering "None" in the UI.
+        display_name = (customer.name or "").strip() or customer.email.split("@")[0]
+        out.append(
+            CommunityEventAttendee(
+                customer_id=customer.id,
+                name=display_name,
+                email=customer.email,
+                avatar_url=customer.avatar_url,
+                rsvp_at=rsvp_at,
+            )
+        )
+    return out
+
+
+@creator_router.post(
+    "/{course_id}/events/{event_id}/announce",
+    response_model=CommunityEventAnnounceResult,
+    summary="Re-announce Community Event to Members",
+)
+async def announce_event_creator(
+    course_id: CourseID,
+    event_id: EventID,
+    auth_subject: CommunityCreatorWrite,
+    session: AsyncSession = Depends(get_db_session),
+) -> CommunityEventAnnounceResult:
+    """Fans out the EVENT_PUBLISHED notification to every enrolled
+    member again — used for "I just updated the event, tell everyone"
+    or "this is happening soon, nudge the room." Distinct from the
+    automatic publish-time fan-out, which respects `notify_on_publish`.
+    """
+    await _require_creator_owns_course(session, course_id, auth_subject)
+    user_id = _require_user_subject(auth_subject)
+    try:
+        await events_service.announce(
+            session,
+            event_id=event_id,
+            course_id=course_id,
+            host_user_id=user_id,
+        )
+    except EventNotFound:
+        raise HTTPException(status_code=404, detail="Event not found") from None
+    except EventHostMismatch:
+        raise HTTPException(
+            status_code=403, detail="Only the host can announce this event."
+        ) from None
+    return CommunityEventAnnounceResult(enqueued=True)
+
+
+# ====================================================================
+# PUBLIC — Shareable read + .ics download
+# ====================================================================
+
+
+async def _load_public_event(
+    session: AsyncSession, event_id: UUID
+) -> tuple[CommunityEvent, str, str]:
+    """Returns (event, course_name, organization_slug) or raises 404.
+
+    Used by both public endpoints below. Filters out soft-deleted events
+    AND events whose course or organization has gone away — sharing a
+    URL whose parent context no longer exists should 404, not leak the
+    title of a deleted course.
+    """
+    repo = CommunityEventRepository.from_session(session)
+    event = await repo.get_by_id(event_id)
+    if event is None or event.deleted_at is not None:
+        raise HTTPException(status_code=404, detail="Event not found")
+
+    course = await CourseRepository.from_session(session).get_by_id(event.course_id)
+    if course is None or course.deleted_at is not None:
+        raise HTTPException(status_code=404, detail="Event not found")
+
+    organization = await OrganizationRepository.from_session(session).get_by_id(
+        course.organization_id
+    )
+    if organization is None or organization.deleted_at is not None:
+        raise HTTPException(status_code=404, detail="Event not found")
+
+    return event, (course.name or "Course"), organization.slug
+
+
+@public_router.get(
+    "/events/{event_id}",
+    response_model=CommunityEventPublic,
+    summary="Get Community Event (Public Share)",
+)
+async def get_event_public(
+    event_id: EventID,
+    session: AsyncSession = Depends(get_db_session),
+) -> CommunityEventPublic:
+    event, course_name, organization_slug = await _load_public_event(session, event_id)
+
+    host_user = await session.get(User, event.host_user_id)
+    course = await CourseRepository.from_session(session).get_by_id(event.course_id)
+    instructor_name = course.instructor_name if course else None
+    if host_user is None:
+        host = CommunityEventHost(
+            user_id=event.host_user_id, name="Instructor", avatar_url=None
+        )
+    else:
+        host = _host_from_user(host_user, instructor_name)
+
+    return CommunityEventPublic(
+        id=event.id,
+        organization_slug=organization_slug,
+        course_id=event.course_id,
+        course_name=course_name,
+        title=event.title,
+        type=event.type,  # type: ignore[arg-type]
+        description=event.description,
+        start_at=event.start_at,
+        timezone=event.timezone or "UTC",
+        duration_minutes=event.duration_minutes,
+        location=event.location,
+        cover_url=event.cover_url,
+        cover_object_position=event.cover_object_position,
+        host=host,
+        live=is_live(event),
+        past=is_past(event),
+    )
+
+
+@public_router.get(
+    "/events/{event_id}/ics",
+    response_class=Response,
+    summary="Download Event Calendar File (.ics)",
+)
+async def download_event_ics(
+    event_id: EventID,
+    session: AsyncSession = Depends(get_db_session),
+) -> Response:
+    """Serves the same calendar file the RSVP confirmation email
+    attaches. Public so the public event page can deep-link "Add to
+    Calendar" without an auth round-trip — the ICS only contains data
+    already exposed by GET /events/{event_id}.
+    """
+    event, _course_name, _organization_slug = await _load_public_event(session, event_id)
+
+    host_user = await session.get(User, event.host_user_id)
+    host_email = getattr(host_user, "email", None) if host_user else None
+    host_name = (
+        getattr(host_user, "public_name", None) if host_user else None
+    ) or "Instructor"
+
+    ics_text = build_event_ics(
+        event_id=str(event.id),
+        title=event.title,
+        description=event.description,
+        start_at=event.start_at,
+        duration_minutes=event.duration_minutes,
+        location=event.location,
+        meeting_url=event.meeting_url,
+        host_name=host_name,
+        host_email=host_email,
+        # No attendee identity on the public download — that's only set
+        # when a specific customer downloads (RSVP confirmation email).
+        attendee_email=None,
+    )
+    # Slugify the title for the filename so calendar apps that surface
+    # the attachment name show something readable.
+    filename_slug = (
+        "".join(c if c.isalnum() else "-" for c in event.title.lower()).strip("-")
+        or "event"
+    )[:60]
+
+    return Response(
+        content=ics_text,
+        media_type="text/calendar; charset=utf-8",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename_slug}.ics"',
+            # Cache for a few minutes — events change, but a stampede
+            # of share-link openers shouldn't all hit the DB.
+            "Cache-Control": "public, max-age=300",
+        },
+    )
