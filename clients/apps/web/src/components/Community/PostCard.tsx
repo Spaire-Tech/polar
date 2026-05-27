@@ -20,6 +20,7 @@ import { Avatar } from './Avatar'
 import styles from './community.module.css'
 import {
   IconBook,
+  IconCamera,
   IconChat,
   IconDots,
   IconGlobe,
@@ -1177,44 +1178,6 @@ function RegularPostCard({
             {post.tag.label}
           </span>
         )}
-        {ownPost && (
-          <div style={{ position: 'relative' }}>
-            <button
-              type="button"
-              className={styles.postMore}
-              onClick={() => setMenuOpen((v) => !v)}
-              aria-label="Post menu"
-            >
-              <IconDots size={15} />
-            </button>
-            {menuOpen && (
-              <div
-                role="menu"
-                className={styles.postMoreMenu}
-                onMouseLeave={() => setMenuOpen(false)}
-                onClick={(e) => {
-                  // Stop the menu's clicks from bubbling to the card's
-                  // open-handler — otherwise picking "Delete" would
-                  // also navigate into the post.
-                  e.stopPropagation()
-                }}
-              >
-                <button
-                  role="menuitem"
-                  type="button"
-                  className={styles.postMoreMenuItem}
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    setMenuOpen(false)
-                    onDelete()
-                  }}
-                >
-                  Delete post
-                </button>
-              </div>
-            )}
-          </div>
-        )}
       </div>
 
       <div className={styles.postBodyWrap}>
@@ -1225,28 +1188,45 @@ function RegularPostCard({
       </div>
 
       {post.pin_type === 'activity' && post.activity_id && onOpenActivity && (
-        <button
-          type="button"
-          onClick={() => onOpenActivity(post.activity_id!)}
-          style={{
-            marginTop: 12,
-            alignSelf: 'flex-start',
-            height: 34,
-            padding: '0 16px',
-            borderRadius: 999,
-            background: 'var(--c-ink)',
-            color: '#fff',
-            fontSize: 12.5,
-            fontWeight: 500,
-            border: 'none',
-            cursor: 'pointer',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 6,
-          }}
-        >
-          Open activity →
-        </button>
+        <div className={styles.activityCtaRow}>
+          <div className={styles.activityCtaMeta}>
+            <span className={styles.activitySubmitters} aria-hidden>
+              {/* Three abstract slots; the real submitter avatars
+                  come from the activity record in a follow-up so the
+                  inline panel matches the design v5 even when the
+                  activity-submission count is zero. */}
+              <span className={styles.av}>
+                <IconCamera size={10} />
+              </span>
+              <span className={styles.av}>
+                <IconCamera size={10} />
+              </span>
+              <span className={styles.av}>
+                <IconCamera size={10} />
+              </span>
+            </span>
+            <span>
+              <strong>{post.activity?.submission_count ?? 0}</strong>{' '}
+              {(post.activity?.submission_count ?? 0) === 1
+                ? 'submission'
+                : 'submissions'}
+            </span>
+          </div>
+          <button
+            type="button"
+            className={styles.activityCtaBtn}
+            onClick={() => onOpenActivity(post.activity_id!)}
+          >
+            <IconCamera size={13} />
+            {post.activity?.submission_type === 'video'
+              ? 'Upload video'
+              : post.activity?.submission_type === 'text'
+                ? 'Write your reply'
+                : post.activity?.submission_type === 'link'
+                  ? 'Submit link'
+                  : 'Submit your work'}
+          </button>
+        </div>
       )}
 
       {post.lesson && (
@@ -1334,6 +1314,47 @@ function RegularPostCard({
           videoElementRef={videoElementRef}
           mode={mode}
         />
+      )}
+
+      {/* v5 redesign: 3-dots menu pinned to the bottom-right of the
+          card. Only the post author + creator can manage. The menu
+          itself pops up so it never gets clipped by the next card
+          below in the feed. */}
+      {ownPost && (
+        <div className={styles.postMoreAnchor}>
+          <button
+            type="button"
+            className={styles.postMore}
+            onClick={(e) => {
+              e.stopPropagation()
+              setMenuOpen((v) => !v)
+            }}
+            aria-label="Post menu"
+          >
+            <IconDots size={15} />
+          </button>
+          {menuOpen && (
+            <div
+              role="menu"
+              className={styles.postMoreMenu}
+              onMouseLeave={() => setMenuOpen(false)}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                role="menuitem"
+                type="button"
+                className={styles.postMoreMenuItem}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setMenuOpen(false)
+                  onDelete()
+                }}
+              >
+                Delete post
+              </button>
+            </div>
+          )}
+        </div>
       )}
     </article>
   )

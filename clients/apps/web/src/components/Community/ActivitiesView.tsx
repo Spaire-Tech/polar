@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { ActivityDetailView } from './ActivityDetailView'
 import { CardManageMenu, CoverUploader } from './EventsView'
+import { PageHero } from './PageHero'
 import { SubmitActivityModal } from './SubmitActivityModal'
 import styles from './community.module.css'
 import {
@@ -169,59 +170,74 @@ export function ActivitiesView({
     )
   }
 
-  const channelLabelAll =
-    channelKind === 'episode' ? 'All episodes' : 'All modules'
+  const totalCount = activities.length
+  const mineCount = activities.filter((a) => a.hasOwnSubmission).length
 
-  const filters: { id: typeof filter; label: string; count?: number }[] = [
-    { id: 'all', label: channelLabelAll, count: activities.length },
-    ...channels.map((c) => ({
-      id: c.id,
-      label: c.label,
-      count: activities.filter((a) => a.channelId === c.id).length,
-    })),
-    { id: 'mine', label: 'Submitted by me' },
+  // v5 segmented (All / Mine). Per-channel grouping moves into the
+  // act-module section headers below so the toolbar stays calm even
+  // when there are many modules.
+  const segments: { id: 'all' | 'mine'; label: string; count: number }[] = [
+    { id: 'all', label: 'All activities', count: totalCount },
+    { id: 'mine', label: 'Submitted by me', count: mineCount },
   ]
 
   const visible =
     filter === 'mine'
       ? activities.filter((a) => a.hasOwnSubmission)
-      : activities.filter((a) => filter === 'all' || a.channelId === filter)
+      : activities
+
+  // Group `visible` by channel so each module/episode gets its own
+  // act-module section. Channels with zero matching activities are
+  // dropped; the section order follows the channels[] prop so the
+  // course outline ordering is preserved.
+  const groups = channels
+    .map((c, idx) => ({
+      id: c.id,
+      label: c.label,
+      num: idx + 1,
+      items: visible.filter((a) => a.channelId === c.id),
+    }))
+    .filter((g) => g.items.length > 0)
+
+  // Activities whose channel wasn't resolved (orphaned after a module
+  // delete) fall into a synthetic "Other" group at the end so they
+  // don't silently disappear.
+  const orphaned = visible.filter(
+    (a) => !channels.some((c) => c.id === a.channelId),
+  )
 
   return (
     <>
-      <header className={styles.feedHeader}>
-        <div className={styles.feedEyebrow}>
-          {activities.length === 0
+      <PageHero
+        eyebrow={
+          activities.length === 0
             ? 'No activities yet'
-            : `${activities.length} ${activities.length === 1 ? 'activity' : 'activities'}`}
-        </div>
-        <h1 className={styles.feedTitle}>Activities</h1>
-        <p className={styles.feedSub}>
-          Hands-on prompts tied to each {channelKind}. Submit a photo, video, or
-          write-up — the cohort sees your work and the instructor leaves
-          feedback.
-        </p>
-      </header>
+            : `${activities.length} ${activities.length === 1 ? 'activity' : 'activities'}`
+        }
+        title="Activities"
+        subtitle={`Hands-on prompts tied to each ${channelKind}. Submit a photo, video, or write-up — the cohort sees your work and the instructor leaves feedback.`}
+      />
 
-      <div className={styles.eventsToolbar}>
-        {filters.map((f) => (
-          <button
-            key={f.id}
-            type="button"
-            className={`${styles.filterChip} ${filter === f.id ? styles.active : ''}`}
-            onClick={() => setFilter(f.id)}
-          >
-            {f.label}
-            {f.count != null && (
-              <span className={styles.filterChipCount}>{f.count}</span>
-            )}
-          </button>
-        ))}
-        <span className={styles.filterSpacer} />
+      <div className={styles.actToolbar}>
+        <div className={styles.actSegmented}>
+          {segments.map((s) => (
+            <button
+              key={s.id}
+              type="button"
+              className={`${styles.actSegmentedBtn} ${
+                filter === s.id ? styles.actSegmentedBtnActive : ''
+              }`}
+              onClick={() => setFilter(s.id)}
+            >
+              {s.label} <span className={styles.actSegmentedCt}>{s.count}</span>
+            </button>
+          ))}
+        </div>
+        <span className={styles.eventsToolbarSpacer} />
         {canCreate && (
           <button
             type="button"
-            className={styles.newEventBtn}
+            className={styles.actCreate}
             onClick={() => setCreateOpen(true)}
           >
             <IconPlus size={13} /> Create activity
@@ -271,31 +287,96 @@ export function ActivitiesView({
           </div>
         </div>
       ) : (
-        <div className={styles.activitiesGrid}>
-          {visible.map((a, idx) => (
-            <ActivityListCard
-              key={a.id}
-              activity={a}
-              channelKind={channelKind}
-              indexNum={idx + 1}
-              canSubmit={a.status === 'open'}
-              canManage={canCreate}
-              onSubmit={() => setSubmitFor(a)}
-              onViewSubmissions={() => setOpenActivity(a)}
-              onOpen={() => setOpenActivity(a)}
-              onEdit={() => setEditing(a)}
-              onDelete={() => {
-                if (
-                  window.confirm(
-                    `Delete "${a.title}"? All submissions will be removed.`,
-                  )
-                ) {
-                  onDelete(a.id)
-                }
-              }}
-            />
+        <>
+          {groups.map((g) => (
+            <section key={g.id} className={styles.actModule}>
+              <header className={styles.actModuleHeader}>
+                <div>
+                  <div className={styles.actModuleEyebrow}>
+                    <span className={styles.actModuleNum}>{g.num}</span>
+                    {channelKind === 'episode' ? 'Episode' : 'Module'}
+                  </div>
+                  <div className={styles.actModuleName}>{g.label}</div>
+                </div>
+                <div className={styles.actModuleMeta}>
+                  <span>
+                    <strong>{g.items.length}</strong>{' '}
+                    {g.items.length === 1 ? 'activity' : 'activities'}
+                  </span>
+                </div>
+              </header>
+              <div className={styles.activitiesGrid}>
+                {g.items.map((a, idx) => (
+                  <ActivityListCard
+                    key={a.id}
+                    activity={a}
+                    channelKind={channelKind}
+                    indexNum={idx + 1}
+                    canSubmit={a.status === 'open'}
+                    canManage={canCreate}
+                    onSubmit={() => setSubmitFor(a)}
+                    onViewSubmissions={() => setOpenActivity(a)}
+                    onOpen={() => setOpenActivity(a)}
+                    onEdit={() => setEditing(a)}
+                    onDelete={() => {
+                      if (
+                        window.confirm(
+                          `Delete "${a.title}"? All submissions will be removed.`,
+                        )
+                      ) {
+                        onDelete(a.id)
+                      }
+                    }}
+                  />
+                ))}
+              </div>
+            </section>
           ))}
-        </div>
+
+          {orphaned.length > 0 && (
+            <section className={styles.actModule}>
+              <header className={styles.actModuleHeader}>
+                <div>
+                  <div className={styles.actModuleEyebrow}>Other</div>
+                  <div className={styles.actModuleName}>
+                    Activities without a {channelKind}
+                  </div>
+                </div>
+                <div className={styles.actModuleMeta}>
+                  <span>
+                    <strong>{orphaned.length}</strong>{' '}
+                    {orphaned.length === 1 ? 'activity' : 'activities'}
+                  </span>
+                </div>
+              </header>
+              <div className={styles.activitiesGrid}>
+                {orphaned.map((a, idx) => (
+                  <ActivityListCard
+                    key={a.id}
+                    activity={a}
+                    channelKind={channelKind}
+                    indexNum={idx + 1}
+                    canSubmit={a.status === 'open'}
+                    canManage={canCreate}
+                    onSubmit={() => setSubmitFor(a)}
+                    onViewSubmissions={() => setOpenActivity(a)}
+                    onOpen={() => setOpenActivity(a)}
+                    onEdit={() => setEditing(a)}
+                    onDelete={() => {
+                      if (
+                        window.confirm(
+                          `Delete "${a.title}"? All submissions will be removed.`,
+                        )
+                      ) {
+                        onDelete(a.id)
+                      }
+                    }}
+                  />
+                ))}
+              </div>
+            </section>
+          )}
+        </>
       )}
 
       {canCreate && (
@@ -397,7 +478,7 @@ function ActivityListCard({
         <div className={styles.activityCoverImg} style={coverStyle} />
         <div className={styles.activityCoverOverlay}>
           <span className={styles.activityCoverChannel}>
-            <span className="num">{indexNum}</span>
+            <span className={styles.num}>{indexNum}</span>
             {channelWord} {indexNum}
           </span>
         </div>
@@ -405,23 +486,8 @@ function ActivityListCard({
           <span
             className={`${styles.activityCoverStatus} ${styles.activityCoverStatusClosed}`}
           >
-            <span className="dot" /> Closed
+            <span className={styles.dot} /> Closed
           </span>
-        )}
-        {canManage && (
-          <CardManageMenu
-            open={menuOpen}
-            onToggle={() => setMenuOpen((v) => !v)}
-            onClose={() => setMenuOpen(false)}
-            onEdit={() => {
-              setMenuOpen(false)
-              onEdit()
-            }}
-            onDelete={() => {
-              setMenuOpen(false)
-              onDelete()
-            }}
-          />
         )}
       </div>
 
@@ -482,6 +548,25 @@ function ActivityListCard({
           </div>
         </div>
       </div>
+
+      {/* v5: 3-dots menu pinned to the bottom-right corner of the
+          card, same placement as PostCard / EventCard. */}
+      {canManage && (
+        <CardManageMenu
+          open={menuOpen}
+          onToggle={() => setMenuOpen((v) => !v)}
+          onClose={() => setMenuOpen(false)}
+          onEdit={() => {
+            setMenuOpen(false)
+            onEdit()
+          }}
+          onDelete={() => {
+            setMenuOpen(false)
+            onDelete()
+          }}
+          placement="bottom-right"
+        />
+      )}
     </article>
   )
 }

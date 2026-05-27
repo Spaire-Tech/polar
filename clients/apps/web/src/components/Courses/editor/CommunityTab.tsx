@@ -17,6 +17,8 @@ export function CommunityTab({ course, organizationSlug }: Props) {
       <CommunityPreview
         courseId={course.id}
         courseTitle={course.title ?? undefined}
+        courseCoverUrl={course.thumbnail_url ?? null}
+        courseCoverPosition={course.thumbnail_object_position ?? null}
         organizationSlug={organizationSlug}
         discussionsKind={course.format === 'series' ? 'episode' : 'module'}
         lessons={

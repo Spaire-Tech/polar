@@ -302,6 +302,20 @@ class CommunityPostRead(TimestampedSchema):
     # For posts with pin_type='activity', the linked activity id so the
     # feed renderer can offer an "Open activity" CTA.
     activity_id: UUID4 | None = None
+    # Richer summary for the inline activity-CTA panel (submission
+    # type + count). Present iff pin_type='activity'. Kept alongside
+    # activity_id so the simpler "Open activity →" link still works
+    # for clients that haven't picked up the new field.
+    activity: "CommunityPostActivityPin | None" = None
+
+
+class CommunityPostActivityPin(Schema):
+    """Compact activity summary rendered inline on a pin_type='activity'
+    feed post — drives the activity-CTA-row panel."""
+
+    id: UUID4
+    submission_type: Literal["photo", "video", "text", "link"]
+    submission_count: int
 
 
 # =====================================================================

@@ -137,7 +137,7 @@ export function SubmissionThreadModal({
           )}
           {isVideo && (
             <div className={styles.subCoverVideoBtn}>
-              <span className="play">
+              <span className={styles.play}>
                 <IconPlayCircle size={26} />
               </span>
             </div>
@@ -211,7 +211,9 @@ export function SubmissionThreadModal({
                         <div>
                           <span className={styles.cmtAuthor}>
                             {c.author.name}
-                            {instr && <span className="instrBadge">INSTR</span>}
+                            {instr && (
+                              <span className={styles.instrBadge}>INSTR</span>
+                            )}
                           </span>
                           <span className={styles.cmtWhen}>
                             · {relativeTime(c.created_at)}

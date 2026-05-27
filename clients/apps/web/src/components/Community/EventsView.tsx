@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Avatar } from './Avatar'
 import { EventDetailModal } from './EventDetailModal'
+import { PageHero } from './PageHero'
 import styles from './community.module.css'
 import {
   IconCalendar,
@@ -238,64 +239,101 @@ export function EventsView({
   const [createOpen, setCreateOpen] = useState(false)
   const [editing, setEditing] = useState<CommunityEvent | null>(null)
   const [openEvent, setOpenEvent] = useState<CommunityEvent | null>(null)
-  // "mine" = Going (student) or Hosting (creator). Label flips based on
-  // canCreate; the underlying filter is the same `going` boolean.
-  const [filter, setFilter] = useState<'all' | EventType | 'mine'>('all')
-
-  const mineLabel = canCreate ? 'Hosting' : 'Going'
-
-  const filters: { id: typeof filter; label: string }[] = [
-    { id: 'all', label: 'All' },
-    { id: 'workshop', label: 'Workshops' },
-    { id: 'office', label: 'Office hours' },
-    { id: 'cohort', label: 'Cohort meetups' },
-    { id: 'guest', label: 'Guests' },
-    { id: 'mine', label: mineLabel },
-  ]
+  // v5 redesign trims the v4 per-type chip row down to two segments:
+  // All events vs Mine (going/hosting). Per-type grouping moves into
+  // the act-module section headers further down.
+  const [filter, setFilter] = useState<'all' | 'mine'>('all')
 
   const matches = (e: CommunityEvent) => {
-    if (filter === 'all') return true
     if (filter === 'mine') return e.going
-    return e.type === filter
+    return true
   }
 
   const live = events.find((e) => e.live && matches(e)) ?? null
   const upcoming = events.filter((e) => !e.live && !e.past && matches(e))
-  const past = events.filter((e) => e.past)
+  const past = events.filter((e) => e.past && filter !== 'mine' && matches(e))
 
-  const upcomingCount = events.filter((e) => !e.past).length
+  const totalCount = events.filter((e) => !e.past).length
+  const mineCount = events.filter((e) => e.going && !e.past).length
+
+  // v5 redesign: only two segmented filters (All / Mine). The per-type
+  // filters from the v4 chip row are folded into the type-group section
+  // headers further down so navigation lives with the content.
+  const segments: { id: 'all' | 'mine'; label: string; count: number }[] = [
+    { id: 'all', label: 'All events', count: totalCount },
+    {
+      id: 'mine',
+      label: canCreate ? 'Hosting' : 'My events',
+      count: mineCount,
+    },
+  ]
+
+  // Group upcoming events by type so each gets its own act-module
+  // section with eyebrow + name + count meta.
+  const TYPE_GROUPS: {
+    id: EventType
+    name: string
+    desc: string
+  }[] = [
+    {
+      id: 'workshop',
+      name: 'Workshops',
+      desc: 'Live bake-alongs and deep-dives',
+    },
+    {
+      id: 'office',
+      name: 'Office hours',
+      desc: `Open Q&A with ${hostName || 'the instructor'}`,
+    },
+    {
+      id: 'cohort',
+      name: 'Cohort meetups',
+      desc: 'Show & tell with your peers',
+    },
+    {
+      id: 'guest',
+      name: 'Guest sessions',
+      desc: 'Outside bakers and authors',
+    },
+  ]
+  const groups = TYPE_GROUPS.map((g) => ({
+    ...g,
+    items: upcoming.filter((e) => e.type === g.id),
+  })).filter((g) => g.items.length > 0)
 
   return (
     <>
-      <header className={styles.feedHeader}>
-        <div className={styles.feedEyebrow}>
-          {upcomingCount === 0
+      <PageHero
+        eyebrow={
+          totalCount === 0
             ? 'No upcoming events yet'
-            : `${upcomingCount} upcoming${live ? ' · 1 live now' : ''}`}
-        </div>
-        <h1 className={styles.feedTitle}>Events</h1>
-        <p className={styles.feedSub}>
-          Live workshops, office hours, cohort meetups, and guest sessions.
-          Replays show up here for anything you miss.
-        </p>
-      </header>
+            : `${totalCount} upcoming${live ? ' · 1 live now' : ''}`
+        }
+        live={!!live}
+        title="Events"
+        subtitle="Live workshops, office hours, cohort meetups, and guest sessions. Replays show up here for anything you miss."
+      />
 
-      <div className={styles.eventsToolbar}>
-        {filters.map((f) => (
-          <button
-            key={f.id}
-            type="button"
-            className={`${styles.filterChip} ${filter === f.id ? styles.active : ''}`}
-            onClick={() => setFilter(f.id)}
-          >
-            {f.label}
-          </button>
-        ))}
-        <span className={styles.filterSpacer} />
+      <div className={styles.actToolbar}>
+        <div className={styles.actSegmented}>
+          {segments.map((s) => (
+            <button
+              key={s.id}
+              type="button"
+              className={`${styles.actSegmentedBtn} ${
+                filter === s.id ? styles.actSegmentedBtnActive : ''
+              }`}
+              onClick={() => setFilter(s.id)}
+            >
+              {s.label} <span className={styles.actSegmentedCt}>{s.count}</span>
+            </button>
+          ))}
+        </div>
+        <span className={styles.eventsToolbarSpacer} />
         {canCreate && (
           <button
             type="button"
-            className={styles.newEventBtn}
+            className={styles.actCreate}
             onClick={() => setCreateOpen(true)}
           >
             <IconPlus size={13} /> Create event
@@ -303,7 +341,30 @@ export function EventsView({
         )}
       </div>
 
-      {live && <FeaturedLive event={live} />}
+      {live && (
+        <section className={styles.eventsSection}>
+          <header className={styles.actModuleHeader}>
+            <div>
+              <div className={styles.actModuleEyebrow}>
+                <span
+                  className={`${styles.actModuleNum} ${styles.actModuleNumLive}`}
+                  aria-hidden
+                >
+                  <span className={styles.actModuleLivePulse} />
+                </span>
+                Live now
+              </div>
+              <div className={styles.actModuleName}>Happening right now</div>
+            </div>
+            <div className={styles.actModuleMeta}>
+              <span>
+                <strong>{live.rsvpCount}</strong> watching
+              </span>
+            </div>
+          </header>
+          <FeaturedLive event={live} />
+        </section>
+      )}
 
       {upcoming.length === 0 && !live ? (
         <EmptyEvents
@@ -313,11 +374,29 @@ export function EventsView({
           activeFilter={filter}
           canCreate={canCreate}
         />
-      ) : (
+      ) : filter === 'mine' ? (
+        // Mine view: single section, "Going / Hosting" eyebrow.
         upcoming.length > 0 && (
-          <div className={styles.eventsSection}>
-            <div className={styles.eventsSectionTitle}>Upcoming</div>
-            <div className={styles.eventsGrid}>
+          <section className={styles.eventsSection}>
+            <header className={styles.actModuleHeader}>
+              <div>
+                <div className={styles.actModuleEyebrow}>
+                  {canCreate ? 'Hosting' : "RSVP'd"}
+                </div>
+                <div className={styles.actModuleName}>
+                  {canCreate
+                    ? 'Events you’re hosting'
+                    : 'Events you’re going to'}
+                </div>
+              </div>
+              <div className={styles.actModuleMeta}>
+                <span>
+                  <strong>{upcoming.length}</strong>{' '}
+                  {upcoming.length === 1 ? 'event' : 'events'}
+                </span>
+              </div>
+            </header>
+            <div className={styles.eventsGridV5}>
               {upcoming.map((e) => (
                 <EventCard
                   key={e.id}
@@ -339,16 +418,63 @@ export function EventsView({
                 />
               ))}
             </div>
-          </div>
+          </section>
         )
+      ) : (
+        groups.map((g) => (
+          <section key={g.id} className={styles.eventsSection}>
+            <header className={styles.actModuleHeader}>
+              <div>
+                <div className={styles.actModuleEyebrow}>{g.name}</div>
+                <div className={styles.actModuleName}>{g.desc}</div>
+              </div>
+              <div className={styles.actModuleMeta}>
+                <span>
+                  <strong>{g.items.length}</strong> upcoming
+                </span>
+              </div>
+            </header>
+            <div className={styles.eventsGridV5}>
+              {g.items.map((e) => (
+                <EventCard
+                  key={e.id}
+                  event={e}
+                  onToggleGoing={onToggleGoing}
+                  onOpen={() => setOpenEvent(e)}
+                  canRsvp={!canCreate}
+                  canManage={canCreate}
+                  onEdit={() => setEditing(e)}
+                  onDelete={() => {
+                    if (
+                      window.confirm(
+                        `Delete "${e.title}"? Attendees will no longer see it and any RSVPs will be removed.`,
+                      )
+                    ) {
+                      onDelete(e.id)
+                    }
+                  }}
+                />
+              ))}
+            </div>
+          </section>
+        ))
       )}
 
-      {past.length > 0 && filter !== 'mine' && (
-        <div className={styles.eventsSection}>
-          <div className={styles.eventsSectionTitle}>
-            Past · Replays available
-          </div>
-          <div className={styles.eventsGrid}>
+      {past.length > 0 && (
+        <section className={styles.eventsSection}>
+          <header className={styles.actModuleHeader}>
+            <div>
+              <div className={styles.actModuleEyebrow}>Past</div>
+              <div className={styles.actModuleName}>Replays available</div>
+            </div>
+            <div className={styles.actModuleMeta}>
+              <span>
+                <strong>{past.length}</strong>{' '}
+                {past.length === 1 ? 'replay' : 'replays'}
+              </span>
+            </div>
+          </header>
+          <div className={styles.eventsGridV5}>
             {past.map((e) => (
               <EventCard
                 key={e.id}
@@ -371,7 +497,7 @@ export function EventsView({
               />
             ))}
           </div>
-        </div>
+        </section>
       )}
 
       {canCreate && (
@@ -503,7 +629,7 @@ function EventCard({
       }
     : { background: `linear-gradient(135deg, #1f1f1f, #4a4a4a)` }
 
-  const cardCls = `${styles.eventCard} ${event.live ? styles.eventCardLive : ''} ${past ? styles.eventCardPast : ''}`
+  const cardCls = `${styles.eventCardV5} ${event.live ? styles.eventCardV5Live : ''} ${past ? styles.eventCardV5Past : ''}`
 
   return (
     <article
@@ -511,17 +637,17 @@ function EventCard({
       onClick={handleCardClick}
       style={{ cursor: 'pointer' }}
     >
-      <div className={styles.eventCover}>
-        <div className={styles.eventCoverImg} style={coverStyle} />
+      <div className={styles.eventCoverV5}>
+        <div className={styles.eventCoverV5Img} style={coverStyle} />
         <div className={styles.eventCoverOverlay}>
           {event.live ? (
             <span className={styles.eventCoverLive}>
-              <span className="dot" /> Live
+              <span className={styles.dot} /> Live
             </span>
           ) : (
             <span className={styles.eventCoverDate}>
               <IconCalendar size={11} />
-              <span className="day">
+              <span className={styles.day}>
                 {chip.month} {chip.day}
               </span>
             </span>
@@ -530,48 +656,33 @@ function EventCard({
             {TYPE_LABEL[event.type]}
           </span>
         </div>
-        {canManage && (
-          <CardManageMenu
-            open={menuOpen}
-            onToggle={() => setMenuOpen((v) => !v)}
-            onClose={() => setMenuOpen(false)}
-            onEdit={() => {
-              setMenuOpen(false)
-              onEdit()
-            }}
-            onDelete={() => {
-              setMenuOpen(false)
-              onDelete()
-            }}
-          />
-        )}
         {past && (
           <div className={styles.eventCoverReplay}>
-            <span className="play">
+            <span className={styles.play}>
               <IconPlayCircle size={20} />
             </span>
           </div>
         )}
       </div>
 
-      <div className={styles.eventBody}>
-        <div className={styles.eventTitleV4}>{event.title}</div>
-        <div className={styles.eventMetaV4}>
-          <span className={styles.eventMetaBitV4}>
+      <div className={styles.eventBodyV5}>
+        <div className={styles.eventTitleV5}>{event.title}</div>
+        <div className={styles.eventMetaV5}>
+          <span className={styles.eventMetaBit}>
             <IconClock size={11} /> {whenHost} · {event.duration}m
           </span>
           {whenViewer && (
-            <span className={styles.eventMetaBitV4} style={{ opacity: 0.7 }}>
+            <span className={styles.eventMetaBit} style={{ opacity: 0.7 }}>
               {whenViewer}
             </span>
           )}
           {!past && event.location && (
-            <span className={styles.eventMetaBitV4}>
+            <span className={styles.eventMetaBit}>
               <IconMapPin size={11} /> {event.location}
             </span>
           )}
         </div>
-        <div className={styles.eventHostV4}>
+        <div className={styles.eventHostV5}>
           <Avatar name={event.hostName} size={20} />
           <span>
             <strong>{event.hostName}</strong>
@@ -579,7 +690,7 @@ function EventCard({
         </div>
       </div>
 
-      <div className={styles.eventFoot}>
+      <div className={styles.eventFootV5}>
         <span className={styles.eventFootGoing}>
           <strong>{event.rsvpCount}</strong> {past ? 'attended' : 'going'}
         </span>
@@ -589,14 +700,14 @@ function EventCard({
               href={event.replayUrl}
               target="_blank"
               rel="noreferrer noopener"
-              className={`${styles.eventCtaV4} ${styles.eventCtaV4Replay}`}
+              className={`${styles.eventCtaV5} ${styles.eventCtaV5Replay}`}
             >
               <IconPlayCircle size={13} /> Replay
             </a>
           ) : (
             <button
               type="button"
-              className={`${styles.eventCtaV4} ${styles.eventCtaV4Replay}`}
+              className={`${styles.eventCtaV5} ${styles.eventCtaV5Replay}`}
               disabled
               title="No replay posted yet."
             >
@@ -609,14 +720,14 @@ function EventCard({
               href={event.meetingUrl}
               target="_blank"
               rel="noreferrer noopener"
-              className={`${styles.eventCtaV4} ${styles.eventCtaV4Live}`}
+              className={`${styles.eventCtaV5} ${styles.eventCtaV5Live}`}
             >
               <IconVideo size={13} /> Join live
             </a>
           ) : (
             <button
               type="button"
-              className={`${styles.eventCtaV4} ${styles.eventCtaV4Live}`}
+              className={`${styles.eventCtaV5} ${styles.eventCtaV5Live}`}
               disabled
             >
               <IconVideo size={13} /> Join live
@@ -625,13 +736,34 @@ function EventCard({
         ) : canRsvp ? (
           <button
             type="button"
-            className={`${styles.eventCtaV4} ${styles.eventCtaV4Outline} ${event.going ? styles.eventCtaV4Going : ''}`}
+            className={`${styles.eventCtaV5} ${styles.eventCtaV5Outline} ${event.going ? styles.eventCtaV5Going : ''}`}
             onClick={() => onToggleGoing(event.id)}
           >
             {event.going ? '✓ Going' : 'RSVP'}
           </button>
         ) : null}
       </div>
+
+      {/* v5 redesign: 3-dots menu pinned to the bottom-right of the
+          card (same placement as PostCard). Trigger has a white
+          ring instead of the dark overlay since it sits over the
+          card foot, not the cover image. */}
+      {canManage && (
+        <CardManageMenu
+          open={menuOpen}
+          onToggle={() => setMenuOpen((v) => !v)}
+          onClose={() => setMenuOpen(false)}
+          onEdit={() => {
+            setMenuOpen(false)
+            onEdit()
+          }}
+          onDelete={() => {
+            setMenuOpen(false)
+            onDelete()
+          }}
+          placement="bottom-right"
+        />
+      )}
     </article>
   )
 }
@@ -1171,18 +1303,88 @@ export function CardManageMenu({
   onClose,
   onEdit,
   onDelete,
+  placement = 'top-right',
 }: {
   open: boolean
   onToggle: () => void
   onClose: () => void
   onEdit: () => void
   onDelete: () => void
+  /** Where on the card the trigger sits. v5 cards (events,
+   * activities) anchor it bottom-right; the older cover-overlay
+   * placement stays top-right by default. */
+  placement?: 'top-right' | 'bottom-right'
 }) {
+  const isBottom = placement === 'bottom-right'
+  const anchorStyle: React.CSSProperties = isBottom
+    ? { position: 'absolute', bottom: 14, right: 14, zIndex: 6 }
+    : { position: 'absolute', top: 10, right: 10, zIndex: 6 }
+  // Anchored to bottom-right: the popup must open UPWARD so it
+  // doesn't get clipped or pushed off-screen by the next card.
+  const popupStyle: React.CSSProperties = isBottom
+    ? {
+        position: 'absolute',
+        bottom: 36,
+        right: 0,
+        minWidth: 160,
+        background: '#fff',
+        border: '1px solid var(--c-line)',
+        borderRadius: 12,
+        boxShadow: '0 16px 40px rgba(0,0,0,0.16)',
+        padding: 6,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 2,
+      }
+    : {
+        position: 'absolute',
+        top: 32,
+        right: 0,
+        minWidth: 160,
+        background: '#fff',
+        border: '1px solid var(--c-line)',
+        borderRadius: 12,
+        boxShadow: '0 16px 40px rgba(0,0,0,0.16)',
+        padding: 6,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 2,
+      }
+  const triggerStyle: React.CSSProperties = isBottom
+    ? {
+        width: 28,
+        height: 28,
+        borderRadius: 999,
+        background: '#fff',
+        boxShadow: 'inset 0 0 0 1px var(--c-line), 0 1px 2px rgba(0,0,0,0.04)',
+        color: 'var(--c-ink)',
+        border: 'none',
+        cursor: 'pointer',
+        display: 'grid',
+        placeItems: 'center',
+        fontSize: 14,
+        fontWeight: 700,
+        letterSpacing: -1,
+        padding: 0,
+      }
+    : {
+        width: 28,
+        height: 28,
+        borderRadius: 999,
+        background: 'rgba(0,0,0,0.55)',
+        backdropFilter: 'blur(8px)',
+        color: '#fff',
+        border: 'none',
+        cursor: 'pointer',
+        display: 'grid',
+        placeItems: 'center',
+        fontSize: 14,
+        fontWeight: 700,
+        letterSpacing: -1,
+        padding: 0,
+      }
   return (
-    <div
-      style={{ position: 'absolute', top: 10, right: 10, zIndex: 6 }}
-      onMouseLeave={onClose}
-    >
+    <div style={anchorStyle} onMouseLeave={onClose}>
       <button
         type="button"
         aria-label="Manage"
@@ -1191,43 +1393,12 @@ export function CardManageMenu({
           e.stopPropagation()
           onToggle()
         }}
-        style={{
-          width: 28,
-          height: 28,
-          borderRadius: 999,
-          background: 'rgba(0,0,0,0.55)',
-          backdropFilter: 'blur(8px)',
-          color: '#fff',
-          border: 'none',
-          cursor: 'pointer',
-          display: 'grid',
-          placeItems: 'center',
-          fontSize: 14,
-          fontWeight: 700,
-          letterSpacing: -1,
-          padding: 0,
-        }}
+        style={triggerStyle}
       >
         ⋯
       </button>
       {open && (
-        <div
-          role="menu"
-          style={{
-            position: 'absolute',
-            top: 32,
-            right: 0,
-            minWidth: 160,
-            background: '#fff',
-            border: '1px solid var(--c-line)',
-            borderRadius: 12,
-            boxShadow: '0 16px 40px rgba(0,0,0,0.16)',
-            padding: 6,
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 2,
-          }}
-        >
+        <div role="menu" style={popupStyle}>
           <button
             type="button"
             role="menuitem"

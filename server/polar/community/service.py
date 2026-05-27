@@ -1477,6 +1477,13 @@ class CommunityService:
         activity_by_post = await activity_repo.map_by_pinned_post_ids(
             activity_post_ids
         )
+        # Richer summary for the inline activity-CTA panel (submission
+        # type + count). Kept separate from the legacy `activities`
+        # map so the existing `activity_id` field on CommunityPostRead
+        # stays backward compatible.
+        activity_summary_by_post = await activity_repo.summary_by_pinned_post_ids(
+            activity_post_ids
+        )
         module_info_by_post = await activity_repo.module_info_by_pinned_post_ids(
             activity_post_ids
         )
@@ -1486,6 +1493,7 @@ class CommunityService:
             "lessons": lessons,
             "reactions": reactions_summary,
             "activities": activity_by_post,
+            "activity_summaries": activity_summary_by_post,
             "modules": module_info_by_post,
         }
 

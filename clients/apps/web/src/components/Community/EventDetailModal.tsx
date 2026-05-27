@@ -99,7 +99,8 @@ export function EventDetailModal({ event, onClose, onToggleGoing }: Props) {
             <span />
           </div>
           <div className={styles.eventIframeUrl}>
-            community.spaire.app/events/<span className="path">{slug}</span>
+            community.spaire.app/events/
+            <span className={styles.path}>{slug}</span>
           </div>
           <button
             type="button"
@@ -119,7 +120,7 @@ export function EventDetailModal({ event, onClose, onToggleGoing }: Props) {
             <div className={styles.evHeroMeta}>
               {isLive ? (
                 <span className={styles.evHeroLive}>
-                  <span className="dot" /> Live now
+                  <span className={styles.dot} /> Live now
                 </span>
               ) : isPast ? (
                 <span

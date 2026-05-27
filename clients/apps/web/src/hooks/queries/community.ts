@@ -98,6 +98,13 @@ export interface CommunityPostRead {
   /** Set on pin_type='activity' posts so the feed can render an
    * "Open activity" button. */
   activity_id?: string | null
+  /** Richer activity payload for the inline CTA-row panel (set
+   * alongside activity_id on activity-pin posts). */
+  activity?: {
+    id: string
+    submission_type: 'photo' | 'video' | 'text' | 'link'
+    submission_count: number
+  } | null
   created_at: string
   modified_at: string | null
 }

@@ -6,18 +6,17 @@
  */
 
 .root {
+  /* Tokens lifted verbatim from __design/Community-v5.html so the
+     shipped community matches the redesign 1:1. */
   --c-ink: #1d1d1f;
   --c-ink-pure: #000000;
-  /* Page surface matches the course editor's main shell background
-     (oklch(0.96 0.005 280)) so the community reads as part of the
-     same workspace. White post cards stand out against it. */
-  --c-bg: oklch(0.96 0.005 280);
+  --c-bg: #eff3f8;
   --c-panel: #f5f5f7;
   --c-panel-2: #fafafa;
   --c-line: #d2d2d7;
   --c-hair: #e8e8ed;
-  --c-muted: rgba(29, 29, 31, 0.56);
-  --c-dim: rgba(29, 29, 31, 0.4);
+  --c-muted: rgba(0, 0, 0, 0.56);
+  --c-dim: rgba(0, 0, 0, 0.4);
   --c-live: #ff3b30;
   --c-presence: #34c759;
 
@@ -39,23 +38,44 @@
 }
 
 .layout {
+  /* v5 redesign: 3-column with a right rail (events + members preview).
+     220 left rail / 1fr main / 260 right rail, capped at 1360px so the
+     gutters breathe at desktop width. Below 1000px the right rail
+     collapses and we drop back to the two-column shell. */
   display: grid;
-  grid-template-columns: 260px 1fr;
-  max-width: 1240px;
+  grid-template-columns: 220px minmax(0, 1fr) 260px;
+  max-width: 1360px;
   width: 100%;
   margin: 0 auto;
-  padding-top: 16px;
+  padding: 16px 24px 0 24px;
+  gap: 36px;
+}
+@media (max-width: 1000px) {
+  .layout {
+    grid-template-columns: 220px minmax(0, 1fr);
+    gap: 22px;
+  }
+  .rightRail {
+    display: none !important;
+  }
 }
 
 .rail {
-  padding: 32px 16px 60px 24px;
+  /* Wrap the nav in a white card so it reads as a panel against the
+     grey page surface, matching the feed cards on the right. */
+  background: #fff;
+  border: 1px solid var(--c-hair);
+  border-radius: 16px;
+  padding: 22px 14px 22px 14px;
   display: flex;
   flex-direction: column;
-  gap: 32px;
+  gap: 28px;
   position: sticky;
   top: 16px;
   align-self: start;
-  height: calc(100vh - 32px);
+  /* Account for the new top/bottom card padding so the rail still
+     stops short of the viewport edge. */
+  max-height: calc(100vh - 32px);
   overflow-y: auto;
 }
 .rail::-webkit-scrollbar {
@@ -76,10 +96,12 @@
 }
 .railLabel {
   font-size: 11px;
-  font-weight: 500;
+  font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--c-dim);
+  /* Was --c-dim (40% ink) — bumped so the section headers read clearly
+     against the white rail card. */
+  color: var(--c-muted);
   padding: 0 12px 10px 12px;
 }
 .railItem {
@@ -89,8 +111,11 @@
   padding: 7px 12px;
   border-radius: 7px;
   font-size: 13.5px;
-  font-weight: 400;
-  color: var(--c-muted);
+  font-weight: 500;
+  /* Was --c-muted (56% ink) — the rail was reading as low-contrast
+     placeholder text. Use the full ink color so the nav labels are
+     legible at rest. */
+  color: var(--c-ink);
   cursor: pointer;
   user-select: none;
   background: none;
@@ -129,8 +154,9 @@
 }
 .railCount {
   font-size: 11.5px;
-  font-weight: 400;
-  color: var(--c-dim);
+  font-weight: 500;
+  /* Was --c-dim (40% ink) — count chips were nearly invisible. */
+  color: var(--c-muted);
   margin-left: auto;
 }
 .railItem.active .railCount {
@@ -312,8 +338,10 @@
    Composer — LinkedIn-style collapsed pill + modal pattern
    ========================================================= */
 .composer {
-  margin-top: 22px;
-  padding: 14px;
+  /* v5 composer pill — margins / padding match
+     __design/Community-v5.html `.composer-pill`. */
+  margin-top: 28px;
+  padding: 18px;
   background: #fff;
   border: 1px solid var(--c-hair);
   border-radius: 16px;
@@ -706,6 +734,9 @@
   background: #fff;
   border: 1px solid var(--c-hair);
   border-radius: 14px;
+  /* Bottom-right 3-dots menu (postMoreAnchor) positions relative to
+     the post card. */
+  position: relative;
 }
 .postHead {
   display: flex;
@@ -2831,7 +2862,11 @@
   background: #fff;
   border: 1px solid var(--c-hair);
   border-radius: 20px;
-  overflow: hidden;
+  overflow: visible;
+  /* Position context + visible overflow for the bottom-right 3-dots
+     menu so the popup can escape the card bounds when it opens
+     upward. */
+  position: relative;
   transition:
     transform 0.2s ease,
     border-color 0.12s ease,
@@ -4245,4 +4280,1970 @@
   .membersGrid {
     grid-template-columns: 1fr;
   }
+}
+
+/* =========================================================
+ * v5 redesign — right rail, page hero, section card,
+ * composer pill, activity-cta-row. Ported verbatim from
+ * __design/Community-v5.html (kept in tree so we can diff
+ * against it later).
+ * ========================================================= */
+
+.rightRail {
+  position: sticky;
+  top: 16px;
+  align-self: start;
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding-right: 2px;
+}
+.rightRail::-webkit-scrollbar {
+  width: 5px;
+}
+.rightRail::-webkit-scrollbar-thumb {
+  background: var(--c-hair);
+  border-radius: 999px;
+}
+
+.rrCard {
+  background: #fff;
+  border: 1px solid var(--c-hair);
+  border-radius: 16px;
+  padding: 20px 18px 18px 18px;
+  box-shadow:
+    0 1px 0 rgba(15, 30, 60, 0.04),
+    0 2px 6px rgba(15, 30, 60, 0.03);
+}
+.rrCardHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+  gap: 8px;
+}
+.rrCardTitle {
+  font-size: 13.5px;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  color: var(--c-ink);
+}
+.rrCardLink {
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--c-muted);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: transparent;
+  border: 0;
+}
+.rrCardLink:hover {
+  color: var(--c-ink);
+}
+
+/* ---- Right-rail event row ---- */
+.rrEvent {
+  display: grid;
+  grid-template-columns: 44px 1fr;
+  gap: 12px;
+  padding: 10px 0;
+  border-top: 1px solid var(--c-hair);
+  cursor: pointer;
+  align-items: center;
+  background: none;
+  border-left: 0;
+  border-right: 0;
+  border-bottom: 0;
+  width: 100%;
+  text-align: left;
+}
+.rrEvent:nth-of-type(2) {
+  border-top: none;
+  padding-top: 4px;
+}
+.rrEvent:last-of-type {
+  padding-bottom: 0;
+}
+.rrEventDate {
+  width: 44px;
+  height: 50px;
+  border-radius: 10px;
+  background: var(--c-panel);
+  color: var(--c-ink);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  flex-shrink: 0;
+}
+.rrEventDateLive {
+  background: var(--c-ink);
+  color: #fff;
+}
+.rrEventDateDay {
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.rrEventDateMonth {
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-top: 2px;
+  opacity: 0.78;
+}
+.rrEventInfo {
+  min-width: 0;
+}
+.rrEventTitle {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--c-ink);
+  line-height: 1.3;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.rrEventMeta {
+  font-size: 11px;
+  color: var(--c-muted);
+  margin-top: 3px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.rrEventMeta .rrSep {
+  width: 3px;
+  height: 3px;
+  border-radius: 999px;
+  background: var(--c-dim);
+}
+.rrEventMeta .rrLiveTag {
+  color: #e84b6e;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.rrEventMeta .rrLiveTag::before {
+  content: '';
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: #e84b6e;
+  animation: rrLivePulse 1.2s ease-in-out infinite;
+}
+@keyframes rrLivePulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
+
+/* ---- Right-rail member row ---- */
+.rrMember {
+  display: grid;
+  grid-template-columns: 36px 1fr auto;
+  gap: 10px;
+  padding: 9px 0;
+  border-top: 1px solid var(--c-hair);
+  cursor: pointer;
+  align-items: center;
+  background: none;
+  border-left: 0;
+  border-right: 0;
+  border-bottom: 0;
+  width: 100%;
+  text-align: left;
+}
+.rrMember:nth-of-type(2) {
+  border-top: none;
+  padding-top: 4px;
+}
+.rrMember:last-of-type {
+  padding-bottom: 0;
+}
+.rrMemberAv {
+  width: 36px;
+  height: 36px;
+  position: relative;
+}
+.rrMemberAv .rrMemberDot {
+  position: absolute;
+  bottom: -1px;
+  right: -1px;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: #34c759;
+  border: 2px solid #fff;
+}
+.rrMemberInfo {
+  min-width: 0;
+}
+.rrMemberName {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--c-ink);
+  line-height: 1.2;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.rrMemberRole {
+  font-size: 10.5px;
+  color: var(--c-muted);
+  margin-top: 2px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.rrMemberBadge {
+  font-size: 9px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: var(--c-panel);
+  color: var(--c-muted);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.rrMemberBadgeInstr {
+  background: var(--c-ink);
+  color: #fff;
+}
+.rrSeeMore {
+  margin-top: 12px;
+  width: 100%;
+  height: 34px;
+  border-radius: 999px;
+  background: var(--c-panel);
+  color: var(--c-ink);
+  font-size: 12.5px;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: background 0.12s ease;
+  border: 0;
+  cursor: pointer;
+}
+.rrSeeMore:hover {
+  background: var(--c-hair);
+}
+
+/* ---- Page hero (white CTA card, 70/30 split) ---- */
+.pageHero {
+  display: grid;
+  grid-template-columns: minmax(0, 7fr) minmax(0, 3fr);
+  background: #fff;
+  border: 1px solid var(--c-hair);
+  border-radius: 20px;
+  overflow: hidden;
+  margin-bottom: 28px;
+  min-height: 188px;
+  box-shadow:
+    0 1px 0 rgba(15, 30, 60, 0.04),
+    0 2px 6px rgba(15, 30, 60, 0.03);
+}
+.pageHeroText {
+  padding: 32px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 10px;
+  min-width: 0;
+}
+.pageHeroEyebrow {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--c-muted);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+.pageHeroEyebrow .pageHeroLive {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: #34c759;
+  animation: rrLivePulse 1.2s ease-in-out infinite;
+  display: inline-block;
+}
+.pageHeroTitle {
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: -0.022em;
+  line-height: 1.1;
+  color: var(--c-ink);
+}
+.pageHeroSub {
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--c-muted);
+  max-width: 54ch;
+}
+.pageHeroActions {
+  margin-top: 8px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.pageHeroAction {
+  height: 36px;
+  padding: 0 16px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  cursor: pointer;
+}
+.pageHeroActionPrimary {
+  background: var(--c-ink);
+  color: #fff;
+}
+.pageHeroActionPrimary:hover {
+  opacity: 0.88;
+}
+.pageHeroActionGhost {
+  background: transparent;
+  color: var(--c-ink);
+  box-shadow: inset 0 0 0 1px var(--c-line);
+}
+.pageHeroActionGhost:hover {
+  background: var(--c-panel);
+}
+.pageHeroImg {
+  background-size: cover;
+  background-position: center;
+  background-color: #0a0a0c;
+  min-height: 164px;
+  position: relative;
+  display: grid;
+  place-items: center;
+}
+.pageHeroImg::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.18) 0%,
+    rgba(255, 255, 255, 0) 18%
+  );
+  pointer-events: none;
+}
+@media (max-width: 640px) {
+  .pageHero {
+    grid-template-columns: 1fr;
+    min-height: 0;
+  }
+  .pageHeroImg {
+    display: none;
+  }
+}
+
+/* ---- Section card (white container for grouped content) ---- */
+.sectionCard {
+  background: #fff;
+  border: 1px solid var(--c-hair);
+  border-radius: 18px;
+  padding: 18px 18px 20px 18px;
+  margin-bottom: 18px;
+  box-shadow:
+    0 1px 0 rgba(15, 30, 60, 0.04),
+    0 2px 6px rgba(15, 30, 60, 0.03);
+}
+
+/* ---- LinkedIn-style composer pill ---- */
+.composerPill {
+  margin-top: 28px;
+  padding: 18px;
+  background: #fff;
+  border: 1px solid var(--c-hair);
+  border-radius: 16px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+}
+.composerPillRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.composerPillInput {
+  flex: 1;
+  height: 46px;
+  padding: 0 18px;
+  border-radius: 999px;
+  background: transparent;
+  border: 1px solid var(--c-hair);
+  color: var(--c-muted);
+  font-size: 14.5px;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background 0.12s ease,
+    border-color 0.12s ease;
+}
+.composerPillInput:hover {
+  background: var(--c-panel-2);
+  border-color: var(--c-line);
+  color: var(--c-ink);
+}
+.composerPillTools {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--c-hair);
+  gap: 4px;
+}
+.composerPillTool {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--c-muted);
+  background: none;
+  border: 0;
+  cursor: pointer;
+  transition:
+    background 0.12s ease,
+    color 0.12s ease;
+}
+.composerPillTool:hover {
+  background: var(--c-panel);
+  color: var(--c-ink);
+}
+.composerPillIco {
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+}
+.composerPillIcoPhoto {
+  color: #4f92f7;
+}
+.composerPillIcoVideo {
+  color: #5cc069;
+}
+.composerPillIcoEvent {
+  color: #f7a64d;
+}
+.composerPillIcoPoll {
+  color: #b076e8;
+}
+
+/* =========================================================
+ * v5 Events view — ported from __design/Community-v5.html
+ * lines 1121-1448.
+ * ========================================================= */
+
+.eventsToolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+.eventsToolbarSpacer {
+  flex: 1;
+}
+
+.eventsSection {
+  margin-bottom: 36px;
+  scroll-margin-top: 24px;
+}
+.eventsSection:last-child {
+  margin-bottom: 24px;
+}
+
+/* Module-style section header (shared with activities). */
+.actModuleHeader {
+  background: #fff;
+  border: 1px solid var(--c-hair);
+  border-radius: 16px;
+  padding: 14px 20px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 14px;
+  box-shadow:
+    0 1px 0 rgba(15, 30, 60, 0.04),
+    0 2px 6px rgba(15, 30, 60, 0.03);
+}
+.actModuleEyebrow {
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--c-muted);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.actModuleEyebrow .actModuleNum {
+  display: inline-grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 7px;
+  background: var(--c-ink);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.actModuleEyebrow .actModuleNumLive {
+  background: #ff3b30 !important;
+}
+.actModuleName {
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.012em;
+  line-height: 1.2;
+  color: var(--c-ink);
+}
+.actModuleMeta {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-size: 12.5px;
+  color: var(--c-muted);
+  white-space: nowrap;
+}
+.actModuleMeta strong {
+  color: var(--c-ink);
+  font-weight: 600;
+}
+
+/* Quick-jump TOC pills shown when there are 5+ groups. */
+.actToc {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 0 28px 0;
+  padding: 12px 14px;
+  background: var(--c-panel-2);
+  border: 1px solid var(--c-hair);
+  border-radius: 12px;
+}
+.actTocLabel {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--c-muted);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-right: 8px;
+  align-self: center;
+}
+.actTocLink {
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--c-ink);
+  background: #fff;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  text-decoration: none;
+  border: 1px solid var(--c-hair);
+  transition:
+    border-color 0.12s ease,
+    background 0.12s ease;
+  cursor: pointer;
+}
+.actTocLink:hover {
+  border-color: var(--c-line);
+  background: var(--c-panel);
+}
+.actTocLink .actTocCt {
+  font-size: 10.5px;
+  color: var(--c-muted);
+  margin-left: 2px;
+}
+
+/* Segmented filter (All events / My events). */
+.actSegmented {
+  display: inline-flex;
+  background: var(--c-panel);
+  border-radius: 999px;
+  padding: 4px;
+  gap: 2px;
+}
+.actSegmentedBtn {
+  height: 34px;
+  padding: 0 18px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--c-muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  transition:
+    background 0.12s ease,
+    color 0.12s ease;
+}
+.actSegmentedBtn:hover {
+  color: var(--c-ink);
+}
+.actSegmentedBtnActive {
+  background: #fff;
+  color: var(--c-ink);
+  font-weight: 600;
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.06),
+    0 0 0 0.5px rgba(0, 0, 0, 0.04);
+}
+.actSegmentedCt {
+  font-size: 11px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.06);
+  color: inherit;
+  font-weight: 500;
+}
+.actSegmentedBtnActive .actSegmentedCt {
+  background: var(--c-ink);
+  color: #fff;
+}
+.actCreate {
+  height: 34px;
+  padding: 0 14px;
+  border-radius: 999px;
+  background: var(--c-ink);
+  color: #fff;
+  font-size: 12.5px;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  cursor: pointer;
+}
+.actCreate:hover {
+  opacity: 0.88;
+}
+
+/* Wrap toolbar in a white "card" toolbar shell. */
+.actToolbar {
+  background: #fff;
+  border: 1px solid var(--c-hair);
+  border-radius: 16px;
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 22px;
+  flex-wrap: wrap;
+  box-shadow:
+    0 1px 0 rgba(15, 30, 60, 0.04),
+    0 2px 6px rgba(15, 30, 60, 0.03);
+}
+
+/* ---- v5 event cards (with cover image) ---- */
+.eventsGridV5 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+@media (max-width: 900px) {
+  .eventsGridV5 {
+    grid-template-columns: 1fr;
+  }
+}
+.eventCardV5 {
+  background: #fff;
+  border: 1px solid var(--c-hair);
+  border-radius: 16px;
+  overflow: visible;
+  /* Position context for the bottom-right 3-dots menu anchor.
+     Overflow stays visible so the popup menu can escape the card
+     bounds when opened upward from the bottom-right corner. */
+  position: relative;
+  transition:
+    transform 0.18s ease,
+    border-color 0.12s ease,
+    box-shadow 0.18s ease;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+}
+.eventCardV5:hover {
+  border-color: var(--c-line);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
+  transform: translateY(-1px);
+}
+.eventCardV5Live {
+  border-color: #ff3b30;
+  box-shadow: 0 0 0 1px #ff3b30;
+}
+.eventCardV5Past {
+  opacity: 0.85;
+}
+.eventCardV5Past:hover {
+  opacity: 1;
+}
+.eventCoverV5 {
+  height: 0;
+  padding-bottom: 52%;
+  position: relative;
+  overflow: hidden;
+  background: var(--c-panel);
+}
+.eventCoverV5Img {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  transition: transform 0.4s ease;
+}
+.eventCardV5:hover .eventCoverV5Img {
+  transform: scale(1.04);
+}
+.eventCoverOverlay {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.eventCoverDate {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(8px);
+  color: var(--c-ink);
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  white-space: nowrap;
+}
+.eventCoverDateDay {
+  font-weight: 700;
+}
+.eventCoverLive {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #fff;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #ff3b30;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.eventCoverLive .eventCoverLiveDot {
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: #fff;
+  animation: livePulse 1.2s ease-in-out infinite;
+}
+.eventCoverType {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  font-size: 10.5px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(8px);
+  color: #fff;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.eventCoverReplay {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(0, 0, 0, 0.35);
+  opacity: 0;
+  transition: opacity 0.18s ease;
+}
+.eventCardV5Past:hover .eventCoverReplay {
+  opacity: 1;
+}
+.eventCoverReplayPlay {
+  width: 56px;
+  height: 56px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.96);
+  color: var(--c-ink);
+  display: grid;
+  place-items: center;
+}
+.eventBodyV5 {
+  padding: 16px 18px 18px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1;
+}
+.eventTitleV5 {
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.012em;
+  line-height: 1.3;
+}
+.eventMetaV5 {
+  font-size: 12.5px;
+  color: var(--c-muted);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.eventMetaBit {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.eventMetaBit svg {
+  opacity: 0.65;
+}
+.eventHostV5 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--c-muted);
+}
+.eventHostV5 strong {
+  color: var(--c-ink);
+  font-weight: 500;
+}
+.eventFootV5 {
+  padding: 12px 18px 16px 18px;
+  border-top: 1px solid var(--c-hair);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.eventFootGoing {
+  font-size: 11.5px;
+  color: var(--c-muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.eventFootGoing strong {
+  color: var(--c-ink);
+  font-weight: 600;
+}
+.eventCtaV5 {
+  height: 32px;
+  padding: 0 14px;
+  border-radius: 999px;
+  font-weight: 500;
+  font-size: 12px;
+  background: var(--c-ink);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  border: 0;
+  cursor: pointer;
+}
+.eventCtaV5:hover {
+  opacity: 0.85;
+}
+.eventCtaV5Live {
+  background: #ff3b30;
+}
+.eventCtaV5Outline {
+  background: transparent;
+  color: var(--c-ink);
+  box-shadow: inset 0 0 0 1px var(--c-line);
+}
+.eventCtaV5Outline:hover {
+  background: var(--c-panel);
+  opacity: 1;
+}
+.eventCtaV5Going {
+  background: var(--c-ink);
+  color: #fff;
+  box-shadow: none;
+}
+.eventCtaV5Replay {
+  background: var(--c-panel);
+  color: var(--c-ink);
+}
+.eventCtaV5Replay:hover {
+  background: var(--c-hair);
+  opacity: 1;
+}
+
+/* Featured live event banner (ink card across the top of Events). */
+.eventFeatured {
+  margin-bottom: 24px;
+  padding: 24px;
+  background: var(--c-ink);
+  color: #fff;
+  border-radius: 18px;
+  position: relative;
+  overflow: hidden;
+  cursor: pointer;
+}
+.eventFeatured::before {
+  content: '';
+  position: absolute;
+  inset: -40% -20% auto auto;
+  width: 360px;
+  height: 360px;
+  background: radial-gradient(
+    circle,
+    rgba(255, 59, 48, 0.18) 0%,
+    transparent 60%
+  );
+  pointer-events: none;
+}
+.eventFeaturedTop {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  position: relative;
+  z-index: 2;
+}
+.eventFeaturedLive {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #ff3b30;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.eventFeaturedLive .eventFeaturedLiveDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: #fff;
+  animation: livePulse 1.2s ease-in-out infinite;
+}
+.eventFeaturedWhen {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.7);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.eventFeaturedTitle {
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: -0.022em;
+  line-height: 1.15;
+  margin-bottom: 8px;
+  max-width: 22ch;
+  position: relative;
+  z-index: 2;
+}
+.eventFeaturedDesc {
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: rgba(255, 255, 255, 0.72);
+  max-width: 56ch;
+  margin-bottom: 18px;
+  position: relative;
+  z-index: 2;
+}
+.eventFeaturedFoot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+  position: relative;
+  z-index: 2;
+}
+.eventFeaturedHost {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+}
+.eventFeaturedHostSub {
+  font-size: 11.5px;
+  color: rgba(255, 255, 255, 0.6);
+  margin-top: 2px;
+}
+.eventFeaturedJoin {
+  height: 40px;
+  padding: 0 22px;
+  border-radius: 999px;
+  background: #fff;
+  color: var(--c-ink);
+  font-weight: 600;
+  font-size: 13.5px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 0;
+  cursor: pointer;
+}
+.eventFeaturedJoin:hover {
+  background: rgba(255, 255, 255, 0.88);
+}
+
+/* Empty state for "My events" / no events. */
+.eventsEmpty {
+  margin: 16px 0 32px 0;
+  padding: 56px 32px;
+  background: var(--c-panel-2);
+  border: 1px dashed var(--c-line);
+  border-radius: 16px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+.eventsEmptyIcon {
+  width: 72px;
+  height: 72px;
+  border-radius: 999px;
+  background: #fff;
+  display: grid;
+  place-items: center;
+  color: var(--c-muted);
+  box-shadow: 0 1px 0 var(--c-hair);
+  position: relative;
+}
+.eventsEmptyIcon::after {
+  content: '';
+  position: absolute;
+  inset: -10px;
+  border-radius: 999px;
+  border: 1px dashed var(--c-hair);
+}
+.eventsEmptyTitle {
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  margin-top: 4px;
+}
+.eventsEmptySub {
+  font-size: 13.5px;
+  color: var(--c-muted);
+  max-width: 42ch;
+  line-height: 1.5;
+}
+.eventsEmptyActions {
+  margin-top: 6px;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.eventsEmptyBtn {
+  height: 38px;
+  padding: 0 18px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--c-ink);
+  color: #fff;
+  border: 0;
+  cursor: pointer;
+}
+.eventsEmptyBtn:hover {
+  opacity: 0.88;
+}
+.eventsEmptyBtnGhost {
+  background: transparent;
+  color: var(--c-ink);
+  box-shadow: inset 0 0 0 1px var(--c-line);
+}
+.eventsEmptyBtnGhost:hover {
+  background: var(--c-panel);
+}
+
+@keyframes livePulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.45);
+    opacity: 0.7;
+  }
+}
+
+/* =========================================================
+ * v5 Activities — Apple-style wide cards + module sections.
+ * Ported from __design/Community-v5.html lines 1687-2046.
+ * ========================================================= */
+
+.actModule {
+  margin-bottom: 32px;
+  scroll-margin-top: 24px;
+}
+.actModule:last-child {
+  margin-bottom: 24px;
+}
+
+.activitiesGridV5 {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.activityCardV5 {
+  background: #fff;
+  border: 1px solid var(--c-hair);
+  border-radius: 20px;
+  overflow: hidden;
+  transition:
+    transform 0.2s ease,
+    border-color 0.12s ease,
+    box-shadow 0.2s ease;
+  cursor: pointer;
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  min-height: 200px;
+  text-align: left;
+}
+@media (max-width: 900px) {
+  .activityCardV5 {
+    grid-template-columns: 1fr;
+  }
+}
+.activityCardV5:hover {
+  border-color: var(--c-line);
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.06);
+  transform: translateY(-1px);
+}
+.activityCoverV5 {
+  position: relative;
+  overflow: hidden;
+  background: var(--c-panel);
+  height: 100%;
+  min-height: 200px;
+}
+.activityCoverV5Img {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  transition: transform 0.5s ease;
+}
+.activityCardV5:hover .activityCoverV5Img {
+  transform: scale(1.04);
+}
+.activityCoverOverlay {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.activityCoverModule {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 11px 5px 5px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(8px);
+  color: var(--c-ink);
+  font-size: 11.5px;
+  font-weight: 500;
+  letter-spacing: -0.005em;
+}
+.activityCoverModule .activityCoverModuleNum {
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  background: var(--c-ink);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font-size: 10.5px;
+  font-weight: 700;
+}
+.activityCoverStatus {
+  position: absolute;
+  bottom: 14px;
+  left: 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10.5px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(8px);
+  color: #1f7a3e;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.activityCoverStatus .activityCoverStatusDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: #34c759;
+}
+.activityCoverStatusClosed {
+  color: var(--c-muted);
+}
+.activityCoverStatusClosed .activityCoverStatusDot {
+  background: var(--c-dim);
+}
+
+.activityBodyV5 {
+  padding: 26px 28px 22px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  flex: 1;
+  min-width: 0;
+}
+.activityBodyTopV5 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.activityTypePill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--c-muted);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.activityTypePill svg {
+  opacity: 0.7;
+}
+.activityTitleV5 {
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.018em;
+  line-height: 1.2;
+  margin-bottom: 10px;
+}
+.activityDescV5 {
+  font-size: 14px;
+  color: var(--c-muted);
+  line-height: 1.55;
+  margin-bottom: auto;
+  max-width: 56ch;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.activityFootV5 {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--c-hair);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.activityFootProgressV5 {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  flex: 1;
+  max-width: 320px;
+}
+.activityFootStatsV5 {
+  font-size: 12.5px;
+  color: var(--c-muted);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.activityFootStatsV5 strong {
+  color: var(--c-ink);
+  font-weight: 600;
+}
+.activityFootProgressBarV5 {
+  width: 100%;
+  height: 4px;
+  background: var(--c-hair);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.activityFootProgressFillV5 {
+  height: 100%;
+  background: var(--c-ink);
+  border-radius: 999px;
+  transition: width 0.4s ease;
+}
+.activityFootActionsV5 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.activityFootCtaV5 {
+  height: 38px;
+  padding: 0 18px;
+  border-radius: 999px;
+  background: var(--c-ink);
+  color: #fff;
+  font-weight: 500;
+  font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  border: 0;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+.activityFootCtaV5:hover {
+  opacity: 0.85;
+}
+.activityFootCtaV5Ghost {
+  background: transparent;
+  color: var(--c-ink);
+}
+.activityFootCtaV5Ghost:hover {
+  background: var(--c-panel);
+  opacity: 1;
+}
+
+/* Small pulsing dot used inside the "Live now" act-module eyebrow.
+ * Lives in the module so the scoped `livePulse` keyframe binding
+ * resolves; an inline-style `animation: 'livePulse …'` would NOT
+ * resolve because CSS Modules rewrite keyframe names locally. */
+.actModuleLivePulse {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: #fff;
+  animation: livePulse 1.2s ease-in-out infinite;
+  display: inline-block;
+}
+
+/* =========================================================
+ * v5 Notifications — ported from __design/Community-v5.html
+ * lines 2968-3333.
+ * ========================================================= */
+
+.notifHead {
+  background: #fff;
+  border: 1px solid var(--c-hair);
+  border-radius: 20px;
+  overflow: hidden;
+  margin-bottom: 24px;
+  padding: 24px 28px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 8px;
+  box-shadow:
+    0 1px 0 rgba(15, 30, 60, 0.04),
+    0 2px 6px rgba(15, 30, 60, 0.03);
+}
+.notifHeadTitleRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+.notifHeadTitle {
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: -0.022em;
+  line-height: 1.1;
+}
+.notifHeadUnreadPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 10px 0 8px;
+  border-radius: 999px;
+  background: var(--c-ink);
+  color: #fff;
+  font-size: 11.5px;
+  font-weight: 600;
+}
+.notifHeadUnreadPill .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: #fff;
+}
+.notifHeadSub {
+  font-size: 13.5px;
+  color: var(--c-muted);
+}
+.notifHeadActions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+}
+.notifHeadBtn {
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 999px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--c-ink);
+  background: transparent;
+  border: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+.notifHeadBtn:hover:not(:disabled) {
+  background: var(--c-panel);
+}
+.notifHeadBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.notifTabs {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  background: #fff;
+  border: 1px solid var(--c-hair);
+  border-radius: 14px;
+  margin: 0 0 18px 0;
+  overflow-x: auto;
+  box-shadow:
+    0 1px 0 rgba(15, 30, 60, 0.04),
+    0 2px 6px rgba(15, 30, 60, 0.03);
+}
+.notifTabs::-webkit-scrollbar {
+  display: none;
+}
+.notifTab {
+  padding: 8px 12px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--c-muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  white-space: nowrap;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  transition:
+    color 0.12s ease,
+    background 0.12s ease;
+}
+.notifTab:hover {
+  color: var(--c-ink);
+  background: var(--c-panel-2);
+}
+.notifTabActive {
+  color: #fff;
+  background: var(--c-ink);
+}
+.notifTab .ct {
+  font-size: 11px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--c-panel);
+  color: var(--c-muted);
+  font-weight: 500;
+}
+.notifTabActive .ct {
+  background: var(--c-ink);
+  color: #fff;
+}
+
+.notifSectionTitle {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--c-muted);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  margin: 26px 4px 10px 4px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.notifSectionTitle:first-of-type {
+  margin-top: 22px;
+}
+.notifSectionTitle .ct {
+  color: var(--c-dim);
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 11.5px;
+}
+.notifSectionTitleDivider {
+  flex: 1;
+  height: 1px;
+  background: var(--c-hair);
+}
+
+.notifList {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  background: #fff;
+  border-radius: 16px;
+  padding: 6px;
+  box-shadow:
+    0 1px 0 rgba(15, 30, 60, 0.04),
+    0 1px 2px rgba(15, 30, 60, 0.03);
+}
+
+.notifRow {
+  display: grid;
+  grid-template-columns: 48px 1fr auto;
+  gap: 14px;
+  padding: 14px;
+  border-radius: 12px;
+  cursor: pointer;
+  position: relative;
+  align-items: start;
+  background: none;
+  border: 0;
+  text-align: left;
+  width: 100%;
+  transition: background 0.12s ease;
+}
+.notifRow:hover {
+  background: var(--c-panel-2);
+}
+.notifRowUnread {
+  background: var(--c-panel-2);
+}
+.notifRowUnread:hover {
+  background: var(--c-panel);
+}
+.notifRowUnread::before {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 22px;
+  border-radius: 999px;
+  background: var(--c-ink);
+}
+
+.notifAvatar {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+}
+.notifAvatarIcon {
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: var(--c-panel);
+  color: var(--c-ink);
+}
+.notifBadge {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  border: 2px solid #fff;
+  background: var(--c-panel);
+  color: var(--c-ink);
+}
+.notifBadgeHeart {
+  background: #ffe2e2;
+  color: #df4040;
+}
+.notifBadgeComment {
+  background: var(--c-ink);
+  color: #fff;
+}
+.notifBadgeFeature {
+  background: #fff1cc;
+  color: #b08500;
+}
+.notifBadgeFeedback {
+  background: var(--c-ink);
+  color: #fff;
+}
+.notifBadgeEvent {
+  background: #e7e7ea;
+  color: var(--c-ink);
+}
+.notifBadgeMember {
+  background: #e1f3e5;
+  color: #1f7a33;
+}
+.notifBadgeActivity {
+  background: var(--c-ink);
+  color: #fff;
+}
+
+.notifBody {
+  min-width: 0;
+  padding-top: 1px;
+}
+.notifText {
+  font-size: 13.5px;
+  line-height: 1.45;
+  color: var(--c-ink);
+}
+.notifText strong {
+  font-weight: 600;
+  color: var(--c-ink);
+}
+.notifText .target {
+  font-weight: 500;
+  color: var(--c-ink);
+}
+.notifQuote {
+  margin-top: 6px;
+  font-size: 12.5px;
+  color: var(--c-muted);
+  line-height: 1.5;
+  padding: 8px 12px;
+  border-left: 2px solid var(--c-hair);
+  background: rgba(0, 0, 0, 0.015);
+  border-radius: 0 8px 8px 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.notifMeta {
+  margin-top: 6px;
+  font-size: 11.5px;
+  color: var(--c-muted);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.notifRight {
+  display: flex;
+  align-items: start;
+  gap: 8px;
+  color: var(--c-muted);
+  font-size: 11.5px;
+  flex-shrink: 0;
+  padding-top: 2px;
+}
+.notifTime {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.notifUnreadDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--c-ink);
+  flex-shrink: 0;
+  margin-top: 5px;
+}
+
+.notifEmpty {
+  text-align: center;
+  padding: 64px 24px;
+  color: var(--c-muted);
+}
+.notifEmptyIcon {
+  width: 56px;
+  height: 56px;
+  border-radius: 999px;
+  background: var(--c-panel);
+  display: inline-grid;
+  place-items: center;
+  color: var(--c-ink);
+  margin-bottom: 14px;
+}
+.notifEmptyTitle {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--c-ink);
+  margin-bottom: 4px;
+}
+.notifEmptySub {
+  font-size: 13px;
+  color: var(--c-muted);
+  max-width: 34ch;
+  margin: 0 auto;
+  line-height: 1.5;
+}
+
+/* =========================================================
+ * v5 Members — ported from __design/Community-v5.html
+ * lines 1003-1119. Replaces the v4 4-col centered grid with
+ * a single white-card toolbar (search + filters) and a
+ * vertical stack of horizontal member rows.
+ * ========================================================= */
+
+.membersToolsV5 {
+  background: #fff;
+  border: 1px solid var(--c-hair);
+  border-radius: 16px;
+  padding: 12px 12px 12px 14px;
+  margin-bottom: 18px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  box-shadow:
+    0 1px 0 rgba(15, 30, 60, 0.04),
+    0 2px 6px rgba(15, 30, 60, 0.03);
+}
+.membersFilterRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.membersFilter {
+  height: 32px;
+  padding: 0 14px;
+  border-radius: 999px;
+  background: var(--c-panel);
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--c-ink);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  cursor: pointer;
+}
+.membersFilter:hover {
+  background: var(--c-hair);
+}
+.membersFilterActive {
+  background: var(--c-ink);
+  color: #fff;
+}
+.membersFilter .ct {
+  font-size: 11px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.08);
+  color: inherit;
+  font-weight: 500;
+}
+.membersFilterActive .ct {
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
+}
+
+.membersGridV5 {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.memberCardV5 {
+  padding: 14px 18px;
+  background: #fff;
+  border: 1px solid var(--c-hair);
+  border-radius: 14px;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 14px;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  transition:
+    border-color 0.12s ease,
+    transform 0.18s ease,
+    box-shadow 0.18s ease;
+  box-shadow: 0 1px 0 rgba(15, 30, 60, 0.04);
+}
+.memberCardV5:hover {
+  border-color: var(--c-line);
+  box-shadow: 0 8px 24px rgba(15, 30, 60, 0.06);
+  transform: translateY(-1px);
+}
+.memberAvatarWrapV5 {
+  position: relative;
+  flex-shrink: 0;
+}
+.memberInfoV5 {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.memberNameV5 {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--c-ink);
+  line-height: 1.25;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.memberNameV5 .instrBadge {
+  font-size: 9px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 999px;
+  background: var(--c-ink);
+  color: #fff;
+  letter-spacing: 0.05em;
+}
+.memberRoleV5 {
+  font-size: 12px;
+  color: var(--c-muted);
+  line-height: 1.3;
+}
+
+/* =========================================================
+ * Activity-CTA-row — inline panel rendered on a feed post
+ * whose pin_type='activity'. Replaces the bare "Open activity"
+ * black button with a full-width panel showing submitter avatars,
+ * count, and the appropriate Submit CTA. Ported verbatim from
+ * __design/Community-v5.html lines 509-552.
+ * ========================================================= */
+
+.activityCtaRow {
+  margin-top: 14px;
+  padding: 14px 16px;
+  background: var(--c-panel);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.activityCtaMeta {
+  font-size: 12.5px;
+  color: var(--c-muted);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.activityCtaMeta strong {
+  color: var(--c-ink);
+  font-weight: 600;
+}
+.activityCtaBtn {
+  padding: 8px 16px;
+  border-radius: 999px;
+  background: var(--c-ink);
+  color: #fff;
+  font-weight: 500;
+  font-size: 12.5px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  cursor: pointer;
+}
+.activityCtaBtn:hover {
+  opacity: 0.85;
+}
+.activitySubmitters {
+  display: inline-flex;
+  align-items: center;
+}
+.activitySubmitters .av {
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  border: 2px solid var(--c-panel);
+  overflow: hidden;
+  margin-left: -6px;
+  background: #fff;
+  display: grid;
+  place-items: center;
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--c-muted);
+}
+.activitySubmitters .av:first-child {
+  margin-left: 0;
+}
+
+/* Post-card 3-dots menu trigger pinned to the bottom-right of the
+ * card. The menu itself uses .postMoreMenu (already declared) — it
+ * pops UP from this anchor instead of down so it never clips out of
+ * the card. */
+.postMoreAnchor {
+  position: absolute;
+  right: 14px;
+  bottom: 14px;
+  z-index: 1;
+}
+.postMoreAnchor .postMoreMenu {
+  /* Stack the menu above the anchor (bottom-right of card) so we
+     don't get clipped by a sibling card below. */
+  top: auto;
+  bottom: 36px;
+  right: 0;
 }

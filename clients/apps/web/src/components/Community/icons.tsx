@@ -259,3 +259,19 @@ export const IconPaperclip = (p: Props = {}) => (
     <path d="M21 12.5l-9 9a5 5 0 01-7-7l9-9a3.5 3.5 0 015 5l-9 9a2 2 0 01-3-3l8-8" />
   </svg>
 )
+
+// v5 right-rail "See all >" affordance — rotated chevron-down so the
+// stroke style matches the rest of the icon set.
+export const IconChevron = (p: Props = {}) => (
+  <span
+    style={{
+      display: 'inline-flex',
+      transform: 'rotate(-90deg)',
+      alignItems: 'center',
+    }}
+  >
+    <svg {...withSize(p)}>
+      <path d="M6 9l6 6 6-6" />
+    </svg>
+  </span>
+)
