@@ -449,14 +449,26 @@ function SubmissionCard({
   return (
     <article className={styles.subCard} onClick={onOpen}>
       <div className={styles.subCoverFrame}>
-        <div
-          className={styles.subCoverImg}
-          style={{
-            backgroundImage: photo ? `url(${photo})` : undefined,
-            backgroundPosition: s.image_object_position || '50% 50%',
-            background: photo ? undefined : '#3a2a18',
-          }}
-        />
+        {photo ? (
+          <img
+            src={photo}
+            alt=""
+            className={styles.subCoverImg}
+            style={{
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover',
+              objectPosition: s.image_object_position || '50% 50%',
+              display: 'block',
+            }}
+            loading="lazy"
+          />
+        ) : (
+          <div
+            className={styles.subCoverImg}
+            style={{ background: '#3a2a18' }}
+          />
+        )}
         {hasFeedback && (
           <div className={styles.subCoverOverlay}>
             <span className={styles.subCoverFb}>
