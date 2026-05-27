@@ -844,7 +844,7 @@ async def react_to_post_creator(
     post = await community_service.get_post(session, post_id)
     if post is None or post.course_id != course_id:
         raise HTTPException(status_code=404, detail="Post not found")
-    active, count = await community_service.toggle_reaction(
+    active, count, reactions = await community_service.toggle_reaction(
         session,
         target_type="post",
         target_id=post.id,
@@ -852,7 +852,7 @@ async def react_to_post_creator(
         emoji=payload.emoji,
     )
     return CommunityReactionToggleResult(
-        emoji=payload.emoji, active=active, count=count
+        emoji=payload.emoji, active=active, count=count, reactions=reactions
     )
 
 
@@ -876,7 +876,7 @@ async def react_to_comment_creator(
     post = await community_service.get_post(session, comment.post_id)
     if post is None or post.course_id != course_id:
         raise HTTPException(status_code=404, detail="Comment not found")
-    active, count = await community_service.toggle_reaction(
+    active, count, reactions = await community_service.toggle_reaction(
         session,
         target_type="comment",
         target_id=comment.id,
@@ -884,7 +884,7 @@ async def react_to_comment_creator(
         emoji=payload.emoji,
     )
     return CommunityReactionToggleResult(
-        emoji=payload.emoji, active=active, count=count
+        emoji=payload.emoji, active=active, count=count, reactions=reactions
     )
 
 
@@ -1317,7 +1317,7 @@ async def react_to_post_customer(
     if post is None or post.course_id != course_id:
         raise HTTPException(status_code=404, detail="Post not found")
 
-    active, count = await community_service.toggle_reaction(
+    active, count, reactions = await community_service.toggle_reaction(
         session,
         target_type="post",
         target_id=post.id,
@@ -1325,7 +1325,7 @@ async def react_to_post_customer(
         emoji=payload.emoji,
     )
     return CommunityReactionToggleResult(
-        emoji=payload.emoji, active=active, count=count
+        emoji=payload.emoji, active=active, count=count, reactions=reactions
     )
 
 
@@ -1356,7 +1356,7 @@ async def react_to_comment_customer(
     if post is None or post.course_id != course_id:
         raise HTTPException(status_code=404, detail="Comment not found")
 
-    active, count = await community_service.toggle_reaction(
+    active, count, reactions = await community_service.toggle_reaction(
         session,
         target_type="comment",
         target_id=comment.id,
@@ -1364,7 +1364,7 @@ async def react_to_comment_customer(
         emoji=payload.emoji,
     )
     return CommunityReactionToggleResult(
-        emoji=payload.emoji, active=active, count=count
+        emoji=payload.emoji, active=active, count=count, reactions=reactions
     )
 
 

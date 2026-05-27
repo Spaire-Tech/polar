@@ -956,9 +956,15 @@ class CommunityService:
         actor_enrollment_id: UUID | None = None,
         actor_user_id: UUID | None = None,
         emoji: CommunityReactionEmoji,
-    ) -> tuple[bool, int]:
-        """Returns (is_active_after_toggle, new_count). The endpoint
-        wraps this in CommunityReactionToggleResult."""
+    ) -> tuple[bool, int, list[CommunityReactionSummaryEntry]]:
+        """Apply the toggle/switch and return
+        (is_active_after_toggle, total_count, per_emoji_summary).
+
+        The summary is the authoritative per-emoji breakdown for this
+        target from the viewer's perspective — clients should overwrite
+        their cached `post.reactions` / `comment.reactions` with it on
+        success rather than mutating in place, otherwise stale
+        per-emoji counts will drift from the truth."""
         if (actor_enrollment_id is None) == (actor_user_id is None):
             raise ValueError(
                 "Exactly one of actor_enrollment_id / actor_user_id required."
@@ -972,19 +978,33 @@ class CommunityService:
             actor_user_id=actor_user_id,
             emoji=emoji,
         )
+        # The repo flushes via execute()s on the session, but the
+        # follow-up SELECT in summary_for_targets reads from the same
+        # session — we need to flush so the just-mutated rows are
+        # visible to the subsequent statements without committing.
+        await session.flush()
 
-        # New total for this target (across all emojis) — the post's
-        # materialized counter follows. Cheap because it's a small,
-        # well-indexed table.
-        total = await reaction_repo.count_by_target(
-            target_type=target_type, target_id=target_id
+        summary_raw = await reaction_repo.summary_for_targets(
+            target_type=target_type,
+            target_ids={target_id},
+            viewer_enrollment_id=actor_enrollment_id,
+            viewer_user_id=actor_user_id,
         )
+        summary = [
+            CommunityReactionSummaryEntry(
+                emoji=e,  # type: ignore[arg-type]
+                count=int(payload["count"]),
+                mine=bool(payload["mine"]),
+            )
+            for e, payload in summary_raw.get(target_id, {}).items()
+        ]
+        total = sum(entry.count for entry in summary)
 
         if target_type == "post":
             post_repo = CommunityPostRepository.from_session(session)
             await post_repo.set_reaction_count(target_id, total)
 
-        return active, total
+        return active, total, summary
 
     # ------------------------------------------------------------------
     # Pinning
