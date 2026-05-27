@@ -359,7 +359,6 @@ export function EventsView({
         live={!!live}
         title="Events"
         subtitle="Live workshops, office hours, cohort meetups, and guest sessions."
-        subtitle="Live workshops, office hours, cohort meetups, and guest sessions. Replays show up here for anything you miss."
         coverUrl={courseCoverUrl ?? null}
         coverPosition={courseCoverPosition ?? null}
       />
@@ -773,13 +772,6 @@ function EventCard({
             so its absolute top/right resolves against the cover, not
             the overlay flex container. */}
         <span className={styles.eventCoverType}>{TYPE_LABEL[event.type]}</span>
-        {past && (
-          <div className={styles.eventCoverReplay}>
-            <span className={styles.play}>
-              <IconPlayCircle size={20} />
-            </span>
-          </div>
-        )}
       </div>
 
       <div className={styles.eventBodyV5}>
