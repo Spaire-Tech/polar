@@ -55,15 +55,17 @@ ALL_TYPES = (
 # rsvp_confirmed) rather than the generic customer_notification.send_email
 # actor, which doesn't take attachments.
 #
-# Replay nags only go to the host, not attendees — they're filtered at the
-# enqueue site, not here. Activity submission notifications go to the host
-# only (bell, no email — high volume).
+# REPLAY_NAG_* types stay defined above (so any in-flight queued jobs
+# render rather than crash) but the cron that enqueued them is gone —
+# see community/events_tasks.py. They never appear in EMAIL_TYPES now.
+#
+# Activity submission notifications go to the host only (bell, no email
+# — high volume).
 EMAIL_TYPES: frozenset[str] = frozenset(
     {
         EVENT_PUBLISHED,
         EVENT_STARTING_SOON_24H,
         EVENT_LIVE,
-        EVENT_REPLAY_NAG_T24H,
         ACTIVITY_PUBLISHED,
     }
 )
@@ -99,7 +101,6 @@ class EventNotificationPayload(BaseModel):
     host_name: str
     course_name: str
     meeting_url: str | None = None
-    replay_url: str | None = None
 
 
 # ----------------------------------------------------------------------

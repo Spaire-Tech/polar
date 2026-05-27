@@ -1151,7 +1151,6 @@ export interface CommunityEventRead {
   duration_minutes: number
   meeting_url: string | null
   location: string | null
-  replay_url: string | null
   cover_url: string | null
   cover_object_position: string | null
   notify_on_publish: boolean
@@ -1186,7 +1185,6 @@ export interface CommunityEventUpdateBody {
   duration_minutes?: number
   meeting_url?: string | null
   location?: string | null
-  replay_url?: string | null
   cover_url?: string | null
 }
 

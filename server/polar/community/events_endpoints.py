@@ -129,7 +129,6 @@ async def _event_to_read(
         duration_minutes=event.duration_minutes,
         meeting_url=event.meeting_url,
         location=event.location,
-        replay_url=event.replay_url,
         cover_url=event.cover_url,
         cover_object_position=event.cover_object_position,
         notify_on_publish=event.notify_on_publish,
@@ -318,7 +317,7 @@ async def list_events_customer(
         session, course_id=course_id, viewer_customer_id=customer_id
     )
 
-    # Surface past events for ~30 days so the Replays section stays
+    # Surface past events for ~30 days so the Past section stays
     # populated for a reasonable window after the live date.
     cutoff = utc_now() - timedelta(days=30)
     visible: list[CommunityEvent] = []

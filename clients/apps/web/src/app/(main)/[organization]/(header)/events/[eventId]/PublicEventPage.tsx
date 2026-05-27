@@ -26,7 +26,7 @@ import {
   IconVideo,
 } from '@/components/Community/icons'
 import { getPublicServerURL } from '@/utils/api'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { PublicEventData } from './page'
 
 const TYPE_LABEL: Record<string, string> = {
@@ -138,7 +138,7 @@ export function PublicEventPage({ event, organizationSlug }: Props) {
                 className={styles.evHeroType}
                 style={{ background: 'rgba(0,0,0,0.55)', color: '#fff' }}
               >
-                Past · Replay
+                Past
               </span>
             ) : null}
             <span className={styles.evHeroType}>
@@ -171,11 +171,11 @@ export function PublicEventPage({ event, organizationSlug }: Props) {
             </span>
             <div className={styles.evRowText}>
               <strong>{event.location || 'Online'}</strong>
-              <div className={styles.evRowTextSub}>
-                {event.past
-                  ? 'Replay shared with members within 24 hours'
-                  : 'Members get the join link by email'}
-              </div>
+              {!event.past ? (
+                <div className={styles.evRowTextSub}>
+                  Members get the join link by email
+                </div>
+              ) : null}
             </div>
 
             <span className={styles.evRowIcon}>
@@ -286,8 +286,30 @@ function PublicCalendarMenu({
   links: { google: string; outlook: string; ics: string }
 }) {
   const [open, setOpen] = useState(false)
+  const wrapperRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    const onDocClick = (e: MouseEvent) => {
+      if (!wrapperRef.current) return
+      if (e.target instanceof Node && wrapperRef.current.contains(e.target)) {
+        return
+      }
+      setOpen(false)
+    }
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false)
+    }
+    document.addEventListener('mousedown', onDocClick, true)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onDocClick, true)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [open])
+
   return (
-    <div style={{ position: 'relative' }} onMouseLeave={() => setOpen(false)}>
+    <div ref={wrapperRef} style={{ position: 'relative' }}>
       <button
         type="button"
         className={`${styles.evFooterBtn} ${styles.evFooterBtnGhost}`}
