@@ -85,7 +85,7 @@ async def _build_payload(session, event) -> dict:
         or (host.public_name if host and hasattr(host, "public_name") else None)
         or (host.email if host else "Instructor")
     )
-    course_name = (course.name if course else "") or "your community"
+    course_name = (course.title if course else "") or "your community"
 
     return EventNotificationPayload(
         event_id=str(event.id),
