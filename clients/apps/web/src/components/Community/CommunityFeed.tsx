@@ -26,6 +26,7 @@ import {
   type CommunityActivityCreateInput,
 } from './ActivitiesView'
 import { Avatar } from './Avatar'
+import { CommunityRightRail } from './CommunityRightRail'
 import { Composer } from './Composer'
 import {
   type CommunityEvent,
@@ -39,6 +40,7 @@ import {
   type RailLesson,
 } from './LeftRail'
 import { MembersView } from './MembersView'
+import { PageHero } from './PageHero'
 import { PostCard } from './PostCard'
 import styles from './community.module.css'
 import { IconPin } from './icons'
@@ -332,21 +334,19 @@ export function CommunityFeed({ courseId, customerSessionToken }: Props) {
             />
           ) : (
             <>
-              {/* Feed header */}
-              <header className={styles.feedHeader}>
-                <div className={styles.feedEyebrow}>
-                  {memberCount} {memberCount === 1 ? 'member' : 'members'}
-                </div>
-                <h1 className={styles.feedTitle}>
-                  {settings?.feed_title_override ?? 'Community'}
-                </h1>
-                <p className={styles.feedSub}>
-                  {settings?.feed_eyebrow_override ??
-                    `Discussions, wins, and questions for ${courseTitle}. Share what you're working on, ask for feedback, and reply to anyone in the cohort.`}
-                </p>
-              </header>
+              <PageHero
+                eyebrow={`${memberCount} ${memberCount === 1 ? 'member' : 'members'}`}
+                title={settings?.feed_title_override ?? 'Community'}
+                subtitle={
+                  settings?.feed_eyebrow_override ??
+                  `Discussions, wins, and questions for ${courseTitle}. Share what you're working on, ask for feedback, and reply to anyone in the cohort.`
+                }
+                coverUrl={courseDetail?.course.thumbnail_url ?? null}
+                coverPosition={
+                  courseDetail?.course.thumbnail_object_position ?? null
+                }
+              />
 
-              {/* Course thumbnail */}
               {/* Prompt of the week */}
               {promptPost && (
                 <div className={styles.prompt}>
@@ -533,6 +533,13 @@ export function CommunityFeed({ courseId, customerSessionToken }: Props) {
             </>
           )}
         </main>
+
+        <CommunityRightRail
+          events={events}
+          members={members}
+          memberCount={memberCount}
+          onJump={(next) => setView(next)}
+        />
       </div>
 
       {toast && <div className={styles.toast}>{toast}</div>}

@@ -6,19 +6,17 @@
  */
 
 .root {
+  /* Tokens lifted verbatim from __design/Community-v5.html so the
+     shipped community matches the redesign 1:1. */
   --c-ink: #1d1d1f;
   --c-ink-pure: #000000;
-  /* Page surface matches the course editor's bg-gray-50 page
-     background (CourseEditor.tsx:509 — Tailwind gray-50, the off-white
-     behind the Outline / Landing / Community tabs and the lesson
-     grid). White post cards stand out as cards on top of it. */
-  --c-bg: oklch(0.985 0.002 247.84);
+  --c-bg: #eff3f8;
   --c-panel: #f5f5f7;
   --c-panel-2: #fafafa;
   --c-line: #d2d2d7;
   --c-hair: #e8e8ed;
-  --c-muted: rgba(29, 29, 31, 0.56);
-  --c-dim: rgba(29, 29, 31, 0.4);
+  --c-muted: rgba(0, 0, 0, 0.56);
+  --c-dim: rgba(0, 0, 0, 0.4);
   --c-live: #ff3b30;
   --c-presence: #34c759;
 
@@ -40,12 +38,26 @@
 }
 
 .layout {
+  /* v5 redesign: 3-column with a right rail (events + members preview).
+     220 left rail / 1fr main / 260 right rail, capped at 1360px so the
+     gutters breathe at desktop width. Below 1000px the right rail
+     collapses and we drop back to the two-column shell. */
   display: grid;
-  grid-template-columns: 260px 1fr;
-  max-width: 1240px;
+  grid-template-columns: 220px minmax(0, 1fr) 260px;
+  max-width: 1360px;
   width: 100%;
   margin: 0 auto;
-  padding-top: 16px;
+  padding: 16px 24px 0 24px;
+  gap: 36px;
+}
+@media (max-width: 1000px) {
+  .layout {
+    grid-template-columns: 220px minmax(0, 1fr);
+    gap: 22px;
+  }
+  .rightRail {
+    display: none !important;
+  }
 }
 
 .rail {
@@ -4259,4 +4271,477 @@
   .membersGrid {
     grid-template-columns: 1fr;
   }
+}
+
+/* =========================================================
+ * v5 redesign — right rail, page hero, section card,
+ * composer pill, activity-cta-row. Ported verbatim from
+ * __design/Community-v5.html (kept in tree so we can diff
+ * against it later).
+ * ========================================================= */
+
+.rightRail {
+  position: sticky;
+  top: 16px;
+  align-self: start;
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding-right: 2px;
+}
+.rightRail::-webkit-scrollbar {
+  width: 5px;
+}
+.rightRail::-webkit-scrollbar-thumb {
+  background: var(--c-hair);
+  border-radius: 999px;
+}
+
+.rrCard {
+  background: #fff;
+  border: 1px solid var(--c-hair);
+  border-radius: 16px;
+  padding: 20px 18px 18px 18px;
+  box-shadow:
+    0 1px 0 rgba(15, 30, 60, 0.04),
+    0 2px 6px rgba(15, 30, 60, 0.03);
+}
+.rrCardHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+  gap: 8px;
+}
+.rrCardTitle {
+  font-size: 13.5px;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  color: var(--c-ink);
+}
+.rrCardLink {
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--c-muted);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: transparent;
+  border: 0;
+}
+.rrCardLink:hover {
+  color: var(--c-ink);
+}
+
+/* ---- Right-rail event row ---- */
+.rrEvent {
+  display: grid;
+  grid-template-columns: 44px 1fr;
+  gap: 12px;
+  padding: 10px 0;
+  border-top: 1px solid var(--c-hair);
+  cursor: pointer;
+  align-items: center;
+  background: none;
+  border-left: 0;
+  border-right: 0;
+  border-bottom: 0;
+  width: 100%;
+  text-align: left;
+}
+.rrEvent:nth-of-type(2) {
+  border-top: none;
+  padding-top: 4px;
+}
+.rrEvent:last-of-type {
+  padding-bottom: 0;
+}
+.rrEventDate {
+  width: 44px;
+  height: 50px;
+  border-radius: 10px;
+  background: var(--c-panel);
+  color: var(--c-ink);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  flex-shrink: 0;
+}
+.rrEventDateLive {
+  background: var(--c-ink);
+  color: #fff;
+}
+.rrEventDateDay {
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.rrEventDateMonth {
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-top: 2px;
+  opacity: 0.78;
+}
+.rrEventInfo {
+  min-width: 0;
+}
+.rrEventTitle {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--c-ink);
+  line-height: 1.3;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.rrEventMeta {
+  font-size: 11px;
+  color: var(--c-muted);
+  margin-top: 3px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.rrEventMeta .rrSep {
+  width: 3px;
+  height: 3px;
+  border-radius: 999px;
+  background: var(--c-dim);
+}
+.rrEventMeta .rrLiveTag {
+  color: #e84b6e;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.rrEventMeta .rrLiveTag::before {
+  content: '';
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: #e84b6e;
+  animation: rrLivePulse 1.2s ease-in-out infinite;
+}
+@keyframes rrLivePulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
+
+/* ---- Right-rail member row ---- */
+.rrMember {
+  display: grid;
+  grid-template-columns: 36px 1fr auto;
+  gap: 10px;
+  padding: 9px 0;
+  border-top: 1px solid var(--c-hair);
+  cursor: pointer;
+  align-items: center;
+  background: none;
+  border-left: 0;
+  border-right: 0;
+  border-bottom: 0;
+  width: 100%;
+  text-align: left;
+}
+.rrMember:nth-of-type(2) {
+  border-top: none;
+  padding-top: 4px;
+}
+.rrMember:last-of-type {
+  padding-bottom: 0;
+}
+.rrMemberAv {
+  width: 36px;
+  height: 36px;
+  position: relative;
+}
+.rrMemberAv .rrMemberDot {
+  position: absolute;
+  bottom: -1px;
+  right: -1px;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: #34c759;
+  border: 2px solid #fff;
+}
+.rrMemberInfo {
+  min-width: 0;
+}
+.rrMemberName {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--c-ink);
+  line-height: 1.2;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.rrMemberRole {
+  font-size: 10.5px;
+  color: var(--c-muted);
+  margin-top: 2px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.rrMemberBadge {
+  font-size: 9px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: var(--c-panel);
+  color: var(--c-muted);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.rrMemberBadgeInstr {
+  background: var(--c-ink);
+  color: #fff;
+}
+.rrSeeMore {
+  margin-top: 12px;
+  width: 100%;
+  height: 34px;
+  border-radius: 999px;
+  background: var(--c-panel);
+  color: var(--c-ink);
+  font-size: 12.5px;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: background 0.12s ease;
+  border: 0;
+  cursor: pointer;
+}
+.rrSeeMore:hover {
+  background: var(--c-hair);
+}
+
+/* ---- Page hero (white CTA card, 70/30 split) ---- */
+.pageHero {
+  display: grid;
+  grid-template-columns: minmax(0, 7fr) minmax(0, 3fr);
+  background: #fff;
+  border: 1px solid var(--c-hair);
+  border-radius: 20px;
+  overflow: hidden;
+  margin-bottom: 28px;
+  min-height: 188px;
+  box-shadow:
+    0 1px 0 rgba(15, 30, 60, 0.04),
+    0 2px 6px rgba(15, 30, 60, 0.03);
+}
+.pageHeroText {
+  padding: 32px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 10px;
+  min-width: 0;
+}
+.pageHeroEyebrow {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--c-muted);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+.pageHeroEyebrow .pageHeroLive {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: #34c759;
+  animation: rrLivePulse 1.2s ease-in-out infinite;
+  display: inline-block;
+}
+.pageHeroTitle {
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: -0.022em;
+  line-height: 1.1;
+  color: var(--c-ink);
+}
+.pageHeroSub {
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--c-muted);
+  max-width: 54ch;
+}
+.pageHeroActions {
+  margin-top: 8px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.pageHeroAction {
+  height: 36px;
+  padding: 0 16px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  cursor: pointer;
+}
+.pageHeroActionPrimary {
+  background: var(--c-ink);
+  color: #fff;
+}
+.pageHeroActionPrimary:hover {
+  opacity: 0.88;
+}
+.pageHeroActionGhost {
+  background: transparent;
+  color: var(--c-ink);
+  box-shadow: inset 0 0 0 1px var(--c-line);
+}
+.pageHeroActionGhost:hover {
+  background: var(--c-panel);
+}
+.pageHeroImg {
+  background-size: cover;
+  background-position: center;
+  background-color: #0a0a0c;
+  min-height: 164px;
+  position: relative;
+  display: grid;
+  place-items: center;
+}
+.pageHeroImg::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.18) 0%,
+    rgba(255, 255, 255, 0) 18%
+  );
+  pointer-events: none;
+}
+@media (max-width: 640px) {
+  .pageHero {
+    grid-template-columns: 1fr;
+    min-height: 0;
+  }
+  .pageHeroImg {
+    display: none;
+  }
+}
+
+/* ---- Section card (white container for grouped content) ---- */
+.sectionCard {
+  background: #fff;
+  border: 1px solid var(--c-hair);
+  border-radius: 18px;
+  padding: 18px 18px 20px 18px;
+  margin-bottom: 18px;
+  box-shadow:
+    0 1px 0 rgba(15, 30, 60, 0.04),
+    0 2px 6px rgba(15, 30, 60, 0.03);
+}
+
+/* ---- LinkedIn-style composer pill ---- */
+.composerPill {
+  margin-top: 28px;
+  padding: 18px;
+  background: #fff;
+  border: 1px solid var(--c-hair);
+  border-radius: 16px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+}
+.composerPillRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.composerPillInput {
+  flex: 1;
+  height: 46px;
+  padding: 0 18px;
+  border-radius: 999px;
+  background: transparent;
+  border: 1px solid var(--c-hair);
+  color: var(--c-muted);
+  font-size: 14.5px;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background 0.12s ease,
+    border-color 0.12s ease;
+}
+.composerPillInput:hover {
+  background: var(--c-panel-2);
+  border-color: var(--c-line);
+  color: var(--c-ink);
+}
+.composerPillTools {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--c-hair);
+  gap: 4px;
+}
+.composerPillTool {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--c-muted);
+  background: none;
+  border: 0;
+  cursor: pointer;
+  transition:
+    background 0.12s ease,
+    color 0.12s ease;
+}
+.composerPillTool:hover {
+  background: var(--c-panel);
+  color: var(--c-ink);
+}
+.composerPillIco {
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+}
+.composerPillIcoPhoto {
+  color: #4f92f7;
+}
+.composerPillIcoVideo {
+  color: #5cc069;
+}
+.composerPillIcoEvent {
+  color: #f7a64d;
+}
+.composerPillIcoPoll {
+  color: #b076e8;
 }

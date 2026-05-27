@@ -30,6 +30,7 @@ import {
 } from './ActivitiesView'
 import { CommunityNotificationsView } from './CommunityNotificationsView'
 import { CommunityPreviewSettings } from './CommunityPreviewSettings'
+import { CommunityRightRail } from './CommunityRightRail'
 import { Composer } from './Composer'
 import {
   type CommunityEvent,
@@ -43,6 +44,7 @@ import {
   type RailLesson,
 } from './LeftRail'
 import { MembersView } from './MembersView'
+import { PageHero } from './PageHero'
 import { PostCard } from './PostCard'
 import styles from './community.module.css'
 import { IconPin } from './icons'
@@ -57,6 +59,10 @@ type Props = {
   discussionsKind?: DiscussionsKind
   // Read-only fallback header copy when settings haven't loaded yet.
   courseTitle?: string
+  // Course cover for the v5 page hero card. Null when the course has
+  // no thumbnail — the hero falls back to a flat dark panel.
+  courseCoverUrl?: string | null
+  courseCoverPosition?: string | null
   // Owning org slug so the editor can deep-link into the customer
   // portal community via the "Preview" button.
   organizationSlug?: string
@@ -72,6 +78,8 @@ export function CommunityPreview({
   lessons = [],
   discussionsKind = 'module',
   courseTitle,
+  courseCoverUrl,
+  courseCoverPosition,
   organizationSlug,
 }: Props) {
   const [view, setView] = useState<CommunityView>('home')
@@ -358,18 +366,16 @@ export function CommunityPreview({
             />
           ) : (
             <>
-              <header className={styles.feedHeader}>
-                <div className={styles.feedEyebrow}>
-                  {memberCount} {memberCount === 1 ? 'member' : 'members'}
-                </div>
-                <h1 className={styles.feedTitle}>
-                  {settings?.feed_title_override ?? 'Community'}
-                </h1>
-                <p className={styles.feedSub}>
-                  {settings?.feed_eyebrow_override ??
-                    `Discussions, wins, and questions for ${displayCourseTitle}.`}
-                </p>
-              </header>
+              <PageHero
+                eyebrow={`${memberCount} ${memberCount === 1 ? 'member' : 'members'}`}
+                title={settings?.feed_title_override ?? 'Community'}
+                subtitle={
+                  settings?.feed_eyebrow_override ??
+                  `Discussions, wins, and questions for ${displayCourseTitle}.`
+                }
+                coverUrl={courseCoverUrl ?? null}
+                coverPosition={courseCoverPosition ?? null}
+              />
 
               {promptPost && (
                 <div className={styles.prompt}>
@@ -491,6 +497,13 @@ export function CommunityPreview({
             </>
           )}
         </main>
+
+        <CommunityRightRail
+          events={events}
+          members={members}
+          memberCount={memberCount}
+          onJump={(next) => setView(next)}
+        />
       </div>
 
       {toast && <div className={styles.toast}>{toast}</div>}
