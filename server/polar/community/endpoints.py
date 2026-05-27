@@ -54,6 +54,7 @@ from .schemas import (
     CommunityMemberRead,
     CommunityModuleChip,
     CommunityPinPayload,
+    CommunityPostActivityPin,
     CommunityPostCreate,
     CommunityPostImageUploadResult,
     CommunityPostMediaRead,
@@ -213,6 +214,7 @@ def _post_to_read(
     lesson_chip: CommunityLessonChip | None,
     reactions: list[CommunityReactionSummaryEntry],
     activity_id: UUID | None = None,
+    activity_pin: CommunityPostActivityPin | None = None,
     module_chip: CommunityModuleChip | None = None,
 ) -> CommunityPostRead:
     return CommunityPostRead(
@@ -240,8 +242,27 @@ def _post_to_read(
         comment_count=post.comment_count,
         reactions=reactions,
         activity_id=activity_id,
+        activity=activity_pin,
         created_at=post.created_at,
         modified_at=post.modified_at,
+    )
+
+
+def _activity_pin_from_ctx(
+    post: CommunityPost, ctx: dict
+) -> CommunityPostActivityPin | None:
+    """Build the inline activity-CTA-row payload from the bulk-loaded
+    render context. Returns None for non-activity-pin posts."""
+    if post.pin_type != "activity":
+        return None
+    info = ctx.get("activity_summaries", {}).get(post.id)
+    if info is None:
+        return None
+    activity_id, submission_type, submission_count = info
+    return CommunityPostActivityPin(
+        id=activity_id,
+        submission_type=submission_type,  # type: ignore[arg-type]
+        submission_count=submission_count,
     )
 
 
@@ -266,6 +287,7 @@ async def _render_single_post(
         lesson_chip=ctx["lessons"].get(post.lesson_id) if post.lesson_id else None,
         reactions=ctx["reactions"].get(post.id, []),
         activity_id=ctx.get("activities", {}).get(post.id),
+        activity_pin=_activity_pin_from_ctx(post, ctx),
         module_chip=_module_chip_from_ctx(post, ctx),
     )
 
@@ -349,6 +371,7 @@ async def list_posts_creator(
             lesson_chip=ctx["lessons"].get(p.lesson_id) if p.lesson_id else None,
             reactions=ctx["reactions"].get(p.id, []),
             activity_id=ctx.get("activities", {}).get(p.id),
+            activity_pin=_activity_pin_from_ctx(p, ctx),
             module_chip=_module_chip_from_ctx(p, ctx),
         )
         for p in posts
@@ -403,6 +426,7 @@ async def preview_feed_creator(
             lesson_chip=ctx["lessons"].get(p.lesson_id) if p.lesson_id else None,
             reactions=ctx["reactions"].get(p.id, []),
             activity_id=ctx.get("activities", {}).get(p.id),
+            activity_pin=_activity_pin_from_ctx(p, ctx),
             module_chip=_module_chip_from_ctx(p, ctx),
         )
         for p in posts
@@ -1020,6 +1044,7 @@ async def list_feed_customer(
             lesson_chip=ctx["lessons"].get(p.lesson_id) if p.lesson_id else None,
             reactions=ctx["reactions"].get(p.id, []),
             activity_id=ctx.get("activities", {}).get(p.id),
+            activity_pin=_activity_pin_from_ctx(p, ctx),
             module_chip=_module_chip_from_ctx(p, ctx),
         )
         for p in posts

@@ -65,6 +65,35 @@ class CommunityActivityRepository(
         result = await self.session.execute(statement)
         return {row[0]: row[1] for row in result.all() if row[0] is not None}
 
+    async def summary_by_pinned_post_ids(
+        self, post_ids: set[UUID]
+    ) -> dict[
+        UUID,
+        tuple[UUID, str, int],
+    ]:
+        """Return {pinned_post_id: (activity_id, submission_type,
+        submission_count)} for activity-pin posts. The feed renders an
+        activity-CTA panel inline on these posts and needs the
+        submission_type to pick the right label ("Upload photo" /
+        "Upload video" / "Submit your work")."""
+        if not post_ids:
+            return {}
+        statement = select(
+            CommunityActivity.pinned_post_id,
+            CommunityActivity.id,
+            CommunityActivity.submission_type,
+            CommunityActivity.submission_count,
+        ).where(
+            CommunityActivity.pinned_post_id.in_(post_ids),
+            CommunityActivity.deleted_at.is_(None),
+        )
+        result = await self.session.execute(statement)
+        return {
+            row[0]: (row[1], row[2], int(row[3]))
+            for row in result.all()
+            if row[0] is not None
+        }
+
     async def bulk_load_hosts(self, user_ids: set[UUID]) -> dict[UUID, User]:
         if not user_ids:
             return {}

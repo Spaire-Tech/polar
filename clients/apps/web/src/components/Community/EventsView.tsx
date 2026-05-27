@@ -396,7 +396,7 @@ export function EventsView({
                 </span>
               </div>
             </header>
-            <div className={styles.eventsGrid}>
+            <div className={styles.eventsGridV5}>
               {upcoming.map((e) => (
                 <EventCard
                   key={e.id}
@@ -434,7 +434,7 @@ export function EventsView({
                 </span>
               </div>
             </header>
-            <div className={styles.eventsGrid}>
+            <div className={styles.eventsGridV5}>
               {g.items.map((e) => (
                 <EventCard
                   key={e.id}
@@ -474,7 +474,7 @@ export function EventsView({
               </span>
             </div>
           </header>
-          <div className={styles.eventsGrid}>
+          <div className={styles.eventsGridV5}>
             {past.map((e) => (
               <EventCard
                 key={e.id}
@@ -629,7 +629,7 @@ function EventCard({
       }
     : { background: `linear-gradient(135deg, #1f1f1f, #4a4a4a)` }
 
-  const cardCls = `${styles.eventCard} ${event.live ? styles.eventCardLive : ''} ${past ? styles.eventCardPast : ''}`
+  const cardCls = `${styles.eventCardV5} ${event.live ? styles.eventCardV5Live : ''} ${past ? styles.eventCardV5Past : ''}`
 
   return (
     <article
@@ -637,8 +637,8 @@ function EventCard({
       onClick={handleCardClick}
       style={{ cursor: 'pointer' }}
     >
-      <div className={styles.eventCover}>
-        <div className={styles.eventCoverImg} style={coverStyle} />
+      <div className={styles.eventCoverV5}>
+        <div className={styles.eventCoverV5Img} style={coverStyle} />
         <div className={styles.eventCoverOverlay}>
           {event.live ? (
             <span className={styles.eventCoverLive}>
@@ -656,21 +656,6 @@ function EventCard({
             {TYPE_LABEL[event.type]}
           </span>
         </div>
-        {canManage && (
-          <CardManageMenu
-            open={menuOpen}
-            onToggle={() => setMenuOpen((v) => !v)}
-            onClose={() => setMenuOpen(false)}
-            onEdit={() => {
-              setMenuOpen(false)
-              onEdit()
-            }}
-            onDelete={() => {
-              setMenuOpen(false)
-              onDelete()
-            }}
-          />
-        )}
         {past && (
           <div className={styles.eventCoverReplay}>
             <span className={styles.play}>
@@ -680,24 +665,24 @@ function EventCard({
         )}
       </div>
 
-      <div className={styles.eventBody}>
-        <div className={styles.eventTitleV4}>{event.title}</div>
-        <div className={styles.eventMetaV4}>
-          <span className={styles.eventMetaBitV4}>
+      <div className={styles.eventBodyV5}>
+        <div className={styles.eventTitleV5}>{event.title}</div>
+        <div className={styles.eventMetaV5}>
+          <span className={styles.eventMetaBit}>
             <IconClock size={11} /> {whenHost} · {event.duration}m
           </span>
           {whenViewer && (
-            <span className={styles.eventMetaBitV4} style={{ opacity: 0.7 }}>
+            <span className={styles.eventMetaBit} style={{ opacity: 0.7 }}>
               {whenViewer}
             </span>
           )}
           {!past && event.location && (
-            <span className={styles.eventMetaBitV4}>
+            <span className={styles.eventMetaBit}>
               <IconMapPin size={11} /> {event.location}
             </span>
           )}
         </div>
-        <div className={styles.eventHostV4}>
+        <div className={styles.eventHostV5}>
           <Avatar name={event.hostName} size={20} />
           <span>
             <strong>{event.hostName}</strong>
@@ -705,7 +690,7 @@ function EventCard({
         </div>
       </div>
 
-      <div className={styles.eventFoot}>
+      <div className={styles.eventFootV5}>
         <span className={styles.eventFootGoing}>
           <strong>{event.rsvpCount}</strong> {past ? 'attended' : 'going'}
         </span>
@@ -715,14 +700,14 @@ function EventCard({
               href={event.replayUrl}
               target="_blank"
               rel="noreferrer noopener"
-              className={`${styles.eventCtaV4} ${styles.eventCtaV4Replay}`}
+              className={`${styles.eventCtaV5} ${styles.eventCtaV5Replay}`}
             >
               <IconPlayCircle size={13} /> Replay
             </a>
           ) : (
             <button
               type="button"
-              className={`${styles.eventCtaV4} ${styles.eventCtaV4Replay}`}
+              className={`${styles.eventCtaV5} ${styles.eventCtaV5Replay}`}
               disabled
               title="No replay posted yet."
             >
@@ -735,14 +720,14 @@ function EventCard({
               href={event.meetingUrl}
               target="_blank"
               rel="noreferrer noopener"
-              className={`${styles.eventCtaV4} ${styles.eventCtaV4Live}`}
+              className={`${styles.eventCtaV5} ${styles.eventCtaV5Live}`}
             >
               <IconVideo size={13} /> Join live
             </a>
           ) : (
             <button
               type="button"
-              className={`${styles.eventCtaV4} ${styles.eventCtaV4Live}`}
+              className={`${styles.eventCtaV5} ${styles.eventCtaV5Live}`}
               disabled
             >
               <IconVideo size={13} /> Join live
@@ -751,13 +736,34 @@ function EventCard({
         ) : canRsvp ? (
           <button
             type="button"
-            className={`${styles.eventCtaV4} ${styles.eventCtaV4Outline} ${event.going ? styles.eventCtaV4Going : ''}`}
+            className={`${styles.eventCtaV5} ${styles.eventCtaV5Outline} ${event.going ? styles.eventCtaV5Going : ''}`}
             onClick={() => onToggleGoing(event.id)}
           >
             {event.going ? '✓ Going' : 'RSVP'}
           </button>
         ) : null}
       </div>
+
+      {/* v5 redesign: 3-dots menu pinned to the bottom-right of the
+          card (same placement as PostCard). Trigger has a white
+          ring instead of the dark overlay since it sits over the
+          card foot, not the cover image. */}
+      {canManage && (
+        <CardManageMenu
+          open={menuOpen}
+          onToggle={() => setMenuOpen((v) => !v)}
+          onClose={() => setMenuOpen(false)}
+          onEdit={() => {
+            setMenuOpen(false)
+            onEdit()
+          }}
+          onDelete={() => {
+            setMenuOpen(false)
+            onDelete()
+          }}
+          placement="bottom-right"
+        />
+      )}
     </article>
   )
 }
@@ -1297,18 +1303,88 @@ export function CardManageMenu({
   onClose,
   onEdit,
   onDelete,
+  placement = 'top-right',
 }: {
   open: boolean
   onToggle: () => void
   onClose: () => void
   onEdit: () => void
   onDelete: () => void
+  /** Where on the card the trigger sits. v5 cards (events,
+   * activities) anchor it bottom-right; the older cover-overlay
+   * placement stays top-right by default. */
+  placement?: 'top-right' | 'bottom-right'
 }) {
+  const isBottom = placement === 'bottom-right'
+  const anchorStyle: React.CSSProperties = isBottom
+    ? { position: 'absolute', bottom: 14, right: 14, zIndex: 6 }
+    : { position: 'absolute', top: 10, right: 10, zIndex: 6 }
+  // Anchored to bottom-right: the popup must open UPWARD so it
+  // doesn't get clipped or pushed off-screen by the next card.
+  const popupStyle: React.CSSProperties = isBottom
+    ? {
+        position: 'absolute',
+        bottom: 36,
+        right: 0,
+        minWidth: 160,
+        background: '#fff',
+        border: '1px solid var(--c-line)',
+        borderRadius: 12,
+        boxShadow: '0 16px 40px rgba(0,0,0,0.16)',
+        padding: 6,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 2,
+      }
+    : {
+        position: 'absolute',
+        top: 32,
+        right: 0,
+        minWidth: 160,
+        background: '#fff',
+        border: '1px solid var(--c-line)',
+        borderRadius: 12,
+        boxShadow: '0 16px 40px rgba(0,0,0,0.16)',
+        padding: 6,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 2,
+      }
+  const triggerStyle: React.CSSProperties = isBottom
+    ? {
+        width: 28,
+        height: 28,
+        borderRadius: 999,
+        background: '#fff',
+        boxShadow: 'inset 0 0 0 1px var(--c-line), 0 1px 2px rgba(0,0,0,0.04)',
+        color: 'var(--c-ink)',
+        border: 'none',
+        cursor: 'pointer',
+        display: 'grid',
+        placeItems: 'center',
+        fontSize: 14,
+        fontWeight: 700,
+        letterSpacing: -1,
+        padding: 0,
+      }
+    : {
+        width: 28,
+        height: 28,
+        borderRadius: 999,
+        background: 'rgba(0,0,0,0.55)',
+        backdropFilter: 'blur(8px)',
+        color: '#fff',
+        border: 'none',
+        cursor: 'pointer',
+        display: 'grid',
+        placeItems: 'center',
+        fontSize: 14,
+        fontWeight: 700,
+        letterSpacing: -1,
+        padding: 0,
+      }
   return (
-    <div
-      style={{ position: 'absolute', top: 10, right: 10, zIndex: 6 }}
-      onMouseLeave={onClose}
-    >
+    <div style={anchorStyle} onMouseLeave={onClose}>
       <button
         type="button"
         aria-label="Manage"
@@ -1317,43 +1393,12 @@ export function CardManageMenu({
           e.stopPropagation()
           onToggle()
         }}
-        style={{
-          width: 28,
-          height: 28,
-          borderRadius: 999,
-          background: 'rgba(0,0,0,0.55)',
-          backdropFilter: 'blur(8px)',
-          color: '#fff',
-          border: 'none',
-          cursor: 'pointer',
-          display: 'grid',
-          placeItems: 'center',
-          fontSize: 14,
-          fontWeight: 700,
-          letterSpacing: -1,
-          padding: 0,
-        }}
+        style={triggerStyle}
       >
         ⋯
       </button>
       {open && (
-        <div
-          role="menu"
-          style={{
-            position: 'absolute',
-            top: 32,
-            right: 0,
-            minWidth: 160,
-            background: '#fff',
-            border: '1px solid var(--c-line)',
-            borderRadius: 12,
-            boxShadow: '0 16px 40px rgba(0,0,0,0.16)',
-            padding: 6,
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 2,
-          }}
-        >
+        <div role="menu" style={popupStyle}>
           <button
             type="button"
             role="menuitem"

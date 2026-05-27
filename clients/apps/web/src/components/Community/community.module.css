@@ -734,6 +734,9 @@
   background: #fff;
   border: 1px solid var(--c-hair);
   border-radius: 14px;
+  /* Bottom-right 3-dots menu (postMoreAnchor) positions relative to
+     the post card. */
+  position: relative;
 }
 .postHead {
   display: flex;
@@ -2859,7 +2862,11 @@
   background: #fff;
   border: 1px solid var(--c-hair);
   border-radius: 20px;
-  overflow: hidden;
+  overflow: visible;
+  /* Position context + visible overflow for the bottom-right 3-dots
+     menu so the popup can escape the card bounds when it opens
+     upward. */
+  position: relative;
   transition:
     transform 0.2s ease,
     border-color 0.12s ease,
@@ -4978,7 +4985,11 @@
   background: #fff;
   border: 1px solid var(--c-hair);
   border-radius: 16px;
-  overflow: hidden;
+  overflow: visible;
+  /* Position context for the bottom-right 3-dots menu anchor.
+     Overflow stays visible so the popup menu can escape the card
+     bounds when opened upward from the bottom-right corner. */
+  position: relative;
   transition:
     transform 0.18s ease,
     border-color 0.12s ease,
@@ -6149,4 +6160,90 @@
   font-size: 12px;
   color: var(--c-muted);
   line-height: 1.3;
+}
+
+/* =========================================================
+ * Activity-CTA-row — inline panel rendered on a feed post
+ * whose pin_type='activity'. Replaces the bare "Open activity"
+ * black button with a full-width panel showing submitter avatars,
+ * count, and the appropriate Submit CTA. Ported verbatim from
+ * __design/Community-v5.html lines 509-552.
+ * ========================================================= */
+
+.activityCtaRow {
+  margin-top: 14px;
+  padding: 14px 16px;
+  background: var(--c-panel);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.activityCtaMeta {
+  font-size: 12.5px;
+  color: var(--c-muted);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.activityCtaMeta strong {
+  color: var(--c-ink);
+  font-weight: 600;
+}
+.activityCtaBtn {
+  padding: 8px 16px;
+  border-radius: 999px;
+  background: var(--c-ink);
+  color: #fff;
+  font-weight: 500;
+  font-size: 12.5px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  cursor: pointer;
+}
+.activityCtaBtn:hover {
+  opacity: 0.85;
+}
+.activitySubmitters {
+  display: inline-flex;
+  align-items: center;
+}
+.activitySubmitters .av {
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  border: 2px solid var(--c-panel);
+  overflow: hidden;
+  margin-left: -6px;
+  background: #fff;
+  display: grid;
+  place-items: center;
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--c-muted);
+}
+.activitySubmitters .av:first-child {
+  margin-left: 0;
+}
+
+/* Post-card 3-dots menu trigger pinned to the bottom-right of the
+ * card. The menu itself uses .postMoreMenu (already declared) — it
+ * pops UP from this anchor instead of down so it never clips out of
+ * the card. */
+.postMoreAnchor {
+  position: absolute;
+  right: 14px;
+  bottom: 14px;
+  z-index: 1;
+}
+.postMoreAnchor .postMoreMenu {
+  /* Stack the menu above the anchor (bottom-right of card) so we
+     don't get clipped by a sibling card below. */
+  top: auto;
+  bottom: 36px;
+  right: 0;
 }

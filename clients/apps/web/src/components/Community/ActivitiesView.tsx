@@ -489,21 +489,6 @@ function ActivityListCard({
             <span className={styles.dot} /> Closed
           </span>
         )}
-        {canManage && (
-          <CardManageMenu
-            open={menuOpen}
-            onToggle={() => setMenuOpen((v) => !v)}
-            onClose={() => setMenuOpen(false)}
-            onEdit={() => {
-              setMenuOpen(false)
-              onEdit()
-            }}
-            onDelete={() => {
-              setMenuOpen(false)
-              onDelete()
-            }}
-          />
-        )}
       </div>
 
       <div className={styles.activityBody}>
@@ -563,6 +548,25 @@ function ActivityListCard({
           </div>
         </div>
       </div>
+
+      {/* v5: 3-dots menu pinned to the bottom-right corner of the
+          card, same placement as PostCard / EventCard. */}
+      {canManage && (
+        <CardManageMenu
+          open={menuOpen}
+          onToggle={() => setMenuOpen((v) => !v)}
+          onClose={() => setMenuOpen(false)}
+          onEdit={() => {
+            setMenuOpen(false)
+            onEdit()
+          }}
+          onDelete={() => {
+            setMenuOpen(false)
+            onDelete()
+          }}
+          placement="bottom-right"
+        />
+      )}
     </article>
   )
 }
