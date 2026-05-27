@@ -267,20 +267,31 @@ export function CommunityPreview({
           {view === 'settings' ? (
             <CommunityPreviewSettings courseId={courseId} />
           ) : view === 'notifications' ? (
-            <CommunityNotificationsView courseId={courseId} />
+            <CommunityNotificationsView
+              courseId={courseId}
+              courseCoverUrl={courseCoverUrl ?? null}
+              courseCoverPosition={courseCoverPosition ?? null}
+            />
           ) : communityOff ? (
             <div className={styles.disabledBanner}>
               Community is off. Open <strong>Settings</strong> in the left rail
               (or flip the toggle next to it) to turn it back on.
             </div>
           ) : view === 'members' ? (
-            <MembersView members={members} isLoading={membersQ.isLoading} />
+            <MembersView
+              members={members}
+              isLoading={membersQ.isLoading}
+              courseCoverUrl={courseCoverUrl ?? null}
+              courseCoverPosition={courseCoverPosition ?? null}
+            />
           ) : view === 'events' ? (
             <EventsView
               courseId={courseId}
               hostName={selfName ?? 'You'}
               events={events}
               canCreate
+              courseCoverUrl={courseCoverUrl ?? null}
+              courseCoverPosition={courseCoverPosition ?? null}
               onCreate={async (input: CommunityEventCreateInput) => {
                 try {
                   await createEventMut.mutateAsync(buildEventCreateBody(input))
@@ -325,6 +336,8 @@ export function CommunityPreview({
               uploadMode="creator"
               initialOpenActivityId={pendingActivityId}
               canCreate
+              courseCoverUrl={courseCoverUrl ?? null}
+              courseCoverPosition={courseCoverPosition ?? null}
               onCreate={async (input: CommunityActivityCreateInput) => {
                 try {
                   await createActivityMut.mutateAsync(
@@ -430,10 +443,6 @@ export function CommunityPreview({
                     {t.label}
                   </button>
                 ))}
-                <span className={styles.filterSpacer} />
-                <button type="button" className={styles.sortBtn} disabled>
-                  Recent ↓
-                </button>
               </div>
 
               <div className={styles.feedList}>
@@ -532,6 +541,7 @@ function mapEventReadToUI(e: CommunityEventRead): CommunityEvent {
     coverUrl: e.cover_url,
     coverObjectPosition: e.cover_object_position,
     hostName: e.host.name,
+    hostAvatarUrl: e.host.avatar_url ?? null,
     rsvpCount: e.rsvp_count,
     going: e.going,
     live: e.live,

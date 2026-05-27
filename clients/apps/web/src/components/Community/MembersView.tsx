@@ -20,11 +20,18 @@ import { IconSearch } from './icons'
 type Props = {
   members: CommunityMemberRead[]
   isLoading: boolean
+  courseCoverUrl?: string | null
+  courseCoverPosition?: string | null
 }
 
 type FilterId = 'all' | 'instructors' | 'students'
 
-export function MembersView({ members, isLoading }: Props) {
+export function MembersView({
+  members,
+  isLoading,
+  courseCoverUrl,
+  courseCoverPosition,
+}: Props) {
   const [filter, setFilter] = useState<FilterId>('all')
   const [query, setQuery] = useState('')
 
@@ -63,6 +70,8 @@ export function MembersView({ members, isLoading }: Props) {
         eyebrow={`${counts.all} ${counts.all === 1 ? 'member' : 'members'}`}
         title="Members"
         subtitle="Everyone enrolled in this course. Tap someone to see what they've shared."
+        coverUrl={courseCoverUrl ?? null}
+        coverPosition={courseCoverPosition ?? null}
       />
 
       <div className={styles.membersToolsV5}>

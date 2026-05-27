@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { ActivityDetailView } from './ActivityDetailView'
-import { CardManageMenu, CoverUploader } from './EventsView'
+import { CoverUploader } from './EventsView'
 import { PageHero } from './PageHero'
 import { SubmitActivityModal } from './SubmitActivityModal'
 import styles from './community.module.css'
@@ -111,6 +111,10 @@ type Props = {
    * that activity (e.g. from clicking 'Open activity' on a pinned
    * activity post in the feed). */
   initialOpenActivityId?: string | null
+  /** Course cover image — surfaced on the PageHero so every view
+   * uses the same illustrated hero as Home. */
+  courseCoverUrl?: string | null
+  courseCoverPosition?: string | null
 }
 
 export function ActivitiesView({
@@ -127,6 +131,8 @@ export function ActivitiesView({
   uploadMode,
   customerSessionToken,
   initialOpenActivityId,
+  courseCoverUrl,
+  courseCoverPosition,
 }: Props) {
   const [createOpen, setCreateOpen] = useState(false)
   const [editing, setEditing] = useState<CommunityActivity | null>(null)
@@ -157,6 +163,21 @@ export function ActivitiesView({
           onBack={() => setOpenActivity(null)}
           onSubmit={onSubmit}
           onOpenSubmit={() => setSubmitFor(openActivity)}
+          canManage={canCreate}
+          onEdit={() => {
+            setEditing(openActivity)
+            setOpenActivity(null)
+          }}
+          onDelete={() => {
+            if (
+              window.confirm(
+                `Delete "${openActivity.title}"? All submissions will be removed.`,
+              )
+            ) {
+              onDelete(openActivity.id)
+              setOpenActivity(null)
+            }
+          }}
         />
         <SubmitActivityModal
           activity={submitFor}
@@ -216,6 +237,8 @@ export function ActivitiesView({
         }
         title="Activities"
         subtitle={`Hands-on prompts tied to each ${channelKind}. Submit a photo, video, or write-up — the cohort sees your work and the instructor leaves feedback.`}
+        coverUrl={courseCoverUrl ?? null}
+        coverPosition={courseCoverPosition ?? null}
       />
 
       <div className={styles.actToolbar}>
@@ -306,12 +329,16 @@ export function ActivitiesView({
                 </div>
               </header>
               <div className={styles.activitiesGrid}>
-                {g.items.map((a, idx) => (
+                {/* Pass the group's channel number, not the per-section
+                    index, so every activity inside Module 1 says
+                    "Module 1" on its cover (not Module 1 / Module 2 /
+                    …). */}
+                {g.items.map((a) => (
                   <ActivityListCard
                     key={a.id}
                     activity={a}
                     channelKind={channelKind}
-                    indexNum={idx + 1}
+                    indexNum={g.num}
                     canSubmit={a.status === 'open'}
                     canManage={canCreate}
                     onSubmit={() => setSubmitFor(a)}
@@ -350,12 +377,12 @@ export function ActivitiesView({
                 </div>
               </header>
               <div className={styles.activitiesGrid}>
-                {orphaned.map((a, idx) => (
+                {orphaned.map((a) => (
                   <ActivityListCard
                     key={a.id}
                     activity={a}
                     channelKind={channelKind}
-                    indexNum={idx + 1}
+                    indexNum={0}
                     canSubmit={a.status === 'open'}
                     canManage={canCreate}
                     onSubmit={() => setSubmitFor(a)}
@@ -448,7 +475,6 @@ function ActivityListCard({
   onEdit: () => void
   onDelete: () => void
 }) {
-  const [menuOpen, setMenuOpen] = useState(false)
   const handleCardClick = (e: React.MouseEvent) => {
     if ((e.target as HTMLElement).closest('button, a, label')) return
     onOpen()
@@ -476,12 +502,14 @@ function ActivityListCard({
     >
       <div className={styles.activityCover}>
         <div className={styles.activityCoverImg} style={coverStyle} />
-        <div className={styles.activityCoverOverlay}>
-          <span className={styles.activityCoverChannel}>
-            <span className={styles.num}>{indexNum}</span>
-            {channelWord} {indexNum}
-          </span>
-        </div>
+        {indexNum > 0 && (
+          <div className={styles.activityCoverOverlay}>
+            <span className={styles.activityCoverChannel}>
+              <span className={styles.num}>{indexNum}</span>
+              {channelWord} {indexNum}
+            </span>
+          </div>
+        )}
         {closed && (
           <span
             className={`${styles.activityCoverStatus} ${styles.activityCoverStatusClosed}`}
@@ -549,24 +577,10 @@ function ActivityListCard({
         </div>
       </div>
 
-      {/* v5: 3-dots menu pinned to the bottom-right corner of the
-          card, same placement as PostCard / EventCard. */}
-      {canManage && (
-        <CardManageMenu
-          open={menuOpen}
-          onToggle={() => setMenuOpen((v) => !v)}
-          onClose={() => setMenuOpen(false)}
-          onEdit={() => {
-            setMenuOpen(false)
-            onEdit()
-          }}
-          onDelete={() => {
-            setMenuOpen(false)
-            onDelete()
-          }}
-          placement="bottom-right"
-        />
-      )}
+      {/* Activity cards delegate manage actions to the detail view so
+          the card foot stays clean — the submit CTA needs the
+          bottom-right corner. Edit / Delete now live next to the
+          "Back to activities" button inside ActivityDetailView. */}
     </article>
   )
 }

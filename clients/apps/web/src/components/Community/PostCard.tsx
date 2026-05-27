@@ -1229,7 +1229,12 @@ function RegularPostCard({
         </div>
       )}
 
-      {post.lesson && (
+      {/* Activity-pin posts already surface their module/episode in
+          the header meta-line, so we skip the lesson/module chip below
+          the body for them. Other posts (text / question / win etc.)
+          keep the "re: <lesson>" chip so the audience knows where the
+          post anchors. */}
+      {post.pin_type !== 'activity' && post.lesson && (
         <button
           type="button"
           className={styles.lessonChip}
@@ -1239,9 +1244,7 @@ function RegularPostCard({
         </button>
       )}
 
-      {/* Module-scoped activity pins use a module chip instead of a
-          lesson chip — they have no lesson context. */}
-      {!post.lesson && post.module && (
+      {post.pin_type !== 'activity' && !post.lesson && post.module && (
         <span className={styles.lessonChip}>
           <IconBook size={11} /> re: {post.module.module_title ?? 'Module'}
         </span>
