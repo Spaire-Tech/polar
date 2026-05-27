@@ -701,7 +701,12 @@ class CommunityReactionRepository(
     RepositoryBase[CommunityReaction],
 ):
     """Reactions aren't soft-deleted — toggling off is a hard DELETE so
-    the unique index stays accurate and counters stay correct."""
+    the unique index stays accurate and counters stay correct.
+
+    One row per (target, actor) regardless of emoji: the picker is a
+    LinkedIn-style switch, not a per-emoji checkbox. Switching from
+    heart to clap updates the existing row's emoji in place rather
+    than stacking a second row on top."""
 
     model = CommunityReaction
 
@@ -714,41 +719,56 @@ class CommunityReactionRepository(
         actor_user_id: UUID | None,
         emoji: str,
     ) -> bool:
-        """Returns True if the reaction now exists (just inserted),
-        False if it was just removed.
+        """Apply the user's intent on this target and return whether
+        they end up reacting after the call.
 
-        Two partial unique indexes enforce one row per
-        (target, actor, emoji); we read first to decide the branch,
-        then act. The unique-index race is fine because both branches
-        are idempotent — a concurrent insert that fails is caught and
-        treated as "exists, toggle off"."""
+          - no existing row, clicked X → INSERT X, return True
+          - existing row is X, clicked X → DELETE, return False (toggle off)
+          - existing row is X, clicked Y → UPDATE to Y, return True (switch)
+
+        Per the partial unique index ix_community_reactions_unique_*
+        (one row per target+actor) the existence check below resolves
+        to at most one row."""
         actor_clause = (
             CommunityReaction.actor_enrollment_id == actor_enrollment_id
             if actor_enrollment_id is not None
             else CommunityReaction.actor_user_id == actor_user_id
         )
 
-        existing_stmt = select(CommunityReaction.id).where(
+        existing_stmt = select(
+            CommunityReaction.id, CommunityReaction.emoji
+        ).where(
             CommunityReaction.target_type == target_type,
             CommunityReaction.target_id == target_id,
-            CommunityReaction.emoji == emoji,
             actor_clause,
         )
-        existing_id = (
+        existing = (
             await self.session.execute(existing_stmt)
-        ).scalar_one_or_none()
+        ).one_or_none()
 
-        if existing_id is not None:
-            del_stmt = delete(CommunityReaction).where(
-                CommunityReaction.id == existing_id
+        if existing is not None:
+            existing_id, existing_emoji = existing
+            if existing_emoji == emoji:
+                # Same emoji clicked again — toggle off.
+                await self.session.execute(
+                    delete(CommunityReaction).where(
+                        CommunityReaction.id == existing_id
+                    )
+                )
+                return False
+            # Switch: update the emoji on the existing row in place so
+            # we don't transiently violate the per-(target, actor)
+            # unique index.
+            await self.session.execute(
+                CommunityReaction.__table__.update()
+                .where(CommunityReaction.id == existing_id)
+                .values(emoji=emoji)
             )
-            await self.session.execute(del_stmt)
-            return False
+            return True
 
-        # The partial unique index (`ix_community_reactions_unique_*`)
-        # makes the duplicate branch a no-op via ON CONFLICT DO NOTHING.
-        # We don't need RETURNING since the caller's count query is the
-        # source of truth.
+        # No existing row — insert. ON CONFLICT DO NOTHING swallows
+        # the race where a concurrent request inserted first; in that
+        # rare case we just trust the other write and return active.
         ins = (
             pg_insert(CommunityReaction)
             .values(

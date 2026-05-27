@@ -153,7 +153,13 @@ export interface CommunityFeedPage {
 export interface CommunityReactionToggleResult {
   emoji: CommunityReactionEmoji
   active: boolean
+  /** Total reaction count across all emojis for this target after
+   * the toggle — matches the sum of `reactions[].count`. */
   count: number
+  /** Authoritative per-emoji breakdown after the toggle. Clients
+   * should replace their cached `reactions` array with this rather
+   * than mutating in place. */
+  reactions: CommunityReactionSummaryEntry[]
 }
 
 export interface CommunityCourseSummary {
@@ -627,23 +633,56 @@ export const useDeleteCommunityComment = (
 // the post card updates immediately. On error we roll back.
 // ---------------------------------------------------------------------
 
-const applyReactionDelta = (
+// Optimistic switch-style update. One reaction per user per post: if
+// the user already has a different emoji on this post, the picker
+// switches it (decrement the old, increment/insert the new); same
+// emoji clicked again toggles it off; nothing yet → insert.
+//
+// Used only between onMutate and onSuccess. onSuccess overwrites the
+// reactions array wholesale with the server's per-emoji breakdown,
+// which is the source of truth — so any drift here self-heals as
+// soon as the server response lands.
+const applyOptimisticReaction = (
   post: CommunityPostRead,
   emoji: CommunityReactionEmoji,
-  active: boolean,
-  count: number,
 ): CommunityPostRead => {
-  const reactions = [...post.reactions]
-  const idx = reactions.findIndex((r) => r.emoji === emoji)
-  if (idx >= 0) {
-    reactions[idx] = { ...reactions[idx], count, mine: active }
-  } else if (count > 0) {
-    reactions.push({ emoji, count, mine: active })
+  const reactions = post.reactions.map((r) => ({ ...r }))
+  const currentMine = reactions.find((r) => r.mine)
+  const clickedSameEmoji = currentMine?.emoji === emoji
+
+  if (currentMine) {
+    // Drop the user from their previous emoji row.
+    const idx = reactions.findIndex((r) => r.emoji === currentMine.emoji)
+    if (idx >= 0) {
+      const next = { ...reactions[idx], mine: false, count: Math.max(reactions[idx].count - 1, 0) }
+      if (next.count === 0) reactions.splice(idx, 1)
+      else reactions[idx] = next
+    }
   }
-  // Total reaction_count from the server is authoritative; reuse it.
+
+  if (!clickedSameEmoji) {
+    // Add the user to the clicked emoji row.
+    const idx = reactions.findIndex((r) => r.emoji === emoji)
+    if (idx >= 0) {
+      reactions[idx] = { ...reactions[idx], mine: true, count: reactions[idx].count + 1 }
+    } else {
+      reactions.push({ emoji, mine: true, count: 1 })
+    }
+  }
+
   const total = reactions.reduce((acc, r) => acc + r.count, 0)
   return { ...post, reactions, reaction_count: total }
 }
+
+// Apply the server's authoritative response to a post.
+const applyServerReaction = (
+  post: CommunityPostRead,
+  result: CommunityReactionToggleResult,
+): CommunityPostRead => ({
+  ...post,
+  reactions: result.reactions,
+  reaction_count: result.count,
+})
 
 export const useTogglePostReaction = (
   token: string | null | undefined,
@@ -714,18 +753,9 @@ export const useTogglePostReaction = (
         queryKey: feedQueryKey,
       })
       for (const [key, data] of snapshots) {
-        const next = mapPosts(data, (p) => {
-          if (p.id !== postId) return p
-          const existing = p.reactions.find((r) => r.emoji === emoji)
-          const willBeActive = !(existing?.mine ?? false)
-          const nextCount = (existing?.count ?? 0) + (willBeActive ? 1 : -1)
-          return applyReactionDelta(
-            p,
-            emoji,
-            willBeActive,
-            Math.max(nextCount, 0),
-          )
-        })
+        const next = mapPosts(data, (p) =>
+          p.id === postId ? applyOptimisticReaction(p, emoji) : p,
+        )
         queryClient.setQueryData(key, next)
       }
       return { snapshots }
@@ -744,9 +774,7 @@ export const useTogglePostReaction = (
       })
       for (const [key, data] of snapshots) {
         const next = mapPosts(data, (p) =>
-          p.id === postId
-            ? applyReactionDelta(p, result.emoji, result.active, result.count)
-            : p,
+          p.id === postId ? applyServerReaction(p, result) : p,
         )
         queryClient.setQueryData(key, next)
       }
@@ -1069,12 +1097,20 @@ export const useToggleCommentReaction = (
         `${communityBase(mode, courseId!)}/comments/${commentId}/react`,
         { method: 'POST', body: JSON.stringify({ emoji }) },
       ),
-    onSuccess: () => {
-      if (courseId && postId) {
-        getQueryClient().invalidateQueries({
-          queryKey: commentsKey(token ?? mode, courseId, postId),
-        })
-      }
+    onSuccess: (result, { commentId }) => {
+      if (!courseId || !postId) return
+      const queryClient = getQueryClient()
+      const key = commentsKey(token ?? mode, courseId, postId)
+      // Patch the cached comments list in place with the server's
+      // authoritative reactions for this comment, so the UI updates
+      // without a roundtrip. The full invalidate stays as a safety
+      // net in case the cache shape ever drifts.
+      queryClient.setQueryData<CommunityCommentRead[]>(key, (data) =>
+        data?.map((c) =>
+          c.id === commentId ? { ...c, reactions: result.reactions } : c,
+        ),
+      )
+      queryClient.invalidateQueries({ queryKey: key })
     },
   })
 
