@@ -21,6 +21,7 @@ from polar.community import (
 )
 from polar.community.endpoints import creator_router as community_creator_router
 from polar.community.endpoints import customer_router as community_customer_router
+from polar.community.endpoints import public_router as community_public_router
 from polar.course.endpoints import router as course_router
 from polar.custom_field.endpoints import router as custom_field_router
 from polar.customer.endpoints import router as customer_router
@@ -211,5 +212,7 @@ router.include_router(course_router)
 router.include_router(community_creator_router)
 # /customer-portal/community (customer-side)
 router.include_router(community_customer_router)
+# /community/public (unauthenticated event share/embed surface)
+router.include_router(community_public_router)
 # /customer-portal/notifications (customer-side bell)
 router.include_router(customer_notifications_router)

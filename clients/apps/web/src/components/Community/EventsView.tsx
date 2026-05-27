@@ -1,7 +1,9 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { useAnnounceCommunityEvent } from '../../hooks/queries/community'
 import { Avatar } from './Avatar'
+import { EventAttendeesModal } from './EventAttendeesModal'
 import { EventDetailModal } from './EventDetailModal'
 import { PageHero } from './PageHero'
 import styles from './community.module.css'
@@ -215,6 +217,10 @@ const formatViewerWhen = (startAt: string, hostTz: string): string | null => {
 
 type Props = {
   courseId: string | undefined
+  // Used to build the canonical share URL inside EventDetailModal.
+  // Optional so embed/preview surfaces can still mount EventsView
+  // without an org context — Share falls back to the page hash URL.
+  organizationSlug?: string
   hostName: string
   events: CommunityEvent[]
   onCreate: (event: CommunityEventCreateInput) => void
@@ -226,6 +232,7 @@ type Props = {
 
 export function EventsView({
   courseId,
+  organizationSlug,
   hostName,
   events,
   onCreate,
@@ -237,6 +244,32 @@ export function EventsView({
   const [createOpen, setCreateOpen] = useState(false)
   const [editing, setEditing] = useState<CommunityEvent | null>(null)
   const [openEvent, setOpenEvent] = useState<CommunityEvent | null>(null)
+  // Host-only roster modal. Tracked at the EventsView level (not on
+  // each card) so the modal lives outside the card grid and can't be
+  // unmounted by re-renders of the underlying list.
+  const [attendeesFor, setAttendeesFor] = useState<CommunityEvent | null>(null)
+  // Toast strip — reused for the "Announcement sent" confirmation so we
+  // don't introduce a second notification surface.
+  const [hostToast, setHostToast] = useState<string | null>(null)
+  const announceMut = useAnnounceCommunityEvent(courseId)
+  const onAnnounce = (event: CommunityEvent) => {
+    // Confirm before fanning out — re-announcing isn't destructive but
+    // it does email every enrolled member, which is irreversible. The
+    // confirm copy spells out exactly what happens.
+    const ok = window.confirm(
+      `Send a fresh "new event" notification to everyone enrolled in this course? They'll get a bell + email for "${event.title}".`,
+    )
+    if (!ok) return
+    announceMut.mutate(event.id, {
+      onSuccess: () => setHostToast('Announcement queued'),
+      onError: () => setHostToast('Could not send announcement'),
+    })
+  }
+  useEffect(() => {
+    if (!hostToast) return
+    const t = setTimeout(() => setHostToast(null), 2400)
+    return () => clearTimeout(t)
+  }, [hostToast])
   // v5 redesign trims the v4 per-type chip row down to two segments:
   // All events vs Mine (going/hosting). Per-type grouping moves into
   // the act-module section headers further down.
@@ -413,6 +446,10 @@ export function EventsView({
                       onDelete(e.id)
                     }
                   }}
+                  onViewAttendees={
+                    canCreate ? () => setAttendeesFor(e) : undefined
+                  }
+                  onAnnounce={canCreate ? () => onAnnounce(e) : undefined}
                 />
               ))}
             </div>
@@ -451,6 +488,10 @@ export function EventsView({
                       onDelete(e.id)
                     }
                   }}
+                  onViewAttendees={
+                    canCreate ? () => setAttendeesFor(e) : undefined
+                  }
+                  onAnnounce={canCreate ? () => onAnnounce(e) : undefined}
                 />
               ))}
             </div>
@@ -492,6 +533,13 @@ export function EventsView({
                     onDelete(e.id)
                   }
                 }}
+                onViewAttendees={
+                  canCreate ? () => setAttendeesFor(e) : undefined
+                }
+                // Past events: no "Re-announce" — emailing members
+                // "New event: X" about something already-happened
+                // reads as a mistake from the host. They can use
+                // the discussions surface instead.
               />
             ))}
           </div>
@@ -523,16 +571,53 @@ export function EventsView({
             onUpdate(editing.id, payload)
             setEditing(null)
           }}
+          onAnnounce={() => onAnnounce(editing)}
         />
       )}
 
       <EventDetailModal
         event={openEvent}
+        organizationSlug={organizationSlug}
         onClose={() => setOpenEvent(null)}
         onToggleGoing={() => {
           if (openEvent) onToggleGoing(openEvent.id)
         }}
       />
+
+      {canCreate && courseId && (
+        <EventAttendeesModal
+          open={!!attendeesFor}
+          courseId={courseId}
+          eventId={attendeesFor?.id ?? null}
+          eventTitle={attendeesFor?.title ?? null}
+          onClose={() => setAttendeesFor(null)}
+        />
+      )}
+
+      {hostToast && (
+        // Lightweight toast — bottom-right, auto-dismiss after 2.4s.
+        // Inline-styled because this is the only host-side toast in
+        // EventsView (student-side toasts live in CommunityFeed and
+        // already have a shared treatment).
+        <div
+          style={{
+            position: 'fixed',
+            bottom: 24,
+            right: 24,
+            zIndex: 200,
+            background: '#111',
+            color: '#fff',
+            padding: '10px 16px',
+            borderRadius: 12,
+            fontSize: 13,
+            fontWeight: 500,
+            boxShadow: '0 8px 24px rgba(0,0,0,0.18)',
+          }}
+          role="status"
+        >
+          {hostToast}
+        </div>
+      )}
     </>
   )
 }
@@ -599,6 +684,8 @@ function EventCard({
   canManage,
   onEdit,
   onDelete,
+  onViewAttendees,
+  onAnnounce,
 }: {
   event: CommunityEvent
   past?: boolean
@@ -608,6 +695,10 @@ function EventCard({
   canManage: boolean
   onEdit: () => void
   onDelete: () => void
+  // Host-only — undefined for student-facing cards so the menu items
+  // simply don't render.
+  onViewAttendees?: () => void
+  onAnnounce?: () => void
 }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const handleCardClick = (e: React.MouseEvent) => {
@@ -689,9 +780,38 @@ function EventCard({
       </div>
 
       <div className={styles.eventFootV5}>
-        <span className={styles.eventFootGoing}>
-          <strong>{event.rsvpCount}</strong> {past ? 'attended' : 'going'}
-        </span>
+        {canManage && onViewAttendees ? (
+          // Host view: the count is the primary entry-point to the
+          // attendees roster — clicking it opens the same modal the
+          // 3-dots menu does. We render as a button to get keyboard
+          // focus + a hover affordance without restyling the meta row.
+          <button
+            type="button"
+            className={styles.eventFootGoing}
+            onClick={(e) => {
+              e.stopPropagation()
+              onViewAttendees()
+            }}
+            // Inline overrides match the static <span> visuals one-for-
+            // one — a button has its own UA padding/border defaults.
+            style={{
+              background: 'transparent',
+              border: 'none',
+              padding: 0,
+              cursor: 'pointer',
+              font: 'inherit',
+              color: 'inherit',
+              textAlign: 'left',
+            }}
+            title="View attendees"
+          >
+            <strong>{event.rsvpCount}</strong> {past ? 'attended' : 'going'}
+          </button>
+        ) : (
+          <span className={styles.eventFootGoing}>
+            <strong>{event.rsvpCount}</strong> {past ? 'attended' : 'going'}
+          </span>
+        )}
         {past ? (
           event.replayUrl ? (
             <a
@@ -759,6 +879,22 @@ function EventCard({
             setMenuOpen(false)
             onDelete()
           }}
+          onViewAttendees={
+            onViewAttendees
+              ? () => {
+                  setMenuOpen(false)
+                  onViewAttendees()
+                }
+              : undefined
+          }
+          onAnnounce={
+            onAnnounce
+              ? () => {
+                  setMenuOpen(false)
+                  onAnnounce()
+                }
+              : undefined
+          }
           placement="bottom-right"
         />
       )}
@@ -839,6 +975,7 @@ function CreateEventModal({
   editing,
   onClose,
   onSubmit,
+  onAnnounce,
 }: {
   open: boolean
   courseId: string | undefined
@@ -846,6 +983,10 @@ function CreateEventModal({
   editing: CommunityEvent | null
   onClose: () => void
   onSubmit: (e: CommunityEventCreateInput) => void
+  // Optional — only passed in edit mode. Fires the same "re-announce"
+  // confirm-and-enqueue that the 3-dots menu does, but inline in the
+  // edit flow so the host can save changes and notify in one sitting.
+  onAnnounce?: () => void
 }) {
   const isEdit = !!editing
   const [title, setTitle] = useState('')
@@ -1126,6 +1267,21 @@ function CreateEventModal({
         <div className={styles.ceFoot}>
           <div className={styles.ceFootLeft}>Hosted by you · {hostName}</div>
           <div className={styles.ceActions}>
+            {isEdit && onAnnounce ? (
+              <button
+                type="button"
+                // Ghost variant: re-announcing is a separate action
+                // from saving the form, and we don't want it
+                // competing with the primary Save CTA. The host hits
+                // Cancel/Save for the form-state path; this nudges
+                // attendees as a discrete extra step.
+                className={`${styles.ceBtn} ${styles.ceBtnGhost}`}
+                onClick={onAnnounce}
+                title="Send a fresh announcement to all members"
+              >
+                Re-announce
+              </button>
+            ) : null}
             <button
               type="button"
               className={`${styles.ceBtn} ${styles.ceBtnGhost}`}
@@ -1281,6 +1437,8 @@ export function CardManageMenu({
   onClose,
   onEdit,
   onDelete,
+  onViewAttendees,
+  onAnnounce,
   placement = 'top-right',
 }: {
   open: boolean
@@ -1288,6 +1446,10 @@ export function CardManageMenu({
   onClose: () => void
   onEdit: () => void
   onDelete: () => void
+  /** Optional host-only actions for event cards. Activities pass
+   * neither (Edit/Delete only); EventsView passes both. */
+  onViewAttendees?: () => void
+  onAnnounce?: () => void
   /** Where on the card the trigger sits. v5 cards (events,
    * activities) anchor it bottom-right; the older cover-overlay
    * placement stays top-right by default. */
@@ -1377,48 +1539,53 @@ export function CardManageMenu({
       </button>
       {open && (
         <div role="menu" style={popupStyle}>
-          <button
-            type="button"
-            role="menuitem"
-            onClick={(e) => {
-              e.stopPropagation()
-              onEdit()
-            }}
-            style={{
-              textAlign: 'left',
-              padding: '8px 12px',
-              borderRadius: 8,
-              background: 'transparent',
-              border: 'none',
-              cursor: 'pointer',
-              fontSize: 13,
-              color: 'var(--c-ink)',
-            }}
-          >
-            Edit
-          </button>
-          <button
-            type="button"
-            role="menuitem"
-            onClick={(e) => {
-              e.stopPropagation()
-              onDelete()
-            }}
-            style={{
-              textAlign: 'left',
-              padding: '8px 12px',
-              borderRadius: 8,
-              background: 'transparent',
-              border: 'none',
-              cursor: 'pointer',
-              fontSize: 13,
-              color: '#dc2626',
-            }}
-          >
+          {onViewAttendees ? (
+            <MenuItem onClick={onViewAttendees}>View attendees</MenuItem>
+          ) : null}
+          {onAnnounce ? (
+            <MenuItem onClick={onAnnounce}>Re-announce</MenuItem>
+          ) : null}
+          <MenuItem onClick={onEdit}>Edit</MenuItem>
+          <MenuItem onClick={onDelete} danger>
             Delete
-          </button>
+          </MenuItem>
         </div>
       )}
     </div>
+  )
+}
+
+// Inline menu-item shared between CardManageMenu rows so the four item
+// types stay visually identical (one source of padding/font/colour).
+function MenuItem({
+  onClick,
+  children,
+  danger,
+}: {
+  onClick: () => void
+  children: React.ReactNode
+  danger?: boolean
+}) {
+  return (
+    <button
+      type="button"
+      role="menuitem"
+      onClick={(e) => {
+        e.stopPropagation()
+        onClick()
+      }}
+      style={{
+        textAlign: 'left',
+        padding: '8px 12px',
+        borderRadius: 8,
+        background: 'transparent',
+        border: 'none',
+        cursor: 'pointer',
+        fontSize: 13,
+        color: danger ? '#dc2626' : 'var(--c-ink)',
+      }}
+    >
+      {children}
+    </button>
   )
 }

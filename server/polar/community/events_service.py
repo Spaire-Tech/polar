@@ -195,6 +195,25 @@ class CommunityEventService:
         if event.cover_url:
             enqueue_job("community.cover.cleanup", cover_url=event.cover_url)
 
+    async def announce(
+        self,
+        session: AsyncSession,
+        *,
+        event_id: UUID,
+        course_id: UUID,
+        host_user_id: UUID,
+    ) -> None:
+        """Re-fan the published notification to every enrolled customer.
+
+        Authorization mirrors `update`/`delete` — only the original
+        host can re-announce. The actual fan-out is enqueued; the host
+        sees an immediate ACK and the worker delivers in the background.
+        """
+        event = await self.get(session, event_id=event_id, course_id=course_id)
+        if event.host_user_id != host_user_id:
+            raise EventHostMismatch()
+        enqueue_job("community.event.announce", event_id=event.id)
+
     # ------------------------------------------------------------------
     # Writes — RSVP (customer side)
     # ------------------------------------------------------------------

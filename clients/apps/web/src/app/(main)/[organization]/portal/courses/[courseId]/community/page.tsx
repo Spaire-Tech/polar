@@ -28,6 +28,7 @@ export default async function Page(props: {
   return (
     <CommunityFeed
       courseId={params.courseId}
+      organizationSlug={organization.slug}
       customerSessionToken={token}
     />
   )

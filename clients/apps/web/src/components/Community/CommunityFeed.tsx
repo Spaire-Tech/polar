@@ -48,9 +48,17 @@ import { IconPin } from './icons'
 type Props = {
   courseId: string
   customerSessionToken: string
+  // Forwarded down to EventsView → EventDetailModal so the Share
+  // button copies a canonical `/{org}/events/{eventId}` URL instead
+  // of the in-portal pathname + hash fallback.
+  organizationSlug?: string
 }
 
-export function CommunityFeed({ courseId, customerSessionToken }: Props) {
+export function CommunityFeed({
+  courseId,
+  customerSessionToken,
+  organizationSlug,
+}: Props) {
   const [view, setView] = useState<CommunityView>('home')
   const [pendingActivityId, setPendingActivityId] = useState<string | null>(
     null,
@@ -277,6 +285,7 @@ export function CommunityFeed({ courseId, customerSessionToken }: Props) {
           ) : view === 'events' ? (
             <EventsView
               courseId={courseId}
+              organizationSlug={organizationSlug}
               hostName={selfName ?? 'You'}
               events={events}
               onCreate={onCreateEvent}

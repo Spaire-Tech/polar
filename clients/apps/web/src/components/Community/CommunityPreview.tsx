@@ -278,6 +278,7 @@ export function CommunityPreview({
           ) : view === 'events' ? (
             <EventsView
               courseId={courseId}
+              organizationSlug={organizationSlug}
               hostName={selfName ?? 'You'}
               events={events}
               canCreate

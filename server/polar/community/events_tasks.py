@@ -139,6 +139,33 @@ async def event_published(event_id: UUID) -> None:
         )
 
 
+@actor(actor_name="community.event.announce", priority=TaskPriority.LOW)
+async def event_announce(event_id: UUID) -> None:
+    """Re-fan the EVENT_PUBLISHED notification on demand.
+
+    Distinct from `event_published` because (a) it ignores the
+    `notify_on_publish` opt-out — the host explicitly asked for this
+    one — and (b) it's the dramatiq target for the host-only
+    POST /announce endpoint, which is rate-limited at the route layer.
+    Reuses the EVENT_PUBLISHED type/template so attendees see the same
+    "new event" card they would have on first publish.
+    """
+    async with AsyncSessionMaker() as session:
+        repo = CommunityEventRepository.from_session(session)
+        event = await repo.get_by_id(event_id)
+        if event is None or event.deleted_at is not None:
+            return
+
+        payload = await _build_payload(session, event)
+        customer_ids = await _enrolled_customer_ids(session, event.course_id)
+        await customer_notifications.send_to_customers(
+            session,
+            customer_ids=customer_ids,
+            notification_type=EVENT_PUBLISHED,
+            payload=payload,
+        )
+
+
 # ----------------------------------------------------------------------
 # Reminders — schedule + per-window actors
 # ----------------------------------------------------------------------
