@@ -13,7 +13,6 @@ import {
   IconClock,
   IconImage,
   IconMapPin,
-  IconPlayCircle,
   IconPlus,
   IconSmile,
   IconUsers,
@@ -40,7 +39,6 @@ export type CommunityEvent = {
   duration: string // minutes
   location: string
   meetingUrl?: string | null
-  replayUrl?: string | null
   coverUrl?: string | null
   coverObjectPosition?: string | null
   hostName: string
@@ -243,7 +241,16 @@ export function EventsView({
 }: Props) {
   const [createOpen, setCreateOpen] = useState(false)
   const [editing, setEditing] = useState<CommunityEvent | null>(null)
-  const [openEvent, setOpenEvent] = useState<CommunityEvent | null>(null)
+  // Track the open event by ID, NOT a snapshot. Looking it up from
+  // the current events array on every render means that after a
+  // mutation invalidates + refetches the events list, the open modal
+  // re-derives with the fresh row — so "RSVP" flips to "Going" the
+  // moment the backend confirms. The previous snapshot approach made
+  // the button look broken because the modal kept rendering against
+  // a stale `going: false` event.
+  const [openEventId, setOpenEventId] = useState<string | null>(null)
+  const openEvent =
+    openEventId ? (events.find((e) => e.id === openEventId) ?? null) : null
   // Host-only roster modal. Tracked at the EventsView level (not on
   // each card) so the modal lives outside the card grid and can't be
   // unmounted by re-renders of the underlying list.
@@ -287,17 +294,18 @@ export function EventsView({
   const totalCount = events.filter((e) => !e.past).length
   const mineCount = events.filter((e) => e.going && !e.past).length
 
-  // v5 redesign: only two segmented filters (All / Mine). The per-type
-  // filters from the v4 chip row are folded into the type-group section
-  // headers further down so navigation lives with the content.
-  const segments: { id: 'all' | 'mine'; label: string; count: number }[] = [
-    { id: 'all', label: 'All events', count: totalCount },
-    {
-      id: 'mine',
-      label: canCreate ? 'Hosting' : 'My events',
-      count: mineCount,
-    },
-  ]
+  // Segmented filters: All / Mine. Only shown to students — hosts host
+  // every event in the course by definition, so "Hosting / N" added no
+  // signal and "Mine" was always 0 (hosts can't RSVP to their own
+  // events). Per-type grouping further down handles the host's real
+  // navigation need.
+  const segments: { id: 'all' | 'mine'; label: string; count: number }[] =
+    canCreate
+      ? []
+      : [
+          { id: 'all', label: 'All events', count: totalCount },
+          { id: 'mine', label: 'My events', count: mineCount },
+        ]
 
   // Group upcoming events by type so each gets its own act-module
   // section with eyebrow + name + count meta.
@@ -342,24 +350,27 @@ export function EventsView({
         }
         live={!!live}
         title="Events"
-        subtitle="Live workshops, office hours, cohort meetups, and guest sessions. Replays show up here for anything you miss."
+        subtitle="Live workshops, office hours, cohort meetups, and guest sessions."
       />
 
       <div className={styles.actToolbar}>
-        <div className={styles.actSegmented}>
-          {segments.map((s) => (
-            <button
-              key={s.id}
-              type="button"
-              className={`${styles.actSegmentedBtn} ${
-                filter === s.id ? styles.actSegmentedBtnActive : ''
-              }`}
-              onClick={() => setFilter(s.id)}
-            >
-              {s.label} <span className={styles.actSegmentedCt}>{s.count}</span>
-            </button>
-          ))}
-        </div>
+        {segments.length > 0 ? (
+          <div className={styles.actSegmented}>
+            {segments.map((s) => (
+              <button
+                key={s.id}
+                type="button"
+                className={`${styles.actSegmentedBtn} ${
+                  filter === s.id ? styles.actSegmentedBtnActive : ''
+                }`}
+                onClick={() => setFilter(s.id)}
+              >
+                {s.label}{' '}
+                <span className={styles.actSegmentedCt}>{s.count}</span>
+              </button>
+            ))}
+          </div>
+        ) : null}
         <span className={styles.eventsToolbarSpacer} />
         {canCreate && (
           <button
@@ -433,7 +444,7 @@ export function EventsView({
                   key={e.id}
                   event={e}
                   onToggleGoing={onToggleGoing}
-                  onOpen={() => setOpenEvent(e)}
+                  onOpen={() => setOpenEventId(e.id)}
                   canRsvp={!canCreate}
                   canManage={canCreate}
                   onEdit={() => setEditing(e)}
@@ -475,7 +486,7 @@ export function EventsView({
                   key={e.id}
                   event={e}
                   onToggleGoing={onToggleGoing}
-                  onOpen={() => setOpenEvent(e)}
+                  onOpen={() => setOpenEventId(e.id)}
                   canRsvp={!canCreate}
                   canManage={canCreate}
                   onEdit={() => setEditing(e)}
@@ -504,12 +515,12 @@ export function EventsView({
           <header className={styles.actModuleHeader}>
             <div>
               <div className={styles.actModuleEyebrow}>Past</div>
-              <div className={styles.actModuleName}>Replays available</div>
+              <div className={styles.actModuleName}>Past events</div>
             </div>
             <div className={styles.actModuleMeta}>
               <span>
                 <strong>{past.length}</strong>{' '}
-                {past.length === 1 ? 'replay' : 'replays'}
+                {past.length === 1 ? 'event' : 'events'}
               </span>
             </div>
           </header>
@@ -519,7 +530,7 @@ export function EventsView({
                 key={e.id}
                 event={e}
                 onToggleGoing={onToggleGoing}
-                onOpen={() => setOpenEvent(e)}
+                onOpen={() => setOpenEventId(e.id)}
                 past
                 canRsvp={!canCreate}
                 canManage={canCreate}
@@ -527,7 +538,7 @@ export function EventsView({
                 onDelete={() => {
                   if (
                     window.confirm(
-                      `Delete "${e.title}"? This past event and its replay will be removed.`,
+                      `Delete "${e.title}"? This past event will be removed.`,
                     )
                   ) {
                     onDelete(e.id)
@@ -578,7 +589,7 @@ export function EventsView({
       <EventDetailModal
         event={openEvent}
         organizationSlug={organizationSlug}
-        onClose={() => setOpenEvent(null)}
+        onClose={() => setOpenEventId(null)}
         onToggleGoing={() => {
           if (openEvent) onToggleGoing(openEvent.id)
         }}
@@ -745,13 +756,6 @@ function EventCard({
             {TYPE_LABEL[event.type]}
           </span>
         </div>
-        {past && (
-          <div className={styles.eventCoverReplay}>
-            <span className={styles.play}>
-              <IconPlayCircle size={20} />
-            </span>
-          </div>
-        )}
       </div>
 
       <div className={styles.eventBodyV5}>
@@ -812,27 +816,7 @@ function EventCard({
             <strong>{event.rsvpCount}</strong> {past ? 'attended' : 'going'}
           </span>
         )}
-        {past ? (
-          event.replayUrl ? (
-            <a
-              href={event.replayUrl}
-              target="_blank"
-              rel="noreferrer noopener"
-              className={`${styles.eventCtaV5} ${styles.eventCtaV5Replay}`}
-            >
-              <IconPlayCircle size={13} /> Replay
-            </a>
-          ) : (
-            <button
-              type="button"
-              className={`${styles.eventCtaV5} ${styles.eventCtaV5Replay}`}
-              disabled
-              title="No replay posted yet."
-            >
-              <IconPlayCircle size={13} /> Replay
-            </button>
-          )
-        ) : event.live ? (
+        {past ? null : event.live ? (
           event.meetingUrl ? (
             <a
               href={event.meetingUrl}

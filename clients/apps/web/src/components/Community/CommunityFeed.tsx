@@ -573,7 +573,6 @@ function mapEventReadToUI(e: CommunityEventRead): CommunityEvent {
     duration: String(e.duration_minutes),
     location: e.location ?? '',
     meetingUrl: e.meeting_url,
-    replayUrl: e.replay_url,
     coverUrl: e.cover_url,
     coverObjectPosition: e.cover_object_position,
     hostName: e.host.name,

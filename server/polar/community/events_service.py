@@ -152,10 +152,6 @@ class CommunityEventService:
 
         data = payload.model_dump(exclude_unset=True)
 
-        # Pasting a replay_url closes the replay-nag schedule.
-        if "replay_url" in data and data["replay_url"]:
-            event.replay_nag_state = "done"
-
         # Cover replacement: enqueue cleanup of the old image so we
         # don't accumulate orphans in S3 when the host swaps covers.
         prev_cover = event.cover_url

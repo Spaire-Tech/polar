@@ -40,7 +40,6 @@ class CommunityEventRead(TimestampedSchema):
     duration_minutes: int
     meeting_url: str | None = None
     location: str | None = None
-    replay_url: str | None = None
     cover_url: str | None = None
     cover_object_position: str | None = None
     notify_on_publish: bool
@@ -72,8 +71,7 @@ class CommunityEventCreate(Schema):
 
 
 class CommunityEventUpdate(Schema):
-    """PATCH — every field optional. The host pastes `replay_url` here
-    after the event ends to clear the replay-nag schedule."""
+    """PATCH — every field optional."""
 
     title: str | None = Field(default=None, min_length=1, max_length=200)
     type: EventType | None = None
@@ -83,7 +81,6 @@ class CommunityEventUpdate(Schema):
     duration_minutes: int | None = Field(default=None, ge=5, le=600)
     meeting_url: str | None = Field(default=None, max_length=2000)
     location: str | None = Field(default=None, max_length=500)
-    replay_url: str | None = Field(default=None, max_length=2000)
     cover_url: str | None = Field(default=None, max_length=2000)
     cover_object_position: str | None = Field(
         default=None, max_length=32, pattern=COVER_OBJECT_POSITION_PATTERN

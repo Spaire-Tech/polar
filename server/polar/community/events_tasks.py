@@ -1,30 +1,31 @@
 """Dramatiq actors for community event lifecycle.
 
-Five actors orchestrate event notifications + the replay nag:
+Six actors orchestrate event notifications:
 
   community.event.published
-    Fans out the "new event" notification to every enrolled customer in
-    the course. Skipped when `notify_on_publish=False`.
+    Fans out the "new event" notification to every enrolled customer
+    in the course. Skipped when `notify_on_publish=False`.
+
+  community.event.announce
+    Re-fans the published notification on demand (POST /announce).
+    Bypasses the `notify_on_publish` opt-out — the host explicitly
+    asked for this one.
+
+  community.event.rsvp_confirmed
+    Bell + transactional email with `.ics` attachment when a customer
+    first RSVPs (or revives a soft-deleted RSVP). Skipped for past
+    events.
 
   community.event.schedule_reminders
-    Enqueues the T-24h, T-15m, T-0 (live) reminders for an event. Called
-    on create and on time/duration change. Cancel/dedup is handled by
-    each reminder actor checking the event still exists + start_at still
-    matches.
+    Enqueues the T-24h, T-15m, T-0 (live) reminders for an event.
+    Called on create and on time/duration change. Cancel/dedup is
+    handled by each reminder actor checking the event still exists +
+    start_at still matches.
 
   community.event.reminder_24h / .reminder_15m / .live
-    Per-RSVP'd-customer notification. Idempotent — they re-query who's
-    RSVP'd at fire time, so late RSVPs get the live ping but not the
-    earlier reminders.
-
-  community.event.replay_nag (cron, every 30 min)
-    Walks events whose end time is past, replay_url is unset, and
-    nag_state is `pending`/`t2h_sent`. Transitions:
-      pending     → after T+2h  → send t2h to host, set state=t2h_sent
-      t2h_sent    → after T+24h → send t24h to host, set state=t24h_sent
-      t24h_sent   → no more nags; row stays as a record.
-    Setting replay_url anywhere closes the cycle (state=done) — see
-    events_service.update.
+    Per-RSVP'd-customer notification. Idempotent — they re-query
+    who's RSVP'd at fire time, so late RSVPs get the live ping but
+    not the earlier reminders.
 
 All actors swallow non-fatal errors and log; an event being deleted
 between schedule and fire is normal and should be a no-op."""
@@ -37,13 +38,9 @@ from uuid import UUID
 import structlog
 
 from polar.course.repository import CourseEnrollmentRepository, CourseRepository
-from polar.customer.repository import CustomerRepository
 from polar.customer_notifications.notification_types import (
-    EMAIL_TYPES,
     EVENT_LIVE,
     EVENT_PUBLISHED,
-    EVENT_REPLAY_NAG_T2H,
-    EVENT_REPLAY_NAG_T24H,
     EVENT_RSVP_CONFIRMED,
     EVENT_STARTING_SOON_15M,
     EVENT_STARTING_SOON_24H,
@@ -60,13 +57,7 @@ from polar.kit.utils import utc_now
 from polar.logging import Logger
 from polar.models.customer import Customer
 from polar.models.user import User
-from polar.worker import (
-    AsyncSessionMaker,
-    CronTrigger,
-    TaskPriority,
-    actor,
-    enqueue_job,
-)
+from polar.worker import AsyncSessionMaker, TaskPriority, actor, enqueue_job
 
 from ._ics import build_event_ics, to_ics_attachment
 from .events_repository import (
@@ -104,7 +95,6 @@ async def _build_payload(session, event) -> dict:
         host_name=host_name,
         course_name=course_name,
         meeting_url=event.meeting_url,
-        replay_url=event.replay_url,
     ).model_dump(mode="json")
 
 
@@ -342,89 +332,17 @@ async def event_live(event_id: UUID) -> None:
 
 
 # ----------------------------------------------------------------------
-# Replay nag — cron every 30 min
+# Replay nag — REMOVED.
+#
+# We deleted the "post-event replay reminder" emails. The host had to
+# manually paste a Zoom/Loom/etc. URL after the event ended; the cron
+# was nagging them about a workflow we never actually delivered (no
+# native recording, no auto-pasted URL). When/if real recording lands,
+# this can come back as a feature instead of a guilt-trip.
+#
+# The `replay_nag_state` column on community_events stays in the DB
+# (no migration) so old data isn't lost. The `EVENT_REPLAY_NAG_*`
+# notification types in customer_notifications.notification_types stay
+# defined so any in-flight queued jobs render rather than crash, but
+# nothing enqueues them anymore.
 # ----------------------------------------------------------------------
-
-
-@actor(
-    actor_name="community.event.replay_nag_cron",
-    priority=TaskPriority.LOW,
-    cron_trigger=CronTrigger.from_crontab("*/30 * * * *"),
-)
-async def replay_nag_cron() -> None:
-    """Walks past events that still don't have a replay_url and ticks
-    the nag state forward. State machine: pending -(2h)-> t2h_sent
-    -(24h)-> t24h_sent -> stop. `done` is set elsewhere when replay_url
-    is pasted; `skipped` is for explicit dismissal (not surfaced yet)."""
-    async with AsyncSessionMaker() as session:
-        repo = CommunityEventRepository.from_session(session)
-        now = utc_now()
-
-        # Pending -> t2h_sent: end time was at least 2h ago.
-        due_t2h = await repo.list_due_for_replay_nag(
-            before=now - timedelta(hours=2), states=("pending",)
-        )
-        for event in due_t2h:
-            await _send_replay_nag(
-                session, event, EVENT_REPLAY_NAG_T2H, next_state="t2h_sent"
-            )
-
-        # t2h_sent -> t24h_sent: end time was at least 24h ago.
-        due_t24h = await repo.list_due_for_replay_nag(
-            before=now - timedelta(hours=24), states=("t2h_sent",)
-        )
-        for event in due_t24h:
-            await _send_replay_nag(
-                session, event, EVENT_REPLAY_NAG_T24H, next_state="t24h_sent"
-            )
-
-
-async def _send_replay_nag(
-    session, event, notification_type: str, *, next_state: str
-) -> None:
-    # Replay nags go to the event's host. Hosts are org Users, not
-    # Customers, so we try two paths:
-    #
-    #   1. If the host happens to also have a Customer row with the same
-    #      email (e.g. enrolled in their own course), route through the
-    #      customer-notifications surface so the bell badge updates too.
-    #   2. Otherwise — the common case for instructors — fall back to a
-    #      direct email to the User's address. Without this, hosts who
-    #      aren't customers never get nudged about pasting a replay URL.
-    host = await session.get(User, event.host_user_id)
-    if host is None or not getattr(host, "email", None):
-        event.replay_nag_state = next_state
-        session.add(event)
-        return
-
-    customer_id = await CustomerRepository.from_session(
-        session
-    ).get_id_by_email(host.email)
-
-    payload = await _build_payload(session, event)
-
-    if customer_id is not None:
-        await customer_notifications.send_to_customer(
-            session,
-            customer_id=customer_id,
-            notification_type=notification_type,
-            payload=payload,
-        )
-    elif notification_type in EMAIL_TYPES:
-        # Direct-to-host email fallback — no bell row exists for users
-        # outside the customer portal, so the email is the only surface.
-        try:
-            subject, body = render(notification_type, payload)
-            enqueue_email(
-                to_email_addr=host.email,
-                subject=subject,
-                html_content=body,
-            )
-        except Exception:
-            log.exception(
-                "community.event.replay_nag.host_email_failed",
-                event_id=str(event.id),
-            )
-
-    event.replay_nag_state = next_state
-    session.add(event)

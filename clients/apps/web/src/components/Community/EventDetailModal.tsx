@@ -4,14 +4,15 @@
 // URL bar shows the real share URL the Share button copies, so what
 // the host sees in the modal === what attendees see in their clipboard.
 // Below that: cover-image hero, date/time/location/attendees rows,
-// host card, description, and a sticky footer with the right CTA
-// depending on state (RSVP / Join live / Watch replay), plus
-// Share + Add-to-Calendar.
+// host card, description, and a sticky footer whose CTA depends on
+// state (RSVP / Join live / nothing for past events), plus Share +
+// Add-to-Calendar.
 //
-// Per spec the 'Run of show' agenda is NOT included — events backend
-// doesn't model an agenda.
+// Past events render no CTA. We don't auto-record + post replays, so
+// the previous "Watch replay" / "Replay coming soon" buttons were
+// surfacing affordances we couldn't keep.
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { getPublicServerURL } from '../../utils/api'
 import { Avatar } from './Avatar'
 import { calendarLinksFor } from './calendarLinks'
@@ -23,7 +24,6 @@ import {
   IconChat,
   IconClock,
   IconMapPin,
-  IconPlayCircle,
   IconShare,
   IconUsers,
   IconVideo,
@@ -218,7 +218,7 @@ export function EventDetailModal({
                     color: '#fff',
                   }}
                 >
-                  Past · Replay
+                  Past
                 </span>
               ) : null}
               <span className={styles.evHeroType}>
@@ -250,14 +250,34 @@ export function EventDetailModal({
                 <IconMapPin size={16} />
               </span>
               <div className={styles.evRowText}>
-                <strong>
-                  {event.meetingUrl
-                    ? 'Online · link in footer'
-                    : event.location || 'Location TBD'}
-                </strong>
-                <div className={styles.evRowTextSub}>
-                  Replay posted within 24h for anyone who can&apos;t attend
-                </div>
+                {event.meetingUrl ? (
+                  // Online event: show "Online" + the actual join URL
+                  // inline. The old copy claimed "link in footer" but
+                  // the footer only renders the link on live events,
+                  // so for upcoming/past events this was a dead end.
+                  <>
+                    <strong>Online</strong>
+                    <div className={styles.evRowTextSub}>
+                      <a
+                        href={event.meetingUrl}
+                        target="_blank"
+                        rel="noreferrer noopener"
+                        style={{
+                          color: 'var(--c-ink)',
+                          wordBreak: 'break-all',
+                          textDecoration: 'underline',
+                          textUnderlineOffset: 2,
+                        }}
+                      >
+                        {event.meetingUrl}
+                      </a>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <strong>{event.location || 'Location TBD'}</strong>
+                  </>
+                )}
               </div>
 
               <span className={styles.evRowIcon}>
@@ -301,26 +321,7 @@ export function EventDetailModal({
             </strong>
           </div>
           <div className={styles.evFooterActions}>
-            {isPast ? (
-              event.replayUrl ? (
-                <a
-                  href={event.replayUrl}
-                  target="_blank"
-                  rel="noreferrer noopener"
-                  className={`${styles.evFooterBtn} ${styles.evFooterBtnPrimary}`}
-                >
-                  <IconPlayCircle size={15} /> Watch replay
-                </a>
-              ) : (
-                <button
-                  type="button"
-                  className={`${styles.evFooterBtn} ${styles.evFooterBtnPrimary}`}
-                  disabled
-                >
-                  <IconPlayCircle size={15} /> Replay coming soon
-                </button>
-              )
-            ) : isLive ? (
+            {isPast ? null : isLive ? (
               event.meetingUrl ? (
                 <a
                   href={event.meetingUrl}
@@ -400,17 +401,47 @@ export function EventDetailModal({
 
 // "Add to calendar" popover. Three options that cover ~99% of users:
 // Google (deep link), Outlook (deep link), .ics download (Apple +
-// fallback). Anchored to its trigger; click outside or another option
-// to dismiss. Inline-styled to match the AppleX monochrome treatment
-// of the rest of the modal without claiming a CSS-module class.
+// fallback). Toggle by click on the trigger; dismiss by clicking the
+// trigger again, clicking outside, or pressing Escape. Hover-leave
+// dismissal was the wrong primitive — the menu disappeared the moment
+// the cursor crossed the small gap between trigger and menu, before
+// the user could land on an option.
 function AddToCalendarMenu({
   links,
 }: {
   links: { google: string; outlook: string; ics: string }
 }) {
   const [open, setOpen] = useState(false)
+  const wrapperRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    const onDocClick = (e: MouseEvent) => {
+      // Click outside the wrapper closes the menu. Clicks inside —
+      // on a CalLink or on the trigger again — are handled by their
+      // own onClick (CalLinks navigate / download; trigger toggles).
+      if (!wrapperRef.current) return
+      if (e.target instanceof Node && wrapperRef.current.contains(e.target)) {
+        return
+      }
+      setOpen(false)
+    }
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false)
+    }
+    // `capture` so we catch the click before it reaches the modal
+    // overlay's onClick={onClose} — otherwise clicking outside the
+    // menu would also close the modal, which is too aggressive.
+    document.addEventListener('mousedown', onDocClick, true)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onDocClick, true)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [open])
+
   return (
-    <div style={{ position: 'relative' }} onMouseLeave={() => setOpen(false)}>
+    <div ref={wrapperRef} style={{ position: 'relative' }}>
       <button
         type="button"
         className={`${styles.evFooterBtn} ${styles.evFooterBtnPrimary}`}

@@ -62,25 +62,6 @@ class CommunityEventRepository(
         # raises InvalidRequestError on `.all()`.
         return {u.id: u for u in result.scalars().unique().all()}
 
-    async def list_due_for_replay_nag(
-        self,
-        *,
-        before: datetime,
-        states: tuple[str, ...],
-    ) -> Sequence[CommunityEvent]:
-        """Events whose end time (start_at + duration) is before `before`,
-        whose replay_url is unset, and whose nag state is in the given
-        set. Used by the replay-nag dramatiq cron."""
-        end_at = CommunityEvent.start_at + func.make_interval(
-            0, 0, 0, 0, 0, CommunityEvent.duration_minutes
-        )
-        statement = self.get_base_statement().where(
-            end_at <= before,
-            CommunityEvent.replay_url.is_(None),
-            CommunityEvent.replay_nag_state.in_(states),
-        )
-        return await self.get_all(statement)
-
 
 class CommunityEventRsvpRepository(
     RepositorySoftDeletionIDMixin[CommunityEventRsvp, UUID],
