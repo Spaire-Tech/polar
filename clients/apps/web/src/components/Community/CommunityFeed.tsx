@@ -65,8 +65,10 @@ export function CommunityFeed({
   )
   const [lessonId, setLessonId] = useState<string | null>(null)
   const [tagId, setTagId] = useState<string | null>(null)
-  const [sort, setSort] = useState<CommunitySortProperty>('recent')
-  const [sortMenuOpen, setSortMenuOpen] = useState(false)
+  // Sort fixed to 'recent' — the design dropped the sort dropdown
+  // from the home feed. Leave the state in place (still passed to the
+  // feed query) so flipping it back in is a one-line change.
+  const sort: CommunitySortProperty = 'recent'
   const [composerForceOpen, setComposerForceOpen] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
   // Activities + events are both backed by their respective endpoints.
@@ -281,7 +283,14 @@ export function CommunityFeed({
 
         <main className={styles.main}>
           {view === 'members' ? (
-            <MembersView members={members} isLoading={membersQ.isLoading} />
+            <MembersView
+              members={members}
+              isLoading={membersQ.isLoading}
+              courseCoverUrl={courseDetail?.course.thumbnail_url ?? null}
+              courseCoverPosition={
+                courseDetail?.course.thumbnail_object_position ?? null
+              }
+            />
           ) : view === 'events' ? (
             <EventsView
               courseId={courseId}
@@ -297,6 +306,10 @@ export function CommunityFeed({
               }}
               onToggleGoing={onToggleGoing}
               canCreate={false}
+              courseCoverUrl={courseDetail?.course.thumbnail_url ?? null}
+              courseCoverPosition={
+                courseDetail?.course.thumbnail_object_position ?? null
+              }
             />
           ) : view === 'activities' ? (
             <ActivitiesView
@@ -304,6 +317,10 @@ export function CommunityFeed({
               channelKind={discussionsKind}
               channels={composerCategories}
               activities={activities}
+              courseCoverUrl={courseDetail?.course.thumbnail_url ?? null}
+              courseCoverPosition={
+                courseDetail?.course.thumbnail_object_position ?? null
+              }
               totalMembers={memberCount}
               canCreate={false}
               uploadMode="customer"
@@ -449,51 +466,6 @@ export function CommunityFeed({
                       {t.label}
                     </button>
                   ))}
-                  <span className={styles.filterSpacer} />
-                  <div style={{ position: 'relative' }}>
-                    <button
-                      type="button"
-                      className={styles.sortBtn}
-                      onClick={() => setSortMenuOpen((v) => !v)}
-                      aria-haspopup="menu"
-                      aria-expanded={sortMenuOpen}
-                    >
-                      {sort === 'recent'
-                        ? 'Recent'
-                        : sort === 'top_week'
-                          ? 'Top this week'
-                          : 'Unanswered'}{' '}
-                      ↓
-                    </button>
-                    {sortMenuOpen && (
-                      <div
-                        className={styles.sortMenu}
-                        role="menu"
-                        onMouseLeave={() => setSortMenuOpen(false)}
-                      >
-                        {(
-                          [
-                            { id: 'recent', label: 'Recent' },
-                            { id: 'top_week', label: 'Top this week' },
-                            { id: 'unanswered', label: 'Unanswered' },
-                          ] as { id: CommunitySortProperty; label: string }[]
-                        ).map((s) => (
-                          <button
-                            key={s.id}
-                            type="button"
-                            role="menuitem"
-                            className={styles.sortMenuItem}
-                            onClick={() => {
-                              setSort(s.id)
-                              setSortMenuOpen(false)
-                            }}
-                          >
-                            {s.label}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
                 </div>
               )}
 
@@ -576,6 +548,7 @@ function mapEventReadToUI(e: CommunityEventRead): CommunityEvent {
     coverUrl: e.cover_url,
     coverObjectPosition: e.cover_object_position,
     hostName: e.host.name,
+    hostAvatarUrl: e.host.avatar_url ?? null,
     rsvpCount: e.rsvp_count,
     going: e.going,
     live: e.live,

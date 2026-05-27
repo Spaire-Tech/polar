@@ -41,6 +41,12 @@ type Props = {
     submission: ActivitySubmissionInput,
   ) => Promise<void> | void
   onOpenSubmit: () => void
+  /** Host-side manage actions. Surfaced inline with the back button
+   * so the activity list cards can stay clean (the submit CTA owns
+   * the bottom-right corner there). */
+  canManage?: boolean
+  onEdit?: () => void
+  onDelete?: () => void
 }
 
 export function ActivityDetailView({
@@ -50,8 +56,12 @@ export function ActivityDetailView({
   mode,
   onBack,
   onOpenSubmit,
+  canManage,
+  onEdit,
+  onDelete,
 }: Props) {
   const [tab, setTab] = useState<'subs' | 'disc' | 'res'>('subs')
+  const [manageOpen, setManageOpen] = useState(false)
   const rootRef = useRef<HTMLDivElement | null>(null)
 
   // The activities list may have left the scroll position halfway down
@@ -126,9 +136,117 @@ export function ActivityDetailView({
 
   return (
     <div ref={rootRef}>
-      <button type="button" className={styles.detailBack} onClick={onBack}>
-        ‹ Back to activities
-      </button>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          marginBottom: 18,
+        }}
+      >
+        <button type="button" className={styles.detailBack} onClick={onBack}>
+          ‹ Back to activities
+        </button>
+        {canManage && (onEdit || onDelete) && (
+          <div
+            style={{ position: 'relative' }}
+            onMouseLeave={() => setManageOpen(false)}
+          >
+            <button
+              type="button"
+              aria-label="Manage activity"
+              onClick={(e) => {
+                e.stopPropagation()
+                setManageOpen((v) => !v)
+              }}
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: 999,
+                background: 'var(--c-panel)',
+                color: 'var(--c-ink)',
+                border: 0,
+                cursor: 'pointer',
+                display: 'grid',
+                placeItems: 'center',
+                fontSize: 16,
+                fontWeight: 700,
+                letterSpacing: -1,
+                padding: 0,
+              }}
+            >
+              ⋯
+            </button>
+            {manageOpen && (
+              <div
+                role="menu"
+                style={{
+                  position: 'absolute',
+                  top: 36,
+                  right: 0,
+                  minWidth: 160,
+                  background: '#fff',
+                  border: '1px solid var(--c-line)',
+                  borderRadius: 12,
+                  boxShadow: '0 16px 40px rgba(0,0,0,0.16)',
+                  padding: 6,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 2,
+                  zIndex: 10,
+                }}
+              >
+                {onEdit && (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setManageOpen(false)
+                      onEdit()
+                    }}
+                    style={{
+                      textAlign: 'left',
+                      padding: '8px 12px',
+                      borderRadius: 8,
+                      background: 'transparent',
+                      border: 'none',
+                      cursor: 'pointer',
+                      fontSize: 13,
+                      color: 'var(--c-ink)',
+                    }}
+                  >
+                    Edit activity
+                  </button>
+                )}
+                {onDelete && (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setManageOpen(false)
+                      onDelete()
+                    }}
+                    style={{
+                      textAlign: 'left',
+                      padding: '8px 12px',
+                      borderRadius: 8,
+                      background: 'transparent',
+                      border: 'none',
+                      cursor: 'pointer',
+                      fontSize: 13,
+                      color: '#dc2626',
+                    }}
+                  >
+                    Delete activity
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
       <div className={styles.adHero}>
         <div className={styles.adHeroImg} style={coverStyle} />
@@ -331,14 +449,26 @@ function SubmissionCard({
   return (
     <article className={styles.subCard} onClick={onOpen}>
       <div className={styles.subCoverFrame}>
-        <div
-          className={styles.subCoverImg}
-          style={{
-            backgroundImage: photo ? `url(${photo})` : undefined,
-            backgroundPosition: s.image_object_position || '50% 50%',
-            background: photo ? undefined : '#3a2a18',
-          }}
-        />
+        {photo ? (
+          <img
+            src={photo}
+            alt=""
+            className={styles.subCoverImg}
+            style={{
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover',
+              objectPosition: s.image_object_position || '50% 50%',
+              display: 'block',
+            }}
+            loading="lazy"
+          />
+        ) : (
+          <div
+            className={styles.subCoverImg}
+            style={{ background: '#3a2a18' }}
+          />
+        )}
         {hasFeedback && (
           <div className={styles.subCoverOverlay}>
             <span className={styles.subCoverFb}>

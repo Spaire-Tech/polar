@@ -146,11 +146,20 @@ class CommunityReactionToggle(Schema):
 
 class CommunityReactionToggleResult(Schema):
     """Returned by the toggle endpoint so optimistic clients have a
-    server-confirmed count to settle on."""
+    server-confirmed state to settle on.
+
+    `reactions` is the authoritative per-emoji breakdown for this
+    target after the toggle — clients should replace their cached
+    `reactions` array with this value rather than mutating it in
+    place. `count` is the sum of `reactions[].count` and matches
+    `community_posts.reaction_count` for post targets."""
 
     emoji: CommunityReactionEmoji
     active: bool
     count: int
+    reactions: list[CommunityReactionSummaryEntry] = Field(
+        default_factory=list
+    )
 
 
 # =====================================================================

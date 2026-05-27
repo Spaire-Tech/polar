@@ -293,7 +293,11 @@ export function EventDetailModal({
 
             <div className={styles.evSectionTitle}>Hosted by</div>
             <div className={styles.evHostCard}>
-              <Avatar name={event.hostName} size={44} />
+              <Avatar
+                name={event.hostName}
+                avatarUrl={event.hostAvatarUrl ?? undefined}
+                size={44}
+              />
               <div className={styles.evHostCardInfo}>
                 <div className={styles.evHostCardName}>{event.hostName}</div>
                 <div className={styles.evHostCardSub}>Instructor</div>

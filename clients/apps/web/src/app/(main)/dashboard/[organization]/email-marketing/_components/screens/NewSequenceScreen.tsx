@@ -1,7 +1,6 @@
 'use client'
 
 import { FeatureGate } from '@/components/Entitlements/FeatureGate'
-import { MARK_BY_NAME } from '@/components/Icons/MarkIcons'
 import { useCourseById } from '@/hooks/queries/courses'
 import {
   useCreateEmailSequence,
@@ -136,15 +135,6 @@ const TRIGGERS: {
     icon: 'mouse-pointer',
     badge: null,
   },
-]
-
-const CATEGORIES = [
-  { id: 'onboarding', label: 'Onboarding', icon: 'sparkles' },
-  { id: 'nurture', label: 'Nurture', icon: 'heart' },
-  { id: 'sales', label: 'Sales / launch', icon: 'zap' },
-  { id: 'retention', label: 'Retention', icon: 'rotate' },
-  { id: 'winback', label: 'Win-back', icon: 'mail-open' },
-  { id: 'transactional', label: 'Transactional', icon: 'check-circle' },
 ]
 
 // ── Course-flavoured trigger choices ──────────────────────────────────────
@@ -983,7 +973,7 @@ const SequenceEditorInner = ({
           <FormSection
             num="01"
             title="Basics"
-            subtitle="Name, description, and category. These help you find and organise sequences later."
+            subtitle="Name and description. These help you find and organise sequences later."
             status={name.trim().length > 0 ? 'complete' : 'progress'}
           >
             <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
@@ -1009,36 +999,6 @@ const SequenceEditorInner = ({
                     fontFamily: 'inherit',
                   }}
                 />
-              </Field>
-              <Field label="Category">
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                  {CATEGORIES.map((c) => {
-                    const Mark = MARK_BY_NAME[c.icon]
-                    return (
-                      <button
-                        key={c.id}
-                        type="button"
-                        onClick={() => upd({ category: c.id })}
-                        className={
-                          flow.category === c.id ? 'chip chip-dark' : 'chip'
-                        }
-                        style={{
-                          cursor: 'pointer',
-                          padding: '6px 12px 6px 8px',
-                          fontSize: 12.5,
-                          gap: 6,
-                        }}
-                      >
-                        {Mark ? (
-                          <Mark size={18} />
-                        ) : (
-                          <Icon name={c.icon} size={11} />
-                        )}
-                        {c.label}
-                      </button>
-                    )
-                  })}
-                </div>
               </Field>
             </div>
           </FormSection>
