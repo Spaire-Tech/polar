@@ -814,6 +814,149 @@ export interface components {
        */
       memo: string | null
     }
+    /** CommunityEmailOrgInfo */
+    CommunityEmailOrgInfo: {
+      /** Id */
+      id: string
+      /** Name */
+      name: string
+      /** Slug */
+      slug: string
+      /**
+       * Avatar Url
+       * @default null
+       */
+      avatar_url: string | null
+      /**
+       * Website
+       * @default null
+       */
+      website: string | null
+    }
+    /** CommunityEventCardData */
+    CommunityEventCardData: {
+      /** Title */
+      title: string
+      /** Type */
+      type: string
+      /** Start At */
+      start_at: string
+      /**
+       * Timezone
+       * @default UTC
+       */
+      timezone: string
+      /** Duration Minutes */
+      duration_minutes: number
+      /** Host Name */
+      host_name: string
+      /**
+       * Cover Url
+       * @default null
+       */
+      cover_url: string | null
+      /**
+       * Cover Object Position
+       * @default null
+       */
+      cover_object_position: string | null
+      /**
+       * Location
+       * @default null
+       */
+      location: string | null
+      /**
+       * Meeting Url
+       * @default null
+       */
+      meeting_url: string | null
+    }
+    /** CommunityEventLiveEmail */
+    CommunityEventLiveEmail: {
+      /**
+       * Template
+       * @default community_event_live
+       * @constant
+       */
+      template: 'community_event_live'
+      props: components['schemas']['CommunityEventLiveProps']
+    }
+    /** CommunityEventLiveProps */
+    CommunityEventLiveProps: {
+      /** Email */
+      email: string
+      organization: components['schemas']['CommunityEmailOrgInfo']
+      /** Course Name */
+      course_name: string
+      /** Event Url */
+      event_url: string
+      event: components['schemas']['CommunityEventCardData']
+    }
+    /** CommunityEventPublishedEmail */
+    CommunityEventPublishedEmail: {
+      /**
+       * Template
+       * @default community_event_published
+       * @constant
+       */
+      template: 'community_event_published'
+      props: components['schemas']['CommunityEventPublishedProps']
+    }
+    /** CommunityEventPublishedProps */
+    CommunityEventPublishedProps: {
+      /** Email */
+      email: string
+      organization: components['schemas']['CommunityEmailOrgInfo']
+      /** Course Name */
+      course_name: string
+      /** Event Url */
+      event_url: string
+      event: components['schemas']['CommunityEventCardData']
+      /** Host Name */
+      host_name: string
+    }
+    /** CommunityEventRsvpConfirmedEmail */
+    CommunityEventRsvpConfirmedEmail: {
+      /**
+       * Template
+       * @default community_event_rsvp_confirmed
+       * @constant
+       */
+      template: 'community_event_rsvp_confirmed'
+      props: components['schemas']['CommunityEventRsvpConfirmedProps']
+    }
+    /** CommunityEventRsvpConfirmedProps */
+    CommunityEventRsvpConfirmedProps: {
+      /** Email */
+      email: string
+      organization: components['schemas']['CommunityEmailOrgInfo']
+      /** Course Name */
+      course_name: string
+      /** Event Url */
+      event_url: string
+      event: components['schemas']['CommunityEventCardData']
+    }
+    /** CommunityEventStartingSoon24hEmail */
+    CommunityEventStartingSoon24hEmail: {
+      /**
+       * Template
+       * @default community_event_starting_soon_24h
+       * @constant
+       */
+      template: 'community_event_starting_soon_24h'
+      props: components['schemas']['CommunityEventStartingSoon24hProps']
+    }
+    /** CommunityEventStartingSoon24hProps */
+    CommunityEventStartingSoon24hProps: {
+      /** Email */
+      email: string
+      organization: components['schemas']['CommunityEmailOrgInfo']
+      /** Course Name */
+      course_name: string
+      /** Event Url */
+      event_url: string
+      event: components['schemas']['CommunityEventCardData']
+    }
     /** CustomerSessionCodeEmail */
     CustomerSessionCodeEmail: {
       /**

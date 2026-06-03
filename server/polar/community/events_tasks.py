@@ -87,6 +87,27 @@ async def _build_payload(session, event) -> dict:
     )
     course_name = (course.title if course else "") or "your community"
 
+    # Pull org metadata up-front so the React Email renderer can produce
+    # an org-branded header + From-name override without reaching back
+    # into the DB at render time. Falls back gracefully when any field
+    # is missing — the renderer drops to legacy inline HTML in that
+    # case (see customer_notifications.notification_types).
+    from polar.config import settings
+    from polar.organization.repository import OrganizationRepository
+
+    organization = (
+        await OrganizationRepository.from_session(session).get_by_id(
+            course.organization_id
+        )
+        if course
+        else None
+    )
+    event_url: str | None = None
+    if organization is not None:
+        event_url = settings.generate_frontend_url(
+            f"/{organization.slug}/events/{event.id}"
+        )
+
     return EventNotificationPayload(
         event_id=str(event.id),
         course_id=str(event.course_id),
@@ -95,6 +116,21 @@ async def _build_payload(session, event) -> dict:
         host_name=host_name,
         course_name=course_name,
         meeting_url=event.meeting_url,
+        organization_id=str(organization.id) if organization else None,
+        organization_name=organization.name if organization else None,
+        organization_slug=organization.slug if organization else None,
+        organization_avatar_url=(
+            organization.avatar_url if organization else None
+        ),
+        organization_website=organization.website if organization else None,
+        event_url=event_url,
+        type=event.type,
+        timezone=event.timezone,
+        duration_minutes=event.duration_minutes,
+        description=event.description,
+        cover_url=event.cover_url,
+        cover_object_position=event.cover_object_position,
+        location=event.location,
     ).model_dump(mode="json")
 
 
@@ -424,13 +460,33 @@ async def rsvp_confirmed(event_id: UUID, customer_id: UUID) -> None:
         )
         attachment = to_ics_attachment(ics_text)
 
-        subject, body = render(EVENT_RSVP_CONFIRMED, payload)
+        # Stamp the recipient onto the payload so the React Email
+        # FooterCustomer block can render "this email was sent to ...".
+        # Side-channel key — only meaningful at render time, never
+        # persisted on a bell row.
+        render_payload = dict(payload)
+        render_payload["_recipient_email"] = customer.email
+        subject, body = render(EVENT_RSVP_CONFIRMED, render_payload)
+
+        # Same From-name override as the shared customer_notification
+        # send-email actor: org name appears in the mailbox, send
+        # address stays on the platform sender domain.
+        from polar.customer_notifications.notification_types import (
+            get_from_name,
+        )
+        from polar.email.sender import DEFAULT_FROM_NAME
+
+        from_name = (
+            get_from_name(EVENT_RSVP_CONFIRMED, render_payload)
+            or DEFAULT_FROM_NAME
+        )
 
         try:
             enqueue_email(
                 to_email_addr=customer.email,
                 subject=subject,
                 html_content=body,
+                from_name=from_name,
                 attachments=[attachment],
             )
             log.info(
@@ -438,6 +494,7 @@ async def rsvp_confirmed(event_id: UUID, customer_id: UUID) -> None:
                 event_id=str(event.id),
                 customer_id=str(customer_id),
                 to=customer.email,
+                from_name=from_name,
             )
         except Exception:
             log.exception(

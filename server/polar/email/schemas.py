@@ -46,6 +46,10 @@ class EmailTemplate(StrEnum):
     notification_new_subscription = "notification_new_subscription"
     notification_create_account = "notification_create_account"
     notification_credits_granted = "notification_credits_granted"
+    community_event_published = "community_event_published"
+    community_event_rsvp_confirmed = "community_event_rsvp_confirmed"
+    community_event_starting_soon_24h = "community_event_starting_soon_24h"
+    community_event_live = "community_event_live"
 
 
 class MarketingEmailProps(BaseModel):
@@ -396,6 +400,92 @@ class OrganizationAccountUnlinkEmail(BaseModel):
     props: OrganizationAccountUnlinkProps
 
 
+# ----------------------------------------------------------------------
+# Community events
+# ----------------------------------------------------------------------
+
+
+class CommunityEmailOrgInfo(BaseModel):
+    """Subset of Organization the event emails actually render.
+
+    Stays flat + small so the customer_notifications payload (which
+    persists with the bell row) doesn't carry the full ~30-field
+    Organization schema. The header/footer components on the email
+    side only consume name/slug/avatar/website."""
+
+    id: str
+    name: str
+    slug: str
+    avatar_url: str | None = None
+    website: str | None = None
+
+
+class CommunityEventCardData(BaseModel):
+    """Presentational data the EventCard React Email component renders.
+    Kept flat (no nested Event model) so the template can be invoked
+    from any context — including bell rows whose stored payload doesn't
+    have access to a live SQLAlchemy session."""
+
+    title: str
+    type: str
+    start_at: str  # ISO 8601 UTC
+    timezone: str = "UTC"
+    duration_minutes: int
+    host_name: str
+    cover_url: str | None = None
+    cover_object_position: str | None = None
+    location: str | None = None
+    meeting_url: str | None = None
+
+
+class _CommunityEventEmailBaseProps(EmailProps):
+    organization: CommunityEmailOrgInfo
+    course_name: str
+    event_url: str
+    event: CommunityEventCardData
+
+
+class CommunityEventPublishedProps(_CommunityEventEmailBaseProps):
+    host_name: str
+
+
+class CommunityEventPublishedEmail(BaseModel):
+    template: Literal[EmailTemplate.community_event_published] = (
+        EmailTemplate.community_event_published
+    )
+    props: CommunityEventPublishedProps
+
+
+class CommunityEventRsvpConfirmedProps(_CommunityEventEmailBaseProps): ...
+
+
+class CommunityEventRsvpConfirmedEmail(BaseModel):
+    template: Literal[EmailTemplate.community_event_rsvp_confirmed] = (
+        EmailTemplate.community_event_rsvp_confirmed
+    )
+    props: CommunityEventRsvpConfirmedProps
+
+
+class CommunityEventStartingSoon24hProps(_CommunityEventEmailBaseProps): ...
+
+
+class CommunityEventStartingSoon24hEmail(BaseModel):
+    template: Literal[EmailTemplate.community_event_starting_soon_24h] = (
+        EmailTemplate.community_event_starting_soon_24h
+    )
+    props: CommunityEventStartingSoon24hProps
+
+
+class CommunityEventLiveProps(_CommunityEventEmailBaseProps): ...
+
+
+class CommunityEventLiveEmail(BaseModel):
+    template: Literal[EmailTemplate.community_event_live] = (
+        EmailTemplate.community_event_live
+    )
+    props: CommunityEventLiveProps
+
+
 Email = Annotated[
     MarketingEmail
     | ClientInvoiceEmail
@@ -424,7 +514,11 @@ Email = Annotated[
     | NotificationNewSaleEmail
     | NotificationNewSubscriptionEmail
     | NotificationCreateAccountEmail
-    | NotificationCreditsGrantedEmail,
+    | NotificationCreditsGrantedEmail
+    | CommunityEventPublishedEmail
+    | CommunityEventRsvpConfirmedEmail
+    | CommunityEventStartingSoon24hEmail
+    | CommunityEventLiveEmail,
     Discriminator("template"),
 ]
 
