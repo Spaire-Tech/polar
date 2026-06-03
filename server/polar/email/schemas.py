@@ -50,6 +50,7 @@ class EmailTemplate(StrEnum):
     community_event_rsvp_confirmed = "community_event_rsvp_confirmed"
     community_event_starting_soon_24h = "community_event_starting_soon_24h"
     community_event_live = "community_event_live"
+    community_event_announcement = "community_event_announcement"
 
 
 class MarketingEmailProps(BaseModel):
@@ -486,6 +487,25 @@ class CommunityEventLiveEmail(BaseModel):
     props: CommunityEventLiveProps
 
 
+class CommunityEventAnnouncementProps(_CommunityEventEmailBaseProps):
+    """Host-composed announcement on top of the standard event card.
+
+    Subject + body come straight from the composer modal; everything
+    else (org, event, course_name, event_url) is identical to the
+    auto-fired event emails so the recipient gets a consistent look."""
+
+    subject: str
+    body: str
+    host_name: str
+
+
+class CommunityEventAnnouncementEmail(BaseModel):
+    template: Literal[EmailTemplate.community_event_announcement] = (
+        EmailTemplate.community_event_announcement
+    )
+    props: CommunityEventAnnouncementProps
+
+
 Email = Annotated[
     MarketingEmail
     | ClientInvoiceEmail
@@ -518,7 +538,8 @@ Email = Annotated[
     | CommunityEventPublishedEmail
     | CommunityEventRsvpConfirmedEmail
     | CommunityEventStartingSoon24hEmail
-    | CommunityEventLiveEmail,
+    | CommunityEventLiveEmail
+    | CommunityEventAnnouncementEmail,
     Discriminator("template"),
 ]
 

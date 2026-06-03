@@ -1,4 +1,5 @@
 import { ClientInvoice } from './client_invoice'
+import { CommunityEventAnnouncement } from './community_event_announcement'
 import { CommunityEventLive } from './community_event_live'
 import { CommunityEventPublished } from './community_event_published'
 import { CommunityEventRsvpConfirmed } from './community_event_rsvp_confirmed'
@@ -64,6 +65,7 @@ const TEMPLATES: Record<string, React.FC<any>> = {
   community_event_rsvp_confirmed: CommunityEventRsvpConfirmed,
   community_event_starting_soon_24h: CommunityEventStartingSoon24h,
   community_event_live: CommunityEventLive,
+  community_event_announcement: CommunityEventAnnouncement,
 }
 
 export default TEMPLATES

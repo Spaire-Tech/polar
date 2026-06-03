@@ -116,6 +116,42 @@ class CommunityEventAnnounceResult(Schema):
     enqueued: bool
 
 
+class CommunityEventAnnouncementCreate(Schema):
+    """Composer payload. v1 always sends immediately; `send_now=False`
+    is reserved for a future draft-and-send flow."""
+
+    subject: str = Field(min_length=1, max_length=200)
+    body: str = Field(default="", max_length=4000)
+    send_now: bool = True
+
+
+class CommunityEventAnnouncementPreviewRequest(Schema):
+    """Renders subject + body into the full transactional email HTML
+    so the composer modal can show a live preview without saving."""
+
+    subject: str = Field(min_length=1, max_length=200)
+    body: str = Field(default="", max_length=4000)
+
+
+class CommunityEventAnnouncementPreviewResult(Schema):
+    """Returned from POST /announcements/preview — full rendered HTML
+    the composer drops straight into a sandboxed iframe."""
+
+    subject: str
+    html: str
+
+
+class CommunityEventAnnouncementRead(TimestampedSchema):
+    id: UUID4
+    event_id: UUID4
+    course_id: UUID4
+    subject: str
+    body: str
+    status: Literal["draft", "sending", "sent", "failed"]
+    sent_at: datetime | None = None
+    recipient_count: int
+
+
 class CommunityEventPublic(Schema):
     """Trimmed view for the unauthenticated public event page.
 

@@ -249,12 +249,22 @@ export function CommunityFeed({
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
-  const onCreateEvent = async (input: CommunityEventCreateInput) => {
+  const onCreateEvent = async (
+    input: CommunityEventCreateInput,
+  ): Promise<CommunityEvent | undefined> => {
     try {
-      await createEventMut.mutateAsync(buildEventCreateBody(input))
+      const created = await createEventMut.mutateAsync(
+        buildEventCreateBody(input),
+      )
       setToast('Event created')
-    } catch (e) {
+      // Hand the freshly-created event back to EventsView so it can
+      // immediately open the announcement composer pre-filled for it.
+      // We map to the UI shape with the same mapper the listing uses
+      // so the composer sees the canonical CommunityEvent fields.
+      return mapEventReadToUI(created)
+    } catch {
       setToast('Could not create event')
+      return undefined
     }
   }
 

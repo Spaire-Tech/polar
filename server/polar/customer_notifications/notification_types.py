@@ -29,6 +29,7 @@ log: Logger = structlog.get_logger()
 # ----------------------------------------------------------------------
 
 EVENT_PUBLISHED = "community.event.published"
+EVENT_ANNOUNCEMENT = "community.event.announcement"
 EVENT_RSVP_CONFIRMED = "community.event.rsvp_confirmed"
 EVENT_STARTING_SOON_24H = "community.event.starting_soon_24h"
 EVENT_STARTING_SOON_15M = "community.event.starting_soon_15m"
@@ -41,6 +42,7 @@ ACTIVITY_SUBMISSION_RECEIVED = "community.activity.submission_received"
 
 ALL_TYPES = (
     EVENT_PUBLISHED,
+    EVENT_ANNOUNCEMENT,
     EVENT_RSVP_CONFIRMED,
     EVENT_STARTING_SOON_24H,
     EVENT_STARTING_SOON_15M,
@@ -64,6 +66,12 @@ ALL_TYPES = (
 # rsvp_confirmed) rather than the generic customer_notification.send_email
 # actor, which doesn't take attachments.
 #
+# EVENT_PUBLISHED is no longer in EMAIL_TYPES because the auto-fire on
+# event creation got replaced by the host-composed announcement
+# (EVENT_ANNOUNCEMENT). Old bell rows of EVENT_PUBLISHED stay
+# renderable so the bell history still works — they just won't fire
+# new emails. New flows enqueue EVENT_ANNOUNCEMENT instead.
+#
 # REPLAY_NAG_* types stay defined above (so any in-flight queued jobs
 # render rather than crash) but the cron that enqueued them is gone —
 # see community/events_tasks.py. They never appear in EMAIL_TYPES now.
@@ -72,7 +80,7 @@ ALL_TYPES = (
 # — high volume).
 EMAIL_TYPES: frozenset[str] = frozenset(
     {
-        EVENT_PUBLISHED,
+        EVENT_ANNOUNCEMENT,
         EVENT_STARTING_SOON_24H,
         EVENT_LIVE,
         ACTIVITY_PUBLISHED,
@@ -134,6 +142,14 @@ class EventNotificationPayload(BaseModel):
     cover_url: str | None = None
     cover_object_position: str | None = None
     location: str | None = None
+
+    # Set on EVENT_ANNOUNCEMENT bell rows / emails — the host's
+    # composed subject + body, persisted on the
+    # community_event_announcements row that owns this fan-out. The
+    # other event types leave these unset.
+    announcement_id: str | None = None
+    announcement_subject: str | None = None
+    announcement_body: str | None = None
 
 
 def get_from_name(notification_type: str, payload: dict[str, Any]) -> str | None:
@@ -213,6 +229,12 @@ def render(notification_type: str, payload: dict[str, Any]) -> tuple[str, str]:
     # since the subject lives outside the rendered body.
     if notification_type == EVENT_PUBLISHED:
         subject = f"New event: {title}"
+    elif notification_type == EVENT_ANNOUNCEMENT:
+        # The host's typed subject wins. Fall back to a sensible
+        # default if somehow the payload was constructed without one
+        # — better than the generic "New community notification" the
+        # bottom of this if-chain produces.
+        subject = (ep.announcement_subject or "").strip() or f"Update: {title}"
     elif notification_type == EVENT_RSVP_CONFIRMED:
         subject = f"You're going: {title}"
     elif notification_type == EVENT_STARTING_SOON_24H:
@@ -234,6 +256,7 @@ def render(notification_type: str, payload: dict[str, Any]) -> tuple[str, str]:
     # back to legacy inline HTML so the customer still gets something.
     react_email_eligible = notification_type in {
         EVENT_PUBLISHED,
+        EVENT_ANNOUNCEMENT,
         EVENT_RSVP_CONFIRMED,
         EVENT_STARTING_SOON_24H,
         EVENT_LIVE,
@@ -304,6 +327,7 @@ def render(notification_type: str, payload: dict[str, Any]) -> tuple[str, str]:
 
 _TEMPLATE_BY_TYPE: dict[str, str] = {
     EVENT_PUBLISHED: "community_event_published",
+    EVENT_ANNOUNCEMENT: "community_event_announcement",
     EVENT_RSVP_CONFIRMED: "community_event_rsvp_confirmed",
     EVENT_STARTING_SOON_24H: "community_event_starting_soon_24h",
     EVENT_LIVE: "community_event_live",
@@ -350,6 +374,8 @@ def _render_react_email(
     from polar.email.react import render_email_template
     from polar.email.schemas import (
         CommunityEmailOrgInfo,
+        CommunityEventAnnouncementEmail,
+        CommunityEventAnnouncementProps,
         CommunityEventCardData,
         CommunityEventLiveEmail,
         CommunityEventLiveProps,
@@ -392,6 +418,7 @@ def _render_react_email(
     # narrowing to the first variant.
     email: (
         CommunityEventPublishedEmail
+        | CommunityEventAnnouncementEmail
         | CommunityEventRsvpConfirmedEmail
         | CommunityEventStartingSoon24hEmail
         | CommunityEventLiveEmail
@@ -404,6 +431,19 @@ def _render_react_email(
                 course_name=ep.course_name,
                 event_url=ep.event_url,
                 event=event_card,
+                host_name=ep.host_name,
+            )
+        )
+    elif notification_type == EVENT_ANNOUNCEMENT:
+        email = CommunityEventAnnouncementEmail(
+            props=CommunityEventAnnouncementProps(
+                email=customer_email,
+                organization=organization,
+                course_name=ep.course_name,
+                event_url=ep.event_url,
+                event=event_card,
+                subject=ep.announcement_subject or f"Update: {ep.title}",
+                body=ep.announcement_body or "",
                 host_name=ep.host_name,
             )
         )

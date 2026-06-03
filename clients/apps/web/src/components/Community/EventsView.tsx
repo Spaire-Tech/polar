@@ -1,8 +1,8 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { useAnnounceCommunityEvent } from '../../hooks/queries/community'
 import { Avatar } from './Avatar'
+import { EventAnnouncementComposerModal } from './EventAnnouncementComposerModal'
 import { EventAttendeesModal } from './EventAttendeesModal'
 import { EventDetailModal } from './EventDetailModal'
 import { PageHero } from './PageHero'
@@ -222,7 +222,12 @@ type Props = {
   organizationSlug?: string
   hostName: string
   events: CommunityEvent[]
-  onCreate: (event: CommunityEventCreateInput) => void
+  // Resolves to the created event (or undefined on failure) so the
+  // composer modal can open pre-filled for it. Older callers that
+  // returned void still type-check thanks to the union.
+  onCreate: (
+    event: CommunityEventCreateInput,
+  ) => Promise<CommunityEvent | undefined> | void
   onUpdate: (eventId: string, patch: CommunityEventCreateInput) => void
   onDelete: (eventId: string) => void
   onToggleGoing: (id: string) => void
@@ -266,19 +271,16 @@ export function EventsView({
   // Toast strip — reused for the "Announcement sent" confirmation so we
   // don't introduce a second notification surface.
   const [hostToast, setHostToast] = useState<string | null>(null)
-  const announceMut = useAnnounceCommunityEvent(courseId)
+  // Composer modal — opens after the host creates an event (so the
+  // "tell members" step lives in the same flow), and via the 3-dots
+  // menu's "Send announcement" item. Separate from `editing` so the
+  // host can announce without re-opening the event editor.
+  const [announceFor, setAnnounceFor] = useState<{
+    event: CommunityEvent
+    mode: 'post-create' | 'menu'
+  } | null>(null)
   const onAnnounce = (event: CommunityEvent) => {
-    // Confirm before fanning out — re-announcing isn't destructive but
-    // it does email every enrolled member, which is irreversible. The
-    // confirm copy spells out exactly what happens.
-    const ok = window.confirm(
-      `Send a fresh "new event" notification to everyone enrolled in this course? They'll get a bell + email for "${event.title}".`,
-    )
-    if (!ok) return
-    announceMut.mutate(event.id, {
-      onSuccess: () => setHostToast('Announcement queued'),
-      onError: () => setHostToast('Could not send announcement'),
-    })
+    setAnnounceFor({ event, mode: 'menu' })
   }
   useEffect(() => {
     if (!hostToast) return
@@ -574,9 +576,18 @@ export function EventsView({
           hostName={hostName}
           editing={null}
           onClose={() => setCreateOpen(false)}
-          onSubmit={(payload) => {
-            onCreate(payload)
+          onSubmit={async (payload) => {
+            const created = await Promise.resolve(onCreate(payload))
             setCreateOpen(false)
+            // Chain the composer into the post-create flow. We pop
+            // it open as a *new* modal layered above (the create
+            // modal is already closing) so the host's natural next
+            // action is to tell members about the thing they just
+            // made — instead of staring at a card that quietly
+            // exists.
+            if (created) {
+              setAnnounceFor({ event: created, mode: 'post-create' })
+            }
           }}
         />
       )}
@@ -612,6 +623,23 @@ export function EventsView({
           eventId={attendeesFor?.id ?? null}
           eventTitle={attendeesFor?.title ?? null}
           onClose={() => setAttendeesFor(null)}
+        />
+      )}
+
+      {canCreate && courseId && (
+        <EventAnnouncementComposerModal
+          open={!!announceFor}
+          courseId={courseId}
+          event={announceFor?.event ?? null}
+          mode={announceFor?.mode ?? 'menu'}
+          onClose={() => setAnnounceFor(null)}
+          onSent={(n) =>
+            setHostToast(
+              n === 0
+                ? 'Announcement saved (no enrolled members to notify yet)'
+                : `Announcement sent to ${n} member${n === 1 ? '' : 's'}`,
+            )
+          }
         />
       )}
 
@@ -1274,16 +1302,16 @@ function CreateEventModal({
             {isEdit && onAnnounce ? (
               <button
                 type="button"
-                // Ghost variant: re-announcing is a separate action
+                // Ghost variant: announcing is a separate action
                 // from saving the form, and we don't want it
                 // competing with the primary Save CTA. The host hits
                 // Cancel/Save for the form-state path; this nudges
                 // attendees as a discrete extra step.
                 className={`${styles.ceBtn} ${styles.ceBtnGhost}`}
                 onClick={onAnnounce}
-                title="Send a fresh announcement to all members"
+                title="Open the composer and send a note to members"
               >
-                Re-announce
+                Send announcement
               </button>
             ) : null}
             <button
@@ -1547,7 +1575,7 @@ export function CardManageMenu({
             <MenuItem onClick={onViewAttendees}>View attendees</MenuItem>
           ) : null}
           {onAnnounce ? (
-            <MenuItem onClick={onAnnounce}>Re-announce</MenuItem>
+            <MenuItem onClick={onAnnounce}>Send announcement</MenuItem>
           ) : null}
           <MenuItem onClick={onEdit}>Edit</MenuItem>
           <MenuItem onClick={onDelete} danger>

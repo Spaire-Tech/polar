@@ -833,6 +833,33 @@ export interface components {
        */
       website: string | null
     }
+    /** CommunityEventAnnouncementEmail */
+    CommunityEventAnnouncementEmail: {
+      /**
+       * Template
+       * @default community_event_announcement
+       * @constant
+       */
+      template: 'community_event_announcement'
+      props: components['schemas']['CommunityEventAnnouncementProps']
+    }
+    /** CommunityEventAnnouncementProps */
+    CommunityEventAnnouncementProps: {
+      /** Email */
+      email: string
+      organization: components['schemas']['CommunityEmailOrgInfo']
+      /** Course Name */
+      course_name: string
+      /** Event Url */
+      event_url: string
+      event: components['schemas']['CommunityEventCardData']
+      /** Subject */
+      subject: string
+      /** Body */
+      body: string
+      /** Host Name */
+      host_name: string
+    }
     /** CommunityEventCardData */
     CommunityEventCardData: {
       /** Title */
