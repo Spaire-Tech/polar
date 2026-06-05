@@ -1,7 +1,7 @@
 import { getServerSideAPI } from '@/utils/client/serverside'
 import { getOrganizationBySlugOrNotFound } from '@/utils/organization'
 import { Metadata } from 'next'
-import { NewBroadcastRoute } from '../../_components/screens/NewBroadcastScreen'
+import { NewBroadcastV2Screen } from '../../_components/screens/NewBroadcastV2Screen'
 
 export async function generateMetadata(): Promise<Metadata> {
   return { title: 'New broadcast · Email Marketing' }
@@ -16,5 +16,5 @@ export default async function Page(props: {
     api,
     params.organization,
   )
-  return <NewBroadcastRoute organization={organization} broadcastId={null} />
+  return <NewBroadcastV2Screen organization={organization} />
 }
