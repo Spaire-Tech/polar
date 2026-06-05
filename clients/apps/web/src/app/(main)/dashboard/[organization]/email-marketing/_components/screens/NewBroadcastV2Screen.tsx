@@ -1,18 +1,21 @@
 'use client'
 
-// Real end-to-end compose page for the new React Email visual editor.
+// Broadcast composer built on @react-email/editor.
 //
-// This is intentionally a focused first-cut next to the existing
-// NewBroadcastScreen wizard (which carries A/B testing, segments,
-// scheduling, etc.). The goal is to validate the new editor against the
-// real API: create a draft, send a test, see the email arrive — all
-// without touching the legacy wizard until we know the new editor works.
+// Three-tab workflow that mirrors the legacy wizard's idiom (back button +
+// eyebrow + h1 + tabs + Back/Continue footer) using Spaire's existing
+// `Section` / `card` / `label` / `input` / `btn-*` CSS classes. Tabs:
 //
-// Routes here from /broadcasts/new-v2.
+//   1. Details — subject, preview text, sender, from address, reply-to
+//   2. Content — block palette · editor · inspector
+//   3. Send    — test recipient, then live send
+//
+// Persists to the same EmailBroadcast.{content_json, content_html} columns
+// the legacy wizard writes to, via the existing mutation hooks. Editor is
+// mounted once on first paint and hidden across tab switches (not unmounted)
+// so creators don't lose UI state when jumping between Details and Content.
 
-import {
-  useAuth,
-} from '@/hooks/auth'
+import { useAuth } from '@/hooks/auth'
 import {
   useCreateEmailBroadcast,
   useSendTestEmailBroadcast,
@@ -22,10 +25,24 @@ import {
 } from '@/hooks/queries/emailMarketing'
 import { schemas } from '@spaire/client'
 import { useRouter } from 'next/navigation'
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 
-import { SpaireEmailEditor, type EmailEditorSnapshot } from '../emailEditor/SpaireEmailEditor'
+import { BlockPalette } from '../emailEditor/BlockPalette'
+import {
+  SpaireEmailEditor,
+  type EmailEditorSnapshot,
+} from '../emailEditor/SpaireEmailEditor'
+import { Icon } from '../Icon'
 import { sanitizeEmailHtml } from '../sanitize'
+import { Section } from '../shared'
+
+type Tab = 'details' | 'content' | 'send'
+
+const TABS: { id: Tab; label: string }[] = [
+  { id: 'details', label: 'Details' },
+  { id: 'content', label: 'Content' },
+  { id: 'send', label: 'Send' },
+]
 
 const STARTER_JSON = {
   type: 'doc',
@@ -56,33 +73,46 @@ export function NewBroadcastV2Screen({
   const router = useRouter()
   const { currentUser } = useAuth()
 
+  // Draft state — mirrors the legacy Draft shape but trimmed to what V2 sends.
   const [subject, setSubject] = useState('')
   const [previewText, setPreviewText] = useState('')
   const [senderName, setSenderName] = useState(organization.name)
   const [senderEmail, setSenderEmail] = useState('')
+  const [replyToEmail, setReplyToEmail] = useState('')
   const [testRecipient, setTestRecipient] = useState(currentUser?.email ?? '')
   const [broadcastId, setBroadcastId] = useState<string | null>(null)
   const [snapshot, setSnapshot] = useState<EmailEditorSnapshot | null>(null)
+  const [savedAt, setSavedAt] = useState<Date | null>(null)
   const [statusMsg, setStatusMsg] = useState<string>('')
+  const [statusKind, setStatusKind] = useState<'info' | 'success' | 'error'>(
+    'info',
+  )
+  const [tab, setTab] = useState<Tab>('details')
 
   const createBroadcast = useCreateEmailBroadcast(organization.id)
   const updateBroadcast = useUpdateEmailBroadcast()
   const sendTest = useSendTestEmailBroadcast()
   const uploadImageMutation = useUploadEmailImage(organization.id)
 
-  // Adapter from the mutation hook to the editor's `(file) => Promise<string>` shape.
-  const uploadImage = useCallback(
-    async (file: File) => {
-      const result = await uploadImageMutation.mutateAsync(file)
-      return result.url
-    },
-    [uploadImageMutation],
-  )
+  // Stable upload wrapper — TanStack mutation references change every
+  // render; the editor will rebuild if uploadImage's identity changes,
+  // so hold the mutation in a ref and expose a singleton callback.
+  const uploadMutRef = useRef(uploadImageMutation)
+  uploadMutRef.current = uploadImageMutation
+  const uploadImage = useCallback(async (file: File) => {
+    const result = await uploadMutRef.current.mutateAsync(file)
+    return result.url
+  }, [])
 
   const sanitizedHtml = useMemo(
     () => sanitizeEmailHtml(snapshot?.html),
     [snapshot?.html],
   )
+
+  const setStatus = (kind: 'info' | 'success' | 'error', msg: string) => {
+    setStatusKind(kind)
+    setStatusMsg(msg)
+  }
 
   type CreatePayload = BroadcastWritePayload & {
     subject: string
@@ -96,7 +126,7 @@ export function NewBroadcastV2Screen({
       preview_text: previewText || null,
       sender_name: senderName || organization.name,
       sender_email: senderEmail || null,
-      reply_to_email: null,
+      reply_to_email: replyToEmail || null,
       content_html: snapshot.html,
       content_json: snapshot.json as unknown as Record<string, unknown>,
       segment_id: null,
@@ -104,176 +134,376 @@ export function NewBroadcastV2Screen({
     }
   }
 
-  const onSaveDraft = async () => {
+  const persist = async (): Promise<string | null> => {
     const payload = buildPayload()
     if (!payload) {
-      setStatusMsg('Add some content before saving.')
-      return
+      setStatus('error', 'Add some content before saving.')
+      return null
     }
-    setStatusMsg('Saving…')
+    setStatus('info', 'Saving…')
     try {
-      if (broadcastId) {
-        await updateBroadcast.mutateAsync({ broadcastId, body: payload })
+      let id = broadcastId
+      if (id) {
+        await updateBroadcast.mutateAsync({ broadcastId: id, body: payload })
       } else {
         const created = await createBroadcast.mutateAsync(payload)
-        setBroadcastId(created.id)
+        id = created.id
+        setBroadcastId(id)
       }
-      setStatusMsg('Saved.')
+      setSavedAt(new Date())
+      setStatus('success', 'Saved.')
+      return id
     } catch (err) {
-      setStatusMsg(err instanceof Error ? err.message : 'Save failed.')
+      setStatus('error', err instanceof Error ? err.message : 'Save failed.')
+      return null
     }
   }
 
   const onSendTest = async () => {
     if (!testRecipient) {
-      setStatusMsg('Enter a recipient email for the test.')
+      setStatus('error', 'Enter a recipient email for the test.')
       return
     }
-    // Test send needs a persisted broadcast; save first if needed.
-    let id = broadcastId
-    const payload = buildPayload()
-    if (!payload) {
-      setStatusMsg('Add some content before sending a test.')
-      return
-    }
-    setStatusMsg('Sending test…')
+    const id = await persist()
+    if (!id) return
+    setStatus('info', 'Sending test…')
     try {
-      if (!id) {
-        const created = await createBroadcast.mutateAsync(payload)
-        id = created.id
-        setBroadcastId(id)
-      } else {
-        await updateBroadcast.mutateAsync({ broadcastId: id, body: payload })
-      }
       await sendTest.mutateAsync({ broadcastId: id, email: testRecipient })
-      setStatusMsg(`Test sent to ${testRecipient}.`)
+      setStatus('success', `Test sent to ${testRecipient}.`)
     } catch (err) {
-      setStatusMsg(err instanceof Error ? err.message : 'Test send failed.')
+      setStatus('error', err instanceof Error ? err.message : 'Test failed.')
     }
   }
 
+  const isPersisting = createBroadcast.isPending || updateBroadcast.isPending
+  const isSending = sendTest.isPending
+  const isReadyToSend = Boolean(subject.trim()) && Boolean(snapshot?.html)
+  const tabIndex = TABS.findIndex((t) => t.id === tab)
+
   return (
-    <div className="flex flex-col gap-6 p-6">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-semibold text-gray-900">New broadcast</h1>
-          <p className="text-sm text-gray-500">
-            Composing with the new editor. {broadcastId ? `Draft: ${broadcastId.slice(0, 8)}…` : 'Unsaved draft.'}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
+    <div className="fade-up" style={{ paddingBottom: 80 }}>
+      {/* ── Header ──────────────────────────────────────────────────────── */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          marginBottom: 32,
+          gap: 16,
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16, minWidth: 0 }}>
           <button
-            type="button"
-            className="rounded-xl bg-gray-100 px-4 py-2 text-sm font-medium text-gray-900 hover:bg-gray-200"
+            className="btn-icon"
             onClick={() => router.back()}
+            aria-label="Back"
           >
-            Cancel
+            <Icon name="arrow-left" size={16} />
+          </button>
+          <div style={{ minWidth: 0 }}>
+            <div className="eyebrow">
+              {broadcastId ? 'Draft · Editing' : 'New broadcast · Draft'}
+            </div>
+            <h1
+              className="h1"
+              style={{
+                marginTop: 6,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {subject || 'Untitled broadcast'}
+            </h1>
+            {savedAt && (
+              <div className="muted" style={{ fontSize: 12.5, marginTop: 4 }}>
+                Saved {savedAt.toLocaleTimeString()}
+              </div>
+            )}
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 10, flexShrink: 0 }}>
+          <button
+            className="btn btn-secondary"
+            onClick={() => void persist()}
+            disabled={isPersisting}
+          >
+            {isPersisting ? 'Saving…' : 'Save draft'}
           </button>
           <button
-            type="button"
-            className="rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-            onClick={onSaveDraft}
-            disabled={createBroadcast.isPending || updateBroadcast.isPending}
+            className="btn btn-primary"
+            onClick={() => setTab('send')}
+            disabled={!isReadyToSend}
+            style={{ opacity: !isReadyToSend ? 0.5 : 1 }}
           >
-            Save draft
-          </button>
-          <button
-            type="button"
-            className="rounded-xl bg-blue-500 px-4 py-2 text-sm font-medium text-white hover:bg-blue-600"
-            onClick={onSendTest}
-            disabled={sendTest.isPending}
-          >
-            Send test
+            <Icon name="send" size={15} />
+            Send
           </button>
         </div>
       </div>
 
-      {statusMsg ? (
-        <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700">
+      {/* ── Status banner ───────────────────────────────────────────────── */}
+      {statusMsg && (
+        <div
+          style={{
+            marginBottom: 20,
+            padding: '10px 14px',
+            borderRadius: 10,
+            fontSize: 13,
+            border: '1px solid var(--line)',
+            background:
+              statusKind === 'error'
+                ? 'rgba(220,38,38,0.06)'
+                : statusKind === 'success'
+                  ? 'rgba(16,185,129,0.06)'
+                  : 'var(--bg-soft)',
+            color:
+              statusKind === 'error'
+                ? '#b91c1c'
+                : statusKind === 'success'
+                  ? '#047857'
+                  : 'var(--ink-2)',
+          }}
+        >
           {statusMsg}
         </div>
-      ) : null}
+      )}
 
-      <div className="grid gap-4 lg:grid-cols-4">
-        <label className="col-span-2 flex flex-col gap-1 text-sm">
-          <span className="text-xs font-medium uppercase tracking-wide text-gray-500">
-            Subject
-          </span>
-          <input
-            value={subject}
-            onChange={(e) => setSubject(e.target.value)}
-            placeholder="Subject line"
-            className="rounded-xl border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
-          />
-        </label>
-        <label className="col-span-2 flex flex-col gap-1 text-sm">
-          <span className="text-xs font-medium uppercase tracking-wide text-gray-500">
-            Preview text
-          </span>
-          <input
-            value={previewText}
-            onChange={(e) => setPreviewText(e.target.value)}
-            placeholder="Shown in inbox after the subject"
-            className="rounded-xl border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
-          />
-        </label>
-        <label className="flex flex-col gap-1 text-sm">
-          <span className="text-xs font-medium uppercase tracking-wide text-gray-500">
-            From name
-          </span>
-          <input
-            value={senderName}
-            onChange={(e) => setSenderName(e.target.value)}
-            className="rounded-xl border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
-          />
-        </label>
-        <label className="flex flex-col gap-1 text-sm">
-          <span className="text-xs font-medium uppercase tracking-wide text-gray-500">
-            From email
-          </span>
-          <input
-            value={senderEmail}
-            onChange={(e) => setSenderEmail(e.target.value)}
-            placeholder="Leave blank for org default"
-            className="rounded-xl border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
-          />
-        </label>
-        <label className="col-span-2 flex flex-col gap-1 text-sm">
-          <span className="text-xs font-medium uppercase tracking-wide text-gray-500">
-            Test recipient
-          </span>
-          <input
-            value={testRecipient}
-            onChange={(e) => setTestRecipient(e.target.value)}
-            placeholder="you@example.com"
-            className="rounded-xl border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
-          />
-        </label>
+      {/* ── Tabs ─────────────────────────────────────────────────────────── */}
+      <div style={{ marginBottom: 24, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        <div className="tabs">
+          {TABS.map((t) => (
+            <button
+              key={t.id}
+              onClick={() => setTab(t.id)}
+              className={`tab ${tab === t.id ? 'tab-active' : ''}`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
-        <div className="rounded-xl border border-gray-200 bg-white p-4">
+      {/* ── Details ──────────────────────────────────────────────────────── */}
+      <div style={{ display: tab === 'details' ? 'block' : 'none' }}>
+        <Section
+          title="The basics"
+          sub="Subject and preview text are the first — sometimes only — thing your readers see."
+        >
+          <div className="card" style={{ padding: 28 }}>
+            <div style={{ marginBottom: 24 }}>
+              <label className="label">Subject line</label>
+              <input
+                className="input"
+                value={subject}
+                onChange={(e) => setSubject(e.target.value)}
+                style={{ fontSize: 15 }}
+                maxLength={255}
+                placeholder="Your subject…"
+              />
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  marginTop: 8,
+                  fontSize: 11.5,
+                  color: 'var(--ink-4)',
+                }}
+              >
+                <span>{subject.length}/255</span>
+              </div>
+            </div>
+            <div style={{ marginBottom: 24 }}>
+              <label className="label">Preview text</label>
+              <input
+                className="input"
+                value={previewText}
+                onChange={(e) => setPreviewText(e.target.value)}
+                maxLength={150}
+                placeholder="Shown in the inbox after the subject line"
+              />
+            </div>
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: '1fr 1fr',
+                gap: 16,
+              }}
+            >
+              <div>
+                <label className="label">Sender name</label>
+                <input
+                  className="input"
+                  value={senderName}
+                  onChange={(e) => setSenderName(e.target.value)}
+                  maxLength={100}
+                />
+              </div>
+              <div>
+                <label className="label">From address</label>
+                <input
+                  className="input"
+                  type="email"
+                  value={senderEmail}
+                  onChange={(e) => setSenderEmail(e.target.value)}
+                  placeholder="hi@yourdomain.com (optional)"
+                />
+                <div
+                  style={{
+                    fontSize: 11,
+                    color: 'var(--ink-4)',
+                    marginTop: 4,
+                  }}
+                >
+                  Leave blank to use your default notifications sender.
+                </div>
+              </div>
+              <div>
+                <label className="label">Reply-to email</label>
+                <input
+                  className="input"
+                  type="email"
+                  value={replyToEmail}
+                  onChange={(e) => setReplyToEmail(e.target.value)}
+                  placeholder="Optional"
+                />
+              </div>
+            </div>
+          </div>
+        </Section>
+      </div>
+
+      {/* ── Content ─────────────────────────────────────────────────────── */}
+      <div style={{ display: tab === 'content' ? 'block' : 'none' }}>
+        <Section
+          title="Compose"
+          sub="Pick a block from the left or type / inside the editor."
+        >
           <SpaireEmailEditor
             content={STARTER_JSON}
             onChange={setSnapshot}
             uploadImage={uploadImage}
+            paletteSlot={<BlockPalette />}
           />
-        </div>
-        <div className="rounded-xl border border-gray-200 bg-white p-4">
-          <div className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-500">
-            Inbox preview
-          </div>
-          {sanitizedHtml ? (
-            <div
-              className="prose prose-sm max-w-none"
-              dangerouslySetInnerHTML={{ __html: sanitizedHtml }}
-            />
-          ) : (
-            <div className="text-sm text-gray-400">
-              Start editing to see the preview.
+        </Section>
+      </div>
+
+      {/* ── Send ────────────────────────────────────────────────────────── */}
+      <div style={{ display: tab === 'send' ? 'block' : 'none' }}>
+        <Section
+          title="Send a test"
+          sub="Send yourself the email to confirm it looks right before going live."
+        >
+          <div className="card" style={{ padding: 28 }}>
+            <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end' }}>
+              <div style={{ flex: 1 }}>
+                <label className="label">Recipient</label>
+                <input
+                  className="input"
+                  type="email"
+                  value={testRecipient}
+                  onChange={(e) => setTestRecipient(e.target.value)}
+                  placeholder="you@example.com"
+                />
+              </div>
+              <button
+                className="btn btn-secondary"
+                onClick={onSendTest}
+                disabled={isSending || isPersisting || !isReadyToSend}
+              >
+                {isSending ? 'Sending…' : 'Send test'}
+              </button>
             </div>
-          )}
-        </div>
+            {!isReadyToSend && (
+              <div
+                style={{
+                  marginTop: 16,
+                  padding: 12,
+                  background: 'var(--bg-soft)',
+                  borderRadius: 8,
+                  fontSize: 12.5,
+                  color: 'var(--ink-3)',
+                }}
+              >
+                Add a subject and at least one content block to enable
+                sending.
+              </div>
+            )}
+          </div>
+        </Section>
+
+        <Section title="Inbox preview" sub="How the email renders right now.">
+          <div
+            className="card"
+            style={{ padding: 28, background: 'var(--bg-soft)' }}
+          >
+            <div
+              style={{
+                background: '#fff',
+                maxWidth: 600,
+                margin: '0 auto',
+                padding: 28,
+                borderRadius: 10,
+                border: '1px solid var(--line)',
+                minHeight: 200,
+              }}
+            >
+              {sanitizedHtml ? (
+                <div dangerouslySetInnerHTML={{ __html: sanitizedHtml }} />
+              ) : (
+                <div
+                  style={{
+                    textAlign: 'center',
+                    fontSize: 13,
+                    color: 'var(--ink-4)',
+                    padding: 40,
+                  }}
+                >
+                  Start composing on the Content tab to see a preview.
+                </div>
+              )}
+            </div>
+          </div>
+        </Section>
+      </div>
+
+      {/* ── Footer: Back / Continue ────────────────────────────────────── */}
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          marginTop: 40,
+          paddingTop: 24,
+          borderTop: '1px solid var(--line)',
+        }}
+      >
+        <button
+          className="btn btn-ghost"
+          onClick={() => {
+            if (tabIndex > 0) setTab(TABS[tabIndex - 1].id)
+          }}
+          disabled={tabIndex === 0}
+          style={{ opacity: tabIndex === 0 ? 0.4 : 1 }}
+        >
+          <Icon name="arrow-left" size={15} />
+          Back
+        </button>
+        <button
+          className="btn btn-primary"
+          onClick={async () => {
+            if (tabIndex < TABS.length - 1) {
+              await persist()
+              setTab(TABS[tabIndex + 1].id)
+            }
+          }}
+          disabled={isPersisting || tabIndex === TABS.length - 1}
+          style={{
+            opacity: tabIndex === TABS.length - 1 ? 0.4 : 1,
+          }}
+        >
+          Continue
+          <Icon name="arrow-right" size={15} />
+        </button>
       </div>
     </div>
   )

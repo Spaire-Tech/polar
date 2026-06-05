@@ -67,8 +67,11 @@ type Props = {
   className?: string
   /** Render the right-hand style Inspector panel. */
   showInspector?: boolean
-  /** Optional UI rendered above the editor canvas (e.g. a block palette). */
+  /** Optional UI rendered above the editor canvas. */
   slotBefore?: ReactNode
+  /** Optional left-rail block palette. Rendered inside EditorContext so it
+   *  can call useCurrentEditor() to insert blocks. */
+  paletteSlot?: ReactNode
 }
 
 export function SpaireEmailEditor({
@@ -79,6 +82,7 @@ export function SpaireEmailEditor({
   className,
   showInspector = true,
   slotBefore,
+  paletteSlot,
 }: Props) {
   // The editor must NOT be re-created on every parent render. Three things
   // need to stay stable across renders or `useEditor` will tear down and
@@ -161,19 +165,39 @@ export function SpaireEmailEditor({
     )
   }
 
+  // Three-column grid: optional left palette | editor canvas | optional inspector.
+  const gridCols = [
+    paletteSlot ? '200px' : null,
+    '1fr',
+    showInspector ? '280px' : null,
+  ]
+    .filter(Boolean)
+    .join(' ')
+
   return (
     <EditorContext.Provider value={{ editor }}>
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: showInspector ? '1fr 280px' : '1fr',
-          gap: 24,
+          gridTemplateColumns: gridCols,
+          gap: 20,
           alignItems: 'flex-start',
         }}
       >
+        {paletteSlot}
         <div style={{ minWidth: 0 }}>
           {slotBefore}
-          <EditorContent editor={editor} className={className} />
+          <div
+            className="card"
+            style={{
+              padding: 0,
+              overflow: 'hidden',
+              minHeight: 480,
+              background: '#fff',
+            }}
+          >
+            <EditorContent editor={editor} className={className} />
+          </div>
           <BubbleMenu
             hideWhenActiveNodes={['image', 'button']}
             hideWhenActiveMarks={['link']}
@@ -184,12 +208,22 @@ export function SpaireEmailEditor({
           <SlashCommand items={slashItems} />
         </div>
         {showInspector && (
-          <Inspector.Root className="shrink-0 overflow-y-auto rounded-xl border border-gray-200 p-4">
-            <Inspector.Breadcrumb />
-            <Inspector.Document />
-            <Inspector.Node />
-            <Inspector.Text />
-          </Inspector.Root>
+          <div
+            className="card"
+            style={{
+              padding: 0,
+              overflow: 'hidden',
+              position: 'sticky',
+              top: 24,
+            }}
+          >
+            <Inspector.Root style={{ maxHeight: '70vh', overflowY: 'auto' }}>
+              <Inspector.Breadcrumb />
+              <Inspector.Document />
+              <Inspector.Node />
+              <Inspector.Text />
+            </Inspector.Root>
+          </div>
         )}
       </div>
     </EditorContext.Provider>
