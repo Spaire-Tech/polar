@@ -25,6 +25,8 @@ import {
 import type { Content, JSONContent } from '@tiptap/react'
 import { useCallback, useMemo, useRef } from 'react'
 
+import { spaireCustomNodes } from './customNodes'
+
 import '@react-email/editor/themes/default.css'
 import '@react-email/editor/styles/bubble-menu.css'
 import '@react-email/editor/styles/link-bubble-menu.css'
@@ -106,6 +108,7 @@ export function SpaireEmailEditor({
         onUpdate={handleUpdate}
         onUploadImage={onUploadImage}
         placeholder={placeholder}
+        extensions={spaireCustomNodes}
         theme={{
           extends: 'basic',
           styles: {
