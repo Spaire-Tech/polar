@@ -23,7 +23,6 @@ import { composeReactEmail } from '@react-email/editor/core'
 import { StarterKit } from '@react-email/editor/extensions'
 import {
   EmailTheming,
-  extendTheme,
   imageSlashCommand,
   useEditorImage,
 } from '@react-email/editor/plugins'
@@ -64,8 +63,6 @@ type Props = {
    * `(file) => Promise<string>` uploader to the editor's `{ url }` shape.
    */
   uploadImage?: (file: File) => Promise<string>
-  /** Accent colour applied to buttons and links (e.g. the org brand colour). */
-  accent?: string
   placeholder?: string
   className?: string
   /** Render the right-hand style Inspector panel. */
@@ -78,70 +75,91 @@ export function SpaireEmailEditor({
   content,
   onChange,
   uploadImage,
-  accent = '#4f46e5',
   placeholder = "Press '/' for commands",
   className,
   showInspector = true,
   slotBefore,
 }: Props) {
-  // Keep the latest onChange without re-creating the editor.
+  // The editor must NOT be re-created on every parent render. Three things
+  // need to stay stable across renders or `useEditor` will tear down and
+  // rebuild the editor every render — which leaves UI children (Inspector,
+  // bubble menus) reading a half-built state and dereferencing null
+  // theme/styles on first paint.
+  //
+  //   1. onChange callback — parent lambda changes identity every render.
+  //   2. uploadImage callback — same (TanStack mutation refs change too).
+  //   3. extensions array — must be a singleton.
+  //
+  // For (1) and (2) we hold the latest via refs. For (3) we build the
+  // extensions array exactly once. Theme overrides moved out of here for
+  // the same reason — re-keying the editor on accent isn't worth the
+  // tear-down cost. Configure via CSS or a future stable prop.
   const onChangeRef = useRef(onChange)
   onChangeRef.current = onChange
+  const uploadImageRef = useRef(uploadImage)
+  uploadImageRef.current = uploadImage
+
+  // Stable upload adapter — identity never changes after first render.
+  const stableUpload = useCallback(async (file: File) => {
+    const uploader = uploadImageRef.current
+    if (!uploader) throw new Error('Image upload is not configured')
+    return { url: await uploader(file) }
+  }, [])
+
+  // Image upload is a hook-provided extension on the lower-level path.
+  const imageExtension = useEditorImage({ uploadImage: stableUpload })
+
+  const extensions = useMemo(
+    () => [
+      StarterKit,
+      EmailTheming,
+      Placeholder.configure({ placeholder }),
+      imageExtension,
+      ...spaireCustomNodes,
+    ],
+    // Intentionally empty deps — see comment above. Changing placeholder
+    // at runtime is a non-goal; the editor won't pick it up either way.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
+  )
 
   // Serialising to email HTML is async; coalesce bursts of keystrokes so we
   // only run the React Email serializer on a trailing edge.
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const handleUpload = useCallback(
-    async (file: File) => {
-      if (!uploadImage) throw new Error('Image upload is not configured')
-      return { url: await uploadImage(file) }
+  const editor = useEditor({
+    extensions,
+    content,
+    immediatelyRender: false,
+    onUpdate: ({ editor }) => {
+      if (timer.current) clearTimeout(timer.current)
+      timer.current = setTimeout(async () => {
+        const cb = onChangeRef.current
+        if (!cb) return
+        const json = editor.getJSON()
+        const { html } = await composeReactEmail({ editor })
+        cb({ json, html })
+      }, 300)
     },
-    [uploadImage],
-  )
-
-  // Image upload is a hook-provided extension on the lower-level path.
-  const imageExtension = useEditorImage({ uploadImage: handleUpload })
-
-  const extensions = useMemo(
-    () => [
-      StarterKit,
-      EmailTheming.configure({
-        theme: extendTheme('basic', {
-          button: { backgroundColor: accent, color: '#ffffff', borderRadius: '8px' },
-          link: { color: accent },
-        }),
-      }),
-      Placeholder.configure({ placeholder }),
-      imageExtension,
-      ...spaireCustomNodes,
-    ],
-    [imageExtension, accent, placeholder],
-  )
-
-  const editor = useEditor(
-    {
-      extensions,
-      content,
-      immediatelyRender: false,
-      onUpdate: ({ editor }) => {
-        if (timer.current) clearTimeout(timer.current)
-        timer.current = setTimeout(async () => {
-          const cb = onChangeRef.current
-          if (!cb) return
-          const json = editor.getJSON()
-          const { html } = await composeReactEmail({ editor })
-          cb({ json, html })
-        }, 300)
-      },
-    },
-    [extensions],
-  )
+  })
 
   const slashItems = useMemo(
     () => [...defaultSlashCommands, imageSlashCommand, ...spaireSlashItems],
     [],
   )
+
+  // Don't render the bubble menus, slash menu, or inspector until the editor
+  // instance exists. Several of those components read from EditorContext
+  // synchronously and crash on a null editor (e.g. `editor.options...`).
+  if (!editor) {
+    return (
+      <div className={className} style={{ minHeight: 280 }}>
+        <div className="rounded-xl border border-gray-200 bg-gray-50 p-6 text-sm text-gray-400">
+          Loading editor…
+        </div>
+      </div>
+    )
+  }
 
   return (
     <EditorContext.Provider value={{ editor }}>
