@@ -2,6 +2,9 @@ from typing import Annotated
 
 from pydantic import UUID4, Discriminator
 
+from polar.benefit.strategies.course_access.properties import (
+    BenefitGrantCourseAccessProperties,
+)
 from polar.benefit.strategies.custom.properties import BenefitGrantCustomProperties
 from polar.benefit.strategies.discord.properties import BenefitGrantDiscordProperties
 from polar.benefit.strategies.downloadables.properties import (
@@ -166,13 +169,20 @@ class BenefitGrantMeterCreditWebhook(BenefitGrantWebhookBase):
     previous_properties: BenefitGrantMeterCreditProperties | None = None
 
 
+class BenefitGrantCourseAccessWebhook(BenefitGrantWebhookBase):
+    benefit: BenefitCourseAccess
+    properties: BenefitGrantCourseAccessProperties
+    previous_properties: BenefitGrantCourseAccessProperties | None = None
+
+
 BenefitGrantWebhook = Annotated[
     BenefitGrantDiscordWebhook
     | BenefitGrantCustomWebhook
     | BenefitGrantGitHubRepositoryWebhook
     | BenefitGrantDownloadablesWebhook
     | BenefitGrantLicenseKeysWebhook
-    | BenefitGrantMeterCreditWebhook,
+    | BenefitGrantMeterCreditWebhook
+    | BenefitGrantCourseAccessWebhook,
     SetSchemaReference("BenefitGrantWebhook"),
     MergeJSONSchema({"title": "BenefitGrantWebhook"}),
     ClassName("BenefitGrantWebhook"),
