@@ -659,14 +659,9 @@ function FormatHero({
   const [imageLoaded, setImageLoaded] = useState(false)
   return (
     <div className="fmt-hero">
-      <div className={`fmt-grad-${option.tone}`} aria-hidden />
-      <div className={`fmt-glow-${option.tone}`} aria-hidden />
-      <div className={`fmt-subject fmt-${option.tone}`} aria-hidden>
-        <div className="fmt-head" />
-        <div className="fmt-body-silhouette" />
-      </div>
-      <div className="fmt-vignette" aria-hidden />
-
+      {/* The hero frame is solid black (.fmt-hero). The cover photo is held
+          at opacity 0 until it loads, so the reveal is black → photo with no
+          coloured placeholder flash. */}
       <img
         src={option.imageSrc}
         alt=""
@@ -759,7 +754,7 @@ export function StepFormat({
             })}
           </div>
 
-          <div className="so-btn-row" style={{ marginTop: 24, justifyContent: 'center' }}>
+          <div className="so-btn-row" style={{ marginTop: 40, justifyContent: 'center' }}>
             <button
               type="button"
               className="so-btn-cta"
@@ -786,39 +781,39 @@ export function StepFormat({
 
       <style jsx global>{`
         .so-stage--format {
-          /* Pull the stage tight so header + cards + CTA fit a single
-             viewport without scroll. Top accounts for the fixed TopBar
-             (56px), bottom is just breathing room. */
-          padding: 70px 24px 28px;
+          /* Give the step room to breathe — generous top clearance below the
+             fixed TopBar (56px) and a roomy bottom. The stage scrolls if the
+             content runs past the viewport. */
+          padding: 104px 24px 72px;
           min-height: 100vh;
         }
         .fmt-header {
           text-align: center;
-          max-width: 560px;
-          margin: 0 auto 44px;
+          max-width: 600px;
+          margin: 0 auto 56px;
         }
         .fmt-title {
           font-family: var(--font-poppins), system-ui, sans-serif;
-          font-size: clamp(26px, 3.4vw, 36px);
+          font-size: clamp(28px, 3.6vw, 38px);
           font-weight: 700;
           letter-spacing: -0.03em;
-          line-height: 1.05;
+          line-height: 1.08;
           color: var(--so-black);
-          margin: 0 0 8px;
+          margin: 0 0 14px;
           text-wrap: balance;
         }
         .fmt-lede {
-          font-size: 13.5px;
-          line-height: 1.55;
+          font-size: 14.5px;
+          line-height: 1.6;
           color: var(--so-gray4);
-          max-width: 520px;
+          max-width: 540px;
           margin: 0 auto;
         }
 
         .fmt-grid {
           display: grid;
           grid-template-columns: repeat(2, 1fr);
-          gap: 18px;
+          gap: 28px;
           width: 100%;
         }
         @media (max-width: 760px) {
@@ -832,7 +827,7 @@ export function StepFormat({
           display: flex;
           flex-direction: column;
           background: #ffffff;
-          border-radius: 18px;
+          border-radius: 20px;
           border: 1px solid var(--so-gray2);
           overflow: hidden;
           cursor: pointer;
@@ -856,82 +851,28 @@ export function StepFormat({
             0 14px 32px rgba(0, 0, 0, 0.08);
           border-color: var(--so-gray3);
         }
+        .fmt-card:focus-visible {
+          outline: none;
+          border-color: oklch(0.62 0.21 265);
+          box-shadow: 0 0 0 3px oklch(0.62 0.21 265 / 0.25);
+        }
         .fmt-card[data-selected='true'] {
-          border-color: var(--so-black);
+          border-color: oklch(0.62 0.21 265);
           box-shadow:
-            0 0 0 1.5px var(--so-black),
-            0 14px 36px rgba(0, 0, 0, 0.1);
+            0 0 0 1.5px oklch(0.62 0.21 265),
+            0 14px 36px oklch(0.62 0.21 265 / 0.18);
         }
 
-        /* Hero — shrinks with viewport height so the whole card stays in
-           view on shorter screens. Aspect kept loosely 16/9 but capped via
-           max-height so a short viewport doesn't blow the card past the
-           CTA. */
+        /* Hero — a solid black frame that the cover photo reveals over.
+           Aspect kept loosely 16/9 but capped via max-height so a short
+           viewport doesn't blow the card past the CTA. */
         .fmt-hero {
           position: relative;
           width: 100%;
           aspect-ratio: 16 / 9;
-          max-height: clamp(150px, 28vh, 240px);
+          max-height: clamp(180px, 30vh, 260px);
           overflow: hidden;
           background: #000;
-        }
-        .fmt-grad-warm {
-          position: absolute;
-          inset: 0;
-          background: radial-gradient(
-            ellipse at 50% 28%,
-            oklch(0.46 0.12 35) 0%,
-            oklch(0.18 0.05 55) 55%,
-            oklch(0.05 0.01 280) 100%
-          );
-        }
-        .fmt-grad-cool {
-          position: absolute;
-          inset: 0;
-          background: radial-gradient(
-            ellipse at 50% 28%,
-            oklch(0.42 0.13 250) 0%,
-            oklch(0.18 0.06 270) 55%,
-            oklch(0.05 0.01 280) 100%
-          );
-        }
-        .fmt-glow-warm {
-          position: absolute;
-          left: -8%;
-          top: 0;
-          width: 55%;
-          height: 70%;
-          background: radial-gradient(
-            ellipse,
-            oklch(0.88 0.08 75 / 0.28) 0%,
-            transparent 65%
-          );
-          filter: blur(30px);
-        }
-        .fmt-glow-cool {
-          position: absolute;
-          left: -8%;
-          top: 0;
-          width: 55%;
-          height: 70%;
-          background: radial-gradient(
-            ellipse,
-            oklch(0.85 0.1 220 / 0.26) 0%,
-            transparent 65%
-          );
-          filter: blur(30px);
-        }
-        .fmt-vignette {
-          position: absolute;
-          inset: 0;
-          background: linear-gradient(
-            180deg,
-            rgba(0, 0, 0, 0.12) 0%,
-            rgba(0, 0, 0, 0) 35%,
-            rgba(0, 0, 0, 0) 65%,
-            rgba(0, 0, 0, 0.55) 100%
-          );
-          pointer-events: none;
         }
         .fmt-cover {
           position: absolute;
@@ -942,45 +883,6 @@ export function StepFormat({
           object-position: center;
           transition: opacity 240ms ease;
           z-index: 1;
-        }
-        .fmt-subject {
-          position: absolute;
-          left: 50%;
-          bottom: 0;
-          transform: translateX(-50%);
-          width: 60%;
-          height: 78%;
-          pointer-events: none;
-        }
-        .fmt-subject .fmt-head {
-          position: absolute;
-          left: 50%;
-          top: 4%;
-          transform: translateX(-50%);
-          width: 30%;
-          aspect-ratio: 1;
-          border-radius: 50%;
-        }
-        .fmt-subject.fmt-warm .fmt-head {
-          background: linear-gradient(180deg, oklch(0.5 0.05 35), oklch(0.32 0.04 35));
-        }
-        .fmt-subject.fmt-cool .fmt-head {
-          background: linear-gradient(180deg, oklch(0.5 0.05 250), oklch(0.32 0.04 250));
-        }
-        .fmt-subject .fmt-body-silhouette {
-          position: absolute;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          height: 72%;
-          clip-path: polygon(22% 0, 78% 0, 100% 100%, 0% 100%);
-          border-radius: 46% 46% 0 0;
-        }
-        .fmt-subject.fmt-warm .fmt-body-silhouette {
-          background: linear-gradient(180deg, oklch(0.3 0.04 35), oklch(0.1 0.02 35));
-        }
-        .fmt-subject.fmt-cool .fmt-body-silhouette {
-          background: linear-gradient(180deg, oklch(0.3 0.04 250), oklch(0.1 0.02 250));
         }
         .fmt-eyebrow {
           position: absolute;
@@ -1031,43 +933,43 @@ export function StepFormat({
           transition: opacity 160ms ease;
         }
         .fmt-check[data-selected='true'] {
-          background: white;
-          border-color: white;
+          background: oklch(0.62 0.21 265);
+          border-color: oklch(0.62 0.21 265);
         }
         .fmt-check[data-selected='true'] svg {
           opacity: 1;
-          color: var(--so-black);
+          color: #fff;
         }
 
-        /* Card body — tight padding so a short screen still fits the
-           heading + lede + cards + CTA without scroll. */
+        /* Card body — roomy padding and an even vertical rhythm so the card
+           reads as a calm, well-spaced column. */
         .fmt-card-body {
-          padding: 16px 20px 18px;
+          padding: 24px 26px 26px;
           display: flex;
           flex-direction: column;
           flex: 1;
         }
         .fmt-card-title {
           font-family: var(--font-poppins), system-ui, sans-serif;
-          font-size: 26px;
+          font-size: 27px;
           font-weight: 700;
           letter-spacing: -0.03em;
-          line-height: 1;
+          line-height: 1.05;
           color: var(--so-black);
-          margin-bottom: 6px;
+          margin-bottom: 8px;
         }
         .fmt-card-oneliner {
-          font-size: 13px;
+          font-size: 13.5px;
           font-weight: 500;
           color: var(--so-gray4);
           letter-spacing: -0.005em;
-          margin-bottom: 10px;
+          margin-bottom: 16px;
         }
         .fmt-card-desc {
-          font-size: 12.5px;
+          font-size: 13px;
           color: var(--so-ink);
-          line-height: 1.5;
-          margin: 0 0 14px;
+          line-height: 1.6;
+          margin: 0 0 22px;
           text-wrap: pretty;
         }
         .fmt-hair {
@@ -1075,11 +977,11 @@ export function StepFormat({
           background: linear-gradient(
             90deg,
             transparent 0%,
-            var(--so-gray2) 18%,
-            var(--so-gray2) 82%,
+            oklch(0.62 0.21 265 / 0.35) 18%,
+            oklch(0.62 0.21 265 / 0.35) 82%,
             transparent 100%
           );
-          margin-bottom: 12px;
+          margin-bottom: 20px;
         }
         .fmt-card-foot {
           text-align: center;
@@ -1091,29 +993,29 @@ export function StepFormat({
           letter-spacing: 0.18em;
           text-transform: uppercase;
           color: var(--so-gray3);
-          margin-bottom: 8px;
+          margin-bottom: 12px;
         }
         .fmt-tags {
           display: flex;
           flex-wrap: wrap;
-          gap: 5px;
+          gap: 7px;
           justify-content: center;
-          margin-bottom: 10px;
+          margin-bottom: 14px;
         }
         .fmt-tag {
-          font-size: 11px;
+          font-size: 11.5px;
           color: var(--so-ink);
           font-weight: 500;
-          padding: 4px 10px;
+          padding: 5px 12px;
           border-radius: 999px;
           background: oklch(0.97 0.002 280);
           border: 1px solid var(--so-gray2);
         }
         .fmt-example {
-          font-size: 11.5px;
+          font-size: 12px;
           color: var(--so-gray4);
           font-style: italic;
-          line-height: 1.45;
+          line-height: 1.5;
           margin: 0;
         }
         .fmt-eg {
