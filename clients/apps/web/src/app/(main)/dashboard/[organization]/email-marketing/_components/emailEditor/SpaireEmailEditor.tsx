@@ -29,9 +29,10 @@ import { spaireCustomNodes } from './customNodes'
 
 import '@react-email/editor/themes/default.css'
 import '@react-email/editor/styles/bubble-menu.css'
-import '@react-email/editor/styles/link-bubble-menu.css'
-import '@react-email/editor/styles/button-bubble-menu.css'
-import '@react-email/editor/styles/image-bubble-menu.css'
+// Note: @react-email/editor 1.5.3 advertises link-/button-/image-bubble-menu.css
+// in its package.json exports map, but the files don't ship in dist/. Importing
+// any of them breaks the Next.js build with "Module not found". The shared
+// bubble-menu.css covers the link/button/image submenus today.
 import '@react-email/editor/styles/slash-command.css'
 import '@react-email/editor/styles/inspector.css'
 
