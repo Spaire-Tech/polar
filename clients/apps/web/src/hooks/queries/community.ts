@@ -1342,6 +1342,91 @@ export const useAnnounceCommunityEvent = (courseId: string | undefined) =>
       ),
   })
 
+// ----- Host-side: per-event announcement composer (P3) -----
+
+export interface CommunityEventAnnouncementRead {
+  id: string
+  event_id: string
+  course_id: string
+  subject: string
+  body: string
+  status: 'draft' | 'sending' | 'sent' | 'failed'
+  sent_at: string | null
+  recipient_count: number
+  created_at: string
+  modified_at: string | null
+}
+
+export interface CommunityEventAnnouncementCreateBody {
+  subject: string
+  body: string
+  send_now: boolean
+}
+
+export interface CommunityEventAnnouncementPreviewBody {
+  subject: string
+  body: string
+}
+
+export interface CommunityEventAnnouncementPreviewResult {
+  subject: string
+  html: string
+}
+
+export const useCreateCommunityEventAnnouncement = (
+  courseId: string | undefined,
+  eventId: string | undefined,
+) =>
+  useMutation({
+    mutationFn: (body: CommunityEventAnnouncementCreateBody) =>
+      communityFetch<CommunityEventAnnouncementRead>(
+        'creator',
+        undefined,
+        `${communityBase('creator', courseId!)}/events/${eventId}/announcements`,
+        { method: 'POST', body: JSON.stringify(body) },
+      ),
+    onSuccess: () => {
+      // Refresh the announcements list so the audit view (when we
+      // surface it) reflects the new row immediately.
+      getQueryClient().invalidateQueries({
+        queryKey: ['community-event-announcements', courseId ?? '', eventId ?? ''],
+      })
+    },
+  })
+
+export const usePreviewCommunityEventAnnouncement = (
+  courseId: string | undefined,
+  eventId: string | undefined,
+) =>
+  useMutation({
+    mutationFn: (body: CommunityEventAnnouncementPreviewBody) =>
+      communityFetch<CommunityEventAnnouncementPreviewResult>(
+        'creator',
+        undefined,
+        `${communityBase('creator', courseId!)}/events/${eventId}/announcements/preview`,
+        { method: 'POST', body: JSON.stringify(body) },
+      ),
+  })
+
+export const useCommunityEventAnnouncements = (
+  courseId: string | undefined,
+  eventId: string | undefined,
+) =>
+  useQuery<CommunityEventAnnouncementRead[]>({
+    queryKey: [
+      'community-event-announcements',
+      courseId ?? '',
+      eventId ?? '',
+    ],
+    queryFn: () =>
+      communityFetch<CommunityEventAnnouncementRead[]>(
+        'creator',
+        undefined,
+        `${communityBase('creator', courseId!)}/events/${eventId}/announcements`,
+      ),
+    enabled: !!courseId && !!eventId,
+  })
+
 // =====================================================================
 // Customer-portal notifications (the bell)
 // =====================================================================

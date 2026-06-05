@@ -14,15 +14,18 @@ import structlog
 from polar.kit.utils import utc_now
 from polar.logging import Logger
 from polar.models.community_event import CommunityEvent
+from polar.models.community_event_announcement import CommunityEventAnnouncement
 from polar.models.community_event_rsvp import CommunityEventRsvp
 from polar.postgres import AsyncSession
 from polar.worker import enqueue_job
 
 from .events_repository import (
+    CommunityEventAnnouncementRepository,
     CommunityEventRepository,
     CommunityEventRsvpRepository,
 )
 from .events_schemas import (
+    CommunityEventAnnouncementCreate,
     CommunityEventCreate,
     CommunityEventUpdate,
 )
@@ -134,20 +137,19 @@ class CommunityEventService:
         repo = CommunityEventRepository.from_session(session)
         await repo.create(event, flush=True)
 
-        # Fan out the "event published" notification + schedule reminders.
-        # The actor reads the event back from the DB. Logs are intentionally
-        # loud here so we can trace "I created an event but nobody got the
-        # email" issues end-to-end in the worker logs.
+        # Schedule the T-24h / T-15m / live reminders. The "event
+        # published" auto-fire is gone — the host now composes an
+        # announcement via the dedicated composer modal (POST
+        # /announcements). `notify_on_publish` on the model is
+        # vestigial and stays only so old data isn't lost; we can
+        # drop the column in a follow-up cleanup.
         log.info(
             "community.event.create.enqueued",
             event_id=str(event.id),
             course_id=str(course_id),
             host_user_id=str(host_user_id),
-            notify_on_publish=payload.notify_on_publish,
             start_at=event.start_at.isoformat(),
         )
-        if payload.notify_on_publish:
-            enqueue_job("community.event.published", event_id=event.id)
         enqueue_job("community.event.schedule_reminders", event_id=event.id)
 
         return event
@@ -206,24 +208,103 @@ class CommunityEventService:
         if event.cover_url:
             enqueue_job("community.cover.cleanup", cover_url=event.cover_url)
 
-    async def announce(
+    async def preview_announcement(
         self,
         session: AsyncSession,
         *,
         event_id: UUID,
         course_id: UUID,
         host_user_id: UUID,
-    ) -> None:
-        """Re-fan the published notification to every enrolled customer.
+        subject: str,
+        body: str,
+    ) -> tuple[str, str]:
+        """Render what an announcement email would look like without
+        persisting or sending.
 
-        Authorization mirrors `update`/`delete` — only the original
-        host can re-announce. The actual fan-out is enqueued; the host
-        sees an immediate ACK and the worker delivers in the background.
+        Powers the composer modal's preview pane. Reuses the same
+        payload-builder + render() path the real fan-out uses, so the
+        preview is byte-equivalent to what recipients will actually
+        receive. Auth mirrors create_announcement — only the event's
+        host can preview.
+
+        Returns (subject, html_body).
+        """
+        from polar.customer_notifications.notification_types import (
+            EVENT_ANNOUNCEMENT,
+            render,
+        )
+
+        from .events_tasks import _build_payload
+
+        event = await self.get(session, event_id=event_id, course_id=course_id)
+        if event.host_user_id != host_user_id:
+            raise EventHostMismatch()
+
+        payload = await _build_payload(session, event)
+        payload["announcement_subject"] = subject.strip()
+        payload["announcement_body"] = body or ""
+        # The preview endpoint hits this from a logged-in admin
+        # context; stamp the host's own email as the recipient so the
+        # footer line ("This email was sent to ...") shows something
+        # sensible in the preview rather than blank.
+        payload["_recipient_email"] = "preview@example.com"
+
+        return render(EVENT_ANNOUNCEMENT, payload)
+
+    async def create_announcement(
+        self,
+        session: AsyncSession,
+        *,
+        event_id: UUID,
+        course_id: UUID,
+        host_user_id: UUID,
+        payload: CommunityEventAnnouncementCreate,
+    ) -> CommunityEventAnnouncement:
+        """Persist a host-composed announcement and (for v1) enqueue the
+        fan-out immediately.
+
+        The flow replaces the old auto-fire "Notify members" on event
+        create. The composer modal POSTs the host's subject + body
+        here; the actor handles the actual bell + email fan-out so the
+        request returns fast and the host gets immediate feedback.
+
+        Authorization mirrors update/delete — only the host of the
+        underlying event can announce. Other course owners can edit
+        the event but can't speak for the host without going through
+        a separate "owner announce" surface we haven't built yet.
         """
         event = await self.get(session, event_id=event_id, course_id=course_id)
         if event.host_user_id != host_user_id:
             raise EventHostMismatch()
-        enqueue_job("community.event.announce", event_id=event.id)
+
+        repo = CommunityEventAnnouncementRepository.from_session(session)
+        announcement = await repo.create(
+            CommunityEventAnnouncement(
+                event_id=event.id,
+                course_id=event.course_id,
+                sent_by_user_id=host_user_id,
+                subject=payload.subject.strip(),
+                body=payload.body or "",
+                status="sending" if payload.send_now else "draft",
+                recipient_count=0,
+            ),
+            flush=True,
+        )
+
+        log.info(
+            "community.event.announcement.created",
+            announcement_id=str(announcement.id),
+            event_id=str(event.id),
+            send_now=payload.send_now,
+        )
+
+        if payload.send_now:
+            enqueue_job(
+                "community.event.send_announcement",
+                announcement_id=announcement.id,
+            )
+
+        return announcement
 
     # ------------------------------------------------------------------
     # Writes — RSVP (customer side)

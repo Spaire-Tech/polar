@@ -18,6 +18,7 @@ from .community_activity_submission_comment import (
 )
 from .community_comment import CommunityComment
 from .community_event import CommunityEvent
+from .community_event_announcement import CommunityEventAnnouncement
 from .community_event_rsvp import CommunityEventRsvp
 from .community_post import CommunityPost
 from .community_post_media import CommunityPostMedia
@@ -146,6 +147,7 @@ __all__ = [
     "CommunityActivitySubmissionComment",
     "CommunityComment",
     "CommunityEvent",
+    "CommunityEventAnnouncement",
     "CommunityEventRsvp",
     "CommunityPost",
     "CommunityPostMedia",

@@ -1,8 +1,13 @@
 import { ClientInvoice } from './client_invoice'
-import { MarketingEmail } from './marketing_email'
+import { CommunityEventAnnouncement } from './community_event_announcement'
+import { CommunityEventLive } from './community_event_live'
+import { CommunityEventPublished } from './community_event_published'
+import { CommunityEventRsvpConfirmed } from './community_event_rsvp_confirmed'
+import { CommunityEventStartingSoon24h } from './community_event_starting_soon_24h'
 import { CustomerSessionCode } from './customer_session_code'
 import { EmailUpdate } from './email_update'
 import { LoginCode } from './login_code'
+import { MarketingEmail } from './marketing_email'
 import { NotificationCreateAccount } from './notification_create_account'
 import { NotificationCreditsGranted } from './notification_credits_granted'
 import { NotificationNewSale } from './notification_new_sale'
@@ -56,6 +61,11 @@ const TEMPLATES: Record<string, React.FC<any>> = {
   notification_create_account: NotificationCreateAccount,
   notification_credits_granted: NotificationCreditsGranted,
   notification_perks_unlocked: NotificationPerksUnlocked,
+  community_event_published: CommunityEventPublished,
+  community_event_rsvp_confirmed: CommunityEventRsvpConfirmed,
+  community_event_starting_soon_24h: CommunityEventStartingSoon24h,
+  community_event_live: CommunityEventLive,
+  community_event_announcement: CommunityEventAnnouncement,
 }
 
 export default TEMPLATES

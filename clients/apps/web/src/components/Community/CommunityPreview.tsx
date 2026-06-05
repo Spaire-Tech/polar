@@ -295,10 +295,14 @@ export function CommunityPreview({
               courseCoverPosition={courseCoverPosition ?? null}
               onCreate={async (input: CommunityEventCreateInput) => {
                 try {
-                  await createEventMut.mutateAsync(buildEventCreateBody(input))
+                  const created = await createEventMut.mutateAsync(
+                    buildEventCreateBody(input),
+                  )
                   setToast('Event created')
+                  return mapEventReadToUI(created)
                 } catch {
                   setToast('Could not create event')
+                  return undefined
                 }
               }}
               onUpdate={async (

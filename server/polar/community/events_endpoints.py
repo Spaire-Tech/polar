@@ -25,6 +25,7 @@ from polar.course.repository import CourseRepository
 from polar.customer_portal.utils import get_customer_id
 from polar.kit.utils import utc_now
 from polar.models.community_event import CommunityEvent
+from polar.models.community_event_announcement import CommunityEventAnnouncement
 from polar.models.user import User
 from polar.organization.repository import OrganizationRepository
 from polar.postgres import AsyncSession, get_db_session
@@ -37,9 +38,16 @@ from .auth import (
     CommunityCustomerWrite,
 )
 from .endpoints import creator_router, customer_router, public_router
-from .events_repository import CommunityEventRepository, CommunityEventRsvpRepository
+from .events_repository import (
+    CommunityEventAnnouncementRepository,
+    CommunityEventRepository,
+    CommunityEventRsvpRepository,
+)
 from .events_schemas import (
-    CommunityEventAnnounceResult,
+    CommunityEventAnnouncementCreate,
+    CommunityEventAnnouncementPreviewRequest,
+    CommunityEventAnnouncementPreviewResult,
+    CommunityEventAnnouncementRead,
     CommunityEventAttendee,
     CommunityEventCreate,
     CommunityEventHost,
@@ -451,29 +459,33 @@ async def list_event_attendees(
 
 
 @creator_router.post(
-    "/{course_id}/events/{event_id}/announce",
-    response_model=CommunityEventAnnounceResult,
-    summary="Re-announce Community Event to Members",
+    "/{course_id}/events/{event_id}/announcements",
+    response_model=CommunityEventAnnouncementRead,
+    status_code=201,
+    summary="Send Composed Announcement to Members",
 )
-async def announce_event_creator(
+async def create_event_announcement(
     course_id: CourseID,
     event_id: EventID,
+    payload: CommunityEventAnnouncementCreate,
     auth_subject: CommunityCreatorWrite,
     session: AsyncSession = Depends(get_db_session),
-) -> CommunityEventAnnounceResult:
-    """Fans out the EVENT_PUBLISHED notification to every enrolled
-    member again — used for "I just updated the event, tell everyone"
-    or "this is happening soon, nudge the room." Distinct from the
-    automatic publish-time fan-out, which respects `notify_on_publish`.
+) -> CommunityEventAnnouncementRead:
+    """Persist a host-composed announcement and (for v1) enqueue the
+    fan-out immediately. Replaces the old POST /announce flow which
+    re-fired a templated email — this one carries the host's actual
+    subject + body so members get a personal note, not a system
+    template.
     """
     await _require_creator_owns_course(session, course_id, auth_subject)
     user_id = _require_user_subject(auth_subject)
     try:
-        await events_service.announce(
+        announcement = await events_service.create_announcement(
             session,
             event_id=event_id,
             course_id=course_id,
             host_user_id=user_id,
+            payload=payload,
         )
     except EventNotFound:
         raise HTTPException(status_code=404, detail="Event not found") from None
@@ -481,7 +493,89 @@ async def announce_event_creator(
         raise HTTPException(
             status_code=403, detail="Only the host can announce this event."
         ) from None
-    return CommunityEventAnnounceResult(enqueued=True)
+    return _announcement_to_read(announcement)
+
+
+@creator_router.post(
+    "/{course_id}/events/{event_id}/announcements/preview",
+    response_model=CommunityEventAnnouncementPreviewResult,
+    summary="Preview a Composed Announcement",
+)
+async def preview_event_announcement(
+    course_id: CourseID,
+    event_id: EventID,
+    payload: CommunityEventAnnouncementPreviewRequest,
+    auth_subject: CommunityCreatorWrite,
+    session: AsyncSession = Depends(get_db_session),
+) -> CommunityEventAnnouncementPreviewResult:
+    """Render the announcement HTML without persisting or sending.
+
+    The composer modal POSTs the current draft on a debounce so the
+    preview pane stays in sync as the host edits. Uses the same
+    render() path the actual fan-out uses, so the preview is
+    byte-equivalent to what recipients will see.
+    """
+    await _require_creator_owns_course(session, course_id, auth_subject)
+    user_id = _require_user_subject(auth_subject)
+    try:
+        subject, html = await events_service.preview_announcement(
+            session,
+            event_id=event_id,
+            course_id=course_id,
+            host_user_id=user_id,
+            subject=payload.subject,
+            body=payload.body,
+        )
+    except EventNotFound:
+        raise HTTPException(status_code=404, detail="Event not found") from None
+    except EventHostMismatch:
+        raise HTTPException(
+            status_code=403, detail="Only the host can preview announcements."
+        ) from None
+    return CommunityEventAnnouncementPreviewResult(subject=subject, html=html)
+
+
+@creator_router.get(
+    "/{course_id}/events/{event_id}/announcements",
+    response_model=list[CommunityEventAnnouncementRead],
+    summary="List Announcements for an Event",
+)
+async def list_event_announcements(
+    course_id: CourseID,
+    event_id: EventID,
+    auth_subject: CommunityCreatorRead,
+    session: AsyncSession = Depends(get_db_session),
+) -> list[CommunityEventAnnouncementRead]:
+    """Audit list — most-recent first. Useful for the host to confirm
+    a fan-out actually went out (status=sent + recipient_count) or to
+    spot a failed one to retry."""
+    await _require_creator_owns_course(session, course_id, auth_subject)
+    try:
+        await events_service.get(session, event_id=event_id, course_id=course_id)
+    except EventNotFound:
+        raise HTTPException(status_code=404, detail="Event not found") from None
+
+    rows = await CommunityEventAnnouncementRepository.from_session(
+        session
+    ).list_for_event(event_id)
+    return [_announcement_to_read(r) for r in rows]
+
+
+def _announcement_to_read(
+    ann: CommunityEventAnnouncement,
+) -> CommunityEventAnnouncementRead:
+    return CommunityEventAnnouncementRead(
+        id=ann.id,
+        event_id=ann.event_id,
+        course_id=ann.course_id,
+        subject=ann.subject,
+        body=ann.body,
+        status=ann.status,  # type: ignore[arg-type]
+        sent_at=ann.sent_at,
+        recipient_count=ann.recipient_count,
+        created_at=ann.created_at,
+        modified_at=ann.modified_at,
+    )
 
 
 # ====================================================================

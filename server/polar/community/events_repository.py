@@ -17,6 +17,7 @@ from polar.kit.repository import (
     RepositorySoftDeletionMixin,
 )
 from polar.models.community_event import CommunityEvent
+from polar.models.community_event_announcement import CommunityEventAnnouncement
 from polar.models.community_event_rsvp import CommunityEventRsvp
 from polar.models.customer import Customer
 from polar.models.user import User
@@ -140,3 +141,37 @@ class CommunityEventRsvpRepository(
         )
         result = await self.session.execute(statement)
         return int(result.scalar_one())
+
+
+class CommunityEventAnnouncementRepository(
+    RepositorySoftDeletionIDMixin[CommunityEventAnnouncement, UUID],
+    RepositorySoftDeletionMixin[CommunityEventAnnouncement],
+    RepositoryBase[CommunityEventAnnouncement],
+):
+    """Persistence for host-composed event announcements.
+
+    Reads scope by `event_id` (host pulling history for a single
+    event) or `course_id` (future: feed of recent announcements on
+    the dashboard). All writes happen via the service so the bell +
+    email fan-out kicks in alongside the row update."""
+
+    model = CommunityEventAnnouncement
+
+    def get_base_statement(
+        self, *, include_deleted: bool = False
+    ) -> Select[tuple[CommunityEventAnnouncement]]:
+        # Mirror the parent signature so the inherited get_by_id +
+        # mixin helpers pass include_deleted through cleanly. Same
+        # fix we applied to CommunityEventRepository after the last
+        # batch crashed on this exact mismatch.
+        return super().get_base_statement(include_deleted=include_deleted)
+
+    async def list_for_event(
+        self, event_id: UUID
+    ) -> Sequence[CommunityEventAnnouncement]:
+        statement = (
+            self.get_base_statement()
+            .where(CommunityEventAnnouncement.event_id == event_id)
+            .order_by(CommunityEventAnnouncement.created_at.desc())
+        )
+        return await self.get_all(statement)
