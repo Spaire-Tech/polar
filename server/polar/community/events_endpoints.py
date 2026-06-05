@@ -644,6 +644,7 @@ async def get_event_public(
         timezone=event.timezone or "UTC",
         duration_minutes=event.duration_minutes,
         location=event.location,
+        meeting_url=event.meeting_url,
         cover_url=event.cover_url,
         cover_object_position=event.cover_object_position,
         host=host,

@@ -91,10 +91,13 @@ export function EventDetailModal({
   const shareUrlDisplay = shareUrl.replace(/^https?:\/\//, '')
 
   // .ics + Google/Outlook deep links. Built lazily — we only show the
-  // menu after the user clicks Add to Calendar.
-  const icsUrl = getPublicServerURL(
-    `/v1/community/public/events/${event.id}/ics`,
-  )
+  // menu after the user clicks Add to Calendar. Prefer the same-origin
+  // proxy (so the browser's `download` attribute works) when we know
+  // the org slug; fall back to the cross-origin backend URL on preview
+  // surfaces that mount the modal without an org context.
+  const icsUrl = organizationSlug
+    ? `/${organizationSlug}/events/${event.id}/ics`
+    : getPublicServerURL(`/v1/community/public/events/${event.id}/ics`)
   const calLinks = calendarLinksFor(
     {
       title: event.title,

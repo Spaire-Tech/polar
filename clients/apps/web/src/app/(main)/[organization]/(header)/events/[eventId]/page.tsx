@@ -19,6 +19,7 @@ export type PublicEventData = {
   timezone: string
   duration_minutes: number
   location: string | null
+  meeting_url: string | null
   cover_url: string | null
   cover_object_position: string | null
   host: {
@@ -40,11 +41,10 @@ const fetchEvent = async (eventId: string): Promise<PublicEventData | null> => {
   const base = getBaseURL()
   if (!base) return null
   const res = await fetch(`${base}/v1/community/public/events/${eventId}`, {
-    // Public payload — cache briefly to absorb share-link bursts.
-    // Time chosen to match the backend Cache-Control on the .ics
-    // download (5 minutes); SSR will re-fetch after the window
-    // elapses, picking up edits made by the host.
-    next: { revalidate: 300, tags: [`event:${eventId}`] },
+    // Short revalidate so a host who repositions the cover / edits the
+    // event sees it on the public URL within ~10s instead of waiting
+    // out a long cache. Still absorbs share-link bursts.
+    next: { revalidate: 10, tags: [`event:${eventId}`] },
   })
   if (res.status === 404) return null
   if (!res.ok) return null

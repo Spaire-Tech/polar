@@ -3,6 +3,7 @@ import {
   Heading,
   Hr,
   Img,
+  Link,
   Row,
   Section,
   Text,
@@ -121,6 +122,16 @@ export function EventCard({ event }: { event: EventCardData }) {
             <Text className="m-0 text-sm font-medium text-gray-900">
               {locationLine}
             </Text>
+            {event.meeting_url ? (
+              <Text className="m-0 text-sm">
+                <Link
+                  href={event.meeting_url}
+                  className="text-blue-600 underline"
+                >
+                  {event.meeting_url}
+                </Link>
+              </Text>
+            ) : null}
           </Column>
         </Row>
 

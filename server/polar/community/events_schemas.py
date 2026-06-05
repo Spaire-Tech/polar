@@ -155,10 +155,13 @@ class CommunityEventAnnouncementRead(TimestampedSchema):
 class CommunityEventPublic(Schema):
     """Trimmed view for the unauthenticated public event page.
 
-    Deliberately omits `going`, `rsvp_count`, and `meeting_url` — the
-    public page has no logged-in customer context, can't show an
-    accurate count without leaking activity, and shouldn't expose a
-    join link to people who haven't RSVP'd.
+    Omits `going` and `rsvp_count` (no logged-in customer context, and
+    an accurate count would leak activity). `meeting_url` IS included:
+    the page is a link the host chose to share, community events are
+    low-risk, and hiding it left every "View event" path — including
+    the ones we email to enrolled members — unable to show people how
+    to actually join. If RSVP-gated links are needed later that's a
+    separate "private events" feature.
     """
 
     id: UUID4
@@ -172,6 +175,7 @@ class CommunityEventPublic(Schema):
     timezone: str = "UTC"
     duration_minutes: int
     location: str | None = None
+    meeting_url: str | None = None
     cover_url: str | None = None
     cover_object_position: str | None = None
     host: CommunityEventHost

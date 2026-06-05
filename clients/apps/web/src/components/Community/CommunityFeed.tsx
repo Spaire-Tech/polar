@@ -18,6 +18,7 @@ import {
   useSubmitToCommunityActivity,
 } from '@/hooks/queries/community'
 import { useCustomerCourse } from '@/hooks/queries/courses'
+import { useSearchParams } from 'next/navigation'
 import { useEffect, useMemo, useState } from 'react'
 import {
   ActivitiesView,
@@ -60,6 +61,20 @@ export function CommunityFeed({
   organizationSlug,
 }: Props) {
   const [view, setView] = useState<CommunityView>('home')
+  // Deep-link target from a public event share link
+  // (?event=<id>). When present we jump to the Events view and tell
+  // EventsView to auto-open that event's modal — so a member who
+  // clicked "RSVP in portal" on the public page lands on the actual
+  // event (link + RSVP), not the generic feed.
+  const searchParams = useSearchParams()
+  const [autoOpenEventId, setAutoOpenEventId] = useState<string | null>(null)
+  useEffect(() => {
+    const eventId = searchParams.get('event')
+    if (eventId) {
+      setView('events')
+      setAutoOpenEventId(eventId)
+    }
+  }, [searchParams])
   const [pendingActivityId, setPendingActivityId] = useState<string | null>(
     null,
   )
@@ -307,6 +322,8 @@ export function CommunityFeed({
               organizationSlug={organizationSlug}
               hostName={selfName ?? 'You'}
               events={events}
+              autoOpenEventId={autoOpenEventId}
+              onAutoOpenConsumed={() => setAutoOpenEventId(null)}
               onCreate={onCreateEvent}
               onUpdate={() => {
                 /* students can't edit */
