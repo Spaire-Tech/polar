@@ -19,11 +19,14 @@ import { calendarLinksFor } from './calendarLinks'
 import styles from './community.module.css'
 import type { CommunityEvent } from './EventsView'
 import {
+  IconAppleCalendar,
   IconBookmark,
   IconCalendar,
   IconChat,
   IconClock,
+  IconGoogleCalendar,
   IconMapPin,
+  IconOutlookCalendar,
   IconShare,
   IconUsers,
   IconVideo,
@@ -358,11 +361,10 @@ export function EventDetailModal({
                 ) : null}
                 <button
                   type="button"
-                  // Once "Add to calendar" takes the primary slot,
-                  // the RSVP button demotes to ghost so it still
-                  // reads as an active control (for un-RSVP) without
-                  // competing for the eye.
-                  className={`${styles.evFooterBtn} ${event.going ? styles.evFooterBtnGhost : styles.evFooterBtnPrimary}`}
+                  // Always solid (black on white) so the affordance is
+                  // unmistakable in both states — the icon + label
+                  // already tell the user whether they're going.
+                  className={`${styles.evFooterBtn} ${styles.evFooterBtnPrimary}`}
                   onClick={onToggleGoing}
                 >
                   {event.going ? (
@@ -478,9 +480,22 @@ function AddToCalendarMenu({
             zIndex: 8,
           }}
         >
-          <CalLink href={links.google} label="Google Calendar" />
-          <CalLink href={links.outlook} label="Outlook" />
-          <CalLink href={links.ics} label="Apple Calendar (.ics)" download />
+          <CalLink
+            href={links.google}
+            label="Google Calendar"
+            icon={<IconGoogleCalendar size={18} />}
+          />
+          <CalLink
+            href={links.outlook}
+            label="Outlook"
+            icon={<IconOutlookCalendar size={18} />}
+          />
+          <CalLink
+            href={links.ics}
+            label="Apple Calendar (.ics)"
+            icon={<IconAppleCalendar size={18} />}
+            download
+          />
         </div>
       ) : null}
     </div>
@@ -490,10 +505,12 @@ function AddToCalendarMenu({
 function CalLink({
   href,
   label,
+  icon,
   download,
 }: {
   href: string
   label: string
+  icon?: React.ReactNode
   download?: boolean
 }) {
   return (
@@ -506,7 +523,9 @@ function CalLink({
       // the .ics link. Google/Outlook open in a new tab.
       {...(download ? { download: '' } : {})}
       style={{
-        display: 'block',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 10,
         textAlign: 'left',
         padding: '8px 12px',
         borderRadius: 8,
@@ -516,7 +535,8 @@ function CalLink({
         color: 'var(--c-ink)',
       }}
     >
-      {label}
+      {icon}
+      <span>{label}</span>
     </a>
   )
 }

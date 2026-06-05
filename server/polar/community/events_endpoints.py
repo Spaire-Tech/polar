@@ -83,7 +83,12 @@ def _require_user_subject(auth_subject) -> UUID:
     return auth_subject.subject.id
 
 
-def _host_from_user(user: User, instructor_name: str | None) -> CommunityEventHost:
+def _host_from_user(
+    user: User,
+    instructor_name: str | None,
+    *,
+    org_avatar_fallback: str | None = None,
+) -> CommunityEventHost:
     name = (
         (instructor_name or "").strip()
         or (user.public_name or "").strip()
@@ -95,10 +100,15 @@ def _host_from_user(user: User, instructor_name: str | None) -> CommunityEventHo
         or getattr(user, "email", None)
         or "Instructor"
     )
+    # Most creators host under their org brand and never set a personal
+    # `user.avatar_url`. Falling back to the organization's avatar
+    # (their logo, including the logo.dev synth if unset) means the
+    # event surfaces always have a real image rather than initials.
+    avatar = getattr(user, "avatar_url", None) or org_avatar_fallback
     return CommunityEventHost(
         user_id=user.id,
         name=name or fallback,
-        avatar_url=getattr(user, "avatar_url", None),
+        avatar_url=avatar,
     )
 
 
@@ -108,6 +118,7 @@ async def _event_to_read(
     *,
     going: bool,
     instructor_name: str | None,
+    org_avatar_fallback: str | None = None,
     hosts_cache: dict[UUID, User] | None = None,
 ) -> CommunityEventRead:
     # `hosts_cache` is the bulk-loaded {user_id: User} map populated by
@@ -121,10 +132,16 @@ async def _event_to_read(
         host_user = await session.get(User, event.host_user_id)
     if host_user is None:
         host = CommunityEventHost(
-            user_id=event.host_user_id, name="Instructor", avatar_url=None
+            user_id=event.host_user_id,
+            name="Instructor",
+            avatar_url=org_avatar_fallback,
         )
     else:
-        host = _host_from_user(host_user, instructor_name)
+        host = _host_from_user(
+            host_user,
+            instructor_name,
+            org_avatar_fallback=org_avatar_fallback,
+        )
 
     return CommunityEventRead(
         id=event.id,
@@ -148,6 +165,25 @@ async def _event_to_read(
         created_at=event.created_at,
         modified_at=event.modified_at,
     )
+
+
+async def _resolve_org_avatar(
+    session: AsyncSession, course: object | None
+) -> str | None:
+    """Pulls the organization's avatar (real or logo.dev synth) off the
+    course's parent org. Used as the host-avatar fallback so event
+    cards always have a real image rather than initials — most creators
+    host under their org brand and don't set a personal user.avatar_url.
+    Returns None when there's no org context (preview surfaces)."""
+    if course is None:
+        return None
+    org_id = getattr(course, "organization_id", None)
+    if org_id is None:
+        return None
+    organization = await OrganizationRepository.from_session(session).get_by_id(
+        org_id
+    )
+    return organization.avatar_url if organization is not None else None
 
 
 async def _require_creator_owns_course(
@@ -187,12 +223,14 @@ async def list_events_creator(
     hosts = await CommunityEventRepository.from_session(session).bulk_load_hosts(
         {e.host_user_id for e in events}
     )
+    org_avatar = await _resolve_org_avatar(session, course)
     return [
         await _event_to_read(
             session,
             e,
             going=False,
             instructor_name=instructor_name,
+            org_avatar_fallback=org_avatar,
             hosts_cache=hosts,
         )
         for e in events
@@ -227,6 +265,7 @@ async def create_event_creator(
         event,
         going=False,
         instructor_name=course.instructor_name if course else None,
+        org_avatar_fallback=await _resolve_org_avatar(session, course),
     )
 
 
@@ -265,6 +304,7 @@ async def update_event_creator(
         event,
         going=False,
         instructor_name=course.instructor_name if course else None,
+        org_avatar_fallback=await _resolve_org_avatar(session, course),
     )
 
 
@@ -337,12 +377,14 @@ async def list_events_customer(
     hosts = await CommunityEventRepository.from_session(session).bulk_load_hosts(
         {e.host_user_id for e in visible}
     )
+    org_avatar = await _resolve_org_avatar(session, course)
     return [
         await _event_to_read(
             session,
             e,
             going=going_map.get(e.id, False),
             instructor_name=instructor_name,
+            org_avatar_fallback=org_avatar,
             hosts_cache=hosts,
         )
         for e in visible
@@ -625,12 +667,19 @@ async def get_event_public(
     host_user = await session.get(User, event.host_user_id)
     course = await CourseRepository.from_session(session).get_by_id(event.course_id)
     instructor_name = course.instructor_name if course else None
+    org_avatar = await _resolve_org_avatar(session, course)
     if host_user is None:
         host = CommunityEventHost(
-            user_id=event.host_user_id, name="Instructor", avatar_url=None
+            user_id=event.host_user_id,
+            name="Instructor",
+            avatar_url=org_avatar,
         )
     else:
-        host = _host_from_user(host_user, instructor_name)
+        host = _host_from_user(
+            host_user,
+            instructor_name,
+            org_avatar_fallback=org_avatar,
+        )
 
     return CommunityEventPublic(
         id=event.id,

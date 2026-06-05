@@ -121,6 +121,7 @@ class EventNotificationPayload(BaseModel):
     title: str
     start_at: datetime
     host_name: str
+    host_avatar_url: str | None = None
     course_name: str
     meeting_url: str | None = None
 
@@ -408,6 +409,11 @@ def _render_react_email(
         timezone=ep.timezone or "UTC",
         duration_minutes=ep.duration_minutes or 60,
         host_name=ep.host_name,
+        # Falls back to the org avatar at the payload-build site
+        # (events_tasks._build_payload), so the card consistently
+        # shows a real image even when the host hasn't set a personal
+        # user.avatar_url.
+        host_avatar_url=ep.host_avatar_url,
         cover_url=ep.cover_url,
         cover_object_position=ep.cover_object_position,
         location=ep.location,

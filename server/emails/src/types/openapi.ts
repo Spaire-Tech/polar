@@ -878,6 +878,11 @@ export interface components {
       /** Host Name */
       host_name: string
       /**
+       * Host Avatar Url
+       * @default null
+       */
+      host_avatar_url: string | null
+      /**
        * Cover Url
        * @default null
        */

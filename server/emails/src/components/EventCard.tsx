@@ -24,6 +24,7 @@ export interface EventCardData {
   timezone: string // IANA, e.g. "America/Los_Angeles"
   duration_minutes: number
   host_name: string
+  host_avatar_url?: string | null
   cover_url?: string | null
   cover_object_position?: string | null
   location?: string | null
@@ -138,6 +139,23 @@ export function EventCard({ event }: { event: EventCardData }) {
         <Hr className="my-4 border-gray-200" />
 
         <Row>
+          {event.host_avatar_url ? (
+            <Column className="w-12 align-middle">
+              <Img
+                src={event.host_avatar_url}
+                alt={event.host_name}
+                width="36"
+                height="36"
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: '50%',
+                  objectFit: 'cover',
+                  display: 'block',
+                }}
+              />
+            </Column>
+          ) : null}
           <Column>
             <Text className="m-0 text-xs text-gray-500">Hosted by</Text>
             <Text className="m-0 text-sm font-medium text-gray-900">

@@ -275,3 +275,123 @@ export const IconChevron = (p: Props = {}) => (
     </svg>
   </span>
 )
+
+// ---------------------------------------------------------------------
+// Brand marks for the Add-to-Calendar menu. These intentionally do NOT
+// use the stroke-only `withSize` base — they're filled brand glyphs at
+// a smaller fixed size so the dropdown reads at a glance.
+// ---------------------------------------------------------------------
+
+type BrandProps = { size?: number }
+
+const brandSize = (size: number | undefined): number => size ?? 16
+
+// Google Calendar — the square mark with the day number "31". We
+// reproduce the official colors (blue/red/yellow/green corners) at a
+// small scale; enough to read as "Google" without infringing the full
+// logotype.
+export const IconGoogleCalendar = ({ size }: BrandProps = {}) => {
+  const s = brandSize(size)
+  return (
+    <svg
+      width={s}
+      height={s}
+      viewBox="0 0 32 32"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden
+    >
+      <rect x="4" y="4" width="24" height="24" rx="3" fill="#fff" />
+      <path d="M22 4h6v6h-6z" fill="#fbbc04" />
+      <path d="M4 22h6v6H4z" fill="#34a853" />
+      <path d="M22 22h6v6h-6z" fill="#ea4335" />
+      <path d="M4 4h6v6H4z" fill="#4285f4" />
+      <path
+        d="M14 12h-3v2h3v2.5h-2.5V18H14a2.5 2.5 0 0 0 0-5h-3v2h3"
+        fill="#4285f4"
+      />
+      <text
+        x="17"
+        y="20"
+        fontFamily="Arial, sans-serif"
+        fontSize="9"
+        fontWeight="700"
+        fill="#1a73e8"
+      >
+        31
+      </text>
+    </svg>
+  )
+}
+
+// Apple Calendar — white tile with red "DAY" header and the day number.
+// Same reading as the macOS / iOS calendar icon.
+export const IconAppleCalendar = ({ size }: BrandProps = {}) => {
+  const s = brandSize(size)
+  return (
+    <svg
+      width={s}
+      height={s}
+      viewBox="0 0 32 32"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden
+    >
+      <rect
+        x="3"
+        y="4"
+        width="26"
+        height="24"
+        rx="4"
+        fill="#fff"
+        stroke="#e5e7eb"
+        strokeWidth="1"
+      />
+      <rect x="3" y="4" width="26" height="7" rx="4" fill="#ef4444" />
+      <rect x="3" y="8" width="26" height="3" fill="#ef4444" />
+      <text
+        x="16"
+        y="10"
+        textAnchor="middle"
+        fontFamily="-apple-system, Helvetica, Arial, sans-serif"
+        fontSize="5"
+        fontWeight="700"
+        fill="#fff"
+      >
+        WED
+      </text>
+      <text
+        x="16"
+        y="24"
+        textAnchor="middle"
+        fontFamily="-apple-system, Helvetica, Arial, sans-serif"
+        fontSize="13"
+        fontWeight="600"
+        fill="#1f2937"
+      >
+        17
+      </text>
+    </svg>
+  )
+}
+
+// Outlook — the blue "O" + calendar grid mark.
+export const IconOutlookCalendar = ({ size }: BrandProps = {}) => {
+  const s = brandSize(size)
+  return (
+    <svg
+      width={s}
+      height={s}
+      viewBox="0 0 32 32"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden
+    >
+      <rect x="4" y="6" width="24" height="20" rx="2" fill="#fff" />
+      <path d="M4 8h24v3H4z" fill="#0078d4" />
+      <rect x="4" y="6" width="24" height="20" rx="2" fill="none" stroke="#0078d4" strokeWidth="1.2" />
+      <circle cx="16" cy="18" r="5" fill="#fff" stroke="#0078d4" strokeWidth="2" />
+      <path
+        d="M14 16.5a2 2 0 1 1 4 0 2 2 0 0 1-4 0z"
+        fill="#0078d4"
+      />
+    </svg>
+  )
+}

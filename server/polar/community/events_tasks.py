@@ -110,12 +110,21 @@ async def _build_payload(session, event) -> dict:
             f"/{organization.slug}/events/{event.id}"
         )
 
+    # Host avatar with the same fallback chain the API uses:
+    # user.avatar_url → organization.avatar_url. Lets every email card
+    # render a real face/mark rather than initials.
+    host_avatar_url = (
+        (host.avatar_url if host and hasattr(host, "avatar_url") else None)
+        or (organization.avatar_url if organization else None)
+    )
+
     return EventNotificationPayload(
         event_id=str(event.id),
         course_id=str(event.course_id),
         title=event.title,
         start_at=event.start_at,
         host_name=host_name,
+        host_avatar_url=host_avatar_url,
         course_name=course_name,
         meeting_url=event.meeting_url,
         organization_id=str(organization.id) if organization else None,
