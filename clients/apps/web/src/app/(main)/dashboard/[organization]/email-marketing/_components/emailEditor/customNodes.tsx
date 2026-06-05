@@ -1,56 +1,67 @@
-/* eslint-disable react/no-unescaped-entities */
 // Spaire-specific EmailNode extensions for the broadcast editor.
 //
-// Six bespoke blocks the broadcast editor used to support before this
-// migration are ported here as @react-email/editor EmailNodes:
+// Six bespoke blocks the broadcast editor supported before this migration,
+// ported to @react-email/editor EmailNodes:
 //
-//   eyebrow      — a tiny uppercase label above a heading
-//   badge        — a pill tag with a checkmark
-//   eventCard    — coloured card with date + title + meta
-//   receipt      — itemised list with a total row
-//   digestItem   — numbered story block with title/meta/body
-//   checklist    — numbered steps with a title/body per row
+//   eyebrow      — a tiny uppercase label (typable inline text)
+//   badge        — a pill tag (typable inline text)
+//   eventCard    — coloured card with date + title + meta (structured atom)
+//   receipt      — itemised list with a total row (structured atom)
+//   digestItem   — numbered story block (structured atom)
+//   checklist    — numbered steps (structured atom)
 //
-// Each one is an attribute-based atom node:
-//   - data lives in node attrs (string fields)
-//   - parseHTML / renderHTML produce the same styled HTML the email uses,
-//     so the in-canvas preview matches what creators will see in the inbox
-//   - renderToReactEmail returns the React Email component tree the
-//     serializer uses to produce final email HTML
-//   - the Inspector's Attributes section can edit each attribute in place
+// Two patterns are used, following the React Email "Custom Extensions" guide:
 //
-// The shapes mirror the previous custom block schema in
-// _components/blockEditor/types.ts so the legacy → TipTap converter
-// (Phase 3) can map fields 1:1.
+//   * Text blocks (eyebrow, badge) use `content: 'inline*'` with a content
+//     hole (`0`) in renderHTML, so users type directly into them like any
+//     paragraph.
+//   * Structured blocks (eventCard, receipt, digestItem, checklist) hold
+//     their data in node attributes and are atoms. Their fields are edited
+//     through the Inspector's Attributes panel. (A richer inline NodeView is
+//     a future enhancement; attribute editing is the documented path today.)
+//
+// Each node exposes:
+//   - parseHTML / renderHTML   → how it looks while editing
+//   - renderToReactEmail       → React Email output for composeReactEmail
+//
+// `spaireSlashItems` registers each block in the slash (`/`) menu so creators
+// can insert them. The data shapes mirror blockEditor/types.ts so the
+// legacy → TipTap converter maps fields 1:1.
 
-import { Button, Column, Heading, Row, Section, Text } from '@react-email/components'
+import { Column, Heading, Row, Section, Text } from '@react-email/components'
 import { EmailNode } from '@react-email/editor/core'
+import type { SlashCommandItem } from '@react-email/editor/ui'
+// mergeAttributes lives in @tiptap/core; import via @tiptap/react, which
+// re-exports it and is the package this app depends on directly.
 import { mergeAttributes } from '@tiptap/react'
+import {
+  Calendar,
+  ListChecks,
+  Newspaper,
+  Receipt as ReceiptIcon,
+  Tag,
+} from 'lucide-react'
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-/** Read a string attribute from a DOM element with a default fallback. */
+/** Read a `data-*` attribute from a DOM element with a default fallback. */
 const attr = (el: HTMLElement, key: string, fallback = '') =>
   el.getAttribute(`data-${key}`) ?? fallback
 
 // ---------------------------------------------------------------------------
-// Eyebrow
+// Eyebrow — typable inline text
 // ---------------------------------------------------------------------------
 
 export const Eyebrow = EmailNode.create({
   name: 'spaireEyebrow',
   group: 'block',
-  atom: true,
+  content: 'inline*',
   draggable: true,
-  selectable: true,
 
   addAttributes() {
-    return {
-      text: { default: 'EYEBROW · LABEL' },
-      accent: { default: '#4f46e5' },
-    }
+    return { accent: { default: '#4f46e5' } }
   },
 
   parseHTML() {
@@ -59,8 +70,7 @@ export const Eyebrow = EmailNode.create({
         tag: 'div[data-spaire-node="eyebrow"]',
         getAttrs: (node) => {
           if (typeof node === 'string') return false
-          const el = node as HTMLElement
-          return { text: el.textContent ?? '', accent: attr(el, 'accent', '#4f46e5') }
+          return { accent: attr(node as HTMLElement, 'accent', '#4f46e5') }
         },
       },
     ]
@@ -75,11 +85,11 @@ export const Eyebrow = EmailNode.create({
         'data-accent': accent,
         style: `font-size:11px;letter-spacing:0.18em;text-transform:uppercase;color:${accent};font-weight:600;margin:0 0 8px;`,
       }),
-      node.attrs.text as string,
+      0,
     ]
   },
 
-  renderToReactEmail({ node, style }) {
+  renderToReactEmail({ children, node, style }) {
     const accent = (node.attrs?.accent as string) || '#4f46e5'
     return (
       <Text
@@ -93,40 +103,27 @@ export const Eyebrow = EmailNode.create({
           margin: '0 0 8px',
         }}
       >
-        {node.attrs?.text as string}
+        {children}
       </Text>
     )
   },
 })
 
 // ---------------------------------------------------------------------------
-// Badge
+// Badge — typable inline text
 // ---------------------------------------------------------------------------
 
 export const Badge = EmailNode.create({
   name: 'spaireBadge',
   group: 'block',
-  atom: true,
+  content: 'inline*',
   draggable: true,
-  selectable: true,
-
-  addAttributes() {
-    return { text: { default: '✓ Tag' } }
-  },
 
   parseHTML() {
-    return [
-      {
-        tag: 'span[data-spaire-node="badge"]',
-        getAttrs: (node) => {
-          if (typeof node === 'string') return false
-          return { text: (node as HTMLElement).textContent ?? '' }
-        },
-      },
-    ]
+    return [{ tag: 'span[data-spaire-node="badge"]' }]
   },
 
-  renderHTML({ HTMLAttributes, node }) {
+  renderHTML({ HTMLAttributes }) {
     return [
       'span',
       mergeAttributes(HTMLAttributes, {
@@ -134,11 +131,11 @@ export const Badge = EmailNode.create({
         style:
           'display:inline-block;font-size:12px;padding:5px 11px;background:#111;color:#fff;border-radius:999px;font-weight:500;margin:0 0 14px;',
       }),
-      node.attrs.text as string,
+      0,
     ]
   },
 
-  renderToReactEmail({ node, style }) {
+  renderToReactEmail({ children, style }) {
     return (
       <Text
         style={{
@@ -153,14 +150,14 @@ export const Badge = EmailNode.create({
           margin: '0 0 14px',
         }}
       >
-        {node.attrs?.text as string}
+        {children}
       </Text>
     )
   },
 })
 
 // ---------------------------------------------------------------------------
-// Event Card
+// Event Card — structured atom
 // ---------------------------------------------------------------------------
 
 export const EventCard = EmailNode.create({
@@ -215,15 +212,36 @@ export const EventCard = EmailNode.create({
       }),
       [
         'div',
-        { style: 'background:rgba(255,255,255,0.15);border-radius:8px;padding:10px;text-align:center;min-width:80px;' },
+        {
+          style:
+            'background:rgba(255,255,255,0.15);border-radius:8px;padding:10px;text-align:center;min-width:80px;',
+        },
         ['div', { style: 'font-size:10px;letter-spacing:0.1em;opacity:0.8;' }, a.day as string],
-        ['div', { style: 'font-size:18px;font-weight:700;letter-spacing:-0.02em;margin-top:2px;' }, a.date as string],
+        [
+          'div',
+          { style: 'font-size:18px;font-weight:700;letter-spacing:-0.02em;margin-top:2px;' },
+          a.date as string,
+        ],
       ],
       [
         'div',
         { style: 'flex:1;' },
-        ['div', { style: 'font-size:11px;opacity:0.7;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px;' }, "You're invited"],
-        ['div', { style: 'font-size:17px;font-weight:600;letter-spacing:-0.01em;margin-bottom:6px;line-height:1.25;' }, a.title as string],
+        [
+          'div',
+          {
+            style:
+              'font-size:11px;opacity:0.7;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px;',
+          },
+          "You're invited",
+        ],
+        [
+          'div',
+          {
+            style:
+              'font-size:17px;font-weight:600;letter-spacing:-0.01em;margin-bottom:6px;line-height:1.25;',
+          },
+          a.title as string,
+        ],
         ['div', { style: 'font-size:12px;opacity:0.85;' }, a.meta as string],
       ],
     ]
@@ -279,7 +297,7 @@ export const EventCard = EmailNode.create({
 })
 
 // ---------------------------------------------------------------------------
-// Receipt
+// Receipt — structured atom
 // ---------------------------------------------------------------------------
 
 export type ReceiptItem = { name: string; sub?: string; price: string }
@@ -333,7 +351,10 @@ export const Receipt = EmailNode.create({
       }),
       ...items.map((it) => [
         'div',
-        { style: 'display:flex;justify-content:space-between;align-items:flex-start;padding:10px 0;border-bottom:1px solid #efefef;gap:12px;' },
+        {
+          style:
+            'display:flex;justify-content:space-between;align-items:flex-start;padding:10px 0;border-bottom:1px solid #efefef;gap:12px;',
+        },
         [
           'div',
           { style: 'flex:1;' },
@@ -346,7 +367,10 @@ export const Receipt = EmailNode.create({
       ]),
       [
         'div',
-        { style: 'display:flex;justify-content:space-between;align-items:baseline;padding-top:12px;border-top:2px solid #111;' },
+        {
+          style:
+            'display:flex;justify-content:space-between;align-items:baseline;padding-top:12px;border-top:2px solid #111;',
+        },
         ['span', { style: 'font-size:13px;font-weight:600;' }, 'Total'],
         ['span', { style: 'font-size:15px;font-weight:700;font-family:monospace;' }, total],
       ],
@@ -354,7 +378,7 @@ export const Receipt = EmailNode.create({
   },
 
   renderToReactEmail({ node, style }) {
-    const items = ((node.attrs?.items as ReceiptItem[]) || [])
+    const items = (node.attrs?.items as ReceiptItem[]) || []
     const total = (node.attrs?.total as string) || '$0.00'
     return (
       <Section
@@ -374,9 +398,7 @@ export const Receipt = EmailNode.create({
                 {it.name}
               </Text>
               {it.sub ? (
-                <Text style={{ fontSize: 11.5, color: '#888', margin: '2px 0 0' }}>
-                  {it.sub}
-                </Text>
+                <Text style={{ fontSize: 11.5, color: '#888', margin: '2px 0 0' }}>{it.sub}</Text>
               ) : null}
             </Column>
             <Column align="right">
@@ -402,7 +424,7 @@ export const Receipt = EmailNode.create({
 })
 
 // ---------------------------------------------------------------------------
-// Digest Item
+// Digest Item — structured atom
 // ---------------------------------------------------------------------------
 
 export const DigestItem = EmailNode.create({
@@ -457,14 +479,30 @@ export const DigestItem = EmailNode.create({
       }),
       [
         'div',
-        { style: `font-size:20px;font-weight:700;color:${accent};font-family:monospace;line-height:1;min-width:48px;` },
+        {
+          style: `font-size:20px;font-weight:700;color:${accent};font-family:monospace;line-height:1;min-width:48px;`,
+        },
         a.num as string,
       ],
       [
         'div',
         { style: 'flex:1;' },
-        ['div', { style: 'font-size:15px;font-weight:600;color:#111;letter-spacing:-0.01em;margin-bottom:3px;line-height:1.3;' }, a.title as string],
-        ['div', { style: 'font-size:11px;color:#888;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:5px;' }, a.meta as string],
+        [
+          'div',
+          {
+            style:
+              'font-size:15px;font-weight:600;color:#111;letter-spacing:-0.01em;margin-bottom:3px;line-height:1.3;',
+          },
+          a.title as string,
+        ],
+        [
+          'div',
+          {
+            style:
+              'font-size:11px;color:#888;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:5px;',
+          },
+          a.meta as string,
+        ],
         ['div', { style: 'font-size:13px;color:#444;line-height:1.55;' }, a.body as string],
       ],
     ]
@@ -499,7 +537,7 @@ export const DigestItem = EmailNode.create({
 })
 
 // ---------------------------------------------------------------------------
-// Checklist
+// Checklist — structured atom
 // ---------------------------------------------------------------------------
 
 export type ChecklistItem = { title: string; body?: string }
@@ -552,8 +590,7 @@ export const Checklist = EmailNode.create({
         'data-spaire-node': 'checklist',
         'data-items': JSON.stringify(items),
         'data-accent': accent,
-        style:
-          'margin:16px 0;background:#fafafa;border:1px solid #efefef;border-radius:8px;padding:14px;',
+        style: 'margin:16px 0;background:#fafafa;border:1px solid #efefef;border-radius:8px;padding:14px;',
       }),
       ...items.map((it, i) => [
         'div',
@@ -578,7 +615,7 @@ export const Checklist = EmailNode.create({
   },
 
   renderToReactEmail({ node, style }) {
-    const items = ((node.attrs?.items as ChecklistItem[]) || [])
+    const items = (node.attrs?.items as ChecklistItem[]) || []
     const accent = (node.attrs?.accent as string) || '#4f46e5'
     return (
       <Section
@@ -629,18 +666,82 @@ export const Checklist = EmailNode.create({
 })
 
 // ---------------------------------------------------------------------------
-// Bundled export — register all six on the editor
+// Registration
 // ---------------------------------------------------------------------------
 
+/** All six custom nodes, to spread into the editor's extensions array. */
 export const spaireCustomNodes = [Eyebrow, Badge, EventCard, Receipt, DigestItem, Checklist]
 
-// The legacy block types (mirrors blockEditor/types.ts) → node names produced
-// here. The Phase 3 converter uses this map to translate stored documents.
-export const LEGACY_TYPE_TO_NODE = {
-  eyebrow: 'spaireEyebrow',
-  badge: 'spaireBadge',
-  'event-card': 'spaireEventCard',
-  receipt: 'spaireReceipt',
-  'digest-item': 'spaireDigestItem',
-  checklist: 'spaireChecklist',
-} as const
+/** Slash-menu entries so creators can insert each custom block via "/". */
+export const spaireSlashItems: SlashCommandItem[] = [
+  {
+    title: 'Eyebrow',
+    description: 'Small uppercase label',
+    icon: <Tag size={18} />,
+    category: 'Spaire',
+    searchTerms: ['eyebrow', 'label', 'kicker'],
+    command: ({ editor, range }) =>
+      editor
+        .chain()
+        .focus()
+        .deleteRange(range)
+        .insertContent({
+          type: 'spaireEyebrow',
+          content: [{ type: 'text', text: 'EYEBROW · LABEL' }],
+        })
+        .run(),
+  },
+  {
+    title: 'Badge',
+    description: 'Pill tag',
+    icon: <Tag size={18} />,
+    category: 'Spaire',
+    searchTerms: ['badge', 'pill', 'tag'],
+    command: ({ editor, range }) =>
+      editor
+        .chain()
+        .focus()
+        .deleteRange(range)
+        .insertContent({
+          type: 'spaireBadge',
+          content: [{ type: 'text', text: '✓ Tag' }],
+        })
+        .run(),
+  },
+  {
+    title: 'Event card',
+    description: 'Date + title + meta card',
+    icon: <Calendar size={18} />,
+    category: 'Spaire',
+    searchTerms: ['event', 'invite', 'workshop'],
+    command: ({ editor, range }) =>
+      editor.chain().focus().deleteRange(range).insertContent({ type: 'spaireEventCard' }).run(),
+  },
+  {
+    title: 'Receipt',
+    description: 'Itemised receipt with total',
+    icon: <ReceiptIcon size={18} />,
+    category: 'Spaire',
+    searchTerms: ['receipt', 'order', 'invoice'],
+    command: ({ editor, range }) =>
+      editor.chain().focus().deleteRange(range).insertContent({ type: 'spaireReceipt' }).run(),
+  },
+  {
+    title: 'Digest item',
+    description: 'Numbered story block',
+    icon: <Newspaper size={18} />,
+    category: 'Spaire',
+    searchTerms: ['digest', 'story', 'news'],
+    command: ({ editor, range }) =>
+      editor.chain().focus().deleteRange(range).insertContent({ type: 'spaireDigestItem' }).run(),
+  },
+  {
+    title: 'Checklist',
+    description: 'Numbered steps',
+    icon: <ListChecks size={18} />,
+    category: 'Spaire',
+    searchTerms: ['checklist', 'steps', 'todo'],
+    command: ({ editor, range }) =>
+      editor.chain().focus().deleteRange(range).insertContent({ type: 'spaireChecklist' }).run(),
+  },
+]

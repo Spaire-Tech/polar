@@ -34,7 +34,8 @@ function convertBlock(block: Block, accent: string | undefined): JSONContent | n
     case 'eyebrow':
       return {
         type: 'spaireEyebrow',
-        attrs: { text: block.text, accent: accent ?? '#4f46e5' },
+        attrs: { accent: accent ?? '#4f46e5' },
+        content: text(block.text),
       }
 
     case 'heading':
@@ -56,7 +57,7 @@ function convertBlock(block: Block, accent: string | undefined): JSONContent | n
       return paragraph(block.text)
 
     case 'badge':
-      return { type: 'spaireBadge', attrs: { text: block.text } }
+      return { type: 'spaireBadge', content: text(block.text) }
 
     case 'image':
       if (!block.src) return null

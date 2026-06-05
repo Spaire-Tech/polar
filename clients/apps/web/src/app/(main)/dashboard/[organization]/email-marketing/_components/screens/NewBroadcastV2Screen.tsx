@@ -253,7 +253,11 @@ export function NewBroadcastV2Screen({
 
       <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
         <div className="rounded-xl border border-gray-200 bg-white p-4">
-          <SpaireEmailEditor content={STARTER_JSON} onChange={setSnapshot} />
+          <SpaireEmailEditor
+            content={STARTER_JSON}
+            onChange={setSnapshot}
+            uploadImage={uploadImage}
+          />
         </div>
         <div className="rounded-xl border border-gray-200 bg-white p-4">
           <div className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-500">
