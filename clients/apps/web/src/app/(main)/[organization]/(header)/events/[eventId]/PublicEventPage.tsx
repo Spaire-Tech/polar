@@ -15,9 +15,12 @@ import { Avatar } from '@/components/Community/Avatar'
 import { calendarLinksFor } from '@/components/Community/calendarLinks'
 import styles from '@/components/Community/community.module.css'
 import {
+  IconAppleCalendar,
   IconCalendar,
   IconClock,
+  IconGoogleCalendar,
   IconMapPin,
+  IconOutlookCalendar,
   IconPlayCircle,
   IconShare,
   IconUsers,
@@ -357,9 +360,22 @@ function PublicCalendarMenu({
             zIndex: 8,
           }}
         >
-          <CalLinkA href={links.google} label="Google Calendar" />
-          <CalLinkA href={links.outlook} label="Outlook" />
-          <CalLinkA href={links.ics} label="Apple Calendar (.ics)" download />
+          <CalLinkA
+            href={links.google}
+            label="Google Calendar"
+            icon={<IconGoogleCalendar size={18} />}
+          />
+          <CalLinkA
+            href={links.outlook}
+            label="Outlook"
+            icon={<IconOutlookCalendar size={18} />}
+          />
+          <CalLinkA
+            href={links.ics}
+            label="Apple Calendar (.ics)"
+            icon={<IconAppleCalendar size={18} />}
+            download
+          />
         </div>
       ) : null}
     </div>
@@ -369,10 +385,12 @@ function PublicCalendarMenu({
 function CalLinkA({
   href,
   label,
+  icon,
   download,
 }: {
   href: string
   label: string
+  icon?: React.ReactNode
   download?: boolean
 }) {
   return (
@@ -383,7 +401,9 @@ function CalLinkA({
       rel="noreferrer noopener"
       {...(download ? { download: '' } : {})}
       style={{
-        display: 'block',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 10,
         textAlign: 'left',
         padding: '8px 12px',
         borderRadius: 8,
@@ -392,7 +412,8 @@ function CalLinkA({
         color: 'var(--c-ink)',
       }}
     >
-      {label}
+      {icon}
+      <span>{label}</span>
     </a>
   )
 }

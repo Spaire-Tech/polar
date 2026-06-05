@@ -433,6 +433,7 @@ class CommunityEventCardData(BaseModel):
     timezone: str = "UTC"
     duration_minutes: int
     host_name: str
+    host_avatar_url: str | None = None
     cover_url: str | None = None
     cover_object_position: str | None = None
     location: str | None = None
