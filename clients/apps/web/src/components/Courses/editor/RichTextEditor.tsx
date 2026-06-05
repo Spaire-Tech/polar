@@ -10,12 +10,19 @@ import InsertLinkOutlined from '@mui/icons-material/InsertLinkOutlined'
 import StopOutlined from '@mui/icons-material/StopOutlined'
 import StrikethroughSOutlined from '@mui/icons-material/StrikethroughSOutlined'
 import { cn } from '@spaire/ui/lib/utils'
-import Link from '@tiptap/extension-link'
 import Placeholder from '@tiptap/extension-placeholder'
 import { EditorContent, useEditor, type Editor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import { useEffect, useRef } from 'react'
-import { Markdown } from 'tiptap-markdown'
+import { Markdown, type MarkdownStorage } from 'tiptap-markdown'
+
+// tiptap-markdown ships a `MarkdownStorage` type but doesn't augment Tiptap's
+// `Storage` interface, so `editor.storage.markdown` isn't known to TS under
+// Tiptap v3's stricter typing. Read it through this typed accessor instead.
+const getMarkdown = (editor: Editor): string => {
+  const storage = editor.storage as { markdown?: MarkdownStorage }
+  return storage.markdown?.getMarkdown() ?? editor.getText()
+}
 
 type Props = {
   value: string
@@ -36,12 +43,14 @@ export function RichTextEditor({
 }: Props) {
   const editor = useEditor({
     extensions: [
+      // Tiptap v3 StarterKit bundles Link (and Underline); configure it
+      // inline instead of registering a second Link extension.
       StarterKit.configure({
         heading: { levels: [1, 2, 3] },
-      }),
-      Link.configure({
-        openOnClick: false,
-        HTMLAttributes: { class: 'text-blue-600 underline' },
+        link: {
+          openOnClick: false,
+          HTMLAttributes: { class: 'text-blue-600 underline' },
+        },
       }),
       Placeholder.configure({ placeholder }),
       Markdown.configure({
@@ -59,8 +68,7 @@ export function RichTextEditor({
       },
     },
     onUpdate: ({ editor }) => {
-      const md = editor.storage.markdown?.getMarkdown?.() ?? editor.getText()
-      onChange(md)
+      onChange(getMarkdown(editor))
     },
     immediatelyRender: false,
   })
@@ -70,10 +78,9 @@ export function RichTextEditor({
   useEffect(() => {
     if (!editor) return
     if (value === lastEmittedRef.current) return
-    const current =
-      editor.storage.markdown?.getMarkdown?.() ?? editor.getText()
+    const current = getMarkdown(editor)
     if (value === current) return
-    editor.commands.setContent(value, false)
+    editor.commands.setContent(value, { emitUpdate: false })
     lastEmittedRef.current = value
   }, [value, editor])
 
