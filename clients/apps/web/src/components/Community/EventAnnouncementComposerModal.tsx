@@ -43,17 +43,14 @@ const defaultSubject = (event: CommunityEvent | null): string => {
   return `Heads up: ${event.title}`
 }
 
-const defaultBody = (event: CommunityEvent | null): string => {
-  if (!event) return ''
-  // Soft template the host can keep, edit, or wipe. Trying to write
-  // it for them gets in the way; trying to leave it blank gives them
-  // nothing to react to. This is the middle ground.
-  return `Hey everyone,
-
-A quick note about ${event.title}. The event card with the time + how to join is below — hit "View event" to RSVP or to add it to your calendar.
-
-See you there!`
-}
+// Body starts EMPTY on purpose. A pre-filled template made it
+// impossible to tell whether a real message went out or the
+// placeholder did. The event card (time + join link) renders
+// automatically below whatever the host writes, so an empty body
+// still produces a complete, useful email — it just leads with the
+// subject and the card. The textarea placeholder shows an example so
+// the host isn't staring at a blank box.
+const defaultBody = (): string => ''
 
 export function EventAnnouncementComposerModal({
   open,
@@ -87,7 +84,7 @@ export function EventAnnouncementComposerModal({
     if (!open || !event) return
     if (lastSeededFor.current === event.id) return
     setSubject(defaultSubject(event))
-    setBody(defaultBody(event))
+    setBody(defaultBody())
     setPreviewHtml(null)
     setPreviewError(null)
     lastSeededFor.current = event.id
@@ -252,7 +249,9 @@ export function EventAnnouncementComposerModal({
                 className={styles.ceInput}
                 value={body}
                 onChange={(e) => setBody(e.target.value)}
-                placeholder="Add a personal note. Press Enter twice for a paragraph break."
+                placeholder={
+                  'Add a personal note — e.g. "Can’t wait to see you all there! Bring your questions." Leave blank to just send the event card. Press Enter twice for a paragraph break.'
+                }
                 rows={10}
                 maxLength={4000}
                 // Inline so the textarea matches the modal's other

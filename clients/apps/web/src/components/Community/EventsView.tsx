@@ -237,6 +237,11 @@ type Props = {
    * flat dark panel. */
   courseCoverUrl?: string | null
   courseCoverPosition?: string | null
+  /** Deep-link target: when set, auto-open this event's detail modal
+   * once (from a public "RSVP in portal" share link). Calls
+   * onAutoOpenConsumed after opening so it doesn't re-fire. */
+  autoOpenEventId?: string | null
+  onAutoOpenConsumed?: () => void
 }
 
 export function EventsView({
@@ -251,6 +256,8 @@ export function EventsView({
   canCreate,
   courseCoverUrl,
   courseCoverPosition,
+  autoOpenEventId,
+  onAutoOpenConsumed,
 }: Props) {
   const [createOpen, setCreateOpen] = useState(false)
   const [editing, setEditing] = useState<CommunityEvent | null>(null)
@@ -264,6 +271,17 @@ export function EventsView({
   const [openEventId, setOpenEventId] = useState<string | null>(null)
   const openEvent =
     openEventId ? (events.find((e) => e.id === openEventId) ?? null) : null
+  // Consume the deep-link target once the matching event has loaded.
+  // We wait until it's actually in `events` so the modal opens against
+  // real data rather than flashing an empty shell.
+  useEffect(() => {
+    if (!autoOpenEventId) return
+    const exists = events.some((e) => e.id === autoOpenEventId)
+    if (exists) {
+      setOpenEventId(autoOpenEventId)
+      onAutoOpenConsumed?.()
+    }
+  }, [autoOpenEventId, events, onAutoOpenConsumed])
   // Host-only roster modal. Tracked at the EventsView level (not on
   // each card) so the modal lives outside the card grid and can't be
   // unmounted by re-renders of the underlying list.

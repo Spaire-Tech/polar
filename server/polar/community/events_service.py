@@ -277,6 +277,19 @@ class CommunityEventService:
         if event.host_user_id != host_user_id:
             raise EventHostMismatch()
 
+        # Count the enrolled members up-front so the create response can
+        # report the real "will notify N members" number immediately.
+        # Without this, recipient_count was 0 on the response (the actor
+        # populates it asynchronously) and the host saw "no members to
+        # notify yet" even when everyone got the announcement. The actor
+        # re-confirms this same count after fan-out.
+        from polar.course.repository import CourseEnrollmentRepository
+
+        enrolled_ids = await CourseEnrollmentRepository.from_session(
+            session
+        ).list_customer_ids_for_course(event.course_id)
+        intended_recipients = len(enrolled_ids)
+
         repo = CommunityEventAnnouncementRepository.from_session(session)
         announcement = await repo.create(
             CommunityEventAnnouncement(
@@ -286,7 +299,7 @@ class CommunityEventService:
                 subject=payload.subject.strip(),
                 body=payload.body or "",
                 status="sending" if payload.send_now else "draft",
-                recipient_count=0,
+                recipient_count=intended_recipients,
             ),
             flush=True,
         )
@@ -296,6 +309,7 @@ class CommunityEventService:
             announcement_id=str(announcement.id),
             event_id=str(event.id),
             send_now=payload.send_now,
+            intended_recipients=intended_recipients,
         )
 
         if payload.send_now:

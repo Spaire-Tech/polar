@@ -4,14 +4,12 @@
 // rows + host card the in-portal EventDetailModal uses, so a shared
 // link looks like the in-app modal "popped open" as a real page.
 //
-// Two key differences from the modal:
-//   1. No RSVP button — RSVPing requires an enrolled customer
-//      session, which a public viewer doesn't have. The CTA is
-//      "Open in portal" which deep-links into community for the
-//      logged-in path.
-//   2. The Add-to-Calendar menu lives in the footer (same place as
-//      the modal) and works without auth — it hits the public
-//      `.ics` endpoint.
+// RSVP itself still requires an enrolled customer session, so the
+// primary CTA deep-links into the in-portal event (?event=<id> on the
+// course community feed) where the viewer can RSVP + get reminders.
+// When the event is live and a join link exists, the CTA becomes a
+// direct "Join now" instead. The meeting link and Add-to-Calendar
+// (via a same-origin .ics proxy) both work here without auth.
 
 import { Avatar } from '@/components/Community/Avatar'
 import { calendarLinksFor } from '@/components/Community/calendarLinks'
@@ -25,7 +23,6 @@ import {
   IconUsers,
   IconVideo,
 } from '@/components/Community/icons'
-import { getPublicServerURL } from '@/utils/api'
 import { useEffect, useRef, useState } from 'react'
 import type { PublicEventData } from './page'
 
@@ -68,9 +65,10 @@ export function PublicEventPage({ event, organizationSlug }: Props) {
       }
     : { background: 'linear-gradient(135deg, #1f1f1f, #4a4a4a)' }
 
-  const icsUrl = getPublicServerURL(
-    `/v1/community/public/events/${event.id}/ics`,
-  )
+  // Same-origin .ics proxy (see ./ics/route.ts) so the download
+  // attribute works — a cross-origin api.spairehq.com link would be
+  // ignored by the browser's `download` and navigate instead.
+  const icsUrl = `/${organizationSlug}/events/${event.id}/ics`
   const calLinks = calendarLinksFor(
     {
       title: event.title,
@@ -78,15 +76,18 @@ export function PublicEventPage({ event, organizationSlug }: Props) {
       durationMinutes: event.duration_minutes,
       description: event.description,
       location: event.location,
-      // Public page deliberately doesn't expose meeting_url — but the
-      // .ics endpoint includes it (the recipient already had access
-      // via the email/portal flow that handed them the calendar file).
-      meetingUrl: null,
+      // Include the join link in the calendar entry — it's the one
+      // field that matters for an online event.
+      meetingUrl: event.meeting_url,
     },
     icsUrl,
   )
 
-  const portalUrl = `/${organizationSlug}/portal/community`
+  // Deep-link into the in-portal event (link + RSVP live there). The
+  // `?event=` param tells the community feed to auto-open this event's
+  // modal. Without a session the portal routes through request-access,
+  // the standard customer entry.
+  const portalUrl = `/${organizationSlug}/portal/courses/${event.course_id}/community?event=${event.id}`
   const shareUrl =
     typeof window !== 'undefined'
       ? window.location.href
@@ -170,10 +171,24 @@ export function PublicEventPage({ event, organizationSlug }: Props) {
               <IconMapPin size={16} />
             </span>
             <div className={styles.evRowText}>
-              <strong>{event.location || 'Online'}</strong>
-              {!event.past ? (
+              <strong>
+                {event.meeting_url ? 'Online' : event.location || 'Online'}
+              </strong>
+              {event.meeting_url && !event.past ? (
                 <div className={styles.evRowTextSub}>
-                  Members get the join link by email
+                  <a
+                    href={event.meeting_url}
+                    target="_blank"
+                    rel="noreferrer noopener"
+                    style={{
+                      color: 'var(--c-ink)',
+                      wordBreak: 'break-all',
+                      textDecoration: 'underline',
+                      textUnderlineOffset: 2,
+                    }}
+                  >
+                    {event.meeting_url}
+                  </a>
                 </div>
               ) : null}
             </div>
@@ -235,20 +250,24 @@ export function PublicEventPage({ event, organizationSlug }: Props) {
               <IconShare size={14} /> Share
             </button>
             <PublicCalendarMenu links={calLinks} />
-            {event.past ? null : (
+            {event.live && event.meeting_url ? (
+              // Live + we have the link: one tap straight into the room.
+              <a
+                href={event.meeting_url}
+                target="_blank"
+                rel="noreferrer noopener"
+                className={`${styles.evFooterBtn} ${styles.evFooterBtnLive}`}
+              >
+                <IconVideo size={14} /> Join now
+              </a>
+            ) : event.past ? null : (
+              // Upcoming: send them into the portal event where they can
+              // RSVP + get reminders.
               <a
                 href={portalUrl}
                 className={`${styles.evFooterBtn} ${styles.evFooterBtnPrimary}`}
               >
-                {event.live ? (
-                  <>
-                    <IconVideo size={14} /> Open in portal
-                  </>
-                ) : (
-                  <>
-                    <IconPlayCircle size={14} /> Open in portal
-                  </>
-                )}
+                <IconPlayCircle size={14} /> RSVP in portal
               </a>
             )}
           </div>
