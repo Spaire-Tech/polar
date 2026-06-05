@@ -40,7 +40,8 @@ import {
   type Content,
   type JSONContent,
 } from '@tiptap/react'
-import { useCallback, useMemo, useRef, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, type ReactNode } from 'react'
+import type { Editor } from '@tiptap/react'
 
 import '@react-email/editor/themes/default.css'
 
@@ -69,9 +70,11 @@ type Props = {
   showInspector?: boolean
   /** Optional UI rendered above the editor canvas. */
   slotBefore?: ReactNode
-  /** Optional left-rail block palette. Rendered inside EditorContext so it
-   *  can call useCurrentEditor() to insert blocks. */
-  paletteSlot?: ReactNode
+  /** Fires once the editor instance is created (and again with null on unmount).
+   *  Use this to hand the editor to a sibling component (e.g. BlockPalette)
+   *  rather than relying on Tiptap's EditorContext, which can resolve to a
+   *  different React context object when pnpm dedupes badly. */
+  onEditorReady?: (editor: Editor | null) => void
 }
 
 export function SpaireEmailEditor({
@@ -82,7 +85,7 @@ export function SpaireEmailEditor({
   className,
   showInspector = true,
   slotBefore,
-  paletteSlot,
+  onEditorReady,
 }: Props) {
   // The editor must NOT be re-created on every parent render. Three things
   // need to stay stable across renders or `useEditor` will tear down and
@@ -152,6 +155,16 @@ export function SpaireEmailEditor({
     [],
   )
 
+  // Hand the editor up to the parent (e.g. BlockPalette) as soon as it
+  // exists. We're not relying on Tiptap's EditorContext for sibling
+  // components — see SpaireEmailEditor's prop docs for why.
+  const readyRef = useRef(onEditorReady)
+  readyRef.current = onEditorReady
+  useEffect(() => {
+    readyRef.current?.(editor)
+    return () => readyRef.current?.(null)
+  }, [editor])
+
   // Don't render the bubble menus, slash menu, or inspector until the editor
   // instance exists. Several of those components read from EditorContext
   // synchronously and crash on a null editor (e.g. `editor.options...`).
@@ -165,14 +178,9 @@ export function SpaireEmailEditor({
     )
   }
 
-  // Three-column grid: optional left palette | editor canvas | optional inspector.
-  const gridCols = [
-    paletteSlot ? '200px' : null,
-    '1fr',
-    showInspector ? '280px' : null,
-  ]
-    .filter(Boolean)
-    .join(' ')
+  // Two-column grid: editor canvas | optional inspector. Block palette is
+  // owned by the parent and laid out at its own level.
+  const gridCols = showInspector ? '1fr 280px' : '1fr'
 
   return (
     <EditorContext.Provider value={{ editor }}>
@@ -184,7 +192,6 @@ export function SpaireEmailEditor({
           alignItems: 'flex-start',
         }}
       >
-        {paletteSlot}
         <div style={{ minWidth: 0 }}>
           {slotBefore}
           <div

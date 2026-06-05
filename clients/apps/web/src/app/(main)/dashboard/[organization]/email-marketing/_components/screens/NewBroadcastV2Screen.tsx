@@ -1,33 +1,35 @@
 'use client'
 
-// Broadcast composer built on @react-email/editor.
+// Broadcast composer (V2) built on @react-email/editor.
 //
-// Three-tab workflow that mirrors the legacy wizard's idiom (back button +
-// eyebrow + h1 + tabs + Back/Continue footer) using Spaire's existing
-// `Section` / `card` / `label` / `input` / `btn-*` CSS classes. Tabs:
+// Five-step flow that mirrors the legacy NewBroadcastScreen wizard:
+//   1. Details       — subject, preview text, sender, from, reply-to
+//   2. Content       — block palette · editor · inspector
+//   3. Audience      — all active · segment · custom filter rules
+//   4. Preview       — Desktop / Mobile / Inbox device mocks + send-test
+//   5. Review & send — schedule (now / optimal / custom) + summary + dispatch
 //
-//   1. Details — subject, preview text, sender, from address, reply-to
-//   2. Content — block palette · editor · inspector
-//   3. Send    — test recipient, then live send
-//
-// Persists to the same EmailBroadcast.{content_json, content_html} columns
-// the legacy wizard writes to, via the existing mutation hooks. Editor is
-// mounted once on first paint and hidden across tab switches (not unmounted)
-// so creators don't lose UI state when jumping between Details and Content.
+// All steps stay mounted via display:none toggling so the editor doesn't
+// tear down on tab switches and the user never loses transient UI state.
+// Persistence + dispatch go through the same useCreateEmailBroadcast /
+// useUpdateEmailBroadcast / useScheduleEmailBroadcast / useSendEmailBroadcast
+// hooks the legacy wizard uses, so the API path is unchanged.
 
 import { useAuth } from '@/hooks/auth'
 import {
   useCreateEmailBroadcast,
-  useEmailSubscriberStats,
+  useScheduleEmailBroadcast,
   useSendEmailBroadcast,
   useSendTestEmailBroadcast,
   useUpdateEmailBroadcast,
   useUploadEmailImage,
   type BroadcastWritePayload,
+  type FilterRules,
 } from '@/hooks/queries/emailMarketing'
 import { schemas } from '@spaire/client'
+import type { Editor } from '@tiptap/react'
 import { useRouter } from 'next/navigation'
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 
 import { BlockPalette } from '../emailEditor/BlockPalette'
 import {
@@ -35,15 +37,21 @@ import {
   type EmailEditorSnapshot,
 } from '../emailEditor/SpaireEmailEditor'
 import { Icon } from '../Icon'
-import { sanitizeEmailHtml } from '../sanitize'
 import { Section } from '../shared'
+import {
+  AudienceSection,
+  PreviewTabContent,
+  ReviewSection,
+} from './BroadcastV2Sections'
 
-type Tab = 'details' | 'content' | 'send'
+type Step = 'details' | 'content' | 'audience' | 'preview' | 'review'
 
-const TABS: { id: Tab; label: string }[] = [
+const STEPS: { id: Step; label: string }[] = [
   { id: 'details', label: 'Details' },
   { id: 'content', label: 'Content' },
-  { id: 'send', label: 'Send' },
+  { id: 'audience', label: 'Audience' },
+  { id: 'preview', label: 'Preview' },
+  { id: 'review', label: 'Review & send' },
 ]
 
 const STARTER_JSON = {
@@ -75,36 +83,46 @@ export function NewBroadcastV2Screen({
   const router = useRouter()
   const { currentUser } = useAuth()
 
-  // Draft state — mirrors the legacy Draft shape but trimmed to what V2 sends.
+  // ── Draft state ─────────────────────────────────────────────────────
   const [subject, setSubject] = useState('')
   const [previewText, setPreviewText] = useState('')
   const [senderName, setSenderName] = useState(organization.name)
   const [senderEmail, setSenderEmail] = useState('')
   const [replyToEmail, setReplyToEmail] = useState('')
-  const [testRecipient, setTestRecipient] = useState(currentUser?.email ?? '')
-  const [broadcastId, setBroadcastId] = useState<string | null>(null)
+  const [segmentId, setSegmentId] = useState<string | null>(null)
+  const [filterRules, setFilterRules] = useState<FilterRules | null>(null)
+
+  // Editor output (TipTap JSON + email-ready HTML) lives in state so
+  // every tab — preview, review, persistence — sees the latest snapshot.
   const [snapshot, setSnapshot] = useState<EmailEditorSnapshot | null>(null)
+
+  // The editor instance lifted up via SpaireEmailEditor.onEditorReady so
+  // sibling components (BlockPalette) can drive it without depending on
+  // Tiptap's EditorContext resolution.
+  const [editor, setEditor] = useState<Editor | null>(null)
+
+  // ── Test send + UI state ────────────────────────────────────────────
+  const [testEmail, setTestEmail] = useState(currentUser?.email ?? '')
+  const [testSent, setTestSent] = useState<string | null>(null)
+
+  const [broadcastId, setBroadcastId] = useState<string | null>(null)
   const [savedAt, setSavedAt] = useState<Date | null>(null)
   const [statusMsg, setStatusMsg] = useState<string>('')
   const [statusKind, setStatusKind] = useState<'info' | 'success' | 'error'>(
     'info',
   )
-  const [tab, setTab] = useState<Tab>('details')
+  const [step, setStep] = useState<Step>('details')
 
-  // Live-send confirmation. The button is gated behind typing SEND so a
-  // mis-click can't dispatch a real broadcast to the whole audience.
-  const [confirmText, setConfirmText] = useState('')
-
+  // ── Mutations ───────────────────────────────────────────────────────
   const createBroadcast = useCreateEmailBroadcast(organization.id)
   const updateBroadcast = useUpdateEmailBroadcast()
   const sendTest = useSendTestEmailBroadcast()
   const sendBroadcast = useSendEmailBroadcast()
-  const subscriberStats = useEmailSubscriberStats(organization.id)
+  const scheduleBroadcast = useScheduleEmailBroadcast()
   const uploadImageMutation = useUploadEmailImage(organization.id)
 
-  // Stable upload wrapper — TanStack mutation references change every
-  // render; the editor will rebuild if uploadImage's identity changes,
-  // so hold the mutation in a ref and expose a singleton callback.
+  // Stable upload wrapper — TanStack mutation refs change every render;
+  // unstable callbacks rebuild the editor.
   const uploadMutRef = useRef(uploadImageMutation)
   uploadMutRef.current = uploadImageMutation
   const uploadImage = useCallback(async (file: File) => {
@@ -112,16 +130,13 @@ export function NewBroadcastV2Screen({
     return result.url
   }, [])
 
-  const sanitizedHtml = useMemo(
-    () => sanitizeEmailHtml(snapshot?.html),
-    [snapshot?.html],
-  )
-
+  // ── Status helper ───────────────────────────────────────────────────
   const setStatus = (kind: 'info' | 'success' | 'error', msg: string) => {
     setStatusKind(kind)
     setStatusMsg(msg)
   }
 
+  // ── Persistence ─────────────────────────────────────────────────────
   type CreatePayload = BroadcastWritePayload & {
     subject: string
     sender_name: string
@@ -133,12 +148,12 @@ export function NewBroadcastV2Screen({
       subject: subject || 'Untitled broadcast',
       preview_text: previewText || null,
       sender_name: senderName || organization.name,
-      sender_email: senderEmail || null,
-      reply_to_email: replyToEmail || null,
+      sender_email: senderEmail.trim() || null,
+      reply_to_email: replyToEmail.trim() || null,
       content_html: snapshot.html,
       content_json: snapshot.json as unknown as Record<string, unknown>,
-      segment_id: null,
-      filter_rules: null,
+      segment_id: segmentId,
+      filter_rules: filterRules,
     }
   }
 
@@ -167,8 +182,10 @@ export function NewBroadcastV2Screen({
     }
   }
 
+  // ── Test send ───────────────────────────────────────────────────────
   const onSendTest = async () => {
-    if (!testRecipient) {
+    const trimmed = testEmail.trim()
+    if (!trimmed) {
       setStatus('error', 'Enter a recipient email for the test.')
       return
     }
@@ -176,56 +193,71 @@ export function NewBroadcastV2Screen({
     if (!id) return
     setStatus('info', 'Sending test…')
     try {
-      await sendTest.mutateAsync({ broadcastId: id, email: testRecipient })
-      setStatus('success', `Test sent to ${testRecipient}.`)
+      await sendTest.mutateAsync({ broadcastId: id, email: trimmed })
+      setTestSent(trimmed)
+      setStatus('success', `Test sent to ${trimmed}.`)
+      window.setTimeout(() => setTestSent(null), 4000)
     } catch (err) {
       setStatus('error', err instanceof Error ? err.message : 'Test failed.')
     }
   }
 
-  const onSendLive = async () => {
-    if (confirmText.trim().toUpperCase() !== 'SEND') {
-      setStatus('error', 'Type SEND in the box to confirm.')
-      return
-    }
+  // ── Live send & schedule ────────────────────────────────────────────
+  const onSendNow = async () => {
     const id = await persist()
     if (!id) return
     setStatus('info', 'Sending broadcast…')
     try {
       await sendBroadcast.mutateAsync(id)
-      setStatus(
-        'success',
-        `Broadcast sent to ${activeSubscribers} active subscriber${activeSubscribers === 1 ? '' : 's'}.`,
-      )
-      setConfirmText('')
-      // Hand off to the broadcasts list so the just-sent one shows up there.
+      setStatus('success', 'Broadcast sent.')
       router.push(
         `/dashboard/${organization.slug}/email-marketing/broadcasts`,
       )
     } catch (err) {
-      setStatus(
-        'error',
-        err instanceof Error ? err.message : 'Send failed.',
-      )
+      setStatus('error', err instanceof Error ? err.message : 'Send failed.')
     }
   }
 
-  const isPersisting = createBroadcast.isPending || updateBroadcast.isPending
-  const isSending = sendTest.isPending
-  const isSendingLive = sendBroadcast.isPending
-  const isReadyToSend = Boolean(subject.trim()) && Boolean(snapshot?.html)
-  const activeSubscribers = subscriberStats.data?.active ?? 0
-  const canSendLive =
-    isReadyToSend &&
-    activeSubscribers > 0 &&
-    confirmText.trim().toUpperCase() === 'SEND' &&
-    !isSendingLive &&
-    !isPersisting
-  const tabIndex = TABS.findIndex((t) => t.id === tab)
+  const onSchedule = async (date: Date) => {
+    const id = await persist()
+    if (!id) return
+    setStatus('info', 'Scheduling…')
+    try {
+      await scheduleBroadcast.mutateAsync({
+        broadcastId: id,
+        scheduledAt: date.toISOString(),
+      })
+      setStatus('success', `Scheduled for ${date.toLocaleString()}.`)
+      router.push(
+        `/dashboard/${organization.slug}/email-marketing/broadcasts`,
+      )
+    } catch (err) {
+      setStatus('error', err instanceof Error ? err.message : 'Schedule failed.')
+    }
+  }
+
+  // ── Derived ─────────────────────────────────────────────────────────
+  const isPersisting =
+    createBroadcast.isPending ||
+    updateBroadcast.isPending ||
+    sendBroadcast.isPending ||
+    scheduleBroadcast.isPending
+  const isReadyToSend =
+    subject.trim().length > 0 &&
+    senderName.trim().length > 0 &&
+    Boolean(snapshot?.html)
+  const stepIndex = STEPS.findIndex((s) => s.id === step)
+
+  const previewProps = {
+    subject,
+    senderName,
+    replyToEmail,
+    html: snapshot?.html ?? '',
+  }
 
   return (
     <div className="fade-up" style={{ paddingBottom: 80 }}>
-      {/* ── Header ──────────────────────────────────────────────────────── */}
+      {/* ── Header ──────────────────────────────────────────────────── */}
       <div
         style={{
           display: 'flex',
@@ -235,7 +267,14 @@ export function NewBroadcastV2Screen({
           gap: 16,
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16, minWidth: 0 }}>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 16,
+            minWidth: 0,
+          }}
+        >
           <button
             className="btn-icon"
             onClick={() => router.back()}
@@ -267,6 +306,13 @@ export function NewBroadcastV2Screen({
         </div>
         <div style={{ display: 'flex', gap: 10, flexShrink: 0 }}>
           <button
+            className="btn btn-ghost"
+            onClick={() => setStep('preview')}
+          >
+            <Icon name="eye" size={15} />
+            Preview
+          </button>
+          <button
             className="btn btn-secondary"
             onClick={() => void persist()}
             disabled={isPersisting}
@@ -275,17 +321,17 @@ export function NewBroadcastV2Screen({
           </button>
           <button
             className="btn btn-primary"
-            onClick={() => setTab('send')}
+            onClick={() => setStep('review')}
             disabled={!isReadyToSend}
             style={{ opacity: !isReadyToSend ? 0.5 : 1 }}
           >
             <Icon name="send" size={15} />
-            Send
+            Schedule send
           </button>
         </div>
       </div>
 
-      {/* ── Status banner ───────────────────────────────────────────────── */}
+      {/* ── Status banner ───────────────────────────────────────────── */}
       {statusMsg && (
         <div
           style={{
@@ -312,23 +358,30 @@ export function NewBroadcastV2Screen({
         </div>
       )}
 
-      {/* ── Tabs ─────────────────────────────────────────────────────────── */}
-      <div style={{ marginBottom: 24, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+      {/* ── Tabs ─────────────────────────────────────────────────────── */}
+      <div
+        style={{
+          marginBottom: 24,
+          display: 'flex',
+          gap: 6,
+          flexWrap: 'wrap',
+        }}
+      >
         <div className="tabs">
-          {TABS.map((t) => (
+          {STEPS.map((s) => (
             <button
-              key={t.id}
-              onClick={() => setTab(t.id)}
-              className={`tab ${tab === t.id ? 'tab-active' : ''}`}
+              key={s.id}
+              onClick={() => setStep(s.id)}
+              className={`tab ${step === s.id ? 'tab-active' : ''}`}
             >
-              {t.label}
+              {s.label}
             </button>
           ))}
         </div>
       </div>
 
-      {/* ── Details ──────────────────────────────────────────────────────── */}
-      <div style={{ display: tab === 'details' ? 'block' : 'none' }}>
+      {/* ── Details ──────────────────────────────────────────────────── */}
+      <div style={{ display: step === 'details' ? 'block' : 'none' }}>
         <Section
           title="The basics"
           sub="Subject and preview text are the first — sometimes only — thing your readers see."
@@ -416,228 +469,74 @@ export function NewBroadcastV2Screen({
         </Section>
       </div>
 
-      {/* ── Content ─────────────────────────────────────────────────────── */}
-      <div style={{ display: tab === 'content' ? 'block' : 'none' }}>
+      {/* ── Content ──────────────────────────────────────────────────── */}
+      <div style={{ display: step === 'content' ? 'block' : 'none' }}>
         <Section
           title="Compose"
-          sub="Pick a block from the left or type / inside the editor."
+          sub="Click a block on the left or type / inside the editor."
         >
-          <SpaireEmailEditor
-            content={STARTER_JSON}
-            onChange={setSnapshot}
-            uploadImage={uploadImage}
-            paletteSlot={<BlockPalette />}
-          />
-        </Section>
-      </div>
-
-      {/* ── Send ────────────────────────────────────────────────────────── */}
-      <div style={{ display: tab === 'send' ? 'block' : 'none' }}>
-        <Section
-          title="Send a test"
-          sub="Send yourself the email to confirm it looks right before going live."
-        >
-          <div className="card" style={{ padding: 28 }}>
-            <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end' }}>
-              <div style={{ flex: 1 }}>
-                <label className="label">Recipient</label>
-                <input
-                  className="input"
-                  type="email"
-                  value={testRecipient}
-                  onChange={(e) => setTestRecipient(e.target.value)}
-                  placeholder="you@example.com"
-                />
-              </div>
-              <button
-                className="btn btn-secondary"
-                onClick={onSendTest}
-                disabled={isSending || isPersisting || !isReadyToSend}
-              >
-                {isSending ? 'Sending…' : 'Send test'}
-              </button>
-            </div>
-            {!isReadyToSend && (
-              <div
-                style={{
-                  marginTop: 16,
-                  padding: 12,
-                  background: 'var(--bg-soft)',
-                  borderRadius: 8,
-                  fontSize: 12.5,
-                  color: 'var(--ink-3)',
-                }}
-              >
-                Add a subject and at least one content block to enable
-                sending.
-              </div>
-            )}
-          </div>
-        </Section>
-
-        <Section
-          title="Send to subscribers"
-          sub="Dispatches the broadcast to every active subscriber on your list. This can't be undone."
-        >
-          <div className="card" style={{ padding: 28 }}>
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: '1fr 1fr',
-                gap: 16,
-                marginBottom: 20,
-              }}
-            >
-              <div
-                style={{
-                  background: 'var(--bg-soft)',
-                  borderRadius: 10,
-                  padding: 14,
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: 11,
-                    color: 'var(--ink-4)',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.06em',
-                  }}
-                >
-                  Active subscribers
-                </div>
-                <div
-                  style={{
-                    fontSize: 24,
-                    fontWeight: 600,
-                    color: 'var(--ink)',
-                    marginTop: 4,
-                  }}
-                >
-                  {subscriberStats.isLoading
-                    ? '…'
-                    : activeSubscribers.toLocaleString()}
-                </div>
-              </div>
-              <div
-                style={{
-                  background: 'var(--bg-soft)',
-                  borderRadius: 10,
-                  padding: 14,
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: 11,
-                    color: 'var(--ink-4)',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.06em',
-                  }}
-                >
-                  From
-                </div>
-                <div
-                  style={{
-                    fontSize: 14,
-                    fontWeight: 500,
-                    color: 'var(--ink)',
-                    marginTop: 4,
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  {senderName}
-                </div>
-                <div
-                  style={{
-                    fontSize: 12,
-                    color: 'var(--ink-3)',
-                    marginTop: 2,
-                  }}
-                >
-                  {senderEmail || 'org default sender'}
-                </div>
-              </div>
-            </div>
-
-            <div style={{ marginBottom: 16 }}>
-              <label className="label">Type SEND to confirm</label>
-              <input
-                className="input"
-                value={confirmText}
-                onChange={(e) => setConfirmText(e.target.value)}
-                placeholder="SEND"
-                disabled={!isReadyToSend || activeSubscribers === 0}
-                style={{ textTransform: 'uppercase', letterSpacing: '0.08em' }}
-              />
-            </div>
-
-            <button
-              className="btn btn-primary"
-              onClick={() => void onSendLive()}
-              disabled={!canSendLive}
-              style={{ opacity: canSendLive ? 1 : 0.5 }}
-            >
-              <Icon name="send" size={15} />
-              {isSendingLive
-                ? 'Sending…'
-                : `Send to ${activeSubscribers.toLocaleString()} subscriber${activeSubscribers === 1 ? '' : 's'}`}
-            </button>
-
-            {activeSubscribers === 0 && !subscriberStats.isLoading && (
-              <div
-                style={{
-                  marginTop: 16,
-                  padding: 12,
-                  background: 'var(--bg-soft)',
-                  borderRadius: 8,
-                  fontSize: 12.5,
-                  color: 'var(--ink-3)',
-                }}
-              >
-                You don't have any active subscribers yet. Add some through
-                your Space signup form to enable a live send.
-              </div>
-            )}
-          </div>
-        </Section>
-
-        <Section title="Inbox preview" sub="How the email renders right now.">
           <div
-            className="card"
-            style={{ padding: 28, background: 'var(--bg-soft)' }}
+            style={{
+              display: 'grid',
+              gridTemplateColumns: '200px 1fr',
+              gap: 20,
+              alignItems: 'flex-start',
+            }}
           >
-            <div
-              style={{
-                background: '#fff',
-                maxWidth: 600,
-                margin: '0 auto',
-                padding: 28,
-                borderRadius: 10,
-                border: '1px solid var(--line)',
-                minHeight: 200,
-              }}
-            >
-              {sanitizedHtml ? (
-                <div dangerouslySetInnerHTML={{ __html: sanitizedHtml }} />
-              ) : (
-                <div
-                  style={{
-                    textAlign: 'center',
-                    fontSize: 13,
-                    color: 'var(--ink-4)',
-                    padding: 40,
-                  }}
-                >
-                  Start composing on the Content tab to see a preview.
-                </div>
-              )}
-            </div>
+            <BlockPalette editor={editor} />
+            <SpaireEmailEditor
+              content={STARTER_JSON}
+              onChange={setSnapshot}
+              uploadImage={uploadImage}
+              onEditorReady={setEditor}
+            />
           </div>
         </Section>
       </div>
 
-      {/* ── Footer: Back / Continue ────────────────────────────────────── */}
+      {/* ── Audience ─────────────────────────────────────────────────── */}
+      <div style={{ display: step === 'audience' ? 'block' : 'none' }}>
+        <AudienceSection
+          organization={organization}
+          segmentId={segmentId}
+          filterRules={filterRules}
+          onChange={({ segmentId: nextSeg, filterRules: nextRules }) => {
+            setSegmentId(nextSeg)
+            setFilterRules(nextRules)
+          }}
+        />
+      </div>
+
+      {/* ── Preview ──────────────────────────────────────────────────── */}
+      <div style={{ display: step === 'preview' ? 'block' : 'none' }}>
+        <PreviewTabContent
+          preview={previewProps}
+          testEmail={testEmail}
+          setTestEmail={setTestEmail}
+          onSendTest={onSendTest}
+          sending={sendTest.isPending || isPersisting}
+          testSent={testSent}
+        />
+      </div>
+
+      {/* ── Review & send ────────────────────────────────────────────── */}
+      <div style={{ display: step === 'review' ? 'block' : 'none' }}>
+        <ReviewSection
+          organization={organization}
+          subject={subject}
+          previewText={previewText}
+          senderName={senderName}
+          replyToEmail={replyToEmail}
+          segmentId={segmentId}
+          filterRules={filterRules}
+          isReadyToSend={isReadyToSend}
+          persisting={isPersisting}
+          onSendNow={onSendNow}
+          onSchedule={onSchedule}
+        />
+      </div>
+
+      {/* ── Footer: Back / Continue ──────────────────────────────────── */}
       <div
         style={{
           display: 'flex',
@@ -650,10 +549,10 @@ export function NewBroadcastV2Screen({
         <button
           className="btn btn-ghost"
           onClick={() => {
-            if (tabIndex > 0) setTab(TABS[tabIndex - 1].id)
+            if (stepIndex > 0) setStep(STEPS[stepIndex - 1].id)
           }}
-          disabled={tabIndex === 0}
-          style={{ opacity: tabIndex === 0 ? 0.4 : 1 }}
+          disabled={stepIndex === 0}
+          style={{ opacity: stepIndex === 0 ? 0.4 : 1 }}
         >
           <Icon name="arrow-left" size={15} />
           Back
@@ -661,14 +560,14 @@ export function NewBroadcastV2Screen({
         <button
           className="btn btn-primary"
           onClick={async () => {
-            if (tabIndex < TABS.length - 1) {
+            if (stepIndex < STEPS.length - 1) {
               await persist()
-              setTab(TABS[tabIndex + 1].id)
+              setStep(STEPS[stepIndex + 1].id)
             }
           }}
-          disabled={isPersisting || tabIndex === TABS.length - 1}
+          disabled={isPersisting || stepIndex === STEPS.length - 1}
           style={{
-            opacity: tabIndex === TABS.length - 1 ? 0.4 : 1,
+            opacity: stepIndex === STEPS.length - 1 ? 0.4 : 1,
           }}
         >
           Continue
