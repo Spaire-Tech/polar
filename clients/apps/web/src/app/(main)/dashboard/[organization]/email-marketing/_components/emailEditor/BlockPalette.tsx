@@ -4,11 +4,13 @@
 //
 // Mirrors the legacy editor's left palette so creators can discover and
 // insert blocks visually (in addition to the `/` slash menu). Each tile
-// runs the same insertContent chain a slash command would — keeps the two
-// entry points consistent.
+// runs the same command a slash item would — keeps the two entry points
+// consistent.
 //
-// Must be rendered as a child of <SpaireEmailEditor paletteSlot={...}/>
-// so useCurrentEditor() can resolve the editor from EditorContext.
+// Takes `editor` as a prop instead of pulling from useCurrentEditor() so
+// it works regardless of which @tiptap/react instance Tiptap's context
+// resolves to (pnpm can land us with multiple). Parent gets the editor
+// via SpaireEmailEditor's onEditorReady callback.
 
 import {
   Calendar,
@@ -31,7 +33,7 @@ import {
   Type,
 } from 'lucide-react'
 import type { ComponentType, SVGProps } from 'react'
-import { useCurrentEditor, type Editor } from '@tiptap/react'
+import type { Editor } from '@tiptap/react'
 
 type IconCmp = ComponentType<SVGProps<SVGSVGElement> & { size?: number | string }>
 
@@ -150,8 +152,7 @@ const GROUPS: Group[] = [
   },
 ]
 
-export function BlockPalette() {
-  const { editor } = useCurrentEditor()
+export function BlockPalette({ editor }: { editor: Editor | null }) {
 
   return (
     <div style={{ position: 'sticky', top: 24, display: 'flex', flexDirection: 'column', gap: 20 }}>
