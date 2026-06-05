@@ -3,14 +3,30 @@
 // Left-rail block library for the broadcast editor.
 //
 // Mirrors the legacy editor's left palette so creators can discover and
-// insert blocks visually (in addition to the `/` slash menu). Each tile
-// runs the same command a slash item would — keeps the two entry points
-// consistent.
+// insert blocks visually (in addition to the `/` slash menu).
 //
-// Takes `editor` as a prop instead of pulling from useCurrentEditor() so
+// Takes `editor` as a prop rather than reading from useCurrentEditor() so
 // it works regardless of which @tiptap/react instance Tiptap's context
-// resolves to (pnpm can land us with multiple). Parent gets the editor
-// via SpaireEmailEditor's onEditorReady callback.
+// resolves to. Parent gets the editor via SpaireEmailEditor's
+// onEditorReady callback.
+//
+// Insertion rules (the previous version got these wrong; see TileRun below):
+//
+//   1. Always focus at the END of the document. When the user has never
+//      clicked into the editor, focus() restores cursor to position 0,
+//      which lands inside the Container's edge and makes setNode /
+//      toggleHeading / insertContent unreliable — that's the "adds a
+//      random paragraph up top" symptom we used to see. focus('end')
+//      lands cleanly inside the TrailingNode-managed empty paragraph.
+//
+//   2. Content-bearing nodes (paragraph, heading, list item, spaireEyebrow,
+//      spaireBadge) must be inserted with a non-empty `content` array.
+//      ProseMirror's schema validation silently rejects empty inline*
+//      nodes, which is the second half of the broken-clicks symptom.
+//
+//   3. Atom nodes (spaireEventCard, spaireReceipt, spaireDigestItem,
+//      spaireChecklist) take no content; their addAttributes defaults
+//      cover the initial state.
 
 import {
   Calendar,
@@ -37,10 +53,12 @@ import type { Editor } from '@tiptap/react'
 
 type IconCmp = ComponentType<SVGProps<SVGSVGElement> & { size?: number | string }>
 
+type TileRun = (editor: Editor) => void
+
 type Tile = {
   label: string
   icon: IconCmp
-  run: (editor: Editor) => void
+  run: TileRun
 }
 
 type Group = {
@@ -48,38 +66,65 @@ type Group = {
   tiles: Tile[]
 }
 
-const insertContent = (type: string, extra?: Record<string, unknown>) =>
-  (editor: Editor) => {
-    editor.chain().focus().insertContent({ type, ...(extra ?? {}) }).run()
+// Always focus at the end of the document, never at position 0. See the
+// file-level rationale.
+const at = (editor: Editor) => editor.chain().focus('end')
+
+const insertNode = (
+  type: string,
+  body?: { text?: string; attrs?: Record<string, unknown> },
+): TileRun => (editor) => {
+  const node: Record<string, unknown> = { type }
+  if (body?.attrs) node.attrs = body.attrs
+  if (body?.text !== undefined) {
+    node.content = [{ type: 'text', text: body.text }]
   }
+  at(editor).insertContent(node).run()
+}
+
+const insertAtom = (type: string): TileRun => (editor) => {
+  at(editor).insertContent({ type }).run()
+}
 
 const GROUPS: Group[] = [
   {
     title: 'Text',
     tiles: [
-      { label: 'Text', icon: Type, run: insertContent('paragraph') },
+      {
+        label: 'Text',
+        icon: Type,
+        run: insertNode('paragraph', { text: 'New paragraph' }),
+      },
       {
         label: 'Heading 1',
         icon: Heading1,
-        run: (editor) =>
-          editor.chain().focus().toggleHeading({ level: 1 }).run(),
+        run: insertNode('heading', { attrs: { level: 1 }, text: 'Heading 1' }),
       },
       {
         label: 'Heading 2',
         icon: Heading2,
-        run: (editor) =>
-          editor.chain().focus().toggleHeading({ level: 2 }).run(),
+        run: insertNode('heading', { attrs: { level: 2 }, text: 'Heading 2' }),
       },
       {
         label: 'Heading 3',
         icon: Heading3,
-        run: (editor) =>
-          editor.chain().focus().toggleHeading({ level: 3 }).run(),
+        run: insertNode('heading', { attrs: { level: 3 }, text: 'Heading 3' }),
       },
       {
         label: 'Quote',
         icon: Quote,
-        run: (editor) => editor.chain().focus().toggleBlockquote().run(),
+        run: (editor) =>
+          at(editor)
+            .insertContent({
+              type: 'blockquote',
+              content: [
+                {
+                  type: 'paragraph',
+                  content: [{ type: 'text', text: 'Quote' }],
+                },
+              ],
+            })
+            .run(),
       },
     ],
   },
@@ -89,12 +134,44 @@ const GROUPS: Group[] = [
       {
         label: 'Bullet',
         icon: List,
-        run: (editor) => editor.chain().focus().toggleBulletList().run(),
+        run: (editor) =>
+          at(editor)
+            .insertContent({
+              type: 'bulletList',
+              content: [
+                {
+                  type: 'listItem',
+                  content: [
+                    {
+                      type: 'paragraph',
+                      content: [{ type: 'text', text: 'List item' }],
+                    },
+                  ],
+                },
+              ],
+            })
+            .run(),
       },
       {
         label: 'Numbered',
         icon: ListOrdered,
-        run: (editor) => editor.chain().focus().toggleOrderedList().run(),
+        run: (editor) =>
+          at(editor)
+            .insertContent({
+              type: 'orderedList',
+              content: [
+                {
+                  type: 'listItem',
+                  content: [
+                    {
+                      type: 'paragraph',
+                      content: [{ type: 'text', text: 'List item' }],
+                    },
+                  ],
+                },
+              ],
+            })
+            .run(),
       },
     ],
   },
@@ -105,22 +182,22 @@ const GROUPS: Group[] = [
         label: 'Divider',
         icon: Minus,
         run: (editor) =>
-          editor.chain().focus().insertContent({ type: 'horizontalRule' }).run(),
+          at(editor).insertContent({ type: 'horizontalRule' }).run(),
       },
       {
         label: '2 columns',
         icon: Columns2,
-        run: (editor) => editor.chain().focus().insertColumns(2).run(),
+        run: (editor) => at(editor).insertColumns(2).run(),
       },
       {
         label: '3 columns',
         icon: Columns3,
-        run: (editor) => editor.chain().focus().insertColumns(3).run(),
+        run: (editor) => at(editor).insertColumns(3).run(),
       },
       {
         label: '4 columns',
         icon: Columns4,
-        run: (editor) => editor.chain().focus().insertColumns(4).run(),
+        run: (editor) => at(editor).insertColumns(4).run(),
       },
     ],
   },
@@ -130,32 +207,63 @@ const GROUPS: Group[] = [
       {
         label: 'Button',
         icon: MousePointerClick,
-        run: (editor) => editor.chain().focus().setButton().run(),
+        run: (editor) => at(editor).setButton().run(),
       },
       {
         label: 'Image',
         icon: ImageIcon,
-        run: (editor) => editor.chain().focus().uploadImage().run(),
+        run: (editor) => at(editor).uploadImage().run(),
       },
     ],
   },
   {
     title: 'Spaire',
     tiles: [
-      { label: 'Eyebrow', icon: Tag, run: insertContent('spaireEyebrow') },
-      { label: 'Badge', icon: Tag, run: insertContent('spaireBadge') },
-      { label: 'Event card', icon: Calendar, run: insertContent('spaireEventCard') },
-      { label: 'Receipt', icon: ReceiptIcon, run: insertContent('spaireReceipt') },
-      { label: 'Digest', icon: Newspaper, run: insertContent('spaireDigestItem') },
-      { label: 'Checklist', icon: ListChecks, run: insertContent('spaireChecklist') },
+      {
+        label: 'Eyebrow',
+        icon: Tag,
+        run: insertNode('spaireEyebrow', { text: 'EYEBROW · LABEL' }),
+      },
+      {
+        label: 'Badge',
+        icon: Tag,
+        run: insertNode('spaireBadge', { text: '✓ Tag' }),
+      },
+      {
+        label: 'Event card',
+        icon: Calendar,
+        run: insertAtom('spaireEventCard'),
+      },
+      {
+        label: 'Receipt',
+        icon: ReceiptIcon,
+        run: insertAtom('spaireReceipt'),
+      },
+      {
+        label: 'Digest',
+        icon: Newspaper,
+        run: insertAtom('spaireDigestItem'),
+      },
+      {
+        label: 'Checklist',
+        icon: ListChecks,
+        run: insertAtom('spaireChecklist'),
+      },
     ],
   },
 ]
 
 export function BlockPalette({ editor }: { editor: Editor | null }) {
-
   return (
-    <div style={{ position: 'sticky', top: 24, display: 'flex', flexDirection: 'column', gap: 20 }}>
+    <div
+      style={{
+        position: 'sticky',
+        top: 24,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 20,
+      }}
+    >
       <div
         style={{
           fontSize: 11,
@@ -207,6 +315,10 @@ export function BlockPalette({ editor }: { editor: Editor | null }) {
                     opacity: editor ? 1 : 0.4,
                   }}
                   disabled={!editor}
+                  // Buttons steal focus from the editor by default;
+                  // preventDefault on mousedown keeps the editor's
+                  // selection intact across the click.
+                  onMouseDown={(e) => e.preventDefault()}
                   onClick={() => {
                     if (editor) tile.run(editor)
                   }}
