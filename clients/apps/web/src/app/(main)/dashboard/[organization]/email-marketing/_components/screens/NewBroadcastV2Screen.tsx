@@ -18,6 +18,8 @@
 import { useAuth } from '@/hooks/auth'
 import {
   useCreateEmailBroadcast,
+  useEmailSubscriberStats,
+  useSendEmailBroadcast,
   useSendTestEmailBroadcast,
   useUpdateEmailBroadcast,
   useUploadEmailImage,
@@ -89,9 +91,15 @@ export function NewBroadcastV2Screen({
   )
   const [tab, setTab] = useState<Tab>('details')
 
+  // Live-send confirmation. The button is gated behind typing SEND so a
+  // mis-click can't dispatch a real broadcast to the whole audience.
+  const [confirmText, setConfirmText] = useState('')
+
   const createBroadcast = useCreateEmailBroadcast(organization.id)
   const updateBroadcast = useUpdateEmailBroadcast()
   const sendTest = useSendTestEmailBroadcast()
+  const sendBroadcast = useSendEmailBroadcast()
+  const subscriberStats = useEmailSubscriberStats(organization.id)
   const uploadImageMutation = useUploadEmailImage(organization.id)
 
   // Stable upload wrapper — TanStack mutation references change every
@@ -175,9 +183,44 @@ export function NewBroadcastV2Screen({
     }
   }
 
+  const onSendLive = async () => {
+    if (confirmText.trim().toUpperCase() !== 'SEND') {
+      setStatus('error', 'Type SEND in the box to confirm.')
+      return
+    }
+    const id = await persist()
+    if (!id) return
+    setStatus('info', 'Sending broadcast…')
+    try {
+      await sendBroadcast.mutateAsync(id)
+      setStatus(
+        'success',
+        `Broadcast sent to ${activeSubscribers} active subscriber${activeSubscribers === 1 ? '' : 's'}.`,
+      )
+      setConfirmText('')
+      // Hand off to the broadcasts list so the just-sent one shows up there.
+      router.push(
+        `/dashboard/${organization.slug}/email-marketing/broadcasts`,
+      )
+    } catch (err) {
+      setStatus(
+        'error',
+        err instanceof Error ? err.message : 'Send failed.',
+      )
+    }
+  }
+
   const isPersisting = createBroadcast.isPending || updateBroadcast.isPending
   const isSending = sendTest.isPending
+  const isSendingLive = sendBroadcast.isPending
   const isReadyToSend = Boolean(subject.trim()) && Boolean(snapshot?.html)
+  const activeSubscribers = subscriberStats.data?.active ?? 0
+  const canSendLive =
+    isReadyToSend &&
+    activeSubscribers > 0 &&
+    confirmText.trim().toUpperCase() === 'SEND' &&
+    !isSendingLive &&
+    !isPersisting
   const tabIndex = TABS.findIndex((t) => t.id === tab)
 
   return (
@@ -427,6 +470,133 @@ export function NewBroadcastV2Screen({
               >
                 Add a subject and at least one content block to enable
                 sending.
+              </div>
+            )}
+          </div>
+        </Section>
+
+        <Section
+          title="Send to subscribers"
+          sub="Dispatches the broadcast to every active subscriber on your list. This can't be undone."
+        >
+          <div className="card" style={{ padding: 28 }}>
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: '1fr 1fr',
+                gap: 16,
+                marginBottom: 20,
+              }}
+            >
+              <div
+                style={{
+                  background: 'var(--bg-soft)',
+                  borderRadius: 10,
+                  padding: 14,
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: 11,
+                    color: 'var(--ink-4)',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.06em',
+                  }}
+                >
+                  Active subscribers
+                </div>
+                <div
+                  style={{
+                    fontSize: 24,
+                    fontWeight: 600,
+                    color: 'var(--ink)',
+                    marginTop: 4,
+                  }}
+                >
+                  {subscriberStats.isLoading
+                    ? '…'
+                    : activeSubscribers.toLocaleString()}
+                </div>
+              </div>
+              <div
+                style={{
+                  background: 'var(--bg-soft)',
+                  borderRadius: 10,
+                  padding: 14,
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: 11,
+                    color: 'var(--ink-4)',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.06em',
+                  }}
+                >
+                  From
+                </div>
+                <div
+                  style={{
+                    fontSize: 14,
+                    fontWeight: 500,
+                    color: 'var(--ink)',
+                    marginTop: 4,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {senderName}
+                </div>
+                <div
+                  style={{
+                    fontSize: 12,
+                    color: 'var(--ink-3)',
+                    marginTop: 2,
+                  }}
+                >
+                  {senderEmail || 'org default sender'}
+                </div>
+              </div>
+            </div>
+
+            <div style={{ marginBottom: 16 }}>
+              <label className="label">Type SEND to confirm</label>
+              <input
+                className="input"
+                value={confirmText}
+                onChange={(e) => setConfirmText(e.target.value)}
+                placeholder="SEND"
+                disabled={!isReadyToSend || activeSubscribers === 0}
+                style={{ textTransform: 'uppercase', letterSpacing: '0.08em' }}
+              />
+            </div>
+
+            <button
+              className="btn btn-primary"
+              onClick={() => void onSendLive()}
+              disabled={!canSendLive}
+              style={{ opacity: canSendLive ? 1 : 0.5 }}
+            >
+              <Icon name="send" size={15} />
+              {isSendingLive
+                ? 'Sending…'
+                : `Send to ${activeSubscribers.toLocaleString()} subscriber${activeSubscribers === 1 ? '' : 's'}`}
+            </button>
+
+            {activeSubscribers === 0 && !subscriberStats.isLoading && (
+              <div
+                style={{
+                  marginTop: 16,
+                  padding: 12,
+                  background: 'var(--bg-soft)',
+                  borderRadius: 8,
+                  fontSize: 12.5,
+                  color: 'var(--ink-3)',
+                }}
+              >
+                You don't have any active subscribers yet. Add some through
+                your Space signup form to enable a live send.
               </div>
             )}
           </div>
