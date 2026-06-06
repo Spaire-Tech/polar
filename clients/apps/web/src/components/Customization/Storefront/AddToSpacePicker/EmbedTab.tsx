@@ -11,9 +11,9 @@ import {
 } from './platforms'
 
 // Platform tile art. Shows the real .jpg brand logo from
-// /public/embed-logos/<id>.jpg; until that file exists (or if it fails
-// to load) it falls back to the inline SVG mark on the brand color, so
-// the picker always renders something on-brand.
+// /public/<id>.jpg; until that file exists (or if it fails to load) it
+// falls back to the inline SVG mark on the brand color, so the picker
+// always renders something on-brand.
 const PlatformArt = ({ platform }: { platform: EmbedPlatform }) => {
   const [failed, setFailed] = useState(false)
   const src = platformLogoUrl(platform.id)

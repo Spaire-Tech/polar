@@ -100,8 +100,8 @@ const LinkGlyph = ({ className }: { className?: string }) => (
 )
 
 // Brand logo fallback: shown when a link has no preview image but we do
-// know its platform. If the .jpg hasn't been added to /public/embed-logos
-// yet, onError drops us back to the generic glyph so nothing looks broken.
+// know its platform. If the .jpg hasn't been added to /public yet,
+// onError drops us back to the generic glyph so nothing looks broken.
 const PlatformLogoThumb = ({
   platform,
   className,
