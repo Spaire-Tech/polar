@@ -44,7 +44,7 @@ export const Storefront = ({
       : null
 
   const showDetails = settings?.show_product_details ?? true
-  const thumbnailSize = (settings?.thumbnail_size ?? 'medium') as
+  const thumbnailSize = (settings?.thumbnail_size ?? 'large') as
     | 'small'
     | 'medium'
     | 'large'

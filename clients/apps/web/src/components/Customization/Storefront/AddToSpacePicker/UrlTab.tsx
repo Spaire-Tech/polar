@@ -134,9 +134,7 @@ export const UrlTab = ({
 
   return (
     <div className="wg-tab">
-      <p className="wg-help">
-        Paste a URL — Spaire fetches the title, favicon and preview.
-      </p>
+      <p className="wg-help">Paste a URL</p>
       <div className="wg-input-pill">
         <input
           autoFocus

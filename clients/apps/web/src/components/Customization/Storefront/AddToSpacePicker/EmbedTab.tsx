@@ -114,9 +114,7 @@ export const EmbedTab = ({
   if (stage === 'select') {
     return (
       <div className="wg-tab">
-        <p className="wg-help">
-          Pick a platform — videos, posts, tracks all embed live where supported.
-        </p>
+        <p className="wg-help">Pick a platform</p>
         <div className="wg-grid two embed">
           {EMBED_PLATFORMS.map((p) => (
             <button

@@ -281,11 +281,7 @@ export const ArrangePanel = ({
         <div className="ap-header">
           <div>
             <h2>Arrange</h2>
-            <p className="ap-sub">
-              Nothing in your Space yet. Use &ldquo;+ Add to Space&rdquo;
-              to add products or links — they&apos;ll show up here so
-              you can reorder anything against anything.
-            </p>
+            <p className="ap-sub">Nothing in your Space yet.</p>
           </div>
           <button
             type="button"
@@ -308,11 +304,7 @@ export const ArrangePanel = ({
       <div className="ap-header">
         <div>
           <h2>Arrange</h2>
-          <p className="ap-sub">
-            Drag any row to reorder. Products and links can interleave —
-            put a link between two products, or a course between two
-            links, however you want.
-          </p>
+          <p className="ap-sub">Drag any row to reorder.</p>
         </div>
         <button
           type="button"
