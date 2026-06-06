@@ -67,41 +67,15 @@ export const SpaceSettingsPanel = ({
   )
 
   const isEnabled = settings.enabled ?? false
-  const availableForWork = settings.available_for_work ?? false
-  const contactUrl = settings.contact_url ?? ''
-  const thumbnailSize = settings.thumbnail_size ?? 'medium'
+  const thumbnailSize = settings.thumbnail_size ?? 'large'
 
   const spaceUrl = spacePageLink(organization).replace(/\/$/, '')
   const [copied, setCopied] = useState(false)
-  const [copiedShare, setCopiedShare] = useState(false)
 
   const copyLink = () => {
     navigator.clipboard.writeText(spaceUrl)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
-  }
-
-  const shareTwitter = () => {
-    const msg = "I just launched my Spaire Space\n\nAll my work is up here now!"
-    window.open(
-      `https://twitter.com/intent/tweet?text=${encodeURIComponent(msg)}&url=${encodeURIComponent(spaceUrl)}`,
-      '_blank',
-    )
-  }
-
-  const shareLinkedIn = () => {
-    window.open(
-      `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(spaceUrl)}`,
-      '_blank',
-    )
-  }
-
-  const copyShareMessage = () => {
-    navigator.clipboard.writeText(
-      `I just launched my Spaire Space\n\nAll my work is up here now!\n${spaceUrl}`,
-    )
-    setCopiedShare(true)
-    setTimeout(() => setCopiedShare(false), 2000)
   }
 
   // Confirm-before-disable, mirroring PR 3.9 behavior.
@@ -185,67 +159,7 @@ export const SpaceSettingsPanel = ({
                     <OpenInNewOutlined style={{ fontSize: 16 }} />
                   </a>
                 </div>
-
-                <div className="sp-share-btns">
-                  <button
-                    type="button"
-                    className="sp-share-btn"
-                    onClick={shareTwitter}
-                  >
-                    Post on X
-                  </button>
-                  <button
-                    type="button"
-                    className="sp-share-btn"
-                    onClick={shareLinkedIn}
-                  >
-                    LinkedIn
-                  </button>
-                  <button
-                    type="button"
-                    className="sp-share-btn"
-                    onClick={copyShareMessage}
-                  >
-                    {copiedShare ? 'Copied!' : 'Copy message'}
-                  </button>
-                </div>
               </>
-            )}
-          </div>
-        </section>
-
-        {/* Same trim as Visibility above — the section header
-            "Work with me" and the "A green pill on your Space
-            card" sub-line just restated what the toggle obviously
-            does. The contact-URL input below appears when the toggle
-            is on and is self-explanatory in context. */}
-        <section className="sp-section">
-          <div className="sp-section-stack">
-            <div className="sp-row">
-              <div className="lbl">Work with me</div>
-              <button
-                type="button"
-                className="sp-toggle"
-                data-on={availableForWork ? '1' : '0'}
-                onClick={() =>
-                  updateSetting('available_for_work', !availableForWork)
-                }
-                aria-pressed={availableForWork}
-                aria-label="Show available-for-work badge"
-              >
-                <i />
-              </button>
-            </div>
-            {availableForWork && (
-              <input
-                type="text"
-                className="sp-input"
-                placeholder="mailto:hello@example.com  or  https://cal.com/me"
-                value={contactUrl}
-                onChange={(e) =>
-                  updateSetting('contact_url', e.target.value || null)
-                }
-              />
             )}
           </div>
         </section>

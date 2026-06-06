@@ -97,7 +97,7 @@ _default_storefront_settings: OrganizationStorefrontSettings = {
     "show_name": True,
     "show_description": True,
     "description": None,
-    "thumbnail_size": "medium",
+    "thumbnail_size": "large",
     "show_product_details": True,
     "profile_title": None,
     "skills": [],

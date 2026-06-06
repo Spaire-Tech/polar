@@ -1140,13 +1140,15 @@ body:has(.edit-pop-backdrop) .spaire-editor-root {
   padding: 0 18px;
   border: 0;
   border-radius: 999px;
-  background: var(--accent);
+  /* Black — every editor CTA is ink (Subscribe is the only colored
+     button). Purple stays reserved for input focus, not buttons. */
+  background: var(--ink);
   color: white;
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
   font-family: inherit;
-  box-shadow: 0 4px 12px -4px color-mix(in oklab, var(--accent) 60%, transparent);
+  box-shadow: 0 4px 12px -4px rgba(12, 12, 20, 0.45);
 }
 
 .spaire-editor .edit-pop-cta.ghost {

@@ -110,7 +110,6 @@ export const CatalogTab = ({
             <div className="wg-tile-art empty">+</div>
             <div className="wg-tile-meta">
               <div className="wg-tile-title">New product</div>
-              <div className="wg-tile-sub">Start blank · ebook, asset, anything</div>
             </div>
           </button>
 
@@ -147,10 +146,6 @@ export const CatalogTab = ({
             )
           })}
         </div>
-      )}
-
-      {!isLoading && products.length === 0 && (
-        <p className="wg-help">No products yet — create your first one.</p>
       )}
 
       {dirty && (

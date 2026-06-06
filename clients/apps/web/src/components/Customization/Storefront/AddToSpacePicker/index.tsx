@@ -6,7 +6,6 @@ import { useEffect, useState } from 'react'
 import { CatalogTab } from './CatalogTab'
 import { CourseTab } from './CourseTab'
 import { EmbedPickPayload, EmbedTab } from './EmbedTab'
-import { FormTab } from './FormTab'
 import { UrlPickPayload, UrlTab } from './UrlTab'
 
 export type { EmbedPickPayload, UrlPickPayload }
@@ -24,7 +23,7 @@ export type AddToSpacePickerCallbacks = {
   onCreateCourse: () => void
 }
 
-const TABS = ['URL', 'Embed', 'Digital Product', 'Course', 'Form'] as const
+const TABS = ['URL', 'Embed', 'Digital Product', 'Course'] as const
 type Tab = (typeof TABS)[number]
 
 export const AddToSpacePicker = ({
@@ -135,7 +134,6 @@ export const AddToSpacePicker = ({
               }}
             />
           )}
-          {tab === 'Form' && <FormTab />}
         </div>
       </div>
     </Portal>

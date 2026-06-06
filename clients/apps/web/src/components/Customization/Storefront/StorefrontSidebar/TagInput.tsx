@@ -102,7 +102,7 @@ export const TagInput = ({
           onBlur={() => setTimeout(() => setShowDropdown(false), 200)}
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
-          className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-gray-300 focus:outline-none"
+          className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-[#6e56ff] focus:outline-none focus:ring-0"
         />
       </div>
       {mounted &&

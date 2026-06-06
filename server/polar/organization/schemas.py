@@ -170,7 +170,7 @@ class OrganizationStorefrontSettings(Schema):
         EmptyStrToNoneValidator,
     ] = None
     thumbnail_size: Literal["small", "medium", "large"] = Field(
-        "medium", description="Product thumbnail size"
+        "large", description="Product thumbnail size"
     )
     show_product_details: bool = Field(
         True, description="Show product details (name, price)"

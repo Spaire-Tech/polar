@@ -195,7 +195,7 @@ export default function ReviewPage() {
   return (
     <Form {...form}>
       <ForceLightMode />
-      <div className="spaire-editor flex h-full min-h-0 w-full flex-col bg-white">
+      <div className="spaire-editor spaire-editor-root flex h-full min-h-0 w-full flex-col bg-white">
         {/* Top bar — minimal: just the publish action. No settings tab. */}
         <div className="flex shrink-0 flex-row items-center justify-between border-b border-gray-200 bg-white px-8 py-4">
           <div className="text-[14px] font-medium text-gray-900">

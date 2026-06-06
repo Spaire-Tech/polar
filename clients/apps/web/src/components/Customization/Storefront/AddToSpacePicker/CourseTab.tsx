@@ -107,7 +107,6 @@ export const CourseTab = ({
             <div className="wg-tile-art empty">+</div>
             <div className="wg-tile-meta">
               <div className="wg-tile-title">New course</div>
-              <div className="wg-tile-sub">Multi-lesson, drip, paid or free</div>
             </div>
           </button>
 
@@ -156,10 +155,6 @@ export const CourseTab = ({
             )
           })}
         </div>
-      )}
-
-      {!isLoading && (courses ?? []).length === 0 && (
-        <p className="wg-help">No courses yet — create your first one.</p>
       )}
 
       {dirty && (

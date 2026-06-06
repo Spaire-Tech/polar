@@ -77,10 +77,10 @@ export const SocialLinkRow = ({
           placeholder="https://example.com"
           aria-invalid={showError ? true : undefined}
           className={twMerge(
-            'min-w-0 flex-1 rounded-xl border bg-white px-3 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none',
+            'min-w-0 flex-1 rounded-xl border bg-white px-3 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-0',
             showError
               ? 'border-red-300 focus:border-red-400'
-              : 'border-gray-200 focus:border-gray-300',
+              : 'border-gray-200 focus:border-[#6e56ff]',
           )}
         />
         <button

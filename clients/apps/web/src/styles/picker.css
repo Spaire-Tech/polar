@@ -367,7 +367,8 @@
   height: 40px;
   border-radius: 999px;
   border: 0;
-  background: var(--accent);
+  /* Black button — purple is reserved for input focus, not buttons. */
+  background: var(--ink);
   color: white;
   font-size: 20px;
   line-height: 1;
@@ -382,7 +383,7 @@
     transform 0.12s,
     background 0.15s,
     opacity 0.15s;
-  box-shadow: 0 2px 6px -2px color-mix(in oklab, var(--accent) 60%, transparent);
+  box-shadow: 0 2px 6px -2px rgba(12, 12, 20, 0.45);
 }
 
 .pk-library .wg-add-btn:hover {
@@ -407,7 +408,7 @@
 }
 
 .pk-library .wg-card:hover .wg-add-btn.ghost {
-  background: var(--accent);
+  background: var(--ink);
   color: white;
 }
 
@@ -580,10 +581,10 @@
 
 .pk-library .wg-input-pill:focus-within {
   background: rgba(255, 255, 255, 0.95);
+  /* Purple border only — no outer glow ring. The ring extended past the
+     pill and got clipped by .wg-body's overflow, masking the focus state
+     at both ends. An in-box border colour can't be clipped. */
   border-color: var(--accent);
-  box-shadow:
-    0 0 0 4px color-mix(in oklab, var(--accent) 18%, transparent),
-    0 0 0 1.5px var(--accent);
 }
 
 .pk-library .wg-input-pill input,
@@ -651,9 +652,10 @@
 }
 
 .pk-library .atsp-form-input:focus {
+  /* Purple border only — the outer glow ring got clipped by the
+     scrolling body, masking the focus state at the edges. */
   border-color: var(--accent) !important;
-  box-shadow:
-    0 0 0 4px color-mix(in oklab, var(--accent) 18%, transparent) !important;
+  box-shadow: none !important;
 }
 
 .pk-library .preview-card {
