@@ -7,6 +7,7 @@ import {
   EmbedCard,
   type LinksLayout,
   StorefrontLinkItem,
+  URL_LAYOUT_WRAPPERS,
   UrlLink,
 } from '@/components/Profile/StorefrontLinks'
 import {
@@ -102,9 +103,11 @@ const LayoutPicker = ({
 // fight the listeners.
 const SortableItem = ({
   id,
+  className,
   children,
 }: {
   id: string
+  className?: string
   children: (handleProps: {
     listeners: ReturnType<typeof useSortable>['listeners']
     attributes: ReturnType<typeof useSortable>['attributes']
@@ -122,7 +125,9 @@ const SortableItem = ({
   return (
     <div
       ref={setNodeRef}
-      className={`item-host${isDragging ? ' dragging' : ''}`}
+      className={`item-host${isDragging ? ' dragging' : ''}${
+        className ? ` ${className}` : ''
+      }`}
       style={{
         transform: CSS.Transform.toString(transform),
         transition,
@@ -419,11 +424,33 @@ export const DraggableBlocks = ({
                 </section>
               )
             }
-            // Link chunk
+            // Link chunk. Wrap the items in the SAME layout container the
+            // public Storefront uses (URL_LAYOUT_WRAPPERS) so "Grid" is an
+            // actual 2/3-up grid and "Cards"/"Carousel" size exactly like
+            // the live Space — instead of every link stretching to the
+            // full canvas width (the "fake massive view"). Embeds always
+            // render full-width, so they span every column of the grid.
             return (
-              <div key={`l-${idx}`} className="canvas-card flex flex-col gap-4">
-                {chunk.items.map((entry) => (
-                  <SortableItem key={itemKey(entry)} id={itemKey(entry)}>
+              <div
+                key={`l-${idx}`}
+                className={`canvas-card ${URL_LAYOUT_WRAPPERS[linksLayout]}`}
+                style={
+                  linksLayout === 'carousel'
+                    ? { scrollbarWidth: 'thin' }
+                    : undefined
+                }
+              >
+                {chunk.items.map((entry) => {
+                  const isEmbed =
+                    entry.link.type === 'embedded' &&
+                    isEmbeddablePlatform(entry.link.platform) &&
+                    !!buildEmbedUrl(entry.link.url, entry.link.platform ?? '')
+                  return (
+                  <SortableItem
+                    key={itemKey(entry)}
+                    id={itemKey(entry)}
+                    className={isEmbed ? 'col-span-full w-full' : undefined}
+                  >
                     {({ listeners, attributes }) => (
                       <div className="item-hover">
                         <LinkRow
@@ -458,7 +485,8 @@ export const DraggableBlocks = ({
                       </div>
                     )}
                   </SortableItem>
-                ))}
+                  )
+                })}
               </div>
             )
           })}

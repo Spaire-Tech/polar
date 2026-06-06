@@ -50,6 +50,25 @@
   overflow: hidden;
 }
 
+/* ── Background blur when an overlay is open ───────────────────────
+   The Add-to-Space picker and the inline edit popovers portal their
+   backdrop to <body> (a sibling of the editor), so a `backdrop-filter`
+   on that backdrop was *meant* to blur the page behind it. In practice
+   it never composited reliably over the editor — and it can't touch
+   the embedded <iframe> players on the canvas, which kept poking
+   through sharp. So we blur the editor root *itself* with a real
+   `filter`, flipped on the instant a portaled overlay mounts via
+   :has(). The overlay lives outside .spaire-editor-root, so it stays
+   crisp while everything behind it goes soft. */
+.spaire-editor-root {
+  transition: filter 0.25s ease;
+}
+
+body:has(.picker-backdrop) .spaire-editor-root,
+body:has(.edit-pop-backdrop) .spaire-editor-root {
+  filter: blur(12px) saturate(115%);
+}
+
 /* ── Top toolbar ── */
 .spaire-editor .toolbar {
   position: sticky;
@@ -1046,9 +1065,11 @@
 .spaire-editor .edit-pop-backdrop {
   position: fixed;
   inset: 0;
+  /* Transparent click-catcher only. The page blur is handled by the
+     `filter` on .spaire-editor-root (see top of file) — that one
+     actually reaches the canvas iframes, which backdrop-filter never
+     did. */
   background: transparent;
-  backdrop-filter: blur(48px) saturate(160%);
-  -webkit-backdrop-filter: blur(48px) saturate(160%);
   z-index: 70;
   animation: pk-fade-in 0.18s ease;
 }
@@ -1653,6 +1674,15 @@
   grid-template-columns: repeat(1, minmax(0, 1fr)) !important;
 }
 .mobile-frame-scroll .md\:grid-cols-4 {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+}
+
+/* Link "Grid" layout: the wrapper is `grid-cols-2 sm:grid-cols-3`, so
+   on a real ~390px phone it shows TWO columns (sm: never fires). But
+   the iPhone frame sits in a desktop viewport, so `sm:` (≥640px) DOES
+   fire here and the preview rendered three cramped columns. Pin it
+   back to two so the preview matches what a phone actually shows. */
+.mobile-frame-scroll .sm\:grid-cols-3 {
   grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
 }
 

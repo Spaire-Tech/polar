@@ -728,7 +728,7 @@ export const EditableProfileCard = ({
               }}
               className="rounded-full border border-green-200 bg-green-50 px-3 py-1 text-[12px] font-medium text-green-600 transition-colors hover:bg-green-100"
             >
-              Available for work
+              Work with me
             </button>
           ) : (
             <button
@@ -739,7 +739,7 @@ export const EditableProfileCard = ({
               }}
               className="rounded-full border border-dashed border-gray-300 px-3 py-1 text-[12px] text-gray-400 hover:border-gray-400"
             >
-              + Available for work
+              + Work with me
             </button>
           )}
           {languages.length > 0 ? (
@@ -1008,7 +1008,7 @@ export const EditableProfileCard = ({
       </EditPopover>
 
       <EditPopover
-        title="Available for work"
+        title="Work with me"
         open={popover === 'available'}
         onClose={() => setPopover(null)}
         onConfirm={() => {

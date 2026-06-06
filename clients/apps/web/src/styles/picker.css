@@ -36,14 +36,11 @@
 .picker-backdrop {
   position: fixed;
   inset: 0;
-  /* The ONLY layer doing the blur. Transparent fill so the page
-     stays visible underneath, but heavily blurred. The surface on
-     top doesn't compete with its own backdrop-filter (browsers
-     handle a single backdrop-filter cleanly; nested ones can
-     cancel each other out). */
+  /* Transparent click-catcher only. The page blur behind the picker is
+     done by the `filter` on .spaire-editor-root (see editor.css) —
+     backdrop-filter here never reliably blurred the editor and could
+     not blur the canvas's embedded iframes at all. */
   background: transparent;
-  backdrop-filter: blur(48px) saturate(160%);
-  -webkit-backdrop-filter: blur(48px) saturate(160%);
   z-index: 70;
   display: flex;
   align-items: center;
