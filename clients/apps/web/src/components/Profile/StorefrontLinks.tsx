@@ -2,12 +2,14 @@
 
 import LinkOutlined from '@mui/icons-material/LinkOutlined'
 import OpenInNewOutlined from '@mui/icons-material/OpenInNewOutlined'
+import { useState } from 'react'
 import { SectionLabel } from './SectionLabel'
 import {
   buildEmbedUrl,
   getDomain,
   getEmbedAspect,
   getPlatformConfig,
+  platformLogoUrl,
 } from './linkPlatforms'
 
 export type StorefrontLinkItem = {
@@ -88,6 +90,39 @@ export const EmbedFrame = ({ link }: { link: StorefrontLinkItem }) => {
 
 // ─── Shared thumbnail ───────────────────────────────────────────────────────
 
+// Generic link glyph — the last-resort thumbnail.
+const LinkGlyph = ({ className }: { className?: string }) => (
+  <div
+    className={`flex items-center justify-center bg-gray-100 ${className ?? ''}`}
+  >
+    <LinkOutlined style={{ fontSize: 24 }} className="text-gray-300" />
+  </div>
+)
+
+// Brand logo fallback: shown when a link has no preview image but we do
+// know its platform. If the .jpg hasn't been added to /public yet,
+// onError drops us back to the generic glyph so nothing looks broken.
+const PlatformLogoThumb = ({
+  platform,
+  className,
+}: {
+  platform: string
+  className?: string
+}) => {
+  const [failed, setFailed] = useState(false)
+  const src = platformLogoUrl(platform)
+  if (!src || failed) return <LinkGlyph className={className} />
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={src}
+      alt=""
+      className={className}
+      onError={() => setFailed(true)}
+    />
+  )
+}
+
 export const Thumb = ({
   link,
   className,
@@ -98,12 +133,10 @@ export const Thumb = ({
   link.image_url ? (
     // eslint-disable-next-line @next/next/no-img-element
     <img src={link.image_url} alt="" className={className} />
+  ) : link.platform ? (
+    <PlatformLogoThumb platform={link.platform} className={className} />
   ) : (
-    <div
-      className={`flex items-center justify-center bg-gray-100 ${className ?? ''}`}
-    >
-      <LinkOutlined style={{ fontSize: 24 }} className="text-gray-300" />
-    </div>
+    <LinkGlyph className={className} />
   )
 
 // ─── Per-link renderer ──────────────────────────────────────────────────────
@@ -228,7 +261,7 @@ export const UrlLink = ({
   )
 }
 
-const URL_LAYOUT_WRAPPERS: Record<LinksLayout, string> = {
+export const URL_LAYOUT_WRAPPERS: Record<LinksLayout, string> = {
   classic: 'flex flex-col gap-3',
   card: 'flex flex-col gap-4',
   image_grid: 'grid grid-cols-2 gap-3 sm:grid-cols-3',

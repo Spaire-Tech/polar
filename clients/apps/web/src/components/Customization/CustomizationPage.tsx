@@ -610,7 +610,7 @@ const Customization = ({
   return (
     <Form {...form}>
       <ForceLightMode />
-      <div className="spaire-editor">
+      <div className="spaire-editor spaire-editor-root">
         <div className="toolbar">
           <div className="tb-left">
             <button type="button" className="tb-back" onClick={handleBack}>

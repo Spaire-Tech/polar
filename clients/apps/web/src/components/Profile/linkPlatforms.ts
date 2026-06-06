@@ -243,3 +243,20 @@ export function getDomain(url: string): string {
     return url
   }
 }
+
+/**
+ * Public path to a platform's real brand logo. Drop a square .jpg into
+ *   clients/apps/web/public/<id>.jpg
+ * (e.g. youtube.jpg, spotify.jpg, apple_music.jpg). Returns null for
+ * unknown platforms so callers fall back to a generic glyph / the inline
+ * SVG mark. Both the Add-to-Space picker and the rendered link cards
+ * read from here, so adding the file is all that's needed to light the
+ * logo up everywhere.
+ */
+export function platformLogoUrl(
+  platform: PlatformId | string | null | undefined,
+): string | null {
+  if (!platform) return null
+  const known = PLATFORMS.some((p) => p.id === platform)
+  return known ? `/${platform}.jpg` : null
+}

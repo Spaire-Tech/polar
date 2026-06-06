@@ -1,5 +1,6 @@
 'use client'
 
+import { platformLogoUrl } from '@/components/Profile/linkPlatforms'
 import { schemas } from '@spaire/client'
 import { useEffect, useState } from 'react'
 import { LinkDraft, LinkEditForm } from './LinkEditForm'
@@ -8,6 +9,33 @@ import {
   EmbedPlatform,
   detectEmbedPlatform,
 } from './platforms'
+
+// Platform tile art. Shows the real .jpg brand logo from
+// /public/<id>.jpg; until that file exists (or if it fails to load) it
+// falls back to the inline SVG mark on the brand color, so the picker
+// always renders something on-brand.
+const PlatformArt = ({ platform }: { platform: EmbedPlatform }) => {
+  const [failed, setFailed] = useState(false)
+  const src = platformLogoUrl(platform.id)
+  if (src && !failed) {
+    return (
+      <div className="wg-art" style={{ padding: 0, overflow: 'hidden' }}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={src}
+          alt={platform.label}
+          onError={() => setFailed(true)}
+          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+        />
+      </div>
+    )
+  }
+  return (
+    <div className="wg-art" style={{ background: platform.bg }}>
+      <platform.Icon style={{ fontSize: 22 }} />
+    </div>
+  )
+}
 
 export type EmbedPickPayload = {
   url: string
@@ -102,9 +130,7 @@ export const EmbedTab = ({
                 setStage('paste')
               }}
             >
-              <div className="wg-art" style={{ background: p.bg }}>
-                <p.Icon style={{ fontSize: 22 }} />
-              </div>
+              <PlatformArt platform={p} />
               <div className="wg-meta">
                 <div className="wg-card-title">{p.label}</div>
                 <div className="wg-card-sub">{p.sub}</div>
@@ -151,9 +177,7 @@ export const EmbedTab = ({
           ← All platforms
         </button>
         <div className="wg-card" style={{ cursor: 'default', marginTop: 8 }}>
-          <div className="wg-art" style={{ background: picked.bg }}>
-            <picked.Icon style={{ fontSize: 22 }} />
-          </div>
+          <PlatformArt platform={picked} />
           <div className="wg-meta">
             <div className="wg-card-title">{picked.label}</div>
             <div className="wg-card-sub">

@@ -215,14 +215,14 @@ export const SpaceSettingsPanel = ({
         </section>
 
         {/* Same trim as Visibility above — the section header
-            "Available for work" and the "A green pill on your Space
+            "Work with me" and the "A green pill on your Space
             card" sub-line just restated what the toggle obviously
             does. The contact-URL input below appears when the toggle
             is on and is self-explanatory in context. */}
         <section className="sp-section">
           <div className="sp-section-stack">
             <div className="sp-row">
-              <div className="lbl">Available for work</div>
+              <div className="lbl">Work with me</div>
               <button
                 type="button"
                 className="sp-toggle"

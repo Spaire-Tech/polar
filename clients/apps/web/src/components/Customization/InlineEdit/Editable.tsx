@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 /**
  * A small contentEditable wrapper that gives a text node the
@@ -26,6 +26,23 @@ export const Editable = ({
 }) => {
   const ref = useRef<HTMLElement>(null)
 
+  // Track emptiness from the LIVE DOM, not just the committed `value`
+  // prop. contentEditable never pushes keystrokes back into React, so a
+  // `value`-derived flag stays `true` the whole time the user types and
+  // the CSS placeholder keeps painting *behind* their text until they
+  // blur. Recomputing on every input keeps the placeholder in lockstep
+  // with what's actually in the box.
+  const [isEmpty, setIsEmpty] = useState(!value)
+
+  // When the committed value changes externally (form.reset, a
+  // programmatic commit) re-derive emptiness *during render* — the
+  // React-blessed alternative to a setState-in-effect cascade.
+  const [prevValue, setPrevValue] = useState(value)
+  if (value !== prevValue) {
+    setPrevValue(value)
+    setIsEmpty(!value)
+  }
+
   // Keep the DOM in sync if the prop value changes externally (e.g.
   // form.reset). React doesn't manage contentEditable's text content.
   useEffect(() => {
@@ -40,7 +57,7 @@ export const Editable = ({
   }
 
   const TagName = Tag as React.ElementType
-  const empty = !value && !!placeholder
+  const empty = isEmpty && !!placeholder
 
   return (
     <TagName
@@ -51,6 +68,7 @@ export const Editable = ({
       data-block={Tag !== 'span'}
       data-empty={empty}
       data-placeholder={placeholder}
+      onInput={() => setIsEmpty(!ref.current?.innerText.trim())}
       onBlur={commit}
       onKeyDown={(e: React.KeyboardEvent) => {
         if (!multiline && e.key === 'Enter') {

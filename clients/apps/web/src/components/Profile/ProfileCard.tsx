@@ -206,11 +206,11 @@ export const ProfileCard = ({
                   rel="noopener noreferrer"
                   className="rounded-full border border-green-200 bg-green-50 px-3 py-1 text-[12px] font-medium text-green-600 transition-colors hover:bg-green-100"
                 >
-                  Available for work →
+                  Work with me →
                 </a>
               ) : (
                 <span className="rounded-full border border-green-200 bg-green-50 px-3 py-1 text-[12px] font-medium text-green-600">
-                  Available for work
+                  Work with me
                 </span>
               ))}
             {languages.length > 0 &&
