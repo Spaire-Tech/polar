@@ -1,71 +1,47 @@
 'use client'
 
-// Minimal swatch grid + hex input. No new deps; matches the design's
-// monochrome aesthetic. Used by both the bubble menu (text colour) and
-// the button context panel (background + text).
+// Real color picker — uses react-colorful's saturation/value square +
+// hue slider. Same prop interface (value, onChange, optional label) so
+// callers don't change.
 
-import { useState } from 'react'
-
-const SWATCHES = [
-  '#000000', '#525252', '#9a9ea4', '#ffffff',
-  '#c8414b', '#e07b00', '#d4a017', '#1f8a4c',
-  '#0e7490', '#2563eb', '#7c3aed', '#be185d',
-]
+import { HexColorPicker } from 'react-colorful'
+import { useEffect, useState } from 'react'
 
 export function ColorPicker({
   value,
   onChange,
   label,
-  size = 22,
 }: {
   value: string
   onChange: (color: string) => void
   label?: string
-  size?: number
 }) {
+  // Keep the hex input in lockstep with the picker but allow free typing
+  // (so a half-typed "#abc" doesn't fight the slider). Commit only when
+  // the value parses as a valid 3- or 6-digit hex.
   const [hex, setHex] = useState(value)
+  useEffect(() => setHex(value), [value])
 
-  const apply = (next: string) => {
-    setHex(next)
-    onChange(next)
+  const onHexInput = (raw: string) => {
+    const clean = raw.replace(/[^0-9a-fA-F]/g, '').slice(0, 6)
+    setHex('#' + clean)
+    if (clean.length === 3 || clean.length === 6) onChange('#' + clean)
   }
 
   return (
-    <div>
-      {label && (
-        <div className="cp-label" style={{ marginBottom: 8 }}>
-          {label}
-        </div>
-      )}
-      <div className="cp-row">
-        <div className="cp-swatches">
-          {SWATCHES.map((c) => (
-            <button
-              key={c}
-              type="button"
-              title={c}
-              className={'cp-swatch' + (value.toLowerCase() === c.toLowerCase() ? ' on' : '')}
-              style={{ background: c, width: size, height: size }}
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={() => apply(c)}
-            />
-          ))}
-        </div>
-        <label className="cp-hex">
-          <span>#</span>
-          <input
-            value={hex.replace(/^#/, '')}
-            placeholder="000000"
-            maxLength={6}
-            onChange={(e) => {
-              const v = e.target.value.replace(/[^0-9a-fA-F]/g, '').slice(0, 6)
-              setHex('#' + v)
-              if (v.length === 3 || v.length === 6) onChange('#' + v)
-            }}
-            spellCheck={false}
-          />
-        </label>
-      </div>
+    <div className="cp-root" onMouseDown={(e) => e.stopPropagation()}>
+      {label && <div className="cp-label">{label}</div>}
+      <HexColorPicker color={value} onChange={onChange} />
+      <label className="cp-hex">
+        <span>#</span>
+        <input
+          value={hex.replace(/^#/, '')}
+          placeholder="000000"
+          maxLength={6}
+          onChange={(e) => onHexInput(e.target.value)}
+          spellCheck={false}
+        />
+      </label>
     </div>
   )
 }

@@ -696,3 +696,63 @@
 /* ============================ Link styling in document/preview ============================ */
 .composer-shell .compose a,
 .composer-shell .pv-mailbody a { color: var(--c-ink); text-decoration: underline; text-underline-offset: 2px; }
+
+/* ============================ V3 additions ============================ */
+
+/* Inline file block (replaces the bottom attach tray) */
+.composer-shell .b-file {
+  display: inline-flex; align-items: center; gap: 12px;
+  margin: 12px 0; padding: 12px 14px;
+  border: 1px solid var(--c-line-2); border-radius: 12px;
+  background: #fff; max-width: 100%;
+}
+.composer-shell .b-file-icon {
+  width: 38px; height: 38px; border-radius: 9px;
+  background: var(--c-hover); display: grid; place-items: center;
+  color: var(--c-ink); flex: 0 0 auto;
+}
+.composer-shell .b-file-meta { min-width: 0; }
+.composer-shell .b-file-meta b { display: block; font-size: 14.5px; font-weight: 700; color: var(--c-ink); }
+.composer-shell .b-file-meta span { font-size: 12.5px; color: var(--c-gray); }
+
+/* Floating + button at click position */
+.composer-shell .blk-add.floating {
+  position: absolute; left: 8px; top: 8px;
+  opacity: 1;
+  z-index: 35;
+}
+
+/* Real color picker (react-colorful) */
+.composer-shell .cp-root {
+  display: flex; flex-direction: column; gap: 12px;
+  width: 100%; max-width: 240px;
+}
+.composer-shell .cp-label { font-size: 13px; font-weight: 600; color: var(--c-ink); }
+.composer-shell .cp-root .react-colorful {
+  width: 100%; height: 200px;
+  border-radius: 12px; overflow: hidden;
+  box-shadow: 0 0 0 1px var(--c-line) inset;
+}
+.composer-shell .cp-root .react-colorful__saturation { border-radius: 0; border-bottom: 1px solid var(--c-line); }
+.composer-shell .cp-root .react-colorful__hue { height: 22px; border-radius: 0; }
+.composer-shell .cp-root .react-colorful__pointer { width: 18px; height: 18px; border-width: 2px; }
+.composer-shell .cp-hex {
+  display: inline-flex; align-items: center; gap: 4px;
+  border: 1px solid var(--c-line-2); border-radius: 9px;
+  padding: 6px 10px; height: 36px; width: fit-content;
+  background: #fff;
+}
+.composer-shell .cp-hex span { color: var(--c-gray); font-size: 13px; font-weight: 600; }
+.composer-shell .cp-hex input {
+  border: none; outline: none; background: none;
+  width: 78px; font-size: 14px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  text-transform: uppercase; color: var(--c-ink);
+}
+
+/* Bubble menu colour popover */
+.composer-shell .bm-color-pop {
+  position: absolute; top: calc(100% + 7px); left: 0;
+  background: #fff; border: 1px solid var(--c-line);
+  border-radius: 12px; box-shadow: var(--c-sh-pop);
+  padding: 12px; min-width: 240px; z-index: 50;
+}

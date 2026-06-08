@@ -231,9 +231,9 @@ export function ComposerApp({
     touch()
     if (type === 'image') pickImageFor(nb.id)
     if (type === 'file') {
-      // Open the picker right away so the block immediately gets a
-      // real file behind it; on failure / cancel the user can replace
-      // through the inline UI or delete the block.
+      // Open the picker immediately so the inserted file block gets a
+      // real file behind it; on cancel the placeholder stays and the
+      // user can delete or replace later.
       pickFile('*/*', (f) => {
         const kb = f.size / 1024
         const size =
@@ -348,11 +348,10 @@ export function ComposerApp({
     })
   }
 
-  // Attachments — kept local. The server-side persistence layer does not
-  // Attach files live inline as `file` blocks now. Clicking "Attach
-  // files" in the top-bar menu or the + popover's "Attach file" entry
-  // both open the picker and append a file block at the end (or at the
-  // + insertion point, handled by addBlock).
+  // Attach files now live as inline `file` blocks (no bottom tray).
+  // Both the top-bar paperclip and the + popover's "Attach file" route
+  // through this — picks a file, appends a file block + trailing
+  // paragraph, selects it.
   const addAttachment = () =>
     pickFile('*/*', (f) => {
       const kb = f.size / 1024
@@ -606,8 +605,9 @@ export function ComposerApp({
 
   const senderEmailDisplay = currentUser?.email ?? ''
 
-  // Mount portal-target only on the client. Without this gate Next.js
-  // SSR would crash on document.body access.
+  // Mount the portal target client-side only (Next.js SSR has no
+  // document.body). Returning null on the first render is fine: a
+  // single setMounted re-render lands us in the portal.
   const [mounted, setMounted] = useState(false)
   useEffect(() => setMounted(true), [])
   if (!mounted) return null
@@ -881,7 +881,7 @@ export function ComposerApp({
 
   // Portal into document.body so the composer sits above the dashboard
   // chrome — the dashboard's top nav was overlapping the composer's
-  // own top bar (Send button etc.) when the composer rendered inside
-  // the dashboard layout tree.
+  // top bar (Send button etc.) while it rendered inside the dashboard
+  // layout tree.
   return createPortal(shell, document.body)
 }
