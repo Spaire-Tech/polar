@@ -24,12 +24,14 @@
   --c-dark-h:   #111827;   /* gray-900 — primary button hover */
   --c-red:      #dc2626;
   --c-red-bg:   #fef2f2;
-  --c-sel:      #ddd0ff;   /* blue-200 — text selection */
-  /* Accent (purple) — focus states, selected block outline, links */
-  --c-accent:        #7c3aed;  /* blue-500 */
-  --c-accent-h:      #6d28d9;  /* blue-600 */
-  --c-accent-border: #c5a9ff;  /* blue-300 — focus border */
-  --c-accent-ring:   #ebe4ff;  /* blue-100 — focus ring */
+  --c-sel:      var(--color-blue-200);  /* text selection */
+  /* Accent (purple) — reference the dashboard's REAL tokens (oklch) so
+     it's pixel-identical to bg-primary on the payment-links toggle, not
+     a hex approximation. */
+  --c-accent:        var(--color-blue-500);  /* = --primary */
+  --c-accent-h:      var(--color-blue-600);
+  --c-accent-border: var(--color-blue-300);  /* focus border */
+  --c-accent-ring:   var(--color-blue-100);  /* focus ring */
   /* Inherit the app font (GeistSans) instead of bundling Schibsted. */
   --c-ff: var(--font-geist-sans), var(--font-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --c-sh-pop: 0 12px 40px rgba(17,24,39,.12), 0 2px 8px rgba(17,24,39,.06);

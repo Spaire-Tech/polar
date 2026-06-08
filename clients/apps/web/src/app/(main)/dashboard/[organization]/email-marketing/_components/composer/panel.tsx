@@ -4,13 +4,11 @@
 // (image, button, divider) when something selected.
 
 import { schemas } from '@spaire/client'
-import { useState } from 'react'
 
 import { ColorPicker } from './ColorPicker'
 import { Icon, type IconName } from './Icon'
 import { CROP_LABEL, CROP_SEQ, type Block, type SendOptionsState } from './types'
 
-const ALL_LABELS = ['Newsletter', 'Launch', 'Promo', 'Win-back']
 
 function Toggle({ on, onClick }: { on: boolean; onClick: () => void }) {
   return (
@@ -49,8 +47,6 @@ export function SendOptions({
     setSo({ ...so, ...patch })
     onTouch?.()
   }
-  const [adding, setAdding] = useState(false)
-  const [tagText, setTagText] = useState('')
 
   // Initials are a fallback when there's no avatar; based on the
   // sender's name so it matches who's actually sending.
@@ -61,29 +57,6 @@ export function SendOptions({
     .slice(0, 2)
     .join('')
     .toUpperCase()
-
-  const allTags = [...ALL_LABELS, ...(so.customTags || [])]
-  const toggleLabel = (l: string) =>
-    set({
-      labels: so.labels.includes(l)
-        ? so.labels.filter((x) => x !== l)
-        : [...so.labels, l],
-    })
-  const addTag = () => {
-    const n = tagText.trim().slice(0, 24)
-    if (n) {
-      const exists = allTags.some((t) => t.toLowerCase() === n.toLowerCase())
-      if (!exists)
-        set({
-          customTags: [...(so.customTags || []), n],
-          labels: [...so.labels, n],
-        })
-      else if (!so.labels.includes(n))
-        set({ labels: [...so.labels, n] })
-    }
-    setTagText('')
-    setAdding(false)
-  }
 
   return (
     <div className="sopts">
@@ -184,49 +157,6 @@ export function SendOptions({
       <button className="test-btn" onClick={onTest}>
         <Icon name="flask" size={19} /> Send a test to myself
       </button>
-
-      <div className="st-divider"></div>
-
-      <div className="st-group" style={{ marginBottom: 0 }}>
-        <h3 style={{ marginBottom: 0, paddingLeft: 2 }}>Tag this broadcast</h3>
-        <div className="lbls" style={{ paddingLeft: 2 }}>
-          {allTags.map((l) => (
-            <button
-              key={l}
-              className={'lbl-chip' + (so.labels.includes(l) ? ' on' : '')}
-              onClick={() => toggleLabel(l)}
-            >
-              <span className="dot"></span>
-              {l}
-            </button>
-          ))}
-          {adding ? (
-            <input
-              autoFocus
-              className="lbl-input"
-              value={tagText}
-              placeholder="Tag name…"
-              maxLength={24}
-              onChange={(e) => setTagText(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') addTag()
-                if (e.key === 'Escape') {
-                  setAdding(false)
-                  setTagText('')
-                }
-              }}
-              onBlur={addTag}
-            />
-          ) : (
-            <button
-              className="lbl-chip lbl-add"
-              onClick={() => setAdding(true)}
-            >
-              <Icon name="plus" size={14} /> Add tag
-            </button>
-          )}
-        </div>
-      </div>
     </div>
   )
 }
