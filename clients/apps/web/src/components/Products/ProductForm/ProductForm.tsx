@@ -18,6 +18,10 @@ export type ProductFormType = Omit<
 > &
   ProductFullMediasMixin & {
     metadata: { key: string; value: string | number | boolean }[]
+    // Short free-form tagline shown under the title on the product page.
+    // Not yet in the generated ProductCreate/Update types (pending client
+    // regen), so it's declared here on the form model.
+    subtitle?: string | null
   }
 
 const ProductForm = ({
