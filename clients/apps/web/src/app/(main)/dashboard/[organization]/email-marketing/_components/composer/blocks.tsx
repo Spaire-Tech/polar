@@ -568,11 +568,37 @@ function BlockShell({
   pickImage?: () => void
 }) {
   const isText = TEXTLIKE.includes(b.type)
+
+  // The bubble is a *selection* toolbar — it shows only while there's a
+  // non-collapsed text selection anchored inside this block, never just
+  // because the block was clicked.
+  const innerRef = useRef<HTMLDivElement>(null)
+  const [hasSelection, setHasSelection] = useState(false)
+  useEffect(() => {
+    if (!isText) return
+    const onSel = () => {
+      const s = document.getSelection()
+      if (!s || s.isCollapsed || s.rangeCount === 0) {
+        setHasSelection(false)
+        return
+      }
+      const node = innerRef.current
+      setHasSelection(
+        !!node && node.contains(s.getRangeAt(0).commonAncestorContainer),
+      )
+    }
+    document.addEventListener('selectionchange', onSel)
+    return () => document.removeEventListener('selectionchange', onSel)
+  }, [isText])
+
   return (
     <div
       className={
         'blk' +
-        (selected ? ' sel' : '') +
+        // Only media blocks (image / button / divider) get the selected
+        // box outline. Text is just text — selecting it must not wrap it
+        // in a box; its bubble menu appears on text selection instead.
+        (selected && !isText ? ' sel' : '') +
         (addOpen ? ' menu-open' : '') +
         (dragging ? ' dragging' : '')
       }
@@ -611,8 +637,8 @@ function BlockShell({
           <circle cx="7.5" cy="13" r="1.4" />
         </svg>
       </span>
-      <div className="blk-inner">
-        {selected && isText && (
+      <div className="blk-inner" ref={innerRef}>
+        {isText && hasSelection && (
           <Bubble
             b={b as TextBlock}
             update={update}

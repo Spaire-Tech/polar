@@ -272,10 +272,13 @@ class EmailBroadcastService:
         segment_id: UUID | None = None,
         filter_rules: dict | None = None,
     ) -> EmailBroadcast:
-        # Whenever the JSON document is present, regenerate the HTML so the
-        # send pipeline always reflects what the editor produced.
-        if content_json:
-            content_html = render_blocks_to_html(content_json) or content_html
+        # If the caller supplied content_html, trust it — the editor is the
+        # source of truth for its own output. Only fall back to regenerating
+        # from content_json when no HTML was provided (e.g. an API client
+        # that only sends the JSON document). This mirrors the update path:
+        # an explicit content_html always wins.
+        if content_json and not content_html:
+            content_html = render_blocks_to_html(content_json)
 
         repository = EmailBroadcastRepository.from_session(session)
         broadcast_kwargs: dict[str, object] = {
