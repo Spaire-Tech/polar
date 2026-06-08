@@ -89,6 +89,9 @@ class Scope(StrEnum):
     email_broadcasts_read = "email_broadcasts:read"
     email_broadcasts_write = "email_broadcasts:write"
 
+    forms_read = "forms:read"
+    forms_write = "forms:write"
+
     metrics_read = "metrics:read"
 
     webhooks_read = "webhooks:read"
@@ -133,6 +136,8 @@ SCOPES_SUPPORTED_DISPLAY_NAMES: dict[Scope, str] = {
     Scope.organizations_write: "Create or modify organizations",
     Scope.custom_fields_read: "Read custom fields",
     Scope.custom_fields_write: "Create or modify custom fields",
+    Scope.forms_read: "Read forms",
+    Scope.forms_write: "Create or modify forms",
     Scope.discounts_read: "Read discounts",
     Scope.discounts_write: "Create or modify discounts",
     Scope.checkout_links_read: "Read checkout links",

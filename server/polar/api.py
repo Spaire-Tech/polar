@@ -44,6 +44,7 @@ from polar.event.endpoints import router as event_router
 from polar.event_type.endpoints import router as event_type_router
 from polar.eventstream.endpoints import router as stream_router
 from polar.file.endpoints import router as files_router
+from polar.form.endpoints import router as form_router
 from polar.integrations.apple.endpoints import router as apple_router
 from polar.integrations.chargeback_stop.endpoints import (
     router as chargeback_stop_router,
@@ -178,6 +179,8 @@ router.include_router(email_segment_router)
 router.include_router(email_broadcast_router)
 # /email-sequences
 router.include_router(email_sequence_router)
+# /forms
+router.include_router(form_router)
 # /update-email
 router.include_router(email_update_router)
 # /customer-sessions

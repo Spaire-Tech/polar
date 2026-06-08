@@ -19,6 +19,7 @@ from polar.email_update import tasks as email_update
 from polar.event import tasks as event
 from polar.eventstream import tasks as eventstream
 from polar.external_event import tasks as external_event
+from polar.form import tasks as form
 from polar.integrations.chargeback_stop import tasks as chargeback_stop
 from polar.integrations.loops import tasks as loops
 from polar.integrations.resend import tasks as resend
@@ -61,6 +62,7 @@ __all__ = [
     "event",
     "eventstream",
     "external_event",
+    "form",
     "loops",
     "meter",
     "notifications",
