@@ -604,6 +604,12 @@ export function ComposerApp({
   )
 
   const senderEmailDisplay = currentUser?.email ?? ''
+  // Show the user's actual avatar + name (from the auth payload) on the
+  // sender card and inbox preview. Falls back to the email local-part
+  // for the name and to initials for the avatar when nothing's available.
+  const senderNameDisplay =
+    (currentUser?.email?.split('@')[0] ?? '') || organization.name
+  const senderAvatarUrl = currentUser?.avatar_url ?? null
 
   // Mount the portal target client-side only (Next.js SSR has no
   // document.body). Returning null on the first render is fine: a
@@ -730,6 +736,8 @@ export function ComposerApp({
             <EmailPreview
               organization={organization}
               senderEmail={senderEmailDisplay}
+              senderName={senderNameDisplay}
+              senderAvatarUrl={senderAvatarUrl}
               subject={subject}
               blocks={blocks}
               attachments={attachments}
@@ -753,6 +761,8 @@ export function ComposerApp({
             <SendOptions
               organization={organization}
               senderEmail={senderEmailDisplay}
+              senderName={senderNameDisplay}
+              senderAvatarUrl={senderAvatarUrl}
               so={so}
               setSo={setSo}
               onTouch={touch}

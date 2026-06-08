@@ -157,8 +157,8 @@
 .composer-shell .subject-row { padding: 18px 0 6px; }
 .composer-shell .subject-input {
   width: 100%; border: none; outline: none; background: none;
-  font-size: 30px; font-weight: 600; letter-spacing: -.02em;
-  line-height: 1.15; color: var(--c-ink); padding: 0;
+  font-size: 22px; font-weight: 600; letter-spacing: -.01em;
+  line-height: 1.35; color: var(--c-ink); padding: 0;
   box-shadow: none;
 }
 .composer-shell .subject-input:focus,
@@ -171,12 +171,12 @@
 .composer-shell .aud-chip {
   display: inline-flex; align-items: center; gap: 10px;
   height: 42px; padding: 0 12px 0 14px; border-radius: 999px;
-  background: var(--c-chip); font-size: 16px; font-weight: 600;
+  background: var(--c-chip); font-size: 14px; font-weight: 500;
   color: var(--c-ink); white-space: nowrap; transition: background .12s;
 }
 .composer-shell .aud-chip:hover { background: var(--c-hover-2); }
 .composer-shell .aud-chip .aic { display: grid; place-items: center; color: var(--c-ink); }
-.composer-shell .aud-chip .cnt { color: var(--c-gray); font-weight: 600; }
+.composer-shell .aud-chip .cnt { color: var(--c-gray); font-weight: 400; }
 .composer-shell .aud-chip .cv { color: var(--c-gray); display: grid; place-items: center; }
 .composer-shell .seg-chip {
   display: inline-flex; align-items: center; gap: 8px;
@@ -224,7 +224,8 @@
   box-shadow: 0 1px 3px rgba(12,13,16,.08);
 }
 .composer-shell .blk:hover > .blk-add,
-.composer-shell .blk.menu-open > .blk-add { opacity: 1; }
+.composer-shell .blk.menu-open > .blk-add,
+.composer-shell .blk.has-caret > .blk-add { opacity: 1; }
 .composer-shell .blk-add:hover { background: var(--c-hover); transform: scale(1.06); }
 .composer-shell .blk-add.spin { transform: rotate(45deg); }
 .composer-shell .blk-add.spin:hover { transform: rotate(45deg) scale(1.06); }
@@ -464,7 +465,8 @@
   padding: 13px 15px; cursor: pointer; transition: background .14s;
 }
 .composer-shell .acct:hover { background: var(--c-hover); }
-.composer-shell .acct .av { width: 42px; height: 42px; border-radius: 50%; background: var(--c-ink); color: #fff; display: grid; place-items: center; font-size: 16px; font-weight: 700; flex: 0 0 auto; }
+.composer-shell .acct .av { width: 42px; height: 42px; border-radius: 50%; background: var(--c-hover); color: var(--c-ink); display: grid; place-items: center; font-size: 14px; font-weight: 600; flex: 0 0 auto; overflow: hidden; }
+.composer-shell .acct .av img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .composer-shell .acct .who { flex: 1; min-width: 0; }
 .composer-shell .acct .who b { display: block; font-size: 15px; font-weight: 600; color: var(--c-ink); }
 .composer-shell .acct .who span { font-size: 14px; color: var(--c-gray); }
@@ -503,7 +505,7 @@
   content: ''; position: absolute; top: 3px; left: 3px; width: 21px; height: 21px;
   border-radius: 50%; background: #fff; transition: transform .16s; box-shadow: 0 1px 3px rgba(0,0,0,.25);
 }
-.composer-shell .c-toggle.on { background: var(--c-ink); }
+.composer-shell .c-toggle.on { background: var(--c-accent); }
 .composer-shell .c-toggle.on::after { transform: translateX(19px); }
 .composer-shell .test-btn {
   width: 100%; height: 52px; border: 1px solid var(--c-line-2); border-radius: 12px;
@@ -621,7 +623,8 @@
 .composer-shell .pv-subject { font-size: 24px; font-weight: 600; letter-spacing: -.02em; color: var(--c-ink); margin: 0 0 16px; line-height: 1.15; }
 .composer-shell .screen.mobile .pv-subject { font-size: 22px; }
 .composer-shell .pv-sender { display: flex; align-items: center; gap: 12px; }
-.composer-shell .pv-sender .av { width: 44px; height: 44px; border-radius: 50%; background: var(--c-ink); color: #fff; display: grid; place-items: center; font-weight: 700; font-size: 17px; flex: 0 0 auto; }
+.composer-shell .pv-sender .av { width: 44px; height: 44px; border-radius: 50%; background: var(--c-hover); color: var(--c-ink); display: grid; place-items: center; font-weight: 600; font-size: 15px; flex: 0 0 auto; overflow: hidden; }
+.composer-shell .pv-sender .av img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .composer-shell .pv-sender .sm { flex: 1; min-width: 0; }
 .composer-shell .pv-sender .sm .l1 { display: flex; align-items: baseline; gap: 8px; }
 .composer-shell .pv-sender .sm b { font-size: 15.5px; font-weight: 700; color: var(--c-ink); }
