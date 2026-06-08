@@ -3,12 +3,12 @@
 import LinkOutlined from '@mui/icons-material/LinkOutlined'
 import OpenInNewOutlined from '@mui/icons-material/OpenInNewOutlined'
 import { useState } from 'react'
-import { SectionLabel } from './SectionLabel'
 import {
   buildEmbedUrl,
   getDomain,
   getEmbedAspect,
   getPlatformConfig,
+  isEmbeddablePlatform,
   platformLogoUrl,
 } from './linkPlatforms'
 
@@ -20,6 +20,9 @@ export type StorefrontLinkItem = {
   image_url?: string | null
   type: 'standard' | 'embedded'
   platform?: string | null
+  // Per-link layout. Embeds ignore it; for standard links it overrides
+  // the section default. Unset → fall back to the section's layout.
+  layout?: LinksLayout | null
 }
 
 export type LinksLayout = 'classic' | 'carousel' | 'image_grid' | 'card'
@@ -261,6 +264,45 @@ export const UrlLink = ({
   )
 }
 
+// A render run within a link block. Mirrors the editor's runs so the live
+// page matches the canvas exactly (WYSIWYG). Everything stays in document
+// order — nothing is hoisted into a separate "Featured" section.
+//   • embed — an embeddable link, always full-width on its own row.
+//   • group — consecutive standard links sharing a layout, rendered
+//             together so Grid / Carousel arrange multiple links at once.
+export type LinkRun =
+  | { kind: 'embed'; link: StorefrontLinkItem }
+  | { kind: 'group'; layout: LinksLayout; links: StorefrontLinkItem[] }
+
+// An "embedded"-typed link only renders as a full-width iframe when we can
+// actually build an embed URL for its platform; otherwise it falls back to
+// a normal card and flows inline with the standard links.
+export const isEmbeddableLink = (link: StorefrontLinkItem): boolean =>
+  link.type === 'embedded' &&
+  isEmbeddablePlatform(link.platform) &&
+  !!buildEmbedUrl(link.url, link.platform ?? '')
+
+export const buildLinkRuns = (
+  links: StorefrontLinkItem[],
+  fallback: LinksLayout,
+): LinkRun[] => {
+  const runs: LinkRun[] = []
+  for (const link of links) {
+    if (isEmbeddableLink(link)) {
+      runs.push({ kind: 'embed', link })
+      continue
+    }
+    const layout = (link.layout ?? fallback) as LinksLayout
+    const tail = runs[runs.length - 1]
+    if (tail && tail.kind === 'group' && tail.layout === layout) {
+      tail.links.push(link)
+    } else {
+      runs.push({ kind: 'group', layout, links: [link] })
+    }
+  }
+  return runs
+}
+
 export const URL_LAYOUT_WRAPPERS: Record<LinksLayout, string> = {
   classic: 'flex flex-col gap-3',
   card: 'flex flex-col gap-4',
@@ -303,9 +345,11 @@ export const EmbedCard = ({ link }: { link: StorefrontLinkItem }) => {
 }
 
 // ─── Main export ─────────────────────────────────────────────────────────────
-// URL-typed links render in the chosen layout (classic, card, image_grid,
-// carousel). Embedded links always render full-width because they need to
-// play inline — a YouTube grid would just be tiny iframes.
+// Renders the links in document order (WYSIWYG with the editor canvas):
+// each standard link uses its own per-link layout, consecutive same-layout
+// links group into one Grid / Carousel / list, and embeds sit full-width
+// exactly where the creator placed them — nothing is hoisted into a
+// separate section.
 
 export const StorefrontLinks = ({
   links,
@@ -318,42 +362,37 @@ export const StorefrontLinks = ({
 }) => {
   if (links.length === 0) return null
 
-  const urlLinks = links.filter((l) => l.type !== 'embedded')
-  const embedLinks = links.filter((l) => l.type === 'embedded')
-  const wrapperClass =
-    URL_LAYOUT_WRAPPERS[layout] ?? URL_LAYOUT_WRAPPERS.classic
+  const runs = buildLinkRuns(links, layout)
 
   return (
-    <div className="flex w-full flex-col gap-8">
-      {embedLinks.length > 0 && (
-        <div className="flex flex-col gap-4">
-          <SectionLabel>Featured</SectionLabel>
-          <div className="flex w-full flex-col gap-5">
-            {embedLinks.map((link) => (
-              <EmbedCard key={link.id} link={link} />
-            ))}
-          </div>
-        </div>
-      )}
-      {urlLinks.length > 0 && (
-        <div className="flex flex-col gap-4">
-          <SectionLabel>Links</SectionLabel>
+    <div className="flex w-full flex-col gap-5">
+      {runs.map((run) =>
+        run.kind === 'embed' ? (
+          <EmbedCard key={run.link.id} link={run.link} />
+        ) : (
           <div
-            className={wrapperClass}
+            key={run.links[0].id}
+            className={
+              URL_LAYOUT_WRAPPERS[run.layout] ?? URL_LAYOUT_WRAPPERS.classic
+            }
             style={
-              layout === 'carousel' ? { scrollbarWidth: 'thin' } : undefined
+              run.layout === 'carousel'
+                ? { scrollbarWidth: 'thin' }
+                : undefined
             }
           >
-            {urlLinks.map((link) => (
+            {run.links.map((link) => (
               <UrlLink
                 key={link.id}
                 link={link}
-                layout={layout}
+                // A non-embeddable "embedded" link falls back to a card,
+                // matching the editor's LinkRow dispatch.
+                layout={link.type === 'embedded' ? 'card' : run.layout}
                 preview={preview}
               />
             ))}
           </div>
-        </div>
+        ),
       )}
     </div>
   )

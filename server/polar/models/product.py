@@ -83,6 +83,10 @@ class Product(TrialConfigurationMixin, MetadataMixin, RecordModel):
 
     name: Mapped[str] = mapped_column(CITEXT(), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Short free-form tagline shown under the title on the storefront product
+    # page (e.g. "A baking book by Jane Doe"). Distinct from `description`,
+    # which is the long-form overview.
+    subtitle: Mapped[str | None] = mapped_column(Text, nullable=True)
     is_archived: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     visibility: Mapped[ProductVisibility | None] = mapped_column(
         StringEnum(ProductVisibility),

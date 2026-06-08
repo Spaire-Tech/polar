@@ -80,6 +80,30 @@ export const ProductInfoSection = ({
 
         <FormField
           control={control}
+          name={'subtitle' as 'name'}
+          render={({ field }) => (
+            <FormItem>
+              <div className="flex flex-row items-center justify-between">
+                <FormLabel>Subtitle</FormLabel>
+                <p className="text-sm text-gray-500">Optional</p>
+              </div>
+              <FormControl>
+                <Input
+                  {...field}
+                  value={field.value || ''}
+                  placeholder="A baking book by Jane Doe"
+                />
+              </FormControl>
+              <p className="text-xs text-gray-500">
+                A short tagline shown under the title on your product page.
+              </p>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={control}
           name="description"
           render={({ field }) => (
             <FormItem className="flex flex-col gap-2">

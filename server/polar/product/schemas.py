@@ -133,6 +133,18 @@ ProductDescription = Annotated[
     Field(description="The description of the product."),
     EmptyStrToNoneValidator,
 ]
+ProductSubtitle = Annotated[
+    str | None,
+    Field(
+        default=None,
+        max_length=120,
+        description=(
+            "A short free-form tagline shown under the product title on its "
+            "storefront page (e.g. 'A baking book by Jane Doe')."
+        ),
+    ),
+    EmptyStrToNoneValidator,
+]
 
 
 class ProductPriceCreateBase(Schema):
@@ -392,6 +404,7 @@ ProductPriceCreateList = Annotated[
 class ProductCreateBase(MetadataInputMixin, Schema):
     name: ProductName
     description: ProductDescription = None
+    subtitle: ProductSubtitle = None
     category: ProductCategory | None = Field(
         default=None,
         description="The digital product category (ebook, template, course, etc.).",

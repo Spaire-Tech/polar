@@ -128,6 +128,14 @@ class StorefrontLink(Schema):
         None,
         description="Detected platform (youtube, spotify, tiktok, soundcloud, instagram)",
     )
+    layout: Literal["classic", "carousel", "image_grid", "card"] | None = Field(
+        None,
+        description=(
+            "Per-link visual layout (list / cards / grid / carousel). Embeds "
+            "ignore this — they always render full-width. When unset, the link "
+            "falls back to the section's links_layout."
+        ),
+    )
 
 
 class SpaceItem(Schema):
@@ -240,8 +248,8 @@ class OrganizationStorefrontSettings(Schema):
         ),
     )
     links_layout: Literal["classic", "carousel", "image_grid", "card"] = Field(
-        "carousel",
-        description="Visual layout for the links section",
+        "classic",
+        description="Visual layout for the links section (default per-link layout)",
     )
     header_focal_point: str | None = Field(
         None,

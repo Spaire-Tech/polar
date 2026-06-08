@@ -5,15 +5,12 @@ import { CATEGORY_LABELS } from '@/components/Profile/categoryLabels'
 import { SectionLabel } from '@/components/Profile/SectionLabel'
 import {
   EmbedCard,
+  isEmbeddableLink,
   type LinksLayout,
   StorefrontLinkItem,
   URL_LAYOUT_WRAPPERS,
   UrlLink,
 } from '@/components/Profile/StorefrontLinks'
-import {
-  buildEmbedUrl,
-  isEmbeddablePlatform,
-} from '@/components/Profile/linkPlatforms'
 import {
   itemKey,
   reorderSpaceItem,
@@ -40,6 +37,7 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import GridViewOutlined from '@mui/icons-material/GridViewOutlined'
+import MoreHorizOutlined from '@mui/icons-material/MoreHorizOutlined'
 import ViewAgendaOutlined from '@mui/icons-material/ViewAgendaOutlined'
 import ViewCarouselOutlined from '@mui/icons-material/ViewCarouselOutlined'
 import ViewListOutlined from '@mui/icons-material/ViewListOutlined'
@@ -76,27 +74,75 @@ const LAYOUTS: {
   { value: 'carousel', label: 'Carousel', Icon: ViewCarouselOutlined },
 ]
 
-const LayoutPicker = ({
+// Per-link "…" menu — sets THIS link's layout. Embeds don't get one
+// (they always render full-width). Lives in the link's hover action row.
+const LinkLayoutMenu = ({
   value,
   onChange,
 }: {
   value: LinksLayout
   onChange: (next: LinksLayout) => void
-}) => (
-  <span className="layout-picker">
-    {LAYOUTS.map(({ value: v, label, Icon }) => (
+}) => {
+  const [open, setOpen] = useState(false)
+  return (
+    <div className="relative">
       <button
-        key={v}
         type="button"
-        aria-pressed={value === v}
-        onClick={() => onChange(v)}
-        title={label}
+        className="item-action"
+        onClick={(e) => {
+          e.stopPropagation()
+          setOpen((o) => !o)
+        }}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        title="Layout"
+        aria-label="Link layout"
       >
-        <Icon style={{ fontSize: 14 }} />
+        <MoreHorizOutlined style={{ fontSize: 16 }} />
       </button>
-    ))}
-  </span>
-)
+      {open && (
+        <>
+          <div
+            className="fixed inset-0 z-[7]"
+            onClick={(e) => {
+              e.stopPropagation()
+              setOpen(false)
+            }}
+          />
+          <div
+            role="menu"
+            className="absolute right-0 top-9 z-[8] w-36 overflow-hidden rounded-xl border border-gray-200 bg-white py-1 shadow-lg"
+          >
+            {LAYOUTS.map(({ value: v, label, Icon }) => (
+              <button
+                key={v}
+                type="button"
+                role="menuitemradio"
+                aria-checked={value === v}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onChange(v)
+                  setOpen(false)
+                }}
+                className={`flex w-full items-center gap-2 px-3 py-1.5 text-left text-[13px] ${
+                  value === v
+                    ? 'font-medium text-gray-900'
+                    : 'text-gray-600 hover:bg-gray-50'
+                }`}
+              >
+                <Icon style={{ fontSize: 16 }} />
+                {label}
+                {value === v && (
+                  <span className="ml-auto text-[#6e56ff]">✓</span>
+                )}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
 
 // Generic sortable wrapper for a single Space item. The drag handle is
 // a child element so the hover-attached Remove / Hide controls don't
@@ -170,11 +216,7 @@ const LinkRow = ({
   layout: LinksLayout
   embedded?: boolean
 }) => {
-  if (
-    embedded &&
-    isEmbeddablePlatform(link.platform) &&
-    buildEmbedUrl(link.url, link.platform ?? '')
-  ) {
+  if (isEmbeddableLink(link)) {
     return <EmbedCard link={link} />
   }
   return <UrlLink link={link} layout={embedded ? 'card' : layout} preview />
@@ -232,6 +274,39 @@ const chunkByKindAndCategory = (items: ResolvedSpaceItem[]): Chunk[] => {
   return out
 }
 
+// ─── Per-link layout runs ─────────────────────────────────────────
+// Within a link chunk, split into render runs: each embed is its own
+// full-width run; consecutive standard links sharing a layout collapse
+// into one run so Grid / Carousel arrange them together. Same shape and
+// embed rule as the public renderer's buildLinkRuns (it shares
+// isEmbeddableLink) so the canvas matches the live Space in document order.
+type LinkEntry = Extract<ResolvedSpaceItem, { kind: 'link' }>
+
+type LinkRun =
+  | { kind: 'embed'; entry: LinkEntry }
+  | { kind: 'group'; layout: LinksLayout; entries: LinkEntry[] }
+
+const buildLinkRuns = (
+  entries: LinkEntry[],
+  fallback: LinksLayout,
+): LinkRun[] => {
+  const runs: LinkRun[] = []
+  for (const entry of entries) {
+    if (isEmbeddableLink(entry.link)) {
+      runs.push({ kind: 'embed', entry })
+      continue
+    }
+    const layout = (entry.link.layout ?? fallback) as LinksLayout
+    const tail = runs[runs.length - 1]
+    if (tail && tail.kind === 'group' && tail.layout === layout) {
+      tail.entries.push(entry)
+    } else {
+      runs.push({ kind: 'group', layout, entries: [entry] })
+    }
+  }
+  return runs
+}
+
 export const DraggableBlocks = ({
   organization: org,
   products,
@@ -278,6 +353,15 @@ export const DraggableBlocks = ({
       { ...(settings ?? {}), ...patch } as schemas['OrganizationStorefrontSettings'],
       { shouldDirty: true },
     )
+  }
+
+  // Per-link layout — patch the matching entry in storefront_links so each
+  // link controls its own list / cards / grid / carousel rendering.
+  const setLinkLayout = (linkId: string, nextLayout: LinksLayout) => {
+    const nextLinks = links.map((l) =>
+      l.id === linkId ? { ...l, layout: nextLayout } : l,
+    )
+    writeSettings({ storefront_links: nextLinks })
   }
 
   const onHide = (key: string, name: string) => {
@@ -349,7 +433,50 @@ export const DraggableBlocks = ({
   }
 
   const chunks = chunkByKindAndCategory(items)
-  const hasAnyLinks = items.some((i) => i.kind === 'link')
+
+  // One link row + its hover controls (drag, the per-link layout "…"
+  // menu for non-embeds, hide). Shared by embed runs and grouped runs.
+  const renderLinkEntry = (entry: LinkEntry, rowLayout: LinksLayout) => (
+    <SortableItem key={itemKey(entry)} id={itemKey(entry)}>
+      {({ listeners, attributes }) => (
+        <div className="item-hover">
+          <LinkRow
+            link={entry.link}
+            layout={rowLayout}
+            embedded={entry.link.type === 'embedded'}
+          />
+          <div className="item-actions">
+            {entry.link.type !== 'embedded' && (
+              <LinkLayoutMenu
+                value={(entry.link.layout ?? linksLayout) as LinksLayout}
+                onChange={(lay) => setLinkLayout(entry.link.id, lay)}
+              />
+            )}
+            <ItemDragHandle
+              listeners={listeners}
+              attributes={attributes}
+              label={`Drag ${entry.link.title || 'link'} to reorder`}
+            />
+            <button
+              type="button"
+              className="item-action"
+              onClick={(e) => {
+                e.stopPropagation()
+                onHide(
+                  itemKey(entry),
+                  entry.link.title || entry.link.url || 'Link',
+                )
+              }}
+              title="Hide from Space"
+              aria-label={`Hide ${entry.link.title || 'link'} from Space`}
+            >
+              <VisibilityOffOutlined style={{ fontSize: 16 }} />
+            </button>
+          </div>
+        </div>
+      )}
+    </SortableItem>
+  )
 
   return (
     <DndContext
@@ -363,20 +490,6 @@ export const DraggableBlocks = ({
         strategy={verticalListSortingStrategy}
       >
         <div className="flex flex-col gap-12">
-          {/* Layout picker for link runs. Shown once at the top so it
-              applies globally — the public storefront also reads
-              `links_layout` for every link block, so a per-run picker
-              would be misleading. */}
-          {hasAnyLinks && (
-            <div className="canvas-card-toolbar">
-              <span className="canvas-card-toolbar-label">Link layout</span>
-              <LayoutPicker
-                value={linksLayout}
-                onChange={(v) => writeSettings({ links_layout: v })}
-              />
-            </div>
-          )}
-
           {chunks.map((chunk, idx) => {
             if (chunk.kind === 'product') {
               return (
@@ -424,69 +537,35 @@ export const DraggableBlocks = ({
                 </section>
               )
             }
-            // Link chunk. Wrap the items in the SAME layout container the
-            // public Storefront uses (URL_LAYOUT_WRAPPERS) so "Grid" is an
-            // actual 2/3-up grid and "Cards"/"Carousel" size exactly like
-            // the live Space — instead of every link stretching to the
-            // full canvas width (the "fake massive view"). Embeds always
-            // render full-width, so they span every column of the grid.
+            // Link chunk. Each link renders in ITS OWN layout (set from
+            // the link's "…" menu). Consecutive links sharing a layout
+            // group into one container so Grid / Carousel arrange them
+            // together; embeds always sit full-width on their own row.
+            const runs = buildLinkRuns(chunk.items, linksLayout)
             return (
-              <div
-                key={`l-${idx}`}
-                className={`canvas-card ${URL_LAYOUT_WRAPPERS[linksLayout]}`}
-                style={
-                  linksLayout === 'carousel'
-                    ? { scrollbarWidth: 'thin' }
-                    : undefined
-                }
-              >
-                {chunk.items.map((entry) => {
-                  const isEmbed =
-                    entry.link.type === 'embedded' &&
-                    isEmbeddablePlatform(entry.link.platform) &&
-                    !!buildEmbedUrl(entry.link.url, entry.link.platform ?? '')
-                  return (
-                  <SortableItem
-                    key={itemKey(entry)}
-                    id={itemKey(entry)}
-                    className={isEmbed ? 'col-span-full w-full' : undefined}
-                  >
-                    {({ listeners, attributes }) => (
-                      <div className="item-hover">
-                        <LinkRow
-                          link={entry.link}
-                          layout={linksLayout}
-                          embedded={entry.link.type === 'embedded'}
-                        />
-                        <div className="item-actions">
-                          <ItemDragHandle
-                            listeners={listeners}
-                            attributes={attributes}
-                            label={`Drag ${entry.link.title || 'link'} to reorder`}
-                          />
-                          <button
-                            type="button"
-                            className="item-action"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              onHide(
-                                itemKey(entry),
-                                entry.link.title || entry.link.url || 'Link',
-                              )
-                            }}
-                            title="Hide from Space"
-                            aria-label={`Hide ${
-                              entry.link.title || 'link'
-                            } from Space`}
-                          >
-                            <VisibilityOffOutlined style={{ fontSize: 16 }} />
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </SortableItem>
-                  )
-                })}
+              <div key={`l-${idx}`} className="canvas-card flex flex-col gap-5">
+                {runs.map((run) =>
+                  run.kind === 'embed' ? (
+                    renderLinkEntry(run.entry, 'card')
+                  ) : (
+                    <div
+                      key={`g-${itemKey(run.entries[0])}`}
+                      className={
+                        URL_LAYOUT_WRAPPERS[run.layout] ??
+                        URL_LAYOUT_WRAPPERS.classic
+                      }
+                      style={
+                        run.layout === 'carousel'
+                          ? { scrollbarWidth: 'thin' }
+                          : undefined
+                      }
+                    >
+                      {run.entries.map((entry) =>
+                        renderLinkEntry(entry, run.layout),
+                      )}
+                    </div>
+                  ),
+                )}
               </div>
             )
           })}
