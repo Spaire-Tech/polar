@@ -6,24 +6,34 @@
    =========================================================== */
 
 .composer-shell {
-  --c-ink:      #0c0d10;
-  --c-body:     #242629;
-  --c-gray:     #6b6f76;
-  --c-gray-2:   #9a9ea4;
-  --c-line:     #e6e7ea;
-  --c-line-2:   #d8dadd;
+  /* Tokens mapped to the Spaire dashboard (see globals.css / atoms).
+     Gray scale = Tailwind gray-*, accent = the dashboard's purple
+     (blue-* hue 272°). Kept the --c-* names so the rest of this file
+     didn't need rewriting. */
+  --c-ink:      #111827;   /* gray-900 — primary text */
+  --c-body:     #374151;   /* gray-700 — body copy */
+  --c-gray:     #6b7280;   /* gray-500 — muted */
+  --c-gray-2:   #9ca3af;   /* gray-400 — placeholder */
+  --c-line:     #e5e7eb;   /* gray-200 — borders */
+  --c-line-2:   #d1d5db;   /* gray-300 — stronger borders */
   --c-bg:       #ffffff;
-  --c-hover:    #f1f1f2;
-  --c-hover-2:  #e8e8ea;
-  --c-chip:     #ededee;
-  --c-dark:     #292a2c;
-  --c-dark-h:   #131416;
-  --c-red:      #c8414b;
-  --c-red-bg:   #fbeef0;
-  --c-sel:      #b4d5ff;
-  --c-ff: "Schibsted Grotesk", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  --c-sh-pop: 0 12px 40px rgba(12,13,16,.16), 0 2px 8px rgba(12,13,16,.08);
-  --c-sh-bubble: 0 8px 28px rgba(12,13,16,.18), 0 1px 3px rgba(12,13,16,.1);
+  --c-hover:    #f3f4f6;   /* gray-100 */
+  --c-hover-2:  #e5e7eb;   /* gray-200 */
+  --c-chip:     #f3f4f6;   /* gray-100 */
+  --c-dark:     #1f2937;   /* gray-800 — primary button bg */
+  --c-dark-h:   #111827;   /* gray-900 — primary button hover */
+  --c-red:      #dc2626;
+  --c-red-bg:   #fef2f2;
+  --c-sel:      #ddd0ff;   /* blue-200 — text selection */
+  /* Accent (purple) — focus states, selected block outline, links */
+  --c-accent:        #7c3aed;  /* blue-500 */
+  --c-accent-h:      #6d28d9;  /* blue-600 */
+  --c-accent-border: #c5a9ff;  /* blue-300 — focus border */
+  --c-accent-ring:   #ebe4ff;  /* blue-100 — focus ring */
+  /* Inherit the app font (GeistSans) instead of bundling Schibsted. */
+  --c-ff: var(--font-geist-sans), var(--font-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --c-sh-pop: 0 12px 40px rgba(17,24,39,.12), 0 2px 8px rgba(17,24,39,.06);
+  --c-sh-bubble: 0 8px 28px rgba(17,24,39,.14), 0 1px 3px rgba(17,24,39,.08);
   --c-panel-w: 432px;
 
   font-family: var(--c-ff);
@@ -84,7 +94,7 @@
 
 .composer-shell .pill {
   height: 44px; padding: 0 22px; border-radius: 999px;
-  font-size: 15px; font-weight: 600;
+  font-size: 14px; font-weight: 500;
   display: inline-flex; align-items: center; gap: 9px;
   transition: background .14s, opacity .14s, transform .04s;
   white-space: nowrap;
@@ -119,7 +129,7 @@
 .composer-shell .panel-col {
   flex: 0 0 var(--c-panel-w); width: var(--c-panel-w);
   border-left: 1px solid var(--c-line);
-  background: var(--c-bg); overflow-y: auto;
+  background: #f9fafb; overflow-y: auto;   /* gray-50 tint, matches ShadowBox */
 }
 .composer-shell .panel-col::-webkit-scrollbar { width: 10px; }
 .composer-shell .panel-col::-webkit-scrollbar-thumb { background: rgba(12,13,16,.14); border-radius: 99px; border: 3px solid #fff; background-clip: padding-box; }
@@ -147,8 +157,8 @@
 .composer-shell .subject-row { padding: 18px 0 6px; }
 .composer-shell .subject-input {
   width: 100%; border: none; outline: none; background: none;
-  font-size: 34px; font-weight: 800; letter-spacing: -.02em;
-  line-height: 1.12; color: var(--c-ink); padding: 0;
+  font-size: 30px; font-weight: 600; letter-spacing: -.02em;
+  line-height: 1.15; color: var(--c-ink); padding: 0;
   box-shadow: none;
 }
 .composer-shell .subject-input:focus,
@@ -204,7 +214,7 @@
 /* ============================ Block wrapper ============================ */
 .composer-shell .blk { position: relative; }
 .composer-shell .blk-inner { border-radius: 6px; }
-.composer-shell .blk.sel > .blk-inner { box-shadow: 0 0 0 2px var(--c-ink); }
+.composer-shell .blk.sel > .blk-inner { box-shadow: 0 0 0 1.5px var(--c-accent), 0 0 0 4px var(--c-accent-ring); }
 .composer-shell .blk-add {
   position: absolute; left: -46px; top: 2px;
   width: 32px; height: 32px; border-radius: 50%;
@@ -238,15 +248,15 @@
 .composer-shell [contenteditable][data-ph]:empty::before {
   content: attr(data-ph); color: var(--c-gray-2); pointer-events: none;
 }
-.composer-shell .b-text  { font-size: 19px; line-height: 1.62; color: var(--c-body); margin: 0; padding: 6px 0; }
-.composer-shell .b-h1    { font-size: 34px; font-weight: 800; line-height: 1.15; color: var(--c-ink); margin: 0; padding: 20px 0 6px; letter-spacing: -.02em; }
-.composer-shell .b-h2    { font-size: 28px; font-weight: 700; line-height: 1.25; color: var(--c-ink); margin: 0; padding: 18px 0 4px; letter-spacing: -.015em; }
-.composer-shell .b-h3    { font-size: 22px; font-weight: 700; line-height: 1.3; color: var(--c-ink); margin: 0; padding: 14px 0 2px; letter-spacing: -.01em; }
+.composer-shell .b-text  { font-size: 16px; line-height: 1.6; color: var(--c-body); margin: 0; padding: 6px 0; }
+.composer-shell .b-h1    { font-size: 30px; font-weight: 600; line-height: 1.15; color: var(--c-ink); margin: 0; padding: 20px 0 6px; letter-spacing: -.02em; }
+.composer-shell .b-h2    { font-size: 24px; font-weight: 600; line-height: 1.25; color: var(--c-ink); margin: 0; padding: 18px 0 4px; letter-spacing: -.015em; }
+.composer-shell .b-h3    { font-size: 19px; font-weight: 600; line-height: 1.3; color: var(--c-ink); margin: 0; padding: 14px 0 2px; letter-spacing: -.01em; }
 .composer-shell .b-quote { font-size: 22px; line-height: 1.5; color: var(--c-ink); margin: 0; padding: 8px 0 8px 22px; border-left: 3px solid var(--c-ink); font-weight: 500; }
 .composer-shell .b-list  { margin: 0; padding: 6px 0 6px 26px; list-style-position: outside; }
 .composer-shell ul.b-list { list-style-type: disc; }
 .composer-shell ol.b-list { list-style-type: decimal; }
-.composer-shell .b-list li { font-size: 19px; line-height: 1.6; color: var(--c-body); padding: 3px 0 3px 4px; display: list-item; }
+.composer-shell .b-list li { font-size: 16px; line-height: 1.6; color: var(--c-body); padding: 3px 0 3px 4px; display: list-item; }
 .composer-shell .b-list li::marker { color: var(--c-body); }
 
 /* image */
@@ -374,7 +384,7 @@
   flex: 1; height: 38px; border: 1px solid var(--c-line-2); border-radius: 9px;
   padding: 0 12px; font-size: 15px; outline: none; min-width: 0;
 }
-.composer-shell .bm-link input:focus { border-color: var(--c-ink); }
+.composer-shell .bm-link input:focus { border-color: var(--c-accent-border); box-shadow: 0 0 0 3px var(--c-accent-ring); }
 .composer-shell .bm-link button {
   width: auto; background: var(--c-ink); color: #fff; padding: 0 16px;
   height: 38px; border-radius: 9px; font-weight: 600; font-size: 14px;
@@ -444,9 +454,9 @@
 
 /* ============================ Right panel — send options ============================ */
 .composer-shell .sopts { padding: 26px 24px 80px; }
-.composer-shell .sopts h2 { margin: 0 0 22px; font-size: 22px; font-weight: 700; color: var(--c-ink); letter-spacing: -.01em; }
+.composer-shell .sopts h2 { margin: 0 0 22px; font-size: 18px; font-weight: 600; color: var(--c-ink); letter-spacing: -.01em; }
 .composer-shell .st-group { margin-bottom: 26px; }
-.composer-shell .st-group > h3 { margin: 0 0 14px; font-size: 17px; font-weight: 700; color: var(--c-ink); }
+.composer-shell .st-group > h3 { margin: 0 0 14px; font-size: 14px; font-weight: 600; color: var(--c-ink); }
 .composer-shell .st-divider { border-top: 1px solid var(--c-line); margin: 22px 0; }
 .composer-shell .acct {
   display: flex; align-items: center; gap: 13px;
@@ -456,7 +466,7 @@
 .composer-shell .acct:hover { background: var(--c-hover); }
 .composer-shell .acct .av { width: 42px; height: 42px; border-radius: 50%; background: var(--c-ink); color: #fff; display: grid; place-items: center; font-size: 16px; font-weight: 700; flex: 0 0 auto; }
 .composer-shell .acct .who { flex: 1; min-width: 0; }
-.composer-shell .acct .who b { display: block; font-size: 16px; font-weight: 700; color: var(--c-ink); }
+.composer-shell .acct .who b { display: block; font-size: 15px; font-weight: 600; color: var(--c-ink); }
 .composer-shell .acct .who span { font-size: 14px; color: var(--c-gray); }
 .composer-shell .acct .ch { color: var(--c-gray); flex: 0 0 auto; }
 .composer-shell .opt-row {
@@ -465,7 +475,7 @@
 }
 .composer-shell .opt-row .oic { width: 26px; color: var(--c-ink); display: grid; place-items: center; flex: 0 0 auto; }
 .composer-shell .opt-row .ot { flex: 1; min-width: 0; }
-.composer-shell .opt-row .ot b { display: block; font-size: 16px; font-weight: 700; color: var(--c-ink); }
+.composer-shell .opt-row .ot b { display: block; font-size: 15px; font-weight: 600; color: var(--c-ink); }
 .composer-shell .opt-row .ot p { margin: 3px 0 0; font-size: 13.5px; line-height: 1.4; color: var(--c-gray); }
 .composer-shell .opt-expand { padding: 2px 2px 16px 42px; }
 .composer-shell .mini-label { display: block; font-size: 14px; font-weight: 600; color: var(--c-gray); margin: 12px 0 8px; }
@@ -474,7 +484,7 @@
   padding: 0 12px; font-size: 15px; font-weight: 600; color: var(--c-ink);
   background: #fff; outline: none; margin-top: 8px; cursor: pointer;
 }
-.composer-shell .mini-select:focus { border-color: var(--c-ink); }
+.composer-shell .mini-select:focus { border-color: var(--c-accent-border); box-shadow: 0 0 0 3px var(--c-accent-ring); }
 .composer-shell .mini-select.tight { margin-top: 0; }
 .composer-shell .sched { display: flex; gap: 10px; margin-top: 14px; }
 .composer-shell .sched-f { flex: 1; }
@@ -484,7 +494,7 @@
   padding: 0 12px; font-size: 15px; font-weight: 600; color: var(--c-ink); outline: none;
   font-family: inherit;
 }
-.composer-shell .sched-f input:focus { border-color: var(--c-ink); }
+.composer-shell .sched-f input:focus { border-color: var(--c-accent-border); box-shadow: 0 0 0 3px var(--c-accent-ring); }
 .composer-shell .c-toggle {
   width: 46px; height: 27px; border-radius: 999px; background: var(--c-line-2);
   position: relative; transition: background .16s; flex: 0 0 auto;
@@ -497,7 +507,7 @@
 .composer-shell .c-toggle.on::after { transform: translateX(19px); }
 .composer-shell .test-btn {
   width: 100%; height: 52px; border: 1px solid var(--c-line-2); border-radius: 12px;
-  font-size: 16px; font-weight: 700; color: var(--c-ink);
+  font-size: 14px; font-weight: 600; color: var(--c-ink);
   display: flex; align-items: center; justify-content: center; gap: 9px;
   white-space: nowrap; transition: background .14s;
 }
@@ -511,7 +521,7 @@
   transition: background .12s, color .12s, border-color .12s;
 }
 .composer-shell .lbl-chip .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--c-gray-2); }
-.composer-shell .lbl-chip.on { background: var(--c-ink); color: #fff; border-color: var(--c-ink); }
+.composer-shell .lbl-chip.on { background: var(--c-ink); color: #fff; border-color: var(--c-accent-border); box-shadow: 0 0 0 3px var(--c-accent-ring); }
 .composer-shell .lbl-chip.on .dot { background: #fff; }
 .composer-shell .lbl-chip.lbl-add { border-style: dashed; color: var(--c-gray); }
 .composer-shell .lbl-chip.lbl-add:hover { background: var(--c-hover); color: var(--c-ink); border-color: var(--c-line-2); }
@@ -531,9 +541,9 @@
   transition: background .14s;
 }
 .composer-shell .ctx-back:hover { background: var(--c-hover); }
-.composer-shell .ctx-head h3 { margin: 0; font-size: 19px; font-weight: 700; color: var(--c-ink); }
+.composer-shell .ctx-head h3 { margin: 0; font-size: 16px; font-weight: 600; color: var(--c-ink); }
 .composer-shell .ctx-field { margin-bottom: 22px; }
-.composer-shell .ctx-field > label { display: block; font-size: 16px; font-weight: 700; color: var(--c-ink); margin-bottom: 11px; }
+.composer-shell .ctx-field > label { display: block; font-size: 14px; font-weight: 500; color: var(--c-ink); margin-bottom: 10px; }
 .composer-shell .seg { display: flex; gap: 6px; background: transparent; }
 .composer-shell .seg button {
   flex: 1; height: 46px; border: 1px solid var(--c-line-2); border-radius: 10px;
@@ -549,7 +559,7 @@
   resize: none; transition: border-color .14s; background: #fff; line-height: 1.5;
 }
 .composer-shell .ctx-input input:focus,
-.composer-shell .ctx-input textarea:focus { border-color: var(--c-ink); }
+.composer-shell .ctx-input textarea:focus { border-color: var(--c-accent-border); box-shadow: 0 0 0 3px var(--c-accent-ring); }
 .composer-shell .ctx-input input::placeholder,
 .composer-shell .ctx-input textarea::placeholder { color: var(--c-gray-2); }
 .composer-shell .ctx-count {
@@ -562,7 +572,7 @@
 .composer-shell .ctx-actions { display: flex; flex-direction: column; gap: 12px; }
 .composer-shell .ctx-act {
   width: 100%; height: 54px; border: 1px solid var(--c-line-2); border-radius: 999px;
-  font-size: 16px; font-weight: 700; color: var(--c-ink);
+  font-size: 14px; font-weight: 600; color: var(--c-ink);
   display: flex; align-items: center; justify-content: center; gap: 10px;
   transition: background .14s, border-color .14s;
 }
@@ -608,7 +618,7 @@
 .composer-shell .mid-dev svg { width: 18px; height: 18px; }
 .composer-shell .pv-mailhead { padding: 26px 40px 18px; border-bottom: 1px solid var(--c-line); }
 .composer-shell .screen.mobile .pv-mailhead { padding: 20px 20px 14px; }
-.composer-shell .pv-subject { font-size: 28px; font-weight: 800; letter-spacing: -.02em; color: var(--c-ink); margin: 0 0 16px; line-height: 1.15; }
+.composer-shell .pv-subject { font-size: 24px; font-weight: 600; letter-spacing: -.02em; color: var(--c-ink); margin: 0 0 16px; line-height: 1.15; }
 .composer-shell .screen.mobile .pv-subject { font-size: 22px; }
 .composer-shell .pv-sender { display: flex; align-items: center; gap: 12px; }
 .composer-shell .pv-sender .av { width: 44px; height: 44px; border-radius: 50%; background: var(--c-ink); color: #fff; display: grid; place-items: center; font-weight: 700; font-size: 17px; flex: 0 0 auto; }
@@ -677,7 +687,7 @@
 }
 @keyframes cmp-pop { from { transform: scale(.94); opacity: 0; } }
 .composer-shell .modal-ic { width: 56px; height: 56px; border-radius: 16px; background: var(--c-ink); color: #fff; display: grid; place-items: center; margin: 0 auto 16px; }
-.composer-shell .c-modal h3 { margin: 0 0 8px; font-size: 22px; font-weight: 800; color: var(--c-ink); letter-spacing: -.01em; }
+.composer-shell .c-modal h3 { margin: 0 0 8px; font-size: 18px; font-weight: 600; color: var(--c-ink); letter-spacing: -.01em; }
 .composer-shell .c-modal p { margin: 0 0 20px; font-size: 15.5px; line-height: 1.5; color: var(--c-gray); }
 .composer-shell .c-modal p b { color: var(--c-ink); font-weight: 700; }
 .composer-shell .modal-rows { text-align: left; border: 1px solid var(--c-line); border-radius: 14px; padding: 6px 16px; margin-bottom: 22px; }
@@ -685,7 +695,7 @@
 .composer-shell .mrow:last-child { border-bottom: none; }
 .composer-shell .mrow svg { color: var(--c-gray); }
 .composer-shell .modal-actions { display: flex; gap: 10px; }
-.composer-shell .modal-actions button { flex: 1; height: 52px; border-radius: 999px; font-size: 16px; font-weight: 700; transition: background .14s, border-color .14s; }
+.composer-shell .modal-actions button { flex: 1; height: 48px; border-radius: 12px; font-size: 14px; font-weight: 500; transition: background .14s, border-color .14s; }
 .composer-shell .m-ghost { border: 1px solid var(--c-line-2); color: var(--c-ink); }
 .composer-shell .m-ghost:hover { background: var(--c-hover); }
 .composer-shell .m-dark { background: var(--c-ink); color: #fff; }
