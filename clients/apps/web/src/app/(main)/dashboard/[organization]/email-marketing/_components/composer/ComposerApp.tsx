@@ -172,6 +172,11 @@ export function ComposerApp({
   // Tracks which image block, if any, is currently waiting for a file.
   // Lets the file picker drive both "new upload" and "replace existing".
   const pendingImageId = useRef<string | null>(null)
+  // Maps a non-text block id -> the empty paragraph auto-added right
+  // after it. When that block is deleted we also remove its leftover
+  // paragraph, so deleting a section cleans up fully (no stray
+  // "Write your message…" line left behind).
+  const autoTrailingRef = useRef<Record<string, string>>({})
 
   // Mutations
   const createBroadcast = useCreateEmailBroadcast(organization.id)
@@ -220,6 +225,7 @@ export function ComposerApp({
     // empty paragraph right after them so the user can keep typing
     // like in any normal mail composer.
     const trailing = !TEXTLIKE.includes(type) ? defaultBlock('text') : null
+    if (trailing) autoTrailingRef.current[nb.id] = trailing.id
     setBlocks((bs) => {
       const c = [...bs]
       const idx = at == null ? bs.length : at
@@ -251,8 +257,32 @@ export function ComposerApp({
     )
     touch()
   }
+  const isEmptyText = (b: Block): boolean =>
+    (b.type === 'text' ||
+      b.type === 'h1' ||
+      b.type === 'h2' ||
+      b.type === 'h3' ||
+      b.type === 'quote') &&
+    !(b.html || '').replace(/<br\s*\/?>(\s*)/gi, '').trim()
+
   const del = (id: string) => {
-    setBlocks((bs) => bs.filter((b) => b.id !== id))
+    setBlocks((bs) => {
+      // Also drop the empty paragraph this block auto-spawned, if it's
+      // still empty — so deleting a section leaves nothing behind.
+      const trailingId = autoTrailingRef.current[id]
+      let next = bs.filter((b) => {
+        if (b.id === id) return false
+        if (b.id === trailingId) {
+          const tb = bs.find((x) => x.id === trailingId)
+          return !(tb && isEmptyText(tb))
+        }
+        return true
+      })
+      delete autoTrailingRef.current[id]
+      // Never leave the document with zero blocks — keep one empty line.
+      if (next.length === 0) next = [defaultBlock('text')]
+      return next
+    })
     setSelId(null)
     touch()
     showToast('Section removed')
@@ -604,12 +634,12 @@ export function ComposerApp({
   )
 
   const senderEmailDisplay = currentUser?.email ?? ''
-  // Show the user's actual avatar + name (from the auth payload) on the
-  // sender card and inbox preview. Falls back to the email local-part
-  // for the name and to initials for the avatar when nothing's available.
-  const senderNameDisplay =
-    (currentUser?.email?.split('@')[0] ?? '') || organization.name
-  const senderAvatarUrl = currentUser?.avatar_url ?? null
+  // A broadcast is sent *from the brand*, so the sender is the
+  // organization — its real name and avatar, not the signed-in user
+  // (UserRead has no display name anyway). Initials fall back when the
+  // org has no avatar set.
+  const senderNameDisplay = organization.name
+  const senderAvatarUrl = organization.avatar_url ?? null
 
   // Mount the portal target client-side only (Next.js SSR has no
   // document.body). Returning null on the first render is fine: a

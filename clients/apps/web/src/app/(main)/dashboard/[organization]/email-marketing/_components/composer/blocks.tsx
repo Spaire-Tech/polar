@@ -108,13 +108,11 @@ export function BlockBody({
   update,
   readOnly,
   pickImage,
-  onFocusBlock,
 }: {
   b: Block
   update?: (patch: Partial<Block>) => void
   readOnly?: boolean
   pickImage?: () => void
-  onFocusBlock?: () => void
 }) {
   switch (b.type) {
     case 'text':
@@ -138,7 +136,6 @@ export function BlockBody({
           html={b.html}
           placeholder={PH[b.type]}
           readOnly={readOnly}
-          onFocus={onFocusBlock}
           onChange={(html) =>
             update?.({ html } as Partial<Block>)
           }
@@ -157,7 +154,6 @@ export function BlockBody({
               tag="li"
               html={t}
               readOnly={readOnly}
-              onFocus={onFocusBlock}
               onChange={(h) =>
                 update?.({
                   items: b.items.map((it, j) => (j === i ? h : it)),
@@ -613,12 +609,8 @@ function Inserter({
 function BlockShell({
   b,
   selected,
-  addOpen,
-  focused,
   dragging,
   onSelect,
-  onAdd,
-  onFocusBlock,
   onDragStart,
   onDragEnd,
   onDragOver,
@@ -630,16 +622,8 @@ function BlockShell({
 }: {
   b: Block
   selected: boolean
-  addOpen: boolean
-  /** True when this block's contentEditable currently holds the text
-   *  caret. Used to keep the + visible next to the block the user is
-   *  typing in (so Enter -> new paragraph -> + appears beside it
-   *  without needing hover). */
-  focused: boolean
   dragging: boolean
   onSelect: () => void
-  onAdd: (btnEl: HTMLButtonElement) => void
-  onFocusBlock: () => void
   onDragStart: () => void
   onDragEnd: () => void
   onDragOver: (e: RDragEvent<HTMLDivElement>) => void
@@ -675,14 +659,13 @@ function BlockShell({
 
   return (
     <div
+      data-bid={b.id}
       className={
         'blk' +
         // Only media blocks (image / button / divider) get the selected
         // box outline. Text is just text — selecting it must not wrap it
         // in a box; its bubble menu appears on text selection instead.
         (selected && !isText ? ' sel' : '') +
-        (addOpen ? ' menu-open' : '') +
-        (focused ? ' has-caret' : '') +
         (dragging ? ' dragging' : '')
       }
       onClick={(e) => {
@@ -691,16 +674,6 @@ function BlockShell({
       }}
       onDragOver={onDragOver}
     >
-      <button
-        className={'blk-add' + (addOpen ? ' spin' : '')}
-        onClick={(e) => {
-          e.stopPropagation()
-          onAdd(e.currentTarget)
-        }}
-        aria-label="Add a section"
-      >
-        <Icon name="plus" size={17} />
-      </button>
       <span
         className="blk-drag"
         draggable
@@ -731,12 +704,7 @@ function BlockShell({
             onDelete={onDelete}
           />
         )}
-        <BlockBody
-          b={b}
-          update={update}
-          pickImage={pickImage}
-          onFocusBlock={onFocusBlock}
-        />
+        <BlockBody b={b} update={update} pickImage={pickImage} />
       </div>
     </div>
   )
@@ -781,49 +749,66 @@ export function MailDocument({
   onDuplicate: (id: string) => void
   onDelete: (id: string) => void
 }) {
-  // Inserter popover state. The popover is anchored to a specific block's
-  // per-block + button; it's not a free-floating click target. The user
-  // wants the + to behave like a normal email composer: appears on hover
-  // over a block AND next to the block that currently has the text
-  // caret (so hitting Enter -> new paragraph -> + shows on that line).
-  const [ins, setIns] = useState<{ id: string; top: number; left: number } | null>(null)
-  // Which block's contentEditable currently owns the caret. Updated by
-  // Editable.onFocus via BlockShell.onFocusBlock; cleared via a
-  // document focusout listener when focus leaves all editables.
-  const [focusedId, setFocusedId] = useState<string | null>(null)
+  // A single + that follows the text caret — like Notion / Medium / Gmail.
+  // It sits in the left gutter, vertically aligned with wherever the
+  // cursor currently is, regardless of which block. Clicking it opens the
+  // inserter; a pick inserts a new block right after the caret's block.
   const scrollRef = useRef<HTMLDivElement>(null)
+  const [caret, setCaret] = useState<{
+    top: number
+    left: number
+    blockId: string
+  } | null>(null)
+  const [insOpen, setInsOpen] = useState(false)
+
   useEffect(() => {
-    const onFocusOut = () => {
-      setTimeout(() => {
-        const ae = document.activeElement as HTMLElement | null
-        if (!ae || !ae.isContentEditable) setFocusedId(null)
-      }, 0)
+    const recompute = () => {
+      const host = scrollRef.current
+      const sel = document.getSelection()
+      if (!host || !sel || sel.rangeCount === 0) {
+        setCaret(null)
+        return
+      }
+      const range = sel.getRangeAt(0)
+      // Only when the caret is inside this document (and collapsed — a
+      // real cursor, not a selection; selections show the bubble menu).
+      if (!host.contains(range.commonAncestorContainer) || !sel.isCollapsed) {
+        setCaret(null)
+        return
+      }
+      let node: Node | null = range.commonAncestorContainer
+      if (node.nodeType === Node.TEXT_NODE) node = node.parentElement
+      const blk = (node as HTMLElement | null)?.closest('.blk')
+      if (!blk) {
+        setCaret(null)
+        return
+      }
+      // Caret rect — falls back to the block's rect on an empty line
+      // (where the collapsed range reports a zero rect).
+      let rect = range.getBoundingClientRect()
+      if (!rect || (rect.top === 0 && rect.height === 0)) {
+        rect = blk.getBoundingClientRect()
+      }
+      const hr = host.getBoundingClientRect()
+      const composeEl = host.querySelector('.compose')
+      const gutterLeft = composeEl
+        ? composeEl.getBoundingClientRect().left - hr.left + host.scrollLeft - 44
+        : 8
+      setCaret({
+        top: rect.top - hr.top + host.scrollTop + rect.height / 2 - 16,
+        left: gutterLeft,
+        blockId: blk.getAttribute('data-bid') || '',
+      })
     }
-    document.addEventListener('focusout', onFocusOut)
-    return () => document.removeEventListener('focusout', onFocusOut)
+    document.addEventListener('selectionchange', recompute)
+    return () => document.removeEventListener('selectionchange', recompute)
   }, [])
 
-  const handleAdd = (id: string, btnEl: HTMLButtonElement) => {
-    if (ins && ins.id === id) {
-      setIns(null)
-      return
-    }
-    const host = scrollRef.current
-    if (!host) return
-    const r = btnEl.getBoundingClientRect()
-    const hr = host.getBoundingClientRect()
-    setIns({
-      id,
-      top: r.top - hr.top + host.scrollTop + 38,
-      left: r.left - hr.left + host.scrollLeft,
-    })
-  }
-
   const pick = (type: BlockType) => {
-    if (!ins) return
-    const idx = blocks.findIndex((b) => b.id === ins.id)
-    addBlock(type, idx + 1)
-    setIns(null)
+    if (!caret) return
+    const idx = blocks.findIndex((b) => b.id === caret.blockId)
+    addBlock(type, idx < 0 ? blocks.length : idx + 1)
+    setInsOpen(false)
   }
 
   return (
@@ -848,12 +833,8 @@ export function MailDocument({
               <BlockShell
                 b={b}
                 selected={selId === b.id}
-                addOpen={ins?.id === b.id}
-                focused={focusedId === b.id}
                 dragging={drag === b.id}
                 onSelect={() => onSelect(b.id)}
-                onAdd={(btn) => handleAdd(b.id, btn)}
-                onFocusBlock={() => setFocusedId(b.id)}
                 onDragStart={() => onDragStart(b.id)}
                 onDragEnd={onDragEnd}
                 onDragOver={(e) => {
@@ -874,11 +855,26 @@ export function MailDocument({
           {dropIdx === blocks.length && <div className="drop-line"></div>}
         </div>
       </div>
-      {ins && (
+      {caret && (
+        <button
+          className={'blk-add floating' + (insOpen ? ' spin' : '')}
+          style={{ top: caret.top, left: caret.left }}
+          // Keep the caret in the editor while clicking the +.
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={(e) => {
+            e.stopPropagation()
+            setInsOpen((v) => !v)
+          }}
+          aria-label="Add a section"
+        >
+          <Icon name="plus" size={17} />
+        </button>
+      )}
+      {caret && insOpen && (
         <Inserter
-          pos={{ top: ins.top, left: ins.left }}
+          pos={{ top: caret.top + 38, left: caret.left }}
           onPick={pick}
-          onClose={() => setIns(null)}
+          onClose={() => setInsOpen(false)}
         />
       )}
     </div>
