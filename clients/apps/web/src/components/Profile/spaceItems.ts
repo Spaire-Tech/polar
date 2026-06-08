@@ -31,10 +31,11 @@
 //      ignored by the resolver and only kept around so older clients
 //      that still read them don't break.
 
+import { FormPublic } from '@/hooks/queries/forms'
 import { schemas } from '@spaire/client'
 import { StorefrontLinkItem } from './StorefrontLinks'
 
-export type SpaceItemKind = 'product' | 'link'
+export type SpaceItemKind = 'product' | 'link' | 'form'
 
 export type SpaceItem = {
   kind: SpaceItemKind
@@ -79,6 +80,12 @@ export type ResolvedSpaceItem =
       hidden: boolean
       link: StorefrontLinkItem
     }
+  | {
+      kind: 'form'
+      id: string
+      hidden: boolean
+      form: FormPublic
+    }
 
 // Build the canonical ordered list a renderer should consume.
 //
@@ -105,6 +112,7 @@ export const resolveSpaceItems = ({
   settings,
   products,
   links,
+  forms = [],
   includeHidden = false,
 }: {
   settings:
@@ -113,10 +121,15 @@ export const resolveSpaceItems = ({
     | undefined
   products: schemas['ProductStorefront'][]
   links: StorefrontLinkItem[]
+  // Published forms referenced by `kind: 'form'` items. Optional so editor
+  // surfaces that don't (yet) load forms keep compiling — form items just
+  // don't resolve there, but they stay in `space_items`.
+  forms?: FormPublic[]
   includeHidden?: boolean
 }): ResolvedSpaceItem[] => {
   const productById = new Map(products.map((p) => [p.id, p]))
   const linkById = new Map(links.map((l) => [l.id, l]))
+  const formById = new Map(forms.map((f) => [f.id, f]))
 
   const persisted = readSpaceItems(settings)
   const ordered: SpaceItem[] =
@@ -126,6 +139,7 @@ export const resolveSpaceItems = ({
 
   const seenProducts = new Set<string>()
   const seenLinks = new Set<string>()
+  const seenForms = new Set<string>()
   const resolved: ResolvedSpaceItem[] = []
 
   for (const item of ordered) {
@@ -143,6 +157,13 @@ export const resolveSpaceItems = ({
       const hidden = Boolean(item.hidden)
       if (hidden && !includeHidden) continue
       resolved.push({ kind: 'link', id: item.id, hidden, link })
+    } else if (item.kind === 'form') {
+      const form = formById.get(item.id)
+      if (!form || seenForms.has(item.id)) continue
+      seenForms.add(item.id)
+      const hidden = Boolean(item.hidden)
+      if (hidden && !includeHidden) continue
+      resolved.push({ kind: 'form', id: item.id, hidden, form })
     }
   }
 

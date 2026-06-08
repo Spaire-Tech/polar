@@ -90,6 +90,30 @@ export type FormUpdatePayload = Partial<{
   attached_custom_fields: FormAttachedCustomFieldCreate[]
 }>
 
+export type FormPublic = {
+  id: string
+  organization_id: string
+  title: string
+  subtitle: string | null
+  button_label: string
+  success_message: string | null
+  has_lead_magnet: boolean
+  lead_magnet_name: string | null
+  attached_custom_fields: FormAttachedCustomField[]
+}
+
+export type FormSubmitPayload = {
+  email: string
+  name?: string | null
+  custom_field_data?: Record<string, string | number | boolean | null>
+}
+
+export type FormSubmitResult = {
+  success: boolean
+  success_message: string | null
+  download: { url: string; expires_at: string } | null
+}
+
 type FormListResponse = {
   items: FormResource[]
   pagination: { total_count: number; max_page: number }
@@ -152,4 +176,17 @@ export const useDeleteForm = () =>
     onSuccess: () => {
       getQueryClient().invalidateQueries({ queryKey: ['forms'] })
     },
+  })
+
+// Public submission — anonymous visitors POST their email (+ any custom
+// fields) and get back an immediate download link when the form has a
+// lead magnet.
+export const useSubmitForm = (formId: string) =>
+  useMutation({
+    mutationFn: (body: FormSubmitPayload) =>
+      fetchApiWrite<FormSubmitResult>(
+        `/v1/forms/${formId}/submit`,
+        'POST',
+        body,
+      ),
   })

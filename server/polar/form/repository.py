@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from uuid import UUID
 
 from sqlalchemy import Select, select
@@ -66,6 +67,18 @@ class FormRepository(
             )
         )
         return await self.get_one_or_none(statement)
+
+    async def list_published_by_organization(
+        self, organization_id: UUID
+    ) -> Sequence[Form]:
+        """Published forms for an org, used to render the public Space."""
+        statement = self._with_relations(
+            self.get_base_statement().where(
+                Form.organization_id == organization_id,
+                Form.status == FormStatus.published,
+            )
+        ).order_by(Form.created_at.desc())
+        return await self.get_all(statement)
 
     async def get_with_file_by_id(self, id: UUID) -> Form | None:
         """Lookup for the delivery worker — independent of publish status so a

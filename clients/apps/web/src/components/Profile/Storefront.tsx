@@ -2,11 +2,13 @@
 
 import { SpaceEmptyHero } from '@/components/Customization/SpaceEmptyHero'
 import { ProductCard } from '@/components/Products/ProductCard'
+import { FormPublic } from '@/hooks/queries/forms'
 import { schemas } from '@spaire/client'
 import Link from 'next/link'
 import { useMemo } from 'react'
 import { CATEGORY_LABELS } from './categoryLabels'
 import { SectionLabel } from './SectionLabel'
+import { StorefrontForm } from './StorefrontForm'
 import {
   LinksLayout,
   StorefrontLinkItem,
@@ -28,10 +30,12 @@ import { resolveSpaceItems, type ResolvedSpaceItem } from './spaceItems'
 export const Storefront = ({
   organization,
   products,
+  forms = [],
   preview = false,
 }: {
   organization: schemas['Organization'] | schemas['CustomerOrganization']
   products: schemas['ProductStorefront'][]
+  forms?: FormPublic[]
   /**
    * Editor-preview mode: product cards don't navigate. The card still
    * looks live, but clicking it doesn't take the org out of the editor.
@@ -53,8 +57,8 @@ export const Storefront = ({
   const links = (settings?.storefront_links ?? []) as StorefrontLinkItem[]
 
   const items = useMemo(
-    () => resolveSpaceItems({ settings, products, links }),
-    [settings, products, links],
+    () => resolveSpaceItems({ settings, products, links, forms }),
+    [settings, products, links, forms],
   )
 
   if (items.length === 0) {
@@ -103,6 +107,19 @@ export const Storefront = ({
             </section>
           )
         }
+        if (chunk.kind === 'form') {
+          return (
+            <div key={`f-${idx}`} className="flex flex-col gap-6">
+              {chunk.items.map((entry) => (
+                <StorefrontForm
+                  key={entry.id}
+                  form={entry.form}
+                  preview={preview}
+                />
+              ))}
+            </div>
+          )
+        }
         return (
           <div key={`l-${idx}`}>
             <StorefrontLinks
@@ -137,7 +154,11 @@ type LinkChunk = {
   kind: 'link'
   items: Extract<ResolvedSpaceItem, { kind: 'link' }>[]
 }
-type Chunk = ProductChunk | LinkChunk
+type FormChunk = {
+  kind: 'form'
+  items: Extract<ResolvedSpaceItem, { kind: 'form' }>[]
+}
+type Chunk = ProductChunk | LinkChunk | FormChunk
 
 // Walk the resolved list and start a new chunk every time the (kind,
 // category) signature changes. Two ebooks in a row → one labelled
@@ -154,6 +175,13 @@ const chunkByKindAndCategory = (items: ResolvedSpaceItem[]): Chunk[] => {
         continue
       }
       out.push({ kind: 'product', category: cat, items: [item] })
+    } else if (item.kind === 'form') {
+      const tail = out[out.length - 1]
+      if (tail && tail.kind === 'form') {
+        tail.items.push(item)
+        continue
+      }
+      out.push({ kind: 'form', items: [item] })
     } else {
       const tail = out[out.length - 1]
       if (tail && tail.kind === 'link') {

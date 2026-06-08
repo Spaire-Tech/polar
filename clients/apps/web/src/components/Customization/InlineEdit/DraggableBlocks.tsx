@@ -262,6 +262,11 @@ const chunkByKindAndCategory = (items: ResolvedSpaceItem[]): Chunk[] => {
         continue
       }
       out.push({ kind: 'product', category: cat, items: [item] })
+    } else if (item.kind === 'form') {
+      // Forms aren't arrangeable in this surface yet — they're preserved in
+      // space_items and render on the public Space. Skip so the rest of this
+      // chunker stays narrowed to link items.
+      continue
     } else {
       const tail = out[out.length - 1]
       if (tail && tail.kind === 'link') {

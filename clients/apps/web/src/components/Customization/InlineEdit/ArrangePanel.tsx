@@ -148,6 +148,17 @@ const ItemRowBody = ({ item }: { item: ResolvedSpaceItem }) => {
       </>
     )
   }
+  if (item.kind === 'form') {
+    return (
+      <>
+        <span className="ap-thumb ap-thumb-empty" />
+        <span className="ap-row-name" title={item.form.title}>
+          {item.form.title}
+        </span>
+        <span className="ap-row-kind">Form</span>
+      </>
+    )
+  }
   const { link } = item
   const isEmbed = link.type === 'embedded'
   const label = link.title || link.url || (isEmbed ? 'Embed' : 'Link')
@@ -338,7 +349,9 @@ export const ArrangePanel = ({
               const label =
                 item.kind === 'product'
                   ? item.product.name
-                  : item.link.title || item.link.url || 'Link'
+                  : item.kind === 'form'
+                    ? item.form.title
+                    : item.link.title || item.link.url || 'Link'
               return (
                 <SortableRow
                   key={key}

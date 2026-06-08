@@ -90,6 +90,12 @@ class FormService:
         repository = FormRepository.from_session(session)
         return await repository.get_published_by_id(id)
 
+    async def list_published(
+        self, session: AsyncReadSession, organization_id: UUID
+    ) -> Sequence[Form]:
+        repository = FormRepository.from_session(session)
+        return await repository.list_published_by_organization(organization_id)
+
     async def create(
         self,
         session: AsyncSession,

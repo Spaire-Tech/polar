@@ -3,6 +3,7 @@ from fastapi import Depends
 from polar.email_subscriber.schemas import StorefrontSubscribe
 from polar.email_subscriber.service import email_subscriber as email_subscriber_service
 from polar.exceptions import ResourceNotFound
+from polar.form.service import form as form_service
 from polar.kit.pagination import PaginationParams
 from polar.kit.schemas import Schema
 from polar.models import Product
@@ -47,11 +48,15 @@ async def get(slug: str, session: AsyncSession = Depends(get_db_session)) -> Sto
         session, organization, pagination=PaginationParams(1, 3)
     )
 
+    published_forms = await form_service.list_published(session, organization.id)
+    forms = [form_service.build_public(form) for form in published_forms]
+
     return Storefront.model_validate(
         {
             "organization": organization,
             "products": organization.products,
             "donation_product": donation_product,
+            "forms": forms,
             "customers": {
                 "total": total,
                 "customers": [
