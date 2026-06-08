@@ -240,8 +240,8 @@ class OrganizationStorefrontSettings(Schema):
         ),
     )
     links_layout: Literal["classic", "carousel", "image_grid", "card"] = Field(
-        "carousel",
-        description="Visual layout for the links section",
+        "classic",
+        description="Visual layout for the links section (default per-link layout)",
     )
     header_focal_point: str | None = Field(
         None,

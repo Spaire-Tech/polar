@@ -110,7 +110,7 @@ _default_storefront_settings: OrganizationStorefrontSettings = {
     "storefront_links": [],
     "links_position": "after_products",
     "block_order": ["products", "links"],
-    "links_layout": "carousel",
+    "links_layout": "classic",
     "header_focal_point": None,
 }
 

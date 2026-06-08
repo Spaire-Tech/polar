@@ -127,19 +127,21 @@ const Customization = ({
 
   const pickerCallbacks: AddToSpacePickerCallbacks = {
     onAddLink: (payload) => {
-      // If the URL tab receives a known embeddable URL (YouTube,
-      // TikTok, Instagram, etc.), auto-upgrade it to an embed so the
-      // creator doesn't have to know which tab to use — pasting just
-      // works.
+      // The URL tab ALWAYS produces a standard link card — never an
+      // embed. Auto-upgrading known platforms (YouTube, Instagram, …) to
+      // inline players was wrong: pasting a channel/profile URL (not a
+      // video) still tried to embed, and anyone who just wanted a link
+      // had no way to opt out. Embeds now come exclusively from the
+      // Embed tab. We still record the detected platform so the card can
+      // show the brand logo.
       const detected = detectPlatform(payload.url)
-      const upgrade = detected?.canEmbed === true
       appendStorefrontLink({
         id: crypto.randomUUID(),
         url: payload.url,
         title: payload.title,
         description: payload.description,
         image_url: payload.image_url,
-        type: upgrade ? 'embedded' : 'standard',
+        type: 'standard',
         platform: detected?.id ?? null,
       })
     },
