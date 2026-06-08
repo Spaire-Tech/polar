@@ -149,6 +149,11 @@
   width: 100%; border: none; outline: none; background: none;
   font-size: 34px; font-weight: 800; letter-spacing: -.02em;
   line-height: 1.12; color: var(--c-ink); padding: 0;
+  box-shadow: none;
+}
+.composer-shell .subject-input:focus,
+.composer-shell .subject-input:focus-visible {
+  border: none; outline: none; box-shadow: none;
 }
 .composer-shell .subject-input::placeholder { color: #d3d4d7; }
 
@@ -271,11 +276,58 @@
 .composer-shell .b-button { padding: 14px 0; text-align: center; }
 .composer-shell .b-button.a-left { text-align: left; }
 .composer-shell .b-button.a-right { text-align: right; }
-.composer-shell .b-button .cap { font-size: 15px; color: var(--c-gray-2); margin-bottom: 12px; }
 .composer-shell .b-btn {
   display: inline-block; background: var(--c-ink); color: #fff;
   font-weight: 600; font-size: 16px; padding: 15px 30px; border-radius: 999px;
   text-decoration: none;
+}
+
+/* file attachment block (inline, replaces the bottom attach tray) */
+.composer-shell .b-file {
+  display: inline-flex; align-items: center; gap: 12px;
+  margin: 12px 0; padding: 12px 14px;
+  border: 1px solid var(--c-line-2); border-radius: 12px;
+  background: #fff; max-width: 100%;
+}
+.composer-shell .b-file-icon {
+  width: 38px; height: 38px; border-radius: 9px;
+  background: var(--c-hover); display: grid; place-items: center;
+  color: var(--c-ink); flex: 0 0 auto;
+}
+.composer-shell .b-file-meta { min-width: 0; }
+.composer-shell .b-file-meta b { display: block; font-size: 14.5px; font-weight: 700; color: var(--c-ink); }
+.composer-shell .b-file-meta span { font-size: 12.5px; color: var(--c-gray); }
+
+/* color picker (used by bubble + button context panel) */
+.composer-shell .cp-label {
+  font-size: 13px; font-weight: 600; color: var(--c-ink);
+}
+.composer-shell .cp-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.composer-shell .cp-swatches { display: grid; grid-template-columns: repeat(6, 22px); gap: 6px; }
+.composer-shell .cp-swatch {
+  border-radius: 6px; cursor: pointer; padding: 0;
+  border: 1px solid rgba(0,0,0,.1); transition: transform .08s, box-shadow .12s;
+}
+.composer-shell .cp-swatch:hover { transform: scale(1.08); }
+.composer-shell .cp-swatch.on { box-shadow: 0 0 0 2px var(--c-ink); }
+.composer-shell .cp-hex {
+  display: inline-flex; align-items: center; gap: 4px;
+  border: 1px solid var(--c-line-2); border-radius: 8px;
+  padding: 4px 8px; height: 28px;
+}
+.composer-shell .cp-hex span { color: var(--c-gray); font-size: 12.5px; font-weight: 600; }
+.composer-shell .cp-hex input {
+  border: none; outline: none; background: none;
+  width: 64px; font-size: 13px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  text-transform: uppercase; color: var(--c-ink);
+}
+
+/* bubble color pop */
+.composer-shell .bm-color-pop {
+  position: absolute; top: calc(100% + 7px); left: 0;
+  background: #fff; border: 1px solid var(--c-line);
+  border-radius: 12px; box-shadow: var(--c-sh-pop);
+  padding: 12px; min-width: 240px; z-index: 50;
 }
 
 /* ============================ Bubble menu ============================ */

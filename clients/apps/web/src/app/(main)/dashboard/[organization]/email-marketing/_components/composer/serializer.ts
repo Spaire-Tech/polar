@@ -68,10 +68,26 @@ function renderBlock(b: Block): string {
       return `<hr style="${STYLES.divider}" />`
     case 'button': {
       const wrapCss = STYLES.buttonWrap(b.align)
+      const bg = b.bg || '#000000'
+      const color = b.color || '#ffffff'
+      const btnStyle = `display:inline-block;background:${escapeAttr(bg)};color:${escapeAttr(color)};font-weight:600;font-size:16px;padding:15px 30px;border-radius:999px;text-decoration:none;`
       const inner = b.link
-        ? `<a href="${escapeAttr(b.link)}" style="${STYLES.button}">${b.text || 'Open link'}</a>`
-        : `<span style="${STYLES.button}">${b.text || 'View the doc'}</span>`
+        ? `<a href="${escapeAttr(b.link)}" style="${btnStyle}">${b.text || 'Open link'}</a>`
+        : `<span style="${btnStyle}">${b.text || 'View the doc'}</span>`
       return `<div style="${wrapCss}">${inner}</div>`
+    }
+    case 'file': {
+      const meta = `${escapeAttr(b.name)} · ${escapeAttr(b.size)}`
+      // Email clients are unfriendly to attachments rendered inline.
+      // Show a styled "file card" with the name + size so the
+      // recipient sees the attachment intent. Real attachment delivery
+      // can be wired separately when the server supports it.
+      const cardStyle =
+        'display:inline-block;margin:12px 0;padding:12px 16px;border:1px solid #d8dadd;border-radius:12px;background:#ffffff;font-size:14px;color:#0c0d10;'
+      const url = b.url
+        ? `<a href="${escapeAttr(b.url)}" style="color:#0c0d10;text-decoration:underline;">${meta}</a>`
+        : meta
+      return `<div style="${cardStyle}">${url}</div>`
     }
     case 'image': {
       if (!b.src) return ''

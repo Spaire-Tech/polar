@@ -15,6 +15,7 @@ import React, {
   type ReactNode,
 } from 'react'
 
+import { ColorPicker } from './ColorPicker'
 import { Icon, type IconName } from './Icon'
 import {
   CROP_AR,
@@ -211,21 +212,44 @@ export function BlockBody({
           <hr />
         </div>
       )
-    case 'button':
+    case 'button': {
+      const btnStyle = {
+        background: b.bg || '#000000',
+        color: b.color || '#ffffff',
+      }
       return (
         <div className={'b-button a-' + (b.align || 'left')}>
-          {!readOnly && (
-            <div className="cap">Add a call-to-action link for your reader</div>
-          )}
           {b.link && readOnly ? (
-            <a className="b-btn" href={b.link} target="_blank" rel="noreferrer">
+            <a
+              className="b-btn"
+              href={b.link}
+              target="_blank"
+              rel="noreferrer"
+              style={btnStyle}
+            >
               {b.text || 'Open link'}
             </a>
           ) : (
-            <span className="b-btn">{b.text || 'View the doc'}</span>
+            <span className="b-btn" style={btnStyle}>
+              {b.text || 'View the doc'}
+            </span>
           )}
         </div>
       )
+    }
+    case 'file': {
+      return (
+        <div className="b-file">
+          <span className="b-file-icon">
+            <Icon name="file" size={22} />
+          </span>
+          <span className="b-file-meta">
+            <b>{b.name}</b>
+            <span>{b.size}</span>
+          </span>
+        </div>
+      )
+    }
   }
 }
 
@@ -258,8 +282,9 @@ function Bubble({
   onDuplicate?: () => void
   onDelete?: () => void
 }) {
-  const [pop, setPop] = useState<'n' | 'l' | null>(null)
+  const [pop, setPop] = useState<'n' | 'l' | 'c' | null>(null)
   const [linkValue, setLinkValue] = useState('')
+  const [textColor, setTextColor] = useState('#000000')
   const [active, setActive] = useState<Record<string, boolean>>({})
 
   const recompute = useCallback(() => {
@@ -408,6 +433,39 @@ function Bubble({
         )}
       </div>
       <span className="bm-sep"></span>
+      <div style={{ position: 'relative' }}>
+        <button
+          className="bm"
+          title="Text colour"
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => setPop(pop === 'c' ? null : 'c')}
+        >
+          <span
+            aria-hidden
+            style={{
+              display: 'inline-block',
+              width: 16,
+              height: 16,
+              borderRadius: 4,
+              background: textColor,
+              border: '1px solid rgba(0,0,0,.18)',
+            }}
+          />
+        </button>
+        {pop === 'c' && (
+          <div className="bm-color-pop">
+            <ColorPicker
+              value={textColor}
+              onChange={(c) => {
+                setTextColor(c)
+                exec('foreColor', c)
+              }}
+              label="Text colour"
+            />
+          </div>
+        )}
+      </div>
+      <span className="bm-sep"></span>
       <button
         className="bm"
         title="Duplicate section"
@@ -447,6 +505,7 @@ const INSERTER_GROUPS: {
       { type: 'button', label: 'Button', icon: 'buttonFill' },
       { type: 'quote', label: 'Quote', icon: 'quote' },
       { type: 'divider', label: 'Divider', icon: 'dividerLine' },
+      { type: 'file', label: 'Attach file', icon: 'paperclip' },
     ],
   },
 ]
@@ -480,6 +539,18 @@ function InserterPreview({ type }: { type: BlockType }) {
         <blockquote className="b-quote" style={{ margin: 0 }}>
           A short, highlighted line your reader won't miss.
         </blockquote>
+      )
+    case 'file':
+      return (
+        <div className="b-file" style={{ width: '100%' }}>
+          <span className="b-file-icon">
+            <Icon name="file" size={22} />
+          </span>
+          <span className="b-file-meta">
+            <b>document.pdf</b>
+            <span>1.2 MB</span>
+          </span>
+        </div>
       )
     default:
       return null
@@ -659,7 +730,6 @@ function BlockShell({
 
 export function MailDocument({
   header,
-  attachTray,
   blocks,
   selId,
   onSelect,
@@ -677,7 +747,6 @@ export function MailDocument({
   onDelete,
 }: {
   header: ReactNode
-  attachTray: ReactNode
   blocks: Block[]
   selId: string | null
   onSelect: (id: string | null) => void
@@ -696,6 +765,7 @@ export function MailDocument({
 }) {
   const [ins, setIns] = useState<{ id: string; top: number; left: number } | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
+  const bodyRef = useRef<HTMLDivElement>(null)
 
   const handleAdd = (id: string, btnEl: HTMLButtonElement) => {
     if (ins && ins.id === id) {
@@ -720,11 +790,32 @@ export function MailDocument({
     setIns(null)
   }
 
+  // Clicking in the blank area below the last block (or between blocks)
+  // inserts a paragraph at the closest position and focuses it. Mirrors
+  // Gmail / Substack / Notion-style click-to-write affordance.
+  const handleBodyClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    onSelect(null)
+    const body = bodyRef.current
+    if (!body) return
+    // Ignore clicks that landed on an actual block.
+    if ((e.target as HTMLElement).closest('.blk')) return
+    const y = e.clientY
+    const children = Array.from(body.querySelectorAll<HTMLDivElement>(':scope > .blk'))
+    let insertAt = children.length
+    for (let i = 0; i < children.length; i++) {
+      const r = children[i].getBoundingClientRect()
+      if (y < r.top + r.height / 2) {
+        insertAt = i
+        break
+      }
+    }
+    addBlock('text', insertAt)
+  }
+
   return (
     <div
       className="doc-col"
       ref={scrollRef}
-      onClick={() => onSelect(null)}
       onDragOver={(e) => {
         if (drag) e.preventDefault()
       }}
@@ -735,7 +826,12 @@ export function MailDocument({
     >
       <div className="compose">
         {header}
-        <div className="doc-col-body">
+        <div
+          className="doc-col-body"
+          ref={bodyRef}
+          onClick={handleBodyClick}
+          style={{ minHeight: '60vh' }}
+        >
           {blocks.map((b, i) => (
             <Fragment key={b.id}>
               {dropIdx === i && <div className="drop-line"></div>}
@@ -765,7 +861,6 @@ export function MailDocument({
           ))}
           {dropIdx === blocks.length && <div className="drop-line"></div>}
         </div>
-        {attachTray}
       </div>
       {ins && (
         <Inserter

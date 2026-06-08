@@ -34,6 +34,7 @@ import {
   useState,
   type ReactNode,
 } from 'react'
+import { createPortal } from 'react-dom'
 
 import { MailDocument } from './blocks'
 import { AudienceFields, fmt, useSegments } from './fields'
@@ -136,9 +137,7 @@ export function ComposerApp({
   const [audience, setAudience] = useState<string>('all')
   const [excludes, setExcludes] = useState<string[]>([])
   const [showExclude, setShowExclude] = useState(false)
-  const [subject, setSubject] = useState(
-    'June at the studio: new course + a flash sale',
-  )
+  const [subject, setSubject] = useState('')
   const [blocks, setBlocks] = useState<Block[]>(INITIAL_BLOCKS)
   const [attachments, setAttachments] = useState<Attachment[]>([])
   const [selId, setSelId] = useState<string | null>(null)
@@ -217,11 +216,9 @@ export function ComposerApp({
   // Block ops
   const addBlock = (type: BlockType, at?: number) => {
     const nb = defaultBlock(type)
-    // Non-text blocks (image, button, divider) auto-drop an empty
-    // paragraph right after them so the user can keep typing like in
-    // any normal mail composer. Text-style blocks don't need this —
-    // hitting Enter inside the contentEditable already starts a new
-    // line.
+    // Non-text blocks (image, button, divider, file) auto-drop an
+    // empty paragraph right after them so the user can keep typing
+    // like in any normal mail composer.
     const trailing = !TEXTLIKE.includes(type) ? defaultBlock('text') : null
     setBlocks((bs) => {
       const c = [...bs]
@@ -233,6 +230,20 @@ export function ComposerApp({
     setSelId(nb.id)
     touch()
     if (type === 'image') pickImageFor(nb.id)
+    if (type === 'file') {
+      // Open the picker right away so the block immediately gets a
+      // real file behind it; on failure / cancel the user can replace
+      // through the inline UI or delete the block.
+      pickFile('*/*', (f) => {
+        const kb = f.size / 1024
+        const size =
+          kb > 1024
+            ? (kb / 1024).toFixed(1) + ' MB'
+            : Math.max(1, Math.round(kb)) + ' KB'
+        update(nb.id, { name: f.name, size } as Partial<Block>)
+        showToast('Attached ' + f.name)
+      })
+    }
   }
   const update = (id: string, patch: Partial<Block>) => {
     setBlocks((bs) =>
@@ -338,9 +349,10 @@ export function ComposerApp({
   }
 
   // Attachments — kept local. The server-side persistence layer does not
-  // yet track per-broadcast file attachments; we render them inline in the
-  // preview so the creator can see what they intended. Upload to a hosted
-  // location is the obvious next step.
+  // Attach files live inline as `file` blocks now. Clicking "Attach
+  // files" in the top-bar menu or the + popover's "Attach file" entry
+  // both open the picker and append a file block at the end (or at the
+  // + insertion point, handled by addBlock).
   const addAttachment = () =>
     pickFile('*/*', (f) => {
       const kb = f.size / 1024
@@ -348,14 +360,17 @@ export function ComposerApp({
         kb > 1024
           ? (kb / 1024).toFixed(1) + ' MB'
           : Math.max(1, Math.round(kb)) + ' KB'
-      setAttachments((a) => [...a, { name: f.name, size }])
+      const nb = defaultBlock('file')
+      if (nb.type === 'file') {
+        nb.name = f.name
+        nb.size = size
+      }
+      const trailing = defaultBlock('text')
+      setBlocks((bs) => [...bs, nb, trailing])
+      setSelId(nb.id)
       touch()
       showToast('Attached ' + f.name)
     })
-  const rmAttachment = (i: number) => {
-    setAttachments((a) => a.filter((_, j) => j !== i))
-    touch()
-  }
 
   // Backend persistence
   const buildPayload = (): BroadcastWritePayload & {
@@ -589,37 +604,15 @@ export function ComposerApp({
     />
   )
 
-  const attachTray = (
-    <div className="atray">
-      {attachments.map((f, i) => (
-        <div className="atile" key={i}>
-          <span className="fi">
-            <Icon name="file" size={20} />
-          </span>
-          <span className="meta">
-            <b>{f.name}</b>
-            <span>{f.size}</span>
-          </span>
-          <button className="rm" onClick={() => rmAttachment(i)}>
-            <Icon name="close" size={15} />
-          </button>
-        </div>
-      ))}
-      <div className="atile add" onClick={addAttachment}>
-        <span className="fi">
-          <Icon name="paperclip" size={18} />
-        </span>
-        <span className="meta">
-          <b>Attach a file</b>
-          <span>Up to 25 MB</span>
-        </span>
-      </div>
-    </div>
-  )
-
   const senderEmailDisplay = currentUser?.email ?? ''
 
-  return (
+  // Mount portal-target only on the client. Without this gate Next.js
+  // SSR would crash on document.body access.
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => setMounted(true), [])
+  if (!mounted) return null
+
+  const shell = (
     <div className="composer-shell">
       <input
         ref={fileRef}
@@ -692,7 +685,6 @@ export function ComposerApp({
         {mode === 'edit' ? (
           <MailDocument
             header={header}
-            attachTray={attachTray}
             blocks={blocks}
             selId={selId}
             onSelect={setSelId}
@@ -873,7 +865,7 @@ export function ComposerApp({
               className="m-danger"
               onClick={() => {
                 setModal(null)
-                setBlocks([])
+                setBlocks(INITIAL_BLOCKS)
                 setSubject('')
                 setAttachments([])
                 showToast('Draft discarded')
@@ -886,4 +878,10 @@ export function ComposerApp({
       )}
     </div>
   )
+
+  // Portal into document.body so the composer sits above the dashboard
+  // chrome — the dashboard's top nav was overlapping the composer's
+  // own top bar (Send button etc.) when the composer rendered inside
+  // the dashboard layout tree.
+  return createPortal(shell, document.body)
 }
