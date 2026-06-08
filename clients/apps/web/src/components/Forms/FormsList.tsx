@@ -1,11 +1,15 @@
 'use client'
 
-import { useDeleteForm, useForms } from '@/hooks/queries/forms'
+import { Modal } from '@/components/Modal'
+import { useModal } from '@/components/Modal/useModal'
+import { FormResource, useDeleteForm, useForms } from '@/hooks/queries/forms'
 import { schemas } from '@spaire/client'
 import Button from '@spaire/ui/components/atoms/Button'
 import { List, ListItem } from '@spaire/ui/components/atoms/List'
 import Link from 'next/link'
+import { useState } from 'react'
 import { DashboardBody } from '../Layout/DashboardLayout'
+import { EmbedFormModalContent } from './EmbedFormModal'
 
 const StatusBadge = ({ status }: { status: string }) => (
   <span
@@ -27,6 +31,9 @@ export const FormsList = ({
   const { data, isLoading } = useForms(organization.id, { limit: 100 })
   const deleteForm = useDeleteForm()
   const forms = data?.items ?? []
+
+  const { isShown, show, hide } = useModal()
+  const [embedForm, setEmbedForm] = useState<FormResource | null>(null)
 
   const newHref = `/dashboard/${organization.slug}/forms/new`
 
@@ -72,6 +79,16 @@ export const FormsList = ({
                     <span className="text-sm text-gray-400">/{form.slug}</span>
                   </Link>
                   <div className="flex flex-row items-center gap-2">
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => {
+                        setEmbedForm(form)
+                        show()
+                      }}
+                    >
+                      Embed
+                    </Button>
                     <Link
                       href={`/dashboard/${organization.slug}/forms/${form.id}/edit`}
                     >
@@ -102,6 +119,14 @@ export const FormsList = ({
           </List>
         )}
       </div>
+      <Modal
+        title="Embed form"
+        isShown={isShown}
+        hide={hide}
+        modalContent={
+          embedForm ? <EmbedFormModalContent form={embedForm} /> : <div />
+        }
+      />
     </DashboardBody>
   )
 }

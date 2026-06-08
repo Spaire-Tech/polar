@@ -151,6 +151,15 @@ export const useFormById = (id?: string) =>
     enabled: !!id,
   })
 
+// Anonymous, published-only read used by the embed + Space render paths.
+export const useFormPublic = (id?: string) =>
+  useQuery({
+    queryKey: ['forms', 'public', id],
+    queryFn: () => fetchApi<FormPublic>(`/v1/forms/${id}/public`),
+    retry: defaultRetry,
+    enabled: !!id,
+  })
+
 export const useCreateForm = () =>
   useMutation({
     mutationFn: (body: FormCreatePayload) =>
