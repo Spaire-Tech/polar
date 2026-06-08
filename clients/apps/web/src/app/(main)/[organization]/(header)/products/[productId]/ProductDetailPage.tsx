@@ -6,6 +6,7 @@ import {
 } from '@/components/Products/ProductForm/ProductAdditionalDetailsSection'
 import { useStorefrontSubscribe } from '@/hooks/queries/emailMarketing'
 import { CONFIG } from '@/utils/config'
+import { SUBTITLE_METADATA_KEY } from '@/utils/product'
 import { api } from '@/utils/client'
 import { schemas } from '@spaire/client'
 import { formatCurrency } from '@spaire/currency'
@@ -28,10 +29,16 @@ const poppins = Poppins({
 })
 
 // A storefront product, plus the new free-form `subtitle` tagline. The
-// generated client type hasn't been regenerated for `subtitle` yet, so we
-// widen it locally; the field is already served by the backend.
-type StorefrontProduct = schemas['ProductStorefront'] & {
-  subtitle?: string | null
+// generated client type already carries `metadata`, where the byline lives.
+type StorefrontProduct = schemas['ProductStorefront']
+
+// The product byline ("A baking book by …") is stored under a reserved
+// metadata key — no dedicated DB column, so it needs no migration.
+function productSubtitle(
+  product: schemas['ProductStorefront'],
+): string | undefined {
+  const v = product.metadata?.[SUBTITLE_METADATA_KEY]
+  return typeof v === 'string' && v.trim() ? v : undefined
 }
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -356,7 +363,9 @@ function Details({
   return (
     <div className="details-col">
       <h1 className="title">{product.name}</h1>
-      {product.subtitle && <p className="byline">{product.subtitle}</p>}
+      {productSubtitle(product) && (
+        <p className="byline">{productSubtitle(product)}</p>
+      )}
 
       <div className="price-row">
         <div className="price">

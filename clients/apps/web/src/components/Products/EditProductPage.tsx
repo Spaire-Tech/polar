@@ -5,7 +5,10 @@ import {
   useUpdateProductBenefits,
 } from '@/hooks/queries'
 import { setProductValidationErrors } from '@/utils/api/errors'
-import { ProductEditOrCreateForm } from '@/utils/product'
+import {
+  ProductEditOrCreateForm,
+  SUBTITLE_METADATA_KEY,
+} from '@/utils/product'
 import { isValidationError, schemas } from '@spaire/client'
 import Button from '@spaire/ui/components/atoms/Button'
 import { Form } from '@spaire/ui/components/ui/form'
@@ -52,15 +55,23 @@ export const EditProductPage = ({
   const form = useForm<ProductEditOrCreateForm>({
     defaultValues: {
       ...product,
+      // Byline lives in metadata.subtitle — lift it into its own field and
+      // keep it out of the raw metadata editor.
+      subtitle:
+        typeof product.metadata[SUBTITLE_METADATA_KEY] === 'string'
+          ? (product.metadata[SUBTITLE_METADATA_KEY] as string)
+          : '',
       medias: product.medias.map((media) => media.id),
       full_medias: product.medias,
       prices: product.prices.map((price) => ({
         ...price,
       })),
-      metadata: Object.entries(product.metadata).map(([key, value]) => ({
-        key,
-        value,
-      })),
+      metadata: Object.entries(product.metadata)
+        .filter(([key]) => key !== SUBTITLE_METADATA_KEY)
+        .map(([key, value]) => ({
+          key,
+          value,
+        })),
     },
   })
   const { handleSubmit, setError, formState } = form
@@ -88,17 +99,25 @@ export const EditProductPage = ({
 
   const onSubmit = useCallback(
     async (productUpdate: ProductEditOrCreateForm) => {
-      const { full_medias, metadata, ...productUpdateRest } = productUpdate
+      const { full_medias, metadata, subtitle, ...productUpdateRest } =
+        productUpdate
+
+      const metadataObject = metadata.reduce(
+        (acc, { key, value }) => ({ ...acc, [key]: value }),
+        {} as Record<string, string | number | boolean>,
+      )
+      // Persist the byline as a reserved metadata key (no dedicated column).
+      // Empty clears it (the key is simply omitted from the new metadata).
+      if (typeof subtitle === 'string' && subtitle.trim()) {
+        metadataObject[SUBTITLE_METADATA_KEY] = subtitle.trim()
+      }
 
       const { data: updatedProduct, error } = await updateProduct.mutateAsync({
         id: product.id,
         body: {
           ...productUpdateRest,
           medias: full_medias.map((media) => media.id),
-          metadata: metadata.reduce(
-            (acc, { key, value }) => ({ ...acc, [key]: value }),
-            {},
-          ),
+          metadata: metadataObject,
         },
       })
 

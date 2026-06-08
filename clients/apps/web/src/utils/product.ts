@@ -89,7 +89,16 @@ export type ProductEditOrCreateForm = Omit<
 > &
   ProductFullMediasMixin & {
     metadata: { key: string; value: string | number | boolean }[]
+    // Byline shown under the product title on its storefront page. Persisted
+    // in `metadata.subtitle` (a reserved key — no dedicated DB column), so it
+    // round-trips through the existing product APIs with no migration. The
+    // create/edit submit handlers merge it into metadata; the metadata editor
+    // hides the reserved key.
+    subtitle?: string | null
   }
+
+// Reserved metadata key the product "Subtitle"/byline is stored under.
+export const SUBTITLE_METADATA_KEY = 'subtitle'
 
 export const productToCreateForm = (
   product: schemas['Product'],
@@ -134,9 +143,15 @@ export const productToCreateForm = (
       custom_field_id: field.custom_field_id,
       required: field.required,
     })),
-    metadata: Object.entries(product.metadata).map(([key, value]) => ({
-      key,
-      value,
-    })),
+    subtitle:
+      typeof product.metadata[SUBTITLE_METADATA_KEY] === 'string'
+        ? (product.metadata[SUBTITLE_METADATA_KEY] as string)
+        : '',
+    metadata: Object.entries(product.metadata)
+      .filter(([key]) => key !== SUBTITLE_METADATA_KEY)
+      .map(([key, value]) => ({
+        key,
+        value,
+      })),
   }
 }
