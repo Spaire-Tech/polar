@@ -51,15 +51,20 @@ function Editable({
 }) {
   const ref = useRef<HTMLElement>(null)
 
-  // Only sync html → DOM when the editor isn't focused and the values
-  // diverge — preserves caret position during typing.
+  // Sync html → DOM after every render (not just when `html` changes).
+  // When the block type changes, React swaps the DOM element (tag p →
+  // h1) but the `html` prop hasn't changed — so a useEffect with
+  // [html] deps wouldn't re-fire and the new element would mount empty,
+  // wiping the user's text. Running every render with a guard (skip
+  // when the element is focused or already matches) keeps the caret
+  // stable during typing and forces a resync on tag swap.
   useEffect(() => {
     const el = ref.current
     if (!el) return
-    if (document.activeElement !== el && el.innerHTML !== (html || '')) {
-      el.innerHTML = html || ''
-    }
-  }, [html])
+    if (document.activeElement === el) return
+    const next = html || ''
+    if (el.innerHTML !== next) el.innerHTML = next
+  })
 
   if (readOnly) {
     return React.createElement(tag, {
@@ -427,19 +432,14 @@ function Bubble({
 // Inserter (+ popover with the block library)
 // ---------------------------------------------------------------------------
 
+// The + popover only carries blocks that aren't reachable from the
+// floating bubble menu. Text styles (Text / H1 / H2 / H3) live on the
+// bubble's "AA" dropdown — duplicating them here would just clutter
+// the popover.
 const INSERTER_GROUPS: {
   label: string
   items: { type: BlockType; label: string; icon: IconName }[]
 }[] = [
-  {
-    label: 'Text',
-    items: [
-      { type: 'text', label: 'Text', icon: 'paragraph' },
-      { type: 'h1', label: 'Heading 1', icon: 'h1Gly' },
-      { type: 'h2', label: 'Heading 2', icon: 'h2Gly' },
-      { type: 'h3', label: 'Heading 3', icon: 'h3Gly' },
-    ],
-  },
   {
     label: 'Blocks',
     items: [
@@ -495,7 +495,7 @@ function Inserter({
   onPick: (type: BlockType) => void
   onClose: () => void
 }) {
-  const [hover, setHover] = useState<BlockType>('text')
+  const [hover, setHover] = useState<BlockType>('image')
   return (
     <Fragment>
       <div className="inserter-backdrop" onClick={onClose}></div>

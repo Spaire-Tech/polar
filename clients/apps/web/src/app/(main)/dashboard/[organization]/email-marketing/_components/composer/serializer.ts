@@ -20,9 +20,11 @@ const STYLES = {
   h2: 'font-size:28px;font-weight:700;line-height:1.25;color:#0c0d10;letter-spacing:-0.015em;margin:22px 0 8px;',
   h3: 'font-size:22px;font-weight:700;line-height:1.3;color:#0c0d10;letter-spacing:-0.01em;margin:18px 0 6px;',
   quote: 'font-size:22px;line-height:1.5;color:#0c0d10;font-weight:500;border-left:3px solid #0c0d10;padding:8px 0 8px 22px;margin:14px 0;',
-  ul: 'margin:0 0 14px;padding:0 0 0 26px;',
-  ol: 'margin:0 0 14px;padding:0 0 0 26px;',
-  li: 'font-size:19px;line-height:1.6;color:#242629;padding:3px 0 3px 4px;',
+  // Email clients are aggressive about resetting list styles. Set
+  // list-style-type explicitly so bullets/numbers actually render.
+  ul: 'margin:0 0 14px;padding:0 0 0 26px;list-style-type:disc;list-style-position:outside;',
+  ol: 'margin:0 0 14px;padding:0 0 0 26px;list-style-type:decimal;list-style-position:outside;',
+  li: 'font-size:19px;line-height:1.6;color:#242629;padding:3px 0 3px 4px;display:list-item;',
   divider: 'border:none;border-top:1px solid #d8dadd;margin:24px 0;',
   buttonWrap: (align: 'left' | 'center' | 'right') =>
     `text-align:${align};margin:18px 0;`,

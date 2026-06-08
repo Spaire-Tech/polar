@@ -217,9 +217,17 @@ export function ComposerApp({
   // Block ops
   const addBlock = (type: BlockType, at?: number) => {
     const nb = defaultBlock(type)
+    // Non-text blocks (image, button, divider) auto-drop an empty
+    // paragraph right after them so the user can keep typing like in
+    // any normal mail composer. Text-style blocks don't need this —
+    // hitting Enter inside the contentEditable already starts a new
+    // line.
+    const trailing = !TEXTLIKE.includes(type) ? defaultBlock('text') : null
     setBlocks((bs) => {
       const c = [...bs]
-      c.splice(at == null ? bs.length : at, 0, nb)
+      const idx = at == null ? bs.length : at
+      c.splice(idx, 0, nb)
+      if (trailing) c.splice(idx + 1, 0, trailing)
       return c
     })
     setSelId(nb.id)
@@ -420,22 +428,43 @@ export function ComposerApp({
 
   // ── Keyboard ────────────────────────────────────────────────────────
   useEffect(() => {
+    const isEditing = () => {
+      const ae = document.activeElement as HTMLElement | null
+      return !!(
+        ae &&
+        ((ae as HTMLElement).isContentEditable ||
+          ae.tagName === 'INPUT' ||
+          ae.tagName === 'TEXTAREA')
+      )
+    }
     const onKey = (e: KeyboardEvent) => {
+      // Backspace / Delete on a selected non-text block removes it,
+      // but only when the user isn't typing in a field elsewhere.
       if (
         (e.key === 'Backspace' || e.key === 'Delete') &&
         sel &&
         !TEXTLIKE.includes(sel.type)
       ) {
-        const ae = document.activeElement as HTMLElement | null
-        if (
-          ae &&
-          ((ae as HTMLElement).isContentEditable ||
-            ae.tagName === 'INPUT' ||
-            ae.tagName === 'TEXTAREA')
-        )
-          return
+        if (isEditing()) return
         e.preventDefault()
         del(sel.id)
+        return
+      }
+      // Enter on a selected non-text block (image, button, divider)
+      // drops a new paragraph below and selects it — mirrors what
+      // hitting Enter in a normal email composer would do after a
+      // media block.
+      if (
+        e.key === 'Enter' &&
+        !e.shiftKey &&
+        sel &&
+        !TEXTLIKE.includes(sel.type)
+      ) {
+        if (isEditing()) return
+        e.preventDefault()
+        const idx = blocks.findIndex((b) => b.id === sel.id)
+        if (idx >= 0) addBlock('text', idx + 1)
+        return
       }
       if (e.key === 'Escape') {
         setSelId(null)
@@ -446,7 +475,8 @@ export function ComposerApp({
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [sel])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sel, blocks])
 
   const trySend = () => {
     if (reach < 1) {

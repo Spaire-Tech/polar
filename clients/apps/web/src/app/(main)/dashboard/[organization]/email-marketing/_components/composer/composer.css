@@ -227,8 +227,10 @@
 .composer-shell .b-h2    { font-size: 28px; font-weight: 700; line-height: 1.25; color: var(--c-ink); margin: 0; padding: 18px 0 4px; letter-spacing: -.015em; }
 .composer-shell .b-h3    { font-size: 22px; font-weight: 700; line-height: 1.3; color: var(--c-ink); margin: 0; padding: 14px 0 2px; letter-spacing: -.01em; }
 .composer-shell .b-quote { font-size: 22px; line-height: 1.5; color: var(--c-ink); margin: 0; padding: 8px 0 8px 22px; border-left: 3px solid var(--c-ink); font-weight: 500; }
-.composer-shell .b-list  { margin: 0; padding: 6px 0 6px 26px; }
-.composer-shell .b-list li { font-size: 19px; line-height: 1.6; color: var(--c-body); padding: 3px 0 3px 4px; }
+.composer-shell .b-list  { margin: 0; padding: 6px 0 6px 26px; list-style-position: outside; }
+.composer-shell ul.b-list { list-style-type: disc; }
+.composer-shell ol.b-list { list-style-type: decimal; }
+.composer-shell .b-list li { font-size: 19px; line-height: 1.6; color: var(--c-body); padding: 3px 0 3px 4px; display: list-item; }
 .composer-shell .b-list li::marker { color: var(--c-body); }
 
 /* image */
