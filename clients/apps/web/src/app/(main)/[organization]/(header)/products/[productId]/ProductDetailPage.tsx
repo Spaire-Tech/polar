@@ -4,6 +4,7 @@ import {
   DETAIL_KEYS,
   DETAIL_OPTION_MAP,
 } from '@/components/Products/ProductForm/ProductAdditionalDetailsSection'
+import { useStorefrontSubscribe } from '@/hooks/queries/emailMarketing'
 import { CONFIG } from '@/utils/config'
 import { api } from '@/utils/client'
 import { schemas } from '@spaire/client'
@@ -420,15 +421,64 @@ function initials(name: string): string {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
 }
 
+// Same RFC 5322-ish check Chromium uses for type=email (matches the Space
+// card's subscribe form).
+const EMAIL_REGEX =
+  /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/
+
 function Creator({
   organization,
 }: {
   organization: schemas['Organization']
 }) {
-  const [following, setFollowing] = useState(false)
   const settings = organization.storefront_settings
   const title = settings?.profile_title
   const bio = settings?.description
+
+  // Subscribe — same email capture + mutation the Space card uses.
+  const [email, setEmail] = useState('')
+  const [subscribed, setSubscribed] = useState(false)
+  const [subscribing, setSubscribing] = useState(false)
+  const [subscribeError, setSubscribeError] = useState<string | null>(null)
+  const subscribe = useStorefrontSubscribe()
+
+  const handleSubscribe = async (e?: React.FormEvent) => {
+    e?.preventDefault()
+    const trimmed = email.trim()
+    if (subscribing) return
+    if (!trimmed) {
+      setSubscribeError('Please enter your email.')
+      return
+    }
+    if (!EMAIL_REGEX.test(trimmed)) {
+      setSubscribeError('Please enter a valid email address.')
+      return
+    }
+    setSubscribeError(null)
+    setSubscribing(true)
+    try {
+      const { error } = await subscribe.mutateAsync({
+        slug: organization.slug,
+        email: trimmed,
+      })
+      if (error) {
+        const detail = (error as { detail?: unknown }).detail
+        setSubscribeError(
+          typeof detail === 'string'
+            ? detail
+            : 'Could not subscribe. Please try again.',
+        )
+        return
+      }
+      setSubscribed(true)
+      setEmail('')
+    } catch {
+      setSubscribeError('Could not subscribe. Please try again.')
+    } finally {
+      setSubscribing(false)
+    }
+  }
+
   return (
     <section className="section reveal">
       <div className="wrap">
@@ -448,12 +498,35 @@ function Creator({
             {title && <div className="role">{title}</div>}
             {bio && <div className="bio">{bio}</div>}
           </div>
-          <button
-            className={'follow' + (following ? ' following' : '')}
-            onClick={() => setFollowing((f) => !f)}
-          >
-            {following ? 'Following' : 'Follow'}
-          </button>
+          {subscribed ? (
+            <div className="creator-sub-done">You&apos;re subscribed!</div>
+          ) : (
+            <form className="creator-sub" onSubmit={handleSubscribe}>
+              <div className="creator-sub-row">
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => {
+                    setEmail(e.target.value)
+                    if (subscribeError) setSubscribeError(null)
+                  }}
+                  placeholder="Enter your email…"
+                  aria-invalid={subscribeError ? true : undefined}
+                  className={'creator-sub-input' + (subscribeError ? ' err' : '')}
+                />
+                <button
+                  type="submit"
+                  className="creator-sub-btn"
+                  disabled={subscribing || !email.trim()}
+                >
+                  {subscribing ? 'Subscribing…' : 'Subscribe'}
+                </button>
+              </div>
+              {subscribeError && (
+                <p className="creator-sub-err">{subscribeError}</p>
+              )}
+            </form>
+          )}
         </div>
       </div>
     </section>
@@ -776,9 +849,17 @@ const CSS = `
 .sppdp .creator .nm{font-size:18px;font-weight:600;letter-spacing:-0.02em;}
 .sppdp .creator .role{font-size:13.5px;color:var(--muted);margin-top:2px;}
 .sppdp .creator .bio{font-size:14px;color:var(--ink-2);margin-top:10px;line-height:1.6;max-width:52ch;}
-.sppdp .creator .follow{flex:none;height:44px;padding:0 22px;border-radius:var(--pill);background:var(--ink);color:#fff;font-size:14px;font-weight:500;display:grid;place-items:center;transition:transform .2s var(--ease),opacity .2s;}
-.sppdp .creator .follow:hover{transform:translateY(-1px);}
-.sppdp .creator .follow.following{background:#fff;color:var(--ink);box-shadow:inset 0 0 0 1px var(--line);}
+.sppdp .creator-sub{flex:none;display:flex;flex-direction:column;gap:6px;}
+.sppdp .creator-sub-row{display:flex;gap:8px;align-items:center;}
+.sppdp .creator-sub-input{height:44px;width:210px;min-width:0;border-radius:var(--pill);background:#fff;box-shadow:inset 0 0 0 1px var(--line);padding:0 18px;font-size:14px;color:var(--ink);transition:box-shadow .2s var(--ease-2);}
+.sppdp .creator-sub-input::placeholder{color:var(--faint);}
+.sppdp .creator-sub-input:focus{outline:none;box-shadow:inset 0 0 0 1px var(--faint);}
+.sppdp .creator-sub-input.err{box-shadow:inset 0 0 0 1px #e0857f;}
+.sppdp .creator-sub-btn{flex:none;height:44px;padding:0 22px;border-radius:var(--pill);background:var(--ink);color:#fff;font-size:14px;font-weight:500;display:grid;place-items:center;transition:transform .2s var(--ease),opacity .2s;}
+.sppdp .creator-sub-btn:hover{transform:translateY(-1px);}
+.sppdp .creator-sub-btn:disabled{opacity:.5;pointer-events:none;}
+.sppdp .creator-sub-err{font-size:12px;color:#c4554d;margin:0;}
+.sppdp .creator-sub-done{flex:none;display:flex;align-items:center;justify-content:center;height:44px;padding:0 22px;border-radius:var(--pill);background:var(--surface);box-shadow:inset 0 0 0 1px var(--line);font-size:14px;font-weight:500;color:var(--ink);}
 
 /* More from creator */
 .sppdp .more-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:26px;}
@@ -835,7 +916,8 @@ const CSS = `
 @media (max-width:560px){
   .sppdp .wrap{padding:0 20px;}
   .sppdp .creator{flex-direction:column;align-items:flex-start;gap:18px;padding:24px;}
-  .sppdp .creator .follow{width:100%;}
+  .sppdp .creator-sub{width:100%;}
+  .sppdp .creator-sub-input{flex:1;width:auto;}
   .sppdp .cards{grid-template-columns:1fr 1fr;gap:14px;}
   .sppdp .stickybar-inner{padding:10px 20px;gap:12px;}
   .sppdp .reassure{gap:6px 14px;}
