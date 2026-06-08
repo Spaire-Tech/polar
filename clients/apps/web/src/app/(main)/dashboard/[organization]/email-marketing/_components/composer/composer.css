@@ -32,10 +32,21 @@
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 
-  height: 100%;
+  /* Full-viewport composing surface. The composer is a focused takeover
+     (it owns its top bar + close button), so it sits above the dashboard
+     chrome and manages its own internal scroll regions. This is what lets
+     only the document column scroll while the right panel stays put — as
+     a plain in-flow `height:100%` block it would inherit the dashboard's
+     page scroll and drag the panel with it. */
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  height: 100vh;
+  height: 100dvh;
   display: flex;
   flex-direction: column;
   min-width: 0;
+  overflow: hidden;
 }
 .composer-shell *,
 .composer-shell *::before,
