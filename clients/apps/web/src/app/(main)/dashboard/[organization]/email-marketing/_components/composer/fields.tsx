@@ -230,12 +230,6 @@ export function AudienceFields({
         </div>
       )}
 
-      <div className="reach-line">
-        <span className="rdot"></span>
-        Reaching <b>{fmt(reach)}</b> {reach === 1 ? 'person' : 'people'}
-        {excludes.length > 0 && <span> · {fmt(aud.count - reach)} skipped</span>}
-      </div>
-
       <div className="recip-row subject-row">
         <input
           className="subject-input"

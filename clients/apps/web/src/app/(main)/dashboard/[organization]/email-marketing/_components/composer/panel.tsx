@@ -6,6 +6,7 @@
 import { schemas } from '@spaire/client'
 import { useState } from 'react'
 
+import { ColorPicker } from './ColorPicker'
 import { Icon, type IconName } from './Icon'
 import { CROP_LABEL, CROP_SEQ, type Block, type SendOptionsState } from './types'
 
@@ -410,6 +411,21 @@ function ButtonPanel({
             { k: 'center', ic: 'alignCenter' },
             { k: 'right', ic: 'alignRight' },
           ]}
+        />
+      </div>
+      <div className="ctx-divider"></div>
+      <div className="ctx-field">
+        <label>Button colour</label>
+        <ColorPicker
+          value={b.bg || '#000000'}
+          onChange={(c) => update(b.id, { bg: c } as Partial<Block>)}
+        />
+      </div>
+      <div className="ctx-field">
+        <label>Text colour</label>
+        <ColorPicker
+          value={b.color || '#ffffff'}
+          onChange={(c) => update(b.id, { color: c } as Partial<Block>)}
         />
       </div>
       <div className="ctx-divider"></div>

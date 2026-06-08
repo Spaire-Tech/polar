@@ -11,6 +11,7 @@ export type BlockType =
   | 'image'
   | 'button'
   | 'divider'
+  | 'file'
 
 export type Align = 'left' | 'center' | 'right' | 'full'
 /** Subset valid as a CSS `text-align` value (no 'full'). */
@@ -37,8 +38,13 @@ export type Block =
       text: string
       link: string
       align: TextAlign
+      /** Background colour (default black) — applied via inline style. */
+      bg?: string
+      /** Text colour (default white). */
+      color?: string
     }
   | { id: string; type: 'divider' }
+  | { id: string; type: 'file'; name: string; size: string; url?: string }
 
 export type Attachment = { name: string; size: string; url?: string }
 
@@ -108,47 +114,21 @@ export const defaultBlock = (type: BlockType): Block => {
         text: 'View the doc',
         link: '',
         align: 'left',
+        bg: '#000000',
+        color: '#ffffff',
       }
     case 'divider':
       return { id: muid(), type: 'divider' }
+    case 'file':
+      return { id: muid(), type: 'file', name: 'Untitled file', size: '0 KB' }
   }
 }
 
+// New broadcasts open empty — one blank paragraph for the cursor to
+// land on. The previous starter content was a demo for the design
+// handoff and shouldn't ship to real creators.
 export const INITIAL_BLOCKS: Block[] = [
-  { id: 'm1', type: 'text', html: 'Hey everyone,' },
-  {
-    id: 'm2',
-    type: 'text',
-    html: "Big month at the studio. A brand-new course just went live, and I'm running a short sale to celebrate — here's everything that's new and how to grab it.",
-  },
-  { id: 'm3', type: 'h3', html: 'The Gelato Masterclass is live' },
-  {
-    id: 'm4',
-    type: 'text',
-    html: 'Three hours of step-by-step lessons, from base recipes to plating. It’s the workshop I get asked about most — now yours to keep, watch any time.',
-  },
-  {
-    id: 'm5',
-    type: 'button',
-    text: 'Watch the first lesson',
-    link: '',
-    align: 'left',
-  },
-  { id: 'm6', type: 'h3', html: 'Flash sale — 30% off, this week only' },
-  {
-    id: 'm7',
-    type: 'bullet',
-    items: [
-      '<strong>Everything in the shop</strong>&nbsp;is discounted through Sunday.',
-      '<strong>Paid members</strong>&nbsp;get an extra month free on annual plans.',
-      '<strong>New here?</strong>&nbsp;Your welcome code still works at checkout.',
-    ],
-  },
-  {
-    id: 'm8',
-    type: 'text',
-    html: 'Thanks for being here — it genuinely means a lot.',
-  },
+  { id: 'm1', type: 'text', html: '' },
 ]
 
 export const readFileAsDataURL = (file: File, cb: (url: string) => void) => {
