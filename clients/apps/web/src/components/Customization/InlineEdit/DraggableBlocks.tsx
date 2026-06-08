@@ -5,15 +5,12 @@ import { CATEGORY_LABELS } from '@/components/Profile/categoryLabels'
 import { SectionLabel } from '@/components/Profile/SectionLabel'
 import {
   EmbedCard,
+  isEmbeddableLink,
   type LinksLayout,
   StorefrontLinkItem,
   URL_LAYOUT_WRAPPERS,
   UrlLink,
 } from '@/components/Profile/StorefrontLinks'
-import {
-  buildEmbedUrl,
-  isEmbeddablePlatform,
-} from '@/components/Profile/linkPlatforms'
 import {
   itemKey,
   reorderSpaceItem,
@@ -219,11 +216,7 @@ const LinkRow = ({
   layout: LinksLayout
   embedded?: boolean
 }) => {
-  if (
-    embedded &&
-    isEmbeddablePlatform(link.platform) &&
-    buildEmbedUrl(link.url, link.platform ?? '')
-  ) {
+  if (isEmbeddableLink(link)) {
     return <EmbedCard link={link} />
   }
   return <UrlLink link={link} layout={embedded ? 'card' : layout} preview />
@@ -284,14 +277,10 @@ const chunkByKindAndCategory = (items: ResolvedSpaceItem[]): Chunk[] => {
 // ─── Per-link layout runs ─────────────────────────────────────────
 // Within a link chunk, split into render runs: each embed is its own
 // full-width run; consecutive standard links sharing a layout collapse
-// into one run so Grid / Carousel arrange them together. Mirrors the
-// public renderer's groupLinksByLayout so the canvas matches the Space.
+// into one run so Grid / Carousel arrange them together. Same shape and
+// embed rule as the public renderer's buildLinkRuns (it shares
+// isEmbeddableLink) so the canvas matches the live Space in document order.
 type LinkEntry = Extract<ResolvedSpaceItem, { kind: 'link' }>
-
-const isEmbedEntry = (entry: LinkEntry): boolean =>
-  entry.link.type === 'embedded' &&
-  isEmbeddablePlatform(entry.link.platform) &&
-  !!buildEmbedUrl(entry.link.url, entry.link.platform ?? '')
 
 type LinkRun =
   | { kind: 'embed'; entry: LinkEntry }
@@ -303,7 +292,7 @@ const buildLinkRuns = (
 ): LinkRun[] => {
   const runs: LinkRun[] = []
   for (const entry of entries) {
-    if (isEmbedEntry(entry)) {
+    if (isEmbeddableLink(entry.link)) {
       runs.push({ kind: 'embed', entry })
       continue
     }
