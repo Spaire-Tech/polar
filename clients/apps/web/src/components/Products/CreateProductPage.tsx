@@ -5,7 +5,11 @@ import {
   useUpdateProductBenefits,
 } from '@/hooks/queries'
 import { setProductValidationErrors } from '@/utils/api/errors'
-import { ProductEditOrCreateForm, productToCreateForm } from '@/utils/product'
+import {
+  ProductEditOrCreateForm,
+  productToCreateForm,
+  SUBTITLE_METADATA_KEY,
+} from '@/utils/product'
 import { schemas } from '@spaire/client'
 import Button from '@spaire/ui/components/atoms/Button'
 import { Form } from '@spaire/ui/components/ui/form'
@@ -178,7 +182,8 @@ export const CreateProductPage = ({
     async (productCreate: ProductEditOrCreateForm) => {
       setIsSubmitting(true)
       try {
-        const { full_medias, metadata, ...productCreateRest } = productCreate
+        const { full_medias, metadata, subtitle, ...productCreateRest } =
+          productCreate
 
         // When duplicating, re-upload medias to create new files
         let mediaIds = full_medias.map((media) => media.id)
@@ -201,13 +206,19 @@ export const CreateProductPage = ({
           return
         }
 
+        const metadataObject = metadata.reduce(
+          (acc, { key, value }) => ({ ...acc, [key]: value }),
+          {} as Record<string, string | number | boolean>,
+        )
+        // Persist the byline as a reserved metadata key (no dedicated column).
+        if (typeof subtitle === 'string' && subtitle.trim()) {
+          metadataObject[SUBTITLE_METADATA_KEY] = subtitle.trim()
+        }
+
         const { data: product, error } = await createProduct.mutateAsync({
           ...productCreateRest,
           medias: mediaIds,
-          metadata: metadata.reduce(
-            (acc, { key, value }) => ({ ...acc, [key]: value }),
-            {},
-          ),
+          metadata: metadataObject,
         } as schemas['ProductCreate'])
 
         if (error) {
