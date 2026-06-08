@@ -20,6 +20,9 @@ export type StorefrontLinkItem = {
   image_url?: string | null
   type: 'standard' | 'embedded'
   platform?: string | null
+  // Per-link layout. Embeds ignore it; for standard links it overrides
+  // the section default. Unset → fall back to the section's layout.
+  layout?: LinksLayout | null
 }
 
 export type LinksLayout = 'classic' | 'carousel' | 'image_grid' | 'card'
@@ -261,6 +264,27 @@ export const UrlLink = ({
   )
 }
 
+// Group consecutive standard links that share a layout. Grid & Carousel
+// are multi-item arrangements — a run of same-layout links renders as one
+// grid / carousel, and a link with a different layout starts a fresh
+// group. `fallback` is the section default for links that have no explicit
+// per-link layout (legacy links + the org's links_layout).
+export type LinkGroup = { layout: LinksLayout; links: StorefrontLinkItem[] }
+
+export const groupLinksByLayout = (
+  links: StorefrontLinkItem[],
+  fallback: LinksLayout,
+): LinkGroup[] => {
+  const groups: LinkGroup[] = []
+  for (const link of links) {
+    const layout = (link.layout ?? fallback) as LinksLayout
+    const tail = groups[groups.length - 1]
+    if (tail && tail.layout === layout) tail.links.push(link)
+    else groups.push({ layout, links: [link] })
+  }
+  return groups
+}
+
 export const URL_LAYOUT_WRAPPERS: Record<LinksLayout, string> = {
   classic: 'flex flex-col gap-3',
   card: 'flex flex-col gap-4',
@@ -320,8 +344,9 @@ export const StorefrontLinks = ({
 
   const urlLinks = links.filter((l) => l.type !== 'embedded')
   const embedLinks = links.filter((l) => l.type === 'embedded')
-  const wrapperClass =
-    URL_LAYOUT_WRAPPERS[layout] ?? URL_LAYOUT_WRAPPERS.classic
+  // Each standard link carries its own layout; consecutive links sharing
+  // one render together so Grid / Carousel stay meaningful.
+  const groups = groupLinksByLayout(urlLinks, layout)
 
   return (
     <div className="flex w-full flex-col gap-8">
@@ -338,19 +363,29 @@ export const StorefrontLinks = ({
       {urlLinks.length > 0 && (
         <div className="flex flex-col gap-4">
           <SectionLabel>Links</SectionLabel>
-          <div
-            className={wrapperClass}
-            style={
-              layout === 'carousel' ? { scrollbarWidth: 'thin' } : undefined
-            }
-          >
-            {urlLinks.map((link) => (
-              <UrlLink
-                key={link.id}
-                link={link}
-                layout={layout}
-                preview={preview}
-              />
+          <div className="flex w-full flex-col gap-5">
+            {groups.map((group) => (
+              <div
+                key={group.links[0].id}
+                className={
+                  URL_LAYOUT_WRAPPERS[group.layout] ??
+                  URL_LAYOUT_WRAPPERS.classic
+                }
+                style={
+                  group.layout === 'carousel'
+                    ? { scrollbarWidth: 'thin' }
+                    : undefined
+                }
+              >
+                {group.links.map((link) => (
+                  <UrlLink
+                    key={link.id}
+                    link={link}
+                    layout={group.layout}
+                    preview={preview}
+                  />
+                ))}
+              </div>
             ))}
           </div>
         </div>

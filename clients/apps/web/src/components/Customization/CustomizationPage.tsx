@@ -143,6 +143,9 @@ const Customization = ({
         image_url: payload.image_url,
         type: 'standard',
         platform: detected?.id ?? null,
+        // New links default to List; the creator changes it per-link from
+        // the link's "…" menu on the canvas.
+        layout: 'classic',
       })
     },
     onAddEmbed: ({ url, platform, title, description, image_url }) => {
