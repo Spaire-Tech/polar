@@ -237,7 +237,7 @@ export function BlockBody({
         </div>
       )
     }
-    case 'file': {
+    case 'file':
       return (
         <div className="b-file">
           <span className="b-file-icon">
@@ -249,7 +249,6 @@ export function BlockBody({
           </span>
         </div>
       )
-    }
   }
 }
 
@@ -610,10 +609,8 @@ function Inserter({
 function BlockShell({
   b,
   selected,
-  addOpen,
   dragging,
   onSelect,
-  onAdd,
   onDragStart,
   onDragEnd,
   onDragOver,
@@ -625,10 +622,8 @@ function BlockShell({
 }: {
   b: Block
   selected: boolean
-  addOpen: boolean
   dragging: boolean
   onSelect: () => void
-  onAdd: (btnEl: HTMLButtonElement) => void
   onDragStart: () => void
   onDragEnd: () => void
   onDragOver: (e: RDragEvent<HTMLDivElement>) => void
@@ -670,7 +665,6 @@ function BlockShell({
         // box outline. Text is just text — selecting it must not wrap it
         // in a box; its bubble menu appears on text selection instead.
         (selected && !isText ? ' sel' : '') +
-        (addOpen ? ' menu-open' : '') +
         (dragging ? ' dragging' : '')
       }
       onClick={(e) => {
@@ -679,15 +673,9 @@ function BlockShell({
       }}
       onDragOver={onDragOver}
     >
-      <button
-        className={'blk-add' + (addOpen ? ' spin' : '')}
-        onClick={(e) => {
-          e.stopPropagation()
-          onAdd(e.currentTarget)
-        }}
-      >
-        <Icon name="plus" size={17} />
-      </button>
+      {/* Per-block hover + is gone — the document owns a single floating +
+          that follows the user's last click. addOpen / onAdd are kept on
+          the prop type only so the parent can still drive the API. */}
       <span
         className="blk-drag"
         draggable
@@ -763,31 +751,60 @@ export function MailDocument({
   onDuplicate: (id: string) => void
   onDelete: (id: string) => void
 }) {
-  const [ins, setIns] = useState<{ id: string; top: number; left: number } | null>(null)
+  // Single floating + button driven by the last click anywhere inside
+  // the document. `pos` is where the + is drawn (relative to the
+  // scrollable doc-col); `index` is the insertion index in the blocks
+  // array that the inserter will use when something is picked.
+  const [plus, setPlus] = useState<{
+    top: number
+    left: number
+    index: number
+  } | null>(null)
+  const [showInserter, setShowInserter] = useState(false)
   const scrollRef = useRef<HTMLDivElement>(null)
   const bodyRef = useRef<HTMLDivElement>(null)
 
-  const handleAdd = (id: string, btnEl: HTMLButtonElement) => {
-    if (ins && ins.id === id) {
-      setIns(null)
-      return
+  // Compute "what index does this click correspond to?" by walking the
+  // rendered blocks and finding the one whose midpoint is just below
+  // the click Y. Inserts go AFTER that block; clicks above everything
+  // insert at index 0.
+  const indexForClick = (clientY: number): number => {
+    const body = bodyRef.current
+    if (!body) return blocks.length
+    const children = Array.from(
+      body.querySelectorAll<HTMLDivElement>(':scope > .blk'),
+    )
+    for (let i = 0; i < children.length; i++) {
+      const r = children[i].getBoundingClientRect()
+      if (clientY < r.top + r.height / 2) return i
     }
+    return children.length
+  }
+
+  const handleDocClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    // Clicks inside the inserter popover shouldn't reposition the +.
+    if ((e.target as HTMLElement).closest('.inserter')) return
+    onSelect(null)
     const host = scrollRef.current
     if (!host) return
-    const r = btnEl.getBoundingClientRect()
     const hr = host.getBoundingClientRect()
-    setIns({
-      id,
-      top: r.top - hr.top + host.scrollTop + 38,
-      left: r.left - hr.left + host.scrollLeft,
+    const composeCol = (e.target as HTMLElement).closest('.compose')
+    const left = composeCol
+      ? composeCol.getBoundingClientRect().left - hr.left + host.scrollLeft - 46
+      : 8
+    setPlus({
+      top: e.clientY - hr.top + host.scrollTop - 12,
+      left,
+      index: indexForClick(e.clientY),
     })
+    setShowInserter(false)
   }
 
   const pick = (type: BlockType) => {
-    if (!ins) return
-    const idx = blocks.findIndex((b) => b.id === ins.id)
-    addBlock(type, idx + 1)
-    setIns(null)
+    if (!plus) return
+    addBlock(type, plus.index)
+    setShowInserter(false)
+    setPlus(null)
   }
 
   // Clicking in the blank area below the last block (or between blocks)
@@ -816,6 +833,7 @@ export function MailDocument({
     <div
       className="doc-col"
       ref={scrollRef}
+      onClick={handleDocClick}
       onDragOver={(e) => {
         if (drag) e.preventDefault()
       }}
@@ -826,22 +844,15 @@ export function MailDocument({
     >
       <div className="compose">
         {header}
-        <div
-          className="doc-col-body"
-          ref={bodyRef}
-          onClick={handleBodyClick}
-          style={{ minHeight: '60vh' }}
-        >
+        <div className="doc-col-body" ref={bodyRef}>
           {blocks.map((b, i) => (
             <Fragment key={b.id}>
               {dropIdx === i && <div className="drop-line"></div>}
               <BlockShell
                 b={b}
                 selected={selId === b.id}
-                addOpen={ins?.id === b.id}
                 dragging={drag === b.id}
                 onSelect={() => onSelect(b.id)}
-                onAdd={(btn) => handleAdd(b.id, btn)}
                 onDragStart={() => onDragStart(b.id)}
                 onDragEnd={onDragEnd}
                 onDragOver={(e) => {
@@ -862,11 +873,23 @@ export function MailDocument({
           {dropIdx === blocks.length && <div className="drop-line"></div>}
         </div>
       </div>
-      {ins && (
+      {plus && (
+        <button
+          className={'blk-add floating' + (showInserter ? ' spin' : '')}
+          style={{ top: plus.top, left: plus.left }}
+          onClick={(e) => {
+            e.stopPropagation()
+            setShowInserter((v) => !v)
+          }}
+        >
+          <Icon name="plus" size={17} />
+        </button>
+      )}
+      {plus && showInserter && (
         <Inserter
-          pos={{ top: ins.top, left: ins.left }}
+          pos={{ top: plus.top + 38, left: plus.left }}
           onPick={pick}
-          onClose={() => setIns(null)}
+          onClose={() => setShowInserter(false)}
         />
       )}
     </div>

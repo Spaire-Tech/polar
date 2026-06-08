@@ -38,7 +38,7 @@ export type Block =
       text: string
       link: string
       align: TextAlign
-      /** Background colour (default black) — applied via inline style. */
+      /** Background colour (default black). Inline-styled on render. */
       bg?: string
       /** Text colour (default white). */
       color?: string
@@ -124,9 +124,8 @@ export const defaultBlock = (type: BlockType): Block => {
   }
 }
 
-// New broadcasts open empty — one blank paragraph for the cursor to
-// land on. The previous starter content was a demo for the design
-// handoff and shouldn't ship to real creators.
+// Empty starter — single blank paragraph. The "June at the studio" demo
+// content from the design handoff doesn't ship to creators.
 export const INITIAL_BLOCKS: Block[] = [
   { id: 'm1', type: 'text', html: '' },
 ]

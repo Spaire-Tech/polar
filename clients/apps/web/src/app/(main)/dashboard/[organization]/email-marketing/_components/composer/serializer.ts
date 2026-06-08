@@ -78,10 +78,6 @@ function renderBlock(b: Block): string {
     }
     case 'file': {
       const meta = `${escapeAttr(b.name)} · ${escapeAttr(b.size)}`
-      // Email clients are unfriendly to attachments rendered inline.
-      // Show a styled "file card" with the name + size so the
-      // recipient sees the attachment intent. Real attachment delivery
-      // can be wired separately when the server supports it.
       const cardStyle =
         'display:inline-block;margin:12px 0;padding:12px 16px;border:1px solid #d8dadd;border-radius:12px;background:#ffffff;font-size:14px;color:#0c0d10;'
       const url = b.url
