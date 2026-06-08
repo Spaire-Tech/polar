@@ -811,7 +811,7 @@ const CSS = `
 .sppdp .thumb img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;}
 
 /* Details rail */
-.sppdp .title{font-size:clamp(30px,3.3vw,46px);font-weight:600;line-height:1.06;letter-spacing:-0.025em;margin:-6px 0 0;text-wrap:balance;}
+.sppdp .title{font-size:clamp(24px,2.4vw,34px);font-weight:600;line-height:1.1;letter-spacing:-0.025em;margin:-4px 0 0;text-wrap:balance;}
 .sppdp .byline{margin:16px 0 0;font-size:15px;color:var(--muted);font-weight:400;}
 .sppdp .price-row{display:flex;align-items:baseline;gap:12px;margin:26px 0 0;}
 .sppdp .price{font-size:26px;font-weight:600;letter-spacing:-0.02em;}
