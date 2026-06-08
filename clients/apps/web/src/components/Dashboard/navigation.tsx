@@ -1,7 +1,8 @@
-import { useOrganizationAccount } from '@/hooks/queries'
 import { PolarHog, usePostHog } from '@/hooks/posthog'
+import { useOrganizationAccount } from '@/hooks/queries'
 import AttachMoneyOutlined from '@mui/icons-material/AttachMoneyOutlined'
 import CodeOutlined from '@mui/icons-material/CodeOutlined'
+import DynamicFormOutlined from '@mui/icons-material/DynamicFormOutlined'
 import ExtensionOutlined from '@mui/icons-material/ExtensionOutlined'
 import HiveOutlined from '@mui/icons-material/HiveOutlined'
 import LayersOutlined from '@mui/icons-material/LayersOutlined'
@@ -150,9 +151,7 @@ export const useOrganizationRoutes = (
   const noAccount =
     accountError && (accountError as any)?.response?.status === 404
   // Pass false when no account or payouts disabled; undefined while still loading (no redirect)
-  const payoutsReady = noAccount
-    ? false
-    : account?.is_payouts_enabled
+  const payoutsReady = noAccount ? false : account?.is_payouts_enabled
   const resolver = useCallback(
     (o?: schemas['Organization'], posthog?: PolarHog) =>
       organizationRoutesList(o, posthog, payoutsReady),
@@ -202,8 +201,14 @@ const generalRoutesList = (org?: schemas['Organization']): Route[] => [
     showSubsInNav: false,
     subs: [
       { title: 'Products', link: `/dashboard/${org?.slug}/products` },
-      { title: 'Payment Links', link: `/dashboard/${org?.slug}/products/checkout-links` },
-      { title: 'Discounts', link: `/dashboard/${org?.slug}/products/discounts` },
+      {
+        title: 'Payment Links',
+        link: `/dashboard/${org?.slug}/products/checkout-links`,
+      },
+      {
+        title: 'Discounts',
+        link: `/dashboard/${org?.slug}/products/discounts`,
+      },
       { title: 'Files', link: `/dashboard/${org?.slug}/products/benefits` },
     ],
   },
@@ -264,6 +269,16 @@ const generalRoutesList = (org?: schemas['Organization']): Route[] => [
     link: `/dashboard/${org?.slug}/email-marketing`,
     checkIsActive: (currentRoute: string): boolean => {
       return currentRoute.startsWith(`/dashboard/${org?.slug}/email-marketing`)
+    },
+    if: true,
+  },
+  {
+    id: 'forms',
+    title: 'Forms',
+    icon: <DynamicFormOutlined fontSize="inherit" />,
+    link: `/dashboard/${org?.slug}/forms`,
+    checkIsActive: (currentRoute: string): boolean => {
+      return currentRoute.startsWith(`/dashboard/${org?.slug}/forms`)
     },
     if: true,
   },
