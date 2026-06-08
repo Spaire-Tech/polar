@@ -29,6 +29,8 @@ function Toggle({ on, onClick }: { on: boolean; onClick: () => void }) {
 export function SendOptions({
   organization,
   senderEmail,
+  senderName,
+  senderAvatarUrl,
   so,
   setSo,
   onTouch,
@@ -36,6 +38,8 @@ export function SendOptions({
 }: {
   organization: schemas['Organization']
   senderEmail: string
+  senderName: string
+  senderAvatarUrl: string | null | undefined
   so: SendOptionsState
   setSo: (next: SendOptionsState) => void
   onTouch?: () => void
@@ -48,7 +52,9 @@ export function SendOptions({
   const [adding, setAdding] = useState(false)
   const [tagText, setTagText] = useState('')
 
-  const initials = organization.name
+  // Initials are a fallback when there's no avatar; based on the
+  // sender's name so it matches who's actually sending.
+  const initials = (senderName || organization.name)
     .split(' ')
     .map((p) => p[0])
     .filter(Boolean)
@@ -86,9 +92,16 @@ export function SendOptions({
       <div className="st-group">
         <h3>Sender</h3>
         <div className="acct">
-          <span className="av">{initials || 'S'}</span>
+          <span className="av">
+            {senderAvatarUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={senderAvatarUrl} alt={senderName} />
+            ) : (
+              initials || 'S'
+            )}
+          </span>
           <span className="who">
-            <b>{organization.name}</b>
+            <b>{senderName || organization.name}</b>
             <span>{senderEmail || 'org default sender'}</span>
           </span>
         </div>

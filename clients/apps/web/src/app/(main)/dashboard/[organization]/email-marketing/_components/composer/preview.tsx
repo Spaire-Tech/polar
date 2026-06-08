@@ -11,6 +11,8 @@ import type { Attachment, Block } from './types'
 export function EmailPreview({
   organization,
   senderEmail,
+  senderName,
+  senderAvatarUrl,
   subject,
   blocks,
   attachments,
@@ -19,13 +21,16 @@ export function EmailPreview({
 }: {
   organization: schemas['Organization']
   senderEmail: string
+  senderName: string
+  senderAvatarUrl: string | null | undefined
   subject: string
   blocks: Block[]
   attachments: Attachment[]
   webVersion: boolean
   device: 'desktop' | 'mobile'
 }) {
-  const initials = organization.name
+  const displayName = senderName || organization.name
+  const initials = displayName
     .split(' ')
     .map((p) => p[0])
     .filter(Boolean)
@@ -40,10 +45,17 @@ export function EmailPreview({
           <div className="pv-mailhead">
             <h1 className="pv-subject">{subject || '(no subject)'}</h1>
             <div className="pv-sender">
-              <span className="av">{initials || 'S'}</span>
+              <span className="av">
+                {senderAvatarUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={senderAvatarUrl} alt={displayName} />
+                ) : (
+                  initials || 'S'
+                )}
+              </span>
               <div className="sm">
                 <div className="l1">
-                  <b>{organization.name}</b>
+                  <b>{displayName}</b>
                   <span className="em">
                     &lt;{senderEmail || `noreply@${organization.slug}.com`}&gt;
                   </span>
