@@ -89,7 +89,11 @@ class FormRepository(
     async def get_by_organization_and_slug(
         self, organization_id: UUID, slug: str
     ) -> Form | None:
-        statement = self.get_base_statement().where(
+        # Include soft-deleted forms: the (organization_id, slug) unique
+        # constraint counts deleted rows too, so the slug-collision check must
+        # see them — otherwise re-using a deleted form's slug hits the DB
+        # constraint instead of getting a fresh suffix.
+        statement = self.get_base_statement(include_deleted=True).where(
             Form.organization_id == organization_id,
             Form.slug == slug,
         )
