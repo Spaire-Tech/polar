@@ -33,7 +33,6 @@ import { useForm, useWatch } from 'react-hook-form'
 import { DashboardBody } from '../Layout/DashboardLayout'
 import { toast } from '../Toast/use-toast'
 import { getStatusRedirect } from '../Toast/utils'
-import { FormFieldsSection } from './FormFieldsSection'
 import { FormImageUpload } from './FormImageUpload'
 import { LeadMagnetUpload } from './LeadMagnetUpload'
 
@@ -80,17 +79,21 @@ const Section = ({
   description,
   children,
 }: {
-  title: string
+  title?: string
   description?: string
   children: React.ReactNode
 }) => (
   <div className="flex flex-col gap-4 rounded-2xl border border-gray-200 p-6">
-    <div>
-      <h2 className="text-base font-semibold text-gray-900">{title}</h2>
-      {description ? (
-        <p className="mt-1 text-sm text-gray-500">{description}</p>
-      ) : null}
-    </div>
+    {title || description ? (
+      <div>
+        {title ? (
+          <h2 className="text-base font-semibold text-gray-900">{title}</h2>
+        ) : null}
+        {description ? (
+          <p className="mt-1 text-sm text-gray-500">{description}</p>
+        ) : null}
+      </div>
+    ) : null}
     {children}
   </div>
 )
@@ -191,10 +194,10 @@ export const FormBuilder = ({
       subtitle: values.subtitle.trim() || null,
       button_label: values.button_label,
       success_message: values.success_message.trim() || null,
-      status: values.status,
+      status: 'published' as const,
       file_id: values.file_id,
       image_url: values.image_url,
-      style: values.style,
+      style: { ...values.style, corner: 'sharp' as const },
       attached_custom_fields: values.attached_custom_fields.map((f) => ({
         custom_field_id: f.custom_field_id,
         required: f.required,
@@ -211,11 +214,13 @@ export const FormBuilder = ({
       }
       router.push(
         getStatusRedirect(
-          `/dashboard/${organization.slug}/forms`,
-          initialForm ? 'Form updated' : 'Form created',
           initialForm
-            ? 'Your form was updated successfully.'
-            : 'Your form was created successfully.',
+            ? `/dashboard/${organization.slug}/products/lead-magnets`
+            : `/dashboard/${organization.slug}/storefront`,
+          initialForm ? 'Lead magnet updated' : 'Lead magnet created',
+          initialForm
+            ? 'Your lead magnet was updated successfully.'
+            : 'Your lead magnet was created. Add it to your Space.',
         ),
       )
     } catch (e) {
@@ -233,7 +238,7 @@ export const FormBuilder = ({
         onSubmit={handleSubmit(onSubmit)}
         className="flex flex-col gap-6 pb-12"
       >
-        <Section title="Add text">
+        <Section>
           <FormField
             control={control}
             name="title"
@@ -316,13 +321,6 @@ export const FormBuilder = ({
         </Section>
 
         <Section
-          title="Collect info"
-          description="Basic info fields can't be edited."
-        >
-          <FormFieldsSection organization={organization} />
-        </Section>
-
-        <Section
           title="Lead magnet"
           description="The file delivered to subscribers after they submit."
         >
@@ -336,29 +334,8 @@ export const FormBuilder = ({
           />
         </Section>
 
-        <Section
-          title="Style"
-          description="Colours and layout of the form card."
-        >
+        <Section title="Style" description="Layout of the form card.">
           <div className="flex flex-col gap-4">
-            <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-medium text-gray-700">Corners</label>
-              <Select
-                value={styleValue.corner}
-                onValueChange={(v) =>
-                  setStyle({ corner: v as FormStyle['corner'] })
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="sharp">Sharp</SelectItem>
-                  <SelectItem value="rounded">Rounded</SelectItem>
-                  <SelectItem value="pill">Pill</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
             <div className="flex flex-col gap-1.5">
               <label className="text-sm font-medium text-gray-700">
                 Image side
@@ -375,6 +352,7 @@ export const FormBuilder = ({
                 <SelectContent>
                   <SelectItem value="left">Left</SelectItem>
                   <SelectItem value="right">Right</SelectItem>
+                  <SelectItem value="top">Top</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -390,29 +368,9 @@ export const FormBuilder = ({
           </div>
         </Section>
 
-        <Section title="Visibility">
-          <FormField
-            control={control}
-            name="status"
-            render={({ field }) => (
-              <FormItem>
-                <Select value={field.value} onValueChange={field.onChange}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="draft">Draft</SelectItem>
-                    <SelectItem value="published">Published</SelectItem>
-                  </SelectContent>
-                </Select>
-              </FormItem>
-            )}
-          />
-        </Section>
-
         <div className="flex flex-row items-center gap-2">
           <Button type="submit" loading={isSubmitting} disabled={isSubmitting}>
-            {initialForm ? 'Save changes' : 'Create form'}
+            {initialForm ? 'Save changes' : 'Create lead magnet'}
           </Button>
         </div>
       </form>
@@ -423,7 +381,7 @@ export const FormBuilder = ({
     return (
       <div className="flex flex-col gap-6 px-8 py-8">
         <h1 className="text-xl font-semibold text-gray-900">
-          {initialForm ? 'Edit form' : 'New form'}
+          {initialForm ? 'Edit lead magnet' : 'New lead magnet'}
         </h1>
         {content}
       </div>
@@ -431,7 +389,7 @@ export const FormBuilder = ({
   }
 
   return (
-    <DashboardBody title={initialForm ? 'Edit form' : 'New form'}>
+    <DashboardBody title={initialForm ? 'Edit lead magnet' : 'New lead magnet'}>
       {content}
     </DashboardBody>
   )

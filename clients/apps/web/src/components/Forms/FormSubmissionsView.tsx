@@ -33,11 +33,11 @@ export const FormSubmissionsView = ({
     <div className="flex min-h-screen flex-col bg-gray-50">
       <div className="border-b border-gray-200 bg-white px-6 py-4">
         <Link
-          href={`/dashboard/${organization.slug}/forms`}
+          href={`/dashboard/${organization.slug}/products/lead-magnets`}
           className="flex items-center gap-2 text-sm text-gray-500 transition-colors hover:text-black"
         >
           <span aria-hidden>←</span>
-          <span>Back to Forms</span>
+          <span>Back to Lead Magnets</span>
         </Link>
       </div>
       <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 p-8">

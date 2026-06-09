@@ -1,11 +1,11 @@
-import { FormsList } from '@/components/Forms/FormsList'
 import { getServerSideAPI } from '@/utils/client/serverside'
 import { getOrganizationBySlugOrNotFound } from '@/utils/organization'
 import { Metadata } from 'next'
+import LeadMagnetsPage from './LeadMagnetsPage'
 
 export async function generateMetadata(): Promise<Metadata> {
   return {
-    title: 'Forms',
+    title: 'Lead Magnets',
   }
 }
 
@@ -19,5 +19,5 @@ export default async function Page(props: {
     params.organization,
   )
 
-  return <FormsList organization={organization} />
+  return <LeadMagnetsPage organization={organization} />
 }

@@ -2,7 +2,6 @@ import { PolarHog, usePostHog } from '@/hooks/posthog'
 import { useOrganizationAccount } from '@/hooks/queries'
 import AttachMoneyOutlined from '@mui/icons-material/AttachMoneyOutlined'
 import CodeOutlined from '@mui/icons-material/CodeOutlined'
-import DynamicFormOutlined from '@mui/icons-material/DynamicFormOutlined'
 import ExtensionOutlined from '@mui/icons-material/ExtensionOutlined'
 import HiveOutlined from '@mui/icons-material/HiveOutlined'
 import LayersOutlined from '@mui/icons-material/LayersOutlined'
@@ -269,16 +268,6 @@ const generalRoutesList = (org?: schemas['Organization']): Route[] => [
     link: `/dashboard/${org?.slug}/email-marketing`,
     checkIsActive: (currentRoute: string): boolean => {
       return currentRoute.startsWith(`/dashboard/${org?.slug}/email-marketing`)
-    },
-    if: true,
-  },
-  {
-    id: 'forms',
-    title: 'Forms',
-    icon: <DynamicFormOutlined fontSize="inherit" />,
-    link: `/dashboard/${org?.slug}/forms`,
-    checkIsActive: (currentRoute: string): boolean => {
-      return currentRoute.startsWith(`/dashboard/${org?.slug}/forms`)
     },
     if: true,
   },

@@ -6,9 +6,9 @@ import { FormPublic } from '@/hooks/queries/forms'
 import { schemas } from '@spaire/client'
 import Link from 'next/link'
 import { useMemo } from 'react'
+import { FormCard } from '@/components/Forms/FormCard'
 import { CATEGORY_LABELS } from './categoryLabels'
 import { SectionLabel } from './SectionLabel'
-import { StorefrontForm } from './StorefrontForm'
 import {
   LinksLayout,
   StorefrontLinkItem,
@@ -109,15 +109,33 @@ export const Storefront = ({
         }
         if (chunk.kind === 'form') {
           return (
-            <div key={`f-${idx}`} className="flex flex-col gap-6">
-              {chunk.items.map((entry) => (
-                <StorefrontForm
-                  key={entry.id}
-                  form={entry.form}
-                  preview={preview}
-                />
-              ))}
-            </div>
+            <section
+              key={`f-${idx}`}
+              className="flex scroll-mt-24 flex-col gap-6"
+            >
+              <div className="grid w-full grid-cols-1 gap-6 md:grid-cols-2">
+                {chunk.items.map((entry) =>
+                  preview ? (
+                    <div key={entry.id}>
+                      <FormCard
+                        form={entry.form}
+                        thumbnailSize={thumbnailSize}
+                      />
+                    </div>
+                  ) : (
+                    <Link
+                      key={entry.id}
+                      href={`/${organization.slug}/forms/${entry.form.id}`}
+                    >
+                      <FormCard
+                        form={entry.form}
+                        thumbnailSize={thumbnailSize}
+                      />
+                    </Link>
+                  ),
+                )}
+              </div>
+            </section>
           )
         }
         return (

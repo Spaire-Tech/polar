@@ -32,8 +32,12 @@ const cx = (...parts: Array<string | false | null | undefined>): string =>
   parts.filter(Boolean).join(' ')
 
 const CSS = `
+.lm-container{container-type:inline-size;container-name:lm;width:100%;display:flex;justify-content:center}
 .lm-frame{--input-radius:16px;display:flex;width:100%;max-width:860px;min-height:504px;overflow:hidden;background:#fff;border-radius:24px;box-shadow:0 1px 2px rgba(12,12,13,.05),0 24px 60px -28px rgba(12,12,13,.32);font-family:"Schibsted Grotesk",system-ui,sans-serif;color:#0c0c0d}
 .lm-frame.media-right{flex-direction:row-reverse}
+.lm-frame.media-top{flex-direction:column}
+.lm-frame.media-top .lm-media{flex:0 0 220px}
+.lm-frame.media-top .lm-panel{align-items:flex-start}
 .lm-media{flex:0 0 42%;min-width:0;position:relative;background:#f1f1f3}
 .lm-media img{width:100%;height:100%;object-fit:cover;display:block}
 .lm-media-ph{width:100%;height:100%;display:grid;place-items:center;color:#9a9aa4;font-size:14px;font-weight:500;text-align:center;padding:20px}
@@ -72,7 +76,8 @@ const CSS = `
 .lm-linkbtn{background:none;border:none;padding:0;cursor:pointer;font-family:inherit;font-size:14.5px;font-weight:600;color:var(--accent)}
 .lm-linkbtn:hover{text-decoration:underline}
 .lm-linkbtn.muted{color:#9a9aa4}
-@media (max-width:720px){.lm-frame,.lm-frame.media-right{flex-direction:column;max-width:none}.lm-media{flex:0 0 200px}.lm-panel{padding:32px 26px 40px;align-items:flex-start}}
+@container lm (max-width:640px){.lm-frame,.lm-frame.media-right,.lm-frame.media-top{flex-direction:column;max-width:none}.lm-media{flex:0 0 200px}.lm-panel{padding:32px 26px 40px;align-items:flex-start}}
+@media (max-width:720px){.lm-frame,.lm-frame.media-right,.lm-frame.media-top{flex-direction:column;max-width:none}.lm-media{flex:0 0 200px}.lm-panel{padding:32px 26px 40px;align-items:flex-start}}
 `
 
 const CheckIcon = ({ color = '#fff' }: { color?: string }) => (
@@ -84,21 +89,6 @@ const CheckIcon = ({ color = '#fff' }: { color?: string }) => (
       strokeLinecap="round"
       strokeLinejoin="round"
     />
-  </svg>
-)
-
-const LockIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" aria-hidden>
-    <rect
-      x="5"
-      y="10.5"
-      width="14"
-      height="9.5"
-      rx="2"
-      stroke="#b6b6c0"
-      strokeWidth="1.8"
-    />
-    <path d="M8 10.5V8a4 4 0 018 0v2.5" stroke="#b6b6c0" strokeWidth="1.8" />
   </svg>
 )
 
@@ -262,168 +252,173 @@ export const LeadMagnetCard = ({
   return (
     <>
       <style>{CSS}</style>
-      <div
-        className={cx(
-          'lm-frame',
-          style.media_side === 'right' && 'media-right',
-        )}
-        style={frameStyle}
-      >
-        <div className="lm-media">
-          {form.image_url ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={form.image_url} alt="" />
-          ) : (
-            <div className="lm-media-ph">Drop your cover image</div>
+      <div className="lm-container">
+        <div
+          className={cx(
+            'lm-frame',
+            style.media_side === 'right' && 'media-right',
+            style.media_side === 'top' && 'media-top',
           )}
-        </div>
-
-        <div className="lm-panel">
-          <div className="lm-inner">
-            {result?.success ? (
-              <div className="lm-success">
-                <div className="check">
-                  <CheckIcon />
-                </div>
-                <h2>Check your inbox</h2>
-                <p>
-                  {result.success_message || (
-                    <>
-                      We just sent your free download to{' '}
-                      <strong>{email || 'your email'}</strong>.
-                    </>
-                  )}
-                </p>
-                <div className="actions">
-                  {result.download ? (
-                    <a
-                      className="lm-linkbtn"
-                      href={result.download.url}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      Download now
-                    </a>
-                  ) : null}
-                  <button
-                    type="button"
-                    className="lm-linkbtn muted"
-                    onClick={reset}
-                  >
-                    Start over
-                  </button>
-                </div>
-              </div>
+          style={frameStyle}
+        >
+          <div className="lm-media">
+            {form.image_url ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={form.image_url} alt="" />
             ) : (
-              <div>
-                <h1 className="lm-headline">{form.title || 'Your headline'}</h1>
-                {form.subtitle ? (
-                  <p className="lm-subhead">{form.subtitle}</p>
-                ) : null}
+              <div className="lm-media-ph">Drop your cover image</div>
+            )}
+          </div>
 
-                <form className="lm-form" onSubmit={onSubmit} noValidate>
-                  <div className="lm-field">
-                    <input
-                      className={cx('lm-input', errors.name && 'invalid')}
-                      type="text"
-                      placeholder="Your name"
-                      autoComplete="name"
-                      value={name}
-                      disabled={!interactive}
-                      onChange={(e) => {
-                        setName(e.target.value)
-                        if (errors.name)
-                          setErrors({ ...errors, name: undefined })
-                      }}
-                    />
-                    {errors.name ? (
-                      <div className="lm-err">{errors.name}</div>
-                    ) : null}
+          <div className="lm-panel">
+            <div className="lm-inner">
+              {result?.success ? (
+                <div className="lm-success">
+                  <div className="check">
+                    <CheckIcon />
                   </div>
-
-                  <div className="lm-field">
-                    <input
-                      className={cx('lm-input', errors.email && 'invalid')}
-                      type="email"
-                      placeholder="Email address"
-                      autoComplete="email"
-                      value={email}
-                      disabled={!interactive}
-                      onChange={(e) => {
-                        setEmail(e.target.value)
-                        if (errors.email)
-                          setErrors({ ...errors, email: undefined })
-                      }}
-                    />
-                    {errors.email ? (
-                      <div className="lm-err">{errors.email}</div>
+                  <h2>Check your inbox</h2>
+                  <p>
+                    {result.success_message || (
+                      <>
+                        We just sent your free download to{' '}
+                        <strong>{email || 'your email'}</strong>.
+                      </>
+                    )}
+                  </p>
+                  <div className="actions">
+                    {result.download ? (
+                      <a
+                        className="lm-linkbtn"
+                        href={result.download.url}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        Download now
+                      </a>
                     ) : null}
-                  </div>
-
-                  {form.attached_custom_fields.map((field) => (
-                    <CustomFieldInput
-                      key={field.custom_field_id}
-                      field={field}
-                      disabled={!interactive}
-                      value={fieldValues[field.custom_field.slug] ?? null}
-                      onChange={(v) =>
-                        setFieldValues((prev) => ({
-                          ...prev,
-                          [field.custom_field.slug]: v,
-                        }))
-                      }
-                    />
-                  ))}
-
-                  {style.show_consent ? (
-                    <div
-                      className={cx(
-                        'lm-consent',
-                        consent && 'checked',
-                        errors.consent && 'invalid',
-                      )}
-                      onClick={() => {
-                        if (!interactive) return
-                        setConsent(!consent)
-                        if (errors.consent)
-                          setErrors({ ...errors, consent: undefined })
-                      }}
-                      role="checkbox"
-                      aria-checked={consent}
+                    <button
+                      type="button"
+                      className="lm-linkbtn muted"
+                      onClick={reset}
                     >
-                      <span className="box">
-                        <CheckIcon />
-                      </span>
-                      <span>
-                        I agree to receive emails and accept the privacy policy.
-                      </span>
-                    </div>
+                      Start over
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <h1 className="lm-headline">
+                    {form.title || 'Your headline'}
+                  </h1>
+                  {form.subtitle ? (
+                    <p className="lm-subhead">{form.subtitle}</p>
                   ) : null}
 
-                  {error ? <div className="lm-err">{error}</div> : null}
+                  <form className="lm-form" onSubmit={onSubmit} noValidate>
+                    <div className="lm-field">
+                      <input
+                        className={cx('lm-input', errors.name && 'invalid')}
+                        type="text"
+                        placeholder="Your name"
+                        autoComplete="name"
+                        value={name}
+                        disabled={!interactive}
+                        onChange={(e) => {
+                          setName(e.target.value)
+                          if (errors.name)
+                            setErrors({ ...errors, name: undefined })
+                        }}
+                      />
+                      {errors.name ? (
+                        <div className="lm-err">{errors.name}</div>
+                      ) : null}
+                    </div>
 
-                  <button
-                    type="submit"
-                    className="lm-cta"
-                    disabled={submit.isPending}
-                  >
-                    {submit.isPending ? (
-                      <>
-                        <span className="lm-spinner" />
-                        Sending…
-                      </>
-                    ) : (
-                      form.button_label || 'Submit'
-                    )}
-                  </button>
-                </form>
+                    <div className="lm-field">
+                      <input
+                        className={cx('lm-input', errors.email && 'invalid')}
+                        type="email"
+                        placeholder="Email address"
+                        autoComplete="email"
+                        value={email}
+                        disabled={!interactive}
+                        onChange={(e) => {
+                          setEmail(e.target.value)
+                          if (errors.email)
+                            setErrors({ ...errors, email: undefined })
+                        }}
+                      />
+                      {errors.email ? (
+                        <div className="lm-err">{errors.email}</div>
+                      ) : null}
+                    </div>
 
-                <div className="lm-foot">
-                  <LockIcon />
-                  Your details are safe. Unsubscribe anytime.
+                    {form.attached_custom_fields.map((field) => (
+                      <CustomFieldInput
+                        key={field.custom_field_id}
+                        field={field}
+                        disabled={!interactive}
+                        value={fieldValues[field.custom_field.slug] ?? null}
+                        onChange={(v) =>
+                          setFieldValues((prev) => ({
+                            ...prev,
+                            [field.custom_field.slug]: v,
+                          }))
+                        }
+                      />
+                    ))}
+
+                    {style.show_consent ? (
+                      <div
+                        className={cx(
+                          'lm-consent',
+                          consent && 'checked',
+                          errors.consent && 'invalid',
+                        )}
+                        onClick={() => {
+                          if (!interactive) return
+                          setConsent(!consent)
+                          if (errors.consent)
+                            setErrors({ ...errors, consent: undefined })
+                        }}
+                        role="checkbox"
+                        aria-checked={consent}
+                      >
+                        <span className="box">
+                          <CheckIcon />
+                        </span>
+                        <span>
+                          I agree to receive emails and accept the privacy
+                          policy.
+                        </span>
+                      </div>
+                    ) : null}
+
+                    {error ? <div className="lm-err">{error}</div> : null}
+
+                    <button
+                      type="submit"
+                      className="lm-cta"
+                      disabled={submit.isPending}
+                    >
+                      {submit.isPending ? (
+                        <>
+                          <span className="lm-spinner" />
+                          Sending…
+                        </>
+                      ) : (
+                        form.button_label || 'Submit'
+                      )}
+                    </button>
+                  </form>
+
+                  <div className="lm-foot">
+                    Your details are safe. Unsubscribe anytime.
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
       </div>
