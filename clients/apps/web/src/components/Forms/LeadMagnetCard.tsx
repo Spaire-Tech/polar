@@ -1,6 +1,7 @@
 'use client'
 
 import {
+  DEFAULT_FORM_STYLE,
   FormAttachedCustomField,
   FormStyle,
   FormSubmitResult,
@@ -23,7 +24,6 @@ const CORNER_RADIUS: Record<FormStyle['corner'], string> = {
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 const CSS = `
-@import url('https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700;800;900&display=swap');
 .lm-frame{--input-radius:16px;display:flex;width:100%;max-width:860px;min-height:504px;overflow:hidden;background:#fff;border-radius:24px;box-shadow:0 1px 2px rgba(12,12,13,.05),0 24px 60px -28px rgba(12,12,13,.32);font-family:"Schibsted Grotesk",system-ui,sans-serif;color:#0c0c0d}
 .lm-frame.media-right{flex-direction:row-reverse}
 .lm-media{flex:0 0 42%;min-width:0;position:relative;background:#f1f1f3}
@@ -210,7 +210,7 @@ export const LeadMagnetCard = ({
   const [result, setResult] = useState<FormSubmitResult | null>(null)
   const [error, setError] = useState<string | null>(null)
 
-  const style = form.style
+  const style = form.style ?? DEFAULT_FORM_STYLE
   const frameStyle = {
     ['--accent' as string]: style.accent,
     ['--input-radius' as string]:
@@ -255,7 +255,7 @@ export const LeadMagnetCard = ({
     <>
       <style>{CSS}</style>
       <div
-        className={`lm-frame${style.media_side === 'right' ? 'media-right' : ''}`}
+        className={`lm-frame${style.media_side === 'right' ? ' media-right' : ''}`}
         style={frameStyle}
       >
         <div className="lm-media">

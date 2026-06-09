@@ -37,8 +37,6 @@ import { FormFieldsSection } from './FormFieldsSection'
 import { FormImageUpload } from './FormImageUpload'
 import { LeadMagnetUpload } from './LeadMagnetUpload'
 
-const ACCENT_SWATCHES = ['#3b49f4', '#ff5a3c', '#1f8a5b', '#7a5ae0', '#0c0c0d']
-
 export type FormBuilderValues = {
   title: string
   subtitle: string
@@ -343,25 +341,6 @@ export const FormBuilder = ({
           description="Colours and layout of the form card."
         >
           <div className="flex flex-col gap-4">
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium text-gray-700">Accent</label>
-              <div className="flex flex-row gap-2">
-                {ACCENT_SWATCHES.map((c) => (
-                  <button
-                    key={c}
-                    type="button"
-                    onClick={() => setStyle({ accent: c })}
-                    aria-label={`Accent ${c}`}
-                    className={`h-8 w-8 rounded-full border-2 transition ${
-                      styleValue.accent === c
-                        ? 'border-gray-900'
-                        : 'border-transparent'
-                    }`}
-                    style={{ background: c }}
-                  />
-                ))}
-              </div>
-            </div>
             <div className="flex flex-col gap-1.5">
               <label className="text-sm font-medium text-gray-700">Corners</label>
               <Select
