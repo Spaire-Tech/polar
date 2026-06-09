@@ -1,8 +1,10 @@
 'use client'
 
-// Apple TV-style course landing — mirrors the Spaire Course Landing v2 design
-// (light page, dark cinematic hero in a rounded box, free preview episode grid,
-// dark paywall block, light instructor section, dark final CTA).
+// Apple TV-style course landing — mirrors the Spaire Originals "Course Landing"
+// design: a warm off-white (#F2F1EE) canvas, a full-bleed cinematic hero panel
+// with a frosted control band, a horizontal rail of dark "lockup" lesson cards
+// (Free chip + title + description), the unchanged instructor section, and the
+// existing sample / FAQ / moments / free-preview blocks underneath.
 //
 // Inline editing is provided by EditText, EditMedia and EditBlock — every
 // visible string is click-to-edit and every media tile gets a hover Replace
@@ -406,7 +408,7 @@ export function EditableCourseLandingView({
     <div
       data-spaire-editor
       style={{
-        background: 'var(--bg-0, #fff)',
+        background: 'var(--bg-0, #f2f1ee)',
         color: 'var(--fg-0, oklch(0.18 0.008 280))',
         fontFamily: FONT_VAR,
         minHeight: '100%',
@@ -503,29 +505,42 @@ function Hero({
 
   const [trailerOpen, setTrailerOpen] = useState(false)
 
+  // Frosted-band metadata. Pulled from real course data where we have it;
+  // the rest are static "format" badges that mirror the Course Landing design.
+  const formatBadges = ['Self-paced', 'Lifetime access', 'Captions', 'Mobile & TV']
+  // The middle column's logline defaults to the AI `description` (mapped to
+  // hero.description in the wizard) and falls back to the short hero.tagline
+  // for courses generated before that field existed.
+  const loglineFallback =
+    ed.t('hero.tagline', '') ||
+    'Shot like a film, taught like a private lesson.'
+
   return (
     <section
       style={{
         position: 'relative',
-        height: 'min(88vh, 760px)',
-        minHeight: 580,
-        margin: '20px 20px 0',
-        borderRadius: 'calc(28px * var(--radius-mul, 1))',
+        height: '100vh',
+        minHeight: 760,
         overflow: 'hidden',
-        background: '#000',
+        background: 'var(--bg-0, #f2f1ee)',
         isolation: 'isolate',
-        border: '1px solid oklch(0.92 0.003 280)',
-        boxShadow: '0 2px 6px rgba(0,0,0,0.06), 0 24px 60px rgba(0,0,0,0.10)',
+        fontFamily: FONT_VAR,
       }}
     >
+      {/* Kenburns keyframe — slow push-in on the backdrop, matching the design. */}
+      <style>{`@keyframes spaireHeroKenburns{to{transform:scale(1.11)}}`}</style>
+
+      {/* panel-art: the cinematic backdrop (image or trailer peek), slowly
+          zooming. Editable via the same hero.backdrop media slot. */}
       <EditMedia
         id="hero.backdrop"
         label="hero image"
         style={{
           position: 'absolute',
           inset: 0,
-          borderRadius: 'inherit',
           overflow: 'hidden',
+          transform: 'scale(1.04)',
+          animation: 'spaireHeroKenburns 22s ease-out forwards',
         }}
         renderMedia={() => null}
         chromeless
@@ -537,7 +552,8 @@ function Hero({
         />
       </EditMedia>
 
-      {/* Vignette */}
+      {/* panel-scrim: fades the photo down into the off-white canvas at the
+          bottom, plus a soft top-left darkening for the title lockup. */}
       <div
         style={{
           position: 'absolute',
@@ -545,192 +561,108 @@ function Hero({
           zIndex: 2,
           pointerEvents: 'none',
           background:
-            'linear-gradient(180deg, oklch(0 0 0 / 0.2) 0%, oklch(0 0 0 / 0) 30%, oklch(0 0 0 / 0) 45%, oklch(0 0 0 / 0.6) 80%, oklch(0 0 0 / 0.92) 100%)',
+            'linear-gradient(0deg, var(--bg-0, #f2f1ee) 0.5%, rgba(242,241,238,0.5) 18%, transparent 44%), linear-gradient(115deg, rgba(0,0,0,0.52) 0%, rgba(0,0,0,0.14) 38%, transparent 60%)',
         }}
       />
 
-      {/* SPAIRE ORIGINAL pill (top-left) */}
+      {/* Hero media controls (top-right) — separate Add image + Add trailer */}
+      <HeroMediaControls />
+
+      {/* panel-title: eyebrow + oversized title, anchored lower-left just
+          above the frosted band. */}
       <div
         style={{
           position: 'absolute',
-          left: 32,
-          top: 28,
-          zIndex: 3,
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8,
+          left: 'var(--gut, 72px)',
+          right: 'var(--gut, 72px)',
+          bottom: 'clamp(300px, 34vh, 360px)',
+          zIndex: 4,
         }}
       >
-        <span
-          style={{
-            width: 6,
-            height: 6,
-            borderRadius: '50%',
-            background: 'oklch(0.72 0.16 25)',
-            boxShadow: '0 0 12px oklch(0.72 0.16 25)',
-          }}
-        />
         <EditText
           path="hero.eyebrow"
-          defaultValue="SPAIRE ORIGINAL"
+          defaultValue="Spaire Originals"
           style={{
-            fontSize: 11,
-            letterSpacing: '0.18em',
+            display: 'block',
+            fontSize: 19,
             fontWeight: 600,
-            color: 'rgba(255,255,255,0.85)',
+            letterSpacing: '-0.01em',
+            color: 'rgba(255,255,255,0.94)',
+            marginBottom: 14,
             fontFamily: FONT_VAR,
           }}
         />
-      </div>
-
-      {/* Hero media controls (top-right) — separate Add image + Add trailer */}
-      <HeroMediaControls />
-      {/* Bottom content */}
-      <div
-        style={{
-          position: 'absolute',
-          left: 0,
-          right: 0,
-          bottom: 0,
-          zIndex: 3,
-          padding: '40px 48px 52px',
-          color: 'white',
-          fontFamily: FONT_VAR,
-        }}
-      >
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 10,
-            marginBottom: 16,
-            fontSize: 12,
-            color: 'rgba(255,255,255,0.65)',
-            fontWeight: 500,
-          }}
-        >
-          <EditText
-            path="hero.series_label"
-            defaultValue="NEW SERIES"
-            style={{
-              padding: '3px 10px',
-              background: 'rgba(255,255,255,0.12)',
-              backdropFilter: 'blur(20px)',
-              WebkitBackdropFilter: 'blur(20px)',
-              borderRadius: 999,
-              border: '1px solid rgba(255,255,255,0.18)',
-              fontSize: 10,
-              letterSpacing: '0.12em',
-              fontWeight: 600,
-              color: 'white',
-            }}
-          />
-          <span style={{ color: 'rgba(255,255,255,0.6)' }}>
-            {flatLessons.length}{' '}
-            {plural(flatLessons.length, 'lesson', 'lessons')}
-          </span>
-          <span style={{ color: 'rgba(255,255,255,0.3)' }}>·</span>
-          <span style={{ color: 'rgba(255,255,255,0.6)' }}>
-            {fmtDuration(totalDurationSeconds)}
-          </span>
-          <span style={{ color: 'rgba(255,255,255,0.3)' }}>·</span>
-          <EditText
-            path="hero.level"
-            defaultValue="All levels"
-            style={{ color: 'rgba(255,255,255,0.6)' }}
-          />
-        </div>
-
         <EditText
           as="h1"
           path="hero.title"
           defaultValue={course.title ?? 'Untitled course'}
           multiline
           style={{
-            fontSize: `calc(clamp(52px, 7.5vw, 96px) * var(--type-scale, 1))`,
-            fontWeight: 'var(--h-weight, 700)',
+            fontSize: `calc(clamp(56px, 7vw, 116px) * var(--type-scale, 1))`,
+            fontWeight: 'var(--h-weight, 800)',
             fontStyle: 'var(--h-italic, normal)',
-            letterSpacing: 'calc(var(--h-tracking, 0em) - 0.045em)',
-            lineHeight: 'calc(var(--h-leading, 1) * 0.95)',
-            margin: '0 0 18px',
-            color: 'white',
-            maxWidth: '14ch',
-            textShadow: '0 2px 30px oklch(0 0 0 / 0.35)',
+            letterSpacing: 'calc(var(--h-tracking, 0em) - 0.04em)',
+            lineHeight: 'calc(var(--h-leading, 1) * 0.9)',
+            margin: 0,
+            color: '#fff',
+            maxWidth: '12ch',
+            textShadow: '0 4px 50px rgba(0,0,0,0.4)',
             fontFamily: HEADING_VAR,
           }}
         />
+      </div>
 
-        <div
-          style={{
-            fontSize: 'clamp(14px, 1.3vw, 18px)',
-            fontWeight: 400,
-            color: 'rgba(255,255,255,0.88)',
-            maxWidth: 560,
-            marginBottom: 30,
-            lineHeight: 1.4,
-          }}
-        >
-          <EditText
-            path="hero.tagline"
-            defaultValue="Build arguments that move people"
-          />
-          {course.instructor_name && (
-            <span style={{ color: 'rgba(255,255,255,0.5)' }}>
-              {' '}
-              — with{' '}
-              <EditText
-                path="hero.instructor"
-                defaultValue={course.instructor_name}
-              />
-            </span>
-          )}
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+      {/* band: frosted control panel at the very bottom — actions / logline /
+          instructor. Fades up out of the canvas. */}
+      <div
+        style={{
+          position: 'absolute',
+          left: 0,
+          right: 0,
+          bottom: 0,
+          zIndex: 5,
+          display: 'grid',
+          gridTemplateColumns: '380px minmax(0, 1fr) 320px',
+          gap: 56,
+          alignItems: 'start',
+          padding: '60px var(--gut, 72px) 44px',
+          backdropFilter: 'blur(32px) saturate(140%)',
+          WebkitBackdropFilter: 'blur(32px) saturate(140%)',
+          background:
+            'linear-gradient(0deg, rgba(244,243,240,0.9) 12%, rgba(244,243,240,0.62) 46%, rgba(244,243,240,0.28) 74%, rgba(244,243,240,0) 100%)',
+          WebkitMaskImage: 'linear-gradient(0deg, #000 70%, transparent 100%)',
+          maskImage: 'linear-gradient(0deg, #000 70%, transparent 100%)',
+        }}
+      >
+        {/* band-actions */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <button
             type="button"
             onClick={(e) => {
               e.stopPropagation()
               if (trailerUrl) setTrailerOpen(true)
+              else onEnroll()
             }}
-            disabled={!trailerUrl}
             style={{
-              display: 'flex',
+              display: 'inline-flex',
               alignItems: 'center',
-              gap: 10,
-              padding: '13px 22px 13px 14px',
-              background: 'white',
-              color: 'oklch(0.14 0.006 280)',
-              borderRadius: 999,
-              boxShadow: '0 8px 28px oklch(0 0 0 / 0.4)',
+              justifyContent: 'center',
+              gap: 11,
+              height: 60,
+              borderRadius: 14,
+              fontSize: 19,
+              fontWeight: 600,
+              letterSpacing: '-0.01em',
+              background: '#1D1D1F',
+              color: '#fff',
               border: 'none',
-              cursor: trailerUrl ? 'pointer' : 'not-allowed',
-              opacity: trailerUrl ? 1 : 0.55,
+              cursor: 'pointer',
+              boxShadow: '0 8px 26px rgba(0,0,0,0.22)',
               fontFamily: 'inherit',
             }}
           >
-            <span
-              style={{
-                width: 28,
-                height: 28,
-                borderRadius: '50%',
-                background: 'oklch(0.14 0.006 280)',
-                color: 'white',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                paddingLeft: 2,
-                fontSize: 11,
-              }}
-            >
-              ▶
-            </span>
-            <span style={{ fontSize: 14, fontWeight: 600, lineHeight: 1 }}>
-              <EditText
-                path="hero.cta_secondary"
-                defaultValue="Watch trailer"
-              />
-            </span>
+            <span style={{ fontSize: 15 }}>▶</span>
+            {freeCount > 0 ? 'Play free preview' : 'Watch trailer'}
           </button>
           <button
             type="button"
@@ -742,28 +674,197 @@ function Hero({
                 : undefined
             }
             style={{
-              display: 'flex',
+              display: 'inline-flex',
               alignItems: 'center',
+              justifyContent: 'center',
               gap: 8,
-              padding: '14px 22px',
-              background: 'rgba(255,255,255,0.10)',
-              backdropFilter: 'blur(24px) saturate(180%)',
-              WebkitBackdropFilter: 'blur(24px) saturate(180%)',
-              border: '1px solid rgba(255,255,255,0.18)',
-              color: 'white',
-              borderRadius: 999,
-              fontSize: 13.5,
+              height: 60,
+              borderRadius: 14,
+              fontSize: 19,
               fontWeight: 600,
+              letterSpacing: '-0.01em',
+              background: 'rgba(255,255,255,0.6)',
+              color: '#1D1D1F',
+              backdropFilter: 'blur(20px) saturate(160%)',
+              WebkitBackdropFilter: 'blur(20px) saturate(160%)',
+              boxShadow:
+                'inset 0 0 0 1px rgba(0,0,0,0.14), inset 0 1px 0 rgba(255,255,255,0.7)',
+              border: 'none',
               cursor: canEnroll ? (enrolling ? 'wait' : 'pointer') : 'default',
-              fontFamily: 'inherit',
               opacity: enrolling ? 0.7 : !canEnroll ? 0.55 : 1,
+              fontFamily: 'inherit',
             }}
           >
             {enrolling
               ? 'Loading…'
-              : `Enroll${priceLabel ? ` · ${priceLabel}` : ''} →`}
+              : `Enroll${priceLabel ? ` — ${priceLabel}` : ''}`}
           </button>
+          <div
+            style={{
+              fontSize: 14.5,
+              fontWeight: 500,
+              color: 'rgba(0,0,0,0.56)',
+              textAlign: 'center',
+              marginTop: 5,
+            }}
+          >
+            {freeCount > 0
+              ? `${freeCount} ${plural(freeCount, 'lesson', 'lessons')} free`
+              : 'Lifetime access'}
+            {priceLabel ? ' · one-time purchase' : ''}
+          </div>
         </div>
+
+        {/* band-desc */}
+        <div style={{ paddingTop: 2 }}>
+          <EditText
+            as="p"
+            path="hero.description"
+            defaultValue={loglineFallback}
+            multiline
+            style={{
+              fontSize: 19,
+              lineHeight: 1.45,
+              fontWeight: 400,
+              color: '#1D1D1F',
+              maxWidth: '60ch',
+              margin: 0,
+            }}
+          />
+          <div
+            style={{
+              fontSize: 16,
+              fontWeight: 500,
+              color: 'rgba(0,0,0,0.56)',
+              marginTop: 16,
+            }}
+          >
+            {flatLessons.length}{' '}
+            {plural(flatLessons.length, 'lesson', 'lessons')}
+            {' · '}
+            {fmtDuration(totalDurationSeconds)}
+          </div>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: 8,
+              marginTop: 16,
+            }}
+          >
+            {/* boxed "rating" chip → the course level */}
+            <EditText
+              path="hero.level"
+              defaultValue="All levels"
+              style={{
+                fontSize: 12,
+                fontWeight: 700,
+                letterSpacing: '0.04em',
+                color: 'rgba(0,0,0,0.56)',
+                boxShadow: 'inset 0 0 0 1.5px rgba(0,0,0,0.22)',
+                borderRadius: 5,
+                padding: '3px 8px',
+              }}
+            />
+            {/* AI format/series label (e.g. NEW SERIES) as a filled chip */}
+            <EditText
+              path="hero.series_label"
+              defaultValue="Self-paced"
+              style={{
+                fontSize: 12,
+                fontWeight: 700,
+                letterSpacing: '0.04em',
+                textTransform: 'uppercase',
+                color: 'rgba(0,0,0,0.56)',
+                background: 'rgba(0,0,0,0.07)',
+                borderRadius: 5,
+                padding: '3px 8px',
+              }}
+            />
+            {formatBadges.map((b) => (
+              <span
+                key={b}
+                style={{
+                  fontSize: 12,
+                  fontWeight: 700,
+                  letterSpacing: '0.04em',
+                  color: 'rgba(0,0,0,0.56)',
+                  background: 'rgba(0,0,0,0.07)',
+                  borderRadius: 5,
+                  padding: '3px 8px',
+                }}
+              >
+                {b}
+              </span>
+            ))}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                if (trailerUrl) setTrailerOpen(true)
+              }}
+              disabled={!trailerUrl}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 7,
+                fontSize: 15,
+                fontWeight: 600,
+                color: '#1D1D1F',
+                padding: '4px 6px',
+                marginLeft: 4,
+                background: 'none',
+                border: 'none',
+                cursor: trailerUrl ? 'pointer' : 'not-allowed',
+                opacity: trailerUrl ? 1 : 0.5,
+                fontFamily: 'inherit',
+              }}
+            >
+              <span style={{ fontSize: 11 }}>▶</span>
+              <EditText path="hero.cta_secondary" defaultValue="Trailer" />
+            </button>
+          </div>
+        </div>
+
+        {/* band-cast (instructor) */}
+        {course.instructor_name && (
+          <div style={{ paddingTop: 2 }}>
+            <div
+              style={{
+                fontSize: 14,
+                fontWeight: 600,
+                color: 'rgba(0,0,0,0.4)',
+                marginBottom: 7,
+              }}
+            >
+              Instructor
+            </div>
+            <EditText
+              path="hero.instructor"
+              defaultValue={course.instructor_name}
+              style={{
+                display: 'block',
+                fontSize: 21,
+                fontWeight: 600,
+                letterSpacing: '-0.02em',
+                color: '#1D1D1F',
+              }}
+            />
+            <EditText
+              as="p"
+              path="hero.instructor_bio"
+              defaultValue=""
+              multiline
+              style={{
+                fontSize: 16,
+                lineHeight: 1.4,
+                color: 'rgba(0,0,0,0.56)',
+                marginTop: 6,
+              }}
+            />
+          </div>
+        )}
       </div>
       {trailerOpen && trailerUrl && (
         <TrailerModal url={trailerUrl} onClose={() => setTrailerOpen(false)} />
@@ -1410,7 +1511,7 @@ function SectionZigzagRow({
                   width: 12,
                   height: 12,
                   borderRadius: '50%',
-                  background: 'var(--bg-0, #fff)',
+                  background: 'var(--bg-0, #f2f1ee)',
                   border: '1.5px solid oklch(0.66 0.006 280)',
                 }}
               />
@@ -1620,28 +1721,44 @@ function EpisodeGrid({
   const openLesson = freeLessons.find((l) => l.id === openLessonId) ?? null
   const thumbHues = [35, 195, 285, 145, 25, 320]
   const [hovered, setHovered] = useState<string | null>(null)
+  const [railHovered, setRailHovered] = useState(false)
+  const railRef = useRef<HTMLDivElement>(null)
+  const scrollRail = (dir: number) => {
+    const el = railRef.current
+    if (el) el.scrollBy({ left: dir * el.clientWidth * 0.82, behavior: 'smooth' })
+  }
+  const lessonWord = course.format === 'series' ? 'episode' : 'lesson'
 
   return (
     <section
       style={{
-        padding: '72px 32px 0',
-        maxWidth: 1320,
-        margin: '0 auto',
+        padding: '72px 0 0',
         fontFamily: FONT_VAR,
       }}
     >
-      <div style={{ marginBottom: 32 }}>
+      <div
+        style={{
+          maxWidth: 1320,
+          margin: '0 auto',
+          padding: '0 var(--gut, 72px)',
+          marginBottom: 26,
+          display: 'flex',
+          alignItems: 'baseline',
+          gap: 18,
+          flexWrap: 'wrap',
+        }}
+      >
         <EditText
           as="h2"
           path="lessons.heading"
           defaultValue="Free preview"
           style={{
             fontSize: 'calc(clamp(26px, 3vw, 38px) * var(--type-scale, 1))',
-            fontWeight: 'var(--h-weight, 600)',
-            letterSpacing: 'calc(var(--h-tracking, 0em) - 0.03em)',
+            fontWeight: 'var(--h-weight, 700)',
+            letterSpacing: 'calc(var(--h-tracking, 0em) - 0.025em)',
             lineHeight: 1.05,
-            margin: '0 0 8px',
-            color: 'oklch(0.18 0.008 280)',
+            margin: 0,
+            color: 'var(--fg-0, #1D1D1F)',
             fontFamily: HEADING_VAR,
           }}
         />
@@ -1652,70 +1769,66 @@ function EpisodeGrid({
             freeLessons.length > 0
               ? `Watch the first ${freeLessons.length} ${plural(
                   freeLessons.length,
-                  'episode',
-                  'episodes',
+                  lessonWord,
+                  `${lessonWord}s`,
                 )} before you enroll.`
-              : 'Mark a lesson as free preview to show it here.'
+              : `Mark a ${lessonWord} as free preview to show it here.`
           }
           multiline
           style={{
-            fontSize: 14.5,
-            color: 'oklch(0.52 0.008 280)',
+            fontSize: 16,
+            color: 'rgba(0,0,0,0.56)',
             margin: 0,
-            fontWeight: 400,
+            fontWeight: 500,
           }}
         />
       </div>
 
       {freeLessons.length > 0 && (
         <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(3, 1fr)',
-            gap: 18,
-            marginBottom: 40,
-          }}
+          style={{ position: 'relative', marginBottom: 40 }}
+          onMouseEnter={() => setRailHovered(true)}
+          onMouseLeave={() => setRailHovered(false)}
         >
-          {freeLessons.map((lesson, i) => {
-            const hue = thumbHues[i % thumbHues.length]
-            const isHovered = hovered === lesson.id
-            return (
-              <div
+          <RailArrow
+            dir="left"
+            visible={railHovered}
+            onClick={() => scrollRail(-1)}
+          />
+          <style>{`.spaire-lesson-rail::-webkit-scrollbar{display:none}`}</style>
+          <div
+            ref={railRef}
+            className="spaire-lesson-rail"
+            style={{
+              display: 'flex',
+              gap: 30,
+              overflowX: 'auto',
+              scrollSnapType: 'x proximity',
+              padding: '8px var(--gut, 72px) 22px',
+              scrollbarWidth: 'none',
+              scrollBehavior: 'smooth',
+            }}
+          >
+            {freeLessons.map((lesson, i) => (
+              <LessonLockup
                 key={lesson.id}
-                onMouseEnter={() => setHovered(lesson.id)}
-                onMouseLeave={() => setHovered(null)}
-                style={{
-                  background: 'white',
-                  borderRadius: 'calc(20px * var(--radius-mul, 1))',
-                  overflow: 'hidden',
-                  border: '1px solid oklch(0.92 0.003 280)',
-                  cursor: 'pointer',
-                  transform: isHovered ? 'scale(1.02)' : 'scale(1)',
-                  boxShadow: isHovered
-                    ? '0 16px 48px rgba(0,0,0,0.14), 0 2px 8px rgba(0,0,0,0.06)'
-                    : '0 1px 2px rgba(0,0,0,0.04), 0 4px 16px rgba(0,0,0,0.05)',
-                  transition:
-                    'transform 250ms cubic-bezier(0.34,1.3,0.64,1), box-shadow 250ms ease',
-                }}
-              >
-                <EpisodeThumb
-                  lesson={lesson}
-                  index={i + 1}
-                  hue={hue}
-                  hovered={isHovered}
-                  lessonHandlers={lessonHandlers}
-                  onOpen={() => setOpenLessonId(lesson.id)}
-                />
-                <EpisodeInfo
-                  course={course}
-                  lesson={lesson}
-                  lessonHandlers={lessonHandlers}
-                  index={i + 1}
-                  organizationSlug={organizationSlug}
-                />
-              </div>
-            )
-          })}
+                course={course}
+                lesson={lesson}
+                index={i + 1}
+                hue={thumbHues[i % thumbHues.length]}
+                hovered={hovered === lesson.id}
+                onHover={(on) => setHovered(on ? lesson.id : null)}
+                lessonHandlers={lessonHandlers}
+                organizationSlug={organizationSlug}
+                onOpen={() => setOpenLessonId(lesson.id)}
+              />
+            ))}
+          </div>
+          <RailArrow
+            dir="right"
+            visible={railHovered}
+            onClick={() => scrollRail(1)}
+          />
         </div>
       )}
 
@@ -2185,6 +2298,206 @@ function LessonLightbox({
   )
 }
 
+// Hover-reveal scroll arrow for the lesson rail (frosted glass, matches the
+// design's .rail-arrow).
+function RailArrow({
+  dir,
+  visible,
+  onClick,
+}: {
+  dir: 'left' | 'right'
+  visible: boolean
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={`Scroll ${dir}`}
+      style={{
+        position: 'absolute',
+        top: '44%',
+        transform: 'translateY(-50%)',
+        left: dir === 'left' ? 16 : undefined,
+        right: dir === 'right' ? 16 : undefined,
+        zIndex: 6,
+        width: 52,
+        height: 52,
+        borderRadius: '50%',
+        background: 'rgba(255,255,255,0.7)',
+        backdropFilter: 'blur(20px) saturate(160%)',
+        WebkitBackdropFilter: 'blur(20px) saturate(160%)',
+        display: 'grid',
+        placeItems: 'center',
+        boxShadow:
+          'inset 0 0 0 1px rgba(0,0,0,0.08), 0 6px 18px rgba(0,0,0,0.14)',
+        color: '#1D1D1F',
+        border: 'none',
+        cursor: 'pointer',
+        opacity: visible ? 1 : 0,
+        transition: 'opacity 250ms ease',
+        pointerEvents: visible ? 'auto' : 'none',
+        fontSize: 24,
+        lineHeight: 1,
+      }}
+    >
+      {dir === 'left' ? '‹' : '›'}
+    </button>
+  )
+}
+
+// A single free-preview lesson rendered as the design's dark "lockup" card:
+// the lesson still fills the frame, a Free chip sits top-left, a play button
+// fades in on hover, and the title + description sit over a bottom shade.
+// Clicking the card opens the lightbox (preview); title/description stay
+// inline-editable in edit mode.
+function LessonLockup({
+  course,
+  lesson,
+  index,
+  hue,
+  hovered,
+  onHover,
+  lessonHandlers,
+  organizationSlug,
+  onOpen,
+}: {
+  course: CourseRead
+  lesson: CourseLessonRead
+  index: number
+  hue: number
+  hovered: boolean
+  onHover: (on: boolean) => void
+  lessonHandlers?: LessonHandlers
+  organizationSlug?: string
+  onOpen: () => void
+}) {
+  const ed = useEditor()
+  return (
+    <div
+      style={{ flex: '0 0 auto', width: 460, scrollSnapAlign: 'start' }}
+      onMouseEnter={() => onHover(true)}
+      onMouseLeave={() => onHover(false)}
+    >
+      <div
+        style={{
+          position: 'relative',
+          width: 460,
+          height: 372,
+          borderRadius: 'calc(18px * var(--radius-mul, 1))',
+          overflow: 'hidden',
+          background: '#07080a',
+          boxShadow: hovered
+            ? 'inset 0 0 0 1px rgba(0,0,0,0.08), 0 22px 50px rgba(0,0,0,0.26)'
+            : 'inset 0 0 0 1px rgba(0,0,0,0.06), 0 12px 30px rgba(0,0,0,0.16)',
+          transform: hovered ? 'translateY(-7px)' : 'none',
+          transition:
+            'transform 300ms cubic-bezier(.2,1.05,.3,1), box-shadow 300ms ease',
+        }}
+      >
+        <EpisodeThumb
+          lesson={lesson}
+          index={index}
+          hue={hue}
+          hovered={hovered}
+          lessonHandlers={lessonHandlers}
+          onOpen={onOpen}
+          chrome="lockup"
+        />
+
+        {/* bottom shade for text legibility */}
+        <div
+          aria-hidden
+          style={{
+            position: 'absolute',
+            inset: 0,
+            zIndex: 2,
+            pointerEvents: 'none',
+            background:
+              'linear-gradient(0deg, rgba(7,8,10,0.92) 2%, rgba(7,8,10,0.6) 26%, rgba(7,8,10,0.08) 52%, transparent 66%)',
+          }}
+        />
+
+        {/* Free chip (top-left) */}
+        <div
+          style={{
+            position: 'absolute',
+            top: 16,
+            left: 18,
+            zIndex: 3,
+            fontSize: 12,
+            fontWeight: 700,
+            letterSpacing: '0.07em',
+            textTransform: 'uppercase',
+            color: '#16171a',
+            background: 'rgba(255,255,255,0.95)',
+            padding: '4px 11px',
+            borderRadius: 7,
+            pointerEvents: 'none',
+          }}
+        >
+          Free
+        </div>
+
+        {/* play-on-hover */}
+        <div
+          aria-hidden
+          style={{
+            position: 'absolute',
+            top: '36%',
+            left: '50%',
+            transform: hovered
+              ? 'translate(-50%,-50%) scale(1)'
+              : 'translate(-50%,-50%) scale(0.82)',
+            zIndex: 3,
+            width: 62,
+            height: 62,
+            borderRadius: '50%',
+            background: 'rgba(255,255,255,0.18)',
+            backdropFilter: 'blur(16px)',
+            WebkitBackdropFilter: 'blur(16px)',
+            display: 'grid',
+            placeItems: 'center',
+            boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.42)',
+            color: '#fff',
+            fontSize: 22,
+            opacity: hovered ? 1 : 0,
+            transition: 'opacity 280ms ease, transform 280ms ease',
+            pointerEvents: 'none',
+          }}
+        >
+          ▶
+        </div>
+
+        {/* title + description over the shade */}
+        <div
+          onClick={() => {
+            if (ed.mode === 'preview') onOpen()
+          }}
+          style={{
+            position: 'absolute',
+            left: 0,
+            right: 0,
+            bottom: 0,
+            zIndex: 4,
+            padding: '0 27px 25px',
+            cursor: ed.mode === 'preview' ? 'pointer' : 'default',
+          }}
+        >
+          <EpisodeInfo
+            course={course}
+            lesson={lesson}
+            index={index}
+            organizationSlug={organizationSlug}
+            lessonHandlers={lessonHandlers}
+            variant="lockup"
+          />
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function EpisodeThumb({
   lesson,
   index,
@@ -2192,6 +2505,7 @@ function EpisodeThumb({
   hovered,
   lessonHandlers,
   onOpen,
+  chrome = 'card',
 }: {
   lesson: CourseLessonRead
   index: number
@@ -2199,6 +2513,9 @@ function EpisodeThumb({
   hovered: boolean
   lessonHandlers?: LessonHandlers
   onOpen: () => void
+  // 'card' = standalone 16:9 tile. 'lockup' = fills a dark lesson card and
+  // drops its own badges / play overlay so the lockup can draw them instead.
+  chrome?: 'card' | 'lockup'
 }) {
   const ed = useEditor()
 
@@ -2212,12 +2529,21 @@ function EpisodeThumb({
       <EditMedia
         id={`lesson.${lesson.id}.thumb`}
         label={`Episode ${index} thumbnail`}
-        style={{
-          position: 'relative',
-          aspectRatio: '16 / 9',
-          background: '#111',
-          overflow: 'hidden',
-        }}
+        style={
+          chrome === 'lockup'
+            ? {
+                position: 'absolute',
+                inset: 0,
+                background: '#111',
+                overflow: 'hidden',
+              }
+            : {
+                position: 'relative',
+                aspectRatio: '16 / 9',
+                background: '#111',
+                overflow: 'hidden',
+              }
+        }
         placeholder={
           <div
             style={{
@@ -2230,10 +2556,12 @@ function EpisodeThumb({
           />
         }
       >
-        <EpisodeThumbBadges
-          index={index}
-          durationSeconds={lesson.duration_seconds}
-        />
+        {chrome === 'card' && (
+          <EpisodeThumbBadges
+            index={index}
+            durationSeconds={lesson.duration_seconds}
+          />
+        )}
       </EditMedia>
     )
   }
@@ -2244,6 +2572,7 @@ function EpisodeThumb({
       index={index}
       hue={hue}
       hovered={hovered}
+      chrome={chrome}
       isEditMode={ed.mode === 'edit'}
       lessonHandlers={lessonHandlers}
       onOpen={onOpen}
@@ -2314,6 +2643,7 @@ function RealLessonEpisodeThumb({
   isEditMode,
   lessonHandlers,
   onOpen,
+  chrome = 'card',
 }: {
   lesson: CourseLessonRead
   index: number
@@ -2322,7 +2652,9 @@ function RealLessonEpisodeThumb({
   isEditMode: boolean
   lessonHandlers?: LessonHandlers
   onOpen: () => void
+  chrome?: 'card' | 'lockup'
 }) {
+  const lockup = chrome === 'lockup'
   const peekSeconds = 10
   const [peekActive, setPeekActive] = useState(false)
   const peekTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -2477,13 +2809,23 @@ function RealLessonEpisodeThumb({
         if (isEditMode) return
         onOpen()
       }}
-      style={{
-        position: 'relative',
-        aspectRatio: '16 / 9',
-        background: '#111',
-        overflow: 'hidden',
-        cursor: isEditMode ? 'default' : 'pointer',
-      }}
+      style={
+        lockup
+          ? {
+              position: 'absolute',
+              inset: 0,
+              background: '#07080a',
+              overflow: 'hidden',
+              cursor: isEditMode ? 'default' : 'pointer',
+            }
+          : {
+              position: 'relative',
+              aspectRatio: '16 / 9',
+              background: '#111',
+              overflow: 'hidden',
+              cursor: isEditMode ? 'default' : 'pointer',
+            }
+      }
     >
       {!thumbnailUrl && !playbackId && placeholder}
       {thumbnailUrl && (
@@ -2543,13 +2885,16 @@ function RealLessonEpisodeThumb({
         </div>
       )}
 
-      <EpisodeThumbBadges
-        index={index}
-        durationSeconds={lesson.duration_seconds}
-      />
+      {!lockup && (
+        <EpisodeThumbBadges
+          index={index}
+          durationSeconds={lesson.duration_seconds}
+        />
+      )}
 
-      {/* Play overlay (preview mode only) */}
-      {!isEditMode && (
+      {/* Play overlay (preview mode only). The lockup variant draws its own
+          centered play button, so we skip this one there. */}
+      {!isEditMode && !lockup && (
         <div
           style={{
             position: 'absolute',
@@ -2932,14 +3277,31 @@ function EpisodeInfo({
   index,
   organizationSlug,
   lessonHandlers,
+  variant = 'card',
 }: {
   course: CourseRead
   lesson: CourseLessonRead
   index: number
   organizationSlug?: string
   lessonHandlers?: LessonHandlers
+  // 'card' renders dark ink on a light tile; 'lockup' renders light text over
+  // the cinematic image at the bottom of a dark lesson card (the new design).
+  variant?: 'card' | 'lockup'
 }) {
   const ed = useEditor()
+  // Lockup variant: light text on the dark image; eyebrow reads "Lesson N"
+  // (or "Episode N" for a series) to match the Course Landing design.
+  const lockup = variant === 'lockup'
+  const epWord = course.format === 'series' ? 'Episode' : 'Lesson'
+  const tokens = {
+    pad: lockup ? '0' : '16px 18px 18px',
+    eyebrow: lockup ? 'rgba(235,235,245,0.6)' : 'oklch(0.66 0.006 280)',
+    title: lockup ? '#fff' : 'oklch(0.18 0.008 280)',
+    desc: lockup ? 'rgba(235,235,245,0.74)' : 'oklch(0.52 0.008 280)',
+    time: lockup ? 'rgba(235,235,245,0.82)' : 'oklch(0.66 0.006 280)',
+    titleSize: lockup ? 22 : 15.5,
+    descSize: lockup ? 14.5 : 12.5,
+  }
   const descPath = `lesson.${lesson.id}.description`
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -3084,18 +3446,18 @@ function EpisodeInfo({
   }
 
   return (
-    <div style={{ padding: '16px 18px 18px' }}>
+    <div style={{ padding: tokens.pad }}>
       <div
         style={{
-          fontSize: 10,
-          fontWeight: 600,
-          letterSpacing: '0.08em',
-          color: 'oklch(0.66 0.006 280)',
-          marginBottom: 4,
+          fontSize: lockup ? 13 : 10,
+          fontWeight: 700,
+          letterSpacing: lockup ? '0.09em' : '0.08em',
+          color: tokens.eyebrow,
+          marginBottom: lockup ? 10 : 4,
           textTransform: 'uppercase',
         }}
       >
-        Episode {index}
+        {epWord} {index}
       </div>
       {persistsToLesson && ed.mode === 'edit' ? (
         <div
@@ -3104,6 +3466,7 @@ function EpisodeInfo({
           suppressContentEditableWarning
           onFocus={() => setTitleEditing(true)}
           onBlur={persistTitle}
+          onClick={(e) => e.stopPropagation()}
           onKeyDown={(e) => {
             if (e.key === 'Enter') {
               e.preventDefault()
@@ -3115,12 +3478,12 @@ function EpisodeInfo({
             }
           }}
           style={{
-            fontSize: 15.5,
+            fontSize: tokens.titleSize,
             fontWeight: 600,
-            letterSpacing: '-0.015em',
-            color: 'oklch(0.18 0.008 280)',
-            lineHeight: 1.25,
-            marginBottom: 7,
+            letterSpacing: '-0.02em',
+            color: tokens.title,
+            lineHeight: lockup ? 1.1 : 1.25,
+            marginBottom: lockup ? 10 : 7,
             outline: titleEditing ? '2px solid #6366f1' : 'none',
             outlineOffset: 2,
             cursor: 'text',
@@ -3130,18 +3493,25 @@ function EpisodeInfo({
       ) : (
         <div
           style={{
-            fontSize: 15.5,
+            fontSize: tokens.titleSize,
             fontWeight: 600,
-            letterSpacing: '-0.015em',
-            color: 'oklch(0.18 0.008 280)',
-            lineHeight: 1.25,
-            marginBottom: 7,
+            letterSpacing: '-0.02em',
+            color: tokens.title,
+            lineHeight: lockup ? 1.1 : 1.25,
+            marginBottom: lockup ? 10 : 7,
+            ...(lockup
+              ? {
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                }
+              : {}),
           }}
         >
           {lesson.title}
         </div>
       )}
-      <div style={{ position: 'relative', marginBottom: 10 }}>
+      <div style={{ position: 'relative', marginBottom: lockup ? 14 : 10 }}>
         {persistsToLesson ? (
           ed.mode === 'edit' ? (
             <div
@@ -3150,6 +3520,7 @@ function EpisodeInfo({
               suppressContentEditableWarning
               onFocus={() => setDescEditing(true)}
               onBlur={persistDesc}
+              onClick={(e) => e.stopPropagation()}
               onKeyDown={(e) => {
                 if (e.key === 'Escape') {
                   if (descRef.current) descRef.current.innerText = lessonDesc
@@ -3157,11 +3528,11 @@ function EpisodeInfo({
                 }
               }}
               style={{
-                fontSize: 12.5,
-                color: 'oklch(0.52 0.008 280)',
-                lineHeight: 1.6,
+                fontSize: tokens.descSize,
+                color: tokens.desc,
+                lineHeight: 1.5,
                 display: 'block',
-                minHeight: '1.6em',
+                minHeight: '1.5em',
                 outline: descEditing ? '2px solid #6366f1' : 'none',
                 outlineOffset: 2,
                 cursor: 'text',
@@ -3172,11 +3543,18 @@ function EpisodeInfo({
           ) : (
             <p
               style={{
-                fontSize: 12.5,
-                color: 'oklch(0.52 0.008 280)',
-                lineHeight: 1.6,
+                fontSize: tokens.descSize,
+                color: tokens.desc,
+                lineHeight: 1.5,
                 margin: 0,
-                whiteSpace: 'pre-wrap',
+                ...(lockup
+                  ? {
+                      display: '-webkit-box',
+                      WebkitLineClamp: 2,
+                      WebkitBoxOrient: 'vertical',
+                      overflow: 'hidden',
+                    }
+                  : { whiteSpace: 'pre-wrap' }),
               }}
             >
               {lessonDesc}
@@ -3188,11 +3566,11 @@ function EpisodeInfo({
             defaultValue={lesson.description ?? ''}
             multiline
             style={{
-              fontSize: 12.5,
-              color: 'oklch(0.52 0.008 280)',
-              lineHeight: 1.6,
+              fontSize: tokens.descSize,
+              color: tokens.desc,
+              lineHeight: 1.5,
               display: 'block',
-              minHeight: '1.6em',
+              minHeight: '1.5em',
             }}
           />
         )}
@@ -3240,8 +3618,9 @@ function EpisodeInfo({
           display: 'flex',
           alignItems: 'center',
           gap: 5,
-          fontSize: 11.5,
-          color: 'oklch(0.66 0.006 280)',
+          fontSize: lockup ? 16 : 11.5,
+          fontWeight: lockup ? 500 : 400,
+          color: tokens.time,
           fontVariantNumeric: 'tabular-nums',
         }}
       >
@@ -3954,7 +4333,7 @@ function LearnZigzag({
                 width: 12,
                 height: 12,
                 borderRadius: '50%',
-                background: 'var(--bg-0, #fff)',
+                background: 'var(--bg-0, #f2f1ee)',
                 border: '1.5px solid oklch(0.66 0.006 280)',
               }}
             />

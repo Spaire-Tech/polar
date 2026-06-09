@@ -130,7 +130,11 @@ export const SURFACE_MODES: {
   bg0: string
   fg0: string
 }[] = [
-  { id: 'light', label: 'Light', bg0: '#ffffff', fg0: 'oklch(0.18 0.008 280)' },
+  // The base canvas for the Spaire Originals course landing. Warm off-white
+  // (#F2F1EE) with near-black ink (#1D1D1F) — mirrors the Apple TV / Fitness+
+  // product-page design. This is the default surface, so every course that
+  // hasn't explicitly picked another theme renders on it.
+  { id: 'light', label: 'Light', bg0: '#F2F1EE', fg0: '#1D1D1F' },
   {
     id: 'cream',
     label: 'Cream',

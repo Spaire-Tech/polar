@@ -155,6 +155,10 @@ export function WizardLandingEditor({
     if (draft.courseTitle) merged.text['hero.title'] = draft.courseTitle
     if (typeof text.tagline === 'string')
       merged.text['hero.tagline'] = text.tagline
+    // The full-bleed hero band shows the long logline (the AI `description`)
+    // in its middle column; falls back to the short tagline when absent.
+    if (typeof text.description === 'string')
+      merged.text['hero.description'] = text.description
     if (typeof text.eyebrow === 'string')
       merged.text['hero.eyebrow'] = text.eyebrow
     if (typeof text.series_label === 'string')
