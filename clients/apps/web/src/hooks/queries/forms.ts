@@ -40,6 +40,20 @@ const fetchApiWrite = async <T>(
 
 export type FormStatus = 'draft' | 'published'
 
+export type FormStyle = {
+  accent: string
+  corner: 'sharp' | 'rounded' | 'pill'
+  media_side: 'left' | 'right'
+  show_consent: boolean
+}
+
+export const DEFAULT_FORM_STYLE: FormStyle = {
+  accent: '#3b49f4',
+  corner: 'rounded',
+  media_side: 'left',
+  show_consent: true,
+}
+
 export type FormAttachedCustomField = {
   custom_field_id: string
   custom_field: schemas['CustomField']
@@ -57,6 +71,8 @@ export type FormResource = {
   success_message: string | null
   status: FormStatus
   file_id: string | null
+  image_url: string | null
+  style: FormStyle
   attached_custom_fields: FormAttachedCustomField[]
   created_at: string
   modified_at: string | null
@@ -75,6 +91,8 @@ export type FormCreatePayload = {
   status?: FormStatus
   slug?: string | null
   file_id?: string | null
+  image_url?: string | null
+  style?: FormStyle
   attached_custom_fields?: FormAttachedCustomFieldCreate[]
   organization_id?: string | null
 }
@@ -87,6 +105,8 @@ export type FormUpdatePayload = Partial<{
   status: FormStatus
   slug: string | null
   file_id: string | null
+  image_url: string | null
+  style: FormStyle
   attached_custom_fields: FormAttachedCustomFieldCreate[]
 }>
 
@@ -99,6 +119,8 @@ export type FormPublic = {
   success_message: string | null
   has_lead_magnet: boolean
   lead_magnet_name: string | null
+  image_url: string | null
+  style: FormStyle
   attached_custom_fields: FormAttachedCustomField[]
 }
 

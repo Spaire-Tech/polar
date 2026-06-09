@@ -43,6 +43,8 @@ export const SpaceEditorCanvas = ({
     success_message: f.success_message,
     has_lead_magnet: f.file_id != null,
     lead_magnet_name: null,
+    image_url: f.image_url,
+    style: f.style,
     attached_custom_fields: f.attached_custom_fields,
   }))
 

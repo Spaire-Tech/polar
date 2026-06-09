@@ -119,6 +119,8 @@ class FormService:
             success_message=form_create.success_message,
             status=form_create.status,
             file_id=form_create.file_id,
+            image_url=form_create.image_url,
+            style=form_create.style.model_dump(),
         )
         await self._set_attached_custom_fields(
             session, organization.id, form, form_create.attached_custom_fields
@@ -271,6 +273,8 @@ class FormService:
                 "success_message": form.success_message,
                 "has_lead_magnet": has_lead_magnet,
                 "lead_magnet_name": form.file.name if has_lead_magnet else None,
+                "image_url": form.image_url,
+                "style": form.style,
                 "attached_custom_fields": form.attached_custom_fields,
             }
         )
