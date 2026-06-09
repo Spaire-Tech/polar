@@ -23,8 +23,8 @@ export const CreateFormSplitPage = ({
 
   return (
     <div className="flex h-screen overflow-hidden bg-gray-50">
-      {/* Left panel — builder */}
-      <div className="flex min-w-0 flex-1 flex-col overflow-hidden border-r border-gray-200 bg-white">
+      {/* Left panel — builder (fixed width, scrolls) */}
+      <div className="flex w-full shrink-0 flex-col overflow-hidden border-r border-gray-200 bg-white md:w-[460px]">
         <div className="border-b border-gray-200 px-6 py-4">
           <Link
             href={`/dashboard/${organization.slug}/forms`}
@@ -44,9 +44,9 @@ export const CreateFormSplitPage = ({
         </div>
       </div>
 
-      {/* Right panel — live preview */}
-      <div className="hidden w-[420px] shrink-0 flex-col overflow-y-auto p-8 md:flex">
-        <div className="mx-auto w-full max-w-sm">
+      {/* Right panel — live preview (takes the rest of the page) */}
+      <div className="hidden flex-1 flex-col overflow-y-auto p-10 md:flex">
+        <div className="m-auto w-full max-w-4xl">
           <FormPreviewPanel organization={organization} values={preview} />
         </div>
       </div>

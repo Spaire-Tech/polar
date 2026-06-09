@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, Literal
 
 from pydantic import UUID4, Field
 
@@ -47,6 +47,15 @@ FormSlug = Annotated[
 ]
 
 
+class FormStyle(Schema):
+    """Presentation options for the lead-magnet card."""
+
+    accent: str = Field(default="#3b49f4", max_length=32, description="Accent hex.")
+    corner: Literal["sharp", "rounded", "pill"] = "rounded"
+    media_side: Literal["left", "right"] = "left"
+    show_consent: bool = True
+
+
 class FormCreate(Schema):
     title: FormTitle
     subtitle: FormSubtitle = None
@@ -58,6 +67,12 @@ class FormCreate(Schema):
         default=None,
         description="ID of the uploaded file delivered as the lead magnet.",
     )
+    image_url: str | None = Field(
+        default=None,
+        max_length=1024,
+        description="Public URL of the cover image shown beside the form.",
+    )
+    style: FormStyle = Field(default_factory=FormStyle)
     attached_custom_fields: AttachedCustomFieldListCreate = Field(default_factory=list)
     organization_id: OrganizationID | None = Field(
         default=None,
@@ -76,6 +91,8 @@ class FormUpdate(Schema):
     status: FormStatus | None = None
     slug: str | None = Field(default=None, max_length=255)
     file_id: UUID4 | None = None
+    image_url: str | None = Field(default=None, max_length=1024)
+    style: FormStyle | None = None
     attached_custom_fields: AttachedCustomFieldListCreate | None = None
 
 
@@ -89,6 +106,8 @@ class Form(TimestampedSchema, IDSchema):
     success_message: str | None = None
     status: FormStatus
     file_id: UUID4 | None = None
+    image_url: str | None = None
+    style: FormStyle = Field(default_factory=FormStyle)
     attached_custom_fields: list[AttachedCustomField]
 
 
@@ -105,6 +124,8 @@ class FormPublic(Schema):
     success_message: str | None = None
     has_lead_magnet: bool = False
     lead_magnet_name: str | None = None
+    image_url: str | None = None
+    style: FormStyle = Field(default_factory=FormStyle)
     attached_custom_fields: list[AttachedCustomField]
 
 

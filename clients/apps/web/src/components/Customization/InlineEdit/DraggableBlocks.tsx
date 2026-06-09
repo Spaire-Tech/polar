@@ -558,18 +558,28 @@ export const DraggableBlocks = ({
                     <SortableItem key={itemKey(entry)} id={itemKey(entry)}>
                       {({ listeners, attributes }) => (
                         <div className="item-hover">
-                          <div className="rounded-2xl border border-gray-200 bg-white p-5">
-                            <div className="text-xs font-medium tracking-wide text-gray-400 uppercase">
-                              Lead form
-                            </div>
-                            <div className="mt-1 text-lg font-semibold text-gray-900">
-                              {entry.form.title}
-                            </div>
-                            {entry.form.subtitle ? (
-                              <div className="mt-1 text-sm text-gray-500">
-                                {entry.form.subtitle}
-                              </div>
+                          <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white">
+                            {entry.form.image_url ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img
+                                src={entry.form.image_url}
+                                alt=""
+                                className="h-32 w-full object-cover"
+                              />
                             ) : null}
+                            <div className="p-5">
+                              <div className="text-xs font-medium tracking-wide text-gray-400 uppercase">
+                                Lead form
+                              </div>
+                              <div className="mt-1 text-lg font-semibold text-gray-900">
+                                {entry.form.title}
+                              </div>
+                              {entry.form.subtitle ? (
+                                <div className="mt-1 text-sm text-gray-500">
+                                  {entry.form.subtitle}
+                                </div>
+                              ) : null}
+                            </div>
                           </div>
                           <div className="item-actions">
                             <ItemDragHandle

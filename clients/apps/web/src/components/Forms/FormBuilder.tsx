@@ -1,8 +1,10 @@
 'use client'
 
 import {
+  DEFAULT_FORM_STYLE,
   FormResource,
   FormStatus,
+  FormStyle,
   useCreateForm,
   useUpdateForm,
 } from '@/hooks/queries/forms'
@@ -16,6 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@spaire/ui/components/atoms/Select'
+import Switch from '@spaire/ui/components/atoms/Switch'
 import TextArea from '@spaire/ui/components/atoms/TextArea'
 import {
   Form,
@@ -31,6 +34,7 @@ import { DashboardBody } from '../Layout/DashboardLayout'
 import { toast } from '../Toast/use-toast'
 import { getStatusRedirect } from '../Toast/utils'
 import { FormFieldsSection } from './FormFieldsSection'
+import { FormImageUpload } from './FormImageUpload'
 import { LeadMagnetUpload } from './LeadMagnetUpload'
 
 export type FormBuilderValues = {
@@ -42,6 +46,8 @@ export type FormBuilderValues = {
   file_id: string | null
   // UI-only: the attached file's display name, stripped before submit.
   lead_magnet_name: string | null
+  image_url: string | null
+  style: FormStyle
   attached_custom_fields: { custom_field_id: string; required: boolean }[]
 }
 
@@ -99,6 +105,8 @@ const toDefaults = (initialForm?: FormResource): FormBuilderValues =>
         status: initialForm.status,
         file_id: initialForm.file_id,
         lead_magnet_name: initialForm.file_id ? 'Attached file' : null,
+        image_url: initialForm.image_url,
+        style: initialForm.style ?? DEFAULT_FORM_STYLE,
         attached_custom_fields: initialForm.attached_custom_fields.map((f) => ({
           custom_field_id: f.custom_field_id,
           required: f.required,
@@ -112,6 +120,8 @@ const toDefaults = (initialForm?: FormResource): FormBuilderValues =>
         status: 'draft',
         file_id: null,
         lead_magnet_name: null,
+        image_url: null,
+        style: DEFAULT_FORM_STYLE,
         attached_custom_fields: [],
       }
 
@@ -144,6 +154,8 @@ export const FormBuilder = ({
   const subtitle = useWatch({ control, name: 'subtitle' })
   const buttonLabel = useWatch({ control, name: 'button_label' })
   const leadMagnetName = useWatch({ control, name: 'lead_magnet_name' })
+  const imageUrl = useWatch({ control, name: 'image_url' })
+  const styleValue = useWatch({ control, name: 'style' }) ?? DEFAULT_FORM_STYLE
   const attachedCustomFields = useWatch({
     control,
     name: 'attached_custom_fields',
@@ -155,6 +167,8 @@ export const FormBuilder = ({
       subtitle,
       button_label: buttonLabel,
       lead_magnet_name: leadMagnetName,
+      image_url: imageUrl,
+      style: styleValue,
       attached_custom_fields: attachedCustomFields,
     })
   }, [
@@ -162,9 +176,14 @@ export const FormBuilder = ({
     subtitle,
     buttonLabel,
     leadMagnetName,
+    imageUrl,
+    styleValue,
     attachedCustomFields,
     onChange,
   ])
+
+  const setStyle = (patch: Partial<FormStyle>) =>
+    setValue('style', { ...styleValue, ...patch }, { shouldDirty: true })
 
   const onSubmit = async (values: FormBuilderValues) => {
     const payload = {
@@ -174,6 +193,8 @@ export const FormBuilder = ({
       success_message: values.success_message.trim() || null,
       status: values.status,
       file_id: values.file_id,
+      image_url: values.image_url,
+      style: values.style,
       attached_custom_fields: values.attached_custom_fields.map((f) => ({
         custom_field_id: f.custom_field_id,
         required: f.required,
@@ -284,6 +305,17 @@ export const FormBuilder = ({
         </Section>
 
         <Section
+          title="Cover image"
+          description="Shown beside the form and on your Space card."
+        >
+          <FormImageUpload
+            organization={organization}
+            imageUrl={imageUrl ?? null}
+            onChange={(url) => setValue('image_url', url, { shouldDirty: true })}
+          />
+        </Section>
+
+        <Section
           title="Collect info"
           description="Basic info fields can't be edited."
         >
@@ -302,6 +334,60 @@ export const FormBuilder = ({
               setValue('lead_magnet_name', fileName, { shouldDirty: true })
             }}
           />
+        </Section>
+
+        <Section
+          title="Style"
+          description="Colours and layout of the form card."
+        >
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium text-gray-700">Corners</label>
+              <Select
+                value={styleValue.corner}
+                onValueChange={(v) =>
+                  setStyle({ corner: v as FormStyle['corner'] })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="sharp">Sharp</SelectItem>
+                  <SelectItem value="rounded">Rounded</SelectItem>
+                  <SelectItem value="pill">Pill</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium text-gray-700">
+                Image side
+              </label>
+              <Select
+                value={styleValue.media_side}
+                onValueChange={(v) =>
+                  setStyle({ media_side: v as FormStyle['media_side'] })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="left">Left</SelectItem>
+                  <SelectItem value="right">Right</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex flex-row items-center justify-between">
+              <label className="text-sm font-medium text-gray-700">
+                Consent checkbox
+              </label>
+              <Switch
+                checked={styleValue.show_consent}
+                onCheckedChange={(v) => setStyle({ show_consent: v })}
+              />
+            </div>
+          </div>
         </Section>
 
         <Section title="Visibility">

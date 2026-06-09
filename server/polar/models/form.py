@@ -8,6 +8,7 @@ from sqlalchemy import (
     UniqueConstraint,
     Uuid,
 )
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import (
     Mapped,
     declared_attr,
@@ -68,6 +69,15 @@ class Form(RecordModel):
         nullable=True,
         default=None,
     )
+    # Cover image shown on the Space card and beside the form — a public
+    # file URL the creator uploads.
+    image_url: Mapped[str | None] = mapped_column(
+        String(1024), nullable=True, default=None
+    )
+    # Presentation options: accent colour, corner style, media side and
+    # whether to show the consent checkbox. Stored loosely as JSONB and
+    # validated by the FormStyle schema.
+    style: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
 
     @declared_attr
     def organization(cls) -> Mapped["Organization"]:

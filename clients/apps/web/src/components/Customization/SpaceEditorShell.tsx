@@ -2,7 +2,7 @@
 
 import { ProfileCard } from '@/components/Profile/ProfileCard'
 import { useProducts } from '@/hooks/queries'
-import { FormPublic, useForms } from '@/hooks/queries/forms'
+import { DEFAULT_FORM_STYLE, FormPublic, useForms } from '@/hooks/queries/forms'
 import { schemas } from '@spaire/client'
 import { DraggableBlocks } from './InlineEdit/DraggableBlocks'
 import { EditableProfileCard } from './InlineEdit/EditableProfileCard'
@@ -43,6 +43,8 @@ export const SpaceEditorCanvas = ({
     success_message: f.success_message,
     has_lead_magnet: f.file_id != null,
     lead_magnet_name: null,
+    image_url: f.image_url ?? null,
+    style: f.style ?? DEFAULT_FORM_STYLE,
     attached_custom_fields: f.attached_custom_fields,
   }))
 
