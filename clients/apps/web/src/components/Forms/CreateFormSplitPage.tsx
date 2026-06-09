@@ -27,11 +27,11 @@ export const CreateFormSplitPage = ({
       <div className="flex w-full shrink-0 flex-col overflow-hidden border-r border-gray-200 bg-white md:w-[460px]">
         <div className="border-b border-gray-200 px-6 py-4">
           <Link
-            href={`/dashboard/${organization.slug}/forms`}
+            href={`/dashboard/${organization.slug}/products/lead-magnets`}
             className="flex items-center gap-2 text-sm text-gray-500 transition-colors hover:text-black"
           >
             <ArrowBackOutlined fontSize="small" />
-            <span>Back to Forms</span>
+            <span>Back to Lead Magnets</span>
           </Link>
         </div>
         <div className="overflow-y-auto">

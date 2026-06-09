@@ -156,7 +156,7 @@ const ItemRowBody = ({ item }: { item: ResolvedSpaceItem }) => {
         <span className="ap-row-name" title={item.form.title}>
           {item.form.title}
         </span>
-        <span className="ap-row-kind">Form</span>
+        <span className="ap-row-kind">Lead magnet</span>
       </>
     )
   }

@@ -43,13 +43,13 @@ export type FormStatus = 'draft' | 'published'
 export type FormStyle = {
   accent: string
   corner: 'sharp' | 'rounded' | 'pill'
-  media_side: 'left' | 'right'
+  media_side: 'left' | 'right' | 'top'
   show_consent: boolean
 }
 
 export const DEFAULT_FORM_STYLE: FormStyle = {
   accent: '#3b49f4',
-  corner: 'rounded',
+  corner: 'sharp',
   media_side: 'left',
   show_consent: true,
 }

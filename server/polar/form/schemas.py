@@ -51,8 +51,8 @@ class FormStyle(Schema):
     """Presentation options for the lead-magnet card."""
 
     accent: str = Field(default="#3b49f4", max_length=32, description="Accent hex.")
-    corner: Literal["sharp", "rounded", "pill"] = "rounded"
-    media_side: Literal["left", "right"] = "left"
+    corner: Literal["sharp", "rounded", "pill"] = "sharp"
+    media_side: Literal["left", "right", "top"] = "left"
     show_consent: bool = True
 
 
