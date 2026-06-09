@@ -51,7 +51,6 @@ import {
 import { useEditor } from './EditorContext'
 import { EditBlock, EditMedia, EditText } from './EditPrimitives'
 import { HeroMedia } from './HeroMedia'
-import { EpisodeCarousel } from './EpisodeCarousel'
 import { LearnItemSheet } from './LearnItemSheet'
 import { MotionSection } from './MotionSection'
 import { SectionModuleSheet } from './SectionModuleSheet'
@@ -325,19 +324,14 @@ export function EditableCourseLandingView({
             node: <CourseSections course={course} flatLessons={flatLessons} />,
           },
           lessons: {
-            label: 'Free preview',
+            label: 'Lessons',
             node: (
               <EpisodeGrid
                 course={course}
-                product={product}
                 freeLessons={freeLessons}
                 paidLessons={paidLessons}
-                lockedCount={lockedCount}
-                priceLabel={priceLabel}
                 organizationSlug={organizationSlug}
                 onEnroll={enroll}
-                enrolling={enrolling}
-                canEnroll={canEnroll}
                 lessonHandlers={lessonHandlers}
               />
             ),
@@ -1604,9 +1598,7 @@ function CourseSections({
   return (
     <section
       style={{
-        padding: '88px 32px 24px',
-        maxWidth: 1480,
-        margin: '0 auto',
+        padding: '88px var(--gut, 72px) 24px',
         fontFamily: FONT_VAR,
       }}
     >
@@ -1694,27 +1686,17 @@ function CourseSections({
 
 function EpisodeGrid({
   course,
-  product,
   freeLessons,
   paidLessons,
-  lockedCount,
-  priceLabel,
   organizationSlug,
   onEnroll,
-  enrolling,
-  canEnroll,
   lessonHandlers,
 }: {
   course: CourseRead
-  product?: schemas['Product']
   freeLessons: CourseLessonRead[]
   paidLessons: CourseLessonRead[]
-  lockedCount: number
-  priceLabel: string
   organizationSlug?: string
   onEnroll: () => void
-  enrolling: boolean
-  canEnroll: boolean
   lessonHandlers?: LessonHandlers
 }) {
   const [openLessonId, setOpenLessonId] = useState<string | null>(null)
@@ -1728,18 +1710,32 @@ function EpisodeGrid({
     if (el) el.scrollBy({ left: dir * el.clientWidth * 0.82, behavior: 'smooth' })
   }
   const lessonWord = course.format === 'series' ? 'episode' : 'lesson'
+  // The rail now shows the whole list — free previews first, then locked
+  // lessons (still with their real title + description, just a lock chip).
+  const allLessons = [...freeLessons, ...paidLessons]
+  const totalSecs = allLessons.reduce(
+    (a, l) => a + (l.duration_seconds ?? 0),
+    0,
+  )
+  const lessonsSubDefault = `${allLessons.length} ${plural(
+    allLessons.length,
+    lessonWord,
+    `${lessonWord}s`,
+  )}${totalSecs ? ` · ${fmtDuration(totalSecs)}` : ''}${
+    course.paywall_enabled && freeLessons.length > 0
+      ? ` · first ${freeLessons.length} free`
+      : ''
+  }`
 
   return (
     <section
       style={{
-        padding: '72px 0 0',
+        padding: '72px 0 110px',
         fontFamily: FONT_VAR,
       }}
     >
       <div
         style={{
-          maxWidth: 1320,
-          margin: '0 auto',
           padding: '0 var(--gut, 72px)',
           marginBottom: 26,
           display: 'flex',
@@ -1751,7 +1747,7 @@ function EpisodeGrid({
         <EditText
           as="h2"
           path="lessons.heading"
-          defaultValue="Free preview"
+          defaultValue={course.format === 'series' ? 'Every episode' : 'Lessons'}
           style={{
             fontSize: 'calc(clamp(26px, 3vw, 38px) * var(--type-scale, 1))',
             fontWeight: 'var(--h-weight, 700)',
@@ -1766,13 +1762,9 @@ function EpisodeGrid({
           as="p"
           path="lessons.subheading"
           defaultValue={
-            freeLessons.length > 0
-              ? `Watch the first ${freeLessons.length} ${plural(
-                  freeLessons.length,
-                  lessonWord,
-                  `${lessonWord}s`,
-                )} before you enroll.`
-              : `Mark a ${lessonWord} as free preview to show it here.`
+            allLessons.length > 0
+              ? lessonsSubDefault
+              : `Add a ${lessonWord} to show it here.`
           }
           multiline
           style={{
@@ -1784,7 +1776,7 @@ function EpisodeGrid({
         />
       </div>
 
-      {freeLessons.length > 0 && (
+      {allLessons.length > 0 && (
         <div
           style={{ position: 'relative', marginBottom: 40 }}
           onMouseEnter={() => setRailHovered(true)}
@@ -1801,7 +1793,7 @@ function EpisodeGrid({
             className="spaire-lesson-rail"
             style={{
               display: 'flex',
-              gap: 30,
+              gap: 24,
               overflowX: 'auto',
               scrollSnapType: 'x proximity',
               padding: '8px var(--gut, 72px) 22px',
@@ -1809,20 +1801,28 @@ function EpisodeGrid({
               scrollBehavior: 'smooth',
             }}
           >
-            {freeLessons.map((lesson, i) => (
-              <LessonLockup
-                key={lesson.id}
-                course={course}
-                lesson={lesson}
-                index={i + 1}
-                hue={thumbHues[i % thumbHues.length]}
-                hovered={hovered === lesson.id}
-                onHover={(on) => setHovered(on ? lesson.id : null)}
-                lessonHandlers={lessonHandlers}
-                organizationSlug={organizationSlug}
-                onOpen={() => setOpenLessonId(lesson.id)}
-              />
-            ))}
+            {allLessons.map((lesson, i) => {
+              const locked =
+                course.paywall_enabled && i >= freeLessons.length
+              return (
+                <LessonLockup
+                  key={lesson.id}
+                  course={course}
+                  lesson={lesson}
+                  index={i + 1}
+                  hue={thumbHues[i % thumbHues.length]}
+                  hovered={hovered === lesson.id}
+                  onHover={(on) => setHovered(on ? lesson.id : null)}
+                  lessonHandlers={lessonHandlers}
+                  organizationSlug={organizationSlug}
+                  locked={locked}
+                  onOpen={() => {
+                    if (locked) onEnroll()
+                    else setOpenLessonId(lesson.id)
+                  }}
+                />
+              )
+            })}
           </div>
           <RailArrow
             dir="right"
@@ -1832,348 +1832,6 @@ function EpisodeGrid({
         </div>
       )}
 
-      {/* Series replaces the members-only paywall card with a horizontal
-          carousel of the locked episodes. Clicking a card opens the
-          enroll-to-watch modal which routes to the same checkout flow. */}
-      {course.format === 'series' &&
-        course.paywall_enabled &&
-        lockedCount > 0 && (
-          <EpisodeCarousel
-            course={course}
-            product={product}
-            paidLessons={paidLessons}
-            priceLabel={priceLabel}
-            onEnroll={onEnroll}
-            enrolling={enrolling}
-            canEnroll={canEnroll}
-            variant="desktop"
-          />
-        )}
-
-      {/* Paywall — Apple liquid-glass card. Light, dimensional, glass-on-glass. */}
-      {course.format !== 'series' &&
-        course.paywall_enabled &&
-        lockedCount > 0 && (
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'center',
-            marginBottom: 72,
-            marginTop: 24,
-          }}
-        >
-          <div
-            style={{
-              position: 'relative',
-              width: '100%',
-              maxWidth: 1080,
-              borderRadius: 'calc(28px * var(--radius-mul, 1))',
-              overflow: 'hidden',
-              isolation: 'isolate',
-              padding: '64px 64px 56px',
-              background: `
-                linear-gradient(180deg, rgba(255,255,255,0.78) 0%, rgba(255,255,255,0.55) 100%),
-                radial-gradient(140% 100% at 12% -10%, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0) 55%),
-                radial-gradient(120% 90% at 100% 110%, oklch(0.96 0.003 280) 0%, oklch(0.92 0.004 280) 80%)
-              `,
-              backdropFilter: 'blur(30px) saturate(170%)',
-              WebkitBackdropFilter: 'blur(30px) saturate(170%)',
-              border: '1px solid rgba(255,255,255,0.75)',
-              boxShadow: `
-                inset 0 1px 0 rgba(255,255,255,1),
-                inset 0 0 0 1px rgba(255,255,255,0.55),
-                inset 0 -1px 0 rgba(255,255,255,0.55),
-                inset 0 -20px 40px rgba(0,0,0,0.02),
-                0 1px 1px rgba(0,0,0,0.04),
-                0 2px 6px rgba(0,0,0,0.05),
-                0 12px 28px rgba(20,18,40,0.08),
-                0 36px 80px rgba(20,18,40,0.10),
-                0 60px 120px rgba(20,18,40,0.06)
-              `,
-            }}
-          >
-            <div
-              aria-hidden
-              style={{
-                position: 'absolute',
-                left: '-15%',
-                top: '-50%',
-                width: '70%',
-                height: '160%',
-                background:
-                  'radial-gradient(ellipse, rgba(255,255,255,0.7) 0%, transparent 60%)',
-                filter: 'blur(36px)',
-                pointerEvents: 'none',
-                zIndex: 0,
-              }}
-            />
-            <div
-              aria-hidden
-              style={{
-                position: 'absolute',
-                right: '-20%',
-                bottom: '-50%',
-                width: '60%',
-                height: '150%',
-                background:
-                  'radial-gradient(ellipse, rgba(255,255,255,0.35) 0%, transparent 65%)',
-                filter: 'blur(28px)',
-                pointerEvents: 'none',
-                zIndex: 0,
-              }}
-            />
-            <div
-              aria-hidden
-              style={{
-                position: 'absolute',
-                left: 0,
-                right: 0,
-                top: 0,
-                height: 1.5,
-                background:
-                  'linear-gradient(90deg, transparent 0%, rgba(255,255,255,1) 25%, rgba(255,255,255,1) 75%, transparent 100%)',
-                pointerEvents: 'none',
-                zIndex: 2,
-              }}
-            />
-            <div
-              aria-hidden
-              style={{
-                position: 'absolute',
-                left: 0,
-                right: 0,
-                bottom: 0,
-                height: 1,
-                background:
-                  'linear-gradient(90deg, transparent 0%, rgba(40,30,80,0.06) 50%, transparent 100%)',
-                pointerEvents: 'none',
-                zIndex: 2,
-              }}
-            />
-
-            <div
-              style={{
-                position: 'relative',
-                zIndex: 1,
-                textAlign: 'center',
-                marginBottom: 24,
-              }}
-            >
-              <EditText
-                path="paywall.eyebrow"
-                defaultValue="Members only"
-                style={{
-                  display: 'block',
-                  fontSize: 10.5,
-                  fontWeight: 600,
-                  letterSpacing: '0.20em',
-                  textTransform: 'uppercase',
-                  color: 'oklch(0.66 0.006 280)',
-                  marginBottom: 16,
-                }}
-              />
-              <EditText
-                path="paywall.title"
-                defaultValue={`${lockedCount} more ${plural(
-                  lockedCount,
-                  'lesson',
-                  'lessons',
-                )}, unlocked when you enroll`}
-                multiline
-                style={{
-                  fontSize:
-                    'calc(clamp(28px, 3.2vw, 40px) * var(--type-scale, 1))',
-                  fontWeight: 'var(--h-weight, 600)',
-                  letterSpacing: 'calc(var(--h-tracking, 0em) - 0.03em)',
-                  lineHeight: 1.1,
-                  color: 'oklch(0.18 0.008 280)',
-                  marginBottom: 12,
-                  display: 'block',
-                  fontFamily: HEADING_VAR,
-                }}
-              />
-              <EditText
-                path="paywall.subtitle"
-                defaultValue="Lifetime access. Workshops with feedback. Certificate. 30-day refund."
-                multiline
-                style={{
-                  fontSize: 15,
-                  color: 'oklch(0.52 0.008 280)',
-                  lineHeight: 1.55,
-                  maxWidth: 540,
-                  margin: '0 auto',
-                  display: 'block',
-                }}
-              />
-            </div>
-
-            <div
-              aria-hidden
-              style={{
-                position: 'relative',
-                zIndex: 1,
-                height: 1,
-                margin: '4px -64px 22px',
-                background:
-                  'linear-gradient(90deg, transparent 0%, rgba(0,0,0,0.07) 50%, transparent 100%)',
-              }}
-            />
-
-            <div
-              style={{
-                position: 'relative',
-                zIndex: 1,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: 20,
-                marginBottom: 26,
-                flexWrap: 'wrap',
-              }}
-            >
-              <div
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'flex-start',
-                }}
-              >
-                {priceLabel && (
-                  <span
-                    style={{
-                      fontSize: 32,
-                      fontWeight: 700,
-                      letterSpacing: '-0.03em',
-                      color: 'oklch(0.18 0.008 280)',
-                      lineHeight: 1,
-                    }}
-                  >
-                    {priceLabel}
-                  </span>
-                )}
-                <EditText
-                  path="paywall.priceSub"
-                  defaultValue="one-time · lifetime access"
-                  style={{
-                    fontSize: 12,
-                    color: 'oklch(0.66 0.006 280)',
-                    marginTop: 6,
-                    display: 'block',
-                  }}
-                />
-              </div>
-              <button
-                type="button"
-                onClick={onEnroll}
-                disabled={!canEnroll || enrolling}
-                title={
-                  !canEnroll
-                    ? 'Enroll is disabled in edit mode — switch to preview to test the checkout flow.'
-                    : undefined
-                }
-                style={{
-                  padding: '14px 28px',
-                  borderRadius: 999,
-                  background:
-                    'linear-gradient(180deg, oklch(0.28 0.008 280) 0%, oklch(0.16 0.008 280) 100%)',
-                  color: 'white',
-                  fontSize: 14,
-                  fontWeight: 600,
-                  letterSpacing: '-0.01em',
-                  border: 'none',
-                  cursor: canEnroll
-                    ? enrolling
-                      ? 'wait'
-                      : 'pointer'
-                    : 'default',
-                  fontFamily: 'inherit',
-                  opacity: enrolling ? 0.7 : !canEnroll ? 0.55 : 1,
-                  boxShadow: `
-                    inset 0 1px 0 rgba(255,255,255,0.18),
-                    inset 0 -1px 0 rgba(0,0,0,0.4),
-                    0 1px 2px rgba(0,0,0,0.15),
-                    0 6px 16px rgba(0,0,0,0.18),
-                    0 12px 30px rgba(0,0,0,0.10)
-                  `,
-                }}
-              >
-                {enrolling ? (
-                  'Loading…'
-                ) : (
-                  <EditText path="paywall.cta" defaultValue="Enroll now" />
-                )}
-              </button>
-            </div>
-
-            {/* Locked episode strip — glass on glass */}
-            <div
-              style={{
-                position: 'relative',
-                zIndex: 1,
-                display: 'grid',
-                gridTemplateColumns: `repeat(${Math.min(paidLessons.length, 4)}, minmax(0, 1fr))${lockedCount > 4 ? ' auto' : ''}`,
-                gap: 14,
-                padding: '16px 18px',
-                borderRadius: 14,
-                background: 'rgba(255,255,255,0.45)',
-                border: '1px solid rgba(255,255,255,0.7)',
-                boxShadow:
-                  'inset 0 1px 0 rgba(255,255,255,0.9), 0 1px 2px rgba(0,0,0,0.03)',
-                alignItems: 'center',
-              }}
-            >
-              {paidLessons.slice(0, 4).map((lesson, i) => (
-                <LockedGlassItem
-                  key={lesson.id}
-                  lesson={lesson}
-                  index={freeLessons.length + i + 1}
-                  hue={thumbHues[i % thumbHues.length]}
-                  fallbackThumbnailUrl={course.thumbnail_url ?? null}
-                  fallbackObjectPosition={
-                    course.thumbnail_object_position ?? null
-                  }
-                />
-              ))}
-              {lockedCount > 4 && (
-                <div
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: 3,
-                    padding: '0 10px',
-                    alignSelf: 'stretch',
-                    borderLeft: '1px solid rgba(0,0,0,0.06)',
-                  }}
-                >
-                  <div
-                    style={{
-                      fontSize: 22,
-                      fontWeight: 600,
-                      color: 'oklch(0.32 0.008 280)',
-                      letterSpacing: '-0.025em',
-                      lineHeight: 1,
-                    }}
-                  >
-                    +{lockedCount - 4}
-                  </div>
-                  <div
-                    style={{
-                      fontSize: 10,
-                      color: 'oklch(0.66 0.006 280)',
-                      textAlign: 'center',
-                      lineHeight: 1.3,
-                    }}
-                  >
-                    more {plural(lockedCount - 4, 'lesson', 'lessons')}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
       {openLesson && (
         <LessonLightbox
           lesson={openLesson}
@@ -2360,6 +2018,7 @@ function LessonLockup({
   onHover,
   lessonHandlers,
   organizationSlug,
+  locked = false,
   onOpen,
 }: {
   course: CourseRead
@@ -2370,20 +2029,24 @@ function LessonLockup({
   onHover: (on: boolean) => void
   lessonHandlers?: LessonHandlers
   organizationSlug?: string
+  // Locked lessons keep their real title + description, but swap the Free
+  // chip for a lock chip and route the click to checkout instead of the
+  // free-preview lightbox.
+  locked?: boolean
   onOpen: () => void
 }) {
   const ed = useEditor()
   return (
     <div
-      style={{ flex: '0 0 auto', width: 460, scrollSnapAlign: 'start' }}
+      style={{ flex: '0 0 auto', width: 384, scrollSnapAlign: 'start' }}
       onMouseEnter={() => onHover(true)}
       onMouseLeave={() => onHover(false)}
     >
       <div
         style={{
           position: 'relative',
-          width: 460,
-          height: 372,
+          width: 384,
+          height: 310,
           borderRadius: 'calc(18px * var(--radius-mul, 1))',
           overflow: 'hidden',
           background: '#07080a',
@@ -2403,6 +2066,25 @@ function LessonLockup({
           lessonHandlers={lessonHandlers}
           onOpen={onOpen}
           chrome="lockup"
+          allowPeek={!locked}
+        />
+
+        {/* frosted blur on the bottom half — the design's lockup-blur */}
+        <div
+          aria-hidden
+          style={{
+            position: 'absolute',
+            left: 0,
+            right: 0,
+            bottom: 0,
+            height: '70%',
+            zIndex: 1,
+            pointerEvents: 'none',
+            backdropFilter: 'blur(17px)',
+            WebkitBackdropFilter: 'blur(17px)',
+            WebkitMaskImage: 'linear-gradient(0deg, #000 50%, transparent)',
+            maskImage: 'linear-gradient(0deg, #000 50%, transparent)',
+          }}
         />
 
         {/* bottom shade for text legibility */}
@@ -2418,40 +2100,65 @@ function LessonLockup({
           }}
         />
 
-        {/* Free chip (top-left) */}
-        <div
-          style={{
-            position: 'absolute',
-            top: 16,
-            left: 18,
-            zIndex: 3,
-            fontSize: 12,
-            fontWeight: 700,
-            letterSpacing: '0.07em',
-            textTransform: 'uppercase',
-            color: '#16171a',
-            background: 'rgba(255,255,255,0.95)',
-            padding: '4px 11px',
-            borderRadius: 7,
-            pointerEvents: 'none',
-          }}
-        >
-          Free
-        </div>
+        {/* Free chip (top-left) / lock chip (top-right) */}
+        {locked ? (
+          <div
+            style={{
+              position: 'absolute',
+              top: 14,
+              right: 14,
+              zIndex: 3,
+              width: 32,
+              height: 32,
+              borderRadius: '50%',
+              background: 'rgba(10,11,13,0.46)',
+              backdropFilter: 'blur(12px) saturate(150%)',
+              WebkitBackdropFilter: 'blur(12px) saturate(150%)',
+              display: 'grid',
+              placeItems: 'center',
+              boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.2)',
+              color: 'rgba(255,255,255,0.92)',
+              fontSize: 14,
+              pointerEvents: 'none',
+            }}
+          >
+            🔒
+          </div>
+        ) : (
+          <div
+            style={{
+              position: 'absolute',
+              top: 16,
+              left: 18,
+              zIndex: 3,
+              fontSize: 12,
+              fontWeight: 700,
+              letterSpacing: '0.07em',
+              textTransform: 'uppercase',
+              color: '#16171a',
+              background: 'rgba(255,255,255,0.95)',
+              padding: '4px 11px',
+              borderRadius: 7,
+              pointerEvents: 'none',
+            }}
+          >
+            Free
+          </div>
+        )}
 
-        {/* play-on-hover */}
+        {/* play / lock on hover */}
         <div
           aria-hidden
           style={{
             position: 'absolute',
-            top: '36%',
+            top: '34%',
             left: '50%',
             transform: hovered
               ? 'translate(-50%,-50%) scale(1)'
               : 'translate(-50%,-50%) scale(0.82)',
             zIndex: 3,
-            width: 62,
-            height: 62,
+            width: 58,
+            height: 58,
             borderRadius: '50%',
             background: 'rgba(255,255,255,0.18)',
             backdropFilter: 'blur(16px)',
@@ -2460,13 +2167,13 @@ function LessonLockup({
             placeItems: 'center',
             boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.42)',
             color: '#fff',
-            fontSize: 22,
+            fontSize: 20,
             opacity: hovered ? 1 : 0,
             transition: 'opacity 280ms ease, transform 280ms ease',
             pointerEvents: 'none',
           }}
         >
-          ▶
+          {locked ? '🔒' : '▶'}
         </div>
 
         {/* title + description over the shade */}
@@ -2480,7 +2187,7 @@ function LessonLockup({
             right: 0,
             bottom: 0,
             zIndex: 4,
-            padding: '0 27px 25px',
+            padding: '0 22px 20px',
             cursor: ed.mode === 'preview' ? 'pointer' : 'default',
           }}
         >
@@ -2506,6 +2213,7 @@ function EpisodeThumb({
   lessonHandlers,
   onOpen,
   chrome = 'card',
+  allowPeek = true,
 }: {
   lesson: CourseLessonRead
   index: number
@@ -2516,6 +2224,7 @@ function EpisodeThumb({
   // 'card' = standalone 16:9 tile. 'lockup' = fills a dark lesson card and
   // drops its own badges / play overlay so the lockup can draw them instead.
   chrome?: 'card' | 'lockup'
+  allowPeek?: boolean
 }) {
   const ed = useEditor()
 
@@ -2573,6 +2282,7 @@ function EpisodeThumb({
       hue={hue}
       hovered={hovered}
       chrome={chrome}
+      allowPeek={allowPeek}
       isEditMode={ed.mode === 'edit'}
       lessonHandlers={lessonHandlers}
       onOpen={onOpen}
@@ -2644,6 +2354,7 @@ function RealLessonEpisodeThumb({
   lessonHandlers,
   onOpen,
   chrome = 'card',
+  allowPeek = true,
 }: {
   lesson: CourseLessonRead
   index: number
@@ -2653,6 +2364,8 @@ function RealLessonEpisodeThumb({
   lessonHandlers?: LessonHandlers
   onOpen: () => void
   chrome?: 'card' | 'lockup'
+  // Locked lessons set this false so the hover peek never plays paid video.
+  allowPeek?: boolean
 }) {
   const lockup = chrome === 'lockup'
   const peekSeconds = 10
@@ -2678,7 +2391,7 @@ function RealLessonEpisodeThumb({
       ? lesson.mux_playback_id
       : null
   const localVideoUrl = lessonHandlers?.getLocalVideoUrl?.(lesson.id) ?? null
-  const hasPeekVideo = !!playbackId || !!localVideoUrl
+  const hasPeekVideo = allowPeek && (!!playbackId || !!localVideoUrl)
   const thumbnailUrl = lesson.thumbnail_url ?? null
   const effectivePosition =
     livePos ?? lesson.thumbnail_object_position ?? '50% 50%'
@@ -3299,8 +3012,8 @@ function EpisodeInfo({
     title: lockup ? '#fff' : 'oklch(0.18 0.008 280)',
     desc: lockup ? 'rgba(235,235,245,0.74)' : 'oklch(0.52 0.008 280)',
     time: lockup ? 'rgba(235,235,245,0.82)' : 'oklch(0.66 0.006 280)',
-    titleSize: lockup ? 22 : 15.5,
-    descSize: lockup ? 14.5 : 12.5,
+    titleSize: lockup ? 20 : 15.5,
+    descSize: lockup ? 13.5 : 12.5,
   }
   const descPath = `lesson.${lesson.id}.description`
   const [busy, setBusy] = useState(false)
@@ -3630,160 +3343,6 @@ function EpisodeInfo({
   )
 }
 
-function LockedGlassItem({
-  lesson,
-  index,
-  hue,
-  fallbackThumbnailUrl,
-  fallbackObjectPosition,
-}: {
-  lesson: CourseLessonRead
-  index: number
-  hue: number
-  fallbackThumbnailUrl?: string | null
-  fallbackObjectPosition?: string | null
-}) {
-  // Prefer the lesson's own cover so each locked card reads like a real
-  // episode tile; fall back to the course thumbnail so the paywall doesn't
-  // end up showing a row of identical color-swatch placeholders. The hue
-  // gradient stays as the last-resort backdrop.
-  const coverUrl = lesson.thumbnail_url ?? fallbackThumbnailUrl ?? null
-  const coverPosition =
-    lesson.thumbnail_object_position ?? fallbackObjectPosition ?? '50% 50%'
-  return (
-    <div
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 8,
-        minWidth: 0,
-      }}
-    >
-      <div
-        style={{
-          position: 'relative',
-          width: '100%',
-          aspectRatio: '16 / 10',
-          borderRadius: 8,
-          overflow: 'hidden',
-          background: 'rgba(0,0,0,0.04)',
-          border: '1px solid rgba(255,255,255,0.7)',
-          boxShadow:
-            'inset 0 1px 0 rgba(255,255,255,0.7), 0 1px 2px rgba(0,0,0,0.04)',
-        }}
-      >
-        {coverUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={coverUrl}
-            alt=""
-            style={{
-              position: 'absolute',
-              inset: 0,
-              width: '100%',
-              height: '100%',
-              objectFit: 'cover',
-              objectPosition: coverPosition,
-            }}
-          />
-        ) : (
-          <div
-            style={{
-              position: 'absolute',
-              inset: 0,
-              background: `linear-gradient(150deg, oklch(0.78 0.05 ${hue}) 0%, oklch(0.86 0.02 280) 100%)`,
-            }}
-          />
-        )}
-        {/* Darkening layer + soft saturation drop so the image reads as
-            "members only" without going fully opaque. With no image, the
-            same overlay just dims the placeholder gradient. */}
-        <div
-          style={{
-            position: 'absolute',
-            inset: 0,
-            background: coverUrl
-              ? 'linear-gradient(180deg, rgba(0,0,0,0.45) 0%, rgba(0,0,0,0.55) 100%)'
-              : 'rgba(255,255,255,0.45)',
-            backdropFilter: coverUrl
-              ? 'saturate(0.7)'
-              : 'blur(10px) saturate(150%)',
-            WebkitBackdropFilter: coverUrl
-              ? 'saturate(0.7)'
-              : 'blur(10px) saturate(150%)',
-          }}
-        />
-        {/* Lock icon centered on top */}
-        <div
-          style={{
-            position: 'absolute',
-            inset: 0,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: coverUrl
-              ? 'rgba(255,255,255,0.92)'
-              : 'oklch(0.45 0.012 280)',
-          }}
-          aria-hidden
-        >
-          <LockedItemLockIcon />
-        </div>
-      </div>
-      <div style={{ minWidth: 0 }}>
-        <div
-          style={{
-            fontSize: 9.5,
-            fontWeight: 600,
-            letterSpacing: '0.08em',
-            color: 'oklch(0.66 0.006 280)',
-            textTransform: 'uppercase',
-            marginBottom: 3,
-          }}
-        >
-          Episode {index}
-        </div>
-        <div
-          style={{
-            fontSize: 12,
-            fontWeight: 500,
-            color: 'oklch(0.32 0.008 280)',
-            lineHeight: 1.3,
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            display: '-webkit-box',
-            WebkitLineClamp: 2,
-            WebkitBoxOrient: 'vertical',
-          }}
-        >
-          {lesson.title}
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function LockedItemLockIcon() {
-  return (
-    <svg
-      width="16"
-      height="16"
-      viewBox="0 0 16 16"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      style={{
-        filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.35))',
-      }}
-    >
-      <rect x="3.25" y="7" width="9.5" height="6.5" rx="1.3" />
-      <path d="M5.25 7V5a2.75 2.75 0 015.5 0v2" />
-    </svg>
-  )
-}
-
 // ── Created by (light) ──────────────────────────────────────────────────────
 
 // Author-intro section that sits right under the hero. Mirrors the v2 design
@@ -3814,9 +3373,7 @@ function CreatedBy({
   return (
     <section
       style={{
-        padding: '88px 32px 64px',
-        maxWidth: 1320,
-        margin: '0 auto',
+        padding: '88px var(--gut, 72px) 64px',
         fontFamily: FONT_VAR,
       }}
     >
@@ -4393,9 +3950,7 @@ function WhatYoullLearn() {
         // zigzag cards gets meaningfully more width. The row min-height
         // and the 14px gap below also help the cards breathe instead of
         // sitting tight against each other.
-        padding: '88px 16px 24px',
-        maxWidth: 1820,
-        margin: '0 auto',
+        padding: '88px var(--gut, 72px) 24px',
         fontFamily: FONT_VAR,
       }}
     >
@@ -4477,9 +4032,7 @@ function Instructor({ course }: { course: CourseRead }) {
   return (
     <section
       style={{
-        padding: '72px 32px 80px',
-        maxWidth: 1320,
-        margin: '0 auto',
+        padding: '72px var(--gut, 72px) 80px',
         fontFamily: FONT_VAR,
       }}
     >
@@ -4704,9 +4257,7 @@ function Faq() {
   return (
     <section
       style={{
-        padding: '88px 32px 24px',
-        maxWidth: 1080,
-        margin: '0 auto',
+        padding: '88px var(--gut, 72px) 24px',
         fontFamily: FONT_VAR,
       }}
     >
@@ -5174,9 +4725,7 @@ function Footer({ organizationName }: { organizationName: string }) {
   return (
     <footer
       style={{
-        padding: '40px 32px',
-        maxWidth: 1320,
-        margin: '0 auto',
+        padding: '40px var(--gut, 72px)',
         fontFamily: FONT_VAR,
       }}
     >
