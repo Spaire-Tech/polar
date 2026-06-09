@@ -2,6 +2,7 @@
 
 import { ProfileCard } from '@/components/Profile/ProfileCard'
 import { useProducts } from '@/hooks/queries'
+import { FormPublic, useForms } from '@/hooks/queries/forms'
 import { schemas } from '@spaire/client'
 import { DraggableBlocks } from './InlineEdit/DraggableBlocks'
 import { EditableProfileCard } from './InlineEdit/EditableProfileCard'
@@ -29,6 +30,22 @@ export const SpaceEditorCanvas = ({
   })
   const products = (productsData?.items ?? []) as unknown as schemas['ProductStorefront'][]
 
+  // All of the org's forms (draft + published) so a just-added form shows on
+  // the canvas immediately. Mapped to the public shape the resolver/blocks
+  // expect.
+  const { data: formsData } = useForms(org.id, { limit: 100 })
+  const forms: FormPublic[] = (formsData?.items ?? []).map((f) => ({
+    id: f.id,
+    organization_id: f.organization_id,
+    title: f.title,
+    subtitle: f.subtitle,
+    button_label: f.button_label,
+    success_message: f.success_message,
+    has_lead_magnet: f.file_id != null,
+    lead_magnet_name: null,
+    attached_custom_fields: f.attached_custom_fields,
+  }))
+
   return (
     <div className={`canvas-wrap${hasSettingsPanel ? ' has-panel' : ''}`}>
       <div className="canvas">
@@ -41,6 +58,7 @@ export const SpaceEditorCanvas = ({
           <DraggableBlocks
             organization={org}
             products={products}
+            forms={forms}
             onAddToSpace={onAddToSpace}
           />
           <div className="footer-note">That&apos;s everything on your Space.</div>

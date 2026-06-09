@@ -10,6 +10,7 @@ import {
   setItemHidden,
   type ResolvedSpaceItem,
 } from '@/components/Profile/spaceItems'
+import { FormPublic } from '@/hooks/queries/forms'
 import DeleteOutlineOutlined from '@mui/icons-material/DeleteOutlineOutlined'
 import DragIndicatorOutlined from '@mui/icons-material/DragIndicatorOutlined'
 import LinkOutlined from '@mui/icons-material/LinkOutlined'
@@ -182,10 +183,12 @@ const ItemRowBody = ({ item }: { item: ResolvedSpaceItem }) => {
 export const ArrangePanel = ({
   organization,
   products,
+  forms = [],
   onClose,
 }: {
   organization: schemas['Organization']
   products: schemas['ProductStorefront'][]
+  forms?: FormPublic[]
   onClose: () => void
 }) => {
   const { watch, setValue } = useFormContext<schemas['OrganizationUpdate']>()
@@ -205,9 +208,10 @@ export const ArrangePanel = ({
         settings,
         products,
         links,
+        forms,
         includeHidden: true,
       }),
-    [settings, products, links],
+    [settings, products, links, forms],
   )
 
   // The generated OpenAPI types don't include `space_items` yet — it
