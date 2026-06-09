@@ -3,7 +3,6 @@
 import { useFormById, useFormSubmissions } from '@/hooks/queries/forms'
 import { schemas } from '@spaire/client'
 import Link from 'next/link'
-import { DashboardBody } from '../Layout/DashboardLayout'
 
 const formatDate = (value: string) => new Date(value).toLocaleString()
 
@@ -31,14 +30,20 @@ export const FormSubmissionsView = ({
   const fields = form?.attached_custom_fields ?? []
 
   return (
-    <DashboardBody title={form ? `${form.title} — Submissions` : 'Submissions'}>
-      <div className="flex flex-col gap-6">
+    <div className="flex min-h-screen flex-col bg-gray-50">
+      <div className="border-b border-gray-200 bg-white px-6 py-4">
         <Link
           href={`/dashboard/${organization.slug}/forms`}
-          className="text-sm text-gray-500 transition-colors hover:text-black"
+          className="flex items-center gap-2 text-sm text-gray-500 transition-colors hover:text-black"
         >
-          ← Back to Forms
+          <span aria-hidden>←</span>
+          <span>Back to Forms</span>
         </Link>
+      </div>
+      <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 p-8">
+        <h1 className="text-xl font-semibold text-gray-900">
+          {form ? `${form.title} — Submissions` : 'Submissions'}
+        </h1>
 
         <div className="rounded-2xl border border-gray-200 p-6">
           <p className="text-sm text-gray-500">Total submissions</p>
@@ -91,6 +96,6 @@ export const FormSubmissionsView = ({
           </div>
         )}
       </div>
-    </DashboardBody>
+    </div>
   )
 }

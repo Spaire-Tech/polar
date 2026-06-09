@@ -770,6 +770,10 @@ const Customization = ({
             <ArrangePanel
               organization={organization}
               products={(storefrontData?.products ?? []) as schemas['ProductStorefront'][]}
+              forms={
+                ((storefrontData as { forms?: FormPublic[] } | undefined)
+                  ?.forms ?? []) as FormPublic[]
+              }
               onClose={() => setArrangeOpen(false)}
             />
           </aside>

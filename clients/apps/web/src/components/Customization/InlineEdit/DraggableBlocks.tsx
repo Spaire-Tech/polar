@@ -19,6 +19,7 @@ import {
   type ResolvedSpaceItem,
 } from '@/components/Profile/spaceItems'
 import { toast } from '@/components/Toast/use-toast'
+import { FormPublic } from '@/hooks/queries/forms'
 import {
   closestCenter,
   DndContext,
@@ -244,7 +245,11 @@ type LinkChunk = {
   kind: 'link'
   items: Extract<ResolvedSpaceItem, { kind: 'link' }>[]
 }
-type Chunk = ProductChunk | LinkChunk
+type FormChunk = {
+  kind: 'form'
+  items: Extract<ResolvedSpaceItem, { kind: 'form' }>[]
+}
+type Chunk = ProductChunk | LinkChunk | FormChunk
 
 // Same chunking rule the public Storefront uses: start a new chunk on
 // every (kind, category) transition. Two ebooks in a row → one chunk.
@@ -263,10 +268,12 @@ const chunkByKindAndCategory = (items: ResolvedSpaceItem[]): Chunk[] => {
       }
       out.push({ kind: 'product', category: cat, items: [item] })
     } else if (item.kind === 'form') {
-      // Forms aren't arrangeable in this surface yet — they're preserved in
-      // space_items and render on the public Space. Skip so the rest of this
-      // chunker stays narrowed to link items.
-      continue
+      const tail = out[out.length - 1]
+      if (tail && tail.kind === 'form') {
+        tail.items.push(item)
+        continue
+      }
+      out.push({ kind: 'form', items: [item] })
     } else {
       const tail = out[out.length - 1]
       if (tail && tail.kind === 'link') {
@@ -315,10 +322,12 @@ const buildLinkRuns = (
 export const DraggableBlocks = ({
   organization: org,
   products,
+  forms,
   onAddToSpace,
 }: {
   organization: schemas['Organization']
   products: schemas['ProductStorefront'][]
+  forms: FormPublic[]
   onAddToSpace?: () => void
 }) => {
   const { watch, setValue } = useFormContext<schemas['OrganizationUpdate']>()
@@ -340,8 +349,8 @@ export const DraggableBlocks = ({
   // them) but never in the public render — the resolver does the
   // filtering, we just ask for the visible-only list here.
   const items = useMemo(
-    () => resolveSpaceItems({ settings, products, links }),
-    [settings, products, links],
+    () => resolveSpaceItems({ settings, products, links, forms }),
+    [settings, products, links, forms],
   )
 
   // The generated OpenAPI types don't include `space_items` yet — it
@@ -540,6 +549,52 @@ export const DraggableBlocks = ({
                   ))}
                   </div>
                 </section>
+              )
+            }
+            if (chunk.kind === 'form') {
+              return (
+                <div key={`f-${idx}`} className="canvas-card flex flex-col gap-5">
+                  {chunk.items.map((entry) => (
+                    <SortableItem key={itemKey(entry)} id={itemKey(entry)}>
+                      {({ listeners, attributes }) => (
+                        <div className="item-hover">
+                          <div className="rounded-2xl border border-gray-200 bg-white p-5">
+                            <div className="text-xs font-medium tracking-wide text-gray-400 uppercase">
+                              Lead form
+                            </div>
+                            <div className="mt-1 text-lg font-semibold text-gray-900">
+                              {entry.form.title}
+                            </div>
+                            {entry.form.subtitle ? (
+                              <div className="mt-1 text-sm text-gray-500">
+                                {entry.form.subtitle}
+                              </div>
+                            ) : null}
+                          </div>
+                          <div className="item-actions">
+                            <ItemDragHandle
+                              listeners={listeners}
+                              attributes={attributes}
+                              label={`Drag ${entry.form.title} to reorder`}
+                            />
+                            <button
+                              type="button"
+                              className="item-action"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                onHide(itemKey(entry), entry.form.title)
+                              }}
+                              title="Hide from Space"
+                              aria-label={`Hide ${entry.form.title} from Space`}
+                            >
+                              <VisibilityOffOutlined style={{ fontSize: 16 }} />
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </SortableItem>
+                  ))}
+                </div>
               )
             }
             // Link chunk. Each link renders in ITS OWN layout (set from
