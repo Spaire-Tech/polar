@@ -23,6 +23,14 @@ const CORNER_RADIUS: Record<FormStyle['corner'], string> = {
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
+// Join class fragments at runtime. NOTE: don't inline conditional classes as
+// `className={`lm-x${cond ? ' y' : ''}`}` — prettier-plugin-tailwindcss treats
+// className template literals as class lists and strips the leading space,
+// collapsing `lm-x y` into the bogus single class `lm-xy`. Building the string
+// here (the plugin doesn't touch arbitrary calls) keeps the space intact.
+const cx = (...parts: Array<string | false | null | undefined>): string =>
+  parts.filter(Boolean).join(' ')
+
 const CSS = `
 .lm-frame{--input-radius:16px;display:flex;width:100%;max-width:860px;min-height:504px;overflow:hidden;background:#fff;border-radius:24px;box-shadow:0 1px 2px rgba(12,12,13,.05),0 24px 60px -28px rgba(12,12,13,.32);font-family:"Schibsted Grotesk",system-ui,sans-serif;color:#0c0c0d}
 .lm-frame.media-right{flex-direction:row-reverse}
@@ -255,7 +263,10 @@ export const LeadMagnetCard = ({
     <>
       <style>{CSS}</style>
       <div
-        className={`lm-frame${style.media_side === 'right' ? ' media-right' : ''}`}
+        className={cx(
+          'lm-frame',
+          style.media_side === 'right' && 'media-right',
+        )}
         style={frameStyle}
       >
         <div className="lm-media">
@@ -313,7 +324,7 @@ export const LeadMagnetCard = ({
                 <form className="lm-form" onSubmit={onSubmit} noValidate>
                   <div className="lm-field">
                     <input
-                      className={`lm-input${errors.name ? 'invalid' : ''}`}
+                      className={cx('lm-input', errors.name && 'invalid')}
                       type="text"
                       placeholder="Your name"
                       autoComplete="name"
@@ -332,7 +343,7 @@ export const LeadMagnetCard = ({
 
                   <div className="lm-field">
                     <input
-                      className={`lm-input${errors.email ? 'invalid' : ''}`}
+                      className={cx('lm-input', errors.email && 'invalid')}
                       type="email"
                       placeholder="Email address"
                       autoComplete="email"
@@ -366,7 +377,11 @@ export const LeadMagnetCard = ({
 
                   {style.show_consent ? (
                     <div
-                      className={`lm-consent${consent ? 'checked' : ''}${errors.consent ? 'invalid' : ''}`}
+                      className={cx(
+                        'lm-consent',
+                        consent && 'checked',
+                        errors.consent && 'invalid',
+                      )}
                       onClick={() => {
                         if (!interactive) return
                         setConsent(!consent)
