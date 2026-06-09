@@ -90,6 +90,13 @@ export const FormsList = ({
                       Embed
                     </Button>
                     <Link
+                      href={`/dashboard/${organization.slug}/forms/${form.id}/submissions`}
+                    >
+                      <Button variant="secondary" size="sm">
+                        Submissions
+                      </Button>
+                    </Link>
+                    <Link
                       href={`/dashboard/${organization.slug}/forms/${form.id}/edit`}
                     >
                       <Button variant="secondary" size="sm">

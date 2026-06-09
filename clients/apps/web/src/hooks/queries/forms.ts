@@ -160,6 +160,37 @@ export const useFormPublic = (id?: string) =>
     enabled: !!id,
   })
 
+export type FormSubmissionRow = {
+  id: string
+  form_id: string
+  email: string
+  name: string | null
+  email_subscriber_id: string | null
+  custom_field_data: Record<string, string | number | boolean | null>
+  created_at: string
+  modified_at: string | null
+}
+
+export const useFormSubmissions = (
+  formId?: string,
+  parameters?: { page?: number; limit?: number },
+) =>
+  useQuery({
+    queryKey: ['forms', 'submissions', formId, { ...(parameters || {}) }],
+    queryFn: () => {
+      const qs = new URLSearchParams()
+      if (parameters?.page) qs.set('page', String(parameters.page))
+      if (parameters?.limit) qs.set('limit', String(parameters.limit))
+      return fetchApi<{
+        items: FormSubmissionRow[]
+        pagination: { total_count: number; max_page: number }
+      }>(`/v1/forms/${formId}/submissions?${qs}`)
+    },
+    enabled: !!formId,
+    retry: defaultRetry,
+    placeholderData: keepPreviousData,
+  })
+
 export const useCreateForm = () =>
   useMutation({
     mutationFn: (body: FormCreatePayload) =>
