@@ -149,8 +149,10 @@ class SpaceItem(Schema):
     flipping the flag.
     """
 
-    kind: Literal["product", "link"] = Field(
-        description="What `id` refers to: a product, or a storefront_links entry."
+    kind: Literal["product", "link", "form"] = Field(
+        description=(
+            "What `id` refers to: a product, a storefront_links entry, or a form."
+        )
     )
     id: str = Field(description="Identifier of the referenced product or link.")
     hidden: bool = Field(
