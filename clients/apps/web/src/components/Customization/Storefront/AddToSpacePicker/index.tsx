@@ -6,9 +6,10 @@ import { useEffect, useState } from 'react'
 import { CatalogTab } from './CatalogTab'
 import { CourseTab } from './CourseTab'
 import { EmbedPickPayload, EmbedTab } from './EmbedTab'
+import { FormPickPayload, FormTab } from './FormTab'
 import { UrlPickPayload, UrlTab } from './UrlTab'
 
-export type { EmbedPickPayload, UrlPickPayload }
+export type { EmbedPickPayload, FormPickPayload, UrlPickPayload }
 
 export type AddToSpacePickerCallbacks = {
   onAddLink: (payload: UrlPickPayload) => void
@@ -21,9 +22,10 @@ export type AddToSpacePickerCallbacks = {
   onChangeProducts: (addIds: string[], removeIds: string[]) => void
   onCreateProduct: () => void
   onCreateCourse: () => void
+  onAddForm: (payload: FormPickPayload) => void
 }
 
-const TABS = ['URL', 'Embed', 'Digital Product', 'Course'] as const
+const TABS = ['URL', 'Embed', 'Digital Product', 'Course', 'Form'] as const
 type Tab = (typeof TABS)[number]
 
 export const AddToSpacePicker = ({
@@ -132,6 +134,12 @@ export const AddToSpacePicker = ({
                 onClose()
                 callbacks.onCreateCourse()
               }}
+            />
+          )}
+          {tab === 'Form' && (
+            <FormTab
+              organization={organization}
+              onPick={wrap(callbacks.onAddForm)}
             />
           )}
         </div>

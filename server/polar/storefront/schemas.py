@@ -2,6 +2,7 @@ from pydantic import Field
 
 from polar.benefit.schemas import BenefitPublic
 from polar.file.schemas import ProductMediaFileRead
+from polar.form.schemas import FormPublic
 from polar.kit.metadata import MetadataOutputMixin
 from polar.kit.schemas import Schema
 from polar.organization.schemas import Organization
@@ -38,6 +39,10 @@ class Storefront(Schema):
     products: list[ProductStorefront]
     donation_product: ProductStorefront | None
     customers: StorefrontCustomers
+    forms: list[FormPublic] = Field(
+        default_factory=list,
+        description="Published lead-magnet forms featured on the storefront.",
+    )
 
 
 class OrganizationSlugLookup(Schema):

@@ -1,5 +1,6 @@
-import { spacePageLink } from '@/utils/nav'
+import { FormPublic } from '@/hooks/queries/forms'
 import { getServerSideAPI } from '@/utils/client/serverside'
+import { spacePageLink } from '@/utils/nav'
 import { getStorefrontOrNotFound } from '@/utils/storefront'
 import type { Metadata } from 'next'
 import AppPage from './AppPage'
@@ -63,10 +64,12 @@ export default async function Page(props: {
 }) {
   const params = await props.params
   const api = await getServerSideAPI()
-  const { organization, products } = await getStorefrontOrNotFound(
-    api,
-    params.organization,
-  )
+  const storefront = await getStorefrontOrNotFound(api, params.organization)
+  const { organization, products } = storefront
+  const forms = ((storefront as { forms?: FormPublic[] }).forms ??
+    []) as FormPublic[]
 
-  return <AppPage organization={organization} products={products} />
+  return (
+    <AppPage organization={organization} products={products} forms={forms} />
+  )
 }

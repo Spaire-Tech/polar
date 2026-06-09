@@ -12,6 +12,7 @@ import {
 } from '@/components/Profile/spaceItems'
 import { toast } from '@/components/Toast/use-toast'
 import { useUpdateOrganization } from '@/hooks/queries'
+import { FormPublic } from '@/hooks/queries/forms'
 import { useStorefront } from '@/hooks/queries/storefront'
 import { setValidationErrors } from '@/utils/api/errors'
 import { spacePageLink } from '@/utils/nav'
@@ -226,6 +227,26 @@ const Customization = ({
         `/dashboard/${organization.slug}/products/new?type=course&returnTo=${encodeURIComponent(returnTo)}`,
       )
     },
+    onAddForm: (payload) => {
+      const settings = form.getValues('storefront_settings') ?? {}
+      const itemPatch = appendSpaceItem({
+        settings: settings as schemas['OrganizationStorefrontSettings'],
+        products: storefrontData?.products ?? [],
+        links:
+          (settings as { storefront_links?: StorefrontLinkItem[] })
+            .storefront_links ?? [],
+        item: { kind: 'form', id: payload.id },
+      })
+      form.setValue(
+        'storefront_settings',
+        { ...settings, ...itemPatch },
+        { shouldDirty: true },
+      )
+      toast({
+        title: 'Added form to your Space',
+        description: payload.title,
+      })
+    },
   }
 
   // ⌘K / Ctrl+K opens the Add-to-Space picker from anywhere in the editor.
@@ -382,6 +403,9 @@ const Customization = ({
         draft.storefront_settings ?? publishedOrg.storefront_settings,
     } as typeof publishedOrg
     const previewProducts = (storefrontData?.products ?? []) as schemas['ProductStorefront'][]
+    const previewForms = ((
+      storefrontData as { forms?: FormPublic[] } | undefined
+    )?.forms ?? []) as FormPublic[]
     const previewSettings = previewOrg.storefront_settings ?? {}
     const previewFeaturedMode = previewSettings?.featured_mode ?? 'curated'
     const previewFeaturedIds = previewSettings?.featured_product_ids ?? []
@@ -524,6 +548,7 @@ const Customization = ({
                     <Storefront
                       organization={previewOrg}
                       products={previewProducts}
+                      forms={previewForms}
                       preview
                     />
                   )}
@@ -558,6 +583,7 @@ const Customization = ({
                           <Storefront
                             organization={previewOrg}
                             products={previewProducts}
+                            forms={previewForms}
                             preview
                           />
                         )}

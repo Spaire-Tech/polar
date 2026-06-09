@@ -24,6 +24,7 @@ class EmailSubscriberStatus(StrEnum):
 
 class EmailSubscriberSource(StrEnum):
     space_signup = "space_signup"
+    lead_magnet = "lead_magnet"
     purchase = "purchase"
     manual = "manual"
     import_ = "import"

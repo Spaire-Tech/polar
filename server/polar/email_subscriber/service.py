@@ -194,6 +194,27 @@ class EmailSubscriberService:
         await self._trigger_on_subscribe_sequences(session, organization_id, subscriber.id)
         return subscriber
 
+    async def subscribe_from_form(
+        self,
+        session: AsyncSession,
+        *,
+        organization_id: UUID,
+        email: str,
+        name: str | None = None,
+    ) -> EmailSubscriber:
+        """Subscribe an email captured through a lead-magnet form. Tagged with
+        the ``lead_magnet`` source so creators can segment form opt-ins, and
+        fires any ``on_subscribe`` sequences (e.g. a welcome / nurture drip)."""
+        subscriber = await self.create(
+            session,
+            organization_id=organization_id,
+            email=email,
+            name=name,
+            source=EmailSubscriberSource.lead_magnet,
+        )
+        await self._trigger_on_subscribe_sequences(session, organization_id, subscriber.id)
+        return subscriber
+
     async def subscribe_from_purchase(
         self,
         session: AsyncSession,

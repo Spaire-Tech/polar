@@ -66,6 +66,8 @@ from .event import Event, EventClosure
 from .event_type import EventType
 from .external_event import ExternalEvent
 from .file import File
+from .form import Form, FormCustomField, FormStatus
+from .form_submission import FormSubmission
 from .held_balance import HeldBalance
 from .issue_reward import IssueReward
 from .lesson_comment import LessonComment
@@ -195,6 +197,10 @@ __all__ = [
     "EventType",
     "ExternalEvent",
     "File",
+    "Form",
+    "FormCustomField",
+    "FormStatus",
+    "FormSubmission",
     "HeldBalance",
     "IssueReward",
     "LegacyRecurringProductPriceCustom",
