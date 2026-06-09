@@ -352,7 +352,6 @@ export const FormBuilder = ({
                 <SelectContent>
                   <SelectItem value="left">Left</SelectItem>
                   <SelectItem value="right">Right</SelectItem>
-                  <SelectItem value="top">Top</SelectItem>
                 </SelectContent>
               </Select>
             </div>
