@@ -1,6 +1,6 @@
 'use client'
 
-import { FormCard } from '@/components/Forms/FormCard'
+import { LeadMagnetCard } from '@/components/Forms/LeadMagnetCard'
 import { ProductCard } from '@/components/Products/ProductCard'
 import { CATEGORY_LABELS } from '@/components/Profile/categoryLabels'
 import { SectionLabel } from '@/components/Profile/SectionLabel'
@@ -557,60 +557,56 @@ export const DraggableBlocks = ({
             }
             if (chunk.kind === 'form') {
               return (
-                <section
+                <div
                   key={`f-${idx}`}
-                  className="canvas-card flex scroll-mt-24 flex-col gap-6"
+                  className="canvas-card flex flex-col gap-6"
                 >
-                  <div className="grid w-full grid-cols-1 gap-6 md:grid-cols-2">
-                    {chunk.items.map((entry) => (
-                      <SortableItem key={itemKey(entry)} id={itemKey(entry)}>
-                        {({ listeners, attributes }) => (
-                          <div className="item-hover">
-                            <FormCard
-                              form={entry.form}
-                              thumbnailSize={thumbnailSize}
+                  {chunk.items.map((entry) => (
+                    <SortableItem key={itemKey(entry)} id={itemKey(entry)}>
+                      {({ listeners, attributes }) => (
+                        <div className="item-hover">
+                          <LeadMagnetCard
+                            form={entry.form}
+                            interactive={false}
+                          />
+                          <div className="item-actions">
+                            <button
+                              type="button"
+                              className="item-action"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                router.push(
+                                  `/dashboard/${org.slug}/forms/${entry.form.id}/edit`,
+                                )
+                              }}
+                              title="Edit lead magnet"
+                              aria-label={`Edit ${entry.form.title}`}
+                            >
+                              <EditOutlined style={{ fontSize: 16 }} />
+                            </button>
+                            <ItemDragHandle
+                              listeners={listeners}
+                              attributes={attributes}
+                              label={`Drag ${entry.form.title} to reorder`}
                             />
-                            <div className="item-actions">
-                              <button
-                                type="button"
-                                className="item-action"
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  router.push(
-                                    `/dashboard/${org.slug}/forms/${entry.form.id}/edit`,
-                                  )
-                                }}
-                                title="Edit lead magnet"
-                                aria-label={`Edit ${entry.form.title}`}
-                              >
-                                <EditOutlined style={{ fontSize: 16 }} />
-                              </button>
-                              <ItemDragHandle
-                                listeners={listeners}
-                                attributes={attributes}
-                                label={`Drag ${entry.form.title} to reorder`}
-                              />
-                              <button
-                                type="button"
-                                className="item-action"
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  onHide(itemKey(entry), entry.form.title)
-                                }}
-                                title="Hide from Space"
-                                aria-label={`Hide ${entry.form.title} from Space`}
-                              >
-                                <VisibilityOffOutlined
-                                  style={{ fontSize: 16 }}
-                                />
-                              </button>
-                            </div>
+                            <button
+                              type="button"
+                              className="item-action"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                onHide(itemKey(entry), entry.form.title)
+                              }}
+                              title="Hide from Space"
+                              aria-label={`Hide ${entry.form.title} from Space`}
+                            >
+                              <VisibilityOffOutlined style={{ fontSize: 16 }} />
+                            </button>
                           </div>
-                        )}
-                      </SortableItem>
-                    ))}
-                  </div>
-                </section>
+                        </div>
+                      )}
+                    </SortableItem>
+                  ))}
+                </div>
               )
             }
             // Link chunk. Each link renders in ITS OWN layout (set from

@@ -35,9 +35,6 @@ const CSS = `
 .lm-container{container-type:inline-size;container-name:lm;width:100%;display:flex;justify-content:center}
 .lm-frame{--input-radius:16px;display:flex;width:100%;max-width:860px;min-height:504px;overflow:hidden;background:#fff;border-radius:24px;box-shadow:0 1px 2px rgba(12,12,13,.05),0 24px 60px -28px rgba(12,12,13,.32);font-family:"Schibsted Grotesk",system-ui,sans-serif;color:#0c0c0d}
 .lm-frame.media-right{flex-direction:row-reverse}
-.lm-frame.media-top{flex-direction:column}
-.lm-frame.media-top .lm-media{flex:0 0 220px}
-.lm-frame.media-top .lm-panel{align-items:flex-start}
 .lm-media{flex:0 0 42%;min-width:0;position:relative;background:#f1f1f3}
 .lm-media img{width:100%;height:100%;object-fit:cover;display:block}
 .lm-media-ph{width:100%;height:100%;display:grid;place-items:center;color:#9a9aa4;font-size:14px;font-weight:500;text-align:center;padding:20px}
@@ -76,8 +73,8 @@ const CSS = `
 .lm-linkbtn{background:none;border:none;padding:0;cursor:pointer;font-family:inherit;font-size:14.5px;font-weight:600;color:var(--accent)}
 .lm-linkbtn:hover{text-decoration:underline}
 .lm-linkbtn.muted{color:#9a9aa4}
-@container lm (max-width:640px){.lm-frame,.lm-frame.media-right,.lm-frame.media-top{flex-direction:column;max-width:none}.lm-media{flex:0 0 200px}.lm-panel{padding:32px 26px 40px;align-items:flex-start}}
-@media (max-width:720px){.lm-frame,.lm-frame.media-right,.lm-frame.media-top{flex-direction:column;max-width:none}.lm-media{flex:0 0 200px}.lm-panel{padding:32px 26px 40px;align-items:flex-start}}
+@container lm (max-width:640px){.lm-frame,.lm-frame.media-right{flex-direction:column;max-width:none}.lm-media{flex:0 0 200px}.lm-panel{padding:32px 26px 40px;align-items:flex-start}}
+@media (max-width:720px){.lm-frame,.lm-frame.media-right{flex-direction:column;max-width:none}.lm-media{flex:0 0 200px}.lm-panel{padding:32px 26px 40px;align-items:flex-start}}
 `
 
 const CheckIcon = ({ color = '#fff' }: { color?: string }) => (
@@ -257,7 +254,6 @@ export const LeadMagnetCard = ({
           className={cx(
             'lm-frame',
             style.media_side === 'right' && 'media-right',
-            style.media_side === 'top' && 'media-top',
           )}
           style={frameStyle}
         >

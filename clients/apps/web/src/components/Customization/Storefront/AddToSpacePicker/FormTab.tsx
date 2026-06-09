@@ -9,6 +9,9 @@ export type FormPickPayload = {
   title: string
 }
 
+// Card grid mirroring CourseTab / the product picker: each lead magnet is a
+// tile with its cover art + title, plus a "New form" create tile. Picking a
+// tile adds that form to the Space.
 export const FormTab = ({
   organization,
   onPick,
@@ -25,55 +28,58 @@ export const FormTab = ({
         Add a lead-capture form to your Space. Only published forms show to
         visitors.
       </p>
-      <div className="wg-grid one">
-        <Link
-          href={`/dashboard/${organization.slug}/forms/new`}
-          className="wg-card create"
-          style={{ minHeight: 96 }}
-        >
-          <div
-            className="wg-art"
-            style={{ background: 'linear-gradient(135deg, #2a2a2a, #555)' }}
-          >
-            ✎
-          </div>
-          <div className="wg-meta">
-            <div className="wg-card-title">Create a new form</div>
-            <div className="wg-card-sub">
-              Build a branded email-capture form.
-            </div>
-          </div>
-        </Link>
 
-        {!isLoading &&
-          forms.map((form) => (
-            <button
-              key={form.id}
-              type="button"
-              className="wg-card"
-              onClick={() => onPick({ id: form.id, title: form.title })}
-            >
-              <div
-                className="wg-art"
-                style={{
-                  background: 'linear-gradient(135deg, #4f46e5, #818cf8)',
-                }}
-              >
-                ▦
-              </div>
-              <div className="wg-meta">
-                <div className="wg-card-title">
-                  {form.title}
-                  {form.status !== 'published' ? ' · Draft' : ''}
-                </div>
-                <div className="wg-card-sub">/{form.slug}</div>
-              </div>
-              <span className="wg-add-btn small ghost" aria-hidden>
-                +
-              </span>
-            </button>
+      {isLoading ? (
+        <div className="wg-grid three">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="wg-skeleton" />
           ))}
-      </div>
+        </div>
+      ) : (
+        <div className="wg-grid three">
+          <Link
+            href={`/dashboard/${organization.slug}/forms/new`}
+            className="wg-tile create"
+          >
+            <div className="wg-tile-art empty">+</div>
+            <div className="wg-tile-meta">
+              <div className="wg-tile-title">New form</div>
+            </div>
+          </Link>
+
+          {forms.map((form) => {
+            const title = form.title || 'Untitled form'
+            return (
+              <button
+                key={form.id}
+                type="button"
+                className="wg-tile"
+                onClick={() => onPick({ id: form.id, title: form.title })}
+              >
+                <div
+                  className="wg-tile-art"
+                  style={{
+                    backgroundImage: form.image_url
+                      ? `url(${form.image_url})`
+                      : 'linear-gradient(135deg, #4f46e5, #818cf8)',
+                  }}
+                >
+                  {!form.image_url && (title[0]?.toUpperCase() ?? '·')}
+                </div>
+                <div className="wg-tile-meta">
+                  <div className="wg-tile-title">{title}</div>
+                  {form.subtitle ? (
+                    <div className="wg-tile-sub">{form.subtitle}</div>
+                  ) : null}
+                </div>
+                <span className="wg-tile-check" aria-hidden>
+                  +
+                </span>
+              </button>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }

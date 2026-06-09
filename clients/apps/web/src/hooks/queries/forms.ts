@@ -43,7 +43,7 @@ export type FormStatus = 'draft' | 'published'
 export type FormStyle = {
   accent: string
   corner: 'sharp' | 'rounded' | 'pill'
-  media_side: 'left' | 'right' | 'top'
+  media_side: 'left' | 'right'
   show_consent: boolean
 }
 
