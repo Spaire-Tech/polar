@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Annotated, Literal
 
-from pydantic import UUID4, Field
+from pydantic import UUID4, Field, field_validator
 
 from polar.custom_field.data import CustomFieldDataInputMixin
 from polar.custom_field.schemas import (
@@ -54,6 +54,26 @@ class FormStyle(Schema):
     corner: Literal["sharp", "rounded", "pill"] = "sharp"
     media_side: Literal["left", "right"] = "left"
     show_consent: bool = True
+
+    @field_validator("media_side", mode="before")
+    @classmethod
+    def _coerce_media_side(cls, value: object) -> object:
+        # Backward compatibility: an option we've since removed (e.g. "top")
+        # may still be persisted on older forms' JSONB style. Coerce anything
+        # we no longer support to the default so reading those forms doesn't
+        # raise a validation error (which would 500 every list/storefront call).
+        if value not in ("left", "right"):
+            return "left"
+        return value
+
+    @field_validator("corner", mode="before")
+    @classmethod
+    def _coerce_corner(cls, value: object) -> object:
+        # Same backward-compat guard for corner, so a future change to the
+        # allowed set can never break reads of already-stored forms.
+        if value not in ("sharp", "rounded", "pill"):
+            return "sharp"
+        return value
 
 
 class FormCreate(Schema):
