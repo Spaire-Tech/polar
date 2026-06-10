@@ -641,6 +641,9 @@ export type CustomerCourseDetail = {
     format?: CourseFormat
     paywall_enabled: boolean
     paywall_position: number | null
+    hero_variant?: HeroVariant
+    lesson_card_variant?: LessonCardVariant
+    trial_mode?: TrialMode
     landing_overrides?: LandingOverrides | null
     modules: CustomerModuleRead[]
     lessons?: CustomerLessonRead[]
@@ -677,6 +680,10 @@ export type CourseLandingPageData = {
   instructor_name_bold?: boolean
   instructor_name_uppercase?: boolean
   course_type: string
+  format?: CourseFormat
+  hero_variant?: HeroVariant
+  lesson_card_variant?: LessonCardVariant
+  trial_mode?: TrialMode
   lesson_count: number
   total_duration_seconds: number
   lessons: CourseLandingLesson[]

@@ -60,7 +60,9 @@ const FALLBACK_GRADIENT =
 // Read-only port of the existing boxed "Cover" hero (the landing/portal hero
 // we already ship). Static by design — the real editable component drags the
 // entire landing view with it; this preview only needs the hero's look.
-function CoverHeroStatic({ draft, unit, lessonCount }: {
+// Exported so the public portal-style landing (PublicPortalView) renders the
+// same hero the wizard previewed.
+export function CoverHeroStatic({ draft, unit, lessonCount }: {
   draft: WizardPortalDraft
   unit: string
   lessonCount: number

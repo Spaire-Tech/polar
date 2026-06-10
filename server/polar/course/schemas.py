@@ -311,6 +311,9 @@ class CourseLandingPageRead(TimestampedSchema):
     instructor_name_uppercase: bool = True
     course_type: str
     format: str
+    hero_variant: str = "cover"
+    lesson_card_variant: str = "catalog"
+    trial_mode: str = "free_preview"
     lesson_count: int
     total_duration_seconds: int
     lessons: list[CourseLessonPublicRead]

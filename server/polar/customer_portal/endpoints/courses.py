@@ -420,6 +420,13 @@ async def get_enrolled_course(
             "format": course.format,
             "paywall_enabled": course.paywall_enabled,
             "paywall_position": course.paywall_position,
+            # Onboarding presentation choices — the portal renders the hero
+            # and lesson-card layout the creator picked at create time.
+            "hero_variant": getattr(course, "hero_variant", "cover"),
+            "lesson_card_variant": getattr(
+                course, "lesson_card_variant", "catalog"
+            ),
+            "trial_mode": getattr(course, "trial_mode", "free_preview"),
             "landing_overrides": course.landing_overrides,
             "modules": modules,
             "lessons": flat_lessons,
@@ -829,6 +836,12 @@ async def get_course_landing(
         "instructor_name_uppercase": course.instructor_name_uppercase,
         "course_type": course.course_type,
         "format": course.format,
+        # Presentation choices — the public portal-style landing renders
+        # the hero / lesson-card layout and trial affordance the creator
+        # picked during onboarding.
+        "hero_variant": getattr(course, "hero_variant", "cover"),
+        "lesson_card_variant": getattr(course, "lesson_card_variant", "catalog"),
+        "trial_mode": getattr(course, "trial_mode", "free_preview"),
         "lesson_count": len(flat_lessons),
         "total_duration_seconds": total_duration,
         "landing_overrides": course.landing_overrides,

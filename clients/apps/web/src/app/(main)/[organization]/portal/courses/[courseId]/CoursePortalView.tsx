@@ -1,5 +1,7 @@
 'use client'
 
+import { MarqueeHero } from '@/components/Courses/editor/MarqueeHero'
+import { SpotlightLessonCard } from '@/components/Courses/editor/SpotlightLessonCard'
 import type {
   CustomerCourseDetail,
   CustomerLessonRead,
@@ -1084,6 +1086,7 @@ function ModuleRow({
   fallbackThumbnailUrl,
   fallbackObjectPosition,
   onSelectLesson,
+  cardVariant = 'catalog',
 }: {
   module: CustomerModuleRead
   moduleIndex: number
@@ -1092,6 +1095,9 @@ function ModuleRow({
   fallbackThumbnailUrl: string | null
   fallbackObjectPosition: string | null
   onSelectLesson: (lesson: CustomerLessonRead) => void
+  // Onboarding choice — 'spotlight' renders the cinematic over-image card
+  // the creator picked; 'catalog' keeps the classic details-below card.
+  cardVariant?: 'spotlight' | 'catalog'
 }) {
   const hue = moduleHue(moduleIndex)
   const watched = module.lessons.filter((l) => l.completed).length
@@ -1123,20 +1129,51 @@ function ModuleRow({
         </span>
       </div>
 
-      <div style={modStyles.rowGrid}>
-        {module.lessons.map((lesson) => (
-          <LessonCard
-            key={lesson.id}
-            lesson={lesson}
-            globalIndex={positionToGlobalIndex.get(lesson.id) ?? lesson.position}
-            hue={hue}
-            isInProgress={lesson.id === inProgressLessonId}
-            fallbackThumbnailUrl={fallbackThumbnailUrl}
-            fallbackObjectPosition={fallbackObjectPosition}
-            onSelect={() => onSelectLesson(lesson)}
-          />
-        ))}
-      </div>
+      {cardVariant === 'spotlight' ? (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 24 }}>
+          {module.lessons.map((lesson) => {
+            const n =
+              positionToGlobalIndex.get(lesson.id) ?? lesson.position + 1
+            return (
+              <SpotlightLessonCard
+                key={lesson.id}
+                episodeLabel={`Lesson ${n}${lesson.completed ? ' · Watched' : ''}`}
+                title={lesson.title}
+                description={lesson.description ?? ''}
+                time={
+                  lesson.duration_seconds
+                    ? formatMinSec(lesson.duration_seconds)
+                    : ''
+                }
+                imageUrl={
+                  lesson.thumbnail_url ?? fallbackThumbnailUrl ?? undefined
+                }
+                locked={!!lesson.locked}
+                onClick={() => {
+                  if (!lesson.locked) onSelectLesson(lesson)
+                }}
+              />
+            )
+          })}
+        </div>
+      ) : (
+        <div style={modStyles.rowGrid}>
+          {module.lessons.map((lesson) => (
+            <LessonCard
+              key={lesson.id}
+              lesson={lesson}
+              globalIndex={
+                positionToGlobalIndex.get(lesson.id) ?? lesson.position
+              }
+              hue={hue}
+              isInProgress={lesson.id === inProgressLessonId}
+              fallbackThumbnailUrl={fallbackThumbnailUrl}
+              fallbackObjectPosition={fallbackObjectPosition}
+              onSelect={() => onSelectLesson(lesson)}
+            />
+          ))}
+        </div>
+      )}
     </div>
   )
 }
@@ -1230,24 +1267,66 @@ function CoursePortalViewDesktop({
         fontFamily: FONT,
       }}
     >
-      <Hero
-        data={data}
-        totalLessons={totalLessons}
-        totalDurationSeconds={totalDurationSeconds}
-        overallPct={overallPct}
-        continueLesson={continueLesson}
-        continueModuleTitle={continueModuleTitle}
-        continueLessonNumber={continueLessonNumber}
-        continuePill={continuePill}
-        instructorName={course.instructor_name ?? null}
-        tagline={tagline}
-        heroHue={heroHue}
-        onResume={() => {
-          if (continueLesson) onSelectLesson(continueLesson)
-          else if (courseComplete && modules[0]?.lessons[0])
-            onSelectLesson(modules[0].lessons[0])
-        }}
-      />
+      {course.hero_variant === 'marquee' ? (
+        // The creator picked the cinematic full-bleed hero at onboarding.
+        // Post-enrollment the band's primary action is Resume; there's
+        // nothing to buy, so the buy pill is hidden.
+        <div
+          style={{
+            position: 'relative',
+            height: 'min(80vh, 700px)',
+            minHeight: 540,
+            overflow: 'hidden',
+          }}
+        >
+          <MarqueeHero
+            brand={organizationName}
+            eyebrow={continuePill ?? 'A Spaire Original'}
+            title={course.title ?? 'Untitled Original'}
+            description={tagline}
+            metaLine={`${totalLessons} ${totalLessons === 1 ? 'Lesson' : 'Lessons'}  ·  ${overallPct}% complete`}
+            badges={['All Levels', 'Self-paced', 'Mobile & TV']}
+            instructorName={course.instructor_name ?? organizationName}
+            instructorSub={course.instructor_bio ?? ''}
+            playLabel={
+              continueLesson
+                ? `Continue · Lesson ${continueLessonNumber ?? ''}`.trim()
+                : courseComplete
+                  ? 'Watch Again'
+                  : 'Start Watching'
+            }
+            buyLabel=""
+            freeLine=""
+            hideBuy
+            showTrailer={false}
+            imageUrl={course.thumbnail_url ?? undefined}
+            onPlay={() => {
+              if (continueLesson) onSelectLesson(continueLesson)
+              else if (modules[0]?.lessons[0])
+                onSelectLesson(modules[0].lessons[0])
+            }}
+          />
+        </div>
+      ) : (
+        <Hero
+          data={data}
+          totalLessons={totalLessons}
+          totalDurationSeconds={totalDurationSeconds}
+          overallPct={overallPct}
+          continueLesson={continueLesson}
+          continueModuleTitle={continueModuleTitle}
+          continueLessonNumber={continueLessonNumber}
+          continuePill={continuePill}
+          instructorName={course.instructor_name ?? null}
+          tagline={tagline}
+          heroHue={heroHue}
+          onResume={() => {
+            if (continueLesson) onSelectLesson(continueLesson)
+            else if (courseComplete && modules[0]?.lessons[0])
+              onSelectLesson(modules[0].lessons[0])
+          }}
+        />
+      )}
 
       <section style={modStyles.wrap}>
         {modules.map((m, i) => (
@@ -1260,6 +1339,7 @@ function CoursePortalViewDesktop({
             fallbackThumbnailUrl={course.thumbnail_url ?? null}
             fallbackObjectPosition={course.thumbnail_object_position ?? null}
             onSelectLesson={onSelectLesson}
+            cardVariant={course.lesson_card_variant ?? 'catalog'}
           />
         ))}
       </section>

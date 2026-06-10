@@ -37,6 +37,8 @@ export type MarqueeHeroProps = {
   freeLine?: string
   imageUrl?: string
   showTrailer?: boolean
+  /** Hide the buy button + free line (enrolled portal — nothing to buy). */
+  hideBuy?: boolean
   onPlay?: () => void
   onBuy?: () => void
   onTrailer?: () => void
@@ -56,6 +58,7 @@ export function MarqueeHero({
   freeLine = '3 lessons free · one-time purchase',
   imageUrl = 'https://images.unsplash.com/photo-1595435934249-5df7ed86e1c0?w=1920&q=80&auto=format&fit=crop',
   showTrailer = true,
+  hideBuy = false,
   onPlay,
   onBuy,
   onTrailer,
@@ -103,15 +106,17 @@ export function MarqueeHero({
             </svg>
             {playLabel}
           </button>
-          <button
-            className="abtn buy"
-            type="button"
-            onClick={() =>
-              onBuy ? onBuy() : toast('Redirecting to secure checkout…')
-            }
-          >
-            {buyLabel}
-          </button>
+          {!hideBuy && (
+            <button
+              className="abtn buy"
+              type="button"
+              onClick={() =>
+                onBuy ? onBuy() : toast('Redirecting to secure checkout…')
+              }
+            >
+              {buyLabel}
+            </button>
+          )}
           {freeLine ? <div className="band-free">{freeLine}</div> : null}
         </div>
 
