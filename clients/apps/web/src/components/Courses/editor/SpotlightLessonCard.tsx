@@ -19,6 +19,7 @@ export function SpotlightLessonCard({
   description = 'Patterns, angles, and patience. How Jack builds a winning point and the high-percentage tennis behind it.',
   time = '23 min',
   imageUrl = null,
+  imagePosition = 'center 22%',
   locked = false,
   onClick,
   onMore,
@@ -29,6 +30,8 @@ export function SpotlightLessonCard({
   time?: string
   /** When absent, a dark gradient renders instead of a photo. */
   imageUrl?: string | null
+  /** background-position for the photo (design: 'center 22%'). */
+  imagePosition?: string
   /** Renders the design's frosted lock chip (paywalled lesson). */
   locked?: boolean
   onClick?: () => void
@@ -39,7 +42,10 @@ export function SpotlightLessonCard({
     : 'radial-gradient(120% 120% at 30% 15%, #1b1d22 0%, #0c0d10 60%, #060708 100%)'
   return (
     <div className="lockup" onClick={onClick}>
-      <div className="lockup-card" style={{ backgroundImage: cardBg }}>
+      <div
+        className="lockup-card"
+        style={{ backgroundImage: cardBg, backgroundPosition: imagePosition }}
+      >
         <div className="lockup-blur">
           <div className="bl bl1" />
           <div className="bl bl2" />
