@@ -10,11 +10,12 @@ import {
   EditableCourseLandingView,
   type EditableLandingProps,
 } from '@/components/Courses/editor/EditableCourseLandingView'
-import {
-  EditorProvider,
-  type LandingOverrides,
-} from '@/components/Courses/editor/EditorContext'
-import type { CourseLessonRead, CourseRead } from '@/hooks/queries/courses'
+import { EditorProvider } from '@/components/Courses/editor/EditorContext'
+import type {
+  CourseLessonRead,
+  CourseRead,
+  LandingOverrides,
+} from '@/hooks/queries/courses'
 import type { schemas } from '@spaire/client'
 
 const HERO_IMAGE =
