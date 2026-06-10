@@ -1,12 +1,11 @@
 import MarqueeHero from '@/components/Courses/editor/MarqueeHero'
 
-// Bare full-bleed preview of the Marquee hero. Lives under embed/ so it
-// inherits only the root layout (fonts/providers) with no dashboard chrome —
-// letting the 100vw/100vh hero render at its true proportions for review.
+// Bare full-bleed preview of the Marquee hero (The Golfer's Blueprint sample),
+// used as the live thumbnail/preview source for the hero picker.
 export default function HeroPreviewPage() {
   return (
     <main style={{ margin: 0, overflow: 'hidden' }}>
-      <MarqueeHero imageUrl="/assets/onboarding/sample-hero.jpg" />
+      <MarqueeHero imageUrl="/assets/onboarding/cover-hero.jpg" />
     </main>
   )
 }
