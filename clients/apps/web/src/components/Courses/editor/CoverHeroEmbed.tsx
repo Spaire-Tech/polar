@@ -62,6 +62,9 @@ const sampleCourse: CourseRead = {
   paywall_lesson_id: null,
   paywall_position: 3,
   ai_generated: true,
+  hero_variant: 'cover',
+  lesson_card_variant: 'catalog',
+  trial_mode: 'free_preview',
   description:
     'A two-time Grand Slam champion takes you inside the all-court game.',
   thumbnail_url: HERO_IMAGE,

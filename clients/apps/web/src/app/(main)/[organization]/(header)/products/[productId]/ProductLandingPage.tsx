@@ -221,6 +221,15 @@ function CourseLandingShell({
     paywall_lesson_id: null,
     paywall_position: paywallPosition,
     ai_generated: false,
+    hero_variant:
+      (landing as { hero_variant?: CourseRead['hero_variant'] })
+        .hero_variant ?? 'cover',
+    lesson_card_variant:
+      (landing as { lesson_card_variant?: CourseRead['lesson_card_variant'] })
+        .lesson_card_variant ?? 'catalog',
+    trial_mode:
+      (landing as { trial_mode?: CourseRead['trial_mode'] }).trial_mode ??
+      'free_preview',
     description: landing.description,
     thumbnail_url: landing.thumbnail_url,
     thumbnail_object_position: landing.thumbnail_object_position ?? null,
