@@ -335,10 +335,12 @@ export function HeroPicker({
           -moz-osx-font-smoothing: grayscale;
           letter-spacing: -0.01em;
           min-height: 100vh;
+          width: 100%;
           display: flex;
           flex-direction: column;
           align-items: center;
-          padding: 88px 32px 64px;
+          justify-content: center;
+          padding: 48px 32px;
         }
         .hp-root :global(button) {
           font-family: inherit;
@@ -394,13 +396,21 @@ export function HeroPicker({
           background: #fff;
           box-shadow: 0 6px 18px -10px rgba(0, 0, 0, 0.18),
             0 1px 3px rgba(0, 0, 0, 0.05);
-          transition: transform 0.3s cubic-bezier(0.2, 1, 0.3, 1),
-            box-shadow 0.3s;
+          transition: transform 0.32s cubic-bezier(0.2, 1, 0.3, 1),
+            box-shadow 0.32s;
         }
         .card:hover .poster {
           transform: translateY(-4px);
           box-shadow: 0 18px 40px -18px rgba(0, 0, 0, 0.28),
             0 1px 3px rgba(0, 0, 0, 0.05);
+        }
+        .card.sel .poster {
+          transform: scale(1.045);
+          box-shadow: 0 26px 60px -22px rgba(0, 0, 0, 0.34),
+            0 2px 6px rgba(0, 0, 0, 0.06);
+        }
+        .card.sel:hover .poster {
+          transform: scale(1.045) translateY(-4px);
         }
         .ring {
           position: absolute;
@@ -412,7 +422,7 @@ export function HeroPicker({
           transition: box-shadow 0.22s;
         }
         .card.sel .ring {
-          box-shadow: inset 0 0 0 3px #fff, inset 0 0 0 4px rgba(0, 0, 0, 0.12);
+          box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08);
         }
         .frame-scale {
           position: absolute;
