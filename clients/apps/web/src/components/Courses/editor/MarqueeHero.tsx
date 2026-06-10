@@ -48,6 +48,8 @@ export type MarqueeHeroProps = {
   showTrailer?: boolean
   /** Hide the buy button + free line (enrolled portal — nothing to buy). */
   hideBuy?: boolean
+  /** Size to the parent container instead of the viewport (picker tiles). */
+  fill?: boolean
   onPlay?: () => void
   onBuy?: () => void
   onTrailer?: () => void
@@ -69,6 +71,7 @@ export function MarqueeHero({
   imagePosition = 'center 18%',
   showTrailer = true,
   hideBuy = false,
+  fill = false,
   onPlay,
   onBuy,
   onTrailer,
@@ -85,7 +88,10 @@ export function MarqueeHero({
   }, [])
 
   return (
-    <header className="panel">
+    <header
+      className="panel"
+      style={fill ? { width: '100%', height: '100%', minHeight: 0 } : undefined}
+    >
       <div
         className="panel-art"
         style={

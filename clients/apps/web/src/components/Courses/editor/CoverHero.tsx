@@ -21,6 +21,8 @@ export type CoverHeroProps = {
   enrollLabel?: string
   imageUrl?: string
   imagePosition?: string
+  /** Size to the parent container instead of the viewport (picker tiles). */
+  fill?: boolean
   onWatchTrailer?: () => void
   onEnroll?: () => void
 }
@@ -34,13 +36,18 @@ export function CoverHero({
   withByline = 'Jack Reeves',
   trailerLabel = 'Watch trailer',
   enrollLabel = 'Enroll · $79',
-  imageUrl = '/assets/onboarding/cover-hero.jpg',
-  imagePosition = 'center 58%',
+  imageUrl = '/assets/onboarding/cover-fore.jpg',
+  imagePosition = 'center 62%',
+  fill = false,
   onWatchTrailer,
   onEnroll,
 }: CoverHeroProps = {}) {
   return (
-    <section className="hero" data-screen-label="Cover Hero">
+    <section
+      className="hero"
+      data-screen-label="Cover Hero"
+      style={fill ? { height: '100%', minHeight: 0 } : undefined}
+    >
       <div
         className="hero-art"
         style={{
@@ -135,6 +142,7 @@ export function CoverHero({
         .hero-art {
           position: absolute;
           inset: 0;
+          transform: scaleX(-1);
         }
 
         /* legibility shade — stronger toward the lower left where the text sits */
