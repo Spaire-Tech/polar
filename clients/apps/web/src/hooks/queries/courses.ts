@@ -286,6 +286,12 @@ export const useCreateCourse = () =>
       course_type?: string
       format?: CourseFormat
       paywall_enabled?: boolean
+      paywall_position?: number | null
+      // Onboarding presentation choices — persisted so the portal renders
+      // the hero / lesson-card layout and trial affordance the creator picked.
+      hero_variant?: HeroVariant
+      lesson_card_variant?: LessonCardVariant
+      trial_mode?: TrialMode
       ai_generated?: boolean
       description?: string | null
       thumbnail_url?: string | null

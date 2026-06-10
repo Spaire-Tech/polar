@@ -19,7 +19,47 @@ const PLAY_PATH =
 
 type Toast = { id: number; msg: string }
 
-export function MarqueeHero() {
+// All props optional — defaults reproduce the design's "Championship Tennis"
+// sample exactly, so the standalone /embed/hero-preview clone is unchanged.
+// The wizard's portal preview (and later the real portal) passes real course
+// data through these.
+export type MarqueeHeroProps = {
+  brand?: string
+  eyebrow?: string
+  title?: string
+  description?: string
+  metaLine?: string
+  badges?: string[]
+  instructorName?: string
+  instructorSub?: string
+  playLabel?: string
+  buyLabel?: string
+  freeLine?: string
+  imageUrl?: string
+  showTrailer?: boolean
+  onPlay?: () => void
+  onBuy?: () => void
+  onTrailer?: () => void
+}
+
+export function MarqueeHero({
+  brand = 'Spaire Originals',
+  eyebrow = 'Documentary Series · Tennis',
+  title = 'Championship Tennis',
+  description = 'A two-time Grand Slam champion takes you inside the all-court game — the strokes, the footwork, and the mind that wins the points that matter. Shot like a film, taught like a private lesson.',
+  metaLine = 'Documentary Series · Tennis  ·  2026  ·  11 Lessons  ·  3h 42m',
+  badges = ['All Levels', 'Self-paced', 'Captions', 'Mobile & TV'],
+  instructorName = 'Carla Marín',
+  instructorSub = 'Former world No. 2 and two-time Grand Slam champion.',
+  playLabel = 'Play Lesson 1 Free',
+  buyLabel = 'Subscribe — $89',
+  freeLine = '3 lessons free · one-time purchase',
+  imageUrl = 'https://images.unsplash.com/photo-1595435934249-5df7ed86e1c0?w=1920&q=80&auto=format&fit=crop',
+  showTrailer = true,
+  onPlay,
+  onBuy,
+  onTrailer,
+}: MarqueeHeroProps = {}) {
   const [toasts, setToasts] = useState<Toast[]>([])
   const idRef = useRef(0)
 
@@ -35,19 +75,16 @@ export function MarqueeHero() {
     <header className="panel">
       <div
         className="panel-art"
-        style={{
-          backgroundImage:
-            "url('https://images.unsplash.com/photo-1595435934249-5df7ed86e1c0?w=1920&q=80&auto=format&fit=crop')",
-        }}
+        style={{ backgroundImage: `url('${imageUrl}')` }}
       />
       <div className="panel-scrim" />
       <div className="panel-grain" />
 
-      <div className="panel-brand rise">Spaire Originals</div>
+      <div className="panel-brand rise">{brand}</div>
 
       <div className="panel-title">
-        <div className="pt-eyebrow rise d1">Documentary Series · Tennis</div>
-        <h1 className="pt-h rise d1">Championship Tennis</h1>
+        <div className="pt-eyebrow rise d1">{eyebrow}</div>
+        <h1 className="pt-h rise d1">{title}</h1>
       </div>
 
       <div className="band rise d2">
@@ -55,62 +92,64 @@ export function MarqueeHero() {
           <button
             className="abtn play"
             type="button"
-            onClick={() => toast('Playing free preview · Introduction')}
+            onClick={() =>
+              onPlay
+                ? onPlay()
+                : toast('Playing free preview · Introduction')
+            }
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
               <path d={PLAY_PATH} />
             </svg>
-            Play Lesson 1 Free
+            {playLabel}
           </button>
           <button
             className="abtn buy"
             type="button"
-            onClick={() => toast('Redirecting to secure checkout…')}
+            onClick={() =>
+              onBuy ? onBuy() : toast('Redirecting to secure checkout…')
+            }
           >
-            Subscribe — $89
+            {buyLabel}
           </button>
-          <div className="band-free">3 lessons free · one-time purchase</div>
+          {freeLine ? <div className="band-free">{freeLine}</div> : null}
         </div>
 
         <div className="band-desc">
-          <p className="bd-text">
-            A two-time Grand Slam champion takes you inside the all-court game —
-            the strokes, the footwork, and the mind that wins the points that
-            matter. Shot like a film, taught like a private lesson.
-          </p>
-          <div className="bd-meta">
-            Documentary Series · Tennis&nbsp;&nbsp;·&nbsp;&nbsp;2026&nbsp;&nbsp;·&nbsp;&nbsp;11
-            Lessons&nbsp;&nbsp;·&nbsp;&nbsp;3h 42m
-          </div>
+          <p className="bd-text">{description}</p>
+          <div className="bd-meta">{metaLine}</div>
           <div className="bd-badges">
-            <span className="bdg rate">All Levels</span>
-            <span className="bdg">Self-paced</span>
-            <span className="bdg">Captions</span>
-            <span className="bdg">Mobile &amp; TV</span>
-            <button
-              className="bd-trailer"
-              type="button"
-              onClick={() => toast('Loading trailer · 2:18')}
-            >
-              <svg
-                width="13"
-                height="13"
-                viewBox="0 0 24 24"
-                fill="currentColor"
+            {badges.map((b, i) => (
+              <span key={b} className={`bdg${i === 0 ? ' rate' : ''}`}>
+                {b}
+              </span>
+            ))}
+            {showTrailer && (
+              <button
+                className="bd-trailer"
+                type="button"
+                onClick={() =>
+                  onTrailer ? onTrailer() : toast('Loading trailer · 2:18')
+                }
               >
-                <path d={PLAY_PATH} />
-              </svg>
-              Trailer
-            </button>
+                <svg
+                  width="13"
+                  height="13"
+                  viewBox="0 0 24 24"
+                  fill="currentColor"
+                >
+                  <path d={PLAY_PATH} />
+                </svg>
+                Trailer
+              </button>
+            )}
           </div>
         </div>
 
         <div className="band-cast">
           <div className="bc-k">Instructor</div>
-          <div className="bc-v">Carla Marín</div>
-          <div className="bc-sub">
-            Former world No. 2 and two-time Grand Slam champion.
-          </div>
+          <div className="bc-v">{instructorName}</div>
+          <div className="bc-sub">{instructorSub}</div>
         </div>
       </div>
 

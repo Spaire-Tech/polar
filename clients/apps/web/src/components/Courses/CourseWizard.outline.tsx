@@ -833,7 +833,7 @@ export function OutlineScreen({
             disabled={isStreaming || modulesCount === 0}
             className="so-btn-cta"
           >
-            Create course
+            Preview your Original
           </button>
         </div>
       </div>

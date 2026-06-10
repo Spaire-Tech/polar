@@ -19,6 +19,7 @@ export function SpotlightLessonCard({
   description = 'Patterns, angles, and patience. How Jack builds a winning point and the high-percentage tennis behind it.',
   time = '23 min',
   imageUrl = 'https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?w=1920&q=80&auto=format&fit=crop',
+  locked = false,
   onClick,
   onMore,
 }: {
@@ -27,6 +28,8 @@ export function SpotlightLessonCard({
   description?: string
   time?: string
   imageUrl?: string
+  /** Renders the design's frosted lock chip (paywalled lesson). */
+  locked?: boolean
   onClick?: () => void
   onMore?: () => void
 }) {
@@ -38,6 +41,23 @@ export function SpotlightLessonCard({
       >
         <div className="lockup-blur" />
         <div className="lockup-shade" />
+        {locked && (
+          <div className="lockup-chip-lock" aria-label="Locked">
+            <svg
+              width="13"
+              height="13"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <rect x="4" y="11" width="16" height="10" rx="2" />
+              <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+            </svg>
+          </div>
+        )}
         <div className="lockup-playhover">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="#fff">
             <path d={PLAY_PATH} />

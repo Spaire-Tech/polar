@@ -7,19 +7,20 @@ import { streamObject } from 'ai'
 
 const courseSystemPrompt = `You are an expert instructional designer. Create well-structured, comprehensive course outlines.
 Guidelines:
-- Create EXACTLY 4 modules — no more, no fewer. The "Sections" roadmap on the landing page is built around four sections, so the outline must always have four. If the topic is small, tighten lessons rather than collapsing modules; if the topic is large, group rather than adding a fifth module.
+- Create 3-5 modules — let the material decide. Group when the topic is broad, tighten when it's narrow. Never pad with a filler module.
 - Each module should have 2-6 focused lessons
 - Modules should have clear, descriptive titles that communicate the learning objective
 - Lessons should have specific, actionable titles (e.g. "Setting Up Your Development Environment" not just "Setup")
 - Mix content types: use "video" for demonstrations and walkthroughs, "text" for conceptual explanations and references
 - Start with foundational concepts and progress toward advanced application
 - Tailor the depth and pacing to the instructor's voice when an instructor bio is provided
-- When a paywall is enabled, the first module should land hard so free-preview lessons earn the upsell. When the course is free (no paywall), pace evenly and treat every lesson as core curriculum`
+- When a paywall is enabled, the first module should land hard so the free taste earns the upsell. When the course is free (no paywall), pace evenly and treat every lesson as core curriculum`
 
-// Series share the same JSON schema as Courses — they're stored as a Course
-// with format='series' and a single implicit "module" holding every episode.
-// The prompt asks for ONE module containing every episode as a "lesson"; the
-// UI relabels lessons → episodes at render time.
+// Episodic Originals share the same JSON schema as module-based ones —
+// they're stored as a Course with format='series' and a single implicit
+// "module" holding every episode. The prompt asks for ONE module containing
+// every episode as a "lesson"; the UI relabels lessons → episodes at render
+// time.
 const seriesSystemPrompt = `You are a story editor for a premium series — closer to a documentary producer or a podcast season editor than a course designer. You shape a thematic arc the creator can record straight into the camera, not a curriculum.
 
 Output format (important)
@@ -52,6 +53,14 @@ export async function POST(req: Request) {
     paywallEnabled,
     freePreviewLessons,
     format,
+    // Onboarding choices — every one of these shapes the outline. The wizard
+    // passes them so the generated structure matches what the creator picked,
+    // not a generic default.
+    trialMode,
+    heroVariant,
+    lessonCardVariant,
+    billingType,
+    priceLabel,
   } = await req.json()
 
   if (!title) {
@@ -60,6 +69,7 @@ export async function POST(req: Request) {
 
   const isSeries = format === 'series'
   const systemPrompt = isSeries ? seriesSystemPrompt : courseSystemPrompt
+  const unit = isSeries ? 'episode' : 'lesson'
 
   const lines = [
     `Title: ${title}`,
@@ -70,11 +80,42 @@ export async function POST(req: Request) {
       : null,
     instructorName ? `Instructor: ${instructorName}` : null,
     instructorBio ? `Instructor bio: ${instructorBio}` : null,
+    `Structure: ${
+      isSeries
+        ? 'episodic — one season, self-contained episodes watched in order'
+        : 'modules — themed chapters the student can explore'
+    }`,
     typeof paywallEnabled === 'boolean'
       ? `Paywall: ${paywallEnabled ? 'enabled' : isSeries ? 'disabled (free series)' : 'disabled (free course)'}`
       : null,
-    paywallEnabled && typeof freePreviewLessons === 'number'
-      ? `Free preview ${isSeries ? 'episodes' : 'lessons'} before paywall: ${freePreviewLessons}`
+    // Trial affordance — structural, not decorative. Free preview means the
+    // opening lessons must each satisfy on their own; a lesson sample means
+    // ONE mid-course lesson is the only taste a prospect gets, so at least
+    // one lesson must be a strong standalone showcase.
+    paywallEnabled && trialMode === 'free_preview' &&
+    typeof freePreviewLessons === 'number'
+      ? `Trial: free preview — the first ${freePreviewLessons} ${unit}${freePreviewLessons === 1 ? '' : 's'} play in full for prospects. Front-load a complete, satisfying opening arc into them, and make ${unit} ${freePreviewLessons + 1} open the paid arc with a strong hook.`
+      : null,
+    paywallEnabled && trialMode === 'lesson_sample'
+      ? `Trial: lesson sample — prospects only see a short clip from one ${unit}. No ${unit} is free in full, so design at least one mid-${isSeries ? 'season' : 'course'} ${unit} as a visually/narratively strong standalone showcase the creator can clip from.`
+      : null,
+    billingType
+      ? `Billing: ${billingType === 'subscription' ? 'subscription — returning value matters; structure should reward staying enrolled' : 'one-time purchase'}${priceLabel ? ` at ${priceLabel}` : ''}`
+      : null,
+    // Presentation context — affects copy shape, not structure.
+    heroVariant
+      ? `Hero layout: ${
+          heroVariant === 'marquee'
+            ? 'cinematic full-bleed streaming-title hero — the title reads like a show name, keep it evocative'
+            : 'editorial boxed hero — the title carries more explanatory weight'
+        }`
+      : null,
+    lessonCardVariant
+      ? `${isSeries ? 'Episode' : 'Lesson'} cards: ${
+          lessonCardVariant === 'spotlight'
+            ? `titles render OVER imagery on dark cards — keep every ${unit} title tight (≤ 7 words) so it sits on one line`
+            : 'titles sit below imagery with room to breathe — titles may run slightly longer when precision needs it'
+        }`
       : null,
   ].filter(Boolean)
 
