@@ -1220,7 +1220,7 @@ export function StepCourse({
     <StepShell
       step={3}
       total={4}
-      title={isSeries ? 'Series details' : 'Course details'}
+      title="Original details"
       onNext={onNext}
       onBack={onBack}
       onClose={onClose}
@@ -1258,44 +1258,6 @@ export function StepCourse({
             />
           </label>
         </div>
-        <div>
-          <span style={{ display: 'block', fontSize: 11, fontWeight: 500, color: 'var(--so-gray4)', marginBottom: 6, paddingLeft: 2 }}>
-            Who is this for?
-          </span>
-          <label className="so-field">
-            <textarea
-              className="so-textarea"
-              rows={3}
-              placeholder=""
-              style={{ padding: '14px 16px', resize: 'vertical' }}
-              value={data.targetAudience}
-              onChange={(e) =>
-                onChange({ ...data, targetAudience: e.target.value })
-              }
-            />
-          </label>
-        </div>
-        <div>
-          <span style={{ display: 'block', fontSize: 11, fontWeight: 500, color: 'var(--so-gray4)', marginBottom: 6, paddingLeft: 2 }}>
-            What makes your approach unique?
-          </span>
-          <label className="so-field">
-            <textarea
-              className="so-textarea"
-              rows={3}
-              placeholder=""
-              style={{ padding: '14px 16px', resize: 'vertical' }}
-              value={data.differentiator}
-              onChange={(e) =>
-                onChange({ ...data, differentiator: e.target.value })
-              }
-            />
-          </label>
-        </div>
-        <p className="so-hint">
-          The last two fields are optional — but the more you share, the more
-          personalized your landing page and curriculum will be.
-        </p>
       </div>
     </StepShell>
   )
