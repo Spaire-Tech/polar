@@ -93,6 +93,13 @@ export type CourseModuleRead = {
 
 export type CourseFormat = 'course' | 'series'
 
+// Onboarding presentation choices. These are picked in the create-course
+// wizard and persisted on the course so the public portal can render the
+// chosen hero / lesson-card layout and trial affordance.
+export type HeroVariant = 'marquee' | 'cover'
+export type LessonCardVariant = 'spotlight' | 'catalog'
+export type TrialMode = 'free_preview' | 'lesson_sample'
+
 // Series-only "Episode Sample" block configuration. The creator picks one
 // lesson and a window inside it (start_seconds + duration_seconds), and
 // the public landing renders an auto-play-on-scroll sub-hero clip of that
@@ -128,6 +135,10 @@ export type CourseRead = {
   paywall_lesson_id: string | null
   paywall_position: number | null
   ai_generated: boolean
+  // Onboarding presentation choices — drive the public portal render.
+  hero_variant: HeroVariant
+  lesson_card_variant: LessonCardVariant
+  trial_mode: TrialMode
   description: string | null
   thumbnail_url: string | null
   thumbnail_object_position: string | null
@@ -275,6 +286,12 @@ export const useCreateCourse = () =>
       course_type?: string
       format?: CourseFormat
       paywall_enabled?: boolean
+      paywall_position?: number | null
+      // Onboarding presentation choices — persisted so the portal renders
+      // the hero / lesson-card layout and trial affordance the creator picked.
+      hero_variant?: HeroVariant
+      lesson_card_variant?: LessonCardVariant
+      trial_mode?: TrialMode
       ai_generated?: boolean
       description?: string | null
       thumbnail_url?: string | null
@@ -624,6 +641,9 @@ export type CustomerCourseDetail = {
     format?: CourseFormat
     paywall_enabled: boolean
     paywall_position: number | null
+    hero_variant?: HeroVariant
+    lesson_card_variant?: LessonCardVariant
+    trial_mode?: TrialMode
     landing_overrides?: LandingOverrides | null
     modules: CustomerModuleRead[]
     lessons?: CustomerLessonRead[]
@@ -660,6 +680,10 @@ export type CourseLandingPageData = {
   instructor_name_bold?: boolean
   instructor_name_uppercase?: boolean
   course_type: string
+  format?: CourseFormat
+  hero_variant?: HeroVariant
+  lesson_card_variant?: LessonCardVariant
+  trial_mode?: TrialMode
   lesson_count: number
   total_duration_seconds: number
   lessons: CourseLandingLesson[]
