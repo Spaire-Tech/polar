@@ -99,7 +99,7 @@ export function StructurePicker({
               className="art"
               style={{
                 backgroundImage: `url('${modulesImage}')`,
-                backgroundPosition: 'center 30%',
+                backgroundPosition: '78% 32%',
               }}
             />
             <div className="glass" />
