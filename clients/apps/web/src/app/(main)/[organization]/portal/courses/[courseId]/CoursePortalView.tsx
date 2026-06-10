@@ -953,7 +953,7 @@ function LessonThumb({
   )
 }
 
-function LessonCard({
+export function LessonCard({
   lesson,
   globalIndex,
   hue,
