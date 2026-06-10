@@ -8,8 +8,7 @@
 import { LessonCard } from '@/app/(main)/[organization]/portal/courses/[courseId]/CoursePortalView'
 import type { CustomerLessonRead } from '@/hooks/queries/courses'
 
-const IMAGE =
-  'https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?w=1920&q=80&auto=format&fit=crop'
+const IMAGE = '/assets/onboarding/sample-lesson.jpg'
 
 const sampleLesson: CustomerLessonRead = {
   id: 'catalog-lesson-9',

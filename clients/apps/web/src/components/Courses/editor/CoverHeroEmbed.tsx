@@ -18,8 +18,7 @@ import type {
 } from '@/hooks/queries/courses'
 import type { schemas } from '@spaire/client'
 
-const HERO_IMAGE =
-  'https://images.unsplash.com/photo-1595435934249-5df7ed86e1c0?w=1920&q=80&auto=format&fit=crop'
+const HERO_IMAGE = '/assets/onboarding/sample-hero.jpg'
 
 const now = () => new Date().toISOString()
 

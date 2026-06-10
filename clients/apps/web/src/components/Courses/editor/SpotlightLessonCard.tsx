@@ -18,7 +18,7 @@ export function SpotlightLessonCard({
   title = 'Constructing the Point',
   description = 'Patterns, angles, and patience. How Jack builds a winning point and the high-percentage tennis behind it.',
   time = '23 min',
-  imageUrl = 'https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?w=1920&q=80&auto=format&fit=crop',
+  imageUrl = null,
   locked = false,
   onClick,
   onMore,
@@ -27,18 +27,19 @@ export function SpotlightLessonCard({
   title?: string
   description?: string
   time?: string
-  imageUrl?: string
+  /** When absent, a dark gradient renders instead of a photo. */
+  imageUrl?: string | null
   /** Renders the design's frosted lock chip (paywalled lesson). */
   locked?: boolean
   onClick?: () => void
   onMore?: () => void
 }) {
+  const cardBg = imageUrl
+    ? `url('${imageUrl}')`
+    : 'radial-gradient(120% 120% at 30% 15%, #1b1d22 0%, #0c0d10 60%, #060708 100%)'
   return (
     <div className="lockup" onClick={onClick}>
-      <div
-        className="lockup-card"
-        style={{ backgroundImage: `url('${imageUrl}')` }}
-      >
+      <div className="lockup-card" style={{ backgroundImage: cardBg }}>
         <div className="lockup-blur" />
         <div className="lockup-shade" />
         {locked && (
