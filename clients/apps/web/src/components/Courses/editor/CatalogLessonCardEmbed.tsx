@@ -3,13 +3,12 @@
 // CatalogLessonCardEmbed — renders the EXISTING customer-portal lesson card
 // (the "Catalog" style: thumbnail on top, title + details below) with sample
 // content, so the lesson-card picker can iframe it as the live "Catalog"
-// preview. Mirrors how CoverHeroEmbed surfaces the existing hero.
+// preview.
 
 import { LessonCard } from '@/app/(main)/[organization]/portal/courses/[courseId]/CoursePortalView'
 import type { CustomerLessonRead } from '@/hooks/queries/courses'
 
-const IMAGE =
-  'https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?w=1920&q=80&auto=format&fit=crop'
+const IMAGE = '/assets/onboarding/sample-lesson.jpg'
 
 const sampleLesson: CustomerLessonRead = {
   id: 'catalog-lesson-9',

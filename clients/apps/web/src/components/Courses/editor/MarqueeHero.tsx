@@ -17,6 +17,12 @@ import { useCallback, useRef, useState } from 'react'
 const PLAY_PATH =
   'M8 5.5v13a1 1 0 0 0 1.5.87l11-6.5a1 1 0 0 0 0-1.74l-11-6.5A1 1 0 0 0 8 5.5Z'
 
+// Dark cinematic fallback when no hero image is provided. Never a remote
+// stock photo — those are blocked by the production CSP and would be wrong
+// on a real Original anyway.
+const FALLBACK_ART =
+  'radial-gradient(120% 120% at 30% 20%, #1b1d22 0%, #0c0d10 60%, #060708 100%)'
+
 type Toast = { id: number; msg: string }
 
 // All props optional — defaults reproduce the design's "Championship Tennis"
@@ -35,7 +41,8 @@ export type MarqueeHeroProps = {
   playLabel?: string
   buyLabel?: string
   freeLine?: string
-  imageUrl?: string
+  /** When absent, a dark cinematic gradient renders instead of a photo. */
+  imageUrl?: string | null
   showTrailer?: boolean
   /** Hide the buy button + free line (enrolled portal — nothing to buy). */
   hideBuy?: boolean
@@ -56,7 +63,7 @@ export function MarqueeHero({
   playLabel = 'Play Lesson 1 Free',
   buyLabel = 'Subscribe — $89',
   freeLine = '3 lessons free · one-time purchase',
-  imageUrl = 'https://images.unsplash.com/photo-1595435934249-5df7ed86e1c0?w=1920&q=80&auto=format&fit=crop',
+  imageUrl = null,
   showTrailer = true,
   hideBuy = false,
   onPlay,
@@ -78,7 +85,11 @@ export function MarqueeHero({
     <header className="panel">
       <div
         className="panel-art"
-        style={{ backgroundImage: `url('${imageUrl}')` }}
+        style={
+          imageUrl
+            ? { backgroundImage: `url('${imageUrl}')` }
+            : { backgroundImage: FALLBACK_ART, animation: 'none' }
+        }
       />
       <div className="panel-scrim" />
       <div className="panel-grain" />

@@ -1,11 +1,8 @@
-import CoverHeroEmbed from '@/components/Courses/editor/CoverHeroEmbed'
+import { CoverHeroPage } from '@/components/Courses/editor/CoverHero'
 
-// Bare full-bleed preview of the existing "Cover" hero (read-only), used as the
-// live thumbnail/preview source for the hero picker's Cover option.
+// Bare preview of the "Cover" hero (Hero B design) — the boxed editorial
+// hero on its light-gray centered frame, used as the live preview source for
+// the hero picker's Cover option.
 export default function HeroPreviewCoverPage() {
-  return (
-    <main style={{ margin: 0 }}>
-      <CoverHeroEmbed />
-    </main>
-  )
+  return <CoverHeroPage />
 }

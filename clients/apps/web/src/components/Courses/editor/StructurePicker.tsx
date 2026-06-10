@@ -1,11 +1,16 @@
 'use client'
 
 // StructurePicker — literal clone of the "Choose your structure" design
-// (Structure Picker.html). Two image posters with a frosted glass band:
-// Modules (themed chapters — a stack of module pills) and Episodic (an in-order
-// season — Episode 1 pill + numbered chips). Selection ring + check, Back /
-// Continue footer, toast. Self-contained; CSS is a faithful port scoped via
-// styled-jsx. This is the "Module or Episodic" step.
+// (Structure Picker.html). Exact port of the source stylesheet:
+//   • the page vertically centers in the viewport (justify-content: center,
+//     48px padding + a --tabbar allowance) so it fits the screen
+//   • selection = the poster scales up 1.045 with a deep shadow; unselected
+//     cards do NOT lift on hover — only the selected card lifts
+//   • subtle glass (blur 2px / saturate 115%), shade gradient
+//   • Modules band: left-aligned pill stack; Episodic band: bottom-anchored
+//     (band low) Episode 1 pill + numbered chips
+//   • Back / Continue footer, toast, 800px responsive collapse
+// This is the "Module or Episodic" onboarding step.
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 
@@ -94,7 +99,7 @@ export function StructurePicker({
               className="art"
               style={{
                 backgroundImage: `url('${modulesImage}')`,
-                backgroundPosition: 'center 30%',
+                backgroundPosition: '78% 32%',
               }}
             />
             <div className="glass" />
@@ -123,12 +128,12 @@ export function StructurePicker({
               className="art"
               style={{
                 backgroundImage: `url('${episodicImage}')`,
-                backgroundPosition: 'center 35%',
+                backgroundPosition: 'center 30%',
               }}
             />
             <div className="glass" />
             <div className="shade" />
-            <div className="band">
+            <div className="band low">
               <div className="ep-row">
                 <span className="pill">Episode 1</span>
                 <span className="ep-chip">2</span>
@@ -203,10 +208,15 @@ export function StructurePicker({
           -moz-osx-font-smoothing: grayscale;
           letter-spacing: -0.01em;
           min-height: 100vh;
+          width: 100%;
           display: flex;
           flex-direction: column;
           align-items: center;
-          padding: 88px 32px 64px;
+          justify-content: center;
+          /* extra bottom padding reserves room for a tab bar, so the content
+             optically centers in the space ABOVE it rather than the full
+             viewport */
+          padding: 48px 32px calc(48px + var(--tabbar, 0px));
         }
         .sp-root :global(button) {
           font-family: inherit;
@@ -265,10 +275,17 @@ export function StructurePicker({
           transition: transform 0.3s cubic-bezier(0.2, 1, 0.3, 1),
             box-shadow 0.3s;
         }
-        .card:hover .poster {
-          transform: translateY(-4px);
-          box-shadow: 0 18px 40px -18px rgba(0, 0, 0, 0.28),
-            0 1px 3px rgba(0, 0, 0, 0.05);
+        .card .poster {
+          transition: transform 0.32s cubic-bezier(0.2, 1, 0.3, 1),
+            box-shadow 0.32s;
+        }
+        .card.sel .poster {
+          transform: scale(1.045);
+          box-shadow: 0 26px 60px -22px rgba(0, 0, 0, 0.34),
+            0 2px 6px rgba(0, 0, 0, 0.06);
+        }
+        .card.sel:hover .poster {
+          transform: scale(1.045) translateY(-4px);
         }
         .art {
           position: absolute;
@@ -285,8 +302,9 @@ export function StructurePicker({
           transition: box-shadow 0.22s;
         }
         .card.sel .ring {
-          box-shadow: inset 0 0 0 3px #fff, inset 0 0 0 4px rgba(0, 0, 0, 0.12);
+          box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08);
         }
+
         .check {
           position: absolute;
           top: 16px;
@@ -324,8 +342,8 @@ export function StructurePicker({
           bottom: 0;
           height: 62%;
           z-index: 2;
-          -webkit-backdrop-filter: blur(22px) saturate(140%);
-          backdrop-filter: blur(22px) saturate(140%);
+          -webkit-backdrop-filter: blur(2px) saturate(115%);
+          backdrop-filter: blur(2px) saturate(115%);
           -webkit-mask-image: linear-gradient(0deg, #000 55%, transparent 100%);
           mask-image: linear-gradient(0deg, #000 55%, transparent 100%);
         }
@@ -354,6 +372,10 @@ export function StructurePicker({
         .band.left {
           align-items: flex-start;
           padding-left: 36px;
+        }
+        .band.low {
+          justify-content: flex-end;
+          padding-bottom: 30px;
         }
 
         /* white pill — primary */

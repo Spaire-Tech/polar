@@ -12,7 +12,7 @@ export default function SpotlightLessonCardPreviewPage() {
         background: '#fff',
       }}
     >
-      <SpotlightLessonCard />
+      <SpotlightLessonCard imageUrl="/assets/onboarding/sample-lesson.jpg" />
     </main>
   )
 }

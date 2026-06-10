@@ -1,11 +1,18 @@
 'use client'
 
 // FreeTrialPicker — literal clone of the "Let them try it first" design
-// (Free Trial Picker.html). Two image posters with a frosted glass band:
-// Free Preview (a count stepper — first N lessons free, 1–5) and Lesson Sample
-// (a Play Sample pill). Selection ring + check, Back / Continue footer, toast.
-// Self-contained (no live previews) — CSS is a faithful port scoped via
-// styled-jsx. This step comes before Choose Hero / Choose Lesson Card.
+// (Free Trial Picker.html). Exact port of the source:
+//   • page vertically centers in the viewport (justify-content: center,
+//     48px 32px padding) so it fits the screen
+//   • selection = poster scales to 1.045 with a deep shadow; 1px ring; no
+//     unselected hover lift; selected card lifts on hover
+//   • Free Preview poster is CLEAN — the count control is a liquid-glass
+//     stepper in the caption row beside the card name; the dynamic copy
+//     ("First N lessons free, in full.") lives in the caption description
+//   • Lesson Sample keeps the centered Play Sample pill on the photo
+//   • subtle glass (blur 2px / saturate 115%), art at center 28%
+//   • Back / Continue footer, toast, 800px responsive collapse
+// This step precedes Choose Hero / Choose Lesson Card.
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 
@@ -107,6 +114,21 @@ export function FreeTrialPicker({
     )
   }
 
+  const CheckIcon = (
+    <svg
+      width="15"
+      height="15"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M5 12.5l4.5 4.5L19 7" />
+    </svg>
+  )
+
   return (
     <div className="ftp-root">
       <div className="head">
@@ -129,15 +151,20 @@ export function FreeTrialPicker({
               className="art"
               style={{
                 backgroundImage: `url('${gymImage}')`,
-                backgroundPosition: 'center 58%',
+                backgroundPosition: 'center 28%',
               }}
             />
             <div className="glass" />
             <div className="shade" />
-            <div className="band">
-              <div className="count-pill">
+            <div className="ring" />
+            <div className="check">{CheckIcon}</div>
+          </div>
+          <div className="cap">
+            <div className="cap-row">
+              <div className="cap-name">Free Preview</div>
+              <div className="stepper">
                 <button
-                  className="cp-btn"
+                  className="st-btn"
                   type="button"
                   aria-label="Fewer free lessons"
                   disabled={freeCount <= MIN}
@@ -148,8 +175,8 @@ export function FreeTrialPicker({
                   }}
                 >
                   <svg
-                    width="13"
-                    height="13"
+                    width="15"
+                    height="15"
                     viewBox="0 0 24 24"
                     fill="none"
                     stroke="currentColor"
@@ -159,17 +186,9 @@ export function FreeTrialPicker({
                     <path d="M5 12h14" />
                   </svg>
                 </button>
-                <span>
-                  {freeCount === 1 ? (
-                    'First lesson free'
-                  ) : (
-                    <>
-                      First <b>{freeCount}</b> lessons free
-                    </>
-                  )}
-                </span>
+                <span className="st-val">{freeCount}</span>
                 <button
-                  className="cp-btn"
+                  className="st-btn"
                   type="button"
                   aria-label="More free lessons"
                   disabled={freeCount >= MAX}
@@ -180,8 +199,8 @@ export function FreeTrialPicker({
                   }}
                 >
                   <svg
-                    width="13"
-                    height="13"
+                    width="15"
+                    height="15"
                     viewBox="0 0 24 24"
                     fill="none"
                     stroke="currentColor"
@@ -193,25 +212,15 @@ export function FreeTrialPicker({
                 </button>
               </div>
             </div>
-            <div className="ring" />
-            <div className="check">
-              <svg
-                width="15"
-                height="15"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.6"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M5 12.5l4.5 4.5L19 7" />
-              </svg>
+            <div className="cap-desc">
+              {freeCount === 1 ? (
+                'First lesson free, in full.'
+              ) : (
+                <>
+                  First <b>{freeCount}</b> lessons free, in full.
+                </>
+              )}
             </div>
-          </div>
-          <div className="cap">
-            <div className="cap-name">Free Preview</div>
-            <div className="cap-desc">Full lessons, free from the start.</div>
           </div>
         </div>
 
@@ -225,7 +234,7 @@ export function FreeTrialPicker({
               className="art"
               style={{
                 backgroundImage: `url('${craftImage}')`,
-                backgroundPosition: 'center 58%',
+                backgroundPosition: 'center 28%',
               }}
             />
             <div className="glass" />
@@ -247,23 +256,12 @@ export function FreeTrialPicker({
               </button>
             </div>
             <div className="ring" />
-            <div className="check">
-              <svg
-                width="15"
-                height="15"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.6"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M5 12.5l4.5 4.5L19 7" />
-              </svg>
-            </div>
+            <div className="check">{CheckIcon}</div>
           </div>
           <div className="cap">
-            <div className="cap-name">Lesson Sample</div>
+            <div className="cap-row">
+              <div className="cap-name">Lesson Sample</div>
+            </div>
             <div className="cap-desc">A short clip from one lesson.</div>
           </div>
         </div>
@@ -318,10 +316,12 @@ export function FreeTrialPicker({
           -moz-osx-font-smoothing: grayscale;
           letter-spacing: -0.01em;
           min-height: 100vh;
+          width: 100%;
           display: flex;
           flex-direction: column;
           align-items: center;
-          padding: 88px 32px 64px;
+          justify-content: center;
+          padding: 48px 32px;
         }
         .ftp-root :global(button) {
           font-family: inherit;
@@ -377,13 +377,16 @@ export function FreeTrialPicker({
           background: #0a0807;
           box-shadow: 0 6px 18px -10px rgba(0, 0, 0, 0.18),
             0 1px 3px rgba(0, 0, 0, 0.05);
-          transition: transform 0.3s cubic-bezier(0.2, 1, 0.3, 1),
-            box-shadow 0.3s;
+          transition: transform 0.32s cubic-bezier(0.2, 1, 0.3, 1),
+            box-shadow 0.32s;
         }
-        .card:hover .poster {
-          transform: translateY(-4px);
-          box-shadow: 0 18px 40px -18px rgba(0, 0, 0, 0.28),
-            0 1px 3px rgba(0, 0, 0, 0.05);
+        .card.sel .poster {
+          transform: scale(1.045);
+          box-shadow: 0 26px 60px -22px rgba(0, 0, 0, 0.34),
+            0 2px 6px rgba(0, 0, 0, 0.06);
+        }
+        .card.sel:hover .poster {
+          transform: scale(1.045) translateY(-4px);
         }
         .art {
           position: absolute;
@@ -400,8 +403,9 @@ export function FreeTrialPicker({
           transition: box-shadow 0.22s;
         }
         .card.sel .ring {
-          box-shadow: inset 0 0 0 3px #fff, inset 0 0 0 4px rgba(0, 0, 0, 0.12);
+          box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08);
         }
+
         .check {
           position: absolute;
           top: 16px;
@@ -439,8 +443,8 @@ export function FreeTrialPicker({
           bottom: 0;
           height: 62%;
           z-index: 2;
-          -webkit-backdrop-filter: blur(22px) saturate(140%);
-          backdrop-filter: blur(22px) saturate(140%);
+          -webkit-backdrop-filter: blur(2px) saturate(115%);
+          backdrop-filter: blur(2px) saturate(115%);
           -webkit-mask-image: linear-gradient(0deg, #000 55%, transparent 100%);
           mask-image: linear-gradient(0deg, #000 55%, transparent 100%);
         }
@@ -467,7 +471,7 @@ export function FreeTrialPicker({
           padding: 0 28px;
         }
 
-        /* white pill */
+        /* white pill — straight from the reference */
         .pill {
           display: inline-flex;
           align-items: center;
@@ -494,49 +498,60 @@ export function FreeTrialPicker({
           flex-shrink: 0;
         }
 
-        /* count pill */
-        .count-pill {
+        /* liquid-glass stepper — lives beside the card name, not on the photo */
+        .stepper {
           display: inline-flex;
           align-items: center;
-          gap: 14px;
-          height: 50px;
-          padding: 0 12px;
+          gap: 2px;
+          height: 38px;
+          padding: 4px;
           border-radius: 980px;
-          background: #fff;
-          color: #111;
-          font-size: 16px;
-          font-weight: 600;
-          letter-spacing: -0.01em;
-          box-shadow: 0 4px 16px rgba(0, 0, 0, 0.28);
+          background: rgba(120, 120, 128, 0.12);
+          -webkit-backdrop-filter: blur(20px) saturate(180%);
+          backdrop-filter: blur(20px) saturate(180%);
+          box-shadow: inset 0 0 0 0.5px rgba(0, 0, 0, 0.08),
+            inset 0 1px 0 rgba(255, 255, 255, 0.5);
           font-variant-numeric: tabular-nums;
         }
-        .count-pill :global(b) {
-          font-weight: 700;
-        }
-        .cp-btn {
-          width: 32px;
-          height: 32px;
+        .st-btn {
+          width: 30px;
+          height: 30px;
           border-radius: 50%;
           display: grid;
           place-items: center;
-          color: #111;
-          box-shadow: inset 0 0 0 1.5px rgba(0, 0, 0, 0.22);
+          color: var(--ink);
           transition: background 0.15s, transform 0.12s;
         }
-        .cp-btn:hover {
-          background: rgba(0, 0, 0, 0.06);
+        .st-btn:hover {
+          background: rgba(120, 120, 128, 0.16);
         }
-        .cp-btn:active {
-          transform: scale(0.9);
+        .st-btn:active {
+          transform: scale(0.88);
         }
-        .cp-btn:disabled {
-          opacity: 0.3;
+        .st-btn:disabled {
+          opacity: 0.28;
           cursor: default;
+          background: none;
+        }
+        .st-val {
+          min-width: 26px;
+          text-align: center;
+          font-size: 16px;
+          font-weight: 600;
+          letter-spacing: -0.01em;
+          color: var(--ink);
         }
 
         /* caption */
         .cap {
           padding: 22px 6px 0;
+        }
+        .cap-row {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 16px;
+          min-height: 38px;
         }
         .cap-name {
           font-family: var(--po);
@@ -550,6 +565,10 @@ export function FreeTrialPicker({
           color: var(--gray);
           font-weight: 400;
           margin-top: 5px;
+        }
+        .cap-desc :global(b) {
+          color: var(--ink);
+          font-weight: 600;
         }
 
         /* footer */

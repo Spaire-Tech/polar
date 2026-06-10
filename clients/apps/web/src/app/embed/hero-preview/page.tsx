@@ -6,7 +6,7 @@ import MarqueeHero from '@/components/Courses/editor/MarqueeHero'
 export default function HeroPreviewPage() {
   return (
     <main style={{ margin: 0, overflow: 'hidden' }}>
-      <MarqueeHero />
+      <MarqueeHero imageUrl="/assets/onboarding/sample-hero.jpg" />
     </main>
   )
 }
