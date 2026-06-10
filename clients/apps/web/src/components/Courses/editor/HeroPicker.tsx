@@ -1,16 +1,18 @@
 'use client'
 
 // HeroPicker — literal clone of the "Choose your hero" design (Hero Picker.html).
-// Two poster cards, each a live scaled preview (iframe) of the actual hero —
-// Marquee (the cinematic full-bleed clone) and Cover (the existing editorial
-// landing hero). Selection ring + check, a fullscreen Preview overlay per
-// option, Back / Continue footer, and a confirmation toast. CSS is a faithful
-// port of the original stylesheet scoped to this component via styled-jsx.
+// Two poster cards, each a live scaled preview of the actual hero — Marquee
+// (cinematic full-bleed) and Cover (editorial). Selection ring + check, a
+// fullscreen Preview overlay per option, Back / Continue footer, toast.
 //
-// The previews are real routes (/embed/hero-preview, /embed/hero-preview-cover)
-// scaled into 16:10 posters exactly like the prototype scales its iframes.
+// The previews render the REAL hero components directly inside a virtual
+// 1512×945 frame scaled into each 16:10 poster (same math the design used for
+// its iframes) — no iframes, so everything paints instantly with the page:
+// image, text and CTAs in the same frame.
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { CoverHero } from './CoverHero'
+import { MarqueeHero } from './MarqueeHero'
 
 export type HeroStyle = 'Marquee' | 'Cover'
 
@@ -22,11 +24,7 @@ type Option = {
   style: HeroStyle
   name: string
   desc: string
-  src: string
-  /** Instant poster background so the live iframe never flashes white while
-      it loads — the iframe fades in over the identical (cached) photo. */
-  poster: string
-  posterPos: string
+  node: React.ReactNode
 }
 
 type Toast = { id: number; msg: string }
@@ -36,32 +34,26 @@ export function HeroPicker({
   onChange,
   onContinue,
   onBack,
-  marqueeSrc = '/embed/hero-preview',
-  coverSrc = '/embed/hero-preview-cover',
 }: {
   value?: HeroStyle
   onChange?: (style: HeroStyle) => void
   onContinue?: (style: HeroStyle) => void
   onBack?: () => void
-  marqueeSrc?: string
-  coverSrc?: string
 }) {
   const options: Option[] = [
     {
       style: 'Marquee',
       name: 'Marquee',
       desc: 'Cinematic and full-bleed, like a streaming title.',
-      src: marqueeSrc,
-      poster: '/assets/onboarding/cover-hero.jpg',
-      posterPos: 'center 18%',
+      node: (
+        <MarqueeHero fill imageUrl="/assets/onboarding/cover-hero.jpg" />
+      ),
     },
     {
       style: 'Cover',
       name: 'Cover',
       desc: 'Editorial and typographic, like a magazine cover.',
-      src: coverSrc,
-      poster: '/assets/onboarding/cover-hero.jpg',
-      posterPos: 'center 58%',
+      node: <CoverHero fill />,
     },
   ]
 
@@ -125,7 +117,7 @@ export function HeroPicker({
 
   const closePreview = useCallback(() => {
     setOverlayShown(false)
-    // keep iframes warm — just hide
+    // keep heroes mounted — just hide
     window.setTimeout(() => setPreviewStyle(null), 300)
   }, [])
 
@@ -147,13 +139,6 @@ export function HeroPicker({
     window.setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 2400)
   }, [])
 
-  // Fade each iframe in once it has loaded; until then the poster's photo
-  // background shows, so there's no white loading screen.
-  const [loaded, setLoaded] = useState<Record<HeroStyle, boolean>>({
-    Marquee: false,
-    Cover: false,
-  })
-
   return (
     <div className="hp-root" ref={rootRef}>
       <div className="head">
@@ -174,29 +159,9 @@ export function HeroPicker({
               className={`card${isSel ? ' sel' : ''}`}
               onClick={() => select(opt.style)}
             >
-              <div
-                className="poster"
-                style={{
-                  backgroundImage: `url('${opt.poster}')`,
-                  backgroundPosition: opt.posterPos,
-                  backgroundSize: 'cover',
-                }}
-              >
-                <div className="frame-scale">
-                  <iframe
-                    src={opt.src}
-                    scrolling="no"
-                    tabIndex={-1}
-                    aria-hidden="true"
-                    title={`${opt.name} preview`}
-                    style={{
-                      opacity: loaded[opt.style] ? 1 : 0,
-                      transition: 'opacity 0.25s ease',
-                    }}
-                    onLoad={() =>
-                      setLoaded((l) => ({ ...l, [opt.style]: true }))
-                    }
-                  />
+              <div className="poster">
+                <div className="frame-scale" aria-hidden>
+                  {opt.node}
                 </div>
                 <div className="ring" />
                 <div className="check">
@@ -258,19 +223,19 @@ export function HeroPicker({
         </button>
       </div>
 
-      {/* fullscreen preview (both heroes preloaded & kept warm) */}
+      {/* fullscreen preview (both heroes stay mounted & warm) */}
       <div
         className={`overlay${previewStyle ? ' on' : ''}${
           overlayShown ? ' show' : ''
         }`}
       >
         {options.map((opt) => (
-          <iframe
+          <div
             key={opt.style}
             className={`ov-hero${previewStyle === opt.style ? ' active' : ''}`}
-            src={opt.src}
-            title={`${opt.name} preview`}
-          />
+          >
+            {opt.node}
+          </div>
         ))}
         <div className="ov-bar">
           <button
@@ -447,12 +412,12 @@ export function HeroPicker({
           height: 945px;
           transform-origin: top left;
         }
-        .frame-scale :global(iframe) {
+        .frame-scale {
+          pointer-events: none;
+        }
+        .frame-scale > :global(*) {
           width: 1512px;
           height: 945px;
-          border: 0;
-          pointer-events: none;
-          display: block;
         }
         .check {
           position: absolute;
