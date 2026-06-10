@@ -164,6 +164,10 @@ class CourseCreate(Schema):
     paywall_lesson_id: UUID4 | None = None
     paywall_position: int | None = None
     ai_generated: bool = False
+    # Onboarding presentation choices — drive the public portal render.
+    hero_variant: Literal["marquee", "cover"] = "cover"
+    lesson_card_variant: Literal["spotlight", "catalog"] = "catalog"
+    trial_mode: Literal["free_preview", "lesson_sample"] = "free_preview"
     description: str | None = None
     thumbnail_url: str | None = None
     thumbnail_object_position: str | None = Field(None, max_length=32)
@@ -186,6 +190,9 @@ class CourseUpdate(Schema):
     paywall_enabled: bool | None = None
     paywall_lesson_id: UUID4 | None = None
     paywall_position: int | None = None
+    hero_variant: Literal["marquee", "cover"] | None = None
+    lesson_card_variant: Literal["spotlight", "catalog"] | None = None
+    trial_mode: Literal["free_preview", "lesson_sample"] | None = None
     description: str | None = None
     thumbnail_url: str | None = None
     thumbnail_object_position: str | None = Field(None, max_length=32)
@@ -273,6 +280,9 @@ class CourseRead(TimestampedSchema):
     paywall_lesson_id: UUID4 | None
     paywall_position: int | None
     ai_generated: bool
+    hero_variant: str = "cover"
+    lesson_card_variant: str = "catalog"
+    trial_mode: str = "free_preview"
     description: str | None = None
     thumbnail_url: str | None = None
     thumbnail_object_position: str | None = None

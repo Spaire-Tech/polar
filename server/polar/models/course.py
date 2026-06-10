@@ -73,6 +73,37 @@ class Course(RecordModel):
         Boolean, nullable=False, default=False
     )
 
+    # ── Onboarding presentation choices ──────────────────────────────────────
+    # These are picked in the create-course wizard and drive how the public
+    # portal (now both landing + player) renders. They are NOT decorative:
+    # the portal reads them to pick the hero layout, the lesson-card layout,
+    # and the "try before you buy" affordance.
+    #
+    # hero_variant: how the top of the portal renders.
+    #   "marquee" — cinematic, full-bleed streaming-title hero.
+    #   "cover"   — the boxed editorial hero (legacy default).
+    hero_variant: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="cover", server_default="cover"
+    )
+    # lesson_card_variant: how every lesson tile renders in the episode grid.
+    #   "spotlight" — title + details rest over the image.
+    #   "catalog"   — details sit below the image (legacy default).
+    lesson_card_variant: Mapped[str] = mapped_column(
+        String(20),
+        nullable=False,
+        default="catalog",
+        server_default="catalog",
+    )
+    # trial_mode: how a prospect samples the course before buying.
+    #   "free_preview"  — the first `paywall_position` lessons play in full.
+    #   "lesson_sample" — a short clip (the Episode Sample block) plays instead.
+    trial_mode: Mapped[str] = mapped_column(
+        String(20),
+        nullable=False,
+        default="free_preview",
+        server_default="free_preview",
+    )
+
     description: Mapped[str | None] = mapped_column(
         Text, nullable=True, default=None
     )
