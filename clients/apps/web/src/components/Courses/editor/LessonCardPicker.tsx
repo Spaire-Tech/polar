@@ -1,10 +1,12 @@
 'use client'
 
 // LessonCardPicker — literal clone of the "Choose your lesson card" design
-// (Lesson Card Picker.html). Two tiles, each a live scaled iframe of the real
-// card: Spotlight (title over the image) and Catalog (the existing portal card,
-// details below the image). Selection ring + check, Back / Continue footer,
-// confirmation toast. CSS is a faithful port scoped via styled-jsx.
+// (Lesson Card Picker.html). Two fixed 380×362 tiles, each a live scaled iframe
+// of the real card: Spotlight (Lesson 9 Card — title over the image) and
+// Catalog (Catalog Card — details below the image). Selection scales the tile
+// 1.045, ring + check, Back / Continue footer, toast. The whole picker zooms
+// down to fit the viewport (fitZoom), and each tile paints a matching base
+// colour + fades its iframe in on load, so there's no white loading flash.
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 
@@ -17,6 +19,8 @@ type Option = {
   name: string
   desc: string
   src: string
+  /** Base tile colour shown until the iframe fades in (no white flash). */
+  tileBg: string
 }
 
 type Toast = { id: number; msg: string }
@@ -42,12 +46,14 @@ export function LessonCardPicker({
       name: 'Spotlight',
       desc: 'Title and details rest over the image.',
       src: spotlightSrc,
+      tileBg: '#0a0807',
     },
     {
       style: 'Catalog',
       name: 'Catalog',
       desc: 'Title and details sit below the image.',
       src: catalogSrc,
+      tileBg: '#ffffff',
     },
   ]
 
@@ -73,29 +79,48 @@ export function LessonCardPicker({
     [onChange],
   )
 
-  // Scale each 380×362 card iframe to fill its tile (mirrors scaleFrames).
   const rootRef = useRef<HTMLDivElement | null>(null)
-  useEffect(() => {
-    const scaleFrames = () => {
-      const root = rootRef.current
-      if (!root) return
-      root.querySelectorAll<HTMLElement>('.tile').forEach((tile) => {
-        const fs = tile.querySelector<HTMLElement>('.frame-scale')
-        if (!fs) return
-        fs.style.transform = `scale(${tile.clientWidth / 380})`
-      })
-    }
-    scaleFrames()
-    const ro = new ResizeObserver(scaleFrames)
-    if (rootRef.current) ro.observe(rootRef.current)
-    window.addEventListener('resize', scaleFrames)
-    return () => {
-      ro.disconnect()
-      window.removeEventListener('resize', scaleFrames)
-    }
+
+  // Scale each 380×362 card iframe to fill its tile — native (no transform)
+  // near 1:1 so the card's backdrop-filter blur renders cleanly.
+  const scaleFrames = useCallback(() => {
+    const root = rootRef.current
+    if (!root) return
+    root.querySelectorAll<HTMLElement>('.tile').forEach((tile) => {
+      const fs = tile.querySelector<HTMLElement>('.frame-scale')
+      if (!fs) return
+      const s = tile.clientWidth / 380
+      fs.style.transform = Math.abs(s - 1) < 0.012 ? 'none' : `scale(${s})`
+    })
   }, [])
 
-  const [catalogLoaded, setCatalogLoaded] = useState(false)
+  // Zoom the whole picker down so it always fits the viewport without
+  // clipping. Uses `zoom` on the root (not transform) so the card iframes
+  // stay 1:1 internally and their backdrop-filter blur keeps rendering.
+  const fitZoom = useCallback(() => {
+    const root = rootRef.current
+    if (!root) return
+    root.style.zoom = '1'
+    const h = root.scrollHeight
+    const avail = window.innerHeight
+    const z = Math.max(0.7, Math.min(1, (avail - 8) / h))
+    root.style.zoom = z.toFixed(3)
+  }, [])
+
+  useEffect(() => {
+    const run = () => {
+      fitZoom()
+      scaleFrames()
+    }
+    run()
+    window.addEventListener('resize', run)
+    const ro = new ResizeObserver(run)
+    if (rootRef.current) ro.observe(rootRef.current)
+    return () => {
+      window.removeEventListener('resize', run)
+      ro.disconnect()
+    }
+  }, [fitZoom, scaleFrames])
 
   const [toasts, setToasts] = useState<Toast[]>([])
   const idRef = useRef(0)
@@ -104,6 +129,12 @@ export function LessonCardPicker({
     setToasts((t) => [...t, { id, msg }])
     window.setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 2400)
   }, [])
+
+  // Fade each iframe in once loaded; the tile's base colour shows until then.
+  const [loaded, setLoaded] = useState<Record<LessonCardStyle, boolean>>({
+    Spotlight: false,
+    Catalog: false,
+  })
 
   return (
     <div className="lcp-root" ref={rootRef}>
@@ -119,14 +150,13 @@ export function LessonCardPicker({
       <div className="cards">
         {options.map((opt) => {
           const isSel = selected === opt.style
-          const isCatalog = opt.style === 'Catalog'
           return (
             <div
               key={opt.style}
               className={`card${isSel ? ' sel' : ''}`}
               onClick={() => select(opt.style)}
             >
-              <div className="tile">
+              <div className="tile" style={{ background: opt.tileBg }}>
                 <div className="frame-scale">
                   <iframe
                     src={opt.src}
@@ -134,16 +164,15 @@ export function LessonCardPicker({
                     tabIndex={-1}
                     aria-hidden="true"
                     title={`${opt.name} preview`}
-                    onLoad={
-                      isCatalog ? () => setCatalogLoaded(true) : undefined
+                    style={{
+                      opacity: loaded[opt.style] ? 1 : 0,
+                      transition: 'opacity 0.25s ease',
+                    }}
+                    onLoad={() =>
+                      setLoaded((l) => ({ ...l, [opt.style]: true }))
                     }
                   />
                 </div>
-                {isCatalog && (
-                  <div
-                    className={`splash-cover${catalogLoaded ? ' gone' : ''}`}
-                  />
-                )}
                 <div className="ring" />
                 <div className="check">
                   <svg
@@ -227,14 +256,15 @@ export function LessonCardPicker({
           -moz-osx-font-smoothing: grayscale;
           letter-spacing: -0.01em;
           min-height: 100vh;
+          width: 100%;
           display: flex;
           flex-direction: column;
           align-items: center;
-          padding: 88px 32px 64px;
+          justify-content: safe center;
+          padding: 44px 32px;
         }
-        /* Neutralize UA button chrome only — no background/color here (would
-           clobber .continue fill). The outline .back declares its own
-           background: none. */
+        /* Neutralize UA button chrome only — must not set background/color
+           (would clobber .continue / .back). */
         .lcp-root :global(button) {
           font-family: inherit;
           cursor: pointer;
@@ -244,7 +274,7 @@ export function LessonCardPicker({
         /* header */
         .head {
           text-align: center;
-          margin-bottom: 56px;
+          margin-bottom: 40px;
         }
         .head h1 {
           font-family: var(--po);
@@ -271,10 +301,9 @@ export function LessonCardPicker({
         /* cards */
         .cards {
           display: grid;
-          grid-template-columns: repeat(2, minmax(0, 1fr));
+          grid-template-columns: repeat(2, 380px);
+          justify-content: center;
           gap: 36px;
-          width: 100%;
-          max-width: 880px;
         }
         .card {
           cursor: pointer;
@@ -285,12 +314,20 @@ export function LessonCardPicker({
           border-radius: 16px;
           overflow: hidden;
           box-shadow: 0 10px 30px -14px rgba(0, 0, 0, 0.22);
-          transition: transform 0.3s cubic-bezier(0.2, 1, 0.3, 1),
-            box-shadow 0.3s;
+          transition: transform 0.32s cubic-bezier(0.2, 1, 0.3, 1),
+            box-shadow 0.32s;
         }
         .card:hover .tile {
           transform: translateY(-4px);
           box-shadow: 0 20px 44px -18px rgba(0, 0, 0, 0.3);
+        }
+        .card.sel .tile {
+          transform: scale(1.045);
+          box-shadow: 0 26px 60px -22px rgba(0, 0, 0, 0.34),
+            0 2px 6px rgba(0, 0, 0, 0.06);
+        }
+        .card.sel:hover .tile {
+          transform: scale(1.045) translateY(-4px);
         }
         .ring {
           position: absolute;
@@ -301,11 +338,8 @@ export function LessonCardPicker({
           box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.06);
           transition: box-shadow 0.22s;
         }
-        .card.sel .tile {
-          box-shadow: 0 12px 32px -14px rgba(0, 0, 0, 0.26);
-        }
         .card.sel .ring {
-          box-shadow: inset 0 0 0 3px #fff, inset 0 0 0 4px rgba(0, 0, 0, 0.14);
+          box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08);
         }
         .frame-scale {
           position: absolute;
@@ -321,19 +355,6 @@ export function LessonCardPicker({
           border: 0;
           display: block;
           pointer-events: none;
-        }
-        .splash-cover {
-          position: absolute;
-          inset: 0;
-          z-index: 6;
-          background: #f2f2f4;
-          opacity: 1;
-          transition: opacity 0.35s ease;
-          pointer-events: none;
-          border-radius: 16px;
-        }
-        .splash-cover.gone {
-          opacity: 0;
         }
         .check {
           position: absolute;
@@ -389,7 +410,7 @@ export function LessonCardPicker({
           align-items: center;
           justify-content: center;
           gap: 16px;
-          margin-top: 60px;
+          margin-top: 40px;
         }
         .continue {
           display: inline-flex;
@@ -464,13 +485,12 @@ export function LessonCardPicker({
           }
         }
 
-        @media (max-width: 800px) {
+        @media (max-width: 820px) {
           .lcp-root {
-            padding: 56px 20px 48px;
+            padding: 40px 20px;
           }
           .cards {
-            grid-template-columns: 1fr;
-            max-width: 400px;
+            grid-template-columns: minmax(0, 380px);
             gap: 28px;
           }
         }

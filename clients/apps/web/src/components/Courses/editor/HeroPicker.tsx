@@ -23,6 +23,10 @@ type Option = {
   name: string
   desc: string
   src: string
+  /** Instant poster background so the live iframe never flashes white while
+      it loads — the iframe fades in over the identical (cached) photo. */
+  poster: string
+  posterPos: string
 }
 
 type Toast = { id: number; msg: string }
@@ -48,12 +52,16 @@ export function HeroPicker({
       name: 'Marquee',
       desc: 'Cinematic and full-bleed, like a streaming title.',
       src: marqueeSrc,
+      poster: '/assets/onboarding/cover-hero.jpg',
+      posterPos: 'center 18%',
     },
     {
       style: 'Cover',
       name: 'Cover',
       desc: 'Editorial and typographic, like a magazine cover.',
       src: coverSrc,
+      poster: '/assets/onboarding/cover-hero.jpg',
+      posterPos: 'center 58%',
     },
   ]
 
@@ -139,6 +147,13 @@ export function HeroPicker({
     window.setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 2400)
   }, [])
 
+  // Fade each iframe in once it has loaded; until then the poster's photo
+  // background shows, so there's no white loading screen.
+  const [loaded, setLoaded] = useState<Record<HeroStyle, boolean>>({
+    Marquee: false,
+    Cover: false,
+  })
+
   return (
     <div className="hp-root" ref={rootRef}>
       <div className="head">
@@ -159,7 +174,14 @@ export function HeroPicker({
               className={`card${isSel ? ' sel' : ''}`}
               onClick={() => select(opt.style)}
             >
-              <div className="poster">
+              <div
+                className="poster"
+                style={{
+                  backgroundImage: `url('${opt.poster}')`,
+                  backgroundPosition: opt.posterPos,
+                  backgroundSize: 'cover',
+                }}
+              >
                 <div className="frame-scale">
                   <iframe
                     src={opt.src}
@@ -167,6 +189,13 @@ export function HeroPicker({
                     tabIndex={-1}
                     aria-hidden="true"
                     title={`${opt.name} preview`}
+                    style={{
+                      opacity: loaded[opt.style] ? 1 : 0,
+                      transition: 'opacity 0.25s ease',
+                    }}
+                    onLoad={() =>
+                      setLoaded((l) => ({ ...l, [opt.style]: true }))
+                    }
                   />
                 </div>
                 <div className="ring" />
@@ -379,7 +408,7 @@ export function HeroPicker({
           aspect-ratio: 16 / 10;
           border-radius: 20px;
           overflow: hidden;
-          background: #fff;
+          background: #0a0807;
           box-shadow: 0 6px 18px -10px rgba(0, 0, 0, 0.18),
             0 1px 3px rgba(0, 0, 0, 0.05);
           transition: transform 0.32s cubic-bezier(0.2, 1, 0.3, 1),

@@ -1,19 +1,18 @@
-import CatalogLessonCardEmbed from '@/components/Courses/editor/CatalogLessonCardEmbed'
+import CatalogCard from '@/components/Courses/editor/CatalogCard'
 
-// Bare, centered preview of the existing "Catalog" lesson card, used as the
-// live preview source for the lesson-card picker's Catalog option.
+// Bare, centered preview of the Catalog lesson card (Catalog Card.html), used
+// as the live preview source for the lesson-card picker's Catalog option.
 export default function LessonCardCatalogPreviewPage() {
   return (
     <main
       style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
+        display: 'grid',
+        placeItems: 'center',
         minHeight: '100vh',
         background: '#fff',
       }}
     >
-      <CatalogLessonCardEmbed />
+      <CatalogCard />
     </main>
   )
 }

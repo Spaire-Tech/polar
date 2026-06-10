@@ -1605,7 +1605,7 @@ function PFSegmented<T extends string>({
         <button
           key={o.value}
           type="button"
-          className={`pf-seg-btn${value === o.value ? 'active' : ''}`}
+          className={`pf-seg-btn${value === o.value ? ' active' : ''}`}
           onClick={() => onChange(o.value)}
         >
           {o.label}
@@ -1630,7 +1630,7 @@ function PFChoiceCard({
   return (
     <button
       type="button"
-      className={`pf-choice${active ? 'active' : ''}`}
+      className={`pf-choice${active ? ' active' : ''}`}
       onClick={onClick}
     >
       <span className="pf-choice-row">
@@ -1736,7 +1736,7 @@ function PFToggle({
         type="button"
         role="switch"
         aria-checked={checked}
-        className={`pf-toggle${checked ? 'on' : ''}`}
+        className={`pf-toggle${checked ? ' on' : ''}`}
         onClick={() => onChange(!checked)}
       >
         <span className="pf-toggle-knob" />
@@ -1876,8 +1876,8 @@ function PFPriceRow({
                 key={c.code}
                 disabled={isDisabled}
                 className={`pf-cur-item${
-                  c.code === currency ? 'active' : ''
-                }${isDisabled ? 'disabled' : ''}`}
+                  c.code === currency ? ' active' : ''
+                }${isDisabled ? ' disabled' : ''}`}
                 onClick={() => {
                   if (isDisabled) return
                   setValue(
@@ -1914,10 +1914,15 @@ function PFMediaDrop({
 }) {
   const [uploading, setUploading] = useState(false)
   const [dragOver, setDragOver] = useState(false)
+  // Instant local preview — shown the moment a file is picked/dropped so the
+  // UI never feels frozen while checksumming + S3 happen in the background.
+  const [localPreview, setLocalPreview] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
-  const onFile = async (file?: File | null) => {
+  const onFile = (file?: File | null) => {
     if (!file) return
+    const url = URL.createObjectURL(file)
+    setLocalPreview(url)
     setUploading(true)
     const upload = new Upload({
       organization,
@@ -1929,38 +1934,63 @@ function PFMediaDrop({
       onFileUploaded: (response) => {
         setUploading(false)
         onChange(response as schemas['ProductMediaFileRead'])
+        URL.revokeObjectURL(url)
+        setLocalPreview(null)
       },
       onFileError: () => {
         setUploading(false)
+        URL.revokeObjectURL(url)
+        setLocalPreview(null)
       },
     })
     upload.run()
   }
 
-  if (value) {
+  // Uploaded — or still uploading with an instant local preview.
+  if (value || localPreview) {
     return (
       <div className="pf-media-preview">
-        <img src={value.public_url} alt={value.name} />
-        <button
-          type="button"
-          className="pf-media-remove"
-          onClick={() => onChange(null)}
-        >
-          Remove
-        </button>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={value?.public_url ?? localPreview ?? undefined}
+          alt={value?.name ?? 'Course cover'}
+          style={uploading ? { opacity: 0.7 } : undefined}
+        />
+        {uploading ? (
+          <span className="pf-media-remove" style={{ cursor: 'default' }}>
+            Uploading…
+          </span>
+        ) : (
+          <button
+            type="button"
+            className="pf-media-remove"
+            onClick={() => onChange(null)}
+          >
+            Remove
+          </button>
+        )}
       </div>
     )
   }
 
   return (
     <div
-      className={`pf-media-drop${dragOver ? 'drag-over' : ''}`}
+      className={`pf-media-drop${dragOver ? ' drag-over' : ''}`}
       onClick={() => inputRef.current?.click()}
       onDragOver={(e) => {
+        // preventDefault only — setState here fires dozens of times per
+        // second while dragging and made the zone jitter.
+        e.preventDefault()
+      }}
+      onDragEnter={(e) => {
         e.preventDefault()
         setDragOver(true)
       }}
-      onDragLeave={() => setDragOver(false)}
+      onDragLeave={(e) => {
+        // Ignore leave events fired when moving over child elements.
+        if (e.currentTarget.contains(e.relatedTarget as Node)) return
+        setDragOver(false)
+      }}
       onDrop={(e) => {
         e.preventDefault()
         setDragOver(false)
@@ -1975,133 +2005,13 @@ function PFMediaDrop({
         onChange={(e) => onFile(e.target.files?.[0])}
       />
       <div className="pf-media-title">
-        {uploading ? (
-          'Uploading…'
-        ) : (
-          <>
-            Drop image or video, or{' '}
-            <span className="pf-media-browse">browse</span>
-          </>
-        )}
+        Drop image or video, or{' '}
+        <span className="pf-media-browse">browse</span>
       </div>
       <div className="pf-media-hint">
         PNG, JPG, MP4 · up to 10 MB · 16:9 recommended
       </div>
     </div>
-  )
-}
-
-// ── CheckoutPreview (from app.jsx) ─────────────────────────────────────────
-function PFCheckoutPreview({
-  courseTitle,
-  courseDesc,
-  courseLessons,
-  primaryPrice,
-  additionalPrices,
-  cycle,
-  every,
-  period,
-  freeTrial,
-  trialDays,
-  isFree,
-  accessMode,
-  previewLessons,
-  media,
-}: {
-  courseTitle: string
-  courseDesc?: string
-  courseLessons: number
-  primaryPrice: { currency: string; amount: string }
-  additionalPrices: { currency: string; amount: string }[]
-  cycle: 'onetime' | 'recurring'
-  every: number
-  period: string
-  freeTrial: boolean
-  trialDays: number
-  isFree: boolean
-  accessMode: 'open' | 'preview'
-  previewLessons: number
-  media: schemas['ProductMediaFileRead'] | null
-}) {
-  const cur =
-    CURRENCIES.find((c) => c.code === primaryPrice.currency) ?? CURRENCIES[0]
-  const amount = isFree ? 'Free' : `${cur.symbol}${primaryPrice.amount || '0'}`
-  const cycleLabel =
-    cycle === 'recurring' && !isFree
-      ? ` / ${every > 1 ? `${every} ${period}s` : period}`
-      : ''
-  const cta = isFree
-    ? 'Enrol for free'
-    : cycle === 'recurring'
-      ? freeTrial
-        ? `Start ${trialDays}-day free trial`
-        : 'Subscribe & start learning'
-      : 'Buy course'
-
-  return (
-    <aside className="pf-preview-aside">
-      <div className="pf-preview-eyebrow">Live preview</div>
-      <div className="pf-preview-card">
-        <div
-          className="pf-preview-hero"
-          style={
-            media?.public_url
-              ? {
-                  background: `center / cover no-repeat url(${media.public_url})`,
-                }
-              : undefined
-          }
-        >
-          {accessMode === 'preview' && previewLessons > 0 && (
-            <span className="pf-preview-badge">
-              {previewLessons} free preview{' '}
-              {previewLessons === 1 ? 'lesson' : 'lessons'}
-            </span>
-          )}
-          {!media?.public_url && (
-            <div className="pf-preview-placeholder">course cover · 16:9</div>
-          )}
-        </div>
-        <div className="pf-preview-body">
-          <div className="pf-preview-meta">
-            Online course · {courseLessons} lessons
-          </div>
-          <h3 className="pf-preview-title">{courseTitle}</h3>
-          {courseDesc && <p className="pf-preview-desc">{courseDesc}</p>}
-          <div className="pf-preview-price">
-            <span className="pf-preview-amount">{amount}</span>
-            {cycleLabel && (
-              <span className="pf-preview-cycle">{cycleLabel}</span>
-            )}
-          </div>
-          {additionalPrices.length > 0 && !isFree && (
-            <div className="pf-preview-extras">
-              {additionalPrices.map((p, i) => {
-                const c =
-                  CURRENCIES.find((x) => x.code === p.currency) ?? CURRENCIES[0]
-                return (
-                  <span key={i} className="pf-preview-extra">
-                    {c.symbol}
-                    {p.amount || '0'} {c.code.toUpperCase()}
-                  </span>
-                )
-              })}
-            </div>
-          )}
-          <button type="button" className="pf-preview-cta">
-            {cta}
-          </button>
-          <div className="pf-preview-footer">
-            <span>Secure checkout</span>
-            <span>Powered by spaire</span>
-          </div>
-        </div>
-      </div>
-      <div className="pf-preview-note">
-        Updates as you change the form. Final layout may vary in email & social
-        shares.
-      </div>
-    </aside>
   )
 }
 
@@ -2117,8 +2027,6 @@ export function StepPricingWizard({
   onNext,
   onBack,
   onClose,
-  courseTitle,
-  courseDesc,
   courseLessons,
   format = 'course',
   nextLabel,
@@ -2177,10 +2085,6 @@ export function StepPricingWizard({
       prices
         .map((p) => p?.price_currency)
         .filter((c): c is NonNullable<typeof c> => typeof c === 'string'),
-    [prices],
-  )
-  const additionalIndices = useMemo(
-    () => prices.map((_, i) => i).slice(1),
     [prices],
   )
 
@@ -2269,25 +2173,6 @@ export function StepPricingWizard({
     }
   }
 
-  const previewPrimary = {
-    currency: prices[0]?.price_currency ?? defaultCurrency,
-    amount: fromMinor(
-      prices[0]?.price_amount,
-      prices[0]?.price_currency ?? defaultCurrency,
-    ),
-  }
-  const previewAdditional = additionalIndices.map((i) => ({
-    currency: prices[i]?.price_currency ?? 'usd',
-    amount: fromMinor(
-      prices[i]?.price_amount,
-      prices[i]?.price_currency ?? 'usd',
-    ),
-  }))
-
-  const accessMode: 'open' | 'preview' = paywall.paywallEnabled
-    ? 'preview'
-    : 'open'
-
   const setMedia = (m: schemas['ProductMediaFileRead'] | null) => {
     setValue('full_medias' as never, (m ? [m] : []) as never)
   }
@@ -2329,6 +2214,50 @@ export function StepPricingWizard({
               description="Sell your course once, or charge a recurring fee for ongoing access. Add other currencies for international students."
             >
               <div className="flex w-full flex-col gap-10">
+                {/* Pricing model — Fixed price / Free, same Label markup. */}
+                <RadioGroup
+                  value={priceModel}
+                  onValueChange={(v) => setPriceModel(v as 'fixed' | 'free')}
+                  className="grid grid-cols-2 gap-4"
+                >
+                  {(
+                    [
+                      {
+                        value: 'fixed',
+                        title: 'Fixed price',
+                        desc: 'Charge a set amount per enrolment.',
+                      },
+                      {
+                        value: 'free',
+                        title: 'Free',
+                        desc: 'No charge — open to anyone who enrols.',
+                      },
+                    ] as const
+                  ).map((opt) => (
+                    <Label
+                      key={opt.value}
+                      htmlFor={`pf-model-${opt.value}`}
+                      className={twMerge(
+                        'flex cursor-pointer flex-col gap-3 rounded-2xl border border-[1.5px] p-5 font-normal transition-colors',
+                        priceModel === opt.value
+                          ? 'border-[oklch(0.62_0.21_265)] bg-gray-50'
+                          : 'border-gray-100 text-gray-500 hover:border-gray-200',
+                      )}
+                    >
+                      <div className="flex items-center gap-2.5 font-medium">
+                        <RadioGroupItem
+                          value={opt.value}
+                          id={`pf-model-${opt.value}`}
+                        />
+                        {opt.title}
+                      </div>
+                      <p className="text-sm text-gray-500">{opt.desc}</p>
+                    </Label>
+                  ))}
+                </RadioGroup>
+
+                <hr className="border-gray-200" />
+
                 {/* Cycle — same Label/RadioGroup pattern as the product
                     create form's "One-time / Recurring" cards. */}
                 <RadioGroup
@@ -2364,50 +2293,6 @@ export function StepPricingWizard({
                         <RadioGroupItem
                           value={opt.value}
                           id={`pf-cycle-${opt.value}`}
-                        />
-                        {opt.title}
-                      </div>
-                      <p className="text-sm text-gray-500">{opt.desc}</p>
-                    </Label>
-                  ))}
-                </RadioGroup>
-
-                <hr className="border-gray-200" />
-
-                {/* Pricing model — Fixed price / Free, same Label markup. */}
-                <RadioGroup
-                  value={priceModel}
-                  onValueChange={(v) => setPriceModel(v as 'fixed' | 'free')}
-                  className="grid grid-cols-2 gap-4"
-                >
-                  {(
-                    [
-                      {
-                        value: 'fixed',
-                        title: 'Fixed price',
-                        desc: 'Charge a set amount per enrolment.',
-                      },
-                      {
-                        value: 'free',
-                        title: 'Free',
-                        desc: 'No charge — open to anyone who enrols.',
-                      },
-                    ] as const
-                  ).map((opt) => (
-                    <Label
-                      key={opt.value}
-                      htmlFor={`pf-model-${opt.value}`}
-                      className={twMerge(
-                        'flex cursor-pointer flex-col gap-3 rounded-2xl border border-[1.5px] p-5 font-normal transition-colors',
-                        priceModel === opt.value
-                          ? 'border-[oklch(0.62_0.21_265)] bg-gray-50'
-                          : 'border-gray-100 text-gray-500 hover:border-gray-200',
-                      )}
-                    >
-                      <div className="flex items-center gap-2.5 font-medium">
-                        <RadioGroupItem
-                          value={opt.value}
-                          id={`pf-model-${opt.value}`}
                         />
                         {opt.title}
                       </div>
@@ -2580,30 +2465,14 @@ export function StepPricingWizard({
             )}
           </div>
 
-          {/* LIVE PREVIEW */}
-          <PFCheckoutPreview
-            courseTitle={courseTitle ?? 'Mastering Modern UI Design'}
-            courseDesc={courseDesc}
-            courseLessons={courseLessons ?? 12}
-            primaryPrice={previewPrimary}
-            additionalPrices={previewAdditional}
-            cycle={cycle}
-            every={recurringIntervalCount}
-            period={recurringInterval ?? 'month'}
-            freeTrial={trialEnabled}
-            trialDays={trialIntervalCount ?? 7}
-            isFree={priceModel === 'free'}
-            accessMode={accessMode}
-            previewLessons={paywall.freePreviewLessons}
-            media={heroMedia}
-          />
+          
         </main>
       </div>
 
       <style jsx global>{`
         .spaire-wizard-pricing {
           /* Design tokens — exactly as in spaire/Product Flow.html */
-          --bg: oklch(0.995 0.002 80);
+          --bg: #ffffff;
           --surface: #ffffff;
           --surface-2: oklch(0.975 0.004 270);
           --surface-3: oklch(0.955 0.006 270);
@@ -2628,18 +2497,9 @@ export function StepPricingWizard({
           font-family: 'Poppins', system-ui, sans-serif;
         }
         .pf-main {
-          max-width: 1200px;
+          max-width: 760px;
           margin: 0 auto;
           padding: 12px 32px 60px;
-          display: grid;
-          grid-template-columns: minmax(0, 1fr) 360px;
-          gap: 56px;
-        }
-        @media (max-width: 960px) {
-          .pf-main {
-            grid-template-columns: 1fr;
-            gap: 32px;
-          }
         }
         .pf-form-col {
           min-width: 0;
@@ -3232,142 +3092,6 @@ export function StepPricingWizard({
         }
 
         /* Live checkout preview */
-        .pf-preview-aside {
-          position: sticky;
-          top: 100px;
-          align-self: start;
-        }
-        .pf-preview-eyebrow {
-          font-size: 11px;
-          font-weight: 600;
-          letter-spacing: 1.2px;
-          text-transform: uppercase;
-          color: var(--muted-2);
-          margin-bottom: 12px;
-        }
-        .pf-preview-card {
-          background: #fff;
-          border: 1px solid var(--hair);
-          border-radius: 16px;
-          overflow: hidden;
-          box-shadow: var(--shadow-md);
-        }
-        .pf-preview-hero {
-          aspect-ratio: 16 / 9;
-          background: repeating-linear-gradient(
-            45deg,
-            oklch(0.94 0.01 270) 0 12px,
-            oklch(0.96 0.01 270) 12px 24px
-          );
-          position: relative;
-        }
-        .pf-preview-badge {
-          position: absolute;
-          top: 12px;
-          left: 12px;
-          padding: 5px 10px;
-          font-size: 11px;
-          font-weight: 600;
-          background: rgba(255, 255, 255, 0.96);
-          color: var(--ink);
-          border-radius: 999px;
-          letter-spacing: 0.2px;
-        }
-        .pf-preview-placeholder {
-          position: absolute;
-          inset: 0;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          color: oklch(0.55 0.02 270);
-          font-size: 11px;
-          font-family: ui-monospace, monospace;
-          letter-spacing: 0.5px;
-        }
-        .pf-preview-body {
-          padding: 18px;
-        }
-        .pf-preview-meta {
-          font-size: 11px;
-          font-weight: 600;
-          color: var(--muted-2);
-          letter-spacing: 0.6px;
-          text-transform: uppercase;
-          margin-bottom: 6px;
-        }
-        .pf-preview-title {
-          font-size: 18px;
-          font-weight: 600;
-          margin: 0;
-          line-height: 1.3;
-          letter-spacing: -0.2px;
-        }
-        .pf-preview-desc {
-          font-size: 12.5px;
-          color: var(--muted);
-          margin: 6px 0 0;
-          line-height: 1.5;
-        }
-        .pf-preview-price {
-          display: flex;
-          align-items: baseline;
-          gap: 6px;
-          margin-top: 18px;
-          margin-bottom: 16px;
-        }
-        .pf-preview-amount {
-          font-size: 26px;
-          font-weight: 600;
-          color: var(--ink);
-          letter-spacing: -0.6px;
-          font-variant-numeric: tabular-nums;
-        }
-        .pf-preview-cycle {
-          font-size: 13px;
-          color: var(--muted);
-        }
-        .pf-preview-extras {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 6px;
-          margin-bottom: 16px;
-        }
-        .pf-preview-extra {
-          padding: 3px 8px;
-          font-size: 11px;
-          font-weight: 500;
-          background: var(--surface-3);
-          color: var(--muted);
-          border-radius: 6px;
-          font-variant-numeric: tabular-nums;
-        }
-        .pf-preview-cta {
-          width: 100%;
-          padding: 13px 16px;
-          font-size: 14px;
-          font-weight: 600;
-          background: var(--ink);
-          color: #fff;
-          border: none;
-          border-radius: 10px;
-          cursor: pointer;
-        }
-        .pf-preview-footer {
-          margin-top: 12px;
-          padding-top: 12px;
-          border-top: 1px solid var(--hair);
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          font-size: 11px;
-          color: var(--muted);
-        }
-        .pf-preview-note {
-          margin-top: 12px;
-          font-size: 11px;
-          color: var(--muted);
-          line-height: 1.5;
-        }
       `}</style>
     </StepShell>
   )
