@@ -43,6 +43,8 @@ export type MarqueeHeroProps = {
   freeLine?: string
   /** When absent, a dark cinematic gradient renders instead of a photo. */
   imageUrl?: string | null
+  /** background-position for the photo (design: 'center 18%'). */
+  imagePosition?: string
   showTrailer?: boolean
   /** Hide the buy button + free line (enrolled portal — nothing to buy). */
   hideBuy?: boolean
@@ -53,17 +55,18 @@ export type MarqueeHeroProps = {
 
 export function MarqueeHero({
   brand = 'Spaire Originals',
-  eyebrow = 'Documentary Series · Tennis',
-  title = 'Championship Tennis',
-  description = 'A two-time Grand Slam champion takes you inside the all-court game — the strokes, the footwork, and the mind that wins the points that matter. Shot like a film, taught like a private lesson.',
-  metaLine = 'Documentary Series · Tennis  ·  2026  ·  11 Lessons  ·  3h 42m',
+  eyebrow = 'Documentary Series · Golf',
+  title = 'The Golfer’s Blueprint',
+  description = 'A two-time major champion takes you inside the scoring game — the swing, the short game, and the mind that wins the shots that matter. Shot like a film, taught like a private lesson.',
+  metaLine = 'Documentary Series · Golf  ·  2026  ·  11 Lessons  ·  3h 42m',
   badges = ['All Levels', 'Self-paced', 'Captions', 'Mobile & TV'],
-  instructorName = 'Carla Marín',
-  instructorSub = 'Former world No. 2 and two-time Grand Slam champion.',
+  instructorName = 'Jack Reeves',
+  instructorSub = 'Two-time major champion and former world No. 1.',
   playLabel = 'Play Lesson 1 Free',
   buyLabel = 'Subscribe — $89',
   freeLine = '3 lessons free · one-time purchase',
   imageUrl = null,
+  imagePosition = 'center 18%',
   showTrailer = true,
   hideBuy = false,
   onPlay,
@@ -87,7 +90,10 @@ export function MarqueeHero({
         className="panel-art"
         style={
           imageUrl
-            ? { backgroundImage: `url('${imageUrl}')` }
+            ? {
+                backgroundImage: `url('${imageUrl}')`,
+                backgroundPosition: imagePosition,
+              }
             : { backgroundImage: FALLBACK_ART, animation: 'none' }
         }
       />

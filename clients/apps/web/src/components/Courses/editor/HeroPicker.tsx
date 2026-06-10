@@ -105,17 +105,12 @@ export function HeroPicker({
     }
   }, [])
 
-  // ── fullscreen preview overlay ──
+  // ── fullscreen preview overlay — both heroes are preloaded & kept warm
+  //    for instant open, exactly like the design. ──
   const [previewStyle, setPreviewStyle] = useState<HeroStyle | null>(null)
-  // Lazily mount each overlay iframe on first open, then keep it warm.
-  const [warmed, setWarmed] = useState<Record<HeroStyle, boolean>>({
-    Marquee: false,
-    Cover: false,
-  })
   const [overlayShown, setOverlayShown] = useState(false)
 
   const openPreview = useCallback((style: HeroStyle) => {
-    setWarmed((w) => (w[style] ? w : { ...w, [style]: true }))
     setPreviewStyle(style)
     requestAnimationFrame(() => setOverlayShown(true))
   }, [])
@@ -144,9 +139,6 @@ export function HeroPicker({
     window.setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 2400)
   }, [])
 
-  // Splash fade for the Cover poster (hides the iframe load flash).
-  const [coverLoaded, setCoverLoaded] = useState(false)
-
   return (
     <div className="hp-root" ref={rootRef}>
       <div className="head">
@@ -161,7 +153,6 @@ export function HeroPicker({
       <div className="cards">
         {options.map((opt) => {
           const isSel = selected === opt.style
-          const isCover = opt.style === 'Cover'
           return (
             <div
               key={opt.style}
@@ -176,12 +167,8 @@ export function HeroPicker({
                     tabIndex={-1}
                     aria-hidden="true"
                     title={`${opt.name} preview`}
-                    onLoad={isCover ? () => setCoverLoaded(true) : undefined}
                   />
                 </div>
-                {isCover && (
-                  <div className={`splash-cover${coverLoaded ? ' gone' : ''}`} />
-                )}
                 <div className="ring" />
                 <div className="check">
                   <svg
@@ -242,22 +229,20 @@ export function HeroPicker({
         </button>
       </div>
 
-      {/* fullscreen preview */}
+      {/* fullscreen preview (both heroes preloaded & kept warm) */}
       <div
         className={`overlay${previewStyle ? ' on' : ''}${
           overlayShown ? ' show' : ''
         }`}
       >
-        {options.map((opt) =>
-          warmed[opt.style] ? (
-            <iframe
-              key={opt.style}
-              className={`ov-hero${previewStyle === opt.style ? ' active' : ''}`}
-              src={opt.src}
-              title={`${opt.name} preview`}
-            />
-          ) : null,
-        )}
+        {options.map((opt) => (
+          <iframe
+            key={opt.style}
+            className={`ov-hero${previewStyle === opt.style ? ' active' : ''}`}
+            src={opt.src}
+            title={`${opt.name} preview`}
+          />
+        ))}
         <div className="ov-bar">
           <button
             className="ov-use"
@@ -439,18 +424,6 @@ export function HeroPicker({
           border: 0;
           pointer-events: none;
           display: block;
-        }
-        .splash-cover {
-          position: absolute;
-          inset: 0;
-          z-index: 6;
-          background: #000;
-          opacity: 1;
-          transition: opacity 0.35s ease;
-          pointer-events: none;
-        }
-        .splash-cover.gone {
-          opacity: 0;
         }
         .check {
           position: absolute;

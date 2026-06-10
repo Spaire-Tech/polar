@@ -1,347 +1,314 @@
 'use client'
 
-// CoverHero — literal port of the "Cover" hero design (Hero B.html, "The Art
-// of Persuasive Writing"). The design ships as React with inline styles; this
-// is that source carried over nearly verbatim:
-//   • a light-gray page frame (oklch(0.95 0.003 280)) centering ONE boxed
-//     cinematic hero (max-width 1280, min(88vh, 900px), radius 28, hairline
-//     border + soft shadow)
-//   • backdrop photo at object-position 60% 22% with a soft-light warm grade
-//     (hue 35) and the bottom vignette
-//   • SPAIRE ORIGINAL tag top-left (glowing dot), NEW SERIES meta row,
-//     balance-wrapped display title, tagline with the dimmed "— with" byline
-//   • CTAs: white "Watch trailer" pill with a dark play circle, and the
-//     frosted "Enroll · $79 →" glass pill
-// Content defaults to the design sample so it clones exactly; the photo is
-// self-hosted (CSP'self') — extracted from the design bundle itself.
-
-const VARS = {
-  bg3: 'oklch(0.95 0.003 280)',
-  line: 'oklch(0.92 0.003 280)',
-  fg0: 'oklch(0.18 0.008 280)',
-  radiusXl: 28,
-}
-
-const heroV2Styles: Record<string, React.CSSProperties> = {
-  wrap: {
-    position: 'relative',
-    width: '100%',
-    maxWidth: 1280,
-    height: 'min(88vh, 900px)',
-    minHeight: 620,
-    margin: '0 auto',
-    borderRadius: VARS.radiusXl,
-    overflow: 'hidden',
-    background: '#000',
-    isolation: 'isolate',
-    border: `1px solid ${VARS.line}`,
-    boxShadow: '0 2px 6px oklch(0 0 0 / 0.06), 0 24px 60px oklch(0 0 0 / 0.10)',
-  },
-  backdrop: { position: 'absolute', inset: 0 },
-  vignette: {
-    position: 'absolute',
-    inset: 0,
-    background:
-      'linear-gradient(180deg, oklch(0 0 0 / 0.2) 0%, oklch(0 0 0 / 0) 30%, oklch(0 0 0 / 0) 45%, oklch(0 0 0 / 0.6) 80%, oklch(0 0 0 / 0.92) 100%)',
-    pointerEvents: 'none',
-  },
-  topTag: {
-    position: 'absolute',
-    left: 48,
-    top: 32,
-    display: 'flex',
-    alignItems: 'center',
-    gap: 8,
-    fontSize: 11,
-    letterSpacing: '0.18em',
-    fontWeight: 600,
-    color: 'rgba(255,255,255,0.80)',
-  },
-  topTagDot: {
-    width: 6,
-    height: 6,
-    borderRadius: '50%',
-    background: 'oklch(0.72 0.16 25)',
-    boxShadow: '0 0 10px oklch(0.72 0.16 25)',
-    display: 'block',
-  },
-  contentWrap: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    padding: '40px 48px 52px',
-    color: 'white',
-  },
-  metaRow: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 10,
-    marginBottom: 16,
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.65)',
-    fontWeight: 500,
-  },
-  metaPill: {
-    padding: '3px 10px',
-    background: 'rgba(255,255,255,0.12)',
-    backdropFilter: 'blur(20px)',
-    WebkitBackdropFilter: 'blur(20px)',
-    borderRadius: 999,
-    border: '1px solid rgba(255,255,255,0.18)',
-    fontSize: 10,
-    letterSpacing: '0.12em',
-    fontWeight: 600,
-    color: 'white',
-  },
-  metaText: { color: 'rgba(255,255,255,0.60)' },
-  metaDot: { color: 'rgba(255,255,255,0.3)' },
-  title: {
-    fontSize: 'clamp(52px, 7.5vw, 96px)',
-    fontWeight: 700,
-    letterSpacing: '-0.045em',
-    lineHeight: 0.95,
-    margin: '0 0 18px',
-    color: 'white',
-    maxWidth: '14ch',
-    textWrap: 'balance' as React.CSSProperties['textWrap'],
-    textShadow: '0 2px 30px oklch(0 0 0 / 0.35)',
-  },
-  tagline: {
-    fontSize: 'clamp(14px, 1.3vw, 18px)',
-    fontWeight: 400,
-    color: 'rgba(255,255,255,0.88)',
-    maxWidth: 600,
-    marginBottom: 30,
-    letterSpacing: '-0.005em',
-    lineHeight: 1.5,
-  },
-  taglineDim: { color: 'rgba(255,255,255,0.50)' },
-  bottomRow: {
-    display: 'flex',
-    alignItems: 'flex-end',
-    justifyContent: 'space-between',
-    gap: 24,
-    flexWrap: 'wrap',
-  },
-  ctas: { display: 'flex', alignItems: 'center', gap: 10 },
-  ctaPlay: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 10,
-    padding: '13px 22px 13px 14px',
-    background: 'white',
-    color: 'oklch(0.14 0.006 280)',
-    borderRadius: 999,
-    boxShadow: '0 8px 28px oklch(0 0 0 / 0.4)',
-    transition: 'transform 150ms ease, opacity 150ms ease',
-    border: 'none',
-    cursor: 'pointer',
-    fontFamily: 'inherit',
-  },
-  ctaPlayIcon: {
-    width: 28,
-    height: 28,
-    borderRadius: '50%',
-    background: 'oklch(0.14 0.006 280)',
-    color: 'white',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingLeft: 2,
-    flexShrink: 0,
-  },
-  ctaPlayLabel: { fontSize: 14, fontWeight: 600, lineHeight: 1 },
-  ctaEnroll: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 8,
-    padding: '14px 22px',
-    background: 'rgba(255,255,255,0.10)',
-    backdropFilter: 'blur(24px) saturate(180%)',
-    WebkitBackdropFilter: 'blur(24px) saturate(180%)',
-    border: '1px solid rgba(255,255,255,0.18)',
-    color: 'white',
-    borderRadius: 999,
-    fontSize: 13.5,
-    fontWeight: 600,
-    transition: 'background 150ms ease',
-    cursor: 'pointer',
-    fontFamily: 'inherit',
-  },
-}
-
-const IconPlay = ({ size = 14 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" stroke="none">
-    <path d="M8 5v14l11-7z" />
-  </svg>
-)
-
-const IconArrowRight = ({ size = 15 }: { size?: number }) => (
-  <svg
-    width={size}
-    height={size}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth={1.75}
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <path d="M5 12h14M12 5l7 7-7 7" />
-  </svg>
-)
+// CoverHero — literal clone of the "Cover Hero.html" design (The Golfer's
+// Blueprint). Standalone, no JS in the source: a full-bleed 100vh photo hero
+// with a dual legibility shade, "Spaire Original" eyebrow top-left, and a
+// lower-left content stack (NEW SERIES badge + meta line, balance-wrapped
+// display title, description with the dimmed "— with" byline, white Watch
+// trailer pill + frosted Enroll button). CSS is a faithful port of the source
+// stylesheet scoped via styled-jsx; content defaults to the design sample and
+// the photo ships self-hosted (CSP 'self').
 
 export type CoverHeroProps = {
-  title?: string
-  tagline?: string
+  eyebrow?: string
+  badge?: string
+  metaItems?: string[]
+  /** Title lines — rendered with <br/> between them, like the source. */
+  titleLines?: string[]
+  description?: string
   withByline?: string
-  metaPill?: string
-  lessonsLabel?: string
-  durationLabel?: string
-  levelLabel?: string
-  enrollLabel?: string
   trailerLabel?: string
-  imageUrl?: string | null
-  imageObjectPosition?: string
-  /** Warm soft-light grade hue from the design (heroHue). */
-  heroHue?: number
+  enrollLabel?: string
+  imageUrl?: string
+  imagePosition?: string
   onWatchTrailer?: () => void
   onEnroll?: () => void
 }
 
 export function CoverHero({
-  title = 'The Art of Persuasive Writing',
-  tagline = 'Build arguments that move people. A working novelist and former litigator takes you inside the craft of persuasion — the structures, the sentences, and the habit of mind behind writing that changes how people think.',
-  withByline = 'Dr. Lena Marchetti',
-  metaPill = 'NEW SERIES',
-  lessonsLabel = '22 lessons',
-  durationLabel = '4 hr 12 min',
-  levelLabel = 'All levels',
-  enrollLabel = 'Enroll · $79',
+  eyebrow = 'Spaire Original',
+  badge = 'New Series',
+  metaItems = ['11 lessons', '3 hr 42 min', 'All levels'],
+  titleLines = ['The Golfer’s', 'Blueprint'],
+  description = 'A two-time major champion takes you inside the scoring game — the swing, the short game, and the mind that wins the shots that matter. Shot like a film, taught like a private lesson.',
+  withByline = 'Jack Reeves',
   trailerLabel = 'Watch trailer',
-  imageUrl = '/assets/onboarding/cover-lena.jpg',
-  imageObjectPosition = '60% 22%',
-  heroHue = 35,
+  enrollLabel = 'Enroll · $79',
+  imageUrl = '/assets/onboarding/cover-hero.jpg',
+  imagePosition = 'center 58%',
   onWatchTrailer,
   onEnroll,
 }: CoverHeroProps = {}) {
   return (
-    <section style={heroV2Styles.wrap}>
-      {/* Full-bleed cinematic backdrop */}
-      <div style={heroV2Styles.backdrop}>
-        <div
-          style={{
-            position: 'absolute',
-            inset: 0,
-            overflow: 'hidden',
-            background: '#0a0807',
-          }}
-        >
-          {imageUrl && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={imageUrl}
-              alt={withByline}
-              style={{
-                position: 'absolute',
-                inset: 0,
-                width: '100%',
-                height: '100%',
-                objectFit: 'cover',
-                objectPosition: imageObjectPosition,
-              }}
-            />
-          )}
-          {/* Subtle warm grade to seat the photo into the brand hue */}
-          <div
-            style={{
-              position: 'absolute',
-              inset: 0,
-              mixBlendMode: 'soft-light',
-              background: `linear-gradient(120deg, oklch(0.45 0.12 ${heroHue} / 0.5) 0%, transparent 55%)`,
-              pointerEvents: 'none',
-            }}
-          />
-        </div>
-        <div style={heroV2Styles.vignette} />
+    <section className="hero" data-screen-label="Cover Hero">
+      <div
+        className="hero-art"
+        style={{
+          background: `url('${imageUrl}') ${imagePosition} / cover no-repeat`,
+        }}
+      />
+      <div className="hero-shade" />
+
+      <div className="hero-eyebrow">
+        <span className="dot" />
+        {eyebrow}
       </div>
 
-      {/* Top-left tag */}
-      <div style={heroV2Styles.topTag}>
-        <span style={heroV2Styles.topTagDot} />
-        <span>SPAIRE ORIGINAL</span>
-      </div>
-
-      {/* Bottom content overlay */}
-      <div style={heroV2Styles.contentWrap}>
-        <div style={heroV2Styles.metaRow}>
-          <span style={heroV2Styles.metaPill}>{metaPill}</span>
-          <span style={heroV2Styles.metaText}>{lessonsLabel}</span>
-          <span style={heroV2Styles.metaDot}>·</span>
-          <span style={heroV2Styles.metaText}>{durationLabel}</span>
-          <span style={heroV2Styles.metaDot}>·</span>
-          <span style={heroV2Styles.metaText}>{levelLabel}</span>
-        </div>
-
-        <h1 style={heroV2Styles.title}>{title}</h1>
-
-        <div style={heroV2Styles.tagline}>
-          {tagline}
-          {withByline && (
-            <span style={heroV2Styles.taglineDim}> — with {withByline}</span>
-          )}
-        </div>
-
-        <div style={heroV2Styles.bottomRow}>
-          <div style={heroV2Styles.ctas}>
-            <button
-              type="button"
-              style={heroV2Styles.ctaPlay}
-              onClick={onWatchTrailer}
-            >
-              <span style={heroV2Styles.ctaPlayIcon}>
-                <IconPlay size={14} />
+      <div className="hero-content">
+        <div className="hero-meta">
+          <span className="badge">{badge}</span>
+          <div className="meta-line">
+            {metaItems.map((m, i) => (
+              <span key={i} style={{ display: 'contents' }}>
+                {i > 0 && <span className="sep">·</span>}
+                <span>{m}</span>
               </span>
-              <span style={heroV2Styles.ctaPlayLabel}>{trailerLabel}</span>
-            </button>
-            <button
-              type="button"
-              style={heroV2Styles.ctaEnroll}
-              onClick={onEnroll}
-            >
-              <span>{enrollLabel}</span>
-              <IconArrowRight size={15} />
-            </button>
+            ))}
           </div>
         </div>
-      </div>
-    </section>
-  )
-}
 
-// Hero-only assembly — the design's LandingApp frame: light-gray page that
-// centers the boxed hero with 24px breathing room.
-export function CoverHeroPage(props: CoverHeroProps = {}) {
-  return (
-    <div
-      data-screen-label="Spaire Hero"
-      style={{
-        background: VARS.bg3,
-        minHeight: '100vh',
-        color: VARS.fg0,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: 24,
-        fontFamily: "'Poppins', var(--font-poppins), system-ui, sans-serif",
-        fontSize: 14,
-        lineHeight: 1.5,
-        letterSpacing: '-0.005em',
-      }}
-    >
-      <CoverHero {...props} />
-    </div>
+        <h1 className="hero-title">
+          {titleLines.map((line, i) => (
+            <span key={i} style={{ display: 'contents' }}>
+              {i > 0 && <br />}
+              {line}
+            </span>
+          ))}
+        </h1>
+
+        <p className="hero-desc">
+          {description}{' '}
+          {withByline && <span className="with">— with {withByline}</span>}
+        </p>
+
+        <div className="hero-actions">
+          <button className="btn-trailer" type="button" onClick={onWatchTrailer}>
+            <span className="play">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M8 5.5v13a1 1 0 0 0 1.5.87l11-6.5a1 1 0 0 0 0-1.74l-11-6.5A1 1 0 0 0 8 5.5Z" />
+              </svg>
+            </span>
+            {trailerLabel}
+          </button>
+          <button className="btn-enroll" type="button" onClick={onEnroll}>
+            {enrollLabel}
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M5 12h14M13 6l6 6-6 6" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <style jsx>{`
+        /* ============================================================
+           COVER HERO — standalone, no JS, no frameworks.
+           ============================================================ */
+        .hero {
+          --po: 'Poppins', var(--font-poppins), -apple-system,
+            BlinkMacSystemFont, system-ui, sans-serif;
+          position: relative;
+          width: 100%;
+          height: 100vh;
+          min-height: 560px;
+          overflow: hidden;
+          background: #0a0807;
+          font-family: var(--po);
+          -webkit-font-smoothing: antialiased;
+        }
+        /* Neutralize UA button chrome only — buttons declare their own fills. */
+        .hero :global(button) {
+          font-family: inherit;
+          cursor: pointer;
+          border: none;
+        }
+
+        /* photo */
+        .hero-art {
+          position: absolute;
+          inset: 0;
+        }
+
+        /* legibility shade — stronger toward the lower left where the text sits */
+        .hero-shade {
+          position: absolute;
+          inset: 0;
+          background: linear-gradient(
+              0deg,
+              rgba(5, 5, 8, 0.62) 0%,
+              rgba(5, 5, 8, 0.28) 32%,
+              transparent 58%
+            ),
+            linear-gradient(105deg, rgba(5, 5, 8, 0.38) 0%, transparent 45%);
+        }
+
+        /* eyebrow — top left */
+        .hero-eyebrow {
+          position: absolute;
+          top: 56px;
+          left: 72px;
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          color: rgba(255, 255, 255, 0.92);
+          font-size: 13px;
+          font-weight: 700;
+          letter-spacing: 0.22em;
+          text-transform: uppercase;
+        }
+        .hero-eyebrow .dot {
+          width: 8px;
+          height: 8px;
+          border-radius: 50%;
+          background: #e0482e;
+        }
+
+        /* content stack — lower left */
+        .hero-content {
+          position: absolute;
+          left: 72px;
+          right: 72px;
+          bottom: 64px;
+          max-width: 860px;
+          color: #fff;
+        }
+
+        .hero-meta {
+          display: flex;
+          align-items: center;
+          gap: 14px;
+          margin-bottom: 22px;
+        }
+        .badge {
+          display: inline-flex;
+          align-items: center;
+          background: rgba(255, 255, 255, 0.92);
+          color: #1d1d1f;
+          font-size: 12px;
+          font-weight: 700;
+          letter-spacing: 0.14em;
+          text-transform: uppercase;
+          padding: 8px 16px;
+          border-radius: 980px;
+        }
+        .meta-line {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          font-size: 16px;
+          font-weight: 500;
+          color: rgba(255, 255, 255, 0.78);
+        }
+        .meta-line .sep {
+          opacity: 0.55;
+        }
+
+        .hero-title {
+          font-size: clamp(56px, 7.2vw, 108px);
+          font-weight: 700;
+          line-height: 1.02;
+          letter-spacing: -0.025em;
+          text-wrap: balance;
+        }
+
+        .hero-desc {
+          margin-top: 22px;
+          max-width: 640px;
+          font-size: 17px;
+          font-weight: 500;
+          line-height: 1.55;
+          color: rgba(255, 255, 255, 0.88);
+        }
+        .hero-desc .with {
+          color: rgba(255, 255, 255, 0.62);
+        }
+
+        .hero-actions {
+          display: flex;
+          align-items: center;
+          gap: 14px;
+          margin-top: 30px;
+        }
+        .btn-trailer {
+          display: inline-flex;
+          align-items: center;
+          gap: 12px;
+          background: #fff;
+          color: #111;
+          font-size: 16px;
+          font-weight: 600;
+          letter-spacing: -0.01em;
+          padding: 14px 26px 14px 14px;
+          border-radius: 980px;
+          transition: transform 0.16s ease;
+        }
+        .btn-trailer:hover {
+          transform: scale(1.03);
+        }
+        .btn-trailer:active {
+          transform: scale(0.98);
+        }
+        .btn-trailer .play {
+          width: 34px;
+          height: 34px;
+          border-radius: 50%;
+          background: #111;
+          color: #fff;
+          display: grid;
+          place-items: center;
+          flex: none;
+        }
+        .btn-enroll {
+          display: inline-flex;
+          align-items: center;
+          gap: 10px;
+          background: rgba(20, 20, 24, 0.46);
+          color: #fff;
+          -webkit-backdrop-filter: blur(18px) saturate(160%);
+          backdrop-filter: blur(18px) saturate(160%);
+          box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.22);
+          font-size: 16px;
+          font-weight: 600;
+          letter-spacing: -0.01em;
+          padding: 17px 28px;
+          border-radius: 980px;
+          transition: background 0.18s, transform 0.16s ease;
+        }
+        .btn-enroll:hover {
+          background: rgba(40, 40, 46, 0.68);
+          transform: scale(1.03);
+        }
+        .btn-enroll:active {
+          transform: scale(0.98);
+        }
+
+        @media (max-width: 720px) {
+          .hero-eyebrow {
+            top: 32px;
+            left: 28px;
+          }
+          .hero-content {
+            left: 28px;
+            right: 28px;
+            bottom: 40px;
+          }
+          .hero-title {
+            font-size: clamp(40px, 11vw, 64px);
+          }
+          .hero-actions {
+            flex-wrap: wrap;
+          }
+        }
+      `}</style>
+    </section>
   )
 }
 
