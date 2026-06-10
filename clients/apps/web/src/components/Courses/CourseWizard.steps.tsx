@@ -1087,7 +1087,7 @@ export function StepShell({
           {children}
           <div
             className="so-btn-row"
-            style={wide ? { marginTop: 32 } : undefined}
+            style={wide ? { marginTop: 32, justifyContent: 'center' } : undefined}
           >
             <button
               type="button"
@@ -2256,50 +2256,55 @@ export function StepPricingWizard({
                   ))}
                 </RadioGroup>
 
-                <hr className="border-gray-200" />
-
-                {/* Cycle — same Label/RadioGroup pattern as the product
-                    create form's "One-time / Recurring" cards. */}
-                <RadioGroup
-                  value={cycle}
-                  onValueChange={(v) => setCycle(v as 'onetime' | 'recurring')}
-                  className="grid grid-cols-2 gap-4"
-                >
-                  {(
-                    [
-                      {
-                        value: 'onetime',
-                        title: 'Pay once',
-                        desc: 'Charge a one-time fee at enrolment.',
-                      },
-                      {
-                        value: 'recurring',
-                        title: 'Recurring',
-                        desc: 'Charge students on a regular schedule.',
-                      },
-                    ] as const
-                  ).map((opt) => (
-                    <Label
-                      key={opt.value}
-                      htmlFor={`pf-cycle-${opt.value}`}
-                      className={twMerge(
-                        'flex cursor-pointer flex-col gap-3 rounded-2xl border border-[1.5px] p-5 font-normal transition-colors',
-                        cycle === opt.value
-                          ? 'border-[oklch(0.62_0.21_265)] bg-gray-50'
-                          : 'border-gray-100 text-gray-500 hover:border-gray-200',
-                      )}
-                    >
-                      <div className="flex items-center gap-2.5 font-medium">
-                        <RadioGroupItem
-                          value={opt.value}
-                          id={`pf-cycle-${opt.value}`}
-                        />
-                        {opt.title}
-                      </div>
-                      <p className="text-sm text-gray-500">{opt.desc}</p>
-                    </Label>
-                  ))}
-                </RadioGroup>
+                {/* Cycle — Pay once / Recurring. Billing cadence only applies
+                    to paid courses, so the whole block (and its divider) is
+                    hidden when the course is Free. The Fixed/Free chooser above
+                    always stays visible so you can switch back. */}
+                {priceModel === 'fixed' && (
+                  <>
+                    <hr className="border-gray-200" />
+                    <RadioGroup
+                      value={cycle}
+                    onValueChange={(v) => setCycle(v as 'onetime' | 'recurring')}
+                    className="grid grid-cols-2 gap-4"
+                  >
+                    {(
+                      [
+                        {
+                          value: 'onetime',
+                          title: 'Pay once',
+                          desc: 'Charge a one-time fee at enrolment.',
+                        },
+                        {
+                          value: 'recurring',
+                          title: 'Recurring',
+                          desc: 'Charge students on a regular schedule.',
+                        },
+                      ] as const
+                    ).map((opt) => (
+                      <Label
+                        key={opt.value}
+                        htmlFor={`pf-cycle-${opt.value}`}
+                        className={twMerge(
+                          'flex cursor-pointer flex-col gap-3 rounded-2xl border border-[1.5px] p-5 font-normal transition-colors',
+                          cycle === opt.value
+                            ? 'border-[oklch(0.62_0.21_265)] bg-gray-50'
+                            : 'border-gray-100 text-gray-500 hover:border-gray-200',
+                        )}
+                      >
+                        <div className="flex items-center gap-2.5 font-medium">
+                          <RadioGroupItem
+                            value={opt.value}
+                            id={`pf-cycle-${opt.value}`}
+                          />
+                          {opt.title}
+                        </div>
+                        <p className="text-sm text-gray-500">{opt.desc}</p>
+                      </Label>
+                    ))}
+                    </RadioGroup>
+                  </>
+                )}
 
                 {/* Price input + currency tabs — same wrapper / MoneyInput
                     + CurrencyTabs combo as the product create form. Only
