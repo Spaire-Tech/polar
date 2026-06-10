@@ -323,12 +323,13 @@ export function FreeTrialPicker({
           justify-content: center;
           padding: 48px 32px;
         }
+        /* Neutralize UA button chrome only — no background/color here (would
+           clobber .continue / .back / .pill fills). Transparent buttons set
+           their own background: none. */
         .ftp-root :global(button) {
           font-family: inherit;
           cursor: pointer;
           border: none;
-          background: none;
-          color: inherit;
         }
 
         /* header */
@@ -514,6 +515,7 @@ export function FreeTrialPicker({
           font-variant-numeric: tabular-nums;
         }
         .st-btn {
+          background: none;
           width: 30px;
           height: 30px;
           border-radius: 50%;
@@ -603,6 +605,7 @@ export function FreeTrialPicker({
           font-size: 17px;
           font-weight: 500;
           color: var(--ink);
+          background: none;
           padding: 15px 34px;
           border-radius: 980px;
           box-shadow: inset 0 0 0 1px var(--line);

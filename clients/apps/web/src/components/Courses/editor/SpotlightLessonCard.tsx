@@ -40,7 +40,12 @@ export function SpotlightLessonCard({
   return (
     <div className="lockup" onClick={onClick}>
       <div className="lockup-card" style={{ backgroundImage: cardBg }}>
-        <div className="lockup-blur" />
+        <div className="lockup-blur">
+          <div className="bl bl1" />
+          <div className="bl bl2" />
+          <div className="bl bl3" />
+          <div className="bl bl4" />
+        </div>
         <div className="lockup-shade" />
         {locked && (
           <div className="lockup-chip-lock" aria-label="Locked">
@@ -103,12 +108,12 @@ export function SpotlightLessonCard({
           -webkit-font-smoothing: antialiased;
           -moz-osx-font-smoothing: grayscale;
         }
+        /* Neutralize UA button chrome only — the .lockup-more button sets its
+           own (transparent) background below. */
         .lockup :global(button) {
           font-family: inherit;
           cursor: pointer;
           border: none;
-          background: none;
-          color: inherit;
         }
         .lockup-card {
           position: relative;
@@ -128,16 +133,59 @@ export function SpotlightLessonCard({
           box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08),
             0 18px 40px rgba(0, 0, 0, 0.24);
         }
+        /* Progressive (tiered) blur — four stacked layers each blurring more
+           and masked to fade out higher up, so the image stays crisp at the
+           top of the band and dissolves toward the text. */
         .lockup-blur {
           position: absolute;
           left: 0;
           right: 0;
           bottom: 0;
-          height: 56%;
-          -webkit-backdrop-filter: blur(13px);
-          backdrop-filter: blur(13px);
-          -webkit-mask-image: linear-gradient(0deg, #000 52%, transparent);
-          mask-image: linear-gradient(0deg, #000 52%, transparent);
+          height: 66%;
+          pointer-events: none;
+        }
+        .lockup-blur .bl {
+          position: absolute;
+          inset: 0;
+        }
+        .lockup-blur .bl1 {
+          -webkit-backdrop-filter: blur(2px);
+          backdrop-filter: blur(2px);
+          -webkit-mask-image: linear-gradient(
+            0deg,
+            #000 0%,
+            #000 26%,
+            transparent 52%
+          );
+          mask-image: linear-gradient(0deg, #000 0%, #000 26%, transparent 52%);
+        }
+        .lockup-blur .bl2 {
+          -webkit-backdrop-filter: blur(5px);
+          backdrop-filter: blur(5px);
+          -webkit-mask-image: linear-gradient(
+            0deg,
+            #000 0%,
+            #000 15%,
+            transparent 38%
+          );
+          mask-image: linear-gradient(0deg, #000 0%, #000 15%, transparent 38%);
+        }
+        .lockup-blur .bl3 {
+          -webkit-backdrop-filter: blur(10px);
+          backdrop-filter: blur(10px);
+          -webkit-mask-image: linear-gradient(
+            0deg,
+            #000 0%,
+            #000 7%,
+            transparent 24%
+          );
+          mask-image: linear-gradient(0deg, #000 0%, #000 7%, transparent 24%);
+        }
+        .lockup-blur .bl4 {
+          -webkit-backdrop-filter: blur(20px);
+          backdrop-filter: blur(20px);
+          -webkit-mask-image: linear-gradient(0deg, #000 0%, transparent 12%);
+          mask-image: linear-gradient(0deg, #000 0%, transparent 12%);
         }
         .lockup-shade {
           position: absolute;
@@ -221,6 +269,7 @@ export function SpotlightLessonCard({
           gap: 6px;
         }
         .lockup-more {
+          background: none;
           display: flex;
           align-items: center;
           gap: 4px;

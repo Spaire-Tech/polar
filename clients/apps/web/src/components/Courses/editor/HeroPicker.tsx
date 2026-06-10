@@ -342,12 +342,13 @@ export function HeroPicker({
           justify-content: center;
           padding: 48px 32px;
         }
+        /* Neutralize UA button chrome only — no background/color here (would
+           clobber .continue / .preview / .ov-use / .ov-close fills). The
+           outline .back button declares its own background: none. */
         .hp-root :global(button) {
           font-family: inherit;
           cursor: pointer;
           border: none;
-          background: none;
-          color: inherit;
         }
 
         /* header */
@@ -552,6 +553,7 @@ export function HeroPicker({
           font-size: 17px;
           font-weight: 500;
           color: var(--ink);
+          background: none;
           padding: 15px 34px;
           border-radius: 980px;
           box-shadow: inset 0 0 0 1px var(--line);

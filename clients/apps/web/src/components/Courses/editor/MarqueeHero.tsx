@@ -215,12 +215,12 @@ export function MarqueeHero({
           -webkit-font-smoothing: antialiased;
           -moz-osx-font-smoothing: grayscale;
         }
+        /* Neutralize UA button chrome only — .abtn.play/.abtn.buy set their
+           own fills; .bd-trailer sets its own (transparent) background. */
         .panel :global(button) {
           font-family: inherit;
           cursor: pointer;
           border: none;
-          background: none;
-          color: inherit;
         }
         .panel-art {
           position: absolute;
@@ -411,6 +411,7 @@ export function MarqueeHero({
           box-shadow: inset 0 0 0 1.5px rgba(0, 0, 0, 0.22);
         }
         .bd-trailer {
+          background: none;
           display: inline-flex;
           align-items: center;
           gap: 7px;
