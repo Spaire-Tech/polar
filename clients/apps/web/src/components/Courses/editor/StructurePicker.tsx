@@ -218,12 +218,14 @@ export function StructurePicker({
              viewport */
           padding: 48px 32px calc(48px + var(--tabbar, 0px));
         }
+        /* Neutralize UA button chrome only — must NOT set background/color
+           here or it would out-specify the styled buttons below (.continue,
+           .back) and wipe their fills. Transparent buttons declare their own
+           background: none. */
         .sp-root :global(button) {
           font-family: inherit;
           cursor: pointer;
           border: none;
-          background: none;
-          color: inherit;
         }
 
         /* header */
@@ -477,6 +479,7 @@ export function StructurePicker({
           font-size: 17px;
           font-weight: 500;
           color: var(--ink);
+          background: none;
           padding: 15px 34px;
           border-radius: 980px;
           box-shadow: inset 0 0 0 1px var(--line);

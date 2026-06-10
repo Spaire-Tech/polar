@@ -232,12 +232,13 @@ export function LessonCardPicker({
           align-items: center;
           padding: 88px 32px 64px;
         }
+        /* Neutralize UA button chrome only — no background/color here (would
+           clobber .continue fill). The outline .back declares its own
+           background: none. */
         .lcp-root :global(button) {
           font-family: inherit;
           cursor: pointer;
           border: none;
-          background: none;
-          color: inherit;
         }
 
         /* header */
@@ -413,6 +414,7 @@ export function LessonCardPicker({
           font-size: 17px;
           font-weight: 500;
           color: var(--ink);
+          background: none;
           padding: 15px 34px;
           border-radius: 980px;
           box-shadow: inset 0 0 0 1px var(--line);
