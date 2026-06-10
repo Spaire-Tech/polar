@@ -32,7 +32,7 @@ const cx = (...parts: Array<string | false | null | undefined>): string =>
   parts.filter(Boolean).join(' ')
 
 const CSS = `
-.lm-container{container-type:inline-size;container-name:lm;width:100%;display:flex;justify-content:center}
+.lm-container{width:100%;display:flex;justify-content:center}
 .lm-frame{--input-radius:16px;display:flex;width:100%;max-width:860px;min-height:504px;overflow:hidden;background:#fff;border-radius:24px;box-shadow:0 1px 2px rgba(12,12,13,.05),0 24px 60px -28px rgba(12,12,13,.32);font-family:"Schibsted Grotesk",system-ui,sans-serif;color:#0c0c0d}
 .lm-frame.media-right{flex-direction:row-reverse}
 .lm-media{flex:0 0 42%;min-width:0;position:relative;background:#f1f1f3}
@@ -73,7 +73,6 @@ const CSS = `
 .lm-linkbtn{background:none;border:none;padding:0;cursor:pointer;font-family:inherit;font-size:14.5px;font-weight:600;color:var(--accent)}
 .lm-linkbtn:hover{text-decoration:underline}
 .lm-linkbtn.muted{color:#9a9aa4}
-@container lm (max-width:640px){.lm-frame,.lm-frame.media-right{flex-direction:column;max-width:none}.lm-media{flex:0 0 200px}.lm-panel{padding:32px 26px 40px;align-items:flex-start}}
 @media (max-width:720px){.lm-frame,.lm-frame.media-right{flex-direction:column;max-width:none}.lm-media{flex:0 0 200px}.lm-panel{padding:32px 26px 40px;align-items:flex-start}}
 `
 
