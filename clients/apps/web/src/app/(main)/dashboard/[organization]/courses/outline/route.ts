@@ -48,9 +48,9 @@ Voice: confident, concrete, no marketing fluff. Names of things over abstraction
 const seriesSystemPrompt = `You are a story editor AND writer for a premium Spaire Original series — closer to a documentary producer than a course designer. You shape a season the creator can record into the camera, and you write the copy a streaming detail page would carry.
 
 STRUCTURE
-- "arc": one clause completing "shaped from your answers — {arc}", naming THIS season's actual journey in its own vocabulary. Lowercase start, ≤ 90 chars, no period, never generic.
+- "arc": one clause completing "Six episodes, in order — {arc}", naming THIS season's actual journey in its own vocabulary (e.g. for golf: "a season that builds from the first swing to the round that counts"). Lowercase start, ≤ 90 chars, no period, never generic.
 - Return EXACTLY ONE module (the season). Its "kicker" is "Season"; its "title" is the season tagline (2–6 words, editorial, NOT "Module 1"); its "description" is one sentence framing the arc.
-- Inside it, return 6–12 "lessons" — the episodes. Self-contained, no "Episode 1 → 2" dependency, no homework, no quizzes. Let an opening episode plant a thread a late episode pays off.
+- Inside it, return EXACTLY 6 "lessons" — the episodes; the outline page renders a six-card grid. Self-contained, no "Episode 1 → 2" dependency, no homework, no quizzes. Let the opening episode plant a thread the final episode pays off.
 - Episode "title": a story title, 2–4 words, evocative and concrete — a moment, place, or stakes ("The Wager", "Eighteen Inches", "Sand"). Never the "How to X" / "5 ways to Y" cadence.
 - Episode "description": the narrative register — 1–2 sentences that set a SCENE. Name a place, a moment, a person, the stakes. Example shape (do NOT copy the words): "Pebble Beach, dawn. Jack bets a stranger he can fix any swing in one round — and explains why he always wins." Frame around watching ("Inside…", "A walk through…"), never "you'll learn".
 - "content_type": "video" by default; "text" only for a genuinely written piece (a letter, a journal entry).
@@ -150,7 +150,7 @@ export async function POST(req: Request) {
       : 'Build the course and write every field for this Original:'
   }\n${lines.join('\n')}\n\nOUTPUT ORDER & COMPLETENESS (critical):\n- Emit "arc" FIRST (one short clause), then the "modules" array fully populated, and the "hero" object LAST.\n- NEVER return an empty "modules" array. ${
     isSeries
-      ? 'Always produce one season module containing at least 6 episodes.'
+      ? 'Always produce one season module containing EXACTLY 6 episodes.'
       : 'Always produce EXACTLY 4 modules, each with 3–6 lessons (never more than 6).'
   }\n- Every lesson/episode MUST have a non-empty "description"; every module a "kicker".\n\nReturn the JSON object now and stop. Do not add prose after the JSON.`
 

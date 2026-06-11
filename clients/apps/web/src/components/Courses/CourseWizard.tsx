@@ -35,8 +35,8 @@ import { useRouter } from 'next/navigation'
 import { useRef, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { toast } from '../Toast/use-toast'
+import { EpisodicOutlineScreen } from './CourseWizard.episodicOutline'
 import { ModuleOutlineScreen } from './CourseWizard.moduleOutline'
-import { OutlineScreen } from './CourseWizard.outline'
 import { CreatingScreen, GeneratingScreen } from './CourseWizard.status'
 import {
   Intro,
@@ -567,8 +567,8 @@ export default function CourseWizard({
                 stopOutline()
                 startOutlineGeneration()
               }
-              // Modules get the timeline outline design; episodic keeps the
-              // episode strip until its dedicated design lands.
+              // Modules → timeline outline; episodic → episode grid in the
+              // card style chosen at the lesson-card step.
               return format === 'course' ? (
                 <ModuleOutlineScreen
                   title={course.title}
@@ -580,15 +580,15 @@ export default function CourseWizard({
                   onClose={handleClose}
                 />
               ) : (
-                <OutlineScreen
+                <EpisodicOutlineScreen
                   title={course.title}
                   partialOutline={partialOutlineSafe}
                   isStreaming={isOutlineStreaming}
                   error={outlineErrorMsg}
+                  cardVariant={cardVariant}
                   onRegenerate={onRegenerate}
                   onCreate={() => setScreen('portal')}
                   onClose={handleClose}
-                  format={format}
                 />
               )
             })()}
