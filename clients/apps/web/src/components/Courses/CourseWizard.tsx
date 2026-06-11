@@ -554,7 +554,14 @@ export default function CourseWizard({
               title={course.title}
               partialOutline={partialOutlineSafe}
               isStreaming={isOutlineStreaming}
-              error={outlineError ? 'Failed to generate outline.' : null}
+              error={
+                outlineError
+                  ? 'Failed to generate outline. Tap Regenerate to try again.'
+                  : !isOutlineStreaming &&
+                      (partialOutlineSafe.modules?.length ?? 0) === 0
+                    ? 'The generator came back empty this time. Tap Regenerate to try again.'
+                    : null
+              }
               onRegenerate={() => {
                 stopOutline()
                 startOutlineGeneration()

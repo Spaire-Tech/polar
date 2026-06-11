@@ -145,17 +145,46 @@ export async function POST(req: Request) {
     isSeries
       ? 'Shape the season and write every field for this Original:'
       : 'Build the course and write every field for this Original:'
-  }\n${lines.join('\n')}\n\nReturn the JSON object now and stop. Do not add prose after the JSON.`
+  }\n${lines.join('\n')}\n\nOUTPUT ORDER & COMPLETENESS (critical):\n- Emit the "modules" array FIRST, fully populated, and the "hero" object LAST.\n- NEVER return an empty "modules" array. ${
+    isSeries
+      ? 'Always produce one season module containing at least 6 episodes.'
+      : 'Always produce at least 3 modules, each with at least 3 lessons.'
+  }\n- Every lesson/episode MUST have a non-empty "description".\n\nReturn the JSON object now and stop. Do not add prose after the JSON.`
 
   const result = streamObject({
     model: anthropic('claude-opus-4-7'),
     schema: outlineSchema,
     system: systemPrompt,
-    maxOutputTokens: 3200,
+    // Generous budget: a full outline (modules + lessons + per-item
+    // descriptions + the hero block) can run long, and any truncation is a
+    // SILENT 'length' finish that yields a partial/empty object with no error
+    // thrown — exactly the "came back empty, backend says nothing" symptom.
+    // 3200 was occasionally clipping the stream before the modules completed.
+    maxOutputTokens: 16000,
     prompt: intro,
     onError: ({ error }) => {
       // eslint-disable-next-line no-console
       console.error('[outline] streamObject error:', error)
+    },
+    onFinish: ({ object, error, usage }) => {
+      const moduleCount = object?.modules?.length ?? 0
+      const lessonCount =
+        object?.modules?.reduce(
+          (acc, m) => acc + (m.lessons?.length ?? 0),
+          0,
+        ) ?? 0
+      // Always log the outcome so an empty/partial generation is never silent.
+      // eslint-disable-next-line no-console
+      console[moduleCount === 0 ? 'error' : 'log'](
+        '[outline] finished:',
+        JSON.stringify({
+          format: isSeries ? 'series' : 'course',
+          moduleCount,
+          lessonCount,
+          validationFailed: !!error,
+          usage,
+        }),
+      )
     },
   })
 
