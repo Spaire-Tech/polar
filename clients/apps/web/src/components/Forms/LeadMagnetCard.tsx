@@ -35,7 +35,7 @@ const CSS = `
 .lm-container{width:100%;display:flex;justify-content:center}
 .lm-frame{--input-radius:16px;display:flex;width:100%;max-width:860px;min-height:504px;overflow:hidden;background:#fff;border-radius:24px;box-shadow:0 1px 2px rgba(12,12,13,.05),0 24px 60px -28px rgba(12,12,13,.32);font-family:"Schibsted Grotesk",system-ui,sans-serif;color:#0c0c0d}
 .lm-frame.media-right{flex-direction:row-reverse}
-.lm-media{flex:0 0 42%;min-width:0;position:relative;background:#f1f1f3}
+.lm-media{flex:0 0 42%;min-width:0;min-height:0;position:relative;background:#f1f1f3}
 .lm-media img{width:100%;height:100%;object-fit:cover;display:block}
 .lm-media-ph{width:100%;height:100%;display:grid;place-items:center;color:#9a9aa4;font-size:14px;font-weight:500;text-align:center;padding:20px}
 .lm-panel{flex:1 1 58%;min-width:0;display:flex;align-items:center;justify-content:center;padding:44px 46px}
@@ -259,7 +259,11 @@ export const LeadMagnetCard = ({
           <div className="lm-media">
             {form.image_url ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={form.image_url} alt="" />
+              <img
+                src={form.image_url}
+                alt=""
+                style={{ objectPosition: style.media_position ?? '50% 50%' }}
+              />
             ) : (
               <div className="lm-media-ph">Drop your cover image</div>
             )}

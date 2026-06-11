@@ -54,6 +54,26 @@ class FormStyle(Schema):
     corner: Literal["sharp", "rounded", "pill"] = "sharp"
     media_side: Literal["left", "right"] = "left"
     show_consent: bool = True
+    media_position: str = Field(
+        default="50% 50%",
+        max_length=32,
+        description=(
+            "object-position of the cover image, as a CSS value "
+            '(e.g. "50% 50%"). Lets the creator reposition the focal point.'
+        ),
+    )
+
+    @field_validator("media_position", mode="before")
+    @classmethod
+    def _coerce_media_position(cls, value: object) -> object:
+        # Older forms (and any malformed value) fall back to centered so a
+        # bad/missing position never breaks reads of already-stored forms.
+        if not isinstance(value, str):
+            return "50% 50%"
+        parts = value.strip().split()
+        if len(parts) != 2:
+            return "50% 50%"
+        return value.strip()
 
     @field_validator("media_side", mode="before")
     @classmethod

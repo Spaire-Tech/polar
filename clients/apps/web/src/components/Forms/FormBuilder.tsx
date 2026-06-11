@@ -317,6 +317,8 @@ export const FormBuilder = ({
             organization={organization}
             imageUrl={imageUrl ?? null}
             onChange={(url) => setValue('image_url', url, { shouldDirty: true })}
+            position={styleValue.media_position}
+            onPositionChange={(media_position) => setStyle({ media_position })}
           />
         </Section>
 

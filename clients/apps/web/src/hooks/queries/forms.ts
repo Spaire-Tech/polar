@@ -45,6 +45,9 @@ export type FormStyle = {
   corner: 'sharp' | 'rounded' | 'pill'
   media_side: 'left' | 'right'
   show_consent: boolean
+  // object-position of the cover image (CSS value, e.g. "50% 50%"). Drives
+  // the drag-to-reposition focal point on the cover.
+  media_position: string
 }
 
 export const DEFAULT_FORM_STYLE: FormStyle = {
@@ -52,6 +55,7 @@ export const DEFAULT_FORM_STYLE: FormStyle = {
   corner: 'sharp',
   media_side: 'left',
   show_consent: true,
+  media_position: '50% 50%',
 }
 
 export type FormAttachedCustomField = {
@@ -213,31 +217,36 @@ export const useFormSubmissions = (
     placeholderData: keepPreviousData,
   })
 
+// Published forms are also embedded in the storefront payload
+// (`/v1/storefronts/{slug}` → `forms`), which the Space preview renders
+// from. Invalidate that cache too so a form edit (e.g. a new thumbnail)
+// shows up in the preview without a hard refresh — not just in the editor
+// canvas, which reads from the `['forms']` list.
+const invalidateForms = () => {
+  const queryClient = getQueryClient()
+  queryClient.invalidateQueries({ queryKey: ['forms'] })
+  queryClient.invalidateQueries({ queryKey: ['storefront'] })
+}
+
 export const useCreateForm = () =>
   useMutation({
     mutationFn: (body: FormCreatePayload) =>
       fetchApiWrite<FormResource>('/v1/forms/', 'POST', body),
-    onSuccess: () => {
-      getQueryClient().invalidateQueries({ queryKey: ['forms'] })
-    },
+    onSuccess: invalidateForms,
   })
 
 export const useUpdateForm = () =>
   useMutation({
     mutationFn: ({ id, body }: { id: string; body: FormUpdatePayload }) =>
       fetchApiWrite<FormResource>(`/v1/forms/${id}`, 'PATCH', body),
-    onSuccess: () => {
-      getQueryClient().invalidateQueries({ queryKey: ['forms'] })
-    },
+    onSuccess: invalidateForms,
   })
 
 export const useDeleteForm = () =>
   useMutation({
     mutationFn: (id: string) =>
       fetchApiWrite<void>(`/v1/forms/${id}`, 'DELETE'),
-    onSuccess: () => {
-      getQueryClient().invalidateQueries({ queryKey: ['forms'] })
-    },
+    onSuccess: invalidateForms,
   })
 
 // Public submission — anonymous visitors POST their email (+ any custom
