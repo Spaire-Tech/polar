@@ -141,9 +141,9 @@ export function LessonCardPicker({
       <div className="head">
         <h1>Choose your lesson card</h1>
         <p>
-          This is how every lesson appears in your course. <b>Spotlight</b>{' '}
-          keeps it cinematic, with the title resting over the image.{' '}
-          <b>Catalog</b> keeps things clean, setting the details just beneath.
+          This is how lessons appear in your course. <b>Spotlight</b> overlays
+          the title on the image, while <b>Catalog</b> keeps details organized
+          below.
         </p>
       </div>
 
