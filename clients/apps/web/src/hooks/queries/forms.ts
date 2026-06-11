@@ -45,6 +45,9 @@ export type FormStyle = {
   corner: 'sharp' | 'rounded' | 'pill'
   media_side: 'left' | 'right'
   show_consent: boolean
+  // object-position of the cover image (CSS value, e.g. "50% 50%"). Drives
+  // the drag-to-reposition focal point on the cover.
+  media_position: string
 }
 
 export const DEFAULT_FORM_STYLE: FormStyle = {
@@ -52,6 +55,7 @@ export const DEFAULT_FORM_STYLE: FormStyle = {
   corner: 'sharp',
   media_side: 'left',
   show_consent: true,
+  media_position: '50% 50%',
 }
 
 export type FormAttachedCustomField = {
