@@ -146,6 +146,25 @@ export type GeneratedPortalPageProps = {
   onTrailer?: () => void
   onSample?: () => void
   onLessonClick?: (flatIdx: number) => void
+
+  // ── Editor mode (the design's creator affordances) ──────────────────────
+  /** Show the design's creator pills (Add cover / Add trailer / per-card
+   *  Add image / Reposition). Used by the dashboard editor surface. */
+  editable?: boolean
+  /** Hover-trailer peek: when set, hovering the hero plays the trailer
+   *  muted; leaving or scrolling snaps back to the still. */
+  trailerUrl?: string | null
+  onAddCover?: () => void
+  coverBusy?: boolean
+  onAddTrailer?: () => void
+  trailerBusy?: boolean
+  /** Live object-position updates while the creator drags the cover.
+   *  Commit/debounce is the caller's job. */
+  onCoverPosition?: (pos: string) => void
+  onAddLessonImage?: (flatIdx: number) => void
+  lessonImageBusy?: number | null
+  /** Configure-sample affordance on the sample screen (editor only). */
+  onConfigureSample?: () => void
 }
 
 export function GeneratedPortalPage({
@@ -181,10 +200,82 @@ export function GeneratedPortalPage({
   onTrailer,
   onSample,
   onLessonClick,
+  editable = false,
+  trailerUrl,
+  onAddCover,
+  coverBusy = false,
+  onAddTrailer,
+  trailerBusy = false,
+  onCoverPosition,
+  onAddLessonImage,
+  lessonImageBusy = null,
+  onConfigureSample,
 }: GeneratedPortalPageProps) {
   const isEpisodic = structure === 'episodic'
   const unitCap = unit === 'episode' ? 'Episode' : 'Lesson'
   const year = new Date().getFullYear()
+
+  // ── hover-trailer peek: play muted on hover, snap back on leave/scroll.
+  //    (The protected behavior from the original landing's HeroMedia.) ──
+  const heroRef = useRef<HTMLElement | null>(null)
+  const trailerVideoRef = useRef<HTMLVideoElement | null>(null)
+  const [trailerPeek, setTrailerPeek] = useState(false)
+  useEffect(() => {
+    if (!trailerUrl) return
+    const v = trailerVideoRef.current
+    if (!v) return
+    if (trailerPeek) {
+      v.currentTime = 0
+      v.muted = true
+      void v.play().catch(() => setTrailerPeek(false))
+    } else {
+      v.pause()
+    }
+  }, [trailerPeek, trailerUrl])
+  useEffect(() => {
+    if (!trailerUrl || !trailerPeek) return
+    // Any scroll pauses the peek — same rule the original hero enforced.
+    const onScroll = () => setTrailerPeek(false)
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [trailerUrl, trailerPeek])
+
+  // ── reposition: drag the cover to move object-position; live callback,
+  //    caller persists. Activated from the design's ⤧ pill. ──
+  const [repositioning, setRepositioning] = useState(false)
+  const dragRef = useRef<{
+    startX: number
+    startY: number
+    posX: number
+    posY: number
+  } | null>(null)
+  const parsePos = (pos: string | null | undefined): [number, number] => {
+    const m = /([\d.]+)%\s+([\d.]+)%/.exec(pos ?? '')
+    return m ? [parseFloat(m[1]), parseFloat(m[2])] : [50, 50]
+  }
+  const [livePos, setLivePos] = useState<string | null>(null)
+  const effectiveCoverPos = livePos ?? coverPosition ?? null
+  const onDragStart = (e: React.PointerEvent) => {
+    if (!repositioning) return
+    const [px, py] = parsePos(effectiveCoverPos)
+    dragRef.current = { startX: e.clientX, startY: e.clientY, posX: px, posY: py }
+    ;(e.target as HTMLElement).setPointerCapture?.(e.pointerId)
+  }
+  const onDragMove = (e: React.PointerEvent) => {
+    const d = dragRef.current
+    const hero = heroRef.current
+    if (!repositioning || !d || !hero) return
+    const r = hero.getBoundingClientRect()
+    // Dragging right shows more of the image's left side → position decreases.
+    const nx = Math.min(100, Math.max(0, d.posX - ((e.clientX - d.startX) / r.width) * 100))
+    const ny = Math.min(100, Math.max(0, d.posY - ((e.clientY - d.startY) / r.height) * 100))
+    const next = `${nx.toFixed(1)}% ${ny.toFixed(1)}%`
+    setLivePos(next)
+    onCoverPosition?.(next)
+  }
+  const onDragEnd = () => {
+    dragRef.current = null
+  }
 
   const trialShort = !paywallEnabled
     ? `all ${unit}s free`
@@ -262,6 +353,106 @@ export function GeneratedPortalPage({
 
   const showChips = paywallEnabled && trialMode === 'free_preview'
 
+  const PillImageIcon = (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <rect x="3" y="3" width="18" height="18" rx="4" />
+      <circle cx="9" cy="9" r="2" />
+      <path d="M21 15l-4.35-4.35a1.4 1.4 0 0 0-2 0L5 20" />
+    </svg>
+  )
+
+  // The design's creator bar: frosted Add pills + the theme toggle.
+  const creatorBarVisible = Boolean(
+    (editable && (onAddCover || onAddTrailer || onCoverPosition)) ||
+      onToggleDark,
+  )
+  const creatorBar = !creatorBarVisible ? null : (
+    <div className="creator-bar">
+      {editable && onAddCover && (
+        <button
+          className="add-pill"
+          type="button"
+          onClick={onAddCover}
+          disabled={coverBusy}
+        >
+          {PillImageIcon}
+          <span>
+            {coverBusy ? 'Uploading…' : coverUrl ? 'Change cover' : 'Add cover'}
+          </span>
+        </button>
+      )}
+      {editable && coverUrl && onCoverPosition && (
+        <button
+          className={`add-pill${repositioning ? ' active' : ''}`}
+          type="button"
+          onClick={() => {
+            setRepositioning((r) => !r)
+            setTrailerPeek(false)
+          }}
+          title="Drag the cover to reposition it"
+        >
+          ⤧ {repositioning ? 'Done' : 'Reposition'}
+        </button>
+      )}
+      {editable && onAddTrailer && (
+        <button
+          className="add-pill"
+          type="button"
+          onClick={onAddTrailer}
+          disabled={trailerBusy}
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+            <path d={PLAY_PATH} />
+          </svg>
+          {trailerBusy
+            ? 'Uploading…'
+            : trailerUrl
+              ? 'Change trailer'
+              : 'Add trailer'}
+        </button>
+      )}
+      {themeToggle}
+    </div>
+  )
+
+  // Hover-trailer layer — shared by both heroes. Sits above the still,
+  // below the text/band. Muted; fades in while peeking.
+  const trailerLayer = trailerUrl ? (
+    <video
+      ref={trailerVideoRef}
+      className={`trailer-layer${trailerPeek ? ' on' : ''}`}
+      src={trailerUrl}
+      muted
+      playsInline
+      loop
+      preload="metadata"
+    />
+  ) : null
+  const heroHoverProps =
+    trailerUrl && !repositioning
+      ? {
+          onMouseEnter: () => setTrailerPeek(true),
+          onMouseLeave: () => setTrailerPeek(false),
+        }
+      : {}
+  const repositionProps = repositioning
+    ? {
+        onPointerDown: onDragStart,
+        onPointerMove: onDragMove,
+        onPointerUp: onDragEnd,
+        onPointerCancel: onDragEnd,
+      }
+    : {}
+
   // ── spotlight card — design's .card from Course Page Empty State ──
   const spotlightCard = (l: GeneratedLesson) => (
     <div
@@ -280,6 +471,25 @@ export function GeneratedPortalPage({
       />
       <div className="photo-shade" />
       {showChips && (l.free ? <FreeChip /> : <LockChip />)}
+      {editable && onAddLessonImage && (
+        <button
+          className="card-add"
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation()
+            onAddLessonImage(l.flatIdx)
+          }}
+        >
+          {lessonImageBusy === l.flatIdx ? (
+            'Uploading…'
+          ) : (
+            <>
+              {PillImageIcon}
+              Add image or cover
+            </>
+          )}
+        </button>
+      )}
       <div className="card-info">
         <div className="ep">
           {unitCap} {l.flatIdx + 1}
@@ -323,6 +533,25 @@ export function GeneratedPortalPage({
             </>
           )}
           {showChips && (l.free ? <FreeChip /> : <LockChip />)}
+          {editable && onAddLessonImage && (
+            <button
+              className="thumb-add"
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                onAddLessonImage(l.flatIdx)
+              }}
+            >
+              {lessonImageBusy === l.flatIdx ? (
+                'Uploading…'
+              ) : (
+                <>
+                  {PillImageIcon}
+                  Add image or cover
+                </>
+              )}
+            </button>
+          )}
           {l.durationLabel && (
             <div className="lc-dur">
               <ClockIcon />
@@ -365,22 +594,31 @@ export function GeneratedPortalPage({
     <div className={`gpp${dark ? ' dark' : ''}`}>
       {/* ════════ MARQUEE HERO (Marquee Course Page.html) ════════ */}
       {heroVariant === 'marquee' ? (
-        <header className={`panel${coverUrl ? ' filled' : ''}`}>
+        <header
+          ref={heroRef as React.RefObject<HTMLElement>}
+          className={`panel${coverUrl ? ' filled' : ''}${
+            repositioning ? ' repositioning' : ''
+          }`}
+          {...heroHoverProps}
+          {...repositionProps}
+        >
           {coverUrl ? (
             <>
               <div
                 className="panel-art"
                 style={{
                   backgroundImage: `url('${coverUrl}')`,
-                  backgroundPosition: coverPosition || 'center 18%',
+                  backgroundPosition: effectiveCoverPos || 'center 18%',
                 }}
               />
+              {trailerLayer}
               <div className="panel-scrim" />
             </>
           ) : (
             <>
               <div className="ph-ambient" />
               <div className="glass-tint" />
+              {trailerLayer}
               <div className="hero-ph-glyph">
                 <ImageGlyph />
               </div>
@@ -389,7 +627,7 @@ export function GeneratedPortalPage({
           <div className="panel-grain" />
 
           <div className="panel-brand rise">{brand}</div>
-          {themeToggle}
+          {creatorBar}
 
           <div className="panel-title">
             <div className="pt-eyebrow rise d1">{eyebrow}</div>
@@ -456,7 +694,14 @@ export function GeneratedPortalPage({
         </header>
       ) : (
         /* ════════ COVER HERO (Course Page Empty State.html) ════════ */
-        <section className={`hero${coverUrl ? ' filled' : ''}`}>
+        <section
+          ref={heroRef as React.RefObject<HTMLElement>}
+          className={`hero${coverUrl ? ' filled' : ''}${
+            repositioning ? ' repositioning' : ''
+          }`}
+          {...heroHoverProps}
+          {...repositionProps}
+        >
           <div className="ph-ambient" />
           <div className="hero-art" />
           <div
@@ -465,11 +710,12 @@ export function GeneratedPortalPage({
               coverUrl
                 ? {
                     backgroundImage: `url("${coverUrl}")`,
-                    backgroundPosition: coverPosition || 'center',
+                    backgroundPosition: effectiveCoverPos || 'center',
                   }
                 : undefined
             }
           />
+          {trailerLayer}
           <div className="photo-shade" />
           <div className="hero-ph">
             <ImageGlyph />
@@ -482,7 +728,7 @@ export function GeneratedPortalPage({
             <span>Spaire Original</span>
           </div>
 
-          {themeToggle && <div className="creator-bar">{themeToggle}</div>}
+          {creatorBar}
 
           <div className="hero-content">
             <div className="hero-meta">
@@ -582,7 +828,7 @@ export function GeneratedPortalPage({
               }
             />
             <div className="photo-shade" />
-            {samplePlayable && (
+            {samplePlayable ? (
               <div className="ph-cta">
                 <span className="ph-ic">
                   <svg
@@ -595,6 +841,48 @@ export function GeneratedPortalPage({
                   </svg>
                 </span>
               </div>
+            ) : editable && onConfigureSample ? (
+              // The design's "Add your sample" CTA, wired to the existing
+              // sample configuration (pick a lesson + clip window).
+              <div className="ph-cta">
+                <span
+                  className="ph-ic"
+                  role="button"
+                  tabIndex={0}
+                  onClick={onConfigureSample}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') onConfigureSample()
+                  }}
+                >
+                  <svg
+                    width="24"
+                    height="24"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M12 5v14M5 12h14" />
+                  </svg>
+                </span>
+                <span className="ph-k">Set up your sample</span>
+                <span className="ph-s">A 2–3 minute clip from any {unit}</span>
+              </div>
+            ) : null}
+            {editable && onConfigureSample && samplePlayable && (
+              <button
+                className="change-pill"
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onConfigureSample()
+                }}
+              >
+                {PillImageIcon}
+                Change
+              </button>
             )}
           </div>
         </section>
@@ -764,6 +1052,7 @@ export function GeneratedPortalPage({
           display: none;
         }
         .gpp .hero .photo-shade {
+          z-index: 2; /* above the trailer-layer so the title stays readable */
           background: linear-gradient(
             0deg,
             rgba(5, 5, 8, 0.62) 0%,
@@ -822,6 +1111,7 @@ export function GeneratedPortalPage({
         .gpp .panel-scrim {
           position: absolute;
           inset: 0;
+          z-index: 2; /* above the trailer-layer so band/title stay readable */
           background: linear-gradient(
             115deg,
             rgba(0, 0, 0, 0.55) 0%,
@@ -859,10 +1149,6 @@ export function GeneratedPortalPage({
           text-shadow: 0 1px 12px rgba(0, 0, 0, 0.4);
         }
         .gpp .panel .theme-toggle {
-          position: absolute;
-          top: 26px;
-          right: var(--gut);
-          z-index: 10;
           width: 40px;
           height: 40px;
           border-radius: 50%;
@@ -1167,7 +1453,190 @@ export function GeneratedPortalPage({
           background: #e0482e;
         }
 
-        /* creator controls, top right (theme toggle only here) */
+        /* ── editor affordances (Course Page Empty State.html, verbatim) ── */
+        .gpp .add-pill {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          height: 40px;
+          padding: 0 18px;
+          border-radius: 980px;
+          background: rgba(255, 255, 255, 0.14);
+          color: #fff;
+          -webkit-backdrop-filter: blur(40px) saturate(150%);
+          backdrop-filter: blur(40px) saturate(150%);
+          box-shadow: none;
+          font-family: var(--sf);
+          font-size: 14px;
+          font-weight: 600;
+          letter-spacing: -0.01em;
+          transition: background 0.2s, transform 0.16s;
+        }
+        .gpp .add-pill:hover {
+          background: rgba(255, 255, 255, 0.28);
+          transform: scale(1.04);
+        }
+        .gpp .add-pill:active {
+          transform: scale(0.96);
+        }
+        .gpp .add-pill:disabled {
+          opacity: 0.6;
+          pointer-events: none;
+        }
+        .gpp .add-pill.active {
+          background: rgba(255, 255, 255, 0.92);
+          color: #111;
+        }
+        .gpp .card-add {
+          position: absolute;
+          top: 32%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          z-index: 4;
+          display: inline-flex;
+          align-items: center;
+          gap: 7px;
+          height: 32px;
+          padding: 0 14px;
+          border-radius: 980px;
+          background: rgba(255, 255, 255, 0.14);
+          color: #fff;
+          -webkit-backdrop-filter: blur(40px) saturate(150%);
+          backdrop-filter: blur(40px) saturate(150%);
+          box-shadow: none;
+          font-size: 12px;
+          font-weight: 600;
+          letter-spacing: -0.005em;
+          white-space: nowrap;
+          cursor: pointer;
+          transition: background 0.18s, transform 0.18s;
+        }
+        .gpp .card-add:hover {
+          background: rgba(255, 255, 255, 0.28);
+          transform: translate(-50%, -50%) scale(1.05);
+        }
+        /* once filled, the change control hides until hover */
+        .gpp .card.filled .card-add {
+          opacity: 0;
+          pointer-events: none;
+          transition: opacity 0.2s, background 0.18s;
+        }
+        .gpp .card.filled:hover .card-add {
+          opacity: 1;
+          pointer-events: auto;
+        }
+        .gpp .thumb-add {
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          z-index: 4;
+          display: inline-flex;
+          align-items: center;
+          gap: 7px;
+          height: 32px;
+          padding: 0 14px;
+          border-radius: 980px;
+          background: rgba(255, 255, 255, 0.14);
+          color: #fff;
+          -webkit-backdrop-filter: blur(40px) saturate(150%);
+          backdrop-filter: blur(40px) saturate(150%);
+          font-size: 12px;
+          font-weight: 600;
+          letter-spacing: -0.005em;
+          white-space: nowrap;
+          cursor: pointer;
+          transition: background 0.18s, transform 0.18s;
+        }
+        .gpp .thumb-add:hover {
+          background: rgba(255, 255, 255, 0.28);
+          transform: translate(-50%, -50%) scale(1.05);
+        }
+        .gpp .lc-thumb:not(.ph) .thumb-add {
+          opacity: 0;
+          pointer-events: none;
+          transition: opacity 0.2s;
+        }
+        .gpp .lc-catalog:hover .lc-thumb:not(.ph) .thumb-add {
+          opacity: 1;
+          pointer-events: auto;
+        }
+        .gpp .change-pill {
+          position: absolute;
+          top: 16px;
+          right: 16px;
+          z-index: 3;
+          display: inline-flex;
+          align-items: center;
+          gap: 7px;
+          height: 32px;
+          padding: 0 14px;
+          border-radius: 980px;
+          background: rgba(10, 11, 13, 0.46);
+          color: #fff;
+          -webkit-backdrop-filter: blur(14px) saturate(150%);
+          backdrop-filter: blur(14px) saturate(150%);
+          box-shadow: none;
+          font-family: var(--sf);
+          font-size: 12px;
+          font-weight: 600;
+          cursor: pointer;
+          opacity: 0;
+          transition: opacity 0.2s, background 0.18s;
+        }
+        .gpp .sample-screen:hover .change-pill {
+          opacity: 1;
+        }
+        .gpp .change-pill:hover {
+          background: rgba(40, 40, 46, 0.7);
+        }
+        .gpp .ph-cta .ph-k {
+          font-family: var(--sf);
+          font-size: 15px;
+          font-weight: 600;
+          letter-spacing: -0.01em;
+        }
+        .gpp .ph-cta .ph-s {
+          font-family: var(--sf);
+          font-size: 13px;
+          color: rgba(235, 235, 245, 0.6);
+          margin-top: -8px;
+        }
+
+        /* ── hover-trailer peek layer ── */
+        .gpp .trailer-layer {
+          position: absolute;
+          inset: 0;
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+          opacity: 0;
+          transition: opacity 0.45s ease;
+          pointer-events: none;
+          z-index: 1;
+        }
+        .gpp .trailer-layer.on {
+          opacity: 1;
+        }
+
+        /* ── reposition mode ── */
+        .gpp .panel.repositioning,
+        .gpp .hero.repositioning {
+          cursor: grab;
+        }
+        .gpp .panel.repositioning:active,
+        .gpp .hero.repositioning:active {
+          cursor: grabbing;
+        }
+        .gpp .panel.repositioning .band,
+        .gpp .panel.repositioning .panel-title,
+        .gpp .hero.repositioning .hero-content {
+          pointer-events: none;
+          opacity: 0.35;
+          transition: opacity 0.2s;
+        }
+
+        /* creator controls, top right */
         .gpp .creator-bar {
           position: absolute;
           top: 40px;
@@ -1176,6 +1645,10 @@ export function GeneratedPortalPage({
           display: flex;
           align-items: center;
           gap: 10px;
+        }
+        .gpp .panel .creator-bar {
+          top: 26px;
+          right: var(--gut);
         }
         .gpp .creator-bar .theme-toggle {
           width: 40px;

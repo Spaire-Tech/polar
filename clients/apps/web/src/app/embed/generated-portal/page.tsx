@@ -65,6 +65,10 @@ function Preview() {
   const structure =
     params.get('structure') === 'episodic' ? 'episodic' : 'modules'
   const [dark, setDark] = useState(params.get('dark') === '1')
+  // `?editable=1` exercises the creator affordances (Add cover / Reposition /
+  // Add trailer / per-card Add image / sample CTA) with no-op handlers.
+  const editable = params.get('editable') === '1'
+  const withCover = params.get('cover') === '1'
 
   const freeLessons = 3
   let flat = 0
@@ -111,6 +115,13 @@ function Preview() {
       unit={structure === 'episodic' ? 'episode' : 'lesson'}
       dark={dark}
       onToggleDark={() => setDark((d) => !d)}
+      coverUrl={withCover ? '/assets/onboarding/cover-hero.jpg' : undefined}
+      editable={editable}
+      onAddCover={editable ? () => {} : undefined}
+      onAddTrailer={editable ? () => {} : undefined}
+      onCoverPosition={editable ? () => {} : undefined}
+      onAddLessonImage={editable ? () => {} : undefined}
+      onConfigureSample={editable ? () => {} : undefined}
     />
   )
 }

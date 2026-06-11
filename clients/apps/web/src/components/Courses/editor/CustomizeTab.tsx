@@ -24,12 +24,10 @@ import {
 } from '@spaire/ui/components/ui/popover'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from '../../Toast/use-toast'
+import { CourseDesignEditor } from './CourseDesignEditor'
 import { CoursePhoneFrame } from './CoursePhoneFrame'
 import { CustomizeCommandPalette } from './CustomizeCommandPalette'
-import {
-  EditableCourseLandingView,
-  type LessonHandlers,
-} from './EditableCourseLandingView'
+import { type LessonHandlers } from './EditableCourseLandingView'
 import {
   EditorProvider,
   SECTION_LABELS,
@@ -357,17 +355,10 @@ function CustomizeCanvas({
   const ed = useEditor()
   const isMobileMode = ed.device === 'mobile'
 
-  const landing = (
-    <EditableCourseLandingView
-      course={course}
-      organizationName={organization.name}
-      organizationSlug={organization.slug}
-      organizationAvatarUrl={organization.avatar_url}
-      flatLessons={flatLessons}
-      product={product}
-      lessonHandlers={lessonHandlers}
-    />
-  )
+  // The canvas IS the generated page (the design surface buyers see),
+  // in editable mode — creator affordances wired to the S3/Mux-backed
+  // endpoints. The old EditableCourseLandingView canvas is retired.
+  const landing = <CourseDesignEditor course={course} />
 
   if (isMobileMode) {
     return (
