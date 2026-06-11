@@ -443,6 +443,7 @@ export function WizardPortalPreview({
             }}
           >
             <MarqueeHero
+              instant
               brand={organization.name ?? 'Spaire Originals'}
               eyebrow={draft.eyebrow || 'A Spaire Original'}
               title={draft.title || 'Untitled Original'}

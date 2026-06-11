@@ -45,6 +45,9 @@ export type MarqueeHeroProps = {
   hideBuy?: boolean
   /** Size to the parent container instead of the viewport (picker tiles). */
   fill?: boolean
+  /** Skip the rise-in entrance animation — everything paints immediately
+   *  (used in the hero picker, where the design must appear all at once). */
+  instant?: boolean
   /** Dark band variant — band fades dark and its text goes white. */
   dark?: boolean
   /** Page background the band fades into (defaults per light/dark). */
@@ -71,12 +74,16 @@ export function MarqueeHero({
   showTrailer = true,
   hideBuy = false,
   fill = false,
+  instant = false,
   dark = false,
   bg,
   onPlay,
   onBuy,
   onTrailer,
 }: MarqueeHeroProps = {}) {
+  // When `instant`, drop the `rise` class so nothing animates in — the whole
+  // hero is present on first paint (the `d1`/`d2` delays are inert without it).
+  const rise = instant ? '' : ' rise'
   const [toasts, setToasts] = useState<Toast[]>([])
   const idRef = useRef(0)
 
@@ -112,14 +119,14 @@ export function MarqueeHero({
       <div className="panel-scrim" />
       <div className="panel-grain" />
 
-      <div className="panel-brand rise">{brand}</div>
+      <div className={`panel-brand${rise}`}>{brand}</div>
 
       <div className="panel-title">
-        <div className="pt-eyebrow rise d1">{eyebrow}</div>
-        <h1 className="pt-h rise d1">{title}</h1>
+        <div className={`pt-eyebrow${rise} d1`}>{eyebrow}</div>
+        <h1 className={`pt-h${rise} d1`}>{title}</h1>
       </div>
 
-      <div className="band rise d2">
+      <div className={`band${rise} d2`}>
         <div className="band-actions">
           <button
             className="abtn play"

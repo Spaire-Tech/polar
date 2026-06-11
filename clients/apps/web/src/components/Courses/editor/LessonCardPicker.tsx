@@ -1,14 +1,19 @@
 'use client'
 
 // LessonCardPicker — literal clone of the "Choose your lesson card" design
-// (Lesson Card Picker.html). Two fixed 380×362 tiles, each a live scaled iframe
-// of the real card: Spotlight (Lesson 9 Card — title over the image) and
-// Catalog (Catalog Card — details below the image). Selection scales the tile
-// 1.045, ring + check, Back / Continue footer, toast. The whole picker zooms
-// down to fit the viewport (fitZoom), and each tile paints a matching base
-// colour + fades its iframe in on load, so there's no white loading flash.
+// (Lesson Card Picker.html). Two fixed 380×362 tiles, each a live scaled
+// preview of the real card: Spotlight (title over the image) and Catalog
+// (details below the image). Selection scales the tile 1.045, ring + check,
+// Back / Continue footer, toast. The whole picker zooms down to fit the
+// viewport (fitZoom).
+//
+// The previews render the REAL card components directly inside the tile (no
+// iframes), so they paint instantly with the page — no black/white loading
+// flash while an embed route boots.
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { CatalogCard } from './CatalogCard'
+import { SpotlightLessonCard } from './SpotlightLessonCard'
 
 export type LessonCardStyle = 'Spotlight' | 'Catalog'
 
@@ -18,8 +23,8 @@ type Option = {
   style: LessonCardStyle
   name: string
   desc: string
-  src: string
-  /** Base tile colour shown until the iframe fades in (no white flash). */
+  node: React.ReactNode
+  /** Base tile colour behind the card (matches the card's own background). */
   tileBg: string
 }
 
@@ -30,29 +35,30 @@ export function LessonCardPicker({
   onChange,
   onContinue,
   onBack,
-  spotlightSrc = '/embed/lesson-card-spotlight',
-  catalogSrc = '/embed/lesson-card-catalog',
 }: {
   value?: LessonCardStyle
   onChange?: (style: LessonCardStyle) => void
   onContinue?: (style: LessonCardStyle) => void
   onBack?: () => void
-  spotlightSrc?: string
-  catalogSrc?: string
 }) {
   const options: Option[] = [
     {
       style: 'Spotlight',
       name: 'Spotlight',
       desc: 'Title and details rest over the image.',
-      src: spotlightSrc,
+      node: (
+        <SpotlightLessonCard
+          imageUrl="/assets/onboarding/spotlight-tennis.jpg"
+          imagePosition="center 22%"
+        />
+      ),
       tileBg: '#0a0807',
     },
     {
       style: 'Catalog',
       name: 'Catalog',
       desc: 'Title and details sit below the image.',
-      src: catalogSrc,
+      node: <CatalogCard />,
       tileBg: '#ffffff',
     },
   ]
@@ -81,8 +87,8 @@ export function LessonCardPicker({
 
   const rootRef = useRef<HTMLDivElement | null>(null)
 
-  // Scale each 380×362 card iframe to fill its tile — native (no transform)
-  // near 1:1 so the card's backdrop-filter blur renders cleanly.
+  // Scale each 380×362 card to fill its tile — native (no transform) near
+  // 1:1 so the card's backdrop-filter blur renders cleanly.
   const scaleFrames = useCallback(() => {
     const root = rootRef.current
     if (!root) return
@@ -95,8 +101,8 @@ export function LessonCardPicker({
   }, [])
 
   // Zoom the whole picker down so it always fits the viewport without
-  // clipping. Uses `zoom` on the root (not transform) so the card iframes
-  // stay 1:1 internally and their backdrop-filter blur keeps rendering.
+  // clipping. Uses `zoom` on the root (not transform) so the cards stay 1:1
+  // internally and their backdrop-filter blur keeps rendering.
   const fitZoom = useCallback(() => {
     const root = rootRef.current
     if (!root) return
@@ -130,12 +136,6 @@ export function LessonCardPicker({
     window.setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 2400)
   }, [])
 
-  // Fade each iframe in once loaded; the tile's base colour shows until then.
-  const [loaded, setLoaded] = useState<Record<LessonCardStyle, boolean>>({
-    Spotlight: false,
-    Catalog: false,
-  })
-
   return (
     <div className="lcp-root" ref={rootRef}>
       <div className="head">
@@ -157,21 +157,8 @@ export function LessonCardPicker({
               onClick={() => select(opt.style)}
             >
               <div className="tile" style={{ background: opt.tileBg }}>
-                <div className="frame-scale">
-                  <iframe
-                    src={opt.src}
-                    scrolling="no"
-                    tabIndex={-1}
-                    aria-hidden="true"
-                    title={`${opt.name} preview`}
-                    style={{
-                      opacity: loaded[opt.style] ? 1 : 0,
-                      transition: 'opacity 0.25s ease',
-                    }}
-                    onLoad={() =>
-                      setLoaded((l) => ({ ...l, [opt.style]: true }))
-                    }
-                  />
+                <div className="frame-scale" aria-hidden>
+                  {opt.node}
                 </div>
                 <div className="ring" />
                 <div className="check">
@@ -348,13 +335,11 @@ export function LessonCardPicker({
           width: 380px;
           height: 362px;
           transform-origin: top left;
+          pointer-events: none;
         }
-        .frame-scale :global(iframe) {
+        .frame-scale > :global(*) {
           width: 380px;
           height: 362px;
-          border: 0;
-          display: block;
-          pointer-events: none;
         }
         .check {
           position: absolute;
