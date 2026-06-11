@@ -342,6 +342,14 @@ export default function CourseWizard({
           ? Math.max(0, Math.min(totalLessons, paywall.freePreviewLessons))
           : 0
         : null
+      // The creator's light/dark pick from the preview's theme toggle.
+      let themeMode: 'light' | 'dark' = 'light'
+      try {
+        if (window.localStorage.getItem('spaire_theme') === 'dark')
+          themeMode = 'dark'
+      } catch {
+        /* ignore */
+      }
 
       const created = await createCourse.mutateAsync({
         product_id: product.id,
@@ -365,9 +373,12 @@ export default function CourseWizard({
         instructor_name_bold: true,
         instructor_name_uppercase: true,
         // Persist the AI-written hero copy so the course page renders it
-        // (instead of the creator's raw description blob). Lives under
-        // landing_overrides.ai_hero; the editable surface can override it.
-        landing_overrides: heroCopy ? { ai_hero: heroCopy } : undefined,
+        // (instead of the creator's raw description blob), plus the creator's
+        // light/dark choice from the preview's theme toggle.
+        landing_overrides: {
+          ...(heroCopy ? { ai_hero: heroCopy } : {}),
+          theme_mode: themeMode,
+        },
         modules: outlineModules
           .filter((m): m is PartialModule & { title: string } =>
             Boolean(m?.title),

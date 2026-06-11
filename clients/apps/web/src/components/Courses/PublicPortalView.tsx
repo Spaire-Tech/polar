@@ -1,23 +1,21 @@
 'use client'
 
-// PublicPortalView — the public course page IS the portal now. No AI sales
-// landing: anonymous visitors get the same streaming-style surface students
-// get — the hero variant + lesson-card variant the creator picked during
-// onboarding — with the trial choice expressed as free vs locked tiles.
+// PublicPortalView — the public course page IS the portal now. Renders
+// GeneratedPortalPage (the surface composed 1:1 from the course-page
+// designs) with real behavior wired in:
 //
-//   • hero_variant   marquee | cover     → which hero renders up top
-//   • lesson_card_variant spotlight | catalog → how lesson tiles render
-//   • trial_mode + paywall_position      → which tiles are free vs locked
-//   • has_access (enrolled)              → everything unlocks, CTA → portal
-//
-// Free-preview lessons play inline (public Mux playback id); locked tiles
-// route to checkout. Enrolled visitors are pointed at their portal.
+//   • hero_variant / lesson_card_variant / trial_mode / format → layout
+//   • landing_overrides.ai_hero → the AI-written hero copy
+//   • landing_overrides.theme_mode → the creator's light/dark choice
+//   • per-lesson thumbnails when they exist; the designs' liquid-glass
+//     placeholder otherwise — NEVER the cover photo smeared on tiles
+//   • sample payload (when configured + ready) → playable Free Sample screen
+//   • free-preview lessons play inline (Mux); locked tiles → checkout
+//   • enrolled visitors are pointed at their portal
 
-import { LessonCard } from '@/app/(main)/[organization]/portal/courses/[courseId]/CoursePortalView'
 import type {
   CourseLandingLesson,
   CourseLandingPageData,
-  CustomerLessonRead,
 } from '@/hooks/queries/courses'
 import { api } from '@/utils/client'
 import { CONFIG } from '@/utils/config'
@@ -25,26 +23,17 @@ import { schemas } from '@spaire/client'
 import { useCallback, useMemo, useState } from 'react'
 import { toast } from '../Toast/use-toast'
 import { formatProductPrice } from './editor/EditableCourseLandingView'
-import { MarqueeHero } from './editor/MarqueeHero'
 import {
-  CoverHeroStatic,
-  type WizardPortalDraft,
-} from './editor/WizardPortalPreview'
-import { SpotlightLessonCard } from './editor/SpotlightLessonCard'
+  GeneratedPortalPage,
+  type GeneratedGroup,
+} from './editor/GeneratedPortalPage'
 import { HlsVideo } from './HlsVideo'
 
-function fmtDuration(secs: number) {
-  if (!secs) return null
-  const h = Math.floor(secs / 3600)
-  const m = Math.floor((secs % 3600) / 60)
-  if (h > 0) return `${h}h ${m}m`
-  return `${m} min`
-}
-
-function fmtMinSec(secs?: number | null) {
-  if (!secs) return ''
-  const m = Math.floor(secs / 60)
-  return `${m} min`
+type PlayingClip = {
+  title: string
+  mux_playback_id?: string | null
+  thumbnail_url?: string | null
+  trailer?: boolean
 }
 
 export function PublicPortalView({
@@ -63,11 +52,11 @@ export function PublicPortalView({
   const cardVariant = landing.lesson_card_variant ?? 'catalog'
   const trialMode = landing.trial_mode ?? 'free_preview'
   const hasAccess = landing.has_access
-  const paywallEnabled = landing.paywall_enabled ?? false
+  const paywallEnabled = (landing.paywall_enabled ?? false) && !hasAccess
 
   const priceLabel =
     formatProductPrice(product as unknown as schemas['Product']) || 'Free'
-  const isFreeProduct = priceLabel === 'Free' || !paywallEnabled
+  const isFreeProduct = priceLabel === 'Free' || !landing.paywall_enabled
   const recurring = (
     product as unknown as { prices?: { type?: string }[] }
   ).prices?.some((p) => p.type === 'recurring')
@@ -99,30 +88,43 @@ export function PublicPortalView({
     window.location.href = `/${organization.slug}/portal/courses/${landing.id}`
   }, [organization.slug, landing.id])
 
-  // ── Free-preview lightbox ────────────────────────────────────────────────
-  const [playing, setPlaying] = useState<CourseLandingLesson | null>(null)
+  // ── Lightbox (free preview / trailer / sample) ───────────────────────────
+  const [playing, setPlaying] = useState<PlayingClip | null>(null)
 
-  const onLessonClick = useCallback(
-    (lesson: CourseLandingLesson, locked: boolean) => {
+  const isLocked = useCallback(
+    (l: CourseLandingLesson) =>
+      !hasAccess && (landing.paywall_enabled ?? false) && !l.is_free_preview,
+    [hasAccess, landing.paywall_enabled],
+  )
+
+  const onLessonSelect = useCallback(
+    (lesson: CourseLandingLesson) => {
       if (hasAccess) {
         goToPortal()
         return
       }
-      if (!locked && lesson.mux_playback_id) {
-        setPlaying(lesson)
+      if (!isLocked(lesson) && lesson.mux_playback_id) {
+        setPlaying({
+          title: lesson.title,
+          mux_playback_id: lesson.mux_playback_id,
+          thumbnail_url: lesson.thumbnail_url,
+        })
         return
       }
       void enroll()
     },
-    [hasAccess, goToPortal, enroll],
+    [hasAccess, goToPortal, isLocked, enroll],
   )
 
-  // ── Hero labels — same vocabulary the wizard preview used ────────────────
+  // ── Labels — same vocabulary the wizard preview used ─────────────────────
   const freeCount = useMemo(
     () => landing.lessons.filter((l) => l.is_free_preview).length,
     [landing.lessons],
   )
   const cadence = recurring ? 'cancel anytime' : 'one-time purchase'
+  const sample = landing.sample
+  const samplePlayable = Boolean(sample?.mux_playback_id)
+
   const playLabel = hasAccess
     ? 'Continue Watching'
     : isFreeProduct
@@ -149,317 +151,175 @@ export function PublicPortalView({
           ? `${freeCount} ${unit}${freeCount === 1 ? '' : 's'} free · ${cadence}`
           : cadence
 
+  const onPlaySample = useCallback(() => {
+    if (sample?.mux_playback_id) {
+      setPlaying({
+        title: sample.lesson_title ?? 'Sample',
+        mux_playback_id: sample.mux_playback_id,
+        thumbnail_url: sample.thumbnail_url,
+      })
+    }
+  }, [sample])
+
   const onPlay = useCallback(() => {
     if (hasAccess) {
       goToPortal()
       return
     }
+    if (trialMode === 'lesson_sample' && samplePlayable) {
+      onPlaySample()
+      return
+    }
     const firstFree = landing.lessons.find(
       (l) => l.is_free_preview && l.mux_playback_id,
     )
-    if (firstFree) setPlaying(firstFree)
-    else void enroll()
-  }, [hasAccess, goToPortal, landing.lessons, enroll])
+    if (firstFree) {
+      setPlaying({
+        title: firstFree.title,
+        mux_playback_id: firstFree.mux_playback_id,
+        thumbnail_url: firstFree.thumbnail_url,
+      })
+    } else void enroll()
+  }, [
+    hasAccess,
+    goToPortal,
+    trialMode,
+    samplePlayable,
+    onPlaySample,
+    landing.lessons,
+    enroll,
+  ])
 
   const onBuy = useCallback(() => {
     if (hasAccess) goToPortal()
     else void enroll()
   }, [hasAccess, goToPortal, enroll])
 
-  // AI-synthesised hero copy (from generation). Prefer it over the creator's
-  // raw description so the hero reads like a streaming detail page. Each field
-  // falls back to the plain course data when the AI didn't write it.
+  const onTrailer = useCallback(() => {
+    if (landing.trailer_url) {
+      setPlaying({ title: landing.title ?? 'Trailer', trailer: true })
+    } else {
+      onPlay()
+    }
+  }, [landing.trailer_url, landing.title, onPlay])
+
+  // ── AI hero copy — prefer ai_hero over the creator's raw description ─────
   const aiHero = landing.landing_overrides?.ai_hero ?? null
   const heroDesc = aiHero?.description || landing.description || ''
   const heroByline = aiHero?.byline || landing.instructor_bio || ''
   const heroEyebrow = aiHero?.eyebrow || 'A Spaire Original'
+  const heroBadge =
+    aiHero?.badge || (isEpisodic ? 'New Series' : 'New Course')
   const heroTitleLines =
     aiHero?.titleLines && aiHero.titleLines.length > 0
       ? aiHero.titleLines
       : null
 
-  const durationLabel = fmtDuration(landing.total_duration_seconds)
-  const metaLine = [
-    `${new Date().getFullYear()}`,
-    `${landing.lesson_count} ${unitCap}${landing.lesson_count === 1 ? '' : 's'}`,
-    durationLabel,
-    'Self-paced',
-  ]
-    .filter(Boolean)
-    .join('  ·  ')
+  // The creator's persisted theme choice drives the public page.
+  const dark = landing.landing_overrides?.theme_mode === 'dark'
 
-  const coverDraft: WizardPortalDraft = {
-    title: landing.title ?? product.name,
-    desc: heroDesc,
-    instructorName: landing.instructor_name ?? organization.name ?? '',
-    instructorBio: heroByline,
-    eyebrow: aiHero?.eyebrow ?? null,
-    badge: aiHero?.badge ?? null,
-    byline: aiHero?.byline ?? null,
-    titleLines: heroTitleLines,
-    heroVariant: 'cover',
-    cardVariant,
-    structure: isEpisodic ? 'episodic' : 'modules',
-    trialMode,
-    freeLessons: freeCount,
-    paywallEnabled: paywallEnabled && !hasAccess,
-    priceLabel,
-    buyLabel,
-    playLabel,
-    freeLine,
-    heroImageUrl: landing.thumbnail_url,
-  }
-
-  // ── Lesson grouping — modules vs flat season ─────────────────────────────
-  type Group = { title: string | null; lessons: CourseLandingLesson[] }
-  const groups: Group[] = useMemo(() => {
+  // ── Groups — per-lesson media only; placeholder otherwise ────────────────
+  const flatLessons = landing.lessons
+  const groups: GeneratedGroup[] = useMemo(() => {
+    const toGenerated = (l: CourseLandingLesson, flatIdx: number) => ({
+      title: l.title,
+      description: l.description ?? '',
+      flatIdx,
+      imageUrl: l.thumbnail_url ?? null,
+      durationLabel: l.duration_seconds
+        ? `${Math.max(1, Math.round(l.duration_seconds / 60))}m`
+        : null,
+      free: !isLocked(l),
+      locked: isLocked(l),
+    })
     if (isEpisodic || !landing.modules?.length) {
-      return [{ title: null, lessons: landing.lessons }]
+      return [{ title: null, lessons: flatLessons.map(toGenerated) }]
     }
     const byModule = new Map<string, CourseLandingLesson[]>()
-    for (const l of landing.lessons) {
+    for (const l of flatLessons) {
       const key = l.module_id ?? 'unknown'
       if (!byModule.has(key)) byModule.set(key, [])
       byModule.get(key)!.push(l)
     }
-    const out: Group[] = []
+    const out: GeneratedGroup[] = []
+    let flatIdx = 0
     for (const m of [...landing.modules].sort(
       (a, b) => a.position - b.position,
     )) {
       const lessons = byModule.get(m.id)
-      if (lessons?.length) out.push({ title: m.title, lessons })
+      if (lessons?.length) {
+        out.push({
+          title: m.title,
+          lessons: lessons.map((l) => toGenerated(l, flatIdx++)),
+        })
+      }
       byModule.delete(m.id)
     }
-    // Lessons whose module wasn't in the public module list still render.
     for (const lessons of byModule.values()) {
-      if (lessons.length) out.push({ title: null, lessons })
+      if (lessons.length) {
+        out.push({
+          title: null,
+          lessons: lessons.map((l) => toGenerated(l, flatIdx++)),
+        })
+      }
     }
     return out
-  }, [isEpisodic, landing.modules, landing.lessons])
+  }, [isEpisodic, landing.modules, flatLessons, isLocked])
 
-  const isLocked = (l: CourseLandingLesson) =>
-    !hasAccess && paywallEnabled && !l.is_free_preview
-
-  const toCatalogLesson = (
-    l: CourseLandingLesson,
-    flatIdx: number,
-  ): CustomerLessonRead => ({
-    id: l.id,
-    title: l.title,
-    content_type: l.content_type,
-    content: null,
-    position: l.position ?? flatIdx,
-    duration_seconds: l.duration_seconds,
-    is_free_preview: l.is_free_preview,
-    mux_playback_id: l.mux_playback_id ?? null,
-    mux_status: null,
-    thumbnail_url: l.thumbnail_url,
-    completed: false,
-    description: l.description,
-    locked: isLocked(l),
-    locked_until: null,
-  })
-
-  let flatIdx = 0
-  const renderCards = (lessons: CourseLandingLesson[]) => {
-    const startIdx = flatIdx
-    flatIdx += lessons.length
-    return cardVariant === 'spotlight' ? (
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 24 }}>
-        {lessons.map((l, i) => {
-          const locked = isLocked(l)
-          const n = startIdx + i + 1
-          return (
-            <SpotlightLessonCard
-              key={l.id}
-              episodeLabel={`${unitCap} ${n}${
-                !locked && paywallEnabled && !hasAccess ? ' · Free' : ''
-              }`}
-              title={l.title}
-              description={l.description ?? ''}
-              time={fmtMinSec(l.duration_seconds)}
-              imageUrl={l.thumbnail_url ?? landing.thumbnail_url ?? undefined}
-              locked={locked}
-              onClick={() => onLessonClick(l, locked)}
-            />
-          )
-        })}
-      </div>
-    ) : (
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-          gap: 24,
-        }}
-      >
-        {lessons.map((l, i) => {
-          const locked = isLocked(l)
-          return (
-            <LessonCard
-              key={l.id}
-              lesson={toCatalogLesson(l, startIdx + i)}
-              globalIndex={startIdx + i + 1}
-              hue={((startIdx + i) * 47) % 360}
-              isInProgress={false}
-              fallbackThumbnailUrl={landing.thumbnail_url}
-              fallbackObjectPosition={
-                landing.thumbnail_object_position ?? null
-              }
-              onSelect={() => onLessonClick(l, locked)}
-            />
-          )
-        })}
-      </div>
-    )
-  }
-
-  const trialSummary = hasAccess
-    ? `You're enrolled — every ${unit} is yours.`
-    : !paywallEnabled
-      ? `Every ${unit} is open — this Original is free.`
-      : trialMode === 'lesson_sample'
-        ? `Watch the sample, then unlock every ${unit}.`
-        : freeCount > 0
-          ? `The first ${freeCount} ${unit}${freeCount === 1 ? '' : 's'} play free. The rest unlock when you join.`
-          : `Unlock every ${unit} when you join.`
+  const flatForClick = useMemo(
+    () => groups.flatMap((g) => g.lessons),
+    [groups],
+  )
+  const onLessonClick = useCallback(
+    (flatIdx: number) => {
+      const gen = flatForClick.find((l) => l.flatIdx === flatIdx)
+      if (!gen) return
+      const lesson = flatLessons.find((l) => l.title === gen.title)
+      if (lesson) onLessonSelect(lesson)
+    },
+    [flatForClick, flatLessons, onLessonSelect],
+  )
 
   return (
-    <div style={{ background: '#fafafa', minHeight: '100vh' }}>
-      {/* Hero — the variant the creator picked during onboarding. */}
-      {heroVariant === 'marquee' ? (
-        <div
-          style={{
-            position: 'relative',
-            height: 'min(88vh, 760px)',
-            minHeight: 560,
-            overflow: 'hidden',
-          }}
-        >
-          <MarqueeHero
-            brand={organization.name ?? 'Spaire Originals'}
-            eyebrow={heroEyebrow}
-            title={landing.title ?? product.name}
-            description={heroDesc}
-            metaLine={metaLine}
-            badges={['All Levels', 'Self-paced', 'Mobile & TV']}
-            instructorName={landing.instructor_name ?? organization.name ?? ''}
-            instructorSub={heroByline}
-            playLabel={playLabel}
-            buyLabel={buyLabel}
-            freeLine={freeLine}
-            imageUrl={landing.thumbnail_url ?? undefined}
-            showTrailer={!!landing.trailer_url}
-            hideBuy={false}
-            onPlay={onPlay}
-            onBuy={onBuy}
-            onTrailer={
-              landing.trailer_url
-                ? () =>
-                    setPlaying({
-                      id: '__trailer__',
-                      title: landing.title ?? 'Trailer',
-                      description: null,
-                      content_type: 'video',
-                      position: -1,
-                      is_free_preview: true,
-                      duration_seconds: null,
-                      thumbnail_url: landing.thumbnail_url,
-                    } as CourseLandingLesson)
-                : undefined
-            }
-          />
-        </div>
-      ) : (
-        <div
-          onClick={onBuy}
-          style={{ cursor: 'pointer' }}
-          role="button"
-          aria-label={buyLabel}
-        >
-          <CoverHeroStatic
-            draft={coverDraft}
-            unit={unit}
-            lessonCount={landing.lesson_count}
-          />
-        </div>
-      )}
+    <>
+      <GeneratedPortalPage
+        brand={organization.name ?? 'Spaire Originals'}
+        title={landing.title ?? product.name}
+        titleLines={heroTitleLines}
+        eyebrow={heroEyebrow}
+        badge={heroBadge}
+        desc={heroDesc}
+        byline={heroByline}
+        instructorName={landing.instructor_name ?? organization.name ?? ''}
+        heroVariant={heroVariant}
+        cardVariant={cardVariant}
+        structure={isEpisodic ? 'episodic' : 'modules'}
+        trialMode={trialMode}
+        paywallEnabled={paywallEnabled}
+        freeLessons={freeCount}
+        playLabel={playLabel}
+        buyLabel={buyLabel}
+        freeLine={freeLine}
+        coverUrl={landing.thumbnail_url}
+        coverPosition={landing.thumbnail_object_position}
+        sampleImageUrl={sample?.thumbnail_url ?? null}
+        samplePlayable={samplePlayable}
+        groups={groups}
+        lessonCount={landing.lesson_count}
+        unit={unit}
+        dark={dark}
+        showTrailerButton={
+          !!landing.trailer_url ||
+          (trialMode === 'lesson_sample' && samplePlayable)
+        }
+        onPlay={onPlay}
+        onBuy={enrolling ? undefined : onBuy}
+        onTrailer={onTrailer}
+        onSample={onPlaySample}
+        onLessonClick={onLessonClick}
+      />
 
-      {/* Lesson / episode shelf — the card variant the creator picked. */}
-      <div
-        style={{
-          maxWidth: 1280,
-          margin: '0 auto',
-          padding: '48px 32px 96px',
-          fontFamily: "'Poppins', var(--font-poppins), system-ui, sans-serif",
-        }}
-      >
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'flex-end',
-            justifyContent: 'space-between',
-            flexWrap: 'wrap',
-            gap: 12,
-            marginBottom: 8,
-          }}
-        >
-          <div>
-            <h2
-              style={{
-                fontSize: 24,
-                fontWeight: 700,
-                letterSpacing: '-0.02em',
-                color: '#1d1d1f',
-                margin: 0,
-              }}
-            >
-              {isEpisodic ? 'Episodes' : 'Lessons'}
-            </h2>
-            <p style={{ fontSize: 14, color: '#86868b', margin: '6px 0 0' }}>
-              {trialSummary}
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={onBuy}
-            disabled={enrolling}
-            style={{
-              background: '#1d1d1f',
-              color: '#fff',
-              fontSize: 14,
-              fontWeight: 600,
-              padding: '11px 24px',
-              borderRadius: 980,
-              border: 'none',
-              cursor: 'pointer',
-              opacity: enrolling ? 0.6 : 1,
-            }}
-          >
-            {enrolling ? 'Loading…' : buyLabel}
-          </button>
-        </div>
-
-        {groups.map((g, gi) => (
-          <div key={gi} style={{ marginTop: g.title ? 36 : 28 }}>
-            {g.title && (
-              <h3
-                style={{
-                  fontSize: 16,
-                  fontWeight: 600,
-                  color: '#1d1d1f',
-                  margin: '0 0 16px',
-                }}
-              >
-                {g.title}
-              </h3>
-            )}
-            {renderCards(g.lessons)}
-          </div>
-        ))}
-      </div>
-
-      {/* Free-preview / trailer lightbox */}
+      {/* Lightbox — free preview / trailer / sample */}
       {playing && (
         <div
           role="dialog"
@@ -515,7 +375,7 @@ export function PublicPortalView({
                 ✕
               </button>
             </div>
-            {playing.id === '__trailer__' ? (
+            {playing.trailer ? (
               <video
                 src={landing.trailer_url ?? undefined}
                 controls
@@ -535,7 +395,7 @@ export function PublicPortalView({
           </div>
         </div>
       )}
-    </div>
+    </>
   )
 }
 
