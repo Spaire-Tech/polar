@@ -281,7 +281,7 @@ export function PublicPortalView({
   )
 
   return (
-    <>
+    <div className="gpp-fullbleed" data-gpp-fullbleed>
       <GeneratedPortalPage
         brand={organization.name ?? 'Spaire Originals'}
         title={landing.title ?? product.name}
@@ -395,7 +395,36 @@ export function PublicPortalView({
           </div>
         </div>
       )}
-    </>
+
+      {/* Full-bleed escape — the storefront layout frames content in a
+          padded max-width column; the course page owns the whole viewport.
+          The horizontal breakout is self-contained (no ancestor knowledge);
+          `:has()` zeroes the wrapper's vertical padding so the hero also
+          reaches the top. `overflow-x: clip` on body absorbs the 100vw vs
+          scrollbar-width difference without breaking sticky positioning. */}
+      <style jsx global>{`
+        body:has([data-gpp-fullbleed]) {
+          overflow-x: clip;
+        }
+        .gpp-fullbleed {
+          width: 100vw;
+          position: relative;
+          left: 50%;
+          right: 50%;
+          margin-left: -50vw;
+          margin-right: -50vw;
+        }
+        /* Collapse the storefront column's own vertical spacing above the
+           page so the hero starts at the very top. */
+        :has(> [data-gpp-fullbleed]),
+        :has(> div > [data-gpp-fullbleed]),
+        :has(> main > div > [data-gpp-fullbleed]),
+        :has(> div > main > div > [data-gpp-fullbleed]) {
+          padding-top: 0 !important;
+          margin-top: 0 !important;
+        }
+      `}</style>
+    </div>
   )
 }
 
