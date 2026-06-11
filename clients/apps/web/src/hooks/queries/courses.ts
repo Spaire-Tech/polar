@@ -232,6 +232,18 @@ export type LandingOverrides = {
   // The creator's light/dark choice from onboarding — the public page and
   // portal render in this theme.
   theme_mode?: 'light' | 'dark'
+  // Instructor section copy — AI-polished from the creator's instructor
+  // details (their facts, cleaned up), editable afterwards. The round
+  // avatar comes from the organization; the square portrait is its own
+  // uploaded media.
+  ai_instructor?: {
+    sub?: string | null
+    bio?: string[]
+    caption?: string | null
+  } | null
+  portrait_url?: string | null
+  // FAQ — AI-written Q/A pairs grounded in the course facts, editable.
+  ai_faq?: { q: string; a: string }[] | null
 }
 
 async function courseApiFetch<T>(

@@ -24,7 +24,15 @@ const SHARED_HERO_RULES = `THE HERO BLOCK — written from the inputs, for the t
 - "badge": a short shelf label — Series: "New Series" / "Limited Series" / "Documentary" / "Original Series"; Course: "New Course" / "Masterclass". ≤ 3 words, no period.
 - "description": THE most important field. 1–2 sentences, 120–220 characters, that introduce this Original. Lead with WHO the instructor is in one specific phrase, then what the work is. Ground it in their bio (a real credential, place, or number) and the subject. This is NOT the creator's description — if their input is a page long, ignore its length and distil the essence into one cinematic line. Never paste their words. No exclamation points, no clichés ("level up", "unlock", "take your X to the next level").
 - "byline": the instructor's credibility in ONE sentence ≤ 90 chars, drawn from the bio (e.g. "Two-time major champion and former world No. 1."). Do NOT prefix with "with" or "— with"; the page adds that.
-- "titleLines": the creator's title, VERBATIM, split into 1–2 array entries for a two-line display. Choose a natural break (["The Golfer's", "Blueprint"]); if it's short, return one entry. Do not reword the title.`
+- "titleLines": the creator's title, VERBATIM, split into 1–2 array entries for a two-line display. Choose a natural break (["The Golfer's", "Blueprint"]); if it's short, return one entry. Do not reword the title.
+
+THE INSTRUCTOR SECTION — written from the creator's instructor details:
+- "instructor.sub": ONE credential sentence ≤ 140 chars drawn from their bio — real numbers, titles, places. No marketing adjectives.
+- "instructor.bio": EXACTLY 2 paragraphs. This is a POLISH of the creator's own instructor text, NOT a rewrite: keep their facts, their claims, and their voice; reuse their phrases where they work; fix grammar and shape the flow. Paragraph 1 — who they are (the story behind the credential). Paragraph 2 — how they teach THIS course ("In this course, …"). If their input is thin, stay modest: expand on the subject and teaching approach, never invent credentials. 50–90 words per paragraph.
+
+THE FAQ — exactly 5 Q/A pairs in Apple's plain register:
+- Ground every answer in THIS course's real facts: what's included (modules/episodes, the free sample or preview), where to watch (web, phone, TV), the experience level (from the audience), access length, and the billing model (one-time vs subscription — use the price context given).
+- Questions are a buyer's words ("What's included when I enroll?", "Do I need to be experienced?"). Answers 1–3 sentences, concrete, no hedging, no exclamation points.`
 
 const courseSystemPrompt = `You are the lead instructional designer AND editorial writer for Spaire — a premium creator platform whose course pages read like a streaming service, not a Udemy listing. You produce the full structure and copy for ONE course.
 
@@ -148,7 +156,7 @@ export async function POST(req: Request) {
     isSeries
       ? 'Shape the season and write every field for this Original:'
       : 'Build the course and write every field for this Original:'
-  }\n${lines.join('\n')}\n\nOUTPUT ORDER & COMPLETENESS (critical):\n- Emit "arc" FIRST (one short clause), then the "modules" array fully populated, and the "hero" object LAST.\n- NEVER return an empty "modules" array. ${
+  }\n${lines.join('\n')}\n\nOUTPUT ORDER & COMPLETENESS (critical):\n- Emit "arc" FIRST (one short clause), then the "modules" array fully populated, then "hero", then "instructor" (sub + exactly 2 bio paragraphs, POLISHED from the creator's text — never invented), then "faq" (exactly 5 Q/A pairs) LAST.\n- NEVER return an empty "modules" array. ${
     isSeries
       ? 'Always produce one season module containing EXACTLY 6 episodes.'
       : 'Always produce EXACTLY 4 modules, each with 3–6 lessons (never more than 6).'

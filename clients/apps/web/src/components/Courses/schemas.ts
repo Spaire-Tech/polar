@@ -33,6 +33,26 @@ export const outlineSchema = z.object({
       ),
     }),
   ),
+  // Instructor section copy. "sub" is a one-line credential; "bio" is
+  // EXACTLY two paragraphs POLISHED from the creator's own instructor text —
+  // their facts and voice, cleaned up, never invented. Optional so partial
+  // JSON never stalls.
+  instructor: z
+    .object({
+      sub: z.string(),
+      bio: z.array(z.string()),
+    })
+    .optional(),
+  // FAQ — five Q/A pairs grounded in the course's real facts (pricing,
+  // trial, structure, access).
+  faq: z
+    .array(
+      z.object({
+        q: z.string(),
+        a: z.string(),
+      }),
+    )
+    .optional(),
   // Hero presentation copy — what the course-page hero renders.
   hero: z.object({
     // "Documentary Series · Golf" — format · subject, ≤ 5 words.

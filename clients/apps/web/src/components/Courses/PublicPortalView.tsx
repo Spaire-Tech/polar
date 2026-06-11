@@ -151,23 +151,12 @@ export function PublicPortalView({
           ? `${freeCount} ${unit}${freeCount === 1 ? '' : 's'} free · ${cadence}`
           : cadence
 
-  const onPlaySample = useCallback(() => {
-    if (sample?.mux_playback_id) {
-      setPlaying({
-        title: sample.lesson_title ?? 'Sample',
-        mux_playback_id: sample.mux_playback_id,
-        thumbnail_url: sample.thumbnail_url,
-      })
-    }
-  }, [sample])
-
+  // Sample playback is INLINE on the sample screen (clip-windowed,
+  // scroll-aware) — handled inside GeneratedPortalPage via the
+  // samplePlayback* props + playStartsSample. No lightbox for it.
   const onPlay = useCallback(() => {
     if (hasAccess) {
       goToPortal()
-      return
-    }
-    if (trialMode === 'lesson_sample' && samplePlayable) {
-      onPlaySample()
       return
     }
     const firstFree = landing.lessons.find(
@@ -180,15 +169,7 @@ export function PublicPortalView({
         thumbnail_url: firstFree.thumbnail_url,
       })
     } else void enroll()
-  }, [
-    hasAccess,
-    goToPortal,
-    trialMode,
-    samplePlayable,
-    onPlaySample,
-    landing.lessons,
-    enroll,
-  ])
+  }, [hasAccess, goToPortal, landing.lessons, enroll])
 
   const onBuy = useCallback(() => {
     if (hasAccess) goToPortal()
@@ -217,6 +198,9 @@ export function PublicPortalView({
 
   // The creator's persisted theme choice drives the public page.
   const dark = landing.landing_overrides?.theme_mode === 'dark'
+  const aiInstructor = landing.landing_overrides?.ai_instructor ?? null
+  const aiFaq = landing.landing_overrides?.ai_faq ?? []
+  const portraitUrl = landing.landing_overrides?.portrait_url ?? null
 
   // ── Groups — per-lesson media only; placeholder otherwise ────────────────
   const flatLessons = landing.lessons
@@ -281,7 +265,7 @@ export function PublicPortalView({
   )
 
   return (
-    <>
+    <div className="gpp-fullbleed" data-gpp-fullbleed>
       <GeneratedPortalPage
         brand={organization.name ?? 'Spaire Originals'}
         title={landing.title ?? product.name}
@@ -304,6 +288,19 @@ export function PublicPortalView({
         coverPosition={landing.thumbnail_object_position}
         sampleImageUrl={sample?.thumbnail_url ?? null}
         samplePlayable={samplePlayable}
+        samplePlaybackId={sample?.mux_playback_id ?? null}
+        samplePlaybackUrl={sample?.mux_playback_url ?? null}
+        sampleStart={sample?.start_seconds ?? 0}
+        sampleDuration={sample?.duration_seconds ?? 0}
+        playStartsSample={
+          !hasAccess && trialMode === 'lesson_sample' && samplePlayable
+        }
+        avatarUrl={organization.avatar_url ?? null}
+        instructorSub={aiInstructor?.sub ?? ''}
+        instructorBio={aiInstructor?.bio ?? []}
+        portraitUrl={portraitUrl}
+        portraitCaption={aiInstructor?.caption ?? ''}
+        faq={aiFaq}
         groups={groups}
         lessonCount={landing.lesson_count}
         unit={unit}
@@ -315,7 +312,6 @@ export function PublicPortalView({
         onPlay={onPlay}
         onBuy={enrolling ? undefined : onBuy}
         onTrailer={onTrailer}
-        onSample={onPlaySample}
         onLessonClick={onLessonClick}
       />
 
@@ -395,7 +391,36 @@ export function PublicPortalView({
           </div>
         </div>
       )}
-    </>
+
+      {/* Full-bleed escape — the storefront layout frames content in a
+          padded max-width column; the course page owns the whole viewport.
+          The horizontal breakout is self-contained (no ancestor knowledge);
+          `:has()` zeroes the wrapper's vertical padding so the hero also
+          reaches the top. `overflow-x: clip` on body absorbs the 100vw vs
+          scrollbar-width difference without breaking sticky positioning. */}
+      <style jsx global>{`
+        body:has([data-gpp-fullbleed]) {
+          overflow-x: clip;
+        }
+        .gpp-fullbleed {
+          width: 100vw;
+          position: relative;
+          left: 50%;
+          right: 50%;
+          margin-left: -50vw;
+          margin-right: -50vw;
+        }
+        /* Collapse the storefront column's own vertical spacing above the
+           page so the hero starts at the very top. */
+        :has(> [data-gpp-fullbleed]),
+        :has(> div > [data-gpp-fullbleed]),
+        :has(> main > div > [data-gpp-fullbleed]),
+        :has(> div > main > div > [data-gpp-fullbleed]) {
+          padding-top: 0 !important;
+          margin-top: 0 !important;
+        }
+      `}</style>
+    </div>
   )
 }
 

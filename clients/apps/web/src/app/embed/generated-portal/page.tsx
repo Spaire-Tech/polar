@@ -5,7 +5,7 @@ import {
   type GeneratedGroup,
 } from '@/components/Courses/editor/GeneratedPortalPage'
 import { useSearchParams } from 'next/navigation'
-import { Suspense, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 
 // Bare preview of the generated course page with the designs' sample data.
 // Query params drive the combination so every axis can be eyeballed:
@@ -65,6 +65,41 @@ function Preview() {
   const structure =
     params.get('structure') === 'episodic' ? 'episodic' : 'modules'
   const [dark, setDark] = useState(params.get('dark') === '1')
+  // `?editable=1` exercises the creator affordances (Add cover / Reposition /
+  // Add trailer / per-card Add image / sample CTA) with no-op handlers.
+  const editable = params.get('editable') === '1'
+  const withCover = params.get('cover') === '1'
+  // `?fakesample=1` synthesizes a short WebM in-browser (canvas +
+  // MediaRecorder) and feeds it to the inline sample player, so the clip
+  // window + scroll-pause behavior can be verified without a Mux asset.
+  const fakeSample = params.get('fakesample') === '1'
+  const [sampleUrl, setSampleUrl] = useState<string | null>(null)
+  useEffect(() => {
+    if (!fakeSample || sampleUrl) return
+    const canvas = document.createElement('canvas')
+    canvas.width = 320
+    canvas.height = 180
+    const ctx = canvas.getContext('2d')!
+    let hue = 0
+    const draw = () => {
+      hue = (hue + 4) % 360
+      ctx.fillStyle = `hsl(${hue} 70% 50%)`
+      ctx.fillRect(0, 0, 320, 180)
+    }
+    const timer = setInterval(draw, 100)
+    draw()
+    const stream = canvas.captureStream(10)
+    const rec = new MediaRecorder(stream, { mimeType: 'video/webm' })
+    const chunks: Blob[] = []
+    rec.ondataavailable = (e) => chunks.push(e.data)
+    rec.onstop = () => {
+      clearInterval(timer)
+      setSampleUrl(URL.createObjectURL(new Blob(chunks, { type: 'video/webm' })))
+    }
+    rec.start()
+    setTimeout(() => rec.stop(), 6000)
+    return () => clearInterval(timer)
+  }, [fakeSample, sampleUrl])
 
   const freeLessons = 3
   let flat = 0
@@ -111,6 +146,45 @@ function Preview() {
       unit={structure === 'episodic' ? 'episode' : 'lesson'}
       dark={dark}
       onToggleDark={() => setDark((d) => !d)}
+      coverUrl={withCover ? '/assets/onboarding/cover-hero.jpg' : undefined}
+      avatarUrl={withCover ? '/assets/onboarding/cover-hero.jpg' : null}
+      instructorSub="Two-time major champion and 14-season PGA Tour veteran. Holds the tour record for most strokes gained around the green over a single season."
+      instructorBio={[
+        'While many know Jack for the two major Sundays, players on tour knew him for something quieter: nobody got the ball in the hole from 100 yards and in like he did. He built a fourteen-season career not on power, but on an almost unreasonable command of the scoring game — wedges, chips, and the six feet that decide a round.',
+        'In this course, Jack teaches the game the way he played it — from the green backward. You\u2019ll learn his setup, his routine, and the on-course decisions that turn good rounds into low ones, side by side, one lesson at a time.',
+      ]}
+      portraitCaption="Jack Reeves · The Scoring Game"
+      faq={[
+        { q: 'What\u2019s included when I enroll?', a: 'Every lesson across all three modules, plus the free sample, downloadable practice notes, and lifetime updates whenever new lessons are added. One payment, no subscription.' },
+        { q: 'Where can I watch?', a: 'On the web, iPhone, iPad, and Apple TV. Your place is kept in sync, so you can start a lesson on one device and pick it up on another.' },
+        { q: 'Do I need to be an experienced golfer?', a: 'No. The course starts with grip and setup and builds up to scoring and strategy, so it works at any level.' },
+        { q: 'How long do I have access?', a: 'Forever. Once you enroll the course is yours to revisit as often as you like, at your own pace, with no expiry.' },
+        { q: 'What if it\u2019s not for me?', a: 'Email within 30 days for a full refund. No forms, no questions.' },
+      ]}
+      samplePlayable={fakeSample && !!sampleUrl}
+      samplePlaybackUrl={sampleUrl}
+      sampleStart={2}
+      sampleDuration={2}
+      playStartsSample={fakeSample && !!sampleUrl}
+      editable={editable}
+      onAddCover={editable ? () => {} : undefined}
+      onAddTrailer={editable ? () => {} : undefined}
+      onCoverPosition={editable ? () => {} : undefined}
+      onAddLessonImage={editable ? () => {} : undefined}
+      onConfigureSample={editable ? () => {} : undefined}
+      onEditText={
+        editable
+          ? (field, value, ctx) => {
+              ;(
+                window as unknown as { __edits: unknown[] }
+              ).__edits = [
+                ...(((window as unknown as { __edits?: unknown[] }).__edits) ??
+                  []),
+                { field, value, ctx },
+              ]
+            }
+          : undefined
+      }
     />
   )
 }

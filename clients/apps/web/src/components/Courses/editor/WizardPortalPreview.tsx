@@ -50,6 +50,10 @@ export type WizardPortalDraft = {
   titleLines?: string[] | null
   instructorName: string
   instructorBio: string
+  instructorSub?: string
+  instructorBioParas?: string[]
+  portraitCaption?: string
+  faq?: { q: string; a: string }[]
   heroVariant: 'marquee' | 'cover'
   cardVariant: 'spotlight' | 'catalog'
   structure: 'modules' | 'episodic'
@@ -194,6 +198,11 @@ export function WizardPortalPreview({
           unit={unit}
           dark={dark}
           onToggleDark={toggleDark}
+          avatarUrl={organization.avatar_url ?? null}
+          instructorSub={draft.instructorSub ?? ''}
+          instructorBio={draft.instructorBioParas ?? []}
+          portraitCaption={draft.portraitCaption ?? ''}
+          faq={draft.faq ?? []}
         />
       </div>
     </div>
