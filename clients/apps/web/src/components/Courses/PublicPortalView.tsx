@@ -166,6 +166,18 @@ export function PublicPortalView({
     else void enroll()
   }, [hasAccess, goToPortal, enroll])
 
+  // AI-synthesised hero copy (from generation). Prefer it over the creator's
+  // raw description so the hero reads like a streaming detail page. Each field
+  // falls back to the plain course data when the AI didn't write it.
+  const aiHero = landing.landing_overrides?.ai_hero ?? null
+  const heroDesc = aiHero?.description || landing.description || ''
+  const heroByline = aiHero?.byline || landing.instructor_bio || ''
+  const heroEyebrow = aiHero?.eyebrow || 'A Spaire Original'
+  const heroTitleLines =
+    aiHero?.titleLines && aiHero.titleLines.length > 0
+      ? aiHero.titleLines
+      : null
+
   const durationLabel = fmtDuration(landing.total_duration_seconds)
   const metaLine = [
     `${new Date().getFullYear()}`,
@@ -178,9 +190,13 @@ export function PublicPortalView({
 
   const coverDraft: WizardPortalDraft = {
     title: landing.title ?? product.name,
-    desc: landing.description ?? '',
+    desc: heroDesc,
     instructorName: landing.instructor_name ?? organization.name ?? '',
-    instructorBio: landing.instructor_bio ?? '',
+    instructorBio: heroByline,
+    eyebrow: aiHero?.eyebrow ?? null,
+    badge: aiHero?.badge ?? null,
+    byline: aiHero?.byline ?? null,
+    titleLines: heroTitleLines,
     heroVariant: 'cover',
     cardVariant,
     structure: isEpisodic ? 'episodic' : 'modules',
@@ -322,13 +338,13 @@ export function PublicPortalView({
         >
           <MarqueeHero
             brand={organization.name ?? 'Spaire Originals'}
-            eyebrow="A Spaire Original"
+            eyebrow={heroEyebrow}
             title={landing.title ?? product.name}
-            description={landing.description ?? ''}
+            description={heroDesc}
             metaLine={metaLine}
             badges={['All Levels', 'Self-paced', 'Mobile & TV']}
             instructorName={landing.instructor_name ?? organization.name ?? ''}
-            instructorSub={landing.instructor_bio ?? ''}
+            instructorSub={heroByline}
             playLabel={playLabel}
             buyLabel={buyLabel}
             freeLine={freeLine}

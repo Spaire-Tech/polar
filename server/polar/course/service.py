@@ -114,6 +114,9 @@ class CourseService:
             hero_variant=create_schema.hero_variant,
             lesson_card_variant=create_schema.lesson_card_variant,
             trial_mode=create_schema.trial_mode,
+            # AI-synthesised hero copy (under landing_overrides.ai_hero) and any
+            # human edits — persisted so the public portal renders it.
+            landing_overrides=create_schema.landing_overrides,
             description=create_schema.description,
             thumbnail_url=create_schema.thumbnail_url,
             thumbnail_object_position=create_schema.thumbnail_object_position,

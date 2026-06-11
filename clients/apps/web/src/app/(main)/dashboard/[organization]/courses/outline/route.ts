@@ -5,37 +5,59 @@ import { getAuthenticatedUser } from '@/utils/user'
 import { anthropic } from '@ai-sdk/anthropic'
 import { streamObject } from 'ai'
 
-const courseSystemPrompt = `You are an expert instructional designer. Create well-structured, comprehensive course outlines.
-Guidelines:
-- Create 3-5 modules — let the material decide. Group when the topic is broad, tighten when it's narrow. Never pad with a filler module.
-- Each module should have 2-6 focused lessons
-- Modules should have clear, descriptive titles that communicate the learning objective
-- Lessons should have specific, actionable titles (e.g. "Setting Up Your Development Environment" not just "Setup")
-- Mix content types: use "video" for demonstrations and walkthroughs, "text" for conceptual explanations and references
-- Start with foundational concepts and progress toward advanced application
-- Tailor the depth and pacing to the instructor's voice when an instructor bio is provided
-- When a paywall is enabled, the first module should land hard so the free taste earns the upsell. When the course is free (no paywall), pace evenly and treat every lesson as core curriculum`
+// ─────────────────────────────────────────────────────────────────────────────
+// Spaire Original generation. Produces the STRUCTURE (modules/lessons) and all
+// the WRITING that the course page renders: each lesson's description + the
+// hero block (eyebrow, badge, hero description, instructor credential, title
+// break). The field contracts below are derived directly from the course-page
+// designs — lengths and registers are not decorative, they're what the layout
+// slots can hold.
+//
+// The cardinal rule for the hero description: the creator's typed description
+// is SOURCE MATERIAL, never the output. We synthesise a fresh 1–2 sentence
+// hero line from who the instructor is and what the subject is — and we ignore
+// the length of their input entirely. A page-long brief becomes one clean line.
+// ─────────────────────────────────────────────────────────────────────────────
 
-// Episodic Originals share the same JSON schema as module-based ones —
-// they're stored as a Course with format='series' and a single implicit
-// "module" holding every episode. The prompt asks for ONE module containing
-// every episode as a "lesson"; the UI relabels lessons → episodes at render
-// time.
-const seriesSystemPrompt = `You are a story editor for a premium series — closer to a documentary producer or a podcast season editor than a course designer. You shape a thematic arc the creator can record straight into the camera, not a curriculum.
+const SHARED_HERO_RULES = `THE HERO BLOCK — written from the inputs, for the top of the page:
+- "eyebrow": "<Format> · <Subject>" — e.g. "Documentary Series · Golf", "Course · Persuasive Writing". ≤ 5 words, title case, no period.
+- "badge": a short shelf label — Series: "New Series" / "Limited Series" / "Documentary" / "Original Series"; Course: "New Course" / "Masterclass". ≤ 3 words, no period.
+- "description": THE most important field. 1–2 sentences, 120–220 characters, that introduce this Original. Lead with WHO the instructor is in one specific phrase, then what the work is. Ground it in their bio (a real credential, place, or number) and the subject. This is NOT the creator's description — if their input is a page long, ignore its length and distil the essence into one cinematic line. Never paste their words. No exclamation points, no clichés ("level up", "unlock", "take your X to the next level").
+- "byline": the instructor's credibility in ONE sentence ≤ 90 chars, drawn from the bio (e.g. "Two-time major champion and former world No. 1."). Do NOT prefix with "with" or "— with"; the page adds that.
+- "titleLines": the creator's title, VERBATIM, split into 1–2 array entries for a two-line display. Choose a natural break (["The Golfer's", "Blueprint"]); if it's short, return one entry. Do not reword the title.`
 
-Output format (important)
-- Return EXACTLY ONE module. Treat that module as the season itself; its "title" is the season tagline (2-6 words, editorial, NOT "Module 1"). Its "description" is one sentence framing the arc.
-- Inside that single module, return EXACTLY 6 "lessons" — these are the episodes. Never more, never fewer. If the topic is huge, tighten and combine; if it's narrow, slow down and let scenes breathe. Always six.
-- Each lesson title is the episode title.
-- Pick "content_type" per episode: "video" for personal, on-camera reflection or behind-the-scenes (the default for a series), "text" only when the episode is genuinely better as a written piece (e.g. a letter, a journal entry, a written reflection).
+const courseSystemPrompt = `You are the lead instructional designer AND editorial writer for Spaire — a premium creator platform whose course pages read like a streaming service, not a Udemy listing. You produce the full structure and copy for ONE course.
 
-Voice & structure
-- Episodes are self-contained but build a larger thematic arc. No "Episode 1 → Episode 2" dependency, no "before you start" gating, no homework, no quizzes.
-- Episode titles read like documentary chapters or essay titles — evocative, specific, in the creator's voice. Avoid the "How to X" / "5 ways to Y" instructional cadence.
-- Names of things, places, people, moments. Concrete > generic. "The week before the final" beats "Handling pressure".
-- No exclamation points. No clichés ("level up", "mindset shift", "unlock"). No instructional verbs ("learn to", "master", "build").
-- Tailor pacing, voice, and subject grounding to the instructor's bio. If they're an athlete, name the sport, the rituals, the specific opponents or moments. If they're a founder, name the stage, the round, the decision. Series live or die by specificity.
-- When a paywall is enabled, the first 2-3 episodes should hook on their own — open with the most magnetic, story-driven episodes so the free preview earns the unlock. When free, pace evenly across the arc.`
+STRUCTURE
+- Create 3–5 modules — let the material decide. Group when broad, tighten when narrow. Never pad with a filler module.
+- Each module: a clear 1–3 word theme title ("Foundations", "The Swing", "Scoring") and 3–6 focused lessons.
+- Lesson "title": specific and concrete, 2–4 words, works on one line ("Grip & Setup", "Pre-Shot Routine"). Not vague ("Setup"), not a sentence.
+- Lesson "description": the instructional register — a fragment, then one sentence. 80–130 characters. Name the concrete skill, move, or mistake. Example shape (do NOT copy the words): "Where every swing begins. The neutral grip, pressure points, and a setup you can repeat under pressure." Every description must be specific to THIS lesson; no two interchangeable.
+- "content_type": "video" for demonstrations/walkthroughs (the default), "text" for conceptual or reference lessons.
+- Start foundational, progress to application. Tailor depth and examples to the instructor's bio and subject.
+- Paywall on: front-load the opening lessons so the free preview earns the purchase. Free: pace evenly, every lesson is core.
+
+${SHARED_HERO_RULES}
+
+Voice: confident, concrete, no marketing fluff. Names of things over abstractions. Return the JSON now and stop.`
+
+// Episodic Originals are stored as a Course with format='series' and a single
+// implicit module holding every episode; the UI relabels lessons → episodes.
+const seriesSystemPrompt = `You are a story editor AND writer for a premium Spaire Original series — closer to a documentary producer than a course designer. You shape a season the creator can record into the camera, and you write the copy a streaming detail page would carry.
+
+STRUCTURE
+- Return EXACTLY ONE module (the season). Its "title" is the season tagline (2–6 words, editorial, NOT "Module 1"); its "description" is one sentence framing the arc.
+- Inside it, return 6–12 "lessons" — the episodes. Self-contained, no "Episode 1 → 2" dependency, no homework, no quizzes. Let an opening episode plant a thread a late episode pays off.
+- Episode "title": a story title, 2–4 words, evocative and concrete — a moment, place, or stakes ("The Wager", "Eighteen Inches", "Sand"). Never the "How to X" / "5 ways to Y" cadence.
+- Episode "description": the narrative register — 1–2 sentences that set a SCENE. Name a place, a moment, a person, the stakes. Example shape (do NOT copy the words): "Pebble Beach, dawn. Jack bets a stranger he can fix any swing in one round — and explains why he always wins." Frame around watching ("Inside…", "A walk through…"), never "you'll learn".
+- "content_type": "video" by default; "text" only for a genuinely written piece (a letter, a journal entry).
+- No exclamation points. No clichés ("mindset shift", "unlock", "level up"). No instructional verbs ("learn to", "master").
+- Tailor everything to the creator's bio: name the sport, the rituals, the opponents, the rounds, the decisions. Series live or die by specificity.
+- Paywall on: the first 2–3 episodes must hook on their own — open with the most magnetic, story-driven ones.
+
+${SHARED_HERO_RULES}
+
+Return the JSON now and stop.`
 
 export async function POST(req: Request) {
   const user = await getAuthenticatedUser()
@@ -53,9 +75,7 @@ export async function POST(req: Request) {
     paywallEnabled,
     freePreviewLessons,
     format,
-    // Onboarding choices — every one of these shapes the outline. The wizard
-    // passes them so the generated structure matches what the creator picked,
-    // not a generic default.
+    // Onboarding choices — each shapes the generation; the wizard passes them.
     trialMode,
     heroVariant,
     lessonCardVariant,
@@ -72,63 +92,71 @@ export async function POST(req: Request) {
   const unit = isSeries ? 'episode' : 'lesson'
 
   const lines = [
-    `Title: ${title}`,
-    description ? `Description: ${description}` : null,
-    targetAudience ? `Target Audience: ${targetAudience}` : null,
-    differentiator
-      ? `What makes this ${isSeries ? 'series' : 'course'} different: ${differentiator}`
+    `Title (use verbatim): ${title}`,
+    // The creator's description is SOURCE MATERIAL for the hero + grounding —
+    // never to be echoed verbatim. Flagged as such so the model distils it.
+    description
+      ? `Creator's brief (SOURCE MATERIAL — distil, never echo verbatim): ${description}`
       : null,
-    instructorName ? `Instructor: ${instructorName}` : null,
-    instructorBio ? `Instructor bio: ${instructorBio}` : null,
+    targetAudience ? `Audience: ${targetAudience}` : null,
+    differentiator
+      ? `What makes it different: ${differentiator}`
+      : null,
+    instructorName ? `Instructor name (use verbatim): ${instructorName}` : null,
+    instructorBio
+      ? `Instructor bio (ground the hero description + byline in this): ${instructorBio}`
+      : `Instructor bio: (none provided — keep the hero description about the work, not invented credentials)`,
     `Structure: ${
       isSeries
-        ? 'episodic — one season, self-contained episodes watched in order'
-        : 'modules — themed chapters the student can explore'
+        ? 'episodic — one season of self-contained episodes'
+        : 'modules — themed chapters'
     }`,
     typeof paywallEnabled === 'boolean'
       ? `Paywall: ${paywallEnabled ? 'enabled' : isSeries ? 'disabled (free series)' : 'disabled (free course)'}`
       : null,
-    // Trial affordance — structural, not decorative. Free preview means the
-    // opening lessons must each satisfy on their own; a lesson sample means
-    // ONE mid-course lesson is the only taste a prospect gets, so at least
-    // one lesson must be a strong standalone showcase.
-    paywallEnabled && trialMode === 'free_preview' &&
+    paywallEnabled &&
+    trialMode === 'free_preview' &&
     typeof freePreviewLessons === 'number'
-      ? `Trial: free preview — the first ${freePreviewLessons} ${unit}${freePreviewLessons === 1 ? '' : 's'} play in full for prospects. Front-load a complete, satisfying opening arc into them, and make ${unit} ${freePreviewLessons + 1} open the paid arc with a strong hook.`
+      ? `Trial: free preview — the first ${freePreviewLessons} ${unit}${freePreviewLessons === 1 ? '' : 's'} play in full. Front-load a complete, satisfying opening arc, and make ${unit} ${freePreviewLessons + 1} open the paid arc with a strong hook.`
       : null,
     paywallEnabled && trialMode === 'lesson_sample'
-      ? `Trial: lesson sample — prospects only see a short clip from one ${unit}. No ${unit} is free in full, so design at least one mid-${isSeries ? 'season' : 'course'} ${unit} as a visually/narratively strong standalone showcase the creator can clip from.`
+      ? `Trial: lesson sample — prospects see only a short clip from one ${unit}. Design at least one mid-${isSeries ? 'season' : 'course'} ${unit} as a strong standalone showcase to clip from.`
       : null,
     billingType
-      ? `Billing: ${billingType === 'subscription' ? 'subscription — returning value matters; structure should reward staying enrolled' : 'one-time purchase'}${priceLabel ? ` at ${priceLabel}` : ''}`
+      ? `Billing: ${billingType === 'subscription' ? `subscription${priceLabel ? ` (${priceLabel})` : ''}` : `one-time purchase${priceLabel ? ` (${priceLabel})` : ''}`}`
       : null,
-    // Presentation context — affects copy shape, not structure.
     heroVariant
       ? `Hero layout: ${
           heroVariant === 'marquee'
-            ? 'cinematic full-bleed streaming-title hero — the title reads like a show name, keep it evocative'
-            : 'editorial boxed hero — the title carries more explanatory weight'
+            ? 'Marquee — cinematic full-bleed; the title reads like a show name, keep it evocative'
+            : 'Cover — editorial; the title carries explanatory weight and breaks across two lines'
         }`
       : null,
     lessonCardVariant
       ? `${isSeries ? 'Episode' : 'Lesson'} cards: ${
           lessonCardVariant === 'spotlight'
-            ? `titles render OVER imagery on dark cards — keep every ${unit} title tight (≤ 7 words) so it sits on one line`
-            : 'titles sit below imagery with room to breathe — titles may run slightly longer when precision needs it'
+            ? `Spotlight — title sits OVER the image; keep each ${unit} title ≤ 4 words so it never wraps`
+            : 'Catalog — title + 2-line description sit below the image; the description does real work here'
         }`
       : null,
   ].filter(Boolean)
 
-  const intro = isSeries
-    ? `Shape the episode list for this series:\n${lines.join('\n')}\n\nReturn the JSON object now and stop.`
-    : `Create a course outline for:\n${lines.join('\n')}\n\nReturn the JSON object now and stop.`
+  const intro = `${
+    isSeries
+      ? 'Shape the season and write every field for this Original:'
+      : 'Build the course and write every field for this Original:'
+  }\n${lines.join('\n')}\n\nReturn the JSON object now and stop. Do not add prose after the JSON.`
 
   const result = streamObject({
     model: anthropic('claude-opus-4-7'),
     schema: outlineSchema,
     system: systemPrompt,
-    maxOutputTokens: 2400,
+    maxOutputTokens: 3200,
     prompt: intro,
+    onError: ({ error }) => {
+      // eslint-disable-next-line no-console
+      console.error('[outline] streamObject error:', error)
+    },
   })
 
   return result.toTextStreamResponse()

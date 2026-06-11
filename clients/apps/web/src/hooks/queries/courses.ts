@@ -219,6 +219,16 @@ export type LandingOverrides = {
   // The full AI-generated landing payload, stored here so the human-facing
   // description stays clean.
   ai_landing?: Record<string, unknown> | null
+  // AI-synthesised hero copy from generation — distilled from the creator's
+  // inputs, never their raw description. Drives the public hero so the page
+  // reads like a streaming detail page, not a settings dump.
+  ai_hero?: {
+    eyebrow?: string | null
+    badge?: string | null
+    description?: string | null
+    byline?: string | null
+    titleLines?: string[] | null
+  } | null
 }
 
 async function courseApiFetch<T>(
@@ -292,6 +302,8 @@ export const useCreateCourse = () =>
       hero_variant?: HeroVariant
       lesson_card_variant?: LessonCardVariant
       trial_mode?: TrialMode
+      // AI-synthesised hero copy from generation (under landing_overrides.ai_hero).
+      landing_overrides?: LandingOverrides | null
       ai_generated?: boolean
       description?: string | null
       thumbnail_url?: string | null
@@ -696,6 +708,9 @@ export type CourseLandingPageData = {
   paywall_enabled?: boolean
   paywall_position?: number | null
   has_access: boolean
+  // Carries ai_hero (the synthesised hero copy from generation) and any
+  // human edits. The public hero prefers ai_hero over the raw description.
+  landing_overrides?: LandingOverrides | null
 }
 
 async function portalApiFetch<T>(

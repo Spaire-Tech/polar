@@ -1,5 +1,13 @@
 import { z } from 'zod'
 
+// Generation output for a Spaire Original. Two halves:
+//   • modules/lessons — the STRUCTURE + per-item COPY (title + description).
+//   • hero — the presentation copy for the top of the course page, written
+//     FROM the creator's inputs (never their raw description verbatim).
+// Modules come first so the visible outline streams first; the hero block
+// fills in after. Arrays/strings are intentionally unbounded — strict
+// cardinality stalls useObject on streamed partial JSON; the prompt enforces
+// counts and lengths instead.
 export const outlineSchema = z.object({
   modules: z.array(
     z.object({
@@ -9,10 +17,29 @@ export const outlineSchema = z.object({
         z.object({
           title: z.string(),
           content_type: z.enum(['text', 'video']),
+          // The AI writes this — a real lesson/episode description, not a
+          // placeholder. Register depends on structure (instructional for
+          // modules, scene-grounded narrative for episodic).
+          description: z.string(),
         }),
       ),
     }),
   ),
+  // Hero presentation copy — what the course-page hero renders.
+  hero: z.object({
+    // "Documentary Series · Golf" — format · subject, ≤ 5 words.
+    eyebrow: z.string(),
+    // "New Series" / "New Course" / "Documentary" — ≤ 3 words.
+    badge: z.string(),
+    // 1–2 sentences synthesised from instructor + subject. NOT the raw
+    // creator description; distil the essence regardless of input length.
+    description: z.string(),
+    // One credential sentence ≤ 90 chars (no "— with" prefix; UI adds it).
+    byline: z.string(),
+    // The creator's title split across 1–2 lines for the Cover hero's
+    // balance wrap. Verbatim words — only the break is chosen.
+    titleLines: z.array(z.string()),
+  }),
 })
 
 export type CourseOutline = z.infer<typeof outlineSchema>
