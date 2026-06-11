@@ -152,8 +152,8 @@ export function HeroPicker({
         <h1>Choose your hero</h1>
         <p>
           Your hero is the first thing students see. <b>Marquee</b> creates a
-          cinematic, immersive introduction, while <b>Cover</b> puts your title
-          and voice front and center.
+          cinematic introduction, while <b>Cover</b> puts your title and voice
+          front and center.
         </p>
       </div>
 

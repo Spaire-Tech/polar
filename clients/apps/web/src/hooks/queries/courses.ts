@@ -229,6 +229,9 @@ export type LandingOverrides = {
     byline?: string | null
     titleLines?: string[] | null
   } | null
+  // The creator's light/dark choice from onboarding — the public page and
+  // portal render in this theme.
+  theme_mode?: 'light' | 'dark'
 }
 
 async function courseApiFetch<T>(
@@ -711,6 +714,18 @@ export type CourseLandingPageData = {
   // Carries ai_hero (the synthesised hero copy from generation) and any
   // human edits. The public hero prefers ai_hero over the raw description.
   landing_overrides?: LandingOverrides | null
+  // Series "Episode Sample" payload — present only when configured AND the
+  // mux asset is ready to play.
+  sample?: {
+    enabled: boolean
+    lesson_id: string
+    start_seconds: number
+    duration_seconds: number
+    lesson_title: string | null
+    thumbnail_url: string | null
+    mux_playback_id: string | null
+    mux_playback_url: string | null
+  } | null
 }
 
 async function portalApiFetch<T>(
