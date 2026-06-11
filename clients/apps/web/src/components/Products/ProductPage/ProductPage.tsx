@@ -138,7 +138,7 @@ export const ProductPage = ({ organization, product }: ProductPageProps) => {
   }, [product, updateProduct])
 
   return (
-    <Tabs defaultValue="overview" className="h-full">
+    <Tabs defaultValue="overview" className="flex min-h-0 flex-1 flex-col">
       <DashboardBody
         title={
           <div className="flex min-w-0 flex-row items-center gap-4">
