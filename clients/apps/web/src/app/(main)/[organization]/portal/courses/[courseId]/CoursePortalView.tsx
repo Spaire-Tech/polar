@@ -1280,6 +1280,7 @@ function CoursePortalViewDesktop({
           }}
         >
           <MarqueeHero
+            dark
             brand={organizationName}
             eyebrow={continuePill ?? 'A Spaire Original'}
             title={course.title ?? 'Untitled Original'}

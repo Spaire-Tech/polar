@@ -37,7 +37,13 @@ export type WizardPortalOutline = {
 
 export type WizardPortalDraft = {
   title: string
+  /** AI-written hero description (not the creator's raw blob). */
   desc: string
+  /** AI-written hero copy — fall back to derived/empty when streaming. */
+  eyebrow?: string | null
+  badge?: string | null
+  byline?: string | null
+  titleLines?: string[] | null
   instructorName: string
   instructorBio: string
   heroVariant: 'marquee' | 'cover'
@@ -166,7 +172,10 @@ export function CoverHeroStatic({ draft, unit, lessonCount }: {
               color: 'white',
             }}
           >
-            {draft.structure === 'episodic' ? 'NEW SERIES' : 'NEW ORIGINAL'}
+            {(draft.badge ||
+              (draft.structure === 'episodic'
+                ? 'New Series'
+                : 'New Original')).toUpperCase()}
           </span>
           <span style={{ color: 'rgba(255,255,255,0.6)' }}>
             {lessonCount} {unit}
@@ -187,7 +196,13 @@ export function CoverHeroStatic({ draft, unit, lessonCount }: {
             textShadow: '0 2px 30px oklch(0 0 0 / 0.35)',
           }}
         >
-          {draft.title || 'Untitled Original'}
+          {draft.titleLines && draft.titleLines.length > 0
+            ? draft.titleLines.map((line, i) => (
+                <span key={i} style={{ display: 'block' }}>
+                  {line}
+                </span>
+              ))
+            : draft.title || 'Untitled Original'}
         </h1>
         <div
           style={{
@@ -285,14 +300,23 @@ export function WizardPortalPreview({
 
   // Flatten the outline into render-ready groups. Mirrors finalizeCourse's
   // filter (title-only) so what's previewed is exactly what gets created.
-  type Group = { title: string; lessons: { title: string; flatIdx: number }[] }
+  type Group = {
+    title: string
+    lessons: { title: string; description: string; flatIdx: number }[]
+  }
   const groups: Group[] = []
   let flat = 0
   for (const m of outline.modules ?? []) {
     if (!m?.title) continue
     const lessons = (m.lessons ?? [])
-      .filter((l): l is { title: string } => Boolean(l?.title))
-      .map((l) => ({ title: l.title, flatIdx: flat++ }))
+      .filter((l): l is { title: string; description?: string } =>
+        Boolean(l?.title),
+      )
+      .map((l) => ({
+        title: l.title,
+        description: l.description ?? '',
+        flatIdx: flat++,
+      }))
     groups.push({ title: m.title, lessons })
   }
   const lessonCount = flat
@@ -313,6 +337,7 @@ export function WizardPortalPreview({
 
   const catalogLesson = (
     title: string,
+    description: string,
     flatIdx: number,
   ): CustomerLessonRead => ({
     id: `preview-${flatIdx}`,
@@ -326,6 +351,7 @@ export function WizardPortalPreview({
     mux_status: null,
     thumbnail_url: null,
     completed: false,
+    description,
     locked: isLocked(flatIdx),
     locked_until: null,
   })
@@ -340,7 +366,7 @@ export function WizardPortalPreview({
               !isLocked(l.flatIdx) && draft.paywallEnabled ? ' · Free' : ''
             }`}
             title={l.title}
-            description=""
+            description={l.description}
             time=""
             imageUrl={draft.heroImageUrl ?? undefined}
             locked={isLocked(l.flatIdx)}
@@ -358,7 +384,7 @@ export function WizardPortalPreview({
         {lessons.map((l) => (
           <LessonCard
             key={l.flatIdx}
-            lesson={catalogLesson(l.title, l.flatIdx)}
+            lesson={catalogLesson(l.title, l.description, l.flatIdx)}
             globalIndex={l.flatIdx + 1}
             hue={(l.flatIdx * 47) % 360}
             isInProgress={false}
@@ -418,7 +444,7 @@ export function WizardPortalPreview({
           >
             <MarqueeHero
               brand={organization.name ?? 'Spaire Originals'}
-              eyebrow="A Spaire Original"
+              eyebrow={draft.eyebrow || 'A Spaire Original'}
               title={draft.title || 'Untitled Original'}
               description={draft.desc || ''}
               metaLine={`${new Date().getFullYear()}  ·  ${lessonCount} ${unitCap}${
@@ -426,7 +452,7 @@ export function WizardPortalPreview({
               }  ·  Self-paced`}
               badges={['All Levels', 'Self-paced', 'Mobile & TV']}
               instructorName={draft.instructorName || organization.name || ''}
-              instructorSub={draft.instructorBio || ''}
+              instructorSub={draft.byline || draft.instructorBio || ''}
               playLabel={draft.playLabel}
               buyLabel={draft.buyLabel}
               freeLine={draft.freeLine}

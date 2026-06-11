@@ -282,7 +282,7 @@ export function CoverHero({
           color: #fff;
           -webkit-backdrop-filter: blur(18px) saturate(160%);
           backdrop-filter: blur(18px) saturate(160%);
-          box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.22);
+          box-shadow: none;
           font-size: 16px;
           font-weight: 600;
           letter-spacing: -0.01em;

@@ -81,12 +81,24 @@ type CourseState = {
   differentiator: string
 }
 
+type PartialLesson = {
+  title?: string
+  content_type?: 'text' | 'video'
+  description?: string
+}
 type PartialModule = {
   title?: string
   description?: string
-  lessons?: { title?: string; content_type?: 'text' | 'video' }[]
+  lessons?: PartialLesson[]
 }
-type PartialOutline = { modules?: PartialModule[] }
+type PartialHero = {
+  eyebrow?: string
+  badge?: string
+  description?: string
+  byline?: string
+  titleLines?: string[]
+}
+type PartialOutline = { modules?: PartialModule[]; hero?: PartialHero }
 
 // ─── Main wizard ─────────────────────────────────────────────────────────────
 
@@ -302,6 +314,20 @@ export default function CourseWizard({
         (acc, m) => acc + (m?.lessons?.filter((l) => l?.title).length ?? 0),
         0,
       )
+      // AI-written hero copy (eyebrow / badge / description / byline /
+      // titleLines). Only persist non-empty fields so a partial generation
+      // doesn't wipe a slot the renderer can fall back on.
+      const h = outline.hero ?? {}
+      const heroCopy =
+        h.eyebrow || h.description || h.byline || h.badge || h.titleLines?.length
+          ? {
+              eyebrow: h.eyebrow ?? null,
+              badge: h.badge ?? null,
+              description: h.description ?? null,
+              byline: h.byline ?? null,
+              titleLines: h.titleLines ?? null,
+            }
+          : null
       // free_preview → first N lessons open; lesson_sample → nothing opens
       // in full (paywall sits before lesson 1, the sample clip is the only
       // taste); free course → no paywall at all.
@@ -332,6 +358,10 @@ export default function CourseWizard({
         instructor_name_italic: false,
         instructor_name_bold: true,
         instructor_name_uppercase: true,
+        // Persist the AI-written hero copy so the course page renders it
+        // (instead of the creator's raw description blob). Lives under
+        // landing_overrides.ai_hero; the editable surface can override it.
+        landing_overrides: heroCopy ? { ai_hero: heroCopy } : undefined,
         modules: outlineModules
           .filter((m): m is PartialModule & { title: string } =>
             Boolean(m?.title),
@@ -341,13 +371,16 @@ export default function CourseWizard({
             description: mod.description ?? null,
             position: i,
             lessons: (mod.lessons ?? [])
-              .filter((l): l is { title: string; content_type?: 'text' | 'video' } =>
+              .filter((l): l is PartialLesson & { title: string } =>
                 Boolean(l?.title),
               )
               .map((lesson, j) => ({
                 title: lesson.title,
                 content_type: lesson.content_type ?? 'text',
                 position: j,
+                // The AI-written lesson/episode description — persisted so the
+                // catalog cards and lesson pages show real copy, not blanks.
+                description: lesson.description ?? null,
               })),
           })),
       })
@@ -382,11 +415,19 @@ export default function CourseWizard({
     const unit = unitCap.toLowerCase()
     const cadence =
       billingType === 'subscription' ? 'cancel anytime' : 'one-time purchase'
+    // Prefer the AI-written hero copy; fall back to the creator's inputs only
+    // if a field is still streaming/empty. The hero description must NOT be the
+    // raw course.desc blob — show the synthesised line, else nothing.
+    const aiHero = (partialOutline as PartialOutline | undefined)?.hero ?? {}
     return {
       title: course.title,
-      desc: course.desc,
+      desc: aiHero.description ?? '',
+      eyebrow: aiHero.eyebrow ?? null,
+      badge: aiHero.badge ?? null,
+      byline: aiHero.byline ?? null,
+      titleLines: aiHero.titleLines ?? null,
       instructorName: instructor.name,
-      instructorBio: instructor.bio,
+      instructorBio: aiHero.byline ?? instructor.bio,
       heroVariant,
       cardVariant,
       structure: format === 'series' ? 'episodic' : 'modules',
