@@ -1,16 +1,16 @@
 'use client'
 
-// MarqueeHero — literal static clone of the "Marquee" hero design
-// (Hero.html, "Championship Tennis"). Full-bleed, cinematic, streaming-title
-// styling: a slow Ken Burns zoom over a still, a double scrim for legibility,
-// a film-grain overlay, a low-anchored title, and a light frosted control
-// band across the bottom (actions / description / instructor).
+// MarqueeHero — literal clone of the latest "Marquee Hero.html" design (The
+// Golfer's Blueprint). Full-bleed cinematic still with a slow Ken Burns zoom,
+// a diagonal scrim, film grain, a low-anchored title, and a frosted control
+// band that FADES INTO the page background (light or dark variant). The band
+// is a 3-column grid: actions (play / buy / free line) · description (text +
+// meta + badges + trailer) · instructor.
 //
-// This is intentionally STATIC — content is hardcoded to the design's sample
-// (tennis documentary) so the proportions can be reviewed in isolation before
-// it's wired to real course data + the EditorContext slots. CSS is a faithful
-// port of the original stylesheet (clamp/vw units, grid template, media
-// queries) scoped to this component via styled-jsx.
+// CSS is a faithful port of the source stylesheet scoped via styled-jsx. The
+// prop API drives real course data through the same slots; defaults reproduce
+// the design sample. `fill` sizes to the parent (picker tiles) instead of the
+// viewport; `dark` + `bg` control the band fade colour.
 
 import { useCallback, useRef, useState } from 'react'
 
@@ -18,17 +18,12 @@ const PLAY_PATH =
   'M8 5.5v13a1 1 0 0 0 1.5.87l11-6.5a1 1 0 0 0 0-1.74l-11-6.5A1 1 0 0 0 8 5.5Z'
 
 // Dark cinematic fallback when no hero image is provided. Never a remote
-// stock photo — those are blocked by the production CSP and would be wrong
-// on a real Original anyway.
+// stock photo (CSP-blocked, and wrong on a real Original).
 const FALLBACK_ART =
   'radial-gradient(120% 120% at 30% 20%, #1b1d22 0%, #0c0d10 60%, #060708 100%)'
 
 type Toast = { id: number; msg: string }
 
-// All props optional — defaults reproduce the design's "Championship Tennis"
-// sample exactly, so the standalone /embed/hero-preview clone is unchanged.
-// The wizard's portal preview (and later the real portal) passes real course
-// data through these.
 export type MarqueeHeroProps = {
   brand?: string
   eyebrow?: string
@@ -50,6 +45,10 @@ export type MarqueeHeroProps = {
   hideBuy?: boolean
   /** Size to the parent container instead of the viewport (picker tiles). */
   fill?: boolean
+  /** Dark band variant — band fades dark and its text goes white. */
+  dark?: boolean
+  /** Page background the band fades into (defaults per light/dark). */
+  bg?: string
   onPlay?: () => void
   onBuy?: () => void
   onTrailer?: () => void
@@ -60,18 +59,20 @@ export function MarqueeHero({
   eyebrow = 'Documentary Series · Golf',
   title = 'The Golfer’s Blueprint',
   description = 'A two-time major champion takes you inside the scoring game — the swing, the short game, and the mind that wins the shots that matter. Shot like a film, taught like a private lesson.',
-  metaLine = 'Documentary Series · Golf  ·  2026  ·  11 Lessons  ·  3h 42m',
+  metaLine = 'Documentary Series · Golf  ·  2026  ·  12 Episodes  ·  4h 15m',
   badges = ['All Levels', 'Self-paced', 'Captions', 'Mobile & TV'],
   instructorName = 'Jack Reeves',
   instructorSub = 'Two-time major champion and former world No. 1.',
-  playLabel = 'Play Lesson 1 Free',
+  playLabel = 'Play Episode 1 Free',
   buyLabel = 'Subscribe — $89',
-  freeLine = '3 lessons free · one-time purchase',
+  freeLine = 'First 3 episodes free · cancel anytime',
   imageUrl = null,
   imagePosition = 'center 18%',
   showTrailer = true,
   hideBuy = false,
   fill = false,
+  dark = false,
+  bg,
   onPlay,
   onBuy,
   onTrailer,
@@ -87,20 +88,25 @@ export function MarqueeHero({
     }, 2600)
   }, [])
 
+  const rootStyle: React.CSSProperties = {
+    ...(fill ? { width: '100%', height: '100%', minHeight: 0 } : {}),
+    ...(bg ? ({ ['--bg' as string]: bg } as React.CSSProperties) : {}),
+  }
+
   return (
     <header
-      className="panel"
-      style={fill ? { width: '100%', height: '100%', minHeight: 0 } : undefined}
+      className={`panel${dark ? ' dark' : ''}`}
+      data-screen-label="Marquee Hero"
+      style={rootStyle}
     >
       <div
         className="panel-art"
         style={
           imageUrl
             ? {
-                backgroundImage: `url('${imageUrl}')`,
-                backgroundPosition: imagePosition,
+                background: `url('${imageUrl}') ${imagePosition} / cover no-repeat`,
               }
-            : { backgroundImage: FALLBACK_ART, animation: 'none' }
+            : { background: FALLBACK_ART, animation: 'none' }
         }
       />
       <div className="panel-scrim" />
@@ -119,12 +125,10 @@ export function MarqueeHero({
             className="abtn play"
             type="button"
             onClick={() =>
-              onPlay
-                ? onPlay()
-                : toast('Playing free preview · Introduction')
+              onPlay ? onPlay() : toast('Playing free preview · Introduction')
             }
           >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor">
               <path d={PLAY_PATH} />
             </svg>
             {playLabel}
@@ -161,8 +165,8 @@ export function MarqueeHero({
                 }
               >
                 <svg
-                  width="13"
-                  height="13"
+                  width="12"
+                  height="12"
                   viewBox="0 0 24 24"
                   fill="currentColor"
                 >
@@ -184,65 +188,59 @@ export function MarqueeHero({
       <div className="toast-wrap">
         {toasts.map((t) => (
           <div className="toast" key={t.id}>
-            <span className="tk">
-              <svg
-                width="18"
-                height="18"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20" />
-                <path d="M7.7 12.2l2.8 2.8 5.6-5.6" />
-              </svg>
-            </span>
             {t.msg}
           </div>
         ))}
       </div>
 
       <style jsx>{`
-        /* ============================================================ HERO PANEL */
+        /* ============================================================
+           MARQUEE HERO — standalone, no frameworks.
+           ============================================================ */
         .panel {
-          --label: #ffffff;
-          --text: #1d1d1f;
-          --text-2: rgba(0, 0, 0, 0.56);
-          --text-3: rgba(0, 0, 0, 0.4);
+          --bg: #ffffff;
+          --band: 255, 255, 255;
+          --bt: #1d1d1f; /* band text */
+          --bt2: rgba(0, 0, 0, 0.56);
+          --bt3: rgba(0, 0, 0, 0.4);
           --ink: #07080a;
           --sf: -apple-system, BlinkMacSystemFont, 'SF Pro Display',
             'SF Pro Text', system-ui, sans-serif;
-          --gut: 72px;
+          --gut: 64px;
           position: relative;
-          width: 100vw;
+          width: 100%;
           height: 100vh;
-          min-height: 640px;
+          min-height: 560px;
           overflow: hidden;
           background: var(--ink);
-          color: var(--text);
           font-family: var(--sf);
           letter-spacing: -0.014em;
           -webkit-font-smoothing: antialiased;
           -moz-osx-font-smoothing: grayscale;
         }
-        /* Neutralize UA button chrome only — .abtn.play/.abtn.buy set their
-           own fills; .bd-trailer sets its own (transparent) background. */
+        .panel.dark {
+          --bg: #141416;
+          --band: 20, 20, 22;
+          --bt: #f5f5f7;
+          --bt2: rgba(245, 245, 247, 0.65);
+          --bt3: rgba(245, 245, 247, 0.45);
+        }
         .panel :global(button) {
           font-family: inherit;
           cursor: pointer;
           border: none;
+          background: none;
+          color: inherit;
         }
+
+        /* ── panel ── */
         .panel-art {
           position: absolute;
           inset: 0;
-          background-size: cover;
-          background-position: center 24%;
           transform: scale(1.04);
-          animation: kb 26s ease-out forwards;
+          animation: mq-kb 26s ease-out forwards;
         }
-        @keyframes kb {
+        @keyframes mq-kb {
           to {
             transform: scale(1.13);
           }
@@ -251,17 +249,11 @@ export function MarqueeHero({
           position: absolute;
           inset: 0;
           background: linear-gradient(
-              0deg,
-              var(--ink) 0.5%,
-              rgba(255, 255, 255, 0.5) 18%,
-              transparent 46%
-            ),
-            linear-gradient(
-              115deg,
-              rgba(0, 0, 0, 0.55) 0%,
-              rgba(0, 0, 0, 0.16) 40%,
-              transparent 62%
-            );
+            115deg,
+            rgba(0, 0, 0, 0.55) 0%,
+            rgba(0, 0, 0, 0.16) 40%,
+            transparent 62%
+          );
         }
         .panel-grain {
           position: absolute;
@@ -271,14 +263,12 @@ export function MarqueeHero({
           mix-blend-mode: overlay;
           background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
         }
-
-        /* small brand mark, top-left */
         .panel-brand {
           position: absolute;
           left: var(--gut);
-          top: 36px;
+          top: 32px;
           z-index: 4;
-          font-size: 13px;
+          font-size: 12px;
           font-weight: 700;
           letter-spacing: 0.2em;
           text-transform: uppercase;
@@ -286,33 +276,33 @@ export function MarqueeHero({
           text-shadow: 0 1px 12px rgba(0, 0, 0, 0.4);
         }
 
-        /* title — anchored low, close to the band */
+        /* ── title ── */
         .panel-title {
           position: absolute;
           left: var(--gut);
           right: var(--gut);
-          bottom: 272px;
+          bottom: 242px;
           z-index: 4;
         }
         .pt-eyebrow {
-          font-size: 14px;
+          font-size: 13px;
           font-weight: 600;
           letter-spacing: 0.02em;
           color: rgba(255, 255, 255, 0.82);
-          margin-bottom: 20px;
+          margin-bottom: 14px;
           text-shadow: 0 2px 18px rgba(0, 0, 0, 0.5);
         }
         .pt-h {
-          font-size: clamp(56px, 7.4vw, 124px);
+          font-size: clamp(40px, 4.8vw, 72px);
           font-weight: 800;
-          letter-spacing: -0.04em;
-          line-height: 0.9;
-          max-width: 12ch;
+          letter-spacing: -0.035em;
+          line-height: 0.92;
+          max-width: 14ch;
           color: #fff;
           text-shadow: 0 4px 50px rgba(0, 0, 0, 0.4);
         }
 
-        /* ============================================================ FROSTED CONTROL BAND */
+        /* ── frosted control band — fades into --bg ── */
         .band {
           position: absolute;
           left: 0;
@@ -320,150 +310,159 @@ export function MarqueeHero({
           bottom: 0;
           z-index: 5;
           display: grid;
-          grid-template-columns: 380px minmax(0, 1fr) 320px;
-          gap: 56px;
+          grid-template-columns: 280px minmax(0, 1fr) 250px;
+          gap: 44px;
           align-items: start;
-          padding: 60px var(--gut) 48px;
+          padding: 76px var(--gut) 38px;
           -webkit-backdrop-filter: blur(32px) saturate(140%);
           backdrop-filter: blur(32px) saturate(140%);
           background: linear-gradient(
             0deg,
-            rgba(255, 255, 255, 0.92) 12%,
-            rgba(255, 255, 255, 0.66) 46%,
-            rgba(255, 255, 255, 0.3) 74%,
-            rgba(255, 255, 255, 0) 100%
+            rgba(var(--band), 0.97) 30%,
+            rgba(var(--band), 0.82) 58%,
+            rgba(var(--band), 0.45) 82%,
+            rgba(var(--band), 0) 100%
           );
-          -webkit-mask-image: linear-gradient(0deg, #000 70%, transparent 100%);
-          mask-image: linear-gradient(0deg, #000 70%, transparent 100%);
+          -webkit-mask-image: linear-gradient(0deg, #000 78%, transparent 100%);
+          mask-image: linear-gradient(0deg, #000 78%, transparent 100%);
+          color: var(--bt);
         }
         .band-actions {
           display: flex;
           flex-direction: column;
-          gap: 12px;
+          gap: 10px;
         }
         .abtn {
           display: inline-flex;
           align-items: center;
           justify-content: center;
-          gap: 11px;
-          height: 60px;
-          border-radius: 14px;
-          font-size: 19px;
+          gap: 9px;
+          height: 46px;
+          border-radius: 12px;
+          font-size: 15px;
           font-weight: 600;
           letter-spacing: -0.01em;
           transition: transform 0.16s cubic-bezier(0.2, 1.2, 0.3, 1),
-            background 0.16s, box-shadow 0.16s;
+            background 0.16s;
         }
         .abtn:active {
           transform: scale(0.975);
         }
         .abtn.play {
-          background: #1d1d1f;
-          color: #fff;
-          box-shadow: 0 8px 26px rgba(0, 0, 0, 0.22);
+          background: var(--bt);
+          color: var(--bg);
+          box-shadow: 0 8px 26px rgba(0, 0, 0, 0.18);
         }
         .abtn.play:hover {
-          background: #000;
           transform: translateY(-1px);
         }
         .abtn.buy {
-          background: rgba(255, 255, 255, 0.6);
-          color: #1d1d1f;
+          background: rgba(var(--band), 0.55);
+          color: var(--bt);
           -webkit-backdrop-filter: blur(20px) saturate(160%);
           backdrop-filter: blur(20px) saturate(160%);
-          box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.14),
-            inset 0 1px 0 rgba(255, 255, 255, 0.7);
+          box-shadow: inset 0 0 0 1px var(--bt3);
         }
         .abtn.buy:hover {
-          background: rgba(255, 255, 255, 0.82);
           transform: translateY(-1px);
         }
+        .panel.dark .abtn.buy {
+          background: rgba(255, 255, 255, 0.14);
+          color: #fff;
+          box-shadow: none;
+        }
+        .panel.dark .abtn.buy:hover {
+          background: rgba(255, 255, 255, 0.24);
+        }
+        .panel.dark .bdg {
+          background: rgba(255, 255, 255, 0.12);
+        }
+        .panel.dark .bdg.rate {
+          background: transparent;
+          box-shadow: none;
+        }
         .band-free {
-          font-size: 14.5px;
+          font-size: 13px;
           font-weight: 500;
-          color: var(--text-2);
+          color: var(--bt2);
           text-align: center;
-          margin-top: 5px;
+          margin-top: 3px;
         }
 
         .band-desc {
           padding-top: 2px;
         }
         .bd-text {
-          font-size: 19px;
-          line-height: 1.45;
+          font-size: 16px;
+          line-height: 1.5;
           font-weight: 400;
-          color: var(--text);
-          max-width: 60ch;
+          color: var(--bt);
+          max-width: 62ch;
         }
         .bd-meta {
-          font-size: 16px;
+          font-size: 13.5px;
           font-weight: 500;
-          color: var(--text-2);
-          margin-top: 16px;
+          color: var(--bt2);
+          margin-top: 12px;
         }
         .bd-badges {
           display: flex;
           align-items: center;
           flex-wrap: wrap;
-          gap: 8px;
-          margin-top: 16px;
+          gap: 7px;
+          margin-top: 12px;
         }
         .bdg {
-          font-size: 12px;
+          font-size: 11px;
           font-weight: 700;
           letter-spacing: 0.04em;
-          color: var(--text-2);
-          background: rgba(0, 0, 0, 0.07);
+          color: var(--bt2);
+          background: rgba(125, 125, 135, 0.16);
           border-radius: 5px;
-          padding: 3px 8px;
+          padding: 3px 7px;
         }
         .bdg.rate {
           background: transparent;
-          box-shadow: inset 0 0 0 1.5px rgba(0, 0, 0, 0.22);
+          box-shadow: inset 0 0 0 1.5px var(--bt3);
         }
         .bd-trailer {
-          background: none;
           display: inline-flex;
           align-items: center;
-          gap: 7px;
-          font-size: 15px;
+          gap: 6px;
+          font-size: 13px;
           font-weight: 600;
-          color: var(--text);
-          padding: 4px 6px;
-          margin-left: 4px;
-        }
-        .bd-trailer:hover {
-          color: #000;
+          color: var(--bt);
+          padding: 3px 5px;
+          margin-left: 3px;
         }
 
         .band-cast {
           padding-top: 2px;
         }
         .bc-k {
-          font-size: 14px;
+          font-size: 12px;
           font-weight: 600;
-          color: var(--text-3);
-          margin-bottom: 7px;
+          color: var(--bt3);
+          margin-bottom: 5px;
         }
         .bc-v {
-          font-size: 21px;
+          font-size: 17px;
           font-weight: 600;
           letter-spacing: -0.02em;
-          color: var(--text);
+          color: var(--bt);
         }
         .bc-sub {
-          font-size: 16px;
-          line-height: 1.4;
-          color: var(--text-2);
-          margin-top: 6px;
+          font-size: 13.5px;
+          line-height: 1.45;
+          color: var(--bt2);
+          margin-top: 4px;
         }
 
-        /* entrance */
+        /* ── entrance ── */
         .rise {
           opacity: 0;
           transform: translateY(22px);
-          animation: rise 1s cubic-bezier(0.2, 0.7, 0.2, 1) forwards;
+          animation: mq-rise 1s cubic-bezier(0.2, 0.7, 0.2, 1) forwards;
         }
         .rise.d1 {
           animation-delay: 0.15s;
@@ -471,10 +470,7 @@ export function MarqueeHero({
         .rise.d2 {
           animation-delay: 0.35s;
         }
-        .rise.d3 {
-          animation-delay: 0.55s;
-        }
-        @keyframes rise {
+        @keyframes mq-rise {
           to {
             opacity: 1;
             transform: none;
@@ -489,45 +485,28 @@ export function MarqueeHero({
           }
         }
 
-        /* toast */
+        /* toast — a small, neutral confirmation (design has no JS; these only
+           fire from the component's default button handlers). */
         .toast-wrap {
-          position: fixed;
+          position: absolute;
           left: 50%;
-          bottom: 40px;
+          bottom: 18px;
           transform: translateX(-50%);
-          z-index: 200;
+          z-index: 9;
           display: flex;
           flex-direction: column;
-          gap: 10px;
+          gap: 8px;
           align-items: center;
           pointer-events: none;
         }
         .toast {
-          background: rgba(40, 40, 44, 0.82);
-          -webkit-backdrop-filter: blur(24px) saturate(180%);
-          backdrop-filter: blur(24px) saturate(180%);
+          background: rgba(20, 20, 22, 0.9);
           color: #fff;
-          padding: 13px 22px;
+          padding: 10px 18px;
           border-radius: 999px;
-          font-size: 16px;
+          font-size: 13px;
           font-weight: 600;
-          box-shadow: 0 18px 50px rgba(0, 0, 0, 0.5),
-            inset 0 0 0 1px rgba(255, 255, 255, 0.12);
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          animation: tin 0.3s cubic-bezier(0.2, 1.1, 0.3, 1);
-        }
-        .toast .tk {
-          color: #30d158;
-          display: grid;
-          place-items: center;
-        }
-        @keyframes tin {
-          from {
-            opacity: 0;
-            transform: translateY(14px);
-          }
+          box-shadow: 0 14px 40px rgba(0, 0, 0, 0.4);
         }
 
         @media (max-width: 1200px) {
@@ -535,8 +514,8 @@ export function MarqueeHero({
             --gut: 44px;
           }
           .band {
-            grid-template-columns: 340px minmax(0, 1fr);
-            gap: 40px;
+            grid-template-columns: 280px minmax(0, 1fr);
+            gap: 36px;
           }
           .band-cast {
             display: none;
@@ -547,12 +526,12 @@ export function MarqueeHero({
             --gut: 22px;
           }
           .panel-title {
-            bottom: 248px;
+            bottom: 234px;
           }
           .band {
             grid-template-columns: 1fr;
-            gap: 20px;
-            padding-bottom: 32px;
+            gap: 18px;
+            padding-bottom: 28px;
           }
           .band-desc {
             display: none;
