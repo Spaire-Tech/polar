@@ -46,9 +46,12 @@ export function HeroPicker({
       name: 'Marquee',
       desc: 'Cinematic and full-bleed, like a streaming title.',
       node: (
+        // Dark variant per the latest Marquee Hero design — the preview shows
+        // the band fading into the dark page, not the light one.
         <MarqueeHero
           fill
           instant
+          dark
           imageUrl="/assets/onboarding/cover-hero.jpg"
         />
       ),
