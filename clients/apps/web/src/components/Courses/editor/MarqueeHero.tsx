@@ -281,23 +281,23 @@ export function MarqueeHero({
           position: absolute;
           left: var(--gut);
           right: var(--gut);
-          bottom: 242px;
+          bottom: 286px;
           z-index: 4;
         }
         .pt-eyebrow {
-          font-size: 13px;
+          font-size: 15px;
           font-weight: 600;
           letter-spacing: 0.02em;
-          color: rgba(255, 255, 255, 0.82);
-          margin-bottom: 14px;
+          color: rgba(255, 255, 255, 0.85);
+          margin-bottom: 16px;
           text-shadow: 0 2px 18px rgba(0, 0, 0, 0.5);
         }
         .pt-h {
-          font-size: clamp(40px, 4.8vw, 72px);
+          font-size: clamp(52px, 6vw, 92px);
           font-weight: 800;
           letter-spacing: -0.035em;
-          line-height: 0.92;
-          max-width: 14ch;
+          line-height: 0.9;
+          max-width: 13ch;
           color: #fff;
           text-shadow: 0 4px 50px rgba(0, 0, 0, 0.4);
         }
@@ -310,10 +310,10 @@ export function MarqueeHero({
           bottom: 0;
           z-index: 5;
           display: grid;
-          grid-template-columns: 280px minmax(0, 1fr) 250px;
-          gap: 44px;
+          grid-template-columns: 320px minmax(0, 1fr) 280px;
+          gap: 52px;
           align-items: start;
-          padding: 76px var(--gut) 38px;
+          padding: 88px var(--gut) 46px;
           -webkit-backdrop-filter: blur(32px) saturate(140%);
           backdrop-filter: blur(32px) saturate(140%);
           background: linear-gradient(
@@ -323,23 +323,23 @@ export function MarqueeHero({
             rgba(var(--band), 0.45) 82%,
             rgba(var(--band), 0) 100%
           );
-          -webkit-mask-image: linear-gradient(0deg, #000 78%, transparent 100%);
-          mask-image: linear-gradient(0deg, #000 78%, transparent 100%);
+          -webkit-mask-image: linear-gradient(0deg, #000 80%, transparent 100%);
+          mask-image: linear-gradient(0deg, #000 80%, transparent 100%);
           color: var(--bt);
         }
         .band-actions {
           display: flex;
           flex-direction: column;
-          gap: 10px;
+          gap: 11px;
         }
         .abtn {
           display: inline-flex;
           align-items: center;
           justify-content: center;
-          gap: 9px;
-          height: 46px;
-          border-radius: 12px;
-          font-size: 15px;
+          gap: 10px;
+          height: 54px;
+          border-radius: 13px;
+          font-size: 17px;
           font-weight: 600;
           letter-spacing: -0.01em;
           transition: transform 0.16s cubic-bezier(0.2, 1.2, 0.3, 1),
@@ -382,44 +382,44 @@ export function MarqueeHero({
           box-shadow: none;
         }
         .band-free {
-          font-size: 13px;
+          font-size: 14px;
           font-weight: 500;
           color: var(--bt2);
           text-align: center;
-          margin-top: 3px;
+          margin-top: 4px;
         }
 
         .band-desc {
-          padding-top: 2px;
+          padding-top: 3px;
         }
         .bd-text {
-          font-size: 16px;
+          font-size: 19px;
           line-height: 1.5;
           font-weight: 400;
           color: var(--bt);
-          max-width: 62ch;
+          max-width: 58ch;
         }
         .bd-meta {
-          font-size: 13.5px;
+          font-size: 15px;
           font-weight: 500;
           color: var(--bt2);
-          margin-top: 12px;
+          margin-top: 16px;
         }
         .bd-badges {
           display: flex;
           align-items: center;
           flex-wrap: wrap;
-          gap: 7px;
-          margin-top: 12px;
+          gap: 8px;
+          margin-top: 16px;
         }
         .bdg {
-          font-size: 11px;
+          font-size: 12px;
           font-weight: 700;
           letter-spacing: 0.04em;
           color: var(--bt2);
           background: rgba(125, 125, 135, 0.16);
-          border-radius: 5px;
-          padding: 3px 7px;
+          border-radius: 6px;
+          padding: 4px 9px;
         }
         .bdg.rate {
           background: transparent;
@@ -428,34 +428,34 @@ export function MarqueeHero({
         .bd-trailer {
           display: inline-flex;
           align-items: center;
-          gap: 6px;
-          font-size: 13px;
+          gap: 7px;
+          font-size: 14px;
           font-weight: 600;
           color: var(--bt);
-          padding: 3px 5px;
+          padding: 4px 6px;
           margin-left: 3px;
         }
 
         .band-cast {
-          padding-top: 2px;
+          padding-top: 3px;
         }
         .bc-k {
-          font-size: 12px;
+          font-size: 13px;
           font-weight: 600;
           color: var(--bt3);
-          margin-bottom: 5px;
+          margin-bottom: 6px;
         }
         .bc-v {
-          font-size: 17px;
+          font-size: 20px;
           font-weight: 600;
           letter-spacing: -0.02em;
           color: var(--bt);
         }
         .bc-sub {
-          font-size: 13.5px;
+          font-size: 15px;
           line-height: 1.45;
           color: var(--bt2);
-          margin-top: 4px;
+          margin-top: 5px;
         }
 
         /* ── entrance ── */
@@ -514,8 +514,8 @@ export function MarqueeHero({
             --gut: 44px;
           }
           .band {
-            grid-template-columns: 280px minmax(0, 1fr);
-            gap: 36px;
+            grid-template-columns: 300px minmax(0, 1fr);
+            gap: 40px;
           }
           .band-cast {
             display: none;
@@ -526,12 +526,12 @@ export function MarqueeHero({
             --gut: 22px;
           }
           .panel-title {
-            bottom: 234px;
+            bottom: 270px;
           }
           .band {
             grid-template-columns: 1fr;
-            gap: 18px;
-            padding-bottom: 28px;
+            gap: 20px;
+            padding-bottom: 32px;
           }
           .band-desc {
             display: none;
