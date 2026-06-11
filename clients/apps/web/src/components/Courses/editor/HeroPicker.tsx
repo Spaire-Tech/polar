@@ -46,7 +46,11 @@ export function HeroPicker({
       name: 'Marquee',
       desc: 'Cinematic and full-bleed, like a streaming title.',
       node: (
-        <MarqueeHero fill imageUrl="/assets/onboarding/cover-hero.jpg" />
+        <MarqueeHero
+          fill
+          instant
+          imageUrl="/assets/onboarding/cover-hero.jpg"
+        />
       ),
     },
     {
