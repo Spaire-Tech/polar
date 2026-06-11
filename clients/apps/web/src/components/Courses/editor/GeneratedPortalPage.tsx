@@ -1,38 +1,42 @@
 'use client'
 
-// GeneratedPortalPage — THE page the AI generates, composed 1:1 from the two
-// course-page designs ("Course Page Empty State.html" and "Marquee Empty
-// State.html"). One surface, five axes, every onboarding choice honored:
+// GeneratedPortalPage — THE page the AI generates. A literal clone of the
+// two course-page designs, composed by the onboarding choices:
 //
-//   hero      marquee | cover       — Marquee panel + frosted band that fades
-//                                     into the page colour, or the Cover hero
-//                                     with badge/title/desc over the art.
-//   cards     spotlight | catalog   — title over the image vs. details below.
-//   trial     free_preview | lesson_sample — Free/lock chips on tiles, or the
-//                                     designed Free Sample screen section.
-//   structure modules | episodic    — module rows vs. a scroll-snap strip
-//                                     with hover arrows.
-//   theme     light | dark          — page + band colours flip together
-//                                     (design's toggle, persisted).
+//   "Marquee Course Page.html"     → marquee hero (.panel + frosted band
+//                                    fading into the page colour) and the
+//                                    catalog episode strip (.lc-catalog) with
+//                                    scroll-snap + hover arrows.
+//   "Course Page Empty State.html" → cover hero (.hero), the Free Sample
+//                                    screen (.sample), spotlight cards
+//                                    (.card) in module rows, liquid-glass
+//                                    placeholders (.ph-ambient/.glass-tint).
 //
-// MEDIA RULE: missing media renders the designs' liquid-glass placeholder
-// (blurred ambient colour field under a glass tint) — NEVER the cover photo,
-// and NO "Add image / Add trailer" affordances here; media is added later in
-// the editor. A lesson only shows a photo if IT has one.
+// The DOM uses the designs' exact class names and the CSS below is copied
+// from the design files verbatim — selectors are only prefixed with the
+// root class (.gpp) and `body.dark` becomes `.gpp.dark`. The styles are
+// emitted via <style jsx global> so they apply to every node exactly like
+// the designs' plain stylesheets do (no styled-jsx scoping to silently miss
+// elements rendered by helpers — the bug that flattened the cards).
+//
+// MEDIA RULE: missing media renders the designs' liquid-glass placeholder —
+// never the cover photo on every tile, and NO "Add image / Add trailer"
+// affordances here (media is added later in the editor). A lesson tile only
+// shows a photo if THAT lesson has one.
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 const PLAY_PATH =
   'M8 5.5v13a1 1 0 0 0 1.5.87l11-6.5a1 1 0 0 0 0-1.74l-11-6.5A1 1 0 0 0 8 5.5Z'
 
-const ImageIcon = ({ size = 14, sw = 2 }: { size?: number; sw?: number }) => (
+const ImageGlyph = () => (
   <svg
-    width={size}
-    height={size}
+    width="64"
+    height="64"
     viewBox="0 0 24 24"
     fill="none"
     stroke="currentColor"
-    strokeWidth={sw}
+    strokeWidth="1.1"
     strokeLinecap="round"
     strokeLinejoin="round"
   >
@@ -58,20 +62,31 @@ const ClockIcon = () => (
   </svg>
 )
 
-const LockIcon = () => (
-  <svg
-    width="11"
-    height="11"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2.1"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <rect x="4.5" y="10.5" width="15" height="10" rx="2.5" />
-    <path d="M8 10.5V7.8a4 4 0 0 1 8 0v2.7" />
-  </svg>
+const FreeChip = () => (
+  <div className="lc-state lc-free">
+    <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M8 5v14l11-7z" />
+    </svg>
+    Free
+  </div>
+)
+
+const LockChip = () => (
+  <div className="lc-state lc-lock">
+    <svg
+      width="11"
+      height="11"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.1"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <rect x="4.5" y="10.5" width="15" height="10" rx="2.5" />
+      <path d="M8 10.5V7.8a4 4 0 0 1 8 0v2.7" />
+    </svg>
+  </div>
 )
 
 export type GeneratedLesson = {
@@ -177,7 +192,7 @@ export function GeneratedPortalPage({
       ? 'sample clip free'
       : `first ${freeLessons} free`
 
-  // ── episodic strip arrows (design: show/hide by scroll position) ──
+  // ── strip arrows: show/hide by scroll position (the design's script) ──
   const stripRef = useRef<HTMLDivElement | null>(null)
   const [showPrev, setShowPrev] = useState(false)
   const [showNext, setShowNext] = useState(false)
@@ -245,26 +260,14 @@ export function GeneratedPortalPage({
     </button>
   ) : null
 
-  const chip = (l: GeneratedLesson) =>
-    !paywallEnabled || trialMode === 'lesson_sample' ? null : l.free ? (
-      <div className="lc-state lc-free">
-        <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M8 5v14l11-7z" />
-        </svg>
-        Free
-      </div>
-    ) : (
-      <div className="lc-state lc-lock">
-        <LockIcon />
-      </div>
-    )
+  const showChips = paywallEnabled && trialMode === 'free_preview'
 
-  // ── spotlight card (CourseEmptyState vocabulary, no add pill) ──
+  // ── spotlight card — design's .card from Course Page Empty State ──
   const spotlightCard = (l: GeneratedLesson) => (
     <div
-      className={`sp-card${l.imageUrl ? ' filled' : ''}`}
+      className={`card${l.imageUrl ? ' filled' : ''}`}
       key={l.flatIdx}
-      onClick={() => onLessonClick?.(l.flatIdx)}
+      onClick={onLessonClick ? () => onLessonClick(l.flatIdx) : undefined}
       role={onLessonClick ? 'button' : undefined}
     >
       <div className="ph-ambient" />
@@ -276,14 +279,14 @@ export function GeneratedPortalPage({
         }
       />
       <div className="photo-shade" />
-      {chip(l)}
+      {showChips && (l.free ? <FreeChip /> : <LockChip />)}
       <div className="card-info">
         <div className="ep">
           {unitCap} {l.flatIdx + 1}
         </div>
-        <div className="sp-title">{l.title}</div>
-        <div className="sp-desc">{l.description}</div>
-        <div className="sp-foot">
+        <div className="title">{l.title}</div>
+        <div className="desc">{l.description}</div>
+        <div className="foot">
           <span className="time">
             <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
               <path d={PLAY_PATH} />
@@ -300,27 +303,46 @@ export function GeneratedPortalPage({
     </div>
   )
 
-  // ── catalog card (MarqueeEmptyState vocabulary, no add pill) ──
+  // ── catalog card — design's .lc-catalog from Marquee Course Page ──
   const catalogCard = (l: GeneratedLesson) => (
     <div
       className="lc-catalog"
       key={l.flatIdx}
-      onClick={() => onLessonClick?.(l.flatIdx)}
+      onClick={onLessonClick ? () => onLessonClick(l.flatIdx) : undefined}
       role={onLessonClick ? 'button' : undefined}
     >
       <div className="lc-card">
-        <div className={`lc-thumb ph${l.imageUrl ? ' filled' : ''}`}>
-          <div className="ph-ambient" />
-          <div className="glass-tint" />
-          <div
-            className="photo"
-            style={
-              l.imageUrl
-                ? { backgroundImage: `url("${l.imageUrl}")` }
-                : undefined
-            }
-          />
-          {chip(l)}
+        <div className={`lc-thumb${l.imageUrl ? '' : ' ph'}`}>
+          {l.imageUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={l.imageUrl} alt="" />
+          ) : (
+            <>
+              <div className="ph-ambient" />
+              <div className="glass-tint" />
+            </>
+          )}
+          {showChips && (l.free ? <FreeChip /> : <LockChip />)}
+          {l.durationLabel && (
+            <div className="lc-dur">
+              <ClockIcon />
+              <span>{l.durationLabel}</span>
+            </div>
+          )}
+          {onLessonClick && (
+            <div className="lc-play">
+              <div className="lc-play-btn">
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="currentColor"
+                >
+                  <path d="M8 5v14l11-7z" />
+                </svg>
+              </div>
+            </div>
+          )}
         </div>
         <div className="lc-info">
           <div className="lc-num">
@@ -340,30 +362,34 @@ export function GeneratedPortalPage({
   const card = cardVariant === 'spotlight' ? spotlightCard : catalogCard
 
   return (
-    <div className={`gpp-root${dark ? ' dark' : ''}`}>
-      {/* ════════ HERO ════════ */}
+    <div className={`gpp${dark ? ' dark' : ''}`}>
+      {/* ════════ MARQUEE HERO (Marquee Course Page.html) ════════ */}
       {heroVariant === 'marquee' ? (
         <header className={`panel${coverUrl ? ' filled' : ''}`}>
-          <div className="ph-ambient" />
-          <div className="glass-tint" />
-          <div
-            className="photo"
-            style={
-              coverUrl
-                ? {
-                    backgroundImage: `url("${coverUrl}")`,
-                    backgroundPosition: coverPosition || 'center',
-                  }
-                : undefined
-            }
-          />
-          <div className="hero-ph-glyph">
-            <ImageIcon size={64} sw={1.1} />
-          </div>
+          {coverUrl ? (
+            <>
+              <div
+                className="panel-art"
+                style={{
+                  backgroundImage: `url('${coverUrl}')`,
+                  backgroundPosition: coverPosition || 'center 18%',
+                }}
+              />
+              <div className="panel-scrim" />
+            </>
+          ) : (
+            <>
+              <div className="ph-ambient" />
+              <div className="glass-tint" />
+              <div className="hero-ph-glyph">
+                <ImageGlyph />
+              </div>
+            </>
+          )}
           <div className="panel-grain" />
 
           <div className="panel-brand rise">{brand}</div>
-          {themeToggle && <div className="creator-bar">{themeToggle}</div>}
+          {themeToggle}
 
           <div className="panel-title">
             <div className="pt-eyebrow rise d1">{eyebrow}</div>
@@ -429,6 +455,7 @@ export function GeneratedPortalPage({
           </div>
         </header>
       ) : (
+        /* ════════ COVER HERO (Course Page Empty State.html) ════════ */
         <section className={`hero${coverUrl ? ' filled' : ''}`}>
           <div className="ph-ambient" />
           <div className="hero-art" />
@@ -445,19 +472,21 @@ export function GeneratedPortalPage({
           />
           <div className="photo-shade" />
           <div className="hero-ph">
-            <ImageIcon size={64} sw={1.1} />
+            <ImageGlyph />
           </div>
+          <div className="hero-shade" />
           <div className="hero-blend" />
 
           <div className="hero-eyebrow">
             <span className="dot" />
             <span>Spaire Original</span>
           </div>
+
           {themeToggle && <div className="creator-bar">{themeToggle}</div>}
 
           <div className="hero-content">
             <div className="hero-meta">
-              <span className="hbadge">{badge}</span>
+              <span className="badge">{badge}</span>
               <div className="meta-line">
                 <span>
                   {lessonCount} {unit}
@@ -469,16 +498,14 @@ export function GeneratedPortalPage({
             </div>
 
             <h1 className="hero-title">
-              {titleLines && titleLines.length > 1 ? (
-                titleLines.map((line, i) => (
-                  <span key={i}>
-                    {i > 0 && <br />}
-                    {line}
-                  </span>
-                ))
-              ) : (
-                title
-              )}
+              {titleLines && titleLines.length > 1
+                ? titleLines.map((line, i) => (
+                    <span key={i}>
+                      {i > 0 && <br />}
+                      {line}
+                    </span>
+                  ))
+                : title}
             </h1>
 
             <p className="hero-desc">
@@ -528,7 +555,7 @@ export function GeneratedPortalPage({
         </section>
       )}
 
-      {/* ════════ FREE SAMPLE — only for the lesson_sample trial ════════ */}
+      {/* ════════ FREE SAMPLE (Course Page Empty State.html) ════════ */}
       {paywallEnabled && trialMode === 'lesson_sample' && (
         <section className="sample">
           <div className="sample-eyebrow">Free Sample</div>
@@ -555,39 +582,28 @@ export function GeneratedPortalPage({
               }
             />
             <div className="photo-shade" />
-            {samplePlayable ? (
-              <span className="sample-play">
-                <svg
-                  width="24"
-                  height="24"
-                  viewBox="0 0 24 24"
-                  fill="currentColor"
-                >
-                  <path d={PLAY_PATH} />
-                </svg>
-              </span>
-            ) : (
-              // Placeholder only — no add affordance; media comes later in
-              // the editor. A faint glyph marks the screen as video.
-              <span className="sample-glyph">
-                <svg
-                  width="44"
-                  height="44"
-                  viewBox="0 0 24 24"
-                  fill="currentColor"
-                >
-                  <path d={PLAY_PATH} />
-                </svg>
-              </span>
+            {samplePlayable && (
+              <div className="ph-cta">
+                <span className="ph-ic">
+                  <svg
+                    width="24"
+                    height="24"
+                    viewBox="0 0 24 24"
+                    fill="currentColor"
+                  >
+                    <path d={PLAY_PATH} />
+                  </svg>
+                </span>
+              </div>
             )}
           </div>
         </section>
       )}
 
-      {/* ════════ LESSONS / EPISODES ════════ */}
+      {/* ════════ LESSONS — module rows (CPES) or episode strip (MCP) ════════ */}
       {isEpisodic ? (
         <div className="lessons">
-          <div className="row-head strip-head">
+          <div className="row-head strip-rh">
             <span className="rh">Episodes</span>
             <span className="rh-meta">
               {lessonCount} episode{lessonCount === 1 ? '' : 's'} · {trialShort}
@@ -632,7 +648,7 @@ export function GeneratedPortalPage({
                 <path d="M9.5 5l6.5 7-6.5 7" />
               </svg>
             </button>
-            <div className="strip" ref={stripRef}>
+            <div className="grid" ref={stripRef}>
               {groups.flatMap((g) => g.lessons).map((l) => card(l))}
             </div>
           </div>
@@ -645,18 +661,17 @@ export function GeneratedPortalPage({
                 <span className="mod">Module {gi + 1}</span>
                 <span>{g.title}</span>
               </div>
-              <div className="mod-grid">{g.lessons.map((l) => card(l))}</div>
+              <div className="grid">{g.lessons.map((l) => card(l))}</div>
             </section>
           ))}
         </div>
       )}
 
-      <style jsx>{`
-        /* ============================================================
-           GENERATED COURSE PAGE — composed from the two empty-state
-           designs. Page + band colours flip together in dark mode.
-           ============================================================ */
-        .gpp-root {
+      {/* CSS — copied verbatim from the two design files. Selectors are
+          prefixed with .gpp (root) and body.dark → .gpp.dark; keyframes get
+          a gpp- prefix because this style block is global. */}
+      <style jsx global>{`
+        .gpp {
           --bg: #ffffff;
           --band: 255, 255, 255;
           --bt: #1d1d1f;
@@ -664,6 +679,7 @@ export function GeneratedPortalPage({
           --bt3: rgba(0, 0, 0, 0.4);
           --text: #1d1d1f;
           --text-2: #86868b;
+          --blue: #0071e3;
           --ink: #07080a;
           --sf: -apple-system, BlinkMacSystemFont, 'SF Pro Display',
             'SF Pro Text', system-ui, sans-serif;
@@ -679,7 +695,7 @@ export function GeneratedPortalPage({
           transition: background 0.4s ease;
           min-height: 100%;
         }
-        .gpp-root.dark {
+        .gpp.dark {
           --bg: #141416;
           --band: 20, 20, 22;
           --bt: #f5f5f7;
@@ -688,7 +704,12 @@ export function GeneratedPortalPage({
           --text: #f5f5f7;
           --text-2: rgba(245, 245, 247, 0.6);
         }
-        .gpp-root :global(button) {
+        .gpp * {
+          box-sizing: border-box;
+          margin: 0;
+          padding: 0;
+        }
+        .gpp button {
           font-family: inherit;
           cursor: pointer;
           border: none;
@@ -696,8 +717,8 @@ export function GeneratedPortalPage({
           color: inherit;
         }
 
-        /* ── liquid glass placeholder ── */
-        .ph-ambient {
+        /* ── liquid glass: blurred ambient color under a glass tint ── */
+        .gpp .ph-ambient {
           position: absolute;
           inset: -15%;
           background: radial-gradient(
@@ -711,73 +732,73 @@ export function GeneratedPortalPage({
             #57544e;
           filter: blur(40px);
         }
-        .glass-tint {
+        .gpp .glass-tint {
           position: absolute;
           inset: 0;
           background: rgba(0, 0, 0, 0.18);
           -webkit-backdrop-filter: blur(60px) saturate(140%);
           backdrop-filter: blur(60px) saturate(140%);
+          box-shadow: none;
         }
-        .photo {
+
+        /* ── uploaded photo state ── */
+        .gpp .photo {
           position: absolute;
           inset: 0;
           background-size: cover;
           background-position: center;
           display: none;
         }
-        .photo-shade {
+        .gpp .photo-shade {
           position: absolute;
           inset: 0;
           display: none;
         }
-        .filled .photo,
-        .filled .photo-shade {
+        .gpp .filled .photo,
+        .gpp .filled .photo-shade {
           display: block;
         }
-
-        /* ── theme toggle (creator bar, no add pills) ── */
-        .creator-bar {
-          position: absolute;
-          top: 26px;
-          right: var(--gut);
-          z-index: 10;
-          display: flex;
-          align-items: center;
-          gap: 10px;
-        }
-        .theme-toggle {
-          width: 40px;
-          height: 40px;
-          border-radius: 50%;
-          background: rgba(20, 20, 24, 0.4);
-          color: #fff;
-          -webkit-backdrop-filter: blur(14px) saturate(150%);
-          backdrop-filter: blur(14px) saturate(150%);
-          display: grid;
-          place-items: center;
-          transition: background 0.2s, transform 0.16s;
-        }
-        .theme-toggle:hover {
-          background: rgba(40, 40, 46, 0.6);
-          transform: scale(1.06);
-        }
-        .theme-toggle:active {
-          transform: scale(0.94);
-        }
-        .theme-toggle :global(.ic-sun) {
+        .gpp .hero.filled .ph-ambient,
+        .gpp .hero.filled .hero-art,
+        .gpp .hero.filled .hero-ph {
           display: none;
         }
-        .gpp-root.dark .theme-toggle :global(.ic-sun) {
-          display: block;
+        .gpp .hero .photo-shade {
+          background: linear-gradient(
+            0deg,
+            rgba(5, 5, 8, 0.62) 0%,
+            rgba(5, 5, 8, 0.28) 32%,
+            transparent 58%
+          );
         }
-        .gpp-root.dark .theme-toggle :global(.ic-moon) {
+        .gpp .sample-screen.filled .ph-ambient,
+        .gpp .sample-screen.filled .glass-tint {
           display: none;
         }
+        .gpp .sample-screen .photo-shade {
+          background: linear-gradient(
+            0deg,
+            rgba(7, 8, 10, 0.55) 0%,
+            rgba(7, 8, 10, 0.12) 30%,
+            transparent 50%
+          );
+        }
+        .gpp .card.filled .ph-ambient,
+        .gpp .card.filled .glass-tint {
+          display: none;
+        }
+        .gpp .card .photo-shade {
+          background: linear-gradient(
+            0deg,
+            rgba(7, 8, 10, 0.92) 2%,
+            rgba(7, 8, 10, 0.6) 24%,
+            rgba(7, 8, 10, 0.08) 50%,
+            transparent 64%
+          );
+        }
 
-        /* ============================================================
-           MARQUEE HERO — panel + frosted band fading into the page.
-           ============================================================ */
-        .panel {
+        /* ============================================================ MARQUEE HERO */
+        .gpp .panel {
           position: relative;
           width: 100%;
           height: 92vh;
@@ -785,12 +806,30 @@ export function GeneratedPortalPage({
           overflow: hidden;
           background: var(--ink);
         }
-        .panel.filled .ph-ambient,
-        .panel.filled .glass-tint,
-        .panel.filled .hero-ph-glyph {
-          display: none;
+        .gpp .panel-art {
+          position: absolute;
+          inset: 0;
+          background-size: cover;
+          background-position: center 24%;
+          transform: scale(1.04);
+          animation: gpp-kb 26s ease-out forwards;
         }
-        .panel-grain {
+        @keyframes gpp-kb {
+          to {
+            transform: scale(1.13);
+          }
+        }
+        .gpp .panel-scrim {
+          position: absolute;
+          inset: 0;
+          background: linear-gradient(
+            115deg,
+            rgba(0, 0, 0, 0.55) 0%,
+            rgba(0, 0, 0, 0.16) 40%,
+            transparent 62%
+          );
+        }
+        .gpp .panel-grain {
           position: absolute;
           inset: 0;
           opacity: 0.05;
@@ -798,7 +837,7 @@ export function GeneratedPortalPage({
           mix-blend-mode: overlay;
           background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
         }
-        .hero-ph-glyph {
+        .gpp .hero-ph-glyph {
           position: absolute;
           top: 38%;
           left: 50%;
@@ -807,7 +846,7 @@ export function GeneratedPortalPage({
           color: rgba(255, 255, 255, 0.22);
           pointer-events: none;
         }
-        .panel-brand {
+        .gpp .panel-brand {
           position: absolute;
           left: var(--gut);
           top: 32px;
@@ -819,41 +858,77 @@ export function GeneratedPortalPage({
           color: rgba(255, 255, 255, 0.78);
           text-shadow: 0 1px 12px rgba(0, 0, 0, 0.4);
         }
-        .panel-title {
+        .gpp .panel .theme-toggle {
+          position: absolute;
+          top: 26px;
+          right: var(--gut);
+          z-index: 10;
+          width: 40px;
+          height: 40px;
+          border-radius: 50%;
+          background: rgba(20, 20, 24, 0.4);
+          color: #fff;
+          -webkit-backdrop-filter: blur(14px) saturate(150%);
+          backdrop-filter: blur(14px) saturate(150%);
+          box-shadow: none;
+          display: grid;
+          place-items: center;
+          transition: background 0.2s, transform 0.16s;
+        }
+        .gpp .panel .theme-toggle:hover {
+          background: rgba(40, 40, 46, 0.6);
+          transform: scale(1.06);
+        }
+        .gpp .panel .theme-toggle:active {
+          transform: scale(0.94);
+        }
+        .gpp .theme-toggle .ic-sun {
+          display: none;
+        }
+        .gpp.dark .theme-toggle .ic-sun {
+          display: block;
+        }
+        .gpp.dark .theme-toggle .ic-moon {
+          display: none;
+        }
+
+        .gpp .panel-title {
           position: absolute;
           left: var(--gut);
           right: var(--gut);
-          bottom: 286px;
+          bottom: 242px;
           z-index: 4;
         }
-        .pt-eyebrow {
-          font-size: 15px;
+        .gpp .pt-eyebrow {
+          font-size: 13px;
           font-weight: 600;
           letter-spacing: 0.02em;
-          color: rgba(255, 255, 255, 0.85);
-          margin-bottom: 16px;
+          color: rgba(255, 255, 255, 0.82);
+          margin-bottom: 14px;
           text-shadow: 0 2px 18px rgba(0, 0, 0, 0.5);
         }
-        .pt-h {
-          font-size: clamp(52px, 6vw, 92px);
+        .gpp .pt-h {
+          font-size: clamp(40px, 4.8vw, 72px);
           font-weight: 800;
           letter-spacing: -0.035em;
-          line-height: 0.9;
-          max-width: 13ch;
+          line-height: 0.92;
+          max-width: 14ch;
           color: #fff;
           text-shadow: 0 4px 50px rgba(0, 0, 0, 0.4);
         }
-        .band {
+
+        /* frosted control band — fades into the page color */
+        .gpp .band {
           position: absolute;
           left: 0;
           right: 0;
           bottom: 0;
           z-index: 5;
           display: grid;
-          grid-template-columns: 320px minmax(0, 1fr) 280px;
-          gap: 52px;
+          grid-template-columns: 280px minmax(0, 1fr) 250px;
+          gap: 44px;
           align-items: start;
-          padding: 88px var(--gut) 46px;
+          padding: 76px var(--gut) 38px;
           -webkit-backdrop-filter: blur(32px) saturate(140%);
           backdrop-filter: blur(32px) saturate(140%);
           background: linear-gradient(
@@ -863,148 +938,152 @@ export function GeneratedPortalPage({
             rgba(var(--band), 0.45) 82%,
             rgba(var(--band), 0) 100%
           );
-          -webkit-mask-image: linear-gradient(0deg, #000 80%, transparent 100%);
-          mask-image: linear-gradient(0deg, #000 80%, transparent 100%);
+          -webkit-mask-image: linear-gradient(0deg, #000 78%, transparent 100%);
+          mask-image: linear-gradient(0deg, #000 78%, transparent 100%);
           color: var(--bt);
           transition: color 0.4s ease;
         }
-        .band-actions {
+        .gpp .band-actions {
           display: flex;
           flex-direction: column;
-          gap: 11px;
+          gap: 10px;
         }
-        .abtn {
+        .gpp .abtn {
           display: inline-flex;
           align-items: center;
           justify-content: center;
-          gap: 10px;
-          height: 54px;
-          border-radius: 13px;
-          font-size: 17px;
+          gap: 9px;
+          height: 46px;
+          border-radius: 12px;
+          font-size: 15px;
           font-weight: 600;
           letter-spacing: -0.01em;
           transition: transform 0.16s cubic-bezier(0.2, 1.2, 0.3, 1),
             background 0.16s, box-shadow 0.16s;
         }
-        .abtn:active {
+        .gpp .abtn:active {
           transform: scale(0.975);
         }
-        .abtn.play {
+        .gpp .abtn.play {
           background: var(--bt);
           color: var(--bg);
           box-shadow: 0 8px 26px rgba(0, 0, 0, 0.18);
         }
-        .abtn.play:hover {
+        .gpp .abtn.play:hover {
           transform: translateY(-1px);
         }
-        .abtn.buy {
+        .gpp .abtn.buy {
           background: rgba(var(--band), 0.55);
           color: var(--bt);
           -webkit-backdrop-filter: blur(20px) saturate(160%);
           backdrop-filter: blur(20px) saturate(160%);
           box-shadow: inset 0 0 0 1px var(--bt3);
         }
-        .abtn.buy:hover {
+        .gpp .abtn.buy:hover {
           transform: translateY(-1px);
         }
-        .gpp-root.dark .abtn.buy {
+        .gpp.dark .abtn.buy {
           background: rgba(255, 255, 255, 0.14);
           color: #fff;
           box-shadow: none;
         }
-        .gpp-root.dark .abtn.buy:hover {
+        .gpp.dark .abtn.buy:hover {
           background: rgba(255, 255, 255, 0.24);
         }
-        .gpp-root.dark .bdg {
+        .gpp.dark .bdg {
           background: rgba(255, 255, 255, 0.12);
         }
-        .gpp-root.dark .bdg.rate {
+        .gpp.dark .bdg.rate {
           background: transparent;
           box-shadow: none;
         }
-        .band-free {
-          font-size: 14px;
+        .gpp .band-free {
+          font-size: 13px;
           font-weight: 500;
           color: var(--bt2);
           text-align: center;
-          margin-top: 4px;
+          margin-top: 3px;
         }
-        .band-desc {
-          padding-top: 3px;
+
+        .gpp .band-desc {
+          padding-top: 2px;
         }
-        .bd-text {
-          font-size: 19px;
+        .gpp .bd-text {
+          font-size: 16px;
           line-height: 1.5;
           font-weight: 400;
           color: var(--bt);
-          max-width: 58ch;
+          max-width: 62ch;
         }
-        .bd-meta {
-          font-size: 15px;
+        .gpp .bd-meta {
+          font-size: 13.5px;
           font-weight: 500;
           color: var(--bt2);
-          margin-top: 16px;
+          margin-top: 12px;
         }
-        .bd-badges {
+        .gpp .bd-badges {
           display: flex;
           align-items: center;
           flex-wrap: wrap;
-          gap: 8px;
-          margin-top: 16px;
+          gap: 7px;
+          margin-top: 12px;
         }
-        .bdg {
-          font-size: 12px;
+        .gpp .bdg {
+          font-size: 11px;
           font-weight: 700;
           letter-spacing: 0.04em;
           color: var(--bt2);
           background: rgba(125, 125, 135, 0.16);
-          border-radius: 6px;
-          padding: 4px 9px;
+          border-radius: 5px;
+          padding: 3px 7px;
         }
-        .bdg.rate {
+        .gpp .bdg.rate {
           background: transparent;
           box-shadow: inset 0 0 0 1.5px var(--bt3);
         }
-        .bd-trailer {
+        .gpp .bd-trailer {
           display: inline-flex;
           align-items: center;
-          gap: 7px;
-          font-size: 14px;
-          font-weight: 600;
-          color: var(--bt);
-          padding: 4px 6px;
-          margin-left: 3px;
-        }
-        .band-cast {
-          padding-top: 3px;
-        }
-        .bc-k {
+          gap: 6px;
           font-size: 13px;
           font-weight: 600;
-          color: var(--bt3);
-          margin-bottom: 6px;
+          color: var(--bt);
+          padding: 3px 5px;
+          margin-left: 3px;
         }
-        .bc-v {
-          font-size: 20px;
+
+        .gpp .band-cast {
+          padding-top: 2px;
+        }
+        .gpp .bc-k {
+          font-size: 12px;
+          font-weight: 600;
+          color: var(--bt3);
+          margin-bottom: 5px;
+        }
+        .gpp .bc-v {
+          font-size: 17px;
           font-weight: 600;
           letter-spacing: -0.02em;
           color: var(--bt);
         }
-        .bc-sub {
-          font-size: 15px;
+        .gpp .bc-sub {
+          font-size: 13.5px;
           line-height: 1.45;
           color: var(--bt2);
-          margin-top: 5px;
+          margin-top: 4px;
         }
-        .rise {
+
+        /* entrance */
+        .gpp .rise {
           opacity: 0;
           transform: translateY(22px);
           animation: gpp-rise 1s cubic-bezier(0.2, 0.7, 0.2, 1) forwards;
         }
-        .rise.d1 {
+        .gpp .rise.d1 {
           animation-delay: 0.15s;
         }
-        .rise.d2 {
+        .gpp .rise.d2 {
           animation-delay: 0.35s;
         }
         @keyframes gpp-rise {
@@ -1014,17 +1093,16 @@ export function GeneratedPortalPage({
           }
         }
         @media (prefers-reduced-motion: reduce) {
-          .rise {
+          .gpp .rise,
+          .gpp .panel-art {
             animation: none;
             opacity: 1;
             transform: none;
           }
         }
 
-        /* ============================================================
-           COVER HERO — badge / title / desc over the art.
-           ============================================================ */
-        .hero {
+        /* ============================================================ COVER HERO */
+        .gpp .hero {
           position: relative;
           width: 100%;
           height: 92vh;
@@ -1034,27 +1112,15 @@ export function GeneratedPortalPage({
           font-family: var(--po);
           letter-spacing: normal;
         }
-        .hero-art {
+        .gpp .hero-art {
           position: absolute;
           inset: 0;
           background: rgba(0, 0, 0, 0.18);
           -webkit-backdrop-filter: blur(60px) saturate(140%);
           backdrop-filter: blur(60px) saturate(140%);
+          box-shadow: none;
         }
-        .hero.filled .ph-ambient,
-        .hero.filled .hero-art,
-        .hero.filled .hero-ph {
-          display: none;
-        }
-        .hero .photo-shade {
-          background: linear-gradient(
-            0deg,
-            rgba(5, 5, 8, 0.62) 0%,
-            rgba(5, 5, 8, 0.28) 32%,
-            transparent 58%
-          );
-        }
-        .hero-ph {
+        .gpp .hero-ph {
           position: absolute;
           top: 50%;
           left: 50%;
@@ -1062,7 +1128,10 @@ export function GeneratedPortalPage({
           color: rgba(255, 255, 255, 0.22);
           pointer-events: none;
         }
-        .hero-blend {
+        .gpp .hero-shade {
+          display: none;
+        }
+        .gpp .hero-blend {
           position: absolute;
           left: 0;
           right: 0;
@@ -1074,13 +1143,14 @@ export function GeneratedPortalPage({
           pointer-events: none;
           transition: opacity 0.4s ease;
         }
-        .gpp-root.dark .hero-blend {
+        .gpp.dark .hero-blend {
           opacity: 1;
         }
-        .hero-eyebrow {
+
+        .gpp .hero-eyebrow {
           position: absolute;
           top: 48px;
-          left: var(--gut);
+          left: 64px;
           display: flex;
           align-items: center;
           gap: 10px;
@@ -1089,30 +1159,61 @@ export function GeneratedPortalPage({
           font-weight: 700;
           letter-spacing: 0.22em;
           text-transform: uppercase;
-          z-index: 4;
         }
-        .hero-eyebrow .dot {
+        .gpp .hero-eyebrow .dot {
           width: 7px;
           height: 7px;
           border-radius: 50%;
           background: #e0482e;
         }
-        .hero-content {
+
+        /* creator controls, top right (theme toggle only here) */
+        .gpp .creator-bar {
           position: absolute;
-          left: var(--gut);
-          right: var(--gut);
+          top: 40px;
+          right: 64px;
+          z-index: 10;
+          display: flex;
+          align-items: center;
+          gap: 10px;
+        }
+        .gpp .creator-bar .theme-toggle {
+          width: 40px;
+          height: 40px;
+          border-radius: 50%;
+          background: rgba(255, 255, 255, 0.14);
+          color: #fff;
+          -webkit-backdrop-filter: blur(40px) saturate(150%);
+          backdrop-filter: blur(40px) saturate(150%);
+          box-shadow: none;
+          display: grid;
+          place-items: center;
+          transition: background 0.2s, transform 0.16s;
+        }
+        .gpp .creator-bar .theme-toggle:hover {
+          background: rgba(255, 255, 255, 0.28);
+          transform: scale(1.06);
+        }
+        .gpp .creator-bar .theme-toggle:active {
+          transform: scale(0.94);
+        }
+
+        .gpp .hero-content {
+          position: absolute;
+          left: 64px;
+          right: 64px;
           bottom: 52px;
           max-width: 760px;
           color: #fff;
           z-index: 3;
         }
-        .hero-meta {
+        .gpp .hero-meta {
           display: flex;
           align-items: center;
           gap: 13px;
           margin-bottom: 18px;
         }
-        .hbadge {
+        .gpp .badge {
           display: inline-flex;
           align-items: center;
           background: rgba(255, 255, 255, 0.92);
@@ -1124,7 +1225,7 @@ export function GeneratedPortalPage({
           padding: 7px 14px;
           border-radius: 980px;
         }
-        .meta-line {
+        .gpp .meta-line {
           display: flex;
           align-items: center;
           gap: 9px;
@@ -1132,17 +1233,17 @@ export function GeneratedPortalPage({
           font-weight: 500;
           color: rgba(255, 255, 255, 0.78);
         }
-        .meta-line .sep {
+        .gpp .meta-line .sep {
           opacity: 0.55;
         }
-        .hero-title {
+        .gpp .hero-title {
           font-size: clamp(46px, 5.6vw, 84px);
           font-weight: 700;
           line-height: 1.02;
           letter-spacing: -0.025em;
           text-wrap: balance;
         }
-        .hero-desc {
+        .gpp .hero-desc {
           margin-top: 18px;
           max-width: 580px;
           font-size: 16px;
@@ -1150,16 +1251,16 @@ export function GeneratedPortalPage({
           line-height: 1.55;
           color: rgba(255, 255, 255, 0.88);
         }
-        .hero-desc .with {
+        .gpp .hero-desc .with {
           color: rgba(255, 255, 255, 0.62);
         }
-        .hero-actions {
+        .gpp .hero-actions {
           display: flex;
           align-items: center;
           gap: 13px;
           margin-top: 26px;
         }
-        .btn-trailer {
+        .gpp .btn-trailer {
           display: inline-flex;
           align-items: center;
           gap: 11px;
@@ -1173,13 +1274,13 @@ export function GeneratedPortalPage({
           font-family: var(--sf);
           transition: transform 0.16s ease;
         }
-        .btn-trailer:hover {
+        .gpp .btn-trailer:hover {
           transform: scale(1.03);
         }
-        .btn-trailer:active {
+        .gpp .btn-trailer:active {
           transform: scale(0.98);
         }
-        .btn-trailer .play {
+        .gpp .btn-trailer .play {
           width: 32px;
           height: 32px;
           border-radius: 50%;
@@ -1189,7 +1290,7 @@ export function GeneratedPortalPage({
           place-items: center;
           flex: none;
         }
-        .btn-enroll {
+        .gpp .btn-enroll {
           display: inline-flex;
           align-items: center;
           gap: 10px;
@@ -1197,6 +1298,7 @@ export function GeneratedPortalPage({
           color: #fff;
           -webkit-backdrop-filter: blur(40px) saturate(150%);
           backdrop-filter: blur(40px) saturate(150%);
+          box-shadow: none;
           font-size: 15px;
           font-weight: 600;
           letter-spacing: -0.01em;
@@ -1205,22 +1307,20 @@ export function GeneratedPortalPage({
           font-family: var(--sf);
           transition: background 0.18s, transform 0.16s ease;
         }
-        .btn-enroll:hover {
+        .gpp .btn-enroll:hover {
           background: rgba(255, 255, 255, 0.28);
           transform: scale(1.03);
         }
-        .btn-enroll:active {
+        .gpp .btn-enroll:active {
           transform: scale(0.98);
         }
 
-        /* ============================================================
-           FREE SAMPLE — designed screen, placeholder only (no add CTA).
-           ============================================================ */
-        .sample {
-          padding: 76px var(--gut) 12px;
+        /* ============================================================ FREE SAMPLE */
+        .gpp .sample {
+          padding: 76px 64px 12px;
           text-align: center;
         }
-        .sample-eyebrow {
+        .gpp .sample-eyebrow {
           display: inline-flex;
           align-items: center;
           gap: 8px;
@@ -1232,7 +1332,7 @@ export function GeneratedPortalPage({
           margin-bottom: 14px;
           transition: color 0.4s ease;
         }
-        .sample h2 {
+        .gpp .sample h2 {
           font-family: var(--po);
           font-size: clamp(28px, 3vw, 40px);
           font-weight: 600;
@@ -1240,13 +1340,13 @@ export function GeneratedPortalPage({
           color: var(--text);
           transition: color 0.4s ease;
         }
-        .sample-sub {
+        .gpp .sample-sub {
           font-size: 16px;
           color: var(--text-2);
           margin-top: 10px;
           transition: color 0.4s ease;
         }
-        .sample-screen {
+        .gpp .sample-screen {
           position: relative;
           width: min(1040px, 100%);
           aspect-ratio: 16 / 9;
@@ -1257,59 +1357,47 @@ export function GeneratedPortalPage({
           display: grid;
           place-items: center;
         }
-        .sample-screen.playable {
+        .gpp .sample-screen.playable {
           cursor: pointer;
         }
-        .sample-screen.filled .ph-ambient,
-        .sample-screen.filled .glass-tint,
-        .sample-screen.filled .sample-glyph {
-          display: none;
-        }
-        .sample-screen .photo-shade {
-          background: linear-gradient(
-            0deg,
-            rgba(7, 8, 10, 0.55) 0%,
-            rgba(7, 8, 10, 0.12) 30%,
-            transparent 50%
-          );
-        }
-        .sample-glyph {
+        .gpp .ph-cta {
           position: relative;
           z-index: 2;
-          color: rgba(255, 255, 255, 0.3);
-          pointer-events: none;
+          display: inline-flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 14px;
+          color: #fff;
         }
-        .sample-play {
-          position: relative;
-          z-index: 2;
-          width: 72px;
-          height: 72px;
+        .gpp .ph-cta .ph-ic {
+          width: 64px;
+          height: 64px;
           border-radius: 50%;
-          background: rgba(255, 255, 255, 0.92);
-          color: #111;
+          background: rgba(255, 255, 255, 0.14);
+          -webkit-backdrop-filter: blur(40px) saturate(150%);
+          backdrop-filter: blur(40px) saturate(150%);
+          box-shadow: none;
           display: grid;
           place-items: center;
-          padding-left: 4px;
-          box-shadow: 0 14px 44px rgba(0, 0, 0, 0.4);
-          transition: transform 0.18s;
+          cursor: pointer;
+          transition: background 0.2s, transform 0.18s;
         }
-        .sample-screen.playable:hover .sample-play {
+        .gpp .ph-cta .ph-ic:hover {
+          background: rgba(255, 255, 255, 0.28);
           transform: scale(1.06);
         }
 
-        /* ============================================================
-           LESSON ROWS (modules) + STRIP (episodic)
-           ============================================================ */
-        .lessons {
+        /* ============================================================ LESSON ROWS (modules) */
+        .gpp .lessons {
           padding: 48px var(--gut) 96px;
         }
-        .row {
+        .gpp .row {
           margin-top: 48px;
         }
-        .row:first-child {
+        .gpp .row:first-child {
           margin-top: 0;
         }
-        .row-head {
+        .gpp .row-head {
           display: inline-flex;
           align-items: center;
           gap: 7px;
@@ -1320,44 +1408,121 @@ export function GeneratedPortalPage({
           margin-bottom: 16px;
           transition: color 0.4s ease;
         }
-        .row-head .mod {
+        .gpp .row-head .mod {
           color: var(--text-2);
           font-weight: 600;
         }
-        .strip-head {
+        .gpp .row .grid {
+          display: flex;
+          gap: 18px;
+          overflow: hidden;
+        }
+        .gpp .row .grid .card,
+        .gpp .row .grid .lc-catalog {
+          flex: 0 0 calc((100% - 90px) / 6);
+        }
+
+        /* spotlight card — liquid glass until a still exists */
+        .gpp .card {
+          position: relative;
+          aspect-ratio: 380 / 362;
+          border-radius: 12px;
+          overflow: hidden;
+          box-shadow: 0 20px 18px rgba(0, 0, 0, 0.04);
+        }
+        .gpp .card[role='button'] {
+          cursor: pointer;
+        }
+        .gpp .card-info {
+          position: absolute;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          z-index: 2;
+          padding: 0 14px 12px;
+        }
+        .gpp .ep {
+          font-size: 10px;
+          font-weight: 700;
+          letter-spacing: 0.09em;
+          text-transform: uppercase;
+          color: rgba(235, 235, 245, 0.66);
+        }
+        .gpp .card .title {
+          font-size: 16px;
+          font-weight: 700;
+          letter-spacing: -0.015em;
+          line-height: 1.15;
+          color: #fff;
+          margin-top: 3px;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+        .gpp .card .desc {
+          font-size: 13px;
+          line-height: 1.4;
+          color: rgba(235, 235, 245, 0.76);
+          margin-top: 4px;
+          display: -webkit-box;
+          -webkit-line-clamp: 2;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
+          min-height: 36px;
+        }
+        .gpp .foot {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-top: 7px;
+        }
+        .gpp .time {
+          display: inline-flex;
+          align-items: center;
+          gap: 5px;
+          font-size: 12px;
+          font-weight: 500;
+          color: rgba(235, 235, 245, 0.76);
+          font-variant-numeric: tabular-nums;
+        }
+        .gpp .dots {
+          display: inline-flex;
+          align-items: center;
+          gap: 3px;
+          padding: 4px 2px;
+          color: rgba(235, 235, 245, 0.6);
+        }
+        .gpp .dots span {
+          width: 3px;
+          height: 3px;
+          border-radius: 50%;
+          background: currentColor;
+        }
+
+        /* ============================================================ EPISODE STRIP (episodic) */
+        .gpp .strip-rh {
           display: flex;
           align-items: baseline;
           gap: 13px;
           margin-bottom: 18px;
         }
-        .strip-head .rh {
+        .gpp .strip-rh .rh {
           font-size: 19px;
           font-weight: 700;
           letter-spacing: -0.015em;
           color: var(--text);
           transition: color 0.4s ease;
         }
-        .strip-head .rh-meta {
+        .gpp .strip-rh .rh-meta {
           font-size: 14px;
           font-weight: 500;
           color: var(--text-2);
           transition: color 0.4s ease;
         }
-
-        .mod-grid {
-          display: flex;
-          gap: 18px;
-          overflow: hidden;
-          flex-wrap: wrap;
-        }
-        .mod-grid > :global(*) {
-          flex: 0 0 calc((100% - 90px) / 6);
-        }
-
-        .strip-wrap {
+        .gpp .strip-wrap {
           position: relative;
         }
-        .strip {
+        .gpp .strip-wrap .grid {
           display: flex;
           gap: 20px;
           overflow-x: auto;
@@ -1367,14 +1532,16 @@ export function GeneratedPortalPage({
           padding: 4px 2px 16px;
           scrollbar-width: none;
         }
-        .strip::-webkit-scrollbar {
+        .gpp .strip-wrap .grid::-webkit-scrollbar {
           display: none;
         }
-        .strip > :global(*) {
+        .gpp .strip-wrap .grid .lc-catalog,
+        .gpp .strip-wrap .grid .card {
           flex: 0 0 calc((100% - 60px) / 4);
           scroll-snap-align: start;
         }
-        .arrow {
+
+        .gpp .arrow {
           position: absolute;
           top: 0;
           bottom: 16px;
@@ -1388,160 +1555,40 @@ export function GeneratedPortalPage({
           pointer-events: none;
           transition: opacity 0.2s, color 0.15s;
         }
-        .arrow:hover {
+        .gpp .arrow:hover {
           color: #000;
         }
-        .gpp-root.dark .arrow {
+        .gpp.dark .arrow {
           color: rgba(255, 255, 255, 0.55);
         }
-        .gpp-root.dark .arrow:hover {
+        .gpp.dark .arrow:hover {
           color: #fff;
         }
-        .arrow.prev {
+        .gpp .arrow.prev {
           left: -52px;
         }
-        .arrow.next {
+        .gpp .arrow.next {
           right: -52px;
         }
-        .arrow.show {
+        .gpp .arrow.show {
           opacity: 1;
           pointer-events: auto;
         }
-        .arrow :global(svg) {
+        .gpp .arrow svg {
           transition: transform 0.15s;
         }
-        .arrow:active :global(svg) {
+        .gpp .arrow:active svg {
           transform: scale(0.88);
         }
 
-        /* ── free / lock chips ── */
-        .lc-state {
-          position: absolute;
-          left: 12px;
-          top: 12px;
-          z-index: 3;
-        }
-        .lc-free {
-          display: inline-flex;
-          align-items: center;
-          gap: 5px;
-          font-size: 10px;
-          font-weight: 700;
-          letter-spacing: 0.04em;
-          color: #111;
-          background: rgba(255, 255, 255, 0.92);
-          padding: 4px 9px;
-          border-radius: 980px;
-          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
-        }
-        .lc-lock {
-          width: 25px;
-          height: 25px;
-          border-radius: 50%;
-          display: grid;
-          place-items: center;
-          color: rgba(255, 255, 255, 0.92);
-          background: rgba(0, 0, 0, 0.42);
-          -webkit-backdrop-filter: blur(8px);
-          backdrop-filter: blur(8px);
-        }
-
-        /* ── spotlight card — liquid glass until a still exists ── */
-        .sp-card {
-          position: relative;
-          aspect-ratio: 380 / 362;
-          border-radius: 12px;
-          overflow: hidden;
-          box-shadow: 0 20px 18px rgba(0, 0, 0, 0.04);
-          cursor: ${onLessonClick ? 'pointer' : 'default'};
-        }
-        .sp-card.filled .ph-ambient,
-        .sp-card.filled .glass-tint {
-          display: none;
-        }
-        .sp-card .photo-shade {
-          background: linear-gradient(
-            0deg,
-            rgba(7, 8, 10, 0.92) 2%,
-            rgba(7, 8, 10, 0.6) 24%,
-            rgba(7, 8, 10, 0.08) 50%,
-            transparent 64%
-          );
-        }
-        .card-info {
-          position: absolute;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          z-index: 2;
-          padding: 0 14px 12px;
-        }
-        .ep {
-          font-size: 10px;
-          font-weight: 700;
-          letter-spacing: 0.09em;
-          text-transform: uppercase;
-          color: rgba(235, 235, 245, 0.66);
-        }
-        .sp-title {
-          font-size: 16px;
-          font-weight: 700;
-          letter-spacing: -0.015em;
-          line-height: 1.15;
-          color: #fff;
-          margin-top: 3px;
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-        }
-        .sp-desc {
-          font-size: 13px;
-          line-height: 1.4;
-          color: rgba(235, 235, 245, 0.76);
-          margin-top: 4px;
-          display: -webkit-box;
-          -webkit-line-clamp: 2;
-          -webkit-box-orient: vertical;
-          overflow: hidden;
-          min-height: 36px;
-        }
-        .sp-foot {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          margin-top: 7px;
-        }
-        .time {
-          display: inline-flex;
-          align-items: center;
-          gap: 5px;
-          font-size: 12px;
-          font-weight: 500;
-          color: rgba(235, 235, 245, 0.76);
-          font-variant-numeric: tabular-nums;
-        }
-        .dots {
-          display: inline-flex;
-          align-items: center;
-          gap: 3px;
-          padding: 4px 2px;
-          color: rgba(235, 235, 245, 0.6);
-        }
-        .dots :global(span) {
-          width: 3px;
-          height: 3px;
-          border-radius: 50%;
-          background: currentColor;
-        }
-
-        /* ── catalog card ── */
-        .lc-catalog {
-          cursor: ${onLessonClick ? 'pointer' : 'default'};
+        /* ── catalog lesson card ── */
+        .gpp .lc-catalog {
+          cursor: pointer;
           -webkit-font-smoothing: antialiased;
           -moz-osx-font-smoothing: grayscale;
           letter-spacing: -0.014em;
         }
-        .lc-card {
+        .gpp .lc-card {
           width: 100%;
           border-radius: 16px;
           overflow: hidden;
@@ -1554,32 +1601,110 @@ export function GeneratedPortalPage({
           transition: transform 0.26s cubic-bezier(0.34, 1.3, 0.64, 1),
             box-shadow 0.26s;
         }
-        .lc-catalog:hover .lc-card {
+        .gpp .lc-catalog:hover .lc-card {
           transform: translateY(-5px);
           box-shadow: 0 16px 48px rgba(0, 0, 0, 0.14),
             0 2px 8px rgba(0, 0, 0, 0.06);
         }
-        .lc-thumb {
+        .gpp .lc-thumb {
           position: relative;
           flex: 0 0 auto;
           aspect-ratio: 380 / 214;
           background: #111111;
           overflow: hidden;
         }
-        .lc-thumb.ph {
+        .gpp .lc-thumb.ph {
           background: none;
         }
-        .lc-thumb.filled .ph-ambient,
-        .lc-thumb.filled .glass-tint {
-          display: none;
+        .gpp .lc-thumb img {
+          position: absolute;
+          inset: 0;
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
         }
-        .lc-info {
+        .gpp .lc-play {
+          position: absolute;
+          inset: 0;
+          background: rgba(0, 0, 0, 0.25);
+          display: grid;
+          place-items: center;
+          opacity: 0;
+          transition: opacity 0.2s ease;
+        }
+        .gpp .lc-catalog:hover .lc-play {
+          opacity: 1;
+        }
+        .gpp .lc-play-btn {
+          width: 50px;
+          height: 50px;
+          border-radius: 50%;
+          background: rgba(255, 255, 255, 0.95);
+          color: #07080a;
+          display: grid;
+          place-items: center;
+          padding-left: 3px;
+          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+        }
+        .gpp .lc-state {
+          position: absolute;
+          left: 12px;
+          top: 12px;
+        }
+        .gpp .lc-free {
+          display: inline-flex;
+          align-items: center;
+          gap: 5px;
+          font-size: 10px;
+          font-weight: 700;
+          letter-spacing: 0.04em;
+          color: #111;
+          background: rgba(255, 255, 255, 0.92);
+          padding: 4px 9px;
+          border-radius: 980px;
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+        }
+        .gpp .lc-lock {
+          width: 25px;
+          height: 25px;
+          border-radius: 50%;
+          display: grid;
+          place-items: center;
+          color: rgba(255, 255, 255, 0.92);
+          background: rgba(0, 0, 0, 0.42);
+          -webkit-backdrop-filter: blur(8px);
+          backdrop-filter: blur(8px);
+          box-shadow: none;
+        }
+        /* chips on spotlight cards sit above the photo-shade */
+        .gpp .card .lc-state {
+          z-index: 3;
+        }
+        .gpp .lc-dur {
+          position: absolute;
+          right: 12px;
+          top: 12px;
+          display: flex;
+          align-items: center;
+          gap: 4px;
+          font-size: 11px;
+          font-weight: 600;
+          color: rgba(255, 255, 255, 0.92);
+          font-variant-numeric: tabular-nums;
+          background: rgba(0, 0, 0, 0.42);
+          -webkit-backdrop-filter: blur(8px);
+          backdrop-filter: blur(8px);
+          padding: 4px 9px 4px 7px;
+          border-radius: 980px;
+          box-shadow: none;
+        }
+        .gpp .lc-info {
           flex: 1;
           display: flex;
           flex-direction: column;
           padding: 16px 18px 18px;
         }
-        .lc-num {
+        .gpp .lc-num {
           font-size: 10px;
           font-weight: 600;
           letter-spacing: 0.08em;
@@ -1587,7 +1712,7 @@ export function GeneratedPortalPage({
           color: #86868b;
           margin-bottom: 5px;
         }
-        .lc-title {
+        .gpp .lc-title {
           font-size: 17px;
           font-weight: 600;
           letter-spacing: -0.02em;
@@ -1598,7 +1723,7 @@ export function GeneratedPortalPage({
           overflow: hidden;
           text-overflow: ellipsis;
         }
-        .lc-desc {
+        .gpp .lc-desc {
           font-size: 13.5px;
           color: rgba(0, 0, 0, 0.56);
           line-height: 1.5;
@@ -1609,7 +1734,7 @@ export function GeneratedPortalPage({
           overflow: hidden;
           min-height: 40px;
         }
-        .lc-meta {
+        .gpp .lc-meta {
           display: flex;
           align-items: center;
           gap: 6px;
@@ -1621,71 +1746,90 @@ export function GeneratedPortalPage({
           font-variant-numeric: tabular-nums;
         }
 
+        /* ============================================================ MEDIA QUERIES */
         @media (max-width: 1380px) {
-          .mod-grid > :global(*) {
+          .gpp .row .grid .card,
+          .gpp .row .grid .lc-catalog {
             flex: 0 0 calc((100% - 72px) / 5);
           }
         }
         @media (max-width: 1200px) {
-          .gpp-root {
+          .gpp {
             --gut: 44px;
           }
-          .band {
-            grid-template-columns: 300px minmax(0, 1fr);
-            gap: 40px;
+          .gpp .band {
+            grid-template-columns: 280px minmax(0, 1fr);
+            gap: 36px;
           }
-          .band-cast {
+          .gpp .band-cast {
             display: none;
           }
-          .strip > :global(*) {
+          .gpp .strip-wrap .grid .lc-catalog,
+          .gpp .strip-wrap .grid .card {
             flex-basis: calc((100% - 40px) / 3);
           }
         }
         @media (max-width: 1100px) {
-          .mod-grid > :global(*) {
+          .gpp .row .grid .card,
+          .gpp .row .grid .lc-catalog {
             flex: 0 0 calc((100% - 54px) / 4);
           }
-          .lessons {
+          .gpp .lessons {
             padding: 40px 40px 72px;
           }
         }
         @media (max-width: 820px) {
-          .gpp-root {
+          .gpp {
             --gut: 22px;
           }
-          .panel-title {
-            bottom: 270px;
+          .gpp .panel-title {
+            bottom: 234px;
           }
-          .band {
+          .gpp .band {
             grid-template-columns: 1fr;
-            gap: 20px;
-            padding-bottom: 32px;
+            gap: 18px;
+            padding-bottom: 28px;
           }
-          .band-desc {
+          .gpp .band-desc {
             display: none;
           }
-          .strip > :global(*) {
+          .gpp .strip-wrap .grid .lc-catalog,
+          .gpp .strip-wrap .grid .card {
             flex-basis: calc((100% - 20px) / 2);
-          }
-          .hero-eyebrow {
-            top: 30px;
-          }
-          .hero-content {
-            bottom: 36px;
-          }
-          .hero-actions {
-            flex-wrap: wrap;
           }
         }
         @media (max-width: 760px) {
-          .mod-grid > :global(*) {
+          .gpp .row {
+            margin-top: 32px;
+          }
+          .gpp .row .grid {
+            flex-wrap: wrap;
+          }
+          .gpp .row .grid .card,
+          .gpp .row .grid .lc-catalog {
             flex: 0 0 calc((100% - 18px) / 2);
           }
-          .lessons {
+          .gpp .lessons {
             padding: 28px 20px 56px;
           }
-          .sample {
+          .gpp .sample {
             padding: 48px 20px 8px;
+          }
+          .gpp .hero-eyebrow {
+            top: 30px;
+            left: 24px;
+          }
+          .gpp .creator-bar {
+            top: 24px;
+            right: 20px;
+          }
+          .gpp .hero-content {
+            left: 24px;
+            right: 24px;
+            bottom: 36px;
+          }
+          .gpp .hero-actions {
+            flex-wrap: wrap;
           }
         }
       `}</style>
