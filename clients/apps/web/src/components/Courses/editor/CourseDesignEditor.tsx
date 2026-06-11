@@ -396,6 +396,9 @@ export function CourseDesignEditor({ course }: { course: CourseRead }) {
       coverPosition={course.thumbnail_object_position}
       sampleImageUrl={sampleLesson?.thumbnail_url ?? null}
       samplePlayable={samplePlayable}
+      samplePlaybackId={sampleLesson?.mux_playback_id ?? null}
+      sampleStart={sample?.start_seconds ?? 0}
+      sampleDuration={sample?.duration_seconds ?? 0}
       groups={groups}
       lessonCount={flatLessons.length}
       unit={unit}

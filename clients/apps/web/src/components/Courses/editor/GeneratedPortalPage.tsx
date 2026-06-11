@@ -25,6 +25,7 @@
 // shows a photo if THAT lesson has one.
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { HlsVideo } from '../HlsVideo'
 
 const PLAY_PATH =
   'M8 5.5v13a1 1 0 0 0 1.5.87l11-6.5a1 1 0 0 0 0-1.74l-11-6.5A1 1 0 0 0 8 5.5Z'
@@ -134,6 +135,15 @@ export type GeneratedPortalPageProps = {
   /** Real sample poster/clip (public page); placeholder otherwise. */
   sampleImageUrl?: string | null
   samplePlayable?: boolean
+  /** Inline sample playback — the clip window from course.sample. The
+   *  player seeks to sampleStart, stops after sampleDuration, and pauses
+   *  the moment the screen scrolls out of view. */
+  samplePlaybackId?: string | null
+  samplePlaybackUrl?: string | null
+  sampleStart?: number
+  sampleDuration?: number
+  /** Hero Play starts the inline sample (sample-trial pages). */
+  playStartsSample?: boolean
   groups: GeneratedGroup[]
   lessonCount: number
   unit: 'lesson' | 'episode'
@@ -207,6 +217,11 @@ export function GeneratedPortalPage({
   coverPosition,
   sampleImageUrl,
   samplePlayable = false,
+  samplePlaybackId = null,
+  samplePlaybackUrl = null,
+  sampleStart = 0,
+  sampleDuration = 0,
+  playStartsSample = false,
   groups,
   lessonCount,
   unit,
@@ -295,6 +310,74 @@ export function GeneratedPortalPage({
   const onDragEnd = () => {
     dragRef.current = null
   }
+
+  // ── inline sample playback: seek to the clip start, stop at the clip end,
+  //    and STOP when the screen scrolls out of view (the protected
+  //    "sample stops when you scroll past it" behavior). ──
+  const sampleScreenRef = useRef<HTMLDivElement | null>(null)
+  const sampleVideoRef = useRef<HTMLVideoElement | null>(null)
+  const [samplePlaying, setSamplePlaying] = useState(false)
+  const sampleSrc = samplePlaybackUrl ?? null
+  const sampleIsHls = Boolean(
+    samplePlaybackId || (sampleSrc && sampleSrc.includes('.m3u8')),
+  )
+  const startSample = useCallback(() => {
+    if (!samplePlayable) return
+    setSamplePlaying(true)
+    sampleScreenRef.current?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'center',
+    })
+  }, [samplePlayable])
+  const stopSample = useCallback(() => {
+    sampleVideoRef.current?.pause()
+    setSamplePlaying(false)
+  }, [])
+  const onSampleVideoEl = useCallback(
+    (el: HTMLVideoElement | null) => {
+      sampleVideoRef.current = el
+      if (!el) return
+      const seekAndPlay = () => {
+        if (sampleStart > 0) el.currentTime = sampleStart
+        void el.play().catch(() => setSamplePlaying(false))
+      }
+      if (el.readyState >= 1) seekAndPlay()
+      else el.addEventListener('loadedmetadata', seekAndPlay, { once: true })
+    },
+    [sampleStart],
+  )
+  // Clip window: stop once the configured duration has played.
+  useEffect(() => {
+    if (!samplePlaying || sampleDuration <= 0) return
+    const el = sampleVideoRef.current
+    if (!el) return
+    const onTime = () => {
+      if (el.currentTime >= sampleStart + sampleDuration) stopSample()
+    }
+    el.addEventListener('timeupdate', onTime)
+    return () => el.removeEventListener('timeupdate', onTime)
+  }, [samplePlaying, sampleStart, sampleDuration, stopSample])
+  // Scroll-past: pause the sample when its screen leaves the viewport.
+  // The observer only ARMS once the screen has actually been visible —
+  // otherwise starting from the hero (which smooth-scrolls to the sample)
+  // would fire ratio≈0 immediately and kill the playback it protects.
+  useEffect(() => {
+    if (!samplePlaying) return
+    const screen = sampleScreenRef.current
+    if (!screen) return
+    let armed = false
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          if (e.intersectionRatio >= 0.5) armed = true
+          else if (armed && e.intersectionRatio < 0.35) stopSample()
+        }
+      },
+      { threshold: [0, 0.35, 0.5, 0.7] },
+    )
+    io.observe(screen)
+    return () => io.disconnect()
+  }, [samplePlaying, stopSample])
 
   // Touch-to-edit text (the design's contenteditable). Commits on blur only,
   // so no re-render happens mid-edit → the caret never jumps. Pointer/click
@@ -722,7 +805,13 @@ export function GeneratedPortalPage({
 
           <div className="band rise d2">
             <div className="band-actions">
-              <button className="abtn play" type="button" onClick={onPlay}>
+              <button
+                className="abtn play"
+                type="button"
+                onClick={
+                  playStartsSample && samplePlayable ? startSample : onPlay
+                }
+              >
                 <svg
                   width="17"
                   height="17"
@@ -861,7 +950,11 @@ export function GeneratedPortalPage({
                 <button
                   className="btn-trailer"
                   type="button"
-                  onClick={onTrailer ?? onPlay}
+                  onClick={
+                    playStartsSample && samplePlayable
+                      ? startSample
+                      : (onTrailer ?? onPlay)
+                  }
                 >
                   <span className="play">
                     <svg
@@ -906,11 +999,18 @@ export function GeneratedPortalPage({
             No account, no card.
           </p>
           <div
+            ref={sampleScreenRef}
             className={`sample-screen${sampleImageUrl ? ' filled' : ''}${
               samplePlayable ? ' playable' : ''
-            }`}
-            onClick={samplePlayable ? onSample : undefined}
-            role={samplePlayable ? 'button' : undefined}
+            }${samplePlaying ? ' playing' : ''}`}
+            onClick={
+              samplePlayable && !samplePlaying
+                ? sampleSrc || samplePlaybackId
+                  ? startSample
+                  : onSample
+                : undefined
+            }
+            role={samplePlayable && !samplePlaying ? 'button' : undefined}
           >
             <div className="ph-ambient" />
             <div className="glass-tint" />
@@ -923,7 +1023,29 @@ export function GeneratedPortalPage({
               }
             />
             <div className="photo-shade" />
-            {samplePlayable ? (
+            {samplePlaying &&
+              (sampleIsHls ? (
+                <HlsVideo
+                  playbackId={samplePlaybackId}
+                  playbackUrl={sampleSrc}
+                  poster={sampleImageUrl}
+                  controls
+                  className="sample-video"
+                  onVideoElement={onSampleVideoEl}
+                  onEnded={stopSample}
+                />
+              ) : (
+                <video
+                  className="sample-video"
+                  src={sampleSrc ?? undefined}
+                  poster={sampleImageUrl ?? undefined}
+                  controls
+                  playsInline
+                  ref={onSampleVideoEl}
+                  onEnded={stopSample}
+                />
+              ))}
+            {samplePlayable && !samplePlaying ? (
               <div className="ph-cta">
                 <span className="ph-ic">
                   <svg
@@ -936,7 +1058,7 @@ export function GeneratedPortalPage({
                   </svg>
                 </span>
               </div>
-            ) : editable && onConfigureSample ? (
+            ) : editable && onConfigureSample && !samplePlaying ? (
               // The design's "Add your sample" CTA, wired to the existing
               // sample configuration (pick a lesson + clip window).
               <div className="ph-cta">
@@ -966,7 +1088,7 @@ export function GeneratedPortalPage({
                 <span className="ph-s">A 2–3 minute clip from any {unit}</span>
               </div>
             ) : null}
-            {editable && onConfigureSample && samplePlayable && (
+            {editable && onConfigureSample && samplePlayable && !samplePlaying && (
               <button
                 className="change-pill"
                 type="button"
@@ -1945,6 +2067,24 @@ export function GeneratedPortalPage({
         }
         .gpp .sample-screen.playable {
           cursor: pointer;
+        }
+        .gpp .sample-screen.playing {
+          cursor: default;
+        }
+        .gpp .sample-video {
+          position: absolute;
+          inset: 0;
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+          background: #000;
+          z-index: 3;
+        }
+        .gpp .sample-screen.playing .photo,
+        .gpp .sample-screen.playing .photo-shade,
+        .gpp .sample-screen.playing .ph-ambient,
+        .gpp .sample-screen.playing .glass-tint {
+          display: none;
         }
         .gpp .ph-cta {
           position: relative;

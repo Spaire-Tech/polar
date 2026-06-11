@@ -5,7 +5,7 @@ import {
   type GeneratedGroup,
 } from '@/components/Courses/editor/GeneratedPortalPage'
 import { useSearchParams } from 'next/navigation'
-import { Suspense, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 
 // Bare preview of the generated course page with the designs' sample data.
 // Query params drive the combination so every axis can be eyeballed:
@@ -69,6 +69,37 @@ function Preview() {
   // Add trailer / per-card Add image / sample CTA) with no-op handlers.
   const editable = params.get('editable') === '1'
   const withCover = params.get('cover') === '1'
+  // `?fakesample=1` synthesizes a short WebM in-browser (canvas +
+  // MediaRecorder) and feeds it to the inline sample player, so the clip
+  // window + scroll-pause behavior can be verified without a Mux asset.
+  const fakeSample = params.get('fakesample') === '1'
+  const [sampleUrl, setSampleUrl] = useState<string | null>(null)
+  useEffect(() => {
+    if (!fakeSample || sampleUrl) return
+    const canvas = document.createElement('canvas')
+    canvas.width = 320
+    canvas.height = 180
+    const ctx = canvas.getContext('2d')!
+    let hue = 0
+    const draw = () => {
+      hue = (hue + 4) % 360
+      ctx.fillStyle = `hsl(${hue} 70% 50%)`
+      ctx.fillRect(0, 0, 320, 180)
+    }
+    const timer = setInterval(draw, 100)
+    draw()
+    const stream = canvas.captureStream(10)
+    const rec = new MediaRecorder(stream, { mimeType: 'video/webm' })
+    const chunks: Blob[] = []
+    rec.ondataavailable = (e) => chunks.push(e.data)
+    rec.onstop = () => {
+      clearInterval(timer)
+      setSampleUrl(URL.createObjectURL(new Blob(chunks, { type: 'video/webm' })))
+    }
+    rec.start()
+    setTimeout(() => rec.stop(), 6000)
+    return () => clearInterval(timer)
+  }, [fakeSample, sampleUrl])
 
   const freeLessons = 3
   let flat = 0
@@ -116,6 +147,11 @@ function Preview() {
       dark={dark}
       onToggleDark={() => setDark((d) => !d)}
       coverUrl={withCover ? '/assets/onboarding/cover-hero.jpg' : undefined}
+      samplePlayable={fakeSample && !!sampleUrl}
+      samplePlaybackUrl={sampleUrl}
+      sampleStart={2}
+      sampleDuration={2}
+      playStartsSample={fakeSample && !!sampleUrl}
       editable={editable}
       onAddCover={editable ? () => {} : undefined}
       onAddTrailer={editable ? () => {} : undefined}

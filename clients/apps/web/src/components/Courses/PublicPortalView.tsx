@@ -151,23 +151,12 @@ export function PublicPortalView({
           ? `${freeCount} ${unit}${freeCount === 1 ? '' : 's'} free · ${cadence}`
           : cadence
 
-  const onPlaySample = useCallback(() => {
-    if (sample?.mux_playback_id) {
-      setPlaying({
-        title: sample.lesson_title ?? 'Sample',
-        mux_playback_id: sample.mux_playback_id,
-        thumbnail_url: sample.thumbnail_url,
-      })
-    }
-  }, [sample])
-
+  // Sample playback is INLINE on the sample screen (clip-windowed,
+  // scroll-aware) — handled inside GeneratedPortalPage via the
+  // samplePlayback* props + playStartsSample. No lightbox for it.
   const onPlay = useCallback(() => {
     if (hasAccess) {
       goToPortal()
-      return
-    }
-    if (trialMode === 'lesson_sample' && samplePlayable) {
-      onPlaySample()
       return
     }
     const firstFree = landing.lessons.find(
@@ -180,15 +169,7 @@ export function PublicPortalView({
         thumbnail_url: firstFree.thumbnail_url,
       })
     } else void enroll()
-  }, [
-    hasAccess,
-    goToPortal,
-    trialMode,
-    samplePlayable,
-    onPlaySample,
-    landing.lessons,
-    enroll,
-  ])
+  }, [hasAccess, goToPortal, landing.lessons, enroll])
 
   const onBuy = useCallback(() => {
     if (hasAccess) goToPortal()
@@ -304,6 +285,13 @@ export function PublicPortalView({
         coverPosition={landing.thumbnail_object_position}
         sampleImageUrl={sample?.thumbnail_url ?? null}
         samplePlayable={samplePlayable}
+        samplePlaybackId={sample?.mux_playback_id ?? null}
+        samplePlaybackUrl={sample?.mux_playback_url ?? null}
+        sampleStart={sample?.start_seconds ?? 0}
+        sampleDuration={sample?.duration_seconds ?? 0}
+        playStartsSample={
+          !hasAccess && trialMode === 'lesson_sample' && samplePlayable
+        }
         groups={groups}
         lessonCount={landing.lesson_count}
         unit={unit}
@@ -315,7 +303,6 @@ export function PublicPortalView({
         onPlay={onPlay}
         onBuy={enrolling ? undefined : onBuy}
         onTrailer={onTrailer}
-        onSample={onPlaySample}
         onLessonClick={onLessonClick}
       />
 
