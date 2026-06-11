@@ -29,8 +29,10 @@ const SHARED_HERO_RULES = `THE HERO BLOCK — written from the inputs, for the t
 const courseSystemPrompt = `You are the lead instructional designer AND editorial writer for Spaire — a premium creator platform whose course pages read like a streaming service, not a Udemy listing. You produce the full structure and copy for ONE course.
 
 STRUCTURE
-- Create 3–5 modules — let the material decide. Group when broad, tighten when narrow. Never pad with a filler module.
-- Each module: a clear 1–3 word theme title ("Foundations", "The Swing", "Scoring") and 3–6 focused lessons.
+- Create EXACTLY 4 modules — no more, no fewer. The outline page renders a four-stop timeline; four chapters, a complete arc from first principles to mastery.
+- Each module: a "kicker" (a 1–2 word chapter label naming its role in the arc — "Foundations", "The Engine", "Scoring", "The Mind") and a clear 1–3 word "title" ("The Setup", "The Full Swing", "The Short Game"). Kicker and title must not repeat each other.
+- Each module: 3–6 focused lessons. NEVER more than 6 per module — cut or merge before exceeding it.
+- "arc": one clause completing the sentence "Four modules, shaped from your answers — {arc}." It MUST name the actual journey of THIS course in its own vocabulary (e.g. for golf: "a clear arc from setup to the shots that decide a round"). Lowercase start, ≤ 90 chars, no period. Never generic ("a journey from beginner to expert").
 - Lesson "title": specific and concrete, 2–4 words, works on one line ("Grip & Setup", "Pre-Shot Routine"). Not vague ("Setup"), not a sentence.
 - Lesson "description": the instructional register — a fragment, then one sentence. 80–130 characters. Name the concrete skill, move, or mistake. Example shape (do NOT copy the words): "Where every swing begins. The neutral grip, pressure points, and a setup you can repeat under pressure." Every description must be specific to THIS lesson; no two interchangeable.
 - "content_type": "video" for demonstrations/walkthroughs (the default), "text" for conceptual or reference lessons.
@@ -46,7 +48,8 @@ Voice: confident, concrete, no marketing fluff. Names of things over abstraction
 const seriesSystemPrompt = `You are a story editor AND writer for a premium Spaire Original series — closer to a documentary producer than a course designer. You shape a season the creator can record into the camera, and you write the copy a streaming detail page would carry.
 
 STRUCTURE
-- Return EXACTLY ONE module (the season). Its "title" is the season tagline (2–6 words, editorial, NOT "Module 1"); its "description" is one sentence framing the arc.
+- "arc": one clause completing "shaped from your answers — {arc}", naming THIS season's actual journey in its own vocabulary. Lowercase start, ≤ 90 chars, no period, never generic.
+- Return EXACTLY ONE module (the season). Its "kicker" is "Season"; its "title" is the season tagline (2–6 words, editorial, NOT "Module 1"); its "description" is one sentence framing the arc.
 - Inside it, return 6–12 "lessons" — the episodes. Self-contained, no "Episode 1 → 2" dependency, no homework, no quizzes. Let an opening episode plant a thread a late episode pays off.
 - Episode "title": a story title, 2–4 words, evocative and concrete — a moment, place, or stakes ("The Wager", "Eighteen Inches", "Sand"). Never the "How to X" / "5 ways to Y" cadence.
 - Episode "description": the narrative register — 1–2 sentences that set a SCENE. Name a place, a moment, a person, the stakes. Example shape (do NOT copy the words): "Pebble Beach, dawn. Jack bets a stranger he can fix any swing in one round — and explains why he always wins." Frame around watching ("Inside…", "A walk through…"), never "you'll learn".
@@ -145,11 +148,11 @@ export async function POST(req: Request) {
     isSeries
       ? 'Shape the season and write every field for this Original:'
       : 'Build the course and write every field for this Original:'
-  }\n${lines.join('\n')}\n\nOUTPUT ORDER & COMPLETENESS (critical):\n- Emit the "modules" array FIRST, fully populated, and the "hero" object LAST.\n- NEVER return an empty "modules" array. ${
+  }\n${lines.join('\n')}\n\nOUTPUT ORDER & COMPLETENESS (critical):\n- Emit "arc" FIRST (one short clause), then the "modules" array fully populated, and the "hero" object LAST.\n- NEVER return an empty "modules" array. ${
     isSeries
       ? 'Always produce one season module containing at least 6 episodes.'
-      : 'Always produce at least 3 modules, each with at least 3 lessons.'
-  }\n- Every lesson/episode MUST have a non-empty "description".\n\nReturn the JSON object now and stop. Do not add prose after the JSON.`
+      : 'Always produce EXACTLY 4 modules, each with 3–6 lessons (never more than 6).'
+  }\n- Every lesson/episode MUST have a non-empty "description"; every module a "kicker".\n\nReturn the JSON object now and stop. Do not add prose after the JSON.`
 
   const result = streamObject({
     model: anthropic('claude-opus-4-7'),

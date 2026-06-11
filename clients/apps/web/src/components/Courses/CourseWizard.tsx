@@ -35,6 +35,7 @@ import { useRouter } from 'next/navigation'
 import { useRef, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { toast } from '../Toast/use-toast'
+import { ModuleOutlineScreen } from './CourseWizard.moduleOutline'
 import { OutlineScreen } from './CourseWizard.outline'
 import { CreatingScreen, GeneratingScreen } from './CourseWizard.status'
 import {
@@ -87,6 +88,7 @@ type PartialLesson = {
   description?: string
 }
 type PartialModule = {
+  kicker?: string
   title?: string
   description?: string
   lessons?: PartialLesson[]
@@ -98,7 +100,11 @@ type PartialHero = {
   byline?: string
   titleLines?: string[]
 }
-type PartialOutline = { modules?: PartialModule[]; hero?: PartialHero }
+type PartialOutline = {
+  arc?: string
+  modules?: PartialModule[]
+  hero?: PartialHero
+}
 
 // ─── Main wizard ─────────────────────────────────────────────────────────────
 
@@ -549,28 +555,43 @@ export default function CourseWizard({
           {screen === 'generating-outline' && (
             <GeneratingScreen onClose={handleClose} format={format} />
           )}
-          {screen === 'outline' && (
-            <OutlineScreen
-              title={course.title}
-              partialOutline={partialOutlineSafe}
-              isStreaming={isOutlineStreaming}
-              error={
-                outlineError
-                  ? 'Failed to generate outline. Tap Regenerate to try again.'
-                  : !isOutlineStreaming &&
-                      (partialOutlineSafe.modules?.length ?? 0) === 0
-                    ? 'The generator came back empty this time. Tap Regenerate to try again.'
-                    : null
-              }
-              onRegenerate={() => {
+          {screen === 'outline' &&
+            (() => {
+              const outlineErrorMsg = outlineError
+                ? 'Failed to generate outline. Tap Regenerate to try again.'
+                : !isOutlineStreaming &&
+                    (partialOutlineSafe.modules?.length ?? 0) === 0
+                  ? 'The generator came back empty this time. Tap Regenerate to try again.'
+                  : null
+              const onRegenerate = () => {
                 stopOutline()
                 startOutlineGeneration()
-              }}
-              onCreate={() => setScreen('portal')}
-              onClose={handleClose}
-              format={format}
-            />
-          )}
+              }
+              // Modules get the timeline outline design; episodic keeps the
+              // episode strip until its dedicated design lands.
+              return format === 'course' ? (
+                <ModuleOutlineScreen
+                  title={course.title}
+                  partialOutline={partialOutlineSafe}
+                  isStreaming={isOutlineStreaming}
+                  error={outlineErrorMsg}
+                  onRegenerate={onRegenerate}
+                  onCreate={() => setScreen('portal')}
+                  onClose={handleClose}
+                />
+              ) : (
+                <OutlineScreen
+                  title={course.title}
+                  partialOutline={partialOutlineSafe}
+                  isStreaming={isOutlineStreaming}
+                  error={outlineErrorMsg}
+                  onRegenerate={onRegenerate}
+                  onCreate={() => setScreen('portal')}
+                  onClose={handleClose}
+                  format={format}
+                />
+              )
+            })()}
           {screen === 'portal' && (
             <WizardPortalPreview
               organization={organization}
