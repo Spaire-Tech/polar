@@ -46,9 +46,12 @@ export function HeroPicker({
       name: 'Marquee',
       desc: 'Cinematic and full-bleed, like a streaming title.',
       node: (
+        // Dark variant per the latest Marquee Hero design — the preview shows
+        // the band fading into the dark page, not the light one.
         <MarqueeHero
           fill
           instant
+          dark
           imageUrl="/assets/onboarding/cover-hero.jpg"
         />
       ),
@@ -148,9 +151,9 @@ export function HeroPicker({
       <div className="head">
         <h1>Choose your hero</h1>
         <p>
-          Your hero is the first thing a student sees. <b>Marquee</b> stays
-          cinematic and quiet, inviting them to press play. <b>Cover</b> brings
-          your title and voice to the front in bold type.
+          Your hero is the first thing students see. <b>Marquee</b> creates a
+          cinematic, immersive introduction, while <b>Cover</b> puts your title
+          and voice front and center.
         </p>
       </div>
 

@@ -150,6 +150,12 @@ export function SpaireOnboardingStyles() {
         padding: 80px 24px 100px;
         background: var(--so-white);
       }
+      /* Tall steps (media, pricing) anchor near the top so their content
+         doesn't float down the middle of the viewport. */
+      .so-stage--top {
+        align-items: flex-start;
+        padding-top: 64px;
+      }
       .so-screen {
         width: 100%;
         max-width: 440px;
@@ -274,54 +280,68 @@ export function SpaireOnboardingStyles() {
         line-height: 1.5;
       }
 
-      /* Buttons */
+      /* Buttons — same vocabulary as the pickers: Back (outline pill) left,
+         Continue (dark pill) right, centered. */
       .so-btn-row {
         display: flex;
+        flex-direction: row;
         align-items: center;
+        justify-content: center;
         gap: 16px;
+        margin-top: 8px;
       }
       .so-btn-cta {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        gap: 8px;
-        padding: 13px 26px;
+        gap: 9px;
+        padding: 15px 40px;
         background: var(--so-black);
         color: var(--so-white);
         border: none;
-        border-radius: 100px;
+        border-radius: 980px;
         font-family: var(--font-poppins), system-ui, sans-serif;
-        font-size: 14px;
+        font-size: 17px;
         font-weight: 500;
         cursor: pointer;
         letter-spacing: -0.01em;
         transition:
-          opacity 0.18s,
-          transform 0.15s;
+          background 0.16s,
+          transform 0.16s;
       }
       .so-btn-cta:hover {
-        opacity: 0.82;
-        transform: translateY(-1px);
+        transform: scale(1.025);
+        background: #000;
       }
       .so-btn-cta:active {
-        transform: translateY(0);
+        transform: scale(0.98);
       }
       .so-btn-cta:disabled {
-        opacity: 0.25;
+        opacity: 0.4;
         pointer-events: none;
       }
       .so-btn-back {
+        display: inline-flex;
+        align-items: center;
+        gap: 9px;
+        font-family: var(--font-poppins), system-ui, sans-serif;
+        font-size: 17px;
+        font-weight: 500;
+        color: var(--so-black);
         background: none;
         border: none;
-        font-family: var(--font-poppins), system-ui, sans-serif;
-        font-size: 13px;
-        color: var(--so-gray3);
         cursor: pointer;
-        padding: 8px 0;
-        transition: color 0.15s;
+        padding: 15px 34px;
+        border-radius: 980px;
+        box-shadow: inset 0 0 0 1px var(--so-gray2);
+        transition: background 0.16s, transform 0.16s;
       }
       .so-btn-back:hover {
-        color: var(--so-black);
+        background: #f5f5f7;
+        transform: scale(1.025);
+      }
+      .so-btn-back:active {
+        transform: scale(0.98);
       }
 
       /* Intro — fill the viewport and ignore the top bar so the headline
@@ -1049,6 +1069,9 @@ export function StepShell({
   // from inside the course editor) where the step counter is misleading.
   hideProgress = false,
   backLabel,
+  // Top-align the stage instead of vertically centering it. Tall steps
+  // (media, pricing) otherwise float too far down the page.
+  alignTop = false,
 }: {
   step: number
   total: number
@@ -1066,29 +1089,35 @@ export function StepShell({
   wide?: boolean
   hideProgress?: boolean
   backLabel?: string
+  alignTop?: boolean
 }) {
   return (
     <>
       {!hideProgress && <ProgressBar pct={(step / total) * 100} />}
       {!hideProgress && <TopBar step={step} total={total} onClose={onClose} />}
-      <div className="so-stage">
+      <div className={`so-stage${alignTop ? ' so-stage--top' : ''}`}>
         <div
           className="so-screen"
           style={wide ? { maxWidth: 1200 } : undefined}
         >
           {!wide && (
             <>
-              <div className="so-eyebrow">
-                {eyebrow ?? `Step ${step} of ${total}`}
-              </div>
+              {/* Only render the eyebrow when a step provides one — no
+                  default "Step X of Y" counter. */}
+              {eyebrow && <div className="so-eyebrow">{eyebrow}</div>}
               {title && <h2 className="so-title">{title}</h2>}
             </>
           )}
           {children}
           <div
             className="so-btn-row"
-            style={wide ? { marginTop: 32, justifyContent: 'center' } : undefined}
+            style={wide ? { marginTop: 32 } : undefined}
           >
+            {/* Same footer vocabulary as the pickers: Back (outline pill) on
+                the left, Continue (dark pill) on the right, centered. */}
+            <button type="button" className="so-btn-back" onClick={onBack}>
+              {backLabel ?? 'Back'}
+            </button>
             <button
               type="button"
               className="so-btn-cta"
@@ -1096,20 +1125,6 @@ export function StepShell({
               onClick={onNext}
             >
               {nextLabel}
-              {nextLabel === 'Continue' && (
-                <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
-                  <path
-                    d="M2.5 6.5h8M7 3l3.5 3.5L7 10"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              )}
-            </button>
-            <button type="button" className="so-btn-back" onClick={onBack}>
-              {backLabel ?? '← Back'}
             </button>
           </div>
         </div>
@@ -1368,11 +1383,12 @@ export function StepMedia({
       step={3}
       total={4}
       title="Hero media"
-      eyebrow="Step 3 of 4 · Recommended"
+      eyebrow="Recommended"
       onNext={onNext}
       onBack={onBack}
       onClose={onClose}
       nextLabel="Continue"
+      alignTop
     >
       <p
         style={{
@@ -2190,6 +2206,7 @@ export function StepPricingWizard({
       onBack={onBack}
       onClose={onClose}
       wide
+      alignTop
     >
       <div className="spaire-wizard-pricing">
         <main className="pf-main">

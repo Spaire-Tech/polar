@@ -9,8 +9,16 @@ import { z } from 'zod'
 // cardinality stalls useObject on streamed partial JSON; the prompt enforces
 // counts and lengths instead.
 export const outlineSchema = z.object({
+  // One clause for the outline header's subtitle: "Four modules, shaped from
+  // your answers — {arc}." Written from the course's subject (e.g. "a clear
+  // arc from setup to the shots that decide a round"). Streams first so the
+  // header fills in immediately. Optional so partial JSON never stalls.
+  arc: z.string().optional(),
   modules: z.array(
     z.object({
+      // 1–2 word chapter label shown above the module title on the outline
+      // timeline ("Foundations", "The Engine", "Scoring", "The Mind").
+      kicker: z.string().optional(),
       title: z.string(),
       description: z.string().optional(),
       lessons: z.array(

@@ -35,7 +35,8 @@ import { useRouter } from 'next/navigation'
 import { useRef, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { toast } from '../Toast/use-toast'
-import { OutlineScreen } from './CourseWizard.outline'
+import { EpisodicOutlineScreen } from './CourseWizard.episodicOutline'
+import { ModuleOutlineScreen } from './CourseWizard.moduleOutline'
 import { CreatingScreen, GeneratingScreen } from './CourseWizard.status'
 import {
   Intro,
@@ -87,6 +88,7 @@ type PartialLesson = {
   description?: string
 }
 type PartialModule = {
+  kicker?: string
   title?: string
   description?: string
   lessons?: PartialLesson[]
@@ -98,7 +100,11 @@ type PartialHero = {
   byline?: string
   titleLines?: string[]
 }
-type PartialOutline = { modules?: PartialModule[]; hero?: PartialHero }
+type PartialOutline = {
+  arc?: string
+  modules?: PartialModule[]
+  hero?: PartialHero
+}
 
 // ─── Main wizard ─────────────────────────────────────────────────────────────
 
@@ -549,21 +555,43 @@ export default function CourseWizard({
           {screen === 'generating-outline' && (
             <GeneratingScreen onClose={handleClose} format={format} />
           )}
-          {screen === 'outline' && (
-            <OutlineScreen
-              title={course.title}
-              partialOutline={partialOutlineSafe}
-              isStreaming={isOutlineStreaming}
-              error={outlineError ? 'Failed to generate outline.' : null}
-              onRegenerate={() => {
+          {screen === 'outline' &&
+            (() => {
+              const outlineErrorMsg = outlineError
+                ? 'Failed to generate outline. Tap Regenerate to try again.'
+                : !isOutlineStreaming &&
+                    (partialOutlineSafe.modules?.length ?? 0) === 0
+                  ? 'The generator came back empty this time. Tap Regenerate to try again.'
+                  : null
+              const onRegenerate = () => {
                 stopOutline()
                 startOutlineGeneration()
-              }}
-              onCreate={() => setScreen('portal')}
-              onClose={handleClose}
-              format={format}
-            />
-          )}
+              }
+              // Modules → timeline outline; episodic → episode grid in the
+              // card style chosen at the lesson-card step.
+              return format === 'course' ? (
+                <ModuleOutlineScreen
+                  title={course.title}
+                  partialOutline={partialOutlineSafe}
+                  isStreaming={isOutlineStreaming}
+                  error={outlineErrorMsg}
+                  onRegenerate={onRegenerate}
+                  onCreate={() => setScreen('portal')}
+                  onClose={handleClose}
+                />
+              ) : (
+                <EpisodicOutlineScreen
+                  title={course.title}
+                  partialOutline={partialOutlineSafe}
+                  isStreaming={isOutlineStreaming}
+                  error={outlineErrorMsg}
+                  cardVariant={cardVariant}
+                  onRegenerate={onRegenerate}
+                  onCreate={() => setScreen('portal')}
+                  onClose={handleClose}
+                />
+              )
+            })()}
           {screen === 'portal' && (
             <WizardPortalPreview
               organization={organization}
