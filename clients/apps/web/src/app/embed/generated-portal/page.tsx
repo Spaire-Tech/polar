@@ -147,6 +147,20 @@ function Preview() {
       dark={dark}
       onToggleDark={() => setDark((d) => !d)}
       coverUrl={withCover ? '/assets/onboarding/cover-hero.jpg' : undefined}
+      avatarUrl={withCover ? '/assets/onboarding/cover-hero.jpg' : null}
+      instructorSub="Two-time major champion and 14-season PGA Tour veteran. Holds the tour record for most strokes gained around the green over a single season."
+      instructorBio={[
+        'While many know Jack for the two major Sundays, players on tour knew him for something quieter: nobody got the ball in the hole from 100 yards and in like he did. He built a fourteen-season career not on power, but on an almost unreasonable command of the scoring game — wedges, chips, and the six feet that decide a round.',
+        'In this course, Jack teaches the game the way he played it — from the green backward. You\u2019ll learn his setup, his routine, and the on-course decisions that turn good rounds into low ones, side by side, one lesson at a time.',
+      ]}
+      portraitCaption="Jack Reeves · The Scoring Game"
+      faq={[
+        { q: 'What\u2019s included when I enroll?', a: 'Every lesson across all three modules, plus the free sample, downloadable practice notes, and lifetime updates whenever new lessons are added. One payment, no subscription.' },
+        { q: 'Where can I watch?', a: 'On the web, iPhone, iPad, and Apple TV. Your place is kept in sync, so you can start a lesson on one device and pick it up on another.' },
+        { q: 'Do I need to be an experienced golfer?', a: 'No. The course starts with grip and setup and builds up to scoring and strategy, so it works at any level.' },
+        { q: 'How long do I have access?', a: 'Forever. Once you enroll the course is yours to revisit as often as you like, at your own pace, with no expiry.' },
+        { q: 'What if it\u2019s not for me?', a: 'Email within 30 days for a full refund. No forms, no questions.' },
+      ]}
       samplePlayable={fakeSample && !!sampleUrl}
       samplePlaybackUrl={sampleUrl}
       sampleStart={2}

@@ -144,6 +144,17 @@ export type GeneratedPortalPageProps = {
   sampleDuration?: number
   /** Hero Play starts the inline sample (sample-trial pages). */
   playStartsSample?: boolean
+  /** Instructor section — avatar comes from the platform (org avatar);
+   *  the writing is AI-polished from the creator's instructor details. */
+  avatarUrl?: string | null
+  instructorSub?: string
+  instructorBio?: string[]
+  portraitUrl?: string | null
+  portraitCaption?: string
+  onAddPortrait?: () => void
+  portraitBusy?: boolean
+  /** FAQ — AI-written Q/A pairs, all editable. */
+  faq?: { q: string; a: string }[]
   groups: GeneratedGroup[]
   lessonCount: number
   unit: 'lesson' | 'episode'
@@ -180,7 +191,7 @@ export type GeneratedPortalPageProps = {
   onEditText?: (
     field: EditField,
     value: string,
-    ctx?: { flatIdx?: number; groupIdx?: number },
+    ctx?: { flatIdx?: number; groupIdx?: number; idx?: number },
   ) => void
 }
 
@@ -194,6 +205,11 @@ export type EditField =
   | 'lessonTitle'
   | 'lessonDesc'
   | 'moduleTitle'
+  | 'instructorSub'
+  | 'instructorBioP'
+  | 'portraitCaption'
+  | 'faqQ'
+  | 'faqA'
 
 export function GeneratedPortalPage({
   brand,
@@ -222,6 +238,14 @@ export function GeneratedPortalPage({
   sampleStart = 0,
   sampleDuration = 0,
   playStartsSample = false,
+  avatarUrl = null,
+  instructorSub = '',
+  instructorBio = [],
+  portraitUrl = null,
+  portraitCaption = '',
+  onAddPortrait,
+  portraitBusy = false,
+  faq = [],
   groups,
   lessonCount,
   unit,
@@ -379,6 +403,19 @@ export function GeneratedPortalPage({
     return () => io.disconnect()
   }, [samplePlaying, stopSample])
 
+  // ── FAQ accordion — design's measured-height open/close ──
+  const [openFaq, setOpenFaq] = useState<number | null>(null)
+  const faqWrapRefs = useRef<(HTMLDivElement | null)[]>([])
+  const faqClipRefs = useRef<(HTMLDivElement | null)[]>([])
+  useEffect(() => {
+    faqWrapRefs.current.forEach((wrap, i) => {
+      if (!wrap) return
+      const clip = faqClipRefs.current[i]
+      wrap.style.height =
+        openFaq === i && clip ? `${clip.scrollHeight}px` : '0px'
+    })
+  }, [openFaq, faq])
+
   // Touch-to-edit text (the design's contenteditable). Commits on blur only,
   // so no re-render happens mid-edit → the caret never jumps. Pointer/click
   // are stopped so editing the hero text doesn't trigger reposition/hover or
@@ -393,8 +430,8 @@ export function GeneratedPortalPage({
     field: EditField
     value: string
     className?: string
-    tag?: 'span' | 'div' | 'h1' | 'p'
-    ctx?: { flatIdx?: number; groupIdx?: number }
+    tag?: 'span' | 'div' | 'h1' | 'h2' | 'p'
+    ctx?: { flatIdx?: number; groupIdx?: number; idx?: number }
   }) => {
     if (!editable || !onEditText) {
       return <Tag className={className}>{value}</Tag>
@@ -594,6 +631,15 @@ export function GeneratedPortalPage({
     : {}
 
   // ── spotlight card — design's .card from Course Page Empty State ──
+  // Vary the ambient tint per card so unfilled tiles keep the row's visual
+  // rhythm (the design's formula; n is the 1-based card number).
+  const ambientTint = (n: number): React.CSSProperties => ({
+    filter: `blur(40px) hue-rotate(${((n * 53) % 44) - 22}deg) brightness(${(
+      0.94 +
+      (n % 3) * 0.06
+    ).toFixed(2)})`,
+  })
+
   const spotlightCard = (l: GeneratedLesson) => (
     <div
       className={`card${l.imageUrl ? ' filled' : ''}`}
@@ -601,7 +647,7 @@ export function GeneratedPortalPage({
       onClick={onLessonClick ? () => onLessonClick(l.flatIdx) : undefined}
       role={onLessonClick ? 'button' : undefined}
     >
-      <div className="ph-ambient" />
+      <div className="ph-ambient" style={ambientTint(l.flatIdx + 1)} />
       <div className="glass-tint" />
       <div
         className="photo"
@@ -680,7 +726,10 @@ export function GeneratedPortalPage({
             <img src={l.imageUrl} alt="" />
           ) : (
             <>
-              <div className="ph-ambient" />
+              <div
+                className="ph-ambient"
+                style={ambientTint(l.flatIdx + 1)}
+              />
               <div className="glass-tint" />
             </>
           )}
@@ -989,6 +1038,138 @@ export function GeneratedPortalPage({
         </section>
       )}
 
+      {/* ════════ INSTRUCTOR (Course Page Empty State.html) ════════ */}
+      {(instructorName || instructorSub || instructorBio.length > 0) && (
+        <section className="instructor">
+          <div className="inst-inner">
+            <div className="inst-copy">
+              <div className="inst-head">
+                <div className={`inst-avatar${avatarUrl ? ' filled' : ''}`}>
+                  <div className="ph-ambient" />
+                  <div className="glass-tint" />
+                  <div
+                    className="photo"
+                    style={
+                      avatarUrl
+                        ? { backgroundImage: `url("${avatarUrl}")` }
+                        : undefined
+                    }
+                  />
+                  <svg
+                    className="av-ic"
+                    width="30"
+                    height="30"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.7"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <circle cx="12" cy="8" r="3.6" />
+                    <path d="M5 20c.8-3.6 3.7-5.6 7-5.6s6.2 2 7 5.6" />
+                  </svg>
+                </div>
+                <div className="inst-id">
+                  <Edit
+                    field="instructorName"
+                    value={instructorName}
+                    className="inst-name"
+                    tag="h2"
+                  />
+                  <Edit
+                    field="instructorSub"
+                    value={instructorSub}
+                    className="inst-sub"
+                    tag="p"
+                  />
+                </div>
+              </div>
+              {instructorBio.map((p, i) => (
+                <Edit
+                  key={i}
+                  field="instructorBioP"
+                  value={p}
+                  className="inst-bio"
+                  tag="p"
+                  ctx={{ idx: i }}
+                />
+              ))}
+            </div>
+
+            <div className={`inst-media${portraitUrl ? ' filled' : ''}`}>
+              <div className="ph-ambient" />
+              <div className="glass-tint" />
+              <div
+                className="photo"
+                style={
+                  portraitUrl
+                    ? { backgroundImage: `url("${portraitUrl}")` }
+                    : undefined
+                }
+              />
+              <div className="photo-shade" />
+              {!portraitUrl && (
+                <div className="ph-cta">
+                  {editable && onAddPortrait ? (
+                    <>
+                      <span
+                        className="ph-ic"
+                        role="button"
+                        tabIndex={0}
+                        onClick={onAddPortrait}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ')
+                            onAddPortrait()
+                        }}
+                      >
+                        <svg
+                          width="24"
+                          height="24"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="1.8"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <circle cx="12" cy="8" r="3.6" />
+                          <path d="M5 20c.8-3.6 3.7-5.6 7-5.6s6.2 2 7 5.6" />
+                        </svg>
+                      </span>
+                      <span className="ph-k">
+                        {portraitBusy ? 'Uploading…' : 'Add a portrait'}
+                      </span>
+                      <span className="ph-s">
+                        A square photo of you mid-lesson works best
+                      </span>
+                    </>
+                  ) : null}
+                </div>
+              )}
+              {portraitCaption && (
+                <Edit
+                  field="portraitCaption"
+                  value={portraitCaption}
+                  className="inst-caption"
+                  tag="div"
+                />
+              )}
+              {editable && onAddPortrait && portraitUrl && (
+                <button
+                  className="change-pill"
+                  type="button"
+                  onClick={onAddPortrait}
+                >
+                  {PillImageIcon}
+                  Change
+                </button>
+              )}
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* ════════ FREE SAMPLE (Course Page Empty State.html) ════════ */}
       {paywallEnabled && trialMode === 'lesson_sample' && (
         <section className="sample">
@@ -1176,6 +1357,67 @@ export function GeneratedPortalPage({
         </div>
       )}
 
+
+      {/* ════════ FAQ (Course Page Empty State.html) ════════ */}
+      {faq.length > 0 && (
+        <section className="faq">
+          <div className="faq-inner">
+            <h2>Questions? Answers.</h2>
+            <div className="faq-list">
+              {faq.map((item, i) => (
+                <div className={`faq-item${openFaq === i ? ' open' : ''}`} key={i}>
+                  <button
+                    className="faq-q"
+                    type="button"
+                    onClick={() => setOpenFaq((o) => (o === i ? null : i))}
+                  >
+                    <Edit
+                      field="faqQ"
+                      value={item.q}
+                      ctx={{ idx: i }}
+                    />
+                    <svg
+                      className="chev"
+                      width="22"
+                      height="22"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M6 9l6 6 6-6" />
+                    </svg>
+                  </button>
+                  <div
+                    className="faq-a-wrap"
+                    ref={(el) => {
+                      faqWrapRefs.current[i] = el
+                    }}
+                  >
+                    <div
+                      className="faq-a-clip"
+                      ref={(el) => {
+                        faqClipRefs.current[i] = el
+                      }}
+                    >
+                      <Edit
+                        field="faqA"
+                        value={item.a}
+                        className="faq-a"
+                        tag="div"
+                        ctx={{ idx: i }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* CSS — copied verbatim from the two design files. Selectors are
           prefixed with .gpp (root) and body.dark → .gpp.dark; keyframes get
           a gpp- prefix because this style block is global. */}
@@ -1299,11 +1541,10 @@ export function GeneratedPortalPage({
         }
         .gpp .card .photo-shade {
           background: linear-gradient(
-            0deg,
-            rgba(7, 8, 10, 0.92) 2%,
-            rgba(7, 8, 10, 0.6) 24%,
-            rgba(7, 8, 10, 0.08) 50%,
-            transparent 64%
+            to top,
+            rgba(0, 0, 0, 0.85) 0%,
+            rgba(0, 0, 0, 0.4) 40%,
+            rgba(0, 0, 0, 0.1) 100%
           );
         }
 
@@ -1724,9 +1965,9 @@ export function GeneratedPortalPage({
         }
         .gpp .card-add {
           position: absolute;
-          top: 32%;
+          top: 16px;
           left: 50%;
-          transform: translate(-50%, -50%);
+          transform: translateX(-50%);
           z-index: 4;
           display: inline-flex;
           align-items: center;
@@ -1748,7 +1989,7 @@ export function GeneratedPortalPage({
         }
         .gpp .card-add:hover {
           background: rgba(255, 255, 255, 0.28);
-          transform: translate(-50%, -50%) scale(1.05);
+          transform: translateX(-50%) scale(1.05);
         }
         /* once filled, the change control hides until hover */
         .gpp .card.filled .card-add {
@@ -2140,19 +2381,34 @@ export function GeneratedPortalPage({
         }
         .gpp .row .grid {
           display: flex;
-          gap: 18px;
-          overflow: hidden;
+          gap: 30px;
+          overflow-x: auto;
+          overflow-y: hidden;
+          scroll-snap-type: x mandatory;
+          scroll-padding-inline: var(--gut);
+          scrollbar-width: none;
+          -ms-overflow-style: none;
+          margin: 0 calc(var(--gut) * -1);
+          padding: 0 var(--gut);
         }
+        .gpp .row .grid::-webkit-scrollbar {
+          display: none;
+        }
+        /* 4-up when the viewport supports it; below that, cards hold a
+           cinematic minimum width and the rail scrolls — never shrink into
+           squat tiles. */
         .gpp .row .grid .card,
         .gpp .row .grid .lc-catalog {
-          flex: 0 0 calc((100% - 90px) / 6);
+          flex: 0 0 max(calc((100% - 90px) / 4), 400px);
+          scroll-snap-align: start;
         }
 
-        /* spotlight card — liquid glass until a still exists */
+        /* spotlight card — Apple TV-style episode card. Liquid glass while
+           awaiting still. */
         .gpp .card {
           position: relative;
-          aspect-ratio: 380 / 362;
-          border-radius: 12px;
+          aspect-ratio: 465 / 320;
+          border-radius: 24px;
           overflow: hidden;
           box-shadow: 0 20px 18px rgba(0, 0, 0, 0.04);
         }
@@ -2165,62 +2421,62 @@ export function GeneratedPortalPage({
           right: 0;
           bottom: 0;
           z-index: 2;
-          padding: 0 14px 12px;
+          padding: 0 20px 16px;
         }
         .gpp .ep {
-          font-size: 10px;
-          font-weight: 700;
-          letter-spacing: 0.09em;
+          font-size: 11px;
+          font-weight: 600;
+          letter-spacing: 0.07em;
           text-transform: uppercase;
           color: rgba(235, 235, 245, 0.66);
         }
         .gpp .card .title {
-          font-size: 16px;
-          font-weight: 700;
+          font-size: 18px;
+          font-weight: 600;
           letter-spacing: -0.015em;
-          line-height: 1.15;
+          line-height: 1.2;
           color: #fff;
-          margin-top: 3px;
+          margin-top: 5px;
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
         }
         .gpp .card .desc {
-          font-size: 13px;
-          line-height: 1.4;
-          color: rgba(235, 235, 245, 0.76);
+          font-size: 14px;
+          line-height: 1.45;
+          color: rgba(235, 235, 245, 0.72);
           margin-top: 4px;
           display: -webkit-box;
           -webkit-line-clamp: 2;
           -webkit-box-orient: vertical;
           overflow: hidden;
-          min-height: 36px;
+          min-height: 40px;
         }
         .gpp .foot {
           display: flex;
           align-items: center;
           justify-content: space-between;
-          margin-top: 7px;
+          margin-top: 8px;
         }
         .gpp .time {
           display: inline-flex;
           align-items: center;
-          gap: 5px;
-          font-size: 12px;
+          gap: 6px;
+          font-size: 13px;
           font-weight: 500;
-          color: rgba(235, 235, 245, 0.76);
+          color: rgba(235, 235, 245, 0.75);
           font-variant-numeric: tabular-nums;
         }
         .gpp .dots {
           display: inline-flex;
           align-items: center;
-          gap: 3px;
-          padding: 4px 2px;
-          color: rgba(235, 235, 245, 0.6);
+          gap: 3.5px;
+          padding: 5px 2px;
+          color: rgba(235, 235, 245, 0.65);
         }
         .gpp .dots span {
-          width: 3px;
-          height: 3px;
+          width: 3.5px;
+          height: 3.5px;
           border-radius: 50%;
           background: currentColor;
         }
@@ -2250,7 +2506,7 @@ export function GeneratedPortalPage({
         }
         .gpp .strip-wrap .grid {
           display: flex;
-          gap: 20px;
+          gap: 30px;
           overflow-x: auto;
           overscroll-behavior-x: contain;
           scroll-snap-type: x mandatory;
@@ -2263,7 +2519,7 @@ export function GeneratedPortalPage({
         }
         .gpp .strip-wrap .grid .lc-catalog,
         .gpp .strip-wrap .grid .card {
-          flex: 0 0 calc((100% - 60px) / 4);
+          flex: 0 0 max(calc((100% - 90px) / 4), 400px);
           scroll-snap-align: start;
         }
 
@@ -2316,7 +2572,7 @@ export function GeneratedPortalPage({
         }
         .gpp .lc-card {
           width: 100%;
-          border-radius: 16px;
+          border-radius: 24px;
           overflow: hidden;
           background: #ffffff;
           border: 1px solid #e6e6e9;
@@ -2428,18 +2684,18 @@ export function GeneratedPortalPage({
           flex: 1;
           display: flex;
           flex-direction: column;
-          padding: 16px 18px 18px;
+          padding: 18px 20px 20px;
         }
         .gpp .lc-num {
-          font-size: 10px;
+          font-size: 11px;
           font-weight: 600;
-          letter-spacing: 0.08em;
+          letter-spacing: 0.07em;
           text-transform: uppercase;
           color: #86868b;
-          margin-bottom: 5px;
+          margin-bottom: 6px;
         }
         .gpp .lc-title {
-          font-size: 17px;
+          font-size: 18px;
           font-weight: 600;
           letter-spacing: -0.02em;
           line-height: 1.2;
@@ -2450,35 +2706,242 @@ export function GeneratedPortalPage({
           text-overflow: ellipsis;
         }
         .gpp .lc-desc {
-          font-size: 13.5px;
+          font-size: 14px;
           color: rgba(0, 0, 0, 0.56);
-          line-height: 1.5;
+          line-height: 1.45;
           text-wrap: pretty;
           display: -webkit-box;
           -webkit-line-clamp: 2;
           -webkit-box-orient: vertical;
           overflow: hidden;
-          min-height: 40px;
+          min-height: 41px;
         }
         .gpp .lc-meta {
           display: flex;
           align-items: center;
           gap: 6px;
           margin-top: auto;
-          padding-top: 11px;
-          font-size: 12.5px;
+          padding-top: 12px;
+          font-size: 13px;
           font-weight: 500;
           color: #86868b;
           font-variant-numeric: tabular-nums;
         }
 
-        /* ============================================================ MEDIA QUERIES */
-        @media (max-width: 1380px) {
-          .gpp .row .grid .card,
-          .gpp .row .grid .lc-catalog {
-            flex: 0 0 calc((100% - 72px) / 5);
-          }
+        /* ============================================================ INSTRUCTOR — Apple/MasterClass style */
+        .gpp {
+          --hair: rgba(0, 0, 0, 0.12);
+          --faq-chev: rgba(0, 0, 0, 0.48);
+          --faq-ans: #4a4a4f;
         }
+        .gpp.dark {
+          --hair: rgba(245, 245, 247, 0.16);
+          --faq-chev: rgba(245, 245, 247, 0.5);
+          --faq-ans: rgba(245, 245, 247, 0.78);
+        }
+        .gpp .instructor {
+          padding: 88px var(--gut) 24px;
+          background: var(--bg);
+          transition: background 0.4s ease;
+        }
+        .gpp .inst-inner {
+          max-width: 1240px;
+          margin: 0 auto;
+          display: grid;
+          grid-template-columns: 1fr minmax(380px, 540px);
+          gap: clamp(48px, 6vw, 110px);
+          align-items: start;
+        }
+        .gpp .inst-head {
+          display: grid;
+          grid-template-columns: 108px 1fr;
+          gap: 26px;
+          align-items: center;
+          margin-bottom: 36px;
+        }
+        .gpp .inst-avatar {
+          position: relative;
+          width: 108px;
+          height: 108px;
+          border-radius: 50%;
+          overflow: hidden;
+          display: grid;
+          place-items: center;
+          color: #fff;
+          box-shadow: inset 0 0 0 1px var(--hair);
+        }
+        .gpp .inst-avatar .av-ic {
+          position: relative;
+          z-index: 2;
+          opacity: 0.92;
+        }
+        .gpp .inst-avatar.filled .ph-ambient,
+        .gpp .inst-avatar.filled .glass-tint,
+        .gpp .inst-avatar.filled .av-ic {
+          display: none;
+        }
+        .gpp .inst-avatar .photo {
+          display: none;
+        }
+        .gpp .inst-avatar.filled .photo {
+          display: block;
+        }
+        .gpp .inst-name {
+          font-family: var(--po);
+          font-size: clamp(34px, 3.6vw, 54px);
+          font-weight: 600;
+          line-height: 1.05;
+          letter-spacing: -0.03em;
+          color: var(--text);
+          transition: color 0.4s ease;
+        }
+        .gpp .inst-sub {
+          margin-top: 10px;
+          max-width: 520px;
+          font-size: 17px;
+          line-height: 1.5;
+          font-weight: 400;
+          color: var(--text-2);
+          transition: color 0.4s ease;
+        }
+        .gpp .inst-bio {
+          max-width: 620px;
+          font-size: 17px;
+          line-height: 1.65;
+          color: var(--faq-ans);
+          transition: color 0.4s ease;
+        }
+        .gpp .inst-bio + .inst-bio {
+          margin-top: 20px;
+        }
+        .gpp .inst-media {
+          position: relative;
+          aspect-ratio: 1 / 1;
+          border-radius: 28px;
+          overflow: hidden;
+          display: grid;
+          place-items: center;
+        }
+        .gpp .inst-media .photo-shade {
+          background: linear-gradient(
+            0deg,
+            rgba(7, 8, 10, 0.42) 0%,
+            rgba(7, 8, 10, 0.1) 26%,
+            transparent 44%
+          );
+        }
+        .gpp .inst-media.filled .ph-ambient,
+        .gpp .inst-media.filled .glass-tint,
+        .gpp .inst-media.filled .ph-cta {
+          display: none;
+        }
+        .gpp .inst-media.filled .change-pill {
+          display: inline-flex;
+        }
+        .gpp .inst-media.filled:hover .change-pill {
+          opacity: 1;
+        }
+        .gpp .inst-caption {
+          position: absolute;
+          left: 20px;
+          bottom: 20px;
+          z-index: 2;
+          padding: 9px 15px;
+          border-radius: 11px;
+          background: rgba(15, 15, 18, 0.66);
+          -webkit-backdrop-filter: blur(14px);
+          backdrop-filter: blur(14px);
+          color: rgba(255, 255, 255, 0.94);
+          font-size: 13.5px;
+          font-weight: 600;
+          letter-spacing: -0.01em;
+        }
+
+        /* ============================================================ FAQ — Apple style */
+        .gpp .faq {
+          padding: 40px var(--gut) 120px;
+          background: var(--bg);
+          transition: background 0.4s ease;
+        }
+        .gpp .faq-inner {
+          max-width: 820px;
+          margin: 0 auto;
+        }
+        .gpp .faq h2 {
+          font-family: var(--po);
+          font-size: clamp(26px, 7vw, 88px);
+          font-weight: 600;
+          line-height: 1.02;
+          letter-spacing: -0.03em;
+          text-align: center;
+          color: var(--text);
+          white-space: nowrap;
+          margin-bottom: clamp(40px, 6vw, 80px);
+          transition: color 0.4s ease;
+        }
+        .gpp .faq-list {
+          border-top: 1px solid var(--hair);
+        }
+        .gpp .faq-item {
+          border-bottom: 1px solid var(--hair);
+        }
+        .gpp .faq-q {
+          width: 100%;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 24px;
+          padding: 26px 4px;
+          text-align: left;
+          font-size: clamp(19px, 2vw, 26px);
+          font-weight: 600;
+          letter-spacing: -0.02em;
+          color: var(--text);
+          transition: color 0.2s ease, opacity 0.2s ease;
+        }
+        .gpp .faq-q:hover {
+          opacity: 0.62;
+        }
+        .gpp .faq-q .chev {
+          flex: none;
+          color: var(--faq-chev);
+          transition: transform 0.42s cubic-bezier(0.4, 0, 0.2, 1),
+            color 0.2s ease;
+        }
+        .gpp .faq-item.open .faq-q .chev {
+          transform: rotate(180deg);
+          color: #0071e3;
+        }
+        .gpp .faq-item.open .faq-q {
+          color: var(--text);
+        }
+        .gpp .faq-a-wrap {
+          height: 0;
+          overflow: hidden;
+          transition: height 0.42s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .gpp .faq-a-clip {
+          overflow: hidden;
+        }
+        .gpp .faq-a {
+          padding: 0 64px 8px 4px;
+          max-width: 660px;
+          font-size: clamp(15px, 1.4vw, 17px);
+          line-height: 1.6;
+          font-weight: 400;
+          color: var(--faq-ans);
+          opacity: 0;
+          transform: translateY(-6px);
+          transition: opacity 0.32s ease 0.04s,
+            transform 0.42s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .gpp .faq-item.open .faq-a {
+          opacity: 1;
+          transform: none;
+          padding-bottom: 30px;
+        }
+
+        /* ============================================================ MEDIA QUERIES */
         @media (max-width: 1200px) {
           .gpp {
             --gut: 44px;
@@ -2490,16 +2953,8 @@ export function GeneratedPortalPage({
           .gpp .band-cast {
             display: none;
           }
-          .gpp .strip-wrap .grid .lc-catalog,
-          .gpp .strip-wrap .grid .card {
-            flex-basis: calc((100% - 40px) / 3);
-          }
         }
         @media (max-width: 1100px) {
-          .gpp .row .grid .card,
-          .gpp .row .grid .lc-catalog {
-            flex: 0 0 calc((100% - 54px) / 4);
-          }
           .gpp .lessons {
             padding: 40px 40px 72px;
           }
@@ -2521,7 +2976,7 @@ export function GeneratedPortalPage({
           }
           .gpp .strip-wrap .grid .lc-catalog,
           .gpp .strip-wrap .grid .card {
-            flex-basis: calc((100% - 20px) / 2);
+            flex-basis: min(465px, 84%);
           }
         }
         @media (max-width: 760px) {
@@ -2529,11 +2984,11 @@ export function GeneratedPortalPage({
             margin-top: 32px;
           }
           .gpp .row .grid {
-            flex-wrap: wrap;
+            gap: 18px;
           }
           .gpp .row .grid .card,
           .gpp .row .grid .lc-catalog {
-            flex: 0 0 calc((100% - 18px) / 2);
+            flex: 0 0 min(465px, 84%);
           }
           .gpp .lessons {
             padding: 28px 20px 56px;

@@ -24,6 +24,7 @@ import {
   useUpdateCourseModule,
   useUploadCourseThumbnail,
   useUploadCourseTrailer,
+  useUploadLandingMedia,
   useUploadLessonThumbnail,
   type CourseRead,
 } from '@/hooks/queries/courses'
@@ -76,13 +77,20 @@ function formatPrice(product: schemas['Product'] | undefined): {
   return { priceLabel: label, recurring: first.type === 'recurring' }
 }
 
-export function CourseDesignEditor({ course }: { course: CourseRead }) {
+export function CourseDesignEditor({
+  course,
+  organization,
+}: {
+  course: CourseRead
+  organization?: schemas['Organization']
+}) {
   const updateCourse = useUpdateCourse()
   const updateLesson = useUpdateCourseLesson()
   const updateModule = useUpdateCourseModule()
   const uploadThumb = useUploadCourseThumbnail()
   const uploadTrailer = useUploadCourseTrailer()
   const uploadLessonThumb = useUploadLessonThumbnail()
+  const uploadLandingMedia = useUploadLandingMedia()
   const { data: product } = useProduct(course.product_id)
 
   const isEpisodic = course.format === 'series'
@@ -264,11 +272,48 @@ export function CourseDesignEditor({ course }: { course: CourseRead }) {
     },
     [course.id, course.landing_overrides, aiHero, updateCourse],
   )
+  const patchOverrides = useCallback(
+    (patch: Record<string, unknown>) => {
+      updateCourse.mutate({
+        courseId: course.id,
+        body: {
+          landing_overrides: {
+            ...(course.landing_overrides ?? {}),
+            ...patch,
+          },
+        },
+      })
+    },
+    [course.id, course.landing_overrides, updateCourse],
+  )
+
+  // ── instructor portrait (its own media slot, S3-backed) ──────────────────
+  const aiInstructor = course.landing_overrides?.ai_instructor ?? null
+  const aiFaq = course.landing_overrides?.ai_faq ?? []
+  const [portraitBusy, setPortraitBusy] = useState(false)
+  const onAddPortrait = useCallback(() => {
+    pickFile('image/*', async (file) => {
+      setPortraitBusy(true)
+      try {
+        const { url } = await uploadLandingMedia.mutateAsync({
+          courseId: course.id,
+          file,
+        })
+        patchOverrides({ portrait_url: url })
+        toast({ title: 'Portrait updated' })
+      } catch {
+        toast({ title: 'Upload failed', description: 'Please try again.' })
+      } finally {
+        setPortraitBusy(false)
+      }
+    })
+  }, [course.id, uploadLandingMedia, patchOverrides])
+
   const onEditText = useCallback(
     (
       field: EditField,
       value: string,
-      ctx?: { flatIdx?: number; groupIdx?: number },
+      ctx?: { flatIdx?: number; groupIdx?: number; idx?: number },
     ) => {
       switch (field) {
         case 'title':
@@ -313,6 +358,34 @@ export function CourseDesignEditor({ course }: { course: CourseRead }) {
           updateModule.mutate({ moduleId: mod.id, body: { title: value } })
           break
         }
+        case 'instructorSub':
+          patchOverrides({
+            ai_instructor: { ...(aiInstructor ?? {}), sub: value },
+          })
+          break
+        case 'instructorBioP': {
+          if (ctx?.idx == null) break
+          const bio = [...(aiInstructor?.bio ?? [])]
+          bio[ctx.idx] = value
+          patchOverrides({ ai_instructor: { ...(aiInstructor ?? {}), bio } })
+          break
+        }
+        case 'portraitCaption':
+          patchOverrides({
+            ai_instructor: { ...(aiInstructor ?? {}), caption: value },
+          })
+          break
+        case 'faqQ':
+        case 'faqA': {
+          if (ctx?.idx == null) break
+          const next = aiFaq.map((f, i) =>
+            i === ctx.idx
+              ? { ...f, [field === 'faqQ' ? 'q' : 'a']: value }
+              : f,
+          )
+          patchOverrides({ ai_faq: next })
+          break
+        }
       }
     },
     [
@@ -320,6 +393,9 @@ export function CourseDesignEditor({ course }: { course: CourseRead }) {
       flatLessons,
       sortedModules,
       patchAiHero,
+      patchOverrides,
+      aiInstructor,
+      aiFaq,
       updateCourse,
       updateLesson,
       updateModule,
@@ -415,6 +491,14 @@ export function CourseDesignEditor({ course }: { course: CourseRead }) {
       lessonImageBusy={lessonImageBusy}
       onConfigureSample={() => setSampleOpen(true)}
       onEditText={onEditText}
+      avatarUrl={organization?.avatar_url ?? null}
+      instructorSub={aiInstructor?.sub ?? ''}
+      instructorBio={aiInstructor?.bio ?? []}
+      portraitUrl={course.landing_overrides?.portrait_url ?? null}
+      portraitCaption={aiInstructor?.caption ?? ''}
+      onAddPortrait={onAddPortrait}
+      portraitBusy={portraitBusy}
+      faq={aiFaq}
     />
       {sampleOpen && (
         <SampleSettingsModal

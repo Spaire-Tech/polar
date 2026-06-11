@@ -100,10 +100,14 @@ type PartialHero = {
   byline?: string
   titleLines?: string[]
 }
+type PartialInstructor = { sub?: string; bio?: string[] }
+type PartialFaqItem = { q?: string; a?: string }
 type PartialOutline = {
   arc?: string
   modules?: PartialModule[]
   hero?: PartialHero
+  instructor?: PartialInstructor
+  faq?: PartialFaqItem[]
 }
 
 // ─── Main wizard ─────────────────────────────────────────────────────────────
@@ -381,6 +385,28 @@ export default function CourseWizard({
         // light/dark choice from the preview's theme toggle.
         landing_overrides: {
           ...(heroCopy ? { ai_hero: heroCopy } : {}),
+          ...(outline.instructor?.sub || outline.instructor?.bio?.length
+            ? {
+                ai_instructor: {
+                  sub: outline.instructor.sub ?? null,
+                  bio: (outline.instructor.bio ?? []).filter(Boolean),
+                  caption:
+                    [instructor.name, course.title]
+                      .filter(Boolean)
+                      .join(' · ') || null,
+                },
+              }
+            : {}),
+          ...((outline.faq ?? []).filter((f) => f?.q && f?.a).length
+            ? {
+                ai_faq: (outline.faq ?? [])
+                  .filter(
+                    (f): f is { q: string; a: string } =>
+                      Boolean(f?.q && f?.a),
+                  )
+                  .map((f) => ({ q: f.q, a: f.a })),
+              }
+            : {}),
           theme_mode: themeMode,
         },
         modules: outlineModules
@@ -439,8 +465,18 @@ export default function CourseWizard({
     // Prefer the AI-written hero copy; fall back to the creator's inputs only
     // if a field is still streaming/empty. The hero description must NOT be the
     // raw course.desc blob — show the synthesised line, else nothing.
-    const aiHero = (partialOutline as PartialOutline | undefined)?.hero ?? {}
+    const o = partialOutline as PartialOutline | undefined
+    const aiHero = o?.hero ?? {}
     return {
+      instructorSub: o?.instructor?.sub ?? '',
+      instructorBioParas: (o?.instructor?.bio ?? []).filter(
+        (b): b is string => Boolean(b),
+      ),
+      portraitCaption:
+        [instructor.name, course.title].filter(Boolean).join(' · ') || '',
+      faq: (o?.faq ?? [])
+        .filter((f): f is { q: string; a: string } => Boolean(f?.q && f?.a))
+        .map((f) => ({ q: f.q, a: f.a })),
       title: course.title,
       desc: aiHero.description ?? '',
       eyebrow: aiHero.eyebrow ?? null,

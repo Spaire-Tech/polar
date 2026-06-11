@@ -358,7 +358,9 @@ function CustomizeCanvas({
   // The canvas IS the generated page (the design surface buyers see),
   // in editable mode — creator affordances wired to the S3/Mux-backed
   // endpoints. The old EditableCourseLandingView canvas is retired.
-  const landing = <CourseDesignEditor course={course} />
+  const landing = (
+    <CourseDesignEditor course={course} organization={organization} />
+  )
 
   if (isMobileMode) {
     return (

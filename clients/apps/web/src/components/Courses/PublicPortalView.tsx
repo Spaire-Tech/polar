@@ -198,6 +198,9 @@ export function PublicPortalView({
 
   // The creator's persisted theme choice drives the public page.
   const dark = landing.landing_overrides?.theme_mode === 'dark'
+  const aiInstructor = landing.landing_overrides?.ai_instructor ?? null
+  const aiFaq = landing.landing_overrides?.ai_faq ?? []
+  const portraitUrl = landing.landing_overrides?.portrait_url ?? null
 
   // ── Groups — per-lesson media only; placeholder otherwise ────────────────
   const flatLessons = landing.lessons
@@ -292,6 +295,12 @@ export function PublicPortalView({
         playStartsSample={
           !hasAccess && trialMode === 'lesson_sample' && samplePlayable
         }
+        avatarUrl={organization.avatar_url ?? null}
+        instructorSub={aiInstructor?.sub ?? ''}
+        instructorBio={aiInstructor?.bio ?? []}
+        portraitUrl={portraitUrl}
+        portraitCaption={aiInstructor?.caption ?? ''}
+        faq={aiFaq}
         groups={groups}
         lessonCount={landing.lesson_count}
         unit={unit}
