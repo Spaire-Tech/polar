@@ -165,7 +165,25 @@ export type GeneratedPortalPageProps = {
   lessonImageBusy?: number | null
   /** Configure-sample affordance on the sample screen (editor only). */
   onConfigureSample?: () => void
+  /** Touch-to-edit text commits (editor only). ctx carries the lesson's
+   *  flatIdx or the module's groupIdx where relevant. */
+  onEditText?: (
+    field: EditField,
+    value: string,
+    ctx?: { flatIdx?: number; groupIdx?: number },
+  ) => void
 }
+
+export type EditField =
+  | 'title'
+  | 'desc'
+  | 'byline'
+  | 'eyebrow'
+  | 'badge'
+  | 'instructorName'
+  | 'lessonTitle'
+  | 'lessonDesc'
+  | 'moduleTitle'
 
 export function GeneratedPortalPage({
   brand,
@@ -210,6 +228,7 @@ export function GeneratedPortalPage({
   onAddLessonImage,
   lessonImageBusy = null,
   onConfigureSample,
+  onEditText,
 }: GeneratedPortalPageProps) {
   const isEpisodic = structure === 'episodic'
   const unitCap = unit === 'episode' ? 'Episode' : 'Lesson'
@@ -275,6 +294,44 @@ export function GeneratedPortalPage({
   }
   const onDragEnd = () => {
     dragRef.current = null
+  }
+
+  // Touch-to-edit text (the design's contenteditable). Commits on blur only,
+  // so no re-render happens mid-edit → the caret never jumps. Pointer/click
+  // are stopped so editing the hero text doesn't trigger reposition/hover or
+  // a card's onClick.
+  const Edit = ({
+    field,
+    value,
+    className,
+    tag: Tag = 'span',
+    ctx,
+  }: {
+    field: EditField
+    value: string
+    className?: string
+    tag?: 'span' | 'div' | 'h1' | 'p'
+    ctx?: { flatIdx?: number; groupIdx?: number }
+  }) => {
+    if (!editable || !onEditText) {
+      return <Tag className={className}>{value}</Tag>
+    }
+    return (
+      <Tag
+        className={`${className ?? ''} gpp-editable`}
+        contentEditable
+        suppressContentEditableWarning
+        spellCheck={false}
+        onPointerDown={(e: React.PointerEvent) => e.stopPropagation()}
+        onClick={(e: React.MouseEvent) => e.stopPropagation()}
+        onBlur={(e: React.FocusEvent<HTMLElement>) => {
+          const next = (e.currentTarget.textContent ?? '').trim()
+          if (next !== value) onEditText(field, next, ctx)
+        }}
+      >
+        {value}
+      </Tag>
+    )
   }
 
   const trialShort = !paywallEnabled
@@ -494,8 +551,20 @@ export function GeneratedPortalPage({
         <div className="ep">
           {unitCap} {l.flatIdx + 1}
         </div>
-        <div className="title">{l.title}</div>
-        <div className="desc">{l.description}</div>
+        <Edit
+          field="lessonTitle"
+          value={l.title}
+          className="title"
+          tag="div"
+          ctx={{ flatIdx: l.flatIdx }}
+        />
+        <Edit
+          field="lessonDesc"
+          value={l.description}
+          className="desc"
+          tag="div"
+          ctx={{ flatIdx: l.flatIdx }}
+        />
         <div className="foot">
           <span className="time">
             <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
@@ -577,8 +646,20 @@ export function GeneratedPortalPage({
           <div className="lc-num">
             {unitCap} {l.flatIdx + 1}
           </div>
-          <div className="lc-title">{l.title}</div>
-          <div className="lc-desc">{l.description}</div>
+          <Edit
+            field="lessonTitle"
+            value={l.title}
+            className="lc-title"
+            tag="div"
+            ctx={{ flatIdx: l.flatIdx }}
+          />
+          <Edit
+            field="lessonDesc"
+            value={l.description}
+            className="lc-desc"
+            tag="div"
+            ctx={{ flatIdx: l.flatIdx }}
+          />
           <div className="lc-meta">
             <ClockIcon />
             <span>{l.durationLabel || '0m'}</span>
@@ -630,8 +711,13 @@ export function GeneratedPortalPage({
           {creatorBar}
 
           <div className="panel-title">
-            <div className="pt-eyebrow rise d1">{eyebrow}</div>
-            <h1 className="pt-h rise d1">{title}</h1>
+            <Edit
+              field="eyebrow"
+              value={eyebrow}
+              className="pt-eyebrow rise d1"
+              tag="div"
+            />
+            <Edit field="title" value={title} className="pt-h rise d1" tag="h1" />
           </div>
 
           <div className="band rise d2">
@@ -654,7 +740,7 @@ export function GeneratedPortalPage({
             </div>
 
             <div className="band-desc">
-              <p className="bd-text">{desc}</p>
+              <Edit field="desc" value={desc} className="bd-text" tag="p" />
               <div className="bd-meta">
                 {eyebrow}&nbsp;&nbsp;·&nbsp;&nbsp;{year}
                 &nbsp;&nbsp;·&nbsp;&nbsp;{lessonCount} {unitCap}
@@ -687,8 +773,13 @@ export function GeneratedPortalPage({
 
             <div className="band-cast">
               <div className="bc-k">Instructor</div>
-              <div className="bc-v">{instructorName}</div>
-              <div className="bc-sub">{byline}</div>
+              <Edit
+                field="instructorName"
+                value={instructorName}
+                className="bc-v"
+                tag="div"
+              />
+              <Edit field="byline" value={byline} className="bc-sub" tag="div" />
             </div>
           </div>
         </header>
@@ -732,7 +823,7 @@ export function GeneratedPortalPage({
 
           <div className="hero-content">
             <div className="hero-meta">
-              <span className="badge">{badge}</span>
+              <Edit field="badge" value={badge} className="badge" />
               <div className="meta-line">
                 <span>
                   {lessonCount} {unit}
@@ -743,21 +834,25 @@ export function GeneratedPortalPage({
               </div>
             </div>
 
-            <h1 className="hero-title">
-              {titleLines && titleLines.length > 1
-                ? titleLines.map((line, i) => (
-                    <span key={i}>
-                      {i > 0 && <br />}
-                      {line}
-                    </span>
-                  ))
-                : title}
-            </h1>
+            {editable && onEditText ? (
+              <Edit field="title" value={title} className="hero-title" tag="h1" />
+            ) : (
+              <h1 className="hero-title">
+                {titleLines && titleLines.length > 1
+                  ? titleLines.map((line, i) => (
+                      <span key={i}>
+                        {i > 0 && <br />}
+                        {line}
+                      </span>
+                    ))
+                  : title}
+              </h1>
+            )}
 
             <p className="hero-desc">
-              {desc}{' '}
+              <Edit field="desc" value={desc} />{' '}
               <span className="with">
-                — {byline ? byline : `with ${instructorName}`}
+                — <Edit field="byline" value={byline || `with ${instructorName}`} />
               </span>
             </p>
 
@@ -947,7 +1042,11 @@ export function GeneratedPortalPage({
             <section className="row" key={gi}>
               <div className="row-head">
                 <span className="mod">Module {gi + 1}</span>
-                <span>{g.title}</span>
+                <Edit
+                  field="moduleTitle"
+                  value={g.title ?? ''}
+                  ctx={{ groupIdx: gi }}
+                />
               </div>
               <div className="grid">{g.lessons.map((l) => card(l))}</div>
             </section>
@@ -1451,6 +1550,20 @@ export function GeneratedPortalPage({
           height: 7px;
           border-radius: 50%;
           background: #e0482e;
+        }
+
+        /* ── touch-to-edit text (Course Page Empty State.html) ── */
+        .gpp .gpp-editable {
+          outline: none;
+          border-radius: 6px;
+          transition: box-shadow 0.15s;
+          cursor: text;
+        }
+        .gpp .gpp-editable:hover {
+          box-shadow: 0 0 0 1.5px rgba(0, 113, 227, 0.35);
+        }
+        .gpp .gpp-editable:focus {
+          box-shadow: 0 0 0 2px #0071e3;
         }
 
         /* ── editor affordances (Course Page Empty State.html, verbatim) ── */

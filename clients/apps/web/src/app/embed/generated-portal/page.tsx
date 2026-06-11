@@ -122,6 +122,19 @@ function Preview() {
       onCoverPosition={editable ? () => {} : undefined}
       onAddLessonImage={editable ? () => {} : undefined}
       onConfigureSample={editable ? () => {} : undefined}
+      onEditText={
+        editable
+          ? (field, value, ctx) => {
+              ;(
+                window as unknown as { __edits: unknown[] }
+              ).__edits = [
+                ...(((window as unknown as { __edits?: unknown[] }).__edits) ??
+                  []),
+                { field, value, ctx },
+              ]
+            }
+          : undefined
+      }
     />
   )
 }

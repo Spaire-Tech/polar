@@ -20,6 +20,8 @@
 
 import {
   useUpdateCourse,
+  useUpdateCourseLesson,
+  useUpdateCourseModule,
   useUploadCourseThumbnail,
   useUploadCourseTrailer,
   useUploadLessonThumbnail,
@@ -31,6 +33,7 @@ import { useCallback, useMemo, useRef, useState } from 'react'
 import { toast } from '../../Toast/use-toast'
 import {
   GeneratedPortalPage,
+  type EditField,
   type GeneratedGroup,
 } from './GeneratedPortalPage'
 
@@ -73,14 +76,10 @@ function formatPrice(product: schemas['Product'] | undefined): {
   return { priceLabel: label, recurring: first.type === 'recurring' }
 }
 
-export function CourseDesignEditor({
-  course,
-  onOpenSampleSettings,
-}: {
-  course: CourseRead
-  onOpenSampleSettings?: () => void
-}) {
+export function CourseDesignEditor({ course }: { course: CourseRead }) {
   const updateCourse = useUpdateCourse()
+  const updateLesson = useUpdateCourseLesson()
+  const updateModule = useUpdateCourseModule()
   const uploadThumb = useUploadCourseThumbnail()
   const uploadTrailer = useUploadCourseTrailer()
   const uploadLessonThumb = useUploadLessonThumbnail()
@@ -243,8 +242,92 @@ export function CourseDesignEditor({
     [flatLessons, uploadLessonThumb, unitCap],
   )
 
-  // ── hero copy (the AI-written hero, falling back to course fields) ────────
+  // ── modules, in render order — for moduleTitle edits by groupIdx ──────────
+  const sortedModules = useMemo(
+    () => [...course.modules].sort((a, b) => a.position - b.position),
+    [course.modules],
+  )
+
+  // ── touch-to-edit text → persist to the right field ──────────────────────
   const aiHero = course.landing_overrides?.ai_hero ?? null
+  const patchAiHero = useCallback(
+    (patch: Record<string, unknown>) => {
+      updateCourse.mutate({
+        courseId: course.id,
+        body: {
+          landing_overrides: {
+            ...(course.landing_overrides ?? {}),
+            ai_hero: { ...(aiHero ?? {}), ...patch },
+          },
+        },
+      })
+    },
+    [course.id, course.landing_overrides, aiHero, updateCourse],
+  )
+  const onEditText = useCallback(
+    (
+      field: EditField,
+      value: string,
+      ctx?: { flatIdx?: number; groupIdx?: number },
+    ) => {
+      switch (field) {
+        case 'title':
+          updateCourse.mutate({ courseId: course.id, body: { title: value } })
+          break
+        case 'instructorName':
+          updateCourse.mutate({
+            courseId: course.id,
+            body: { instructor_name: value },
+          })
+          break
+        case 'desc':
+          patchAiHero({ description: value })
+          break
+        case 'byline':
+          patchAiHero({ byline: value })
+          break
+        case 'eyebrow':
+          patchAiHero({ eyebrow: value })
+          break
+        case 'badge':
+          patchAiHero({ badge: value })
+          break
+        case 'lessonTitle':
+        case 'lessonDesc': {
+          const lesson =
+            ctx?.flatIdx != null ? flatLessons[ctx.flatIdx] : undefined
+          if (!lesson) break
+          updateLesson.mutate({
+            lessonId: lesson.id,
+            body:
+              field === 'lessonTitle'
+                ? { title: value }
+                : { description: value },
+          })
+          break
+        }
+        case 'moduleTitle': {
+          const mod =
+            ctx?.groupIdx != null ? sortedModules[ctx.groupIdx] : undefined
+          if (!mod) break
+          updateModule.mutate({ moduleId: mod.id, body: { title: value } })
+          break
+        }
+      }
+    },
+    [
+      course.id,
+      flatLessons,
+      sortedModules,
+      patchAiHero,
+      updateCourse,
+      updateLesson,
+      updateModule,
+    ],
+  )
+
+  // ── hero copy (the AI-written hero, falling back to course fields) ────────
+  const [sampleOpen, setSampleOpen] = useState(false)
   const { priceLabel, recurring } = formatPrice(product)
   const cadence = recurring ? 'cancel anytime' : 'one-time purchase'
   const buyLabel = !paywallEnabled
@@ -275,8 +358,23 @@ export function CourseDesignEditor({
     sample?.enabled && sampleLesson?.mux_playback_id,
   )
 
+  const saveSample = useCallback(
+    (next: {
+      enabled: boolean
+      lesson_id: string
+      start_seconds: number
+      duration_seconds: number
+    }) => {
+      updateCourse.mutate({ courseId: course.id, body: { sample: next } })
+      setSampleOpen(false)
+      toast({ title: next.enabled ? 'Sample saved' : 'Sample disabled' })
+    },
+    [course.id, updateCourse],
+  )
+
   return (
-    <GeneratedPortalPage
+    <>
+      <GeneratedPortalPage
       brand="Spaire Originals"
       title={course.title ?? 'Untitled Original'}
       titleLines={aiHero?.titleLines ?? null}
@@ -312,9 +410,225 @@ export function CourseDesignEditor({
       onCoverPosition={onCoverPosition}
       onAddLessonImage={onAddLessonImage}
       lessonImageBusy={lessonImageBusy}
-      onConfigureSample={onOpenSampleSettings}
+      onConfigureSample={() => setSampleOpen(true)}
+      onEditText={onEditText}
     />
+      {sampleOpen && (
+        <SampleSettingsModal
+          course={course}
+          lessons={flatLessons}
+          onClose={() => setSampleOpen(false)}
+          onSave={saveSample}
+        />
+      )}
+    </>
   )
+}
+
+// Minimal sample configuration — pick the source lesson and the clip window.
+// Persists to course.sample; the backend embeds the Mux playback id on the
+// public payload once the lesson's asset is ready.
+export function SampleSettingsModal({
+  course,
+  lessons,
+  onClose,
+  onSave,
+}: {
+  course: CourseRead
+  lessons: CourseRead['modules'][number]['lessons']
+  onClose: () => void
+  onSave: (next: {
+    enabled: boolean
+    lesson_id: string
+    start_seconds: number
+    duration_seconds: number
+  }) => void
+}) {
+  const existing = course.sample
+  const videoLessons = lessons.filter((l) => l.content_type === 'video')
+  const [lessonId, setLessonId] = useState(
+    existing?.lesson_id ?? videoLessons[0]?.id ?? '',
+  )
+  const [startStr, setStartStr] = useState(String(existing?.start_seconds ?? 0))
+  const [durStr, setDurStr] = useState(
+    String(existing?.duration_seconds ?? 120),
+  )
+  const [enabled, setEnabled] = useState(existing?.enabled ?? true)
+
+  const selected = lessons.find((l) => l.id === lessonId)
+  const ready = (selected?.mux_status ?? '').toLowerCase() === 'ready'
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      onClick={onClose}
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 200,
+        background: 'rgba(20,20,22,0.34)',
+        backdropFilter: 'blur(8px)',
+        display: 'grid',
+        placeItems: 'center',
+        padding: 24,
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          width: 'min(460px, 100%)',
+          background: '#fff',
+          borderRadius: 20,
+          padding: '24px 24px 20px',
+          boxShadow: '0 40px 100px -28px rgba(0,0,0,0.5)',
+          fontFamily:
+            "-apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif",
+          color: '#1d1d1f',
+        }}
+      >
+        <h2 style={{ fontSize: 19, fontWeight: 600, margin: 0 }}>
+          Free sample
+        </h2>
+        <p style={{ fontSize: 13.5, color: '#86868b', margin: '6px 0 18px' }}>
+          Pick a video lesson and the clip window prospects can watch for free.
+        </p>
+
+        <label style={labelStyle}>Source lesson</label>
+        <select
+          value={lessonId}
+          onChange={(e) => setLessonId(e.target.value)}
+          style={inputStyle}
+        >
+          {videoLessons.length === 0 && (
+            <option value="">No video lessons yet</option>
+          )}
+          {videoLessons.map((l, i) => (
+            <option key={l.id} value={l.id}>
+              {i + 1}. {l.title}
+            </option>
+          ))}
+        </select>
+        {lessonId && !ready && (
+          <p style={{ fontSize: 12, color: '#c2410c', marginTop: 6 }}>
+            This lesson's video isn't processed yet — the sample will start
+            playing once it's ready.
+          </p>
+        )}
+
+        <div style={{ display: 'flex', gap: 12, marginTop: 14 }}>
+          <div style={{ flex: 1 }}>
+            <label style={labelStyle}>Start (seconds)</label>
+            <input
+              type="number"
+              min={0}
+              value={startStr}
+              onChange={(e) => setStartStr(e.target.value)}
+              style={inputStyle}
+            />
+          </div>
+          <div style={{ flex: 1 }}>
+            <label style={labelStyle}>Length (seconds)</label>
+            <input
+              type="number"
+              min={5}
+              value={durStr}
+              onChange={(e) => setDurStr(e.target.value)}
+              style={inputStyle}
+            />
+          </div>
+        </div>
+
+        <label
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 9,
+            marginTop: 16,
+            fontSize: 14,
+            cursor: 'pointer',
+          }}
+        >
+          <input
+            type="checkbox"
+            checked={enabled}
+            onChange={(e) => setEnabled(e.target.checked)}
+          />
+          Show the free sample on the course page
+        </label>
+
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'flex-end',
+            gap: 10,
+            marginTop: 22,
+          }}
+        >
+          <button type="button" onClick={onClose} style={btnGhost}>
+            Cancel
+          </button>
+          <button
+            type="button"
+            disabled={!lessonId}
+            onClick={() =>
+              onSave({
+                enabled,
+                lesson_id: lessonId,
+                start_seconds: Math.max(0, parseInt(startStr || '0', 10) || 0),
+                duration_seconds: Math.max(
+                  5,
+                  parseInt(durStr || '120', 10) || 120,
+                ),
+              })
+            }
+            style={{ ...btnPrimary, opacity: lessonId ? 1 : 0.4 }}
+          >
+            Save sample
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+const labelStyle: React.CSSProperties = {
+  display: 'block',
+  fontSize: 11,
+  fontWeight: 600,
+  letterSpacing: '0.04em',
+  textTransform: 'uppercase',
+  color: '#86868b',
+  marginBottom: 6,
+}
+const inputStyle: React.CSSProperties = {
+  width: '100%',
+  height: 40,
+  padding: '0 12px',
+  borderRadius: 10,
+  border: '1.5px solid #e8e8ed',
+  fontSize: 14,
+  background: '#fff',
+  color: '#1d1d1f',
+}
+const btnGhost: React.CSSProperties = {
+  padding: '10px 18px',
+  borderRadius: 980,
+  background: 'none',
+  boxShadow: 'inset 0 0 0 1px #e8e8ed',
+  fontSize: 14,
+  fontWeight: 500,
+  cursor: 'pointer',
+}
+const btnPrimary: React.CSSProperties = {
+  padding: '10px 20px',
+  borderRadius: 980,
+  background: '#1d1d1f',
+  color: '#fff',
+  border: 'none',
+  fontSize: 14,
+  fontWeight: 600,
+  cursor: 'pointer',
 }
 
 export default CourseDesignEditor
