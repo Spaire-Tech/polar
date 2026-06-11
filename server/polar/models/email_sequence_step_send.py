@@ -35,7 +35,6 @@ class EmailSequenceStepSend(RecordModel):
         Uuid,
         ForeignKey("email_sequence_enrollments.id", ondelete="cascade"),
         nullable=False,
-        index=True,
     )
     step_id: Mapped[UUID] = mapped_column(
         Uuid,

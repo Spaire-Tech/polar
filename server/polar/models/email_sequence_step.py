@@ -17,7 +17,6 @@ class EmailSequenceStep(RecordModel):
         Uuid,
         ForeignKey("email_sequences.id", ondelete="cascade"),
         nullable=False,
-        index=True,
     )
     # Ordering position within the sequence (0-based)
     position: Mapped[int] = mapped_column(Integer, nullable=False, default=0)

@@ -235,7 +235,9 @@ class TestGetUsage:
         )
 
         assert usage.used == 10  # 15 GB - 5 GB
-        assert usage.limit == 25  # pro tier
+        assert usage.limit == 5  # pro tier
+        assert usage.remaining == 0  # over the cap; floored at zero
+        assert usage.is_exceeded is True
 
     async def test_user_source_events_are_ignored(
         self,
@@ -355,7 +357,7 @@ class TestGetUsage:
         # Both events count toward lifetime quota.
         assert usage.used == 2
 
-    async def test_scale_tier_unlimited_returns_none_limit(
+    async def test_scale_tier_video_hours_capped(
         self,
         mocker: MockerFixture,
         session: AsyncSession,
@@ -384,9 +386,9 @@ class TestGetUsage:
             session, creator.id, QuotaKey.video_hours_hosted
         )
 
-        assert usage.limit is None
-        assert usage.remaining is None
-        assert usage.is_unlimited is True
+        assert usage.limit == 200  # scale tier
+        assert usage.remaining == 100
+        assert usage.is_unlimited is False
         assert usage.is_exceeded is False
         assert usage.used == 100
 
@@ -449,11 +451,13 @@ class TestCheck:
                 name="spaire.email.sent",
             )
 
+        # Pro carries a 10% overage grace (ceiling 5500): the request has
+        # to push past the grace ceiling, not just the limit, to block.
         result = await quotas.check(
             session,
             creator.id,
             QuotaKey.email_sends_monthly,
-            requested_storage_units=10,
+            requested_storage_units=600,
         )
 
         assert result.allowed is False
@@ -470,12 +474,14 @@ class TestCheck:
         platform_org = await create_organization(save_fixture)
         _patch_platform_org_id(mocker, platform_org.id)
         creator = await create_organization(save_fixture)
+        # Every paid tier caps video views now; a subscription to the
+        # Legacy product is the only tier with unlimited quotas.
         await _subscribe_to_tier(
             save_fixture,
             platform_org=platform_org,
             creator=creator,
-            tier="scale",
-            monthly_cents=29900,
+            tier="legacy",
+            monthly_cents=0,
         )
 
         result = await quotas.check(

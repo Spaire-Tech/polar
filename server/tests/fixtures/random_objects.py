@@ -1464,6 +1464,7 @@ async def create_checkout(
         customer_metadata=customer_metadata,
         payment_processor_metadata=payment_processor_metadata,
         amount=amount,
+        net_amount=amount,
         tax_amount=tax_amount,
         tax_behavior=tax_behavior,
         currency=currency,
@@ -1485,6 +1486,7 @@ async def create_checkout(
         customer_billing_address=customer_billing_address,
         tax_processor=TaxProcessor.stripe,
     )
+    checkout.net_amount = checkout.amount - checkout.discount_amount
     if analytics_metadata is not None:
         checkout.analytics_metadata = analytics_metadata
     if created_at is not None:

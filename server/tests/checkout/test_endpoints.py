@@ -13,7 +13,7 @@ from polar.auth.scope import Scope
 from polar.checkout.repository import CheckoutRepository
 from polar.checkout.schemas import CheckoutProductCreate
 from polar.checkout.service import checkout as checkout_service
-from polar.enums import SubscriptionRecurringInterval
+from polar.enums import SubscriptionRecurringInterval, TaxBehavior
 from polar.integrations.stripe.service import StripeService
 from polar.kit.utils import utc_now
 from polar.models import (
@@ -66,6 +66,8 @@ def calculate_tax_mock(mocker: MockerFixture) -> AsyncMock:
         return_value={
             "processor_id": "TAX_PROCESSOR_ID",
             "amount": 0,
+            "currency": "usd",
+            "tax_behavior": TaxBehavior.exclusive,
             "taxability_reason": TaxabilityReason.standard_rated,
             "tax_rate": {},
         },

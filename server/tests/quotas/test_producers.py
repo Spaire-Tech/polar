@@ -279,7 +279,7 @@ class TestEnforce:
         )
         assert result.allowed is True
         assert result.reason == "ok"
-        assert result.limit == 25  # pro
+        assert result.limit == 5  # pro
 
     async def test_unlimited_tier_allows_anything(
         self,
@@ -290,12 +290,13 @@ class TestEnforce:
         platform_org = await create_organization(save_fixture)
         _patch_platform_org_id(mocker, platform_org.id)
         creator = await create_organization(save_fixture)
+        # Every paid tier caps storage now; Legacy is the unlimited tier.
         await _subscribe(
             save_fixture,
             platform_org=platform_org,
             creator=creator,
-            tier="scale",
-            monthly_cents=29900,
+            tier="legacy",
+            monthly_cents=0,
         )
 
         result = await enforce(
@@ -339,5 +340,5 @@ class TestProducersIntegrateWithService:
             session, creator.id, QuotaKey.storage_gb
         )
         assert usage.used == 4
-        assert usage.limit == 25
-        assert usage.remaining == 21
+        assert usage.limit == 5
+        assert usage.remaining == 1

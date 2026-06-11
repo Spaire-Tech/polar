@@ -103,7 +103,7 @@ db_reparent = { cmd = "python -m scripts.db reparent", help = "try to auto-fix c
 tb_deploy = { cmd = "python -m scripts.tinybird", help = "deploy tinybird datasources" }
 clean = { cmd = "find * -name '*.pyc' -delete && find * -name '__pycache__' -delete", help = "clean up .pyc and __pycache__" }
 verify_github_app = { cmd = "python -m polar.verify_github_app", help = "verify that the github app is correctly configured" }
-generate_dev_jwks = { cmd = "python -m polar.kit.jwk polar_dev > ./.jwks.json", help = "generate a development JWKS file" }
+generate_dev_jwks = { cmd = "python -m polar.kit.jwk spaire_dev > ./.jwks.json", help = "generate a development JWKS file" }
 seeds_load = { cmd = "python -m scripts.seeds_load", help = "load sample/test data into the database" }
 loadtest_setup = { cmd = "python -m scripts.loadtest_setup", help = "setup load test data for event ingestion" }
 platform_verify = { cmd = "python -m scripts.platform verify", help = "verify SPAIRE_PLATFORM_ORG_ID points to a real organization" }
