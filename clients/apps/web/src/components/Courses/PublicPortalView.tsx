@@ -454,14 +454,19 @@ export function PublicPortalView({
           margin-left: -50vw;
           margin-right: -50vw;
         }
-        /* Collapse the storefront column's own vertical spacing above the
-           page so the hero starts at the very top. */
+        /* Collapse the storefront column's own vertical spacing around the
+           page so the hero starts at the very top AND the dark page reaches
+           the very bottom — otherwise the column's light background shows
+           through its leftover bottom padding (the "white strip" under the
+           FAQ in dark mode). */
         :has(> [data-gpp-fullbleed]),
         :has(> div > [data-gpp-fullbleed]),
         :has(> main > div > [data-gpp-fullbleed]),
         :has(> div > main > div > [data-gpp-fullbleed]) {
           padding-top: 0 !important;
           margin-top: 0 !important;
+          padding-bottom: 0 !important;
+          margin-bottom: 0 !important;
         }
       `}</style>
     </div>
