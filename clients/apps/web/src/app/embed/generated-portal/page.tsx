@@ -119,8 +119,10 @@ function Preview() {
   return (
     <GeneratedPortalPage
       brand="Spaire Originals"
-      title="The Golfer’s Blueprint"
-      titleLines={['The Golfer’s', 'Blueprint']}
+      title={params.get('title') ?? 'The Golfer’s Blueprint'}
+      titleLines={
+        params.get('title') ? null : ['The Golfer’s', 'Blueprint']
+      }
       eyebrow="Documentary Series · Golf"
       badge="New Series"
       desc="A two-time major champion takes you inside the scoring game — the swing, the short game, and the mind that wins the shots that matter. Shot like a film, taught like a private lesson."

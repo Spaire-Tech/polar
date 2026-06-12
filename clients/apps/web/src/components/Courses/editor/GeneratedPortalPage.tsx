@@ -3784,10 +3784,18 @@ export function GeneratedPortalPage({
           }
 
           /* ── marquee hero (Marquee Course Page Mobile) ── */
+          /* The panel becomes a bottom-anchored flex column, and the title +
+             band live in NORMAL FLOW (not absolute) so a long 3-line title
+             can never run under the CTA buttons — it pushes the band down
+             instead. Everything else (art, scrim, brand, toggle) stays
+             absolute, so only these two are flow children. */
           .gpp .panel {
             height: 88svh;
             min-height: 620px;
             max-height: 820px;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
           }
           .gpp .panel-scrim {
             background: linear-gradient(
@@ -3807,20 +3815,31 @@ export function GeneratedPortalPage({
             right: 14px;
           }
           .gpp .panel-title {
-            bottom: 270px;
+            position: relative;
+            left: auto;
+            right: auto;
+            bottom: auto;
+            margin: 0 var(--gut);
           }
           .gpp .pt-eyebrow {
             font-size: 12px;
             margin-bottom: 10px;
           }
           .gpp .pt-h {
-            font-size: clamp(38px, 11vw, 46px);
-            line-height: 0.94;
+            font-size: clamp(34px, 10.5vw, 44px);
+            line-height: 0.98;
+            letter-spacing: -0.03em;
             max-width: 12ch;
+            text-wrap: balance;
           }
-          /* band → single column; drop the desktop description + in-band
-             instructor (instructor is its own section below), center meta. */
+          /* band → in-flow, single column; drop the desktop description +
+             in-band instructor (instructor is its own section below). */
           .gpp .band {
+            position: relative;
+            left: auto;
+            right: auto;
+            bottom: auto;
+            margin-top: 22px;
             display: flex;
             flex-direction: column;
             /* reset the desktop grid's align-items: start — without this the
@@ -3828,7 +3847,9 @@ export function GeneratedPortalPage({
                instead of filling the 20px-gutter column like the design */
             align-items: stretch;
             gap: 16px;
-            padding: 64px var(--gut) 26px;
+            padding: 30px var(--gut) 26px;
+            -webkit-mask-image: linear-gradient(0deg, #000 86%, transparent 100%);
+            mask-image: linear-gradient(0deg, #000 86%, transparent 100%);
           }
           .gpp .band-actions {
             gap: 10px;
