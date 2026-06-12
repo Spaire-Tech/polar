@@ -1,7 +1,7 @@
 import { getServerSideAPI } from '@/utils/client/serverside'
 import { getOrganizationBySlugOrNotFound } from '@/utils/organization'
-import { AutomationBuilderRoute } from '@/components/Courses/automation/AutomationBuilderRoute'
 import { Metadata } from 'next'
+import { NewSequenceRoute } from '../../../_components/screens/NewSequenceScreen'
 
 export async function generateMetadata(): Promise<Metadata> {
   return { title: 'Edit sequence · Email Marketing' }
@@ -17,7 +17,7 @@ export default async function Page(props: {
     params.organization,
   )
   return (
-    <AutomationBuilderRoute
+    <NewSequenceRoute
       organization={organization}
       sequenceId={params.sequenceId}
     />

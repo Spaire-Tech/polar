@@ -88,7 +88,12 @@ export default function CourseEditor({
   const initialTab: TabId =
     tabFromQs && KNOWN_TABS.has(tabFromQs) ? tabFromQs : 'outline'
   const [activeTab, setActiveTab] = useState<TabId>(initialTab)
-  const [selectedLessonId, setSelectedLessonId] = useState<string | null>(null)
+  // Returning from the standalone automation builder deep-links back to the
+  // lesson via ?lesson=<id>; preselect it (and the outline tab).
+  const lessonFromQs = searchParams.get('lesson')
+  const [selectedLessonId, setSelectedLessonId] = useState<string | null>(
+    lessonFromQs ?? null,
+  )
   // LessonDetail reports its dirty state up here so the host can guard
   // navigation (lesson swap, outline click) against silently dropping
   // the user's unsaved typing.

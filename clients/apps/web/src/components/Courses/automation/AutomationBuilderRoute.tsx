@@ -1,10 +1,10 @@
 'use client'
 
-// Mounts the new AutomationSequenceBuilder design at the email-marketing
-// sequence route (/sequences/new and /sequences/[id]/edit). Reads the
-// course/lesson scope from the query string (the lesson editor links here
-// with ?course_id=&lesson_id=), and on edit hydrates the builder from the
-// sequence's stored flow_doc.
+// Standalone, course-linked automation builder. Mounted OUTSIDE the
+// email-marketing tabbed area (under /courses/[courseId]/automations) so it
+// reads as its own editor — like the lesson editor — with no Subscribers /
+// Broadcasts / Sequences / Analytics chrome. "Back" returns to the course
+// editor at the lesson the creator came from.
 
 import type { schemas } from '@spaire/client'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -22,29 +22,34 @@ type FlowDoc = {
 
 export function AutomationBuilderRoute({
   organization,
+  courseId,
   sequenceId,
 }: {
   organization: schemas['Organization']
+  courseId?: string
   sequenceId: string | null
 }) {
   const router = useRouter()
   const params = useSearchParams()
-  const courseId = params.get('course_id') ?? undefined
   const lessonId = params.get('lesson_id') ?? undefined
 
   const { data: sequence, isLoading } = useEmailSequence(sequenceId ?? '')
 
-  const back = () =>
-    router.push(
-      `/dashboard/${organization.slug}/email-marketing/sequences`,
-    )
+  // Return to the course editor — at the originating lesson when we have one,
+  // otherwise the course's outline.
+  const back = () => {
+    if (!courseId) {
+      router.push(`/dashboard/${organization.slug}`)
+      return
+    }
+    const base = `/dashboard/${organization.slug}/courses/${courseId}`
+    router.push(lessonId ? `${base}?lesson=${lessonId}` : base)
+  }
 
-  // On edit, wait for the sequence so we can hydrate the builder from its
-  // stored flow (trigger_config.flow_doc). New sequences start blank.
   if (sequenceId && isLoading) {
     return (
       <div className="flex h-[60vh] items-center justify-center text-sm text-gray-400">
-        Loading sequence…
+        Loading automation…
       </div>
     )
   }
@@ -77,9 +82,7 @@ export function AutomationBuilderRoute({
               steps: flow.steps,
               live: seq?.status === 'active',
             }
-          : courseId
-            ? { trigger: { type: 'enrol' } as never }
-            : undefined
+          : { trigger: { type: 'enrol' } as never }
       }
       onBack={back}
     />

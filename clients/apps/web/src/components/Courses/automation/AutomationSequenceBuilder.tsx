@@ -18,11 +18,22 @@ import {
   useUpdateEmailSequence,
 } from '@/hooks/queries/emailMarketing'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { SequenceEmailModal } from './SequenceEmailModal'
 
 /* ── step model ── */
 type StepType = 'email' | 'wait' | 'branch' | 'action' | 'goal'
 type Step =
-  | { id: string; type: 'email'; name: string }
+  | {
+      id: string
+      type: 'email'
+      name: string
+      subject?: string
+      preview?: string
+      // The authored email body — content_json is the editable doc, the
+      // rendered HTML is what the flow engine sends.
+      content_json?: Record<string, unknown> | null
+      content_html?: string | null
+    }
   | { id: string; type: 'wait'; dur: string }
   | { id: string; type: 'branch'; cond: string; yes: Step[]; no: Step[] }
   | { id: string; type: 'action'; what: string }
@@ -102,6 +113,16 @@ function findBranch(steps: Step[], bid: string): Extract<Step, { type: 'branch' 
   }
   return null
 }
+function findStep(steps: Step[], id: string): Step | null {
+  for (const st of steps) {
+    if (st.id === id) return st
+    if (st.type === 'branch') {
+      const r = findStep(st.yes, id) || findStep(st.no, id)
+      if (r) return r
+    }
+  }
+  return null
+}
 function countSteps(steps: Step[]): number {
   let n = 0
   for (const st of steps) {
@@ -163,6 +184,8 @@ export function AutomationSequenceBuilder({
     x: number
     y: number
   } | null>(null)
+  // The email node currently open in the real email editor.
+  const [emailEditing, setEmailEditing] = useState<string | null>(null)
 
   const seqIdRef = useRef<string | null>(initialSequenceId ?? null)
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -459,8 +482,19 @@ export function AutomationSequenceBuilder({
                   onChange={(e) => patchStep(st.id, { name: e.target.value } as Partial<Step>)}
                 />
               </div>
-              <button className="node-btn" type="button" onClick={() => showToast('Opening your email editor…')}>
-                <Svg d={IC.edit} s={13} w={2} /> Edit email
+              <button
+                className="node-btn"
+                type="button"
+                onClick={() => {
+                  if (!organizationId) {
+                    showToast('Save the automation first')
+                    return
+                  }
+                  setEmailEditing(st.id)
+                }}
+              >
+                <Svg d={IC.edit} s={13} w={2} />{' '}
+                {st.content_html ? 'Edit email' : 'Write email'}
               </button>
             </>
           )}
@@ -813,6 +847,33 @@ export function AutomationSequenceBuilder({
         </div>
       )}
 
+      {emailEditing &&
+        organizationId &&
+        (() => {
+          const st = findStep(steps, emailEditing)
+          if (!st || st.type !== 'email') return null
+          return (
+            <SequenceEmailModal
+              organizationId={organizationId}
+              initialSubject={st.subject}
+              initialPreview={st.preview}
+              initialContentJson={st.content_json}
+              onClose={() => setEmailEditing(null)}
+              onSave={(v) => {
+                patchStep(st.id, {
+                  subject: v.subject,
+                  preview: v.preview,
+                  content_json: v.content_json,
+                  content_html: v.content_html,
+                  // keep the node title in sync with the subject
+                  name: v.subject || st.name,
+                } as Partial<Step>)
+                showToast('Email saved')
+              }}
+            />
+          )
+        })()}
+
       <AutomationStyles />
     </div>
   )
@@ -878,22 +939,23 @@ function AutomationStyles() {
       .asq .tb-actions { display: flex; align-items: center; gap: 10px; }
       .asq .btn-glass {
         display: inline-flex; align-items: center; gap: 8px; height: 38px; padding: 0 16px; border-radius: 980px;
-        background: linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.55)); color: var(--text);
+        background: rgba(125, 125, 135, 0.14); color: var(--text);
         font-size: 14px; font-weight: 600; letter-spacing: -0.01em;
-        box-shadow: inset 0 1px 1px rgba(255, 255, 255, 1), inset 0 -1px 1px rgba(20, 22, 50, 0.05), 0 8px 6px rgba(0, 0, 0, 0.05), 0 1px 3px rgba(20, 22, 50, 0.07);
-        transition: box-shadow 0.18s, transform 0.16s;
+        transition: background 0.18s, transform 0.16s;
       }
+      .asq .btn-glass:hover { background: rgba(125, 125, 135, 0.26); }
       .asq .btn-glass:active { transform: scale(0.96); }
       .asq .btn-main {
         display: inline-flex; align-items: center; gap: 8px; height: 38px; padding: 0 18px; border-radius: 980px;
-        background: linear-gradient(180deg, #4d5be0, var(--blue)); color: #fff;
+        background: var(--blue); color: #fff;
         font-size: 14px; font-weight: 600; letter-spacing: -0.01em;
-        box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.4), 0 8px 16px rgba(60, 74, 201, 0.3), 0 1px 3px rgba(60, 74, 201, 0.2);
-        transition: opacity 0.16s, transform 0.16s, box-shadow 0.18s;
+        transition: opacity 0.16s, transform 0.16s;
       }
       .asq .btn-main:hover { opacity: 0.85; }
       .asq .btn-main:active { transform: scale(0.96); }
-      .asq .btn-main.live { background: linear-gradient(180deg, #2cb35d, #23a050); box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.4), 0 8px 16px rgba(35, 160, 80, 0.28), 0 1px 3px rgba(35, 160, 80, 0.2); }
+      /* "On" — same simple purple, just dimmed to read as already-active */
+      .asq .btn-main.live { background: var(--blue); opacity: 0.55; }
+      .asq .btn-main.live:hover { opacity: 0.7; }
 
       .asq .shell { flex: 1; display: flex; min-height: 0; }
       .asq .side {

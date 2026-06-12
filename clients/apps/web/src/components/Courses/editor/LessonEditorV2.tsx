@@ -391,7 +391,9 @@ export function LessonEditorV2({
     return sorted.findIndex((l) => l.id === lesson.id) + 1
   }, [module.lessons, lesson.id])
 
-  const automationHref = `/dashboard/${organizationSlug}/email-marketing/sequences/new?course_id=${course.id}&lesson_id=${lesson.id}`
+  // Standalone, course-linked automation builder (NOT the email-marketing
+  // tabbed area) — returns to this lesson when done.
+  const automationHref = `/dashboard/${organizationSlug}/courses/${course.id}/automations/new?lesson_id=${lesson.id}`
 
   return (
     <div className="led">
@@ -735,33 +737,6 @@ export function LessonEditorV2({
             When a student finishes this {unitCap.toLowerCase()}
           </div>
           <div className="auto-cards">
-            <button
-              className="atc"
-              type="button"
-              onClick={() => router.push(automationHref)}
-            >
-              <div className="atc-k">
-                <span className="atc-t">Congratulate &amp; tease the next lesson</span>
-                <span className="atc-badge">Add</span>
-              </div>
-              <span className="atc-s">
-                A short note in your voice, with a one-tap link to the next
-                lesson.
-              </span>
-            </button>
-            <button
-              className="atc"
-              type="button"
-              onClick={() => router.push(automationHref)}
-            >
-              <div className="atc-k">
-                <span className="atc-t">Send the workbook by email</span>
-                <span className="atc-badge">Add</span>
-              </div>
-              <span className="atc-s">
-                Delivers this lesson’s resources so they’re easy to find later.
-              </span>
-            </button>
             <button
               className="atc new"
               type="button"
@@ -1676,7 +1651,7 @@ function LessonEditorStyles() {
 
       .led .auto-cards {
         display: grid;
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: 1fr;
         gap: 12px;
       }
       .led .atc {
