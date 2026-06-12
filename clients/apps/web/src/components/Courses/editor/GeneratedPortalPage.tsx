@@ -215,6 +215,8 @@ export type GeneratedPortalPageProps = {
   portraitBusy?: boolean
   /** FAQ — AI-written Q/A pairs, all editable. */
   faq?: { q: string; a: string }[]
+  /** The band's badge chips — creator-editable; defaults to the design's. */
+  badges?: string[]
   groups: GeneratedGroup[]
   lessonCount: number
   /** Total runtime, pre-formatted ("4h 15m" / "0 min"). The meta line shows
@@ -267,6 +269,7 @@ export type EditField =
   | 'byline'
   | 'eyebrow'
   | 'badge'
+  | 'bdg'
   | 'instructorName'
   | 'lessonTitle'
   | 'lessonDesc'
@@ -312,6 +315,7 @@ export function GeneratedPortalPage({
   onAddPortrait,
   portraitBusy = false,
   faq = [],
+  badges = ['All Levels', 'Self-paced', 'Captions', 'Mobile & TV'],
   groups,
   lessonCount,
   metaDuration = '0 min',
@@ -439,14 +443,40 @@ export function GeneratedPortalPage({
   const sampleIsHls = Boolean(
     samplePlaybackId || (sampleSrc && sampleSrc.includes('.m3u8')),
   )
+  const [sampleMuted, setSampleMuted] = useState(false)
   const startSample = useCallback(() => {
     if (!samplePlayable) return
+    setSampleMuted(false)
     setSamplePlaying(true)
     sampleScreenRef.current?.scrollIntoView({
       behavior: 'smooth',
       block: 'center',
     })
   }, [samplePlayable])
+  // Auto-play on scroll — the design's "plays automatically when scrolled
+  // into view". Starts MUTED (browsers only allow muted autoplay) and fires
+  // once per visit; the viewer can unmute via the player controls, and an
+  // explicit click/play always runs with sound.
+  const sampleAutoPlayedRef = useRef(false)
+  useEffect(() => {
+    if (!samplePlayable || samplePlaying || sampleAutoPlayedRef.current) return
+    const screen = sampleScreenRef.current
+    if (!screen) return
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          if (e.intersectionRatio >= 0.6 && !sampleAutoPlayedRef.current) {
+            sampleAutoPlayedRef.current = true
+            setSampleMuted(true)
+            setSamplePlaying(true)
+          }
+        }
+      },
+      { threshold: [0.6] },
+    )
+    io.observe(screen)
+    return () => io.disconnect()
+  }, [samplePlayable, samplePlaying])
   const stopSample = useCallback(() => {
     sampleVideoRef.current?.pause()
     setSamplePlaying(false)
@@ -991,10 +1021,18 @@ export function GeneratedPortalPage({
                 {metaDuration}
               </div>
               <div className="bd-badges">
-                <span className="bdg rate">All Levels</span>
-                <span className="bdg">Self-paced</span>
-                <span className="bdg">Captions</span>
-                <span className="bdg">Mobile &amp; TV</span>
+                {badges.map((b, i) => (
+                  <EditText
+                    key={i}
+                    editable={editable}
+                    onEditText={onEditText}
+                    field="bdg"
+                    value={b}
+                    className={i === 0 ? 'bdg rate' : 'bdg'}
+                    tag="span"
+                    ctx={{ idx: i }}
+                  />
+                ))}
                 {showTrailerButton && (
                   <button
                     className="bd-trailer"
@@ -1349,6 +1387,7 @@ export function GeneratedPortalPage({
                   playbackUrl={sampleSrc}
                   poster={sampleImageUrl}
                   controls
+                  muted={sampleMuted}
                   className="sample-video"
                   onVideoElement={onSampleVideoEl}
                   onEnded={stopSample}
@@ -1359,6 +1398,7 @@ export function GeneratedPortalPage({
                   src={sampleSrc ?? undefined}
                   poster={sampleImageUrl ?? undefined}
                   controls
+                  muted={sampleMuted}
                   playsInline
                   ref={onSampleVideoEl}
                   onEnded={stopSample}
@@ -1820,10 +1860,16 @@ export function GeneratedPortalPage({
         .gpp .panel {
           position: relative;
           width: 100%;
-          height: 92vh;
-          min-height: 560px;
+          height: 100svh;
+          min-height: 640px;
           overflow: hidden;
           background: var(--ink);
+          /* title + band in normal flow, anchored to the bottom — the cover
+             image gets all the room above, and a tall title can never run
+             under the band (it pushes the band down instead). */
+          display: flex;
+          flex-direction: column;
+          justify-content: flex-end;
         }
         .gpp .panel-art {
           position: absolute;
@@ -1909,11 +1955,9 @@ export function GeneratedPortalPage({
         }
 
         .gpp .panel-title {
-          position: absolute;
-          left: var(--gut);
-          right: var(--gut);
-          bottom: 242px;
+          position: relative;
           z-index: 4;
+          margin: 0 var(--gut);
         }
         .gpp .pt-eyebrow {
           font-size: 13px;
@@ -1933,18 +1977,17 @@ export function GeneratedPortalPage({
           text-shadow: 0 4px 50px rgba(0, 0, 0, 0.4);
         }
 
-        /* frosted control band — fades into the page color */
+        /* frosted control band — fades into the page color. In normal flow
+           below the title (not absolute), so the title can never overlap. */
         .gpp .band {
-          position: absolute;
-          left: 0;
-          right: 0;
-          bottom: 0;
+          position: relative;
           z-index: 5;
+          margin-top: 26px;
           display: grid;
           grid-template-columns: 280px minmax(0, 1fr) 250px;
           gap: 44px;
           align-items: start;
-          padding: 76px var(--gut) 38px;
+          padding: 34px var(--gut) 38px;
           -webkit-backdrop-filter: blur(32px) saturate(140%);
           backdrop-filter: blur(32px) saturate(140%);
           background: linear-gradient(
@@ -1954,8 +1997,8 @@ export function GeneratedPortalPage({
             rgba(var(--band), 0.45) 82%,
             rgba(var(--band), 0) 100%
           );
-          -webkit-mask-image: linear-gradient(0deg, #000 78%, transparent 100%);
-          mask-image: linear-gradient(0deg, #000 78%, transparent 100%);
+          -webkit-mask-image: linear-gradient(0deg, #000 86%, transparent 100%);
+          mask-image: linear-gradient(0deg, #000 86%, transparent 100%);
           color: var(--bt);
           transition: color 0.4s ease;
         }
@@ -3400,6 +3443,9 @@ export function GeneratedPortalPage({
           font-size: 26px;
           font-weight: 600;
           letter-spacing: -0.025em;
+          /* pin the browser-default line-height — the app's global heading
+             styles leak 1.5 in here and stretch the sheet */
+          line-height: 1.15;
           color: var(--text);
           margin-top: 10px;
           transition: color 0.4s ease;
@@ -3416,6 +3462,7 @@ export function GeneratedPortalPage({
           font-size: 40px;
           font-weight: 700;
           letter-spacing: -0.03em;
+          line-height: 1.15;
           color: var(--text);
           margin-top: 22px;
           transition: color 0.4s ease;
@@ -3488,9 +3535,6 @@ export function GeneratedPortalPage({
         @media (max-width: 820px) {
           .gpp {
             --gut: 22px;
-          }
-          .gpp .panel-title {
-            bottom: 234px;
           }
           .gpp .band {
             grid-template-columns: 1fr;
@@ -3784,10 +3828,18 @@ export function GeneratedPortalPage({
           }
 
           /* ── marquee hero (Marquee Course Page Mobile) ── */
+          /* The panel becomes a bottom-anchored flex column, and the title +
+             band live in NORMAL FLOW (not absolute) so a long 3-line title
+             can never run under the CTA buttons — it pushes the band down
+             instead. Everything else (art, scrim, brand, toggle) stays
+             absolute, so only these two are flow children. */
           .gpp .panel {
-            height: 88svh;
-            min-height: 620px;
-            max-height: 820px;
+            height: 100svh;
+            min-height: 640px;
+            max-height: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
           }
           .gpp .panel-scrim {
             background: linear-gradient(
@@ -3807,20 +3859,31 @@ export function GeneratedPortalPage({
             right: 14px;
           }
           .gpp .panel-title {
-            bottom: 270px;
+            position: relative;
+            left: auto;
+            right: auto;
+            bottom: auto;
+            margin: 0 var(--gut);
           }
           .gpp .pt-eyebrow {
             font-size: 12px;
             margin-bottom: 10px;
           }
           .gpp .pt-h {
-            font-size: clamp(38px, 11vw, 46px);
-            line-height: 0.94;
+            font-size: clamp(34px, 10.5vw, 44px);
+            line-height: 0.98;
+            letter-spacing: -0.03em;
             max-width: 12ch;
+            text-wrap: balance;
           }
-          /* band → single column; drop the desktop description + in-band
-             instructor (instructor is its own section below), center meta. */
+          /* band → in-flow, single column; drop the desktop description +
+             in-band instructor (instructor is its own section below). */
           .gpp .band {
+            position: relative;
+            left: auto;
+            right: auto;
+            bottom: auto;
+            margin-top: 22px;
             display: flex;
             flex-direction: column;
             /* reset the desktop grid's align-items: start — without this the
@@ -3828,7 +3891,9 @@ export function GeneratedPortalPage({
                instead of filling the 20px-gutter column like the design */
             align-items: stretch;
             gap: 16px;
-            padding: 64px var(--gut) 26px;
+            padding: 30px var(--gut) 26px;
+            -webkit-mask-image: linear-gradient(0deg, #000 86%, transparent 100%);
+            mask-image: linear-gradient(0deg, #000 86%, transparent 100%);
           }
           .gpp .band-actions {
             gap: 10px;

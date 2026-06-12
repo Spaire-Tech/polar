@@ -244,6 +244,9 @@ export type LandingOverrides = {
   portrait_url?: string | null
   // FAQ — AI-written Q/A pairs grounded in the course facts, editable.
   ai_faq?: { q: string; a: string }[] | null
+  // The hero band's badge chips ("All Levels", "Self-paced", …) — creator
+  // editable; absent means the design defaults.
+  badges?: string[] | null
 }
 
 async function courseApiFetch<T>(
