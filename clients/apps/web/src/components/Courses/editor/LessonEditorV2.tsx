@@ -26,6 +26,7 @@ import {
   useRemoveLessonVideo,
   useUpdateCourseLesson,
   useUploadLessonAttachment,
+  useUploadLessonThumbnail,
 } from '@/hooks/queries/courses'
 import { schemas } from '@spaire/client'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -77,6 +78,7 @@ export function LessonEditorV2({
   const removeVideo = useRemoveLessonVideo()
   const uploadAttachment = useUploadLessonAttachment()
   const deleteAttachment = useDeleteLessonAttachment()
+  const uploadThumbnail = useUploadLessonThumbnail()
 
   const isEpisodic = course.format === 'series'
   const content = (lesson.content ?? {}) as LessonContent
@@ -291,6 +293,98 @@ export function LessonEditorV2({
     toast({ title: 'Saved as draft' })
   }
 
+  // ── thumbnail (lesson card cover image, drag to reposition) ──
+  const [thumbUrl, setThumbUrl] = useState<string | null>(
+    lesson.thumbnail_url ?? null,
+  )
+  const parsePos = (p?: string | null): { x: number; y: number } => {
+    const m = /([\d.]+)%\s+([\d.]+)%/.exec(p ?? '')
+    return m ? { x: parseFloat(m[1]), y: parseFloat(m[2]) } : { x: 50, y: 50 }
+  }
+  const [thumbPos, setThumbPos] = useState(
+    parsePos(lesson.thumbnail_object_position),
+  )
+  const thumbTileRef = useRef<HTMLDivElement | null>(null)
+  const tDrag = useRef<{
+    x: number
+    y: number
+    px: number
+    py: number
+    moved: boolean
+  } | null>(null)
+
+  const pickThumbnail = () => {
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = 'image/*'
+    input.onchange = async () => {
+      const file = input.files?.[0]
+      if (!file) return
+      // optimistic preview, reset to centre (matches the design)
+      setThumbUrl(URL.createObjectURL(file))
+      setThumbPos({ x: 50, y: 50 })
+      queueSave({ thumbnail_object_position: '50.0% 50.0%' })
+      try {
+        const updated = await uploadThumbnail.mutateAsync({
+          lessonId: lesson.id,
+          file,
+        })
+        setThumbUrl(updated.thumbnail_url ?? null)
+        toast({ title: 'Thumbnail added — drag to reposition' })
+      } catch {
+        toast({ title: 'Thumbnail upload failed' })
+      }
+    }
+    input.click()
+  }
+  const clearThumbnail = () => {
+    setThumbUrl(null)
+    setThumbPos({ x: 50, y: 50 })
+    queueSave({ thumbnail_url: null, thumbnail_object_position: null })
+  }
+  const onThumbDown = (e: React.PointerEvent) => {
+    if (!thumbUrl) return
+    if ((e.target as HTMLElement).closest('.thumb-replace')) return
+    tDrag.current = {
+      x: e.clientX,
+      y: e.clientY,
+      px: thumbPos.x,
+      py: thumbPos.y,
+      moved: false,
+    }
+    ;(e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId)
+    thumbTileRef.current?.classList.add('dragging')
+  }
+  const onThumbMove = (e: React.PointerEvent) => {
+    const d = tDrag.current
+    const tile = thumbTileRef.current
+    if (!d || !tile) return
+    const r = tile.getBoundingClientRect()
+    const dx = ((e.clientX - d.x) / r.width) * 100
+    const dy = ((e.clientY - d.y) / r.height) * 100
+    if (Math.abs(e.clientX - d.x) + Math.abs(e.clientY - d.y) > 4)
+      d.moved = true
+    setThumbPos({
+      x: Math.max(0, Math.min(100, d.px - dx)),
+      y: Math.max(0, Math.min(100, d.py - dy)),
+    })
+  }
+  const onThumbUp = () => {
+    const d = tDrag.current
+    if (!d) return
+    if (d.moved) {
+      // read the latest position from state on the next tick via a setter
+      setThumbPos((p) => {
+        queueSave({
+          thumbnail_object_position: `${p.x.toFixed(1)}% ${p.y.toFixed(1)}%`,
+        })
+        return p
+      })
+    }
+    tDrag.current = null
+    thumbTileRef.current?.classList.remove('dragging')
+  }
+
   const unitCap = isEpisodic ? 'Episode' : 'Lesson'
   const lessonIdx = useMemo(() => {
     const sorted = [...module.lessons].sort((a, b) => a.position - b.position)
@@ -408,6 +502,87 @@ export function LessonEditorV2({
                 />
               </div>
             )}
+            {/* Thumbnail — lesson card cover image, drag to reposition */}
+            <div className="thumb-row">
+              <div className="thumb-head">
+                <span className="thumb-t">Thumbnail</span>
+                <span className="thumb-s">
+                  Shown on the {unitCap.toLowerCase()} card and in the rail.
+                </span>
+                <button
+                  className={`thumb-clear${thumbUrl ? ' show' : ''}`}
+                  type="button"
+                  onClick={clearThumbnail}
+                >
+                  Remove
+                </button>
+              </div>
+              <div
+                ref={thumbTileRef}
+                className={`thumb-tile${thumbUrl ? ' filled' : ''}`}
+                role="button"
+                aria-label={thumbUrl ? 'Drag to reposition thumbnail' : 'Add thumbnail'}
+                onPointerDown={onThumbDown}
+                onPointerMove={onThumbMove}
+                onPointerUp={onThumbUp}
+                onPointerCancel={onThumbUp}
+                onClick={() => {
+                  if (!thumbUrl) pickThumbnail()
+                }}
+              >
+                <div className="ph-ambient" />
+                <div className="glass-tint" />
+                <div
+                  className="photo"
+                  style={{
+                    backgroundImage: thumbUrl ? `url("${thumbUrl}")` : undefined,
+                    backgroundPosition: `${thumbPos.x}% ${thumbPos.y}%`,
+                  }}
+                />
+                <div className="thumb-cta">
+                  <span className="thumb-ic">
+                    <svg
+                      width="18"
+                      height="18"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.9"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <rect x="3" y="3" width="18" height="18" rx="4" />
+                      <circle cx="9" cy="9" r="2" />
+                      <path d="M21 15l-4.35-4.35a1.4 1.4 0 0 0-2 0L5 20" />
+                    </svg>
+                  </span>
+                  <span className="ph-k">Add a thumbnail</span>
+                </div>
+                <button
+                  className="thumb-replace"
+                  type="button"
+                  onClick={pickThumbnail}
+                >
+                  <Ico d="M20 11A8 8 0 1 0 19 15 M20 4v7h-7" w={2.2} s={12} />
+                  Replace
+                </button>
+                <span className="thumb-hint">
+                  <svg
+                    width="12"
+                    height="12"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M12 3v18M3 12h18M12 3l-2.5 2.5M12 3l2.5 2.5M12 21l-2.5-2.5M12 21l2.5-2.5M3 12l2.5-2.5M3 12l2.5 2.5M21 12l-2.5-2.5M21 12l-2.5 2.5" />
+                  </svg>
+                  Drag to reposition
+                </span>
+              </div>
+            </div>
           </div>
         </section>
 
@@ -1185,6 +1360,171 @@ function LessonEditorStyles() {
         to {
           transform: rotate(360deg);
         }
+      }
+
+      /* thumbnail — full-width zone, drag to reposition */
+      .led .thumb-row {
+        padding: 14px 18px 18px;
+        border-top: 1px solid var(--hair);
+      }
+      .led .thumb-head {
+        display: flex;
+        align-items: baseline;
+        gap: 12px;
+      }
+      .led .thumb-t {
+        font-size: 15px;
+        font-weight: 600;
+        letter-spacing: -0.015em;
+      }
+      .led .thumb-s {
+        flex: 1;
+        font-size: 13px;
+        line-height: 1.45;
+        color: var(--text-2);
+      }
+      .led .thumb-clear {
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--blue);
+        padding: 2px 0;
+        display: none;
+      }
+      .led .thumb-clear.show {
+        display: inline-block;
+      }
+      .led .thumb-clear:hover {
+        text-decoration: underline;
+      }
+      .led .thumb-tile {
+        position: relative;
+        width: 100%;
+        aspect-ratio: 16 / 9;
+        margin-top: 12px;
+        border-radius: 14px;
+        overflow: hidden;
+        display: grid;
+        place-items: center;
+        touch-action: none;
+      }
+      .led .thumb-tile::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        z-index: 2;
+        border-radius: 14px;
+        box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.14);
+        pointer-events: none;
+      }
+      .led .thumb-tile.filled {
+        cursor: grab;
+      }
+      .led .thumb-tile.filled.dragging {
+        cursor: grabbing;
+      }
+      .led .thumb-tile .ph-ambient {
+        filter: blur(30px);
+      }
+      .led .thumb-tile .photo {
+        position: absolute;
+        inset: 0;
+        background-size: cover;
+        background-position: 50% 50%;
+        display: none;
+      }
+      .led .thumb-tile.filled .photo {
+        display: block;
+      }
+      .led .thumb-tile.filled .ph-ambient,
+      .led .thumb-tile.filled .glass-tint,
+      .led .thumb-tile.filled .thumb-cta {
+        display: none;
+      }
+      .led .thumb-cta {
+        position: relative;
+        z-index: 2;
+        display: inline-flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+        color: #fff;
+        text-align: center;
+      }
+      .led .thumb-cta .thumb-ic {
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.16);
+        -webkit-backdrop-filter: blur(20px) saturate(150%);
+        backdrop-filter: blur(20px) saturate(150%);
+        display: grid;
+        place-items: center;
+        transition: background 0.2s, transform 0.18s;
+      }
+      .led .thumb-tile:hover .thumb-ic {
+        background: rgba(255, 255, 255, 0.28);
+        transform: scale(1.06);
+      }
+      .led .thumb-cta .ph-k {
+        font-size: 14px;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+      }
+      .led .thumb-replace {
+        position: absolute;
+        left: 12px;
+        top: 12px;
+        z-index: 3;
+        display: none;
+        align-items: center;
+        gap: 6px;
+        height: 30px;
+        padding: 0 12px;
+        border-radius: 980px;
+        background: rgba(10, 11, 13, 0.46);
+        color: #fff;
+        -webkit-backdrop-filter: blur(14px) saturate(150%);
+        backdrop-filter: blur(14px) saturate(150%);
+        font-size: 12px;
+        font-weight: 600;
+        opacity: 0;
+        transition: opacity 0.2s, background 0.18s;
+      }
+      .led .thumb-tile.filled .thumb-replace {
+        display: inline-flex;
+      }
+      .led .thumb-tile.filled:hover .thumb-replace {
+        opacity: 1;
+      }
+      .led .thumb-replace:hover {
+        background: rgba(40, 40, 46, 0.7);
+      }
+      .led .thumb-hint {
+        position: absolute;
+        right: 12px;
+        bottom: 12px;
+        z-index: 3;
+        display: none;
+        align-items: center;
+        gap: 6px;
+        height: 30px;
+        padding: 0 12px;
+        border-radius: 980px;
+        background: rgba(10, 11, 13, 0.46);
+        color: rgba(255, 255, 255, 0.92);
+        -webkit-backdrop-filter: blur(14px) saturate(150%);
+        backdrop-filter: blur(14px) saturate(150%);
+        font-size: 12px;
+        font-weight: 600;
+        opacity: 0;
+        transition: opacity 0.2s;
+        pointer-events: none;
+      }
+      .led .thumb-tile.filled .thumb-hint {
+        display: inline-flex;
+      }
+      .led .thumb-tile.filled:hover .thumb-hint {
+        opacity: 1;
       }
 
       .led .learn-row {
