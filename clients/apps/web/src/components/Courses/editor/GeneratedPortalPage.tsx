@@ -217,6 +217,9 @@ export type GeneratedPortalPageProps = {
   faq?: { q: string; a: string }[]
   groups: GeneratedGroup[]
   lessonCount: number
+  /** Total runtime, pre-formatted ("4h 15m" / "0 min"). The meta line shows
+   *  lessons · duration · level, exactly like the design. */
+  metaDuration?: string
   unit: 'lesson' | 'episode'
   dark: boolean
   /** Theme toggle (creator-facing). Omit to hide (public page). */
@@ -308,6 +311,7 @@ export function GeneratedPortalPage({
   faq = [],
   groups,
   lessonCount,
+  metaDuration = '0 min',
   unit,
   dark,
   onToggleDark,
@@ -922,7 +926,8 @@ export function GeneratedPortalPage({
               <div className="bd-meta">
                 {eyebrow}&nbsp;&nbsp;·&nbsp;&nbsp;{year}
                 &nbsp;&nbsp;·&nbsp;&nbsp;{lessonCount} {unitCap}
-                {lessonCount === 1 ? '' : 's'}
+                {lessonCount === 1 ? '' : 's'}&nbsp;&nbsp;·&nbsp;&nbsp;
+                {metaDuration}
               </div>
               <div className="bd-badges">
                 <span className="bdg rate">All Levels</span>
@@ -1029,6 +1034,8 @@ export function GeneratedPortalPage({
                   {lessonCount} {unit}
                   {lessonCount === 1 ? '' : 's'}
                 </span>
+                <span className="sep">·</span>
+                <span>{metaDuration}</span>
                 <span className="sep">·</span>
                 <span>All levels</span>
               </div>

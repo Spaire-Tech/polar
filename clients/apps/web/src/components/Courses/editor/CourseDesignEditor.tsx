@@ -211,6 +211,16 @@ export function CourseDesignEditor({
 
   const fmtDur = (secs: number | null) =>
     secs ? `${Math.max(1, Math.round(secs / 60))}m` : null
+  const totalSecs = flatLessons.reduce(
+    (a, l) => a + (l.duration_seconds ?? 0),
+    0,
+  )
+  const metaDuration =
+    totalSecs <= 0
+      ? '0 min'
+      : totalSecs >= 3600
+        ? `${Math.floor(totalSecs / 3600)}h ${Math.round((totalSecs % 3600) / 60)}m`
+        : `${Math.round(totalSecs / 60)} min`
 
   const groups: GeneratedGroup[] = useMemo(() => {
     let flat = 0
@@ -514,6 +524,7 @@ export function CourseDesignEditor({
       sampleDuration={sample?.duration_seconds ?? 0}
       groups={groups}
       lessonCount={flatLessons.length}
+      metaDuration={metaDuration}
       unit={unit}
       dark={dark}
       onToggleDark={toggleDark}

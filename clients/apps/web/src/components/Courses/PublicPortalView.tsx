@@ -36,6 +36,14 @@ type PlayingClip = {
   trailer?: boolean
 }
 
+function fmtRuntime(secs?: number | null): string {
+  const s = secs ?? 0
+  if (s <= 0) return '0 min'
+  const h = Math.floor(s / 3600)
+  const m = Math.round((s % 3600) / 60)
+  return h > 0 ? `${h}h ${m}m` : `${m} min`
+}
+
 export function PublicPortalView({
   organization,
   product,
@@ -48,6 +56,7 @@ export function PublicPortalView({
   const isEpisodic = landing.format === 'series'
   const unit = isEpisodic ? 'episode' : 'lesson'
   const unitCap = isEpisodic ? 'Episode' : 'Lesson'
+  const metaDuration = fmtRuntime(landing.total_duration_seconds)
   const heroVariant = landing.hero_variant ?? 'cover'
   const cardVariant = landing.lesson_card_variant ?? 'catalog'
   const trialMode = landing.trial_mode ?? 'free_preview'
@@ -303,6 +312,7 @@ export function PublicPortalView({
         faq={aiFaq}
         groups={groups}
         lessonCount={landing.lesson_count}
+        metaDuration={metaDuration}
         unit={unit}
         dark={dark}
         showTrailerButton={
