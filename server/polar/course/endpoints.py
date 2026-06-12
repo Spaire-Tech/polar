@@ -1165,6 +1165,26 @@ async def mux_webhook(
                     update["duration_seconds"] = int(duration)
                 await lesson_repo.update(lesson, update_dict=update)
 
+                # Auto-generated captions: when the lesson keeps captions on
+                # (the default; the lesson editor's Captions switch writes
+                # content.captions=false to opt out), ask Mux to generate an
+                # English subtitle track from the audio now that the asset is
+                # ready. Best-effort and idempotent — a failure here must not
+                # fail the webhook (the asset is already playable).
+                if target_status == "ready" and not previously_ready:
+                    captions_enabled = (lesson.content or {}).get(
+                        "captions", True
+                    )
+                    if captions_enabled:
+                        try:
+                            await mux_client.request_auto_captions(asset_id)
+                        except Exception:
+                            log.exception(
+                                "course.captions.request_failed",
+                                lesson_id=str(lesson.id),
+                                asset_id=asset_id,
+                            )
+
                 if (
                     not previously_ready
                     and duration

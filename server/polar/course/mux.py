@@ -203,3 +203,72 @@ async def delete_asset(asset_id: str) -> bool:
         extra={"asset_id": asset_id, "status": resp.status_code},
     )
     return False
+
+
+async def request_auto_captions(
+    asset_id: str, *, language_code: str = "en", name: str = "English (auto)"
+) -> bool:
+    """Ask Mux to auto-generate subtitles for an asset's audio track.
+
+    Mux generates captions from the audio of the asset's primary audio
+    track. We look the audio track up on the ready asset, then POST a
+    generated-subtitles request for it. The finished caption track is
+    delivered on the HLS manifest, so players pick it up natively (the
+    WatchPlayer only shows its CC control once a text track exists).
+
+    Returns True when the request was accepted (or captions already exist),
+    False on a transient failure so the caller can retry. Idempotent:
+    re-requesting an existing language is treated as success.
+    """
+    if not asset_id or not settings.MUX_TOKEN_ID or not settings.MUX_TOKEN_SECRET:
+        return False
+    async with _client() as client:
+        try:
+            asset_resp = await client.get(f"/video/v1/assets/{asset_id}")
+            asset_resp.raise_for_status()
+            tracks = asset_resp.json()["data"].get("tracks", [])
+        except (httpx.HTTPError, KeyError, ValueError):
+            log.exception(
+                "Failed to read Mux asset tracks for captions",
+                extra={"asset_id": asset_id},
+            )
+            return False
+
+        audio_track = next(
+            (t for t in tracks if t.get("type") == "audio"), None
+        )
+        if audio_track is None:
+            log.warning(
+                "Mux asset has no audio track; skipping captions",
+                extra={"asset_id": asset_id},
+            )
+            return False
+
+        # Already has a generated/text subtitle in this language → done.
+        for t in tracks:
+            if t.get("type") == "text" and t.get("language_code") == language_code:
+                return True
+
+        track_id = audio_track["id"]
+        try:
+            resp = await client.post(
+                f"/video/v1/assets/{asset_id}/tracks/{track_id}/generate-subtitles",
+                json={
+                    "generated_subtitles": [
+                        {"language_code": language_code, "name": name}
+                    ]
+                },
+            )
+        except httpx.HTTPError:
+            log.exception(
+                "Failed to call Mux generate-subtitles",
+                extra={"asset_id": asset_id},
+            )
+            return False
+    if resp.status_code in (200, 201):
+        return True
+    log.warning(
+        "Mux generate-subtitles returned non-success status",
+        extra={"asset_id": asset_id, "status": resp.status_code},
+    )
+    return False
