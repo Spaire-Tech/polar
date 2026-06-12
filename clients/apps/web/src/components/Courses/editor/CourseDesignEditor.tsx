@@ -37,6 +37,7 @@ import {
   type EditField,
   type GeneratedGroup,
 } from './GeneratedPortalPage'
+import { SampleSettingsPopover } from './SeriesSampleBlock'
 
 function pickFile(accept: string, cb: (file: File) => void) {
   const input = document.createElement('input')
@@ -486,20 +487,6 @@ export function CourseDesignEditor({
     onBusyChange?.(busy)
   }, [busy, onBusyChange])
 
-  const saveSample = useCallback(
-    (next: {
-      enabled: boolean
-      lesson_id: string
-      start_seconds: number
-      duration_seconds: number
-    }) => {
-      updateCourse.mutate({ courseId: course.id, body: { sample: next } })
-      setSampleOpen(false)
-      toast({ title: next.enabled ? 'Sample saved' : 'Sample disabled' })
-    },
-    [course.id, updateCourse],
-  )
-
   return (
     <>
       <GeneratedPortalPage
@@ -554,14 +541,16 @@ export function CourseDesignEditor({
       portraitBusy={portraitBusy}
       faq={aiFaq}
     />
-      {sampleOpen && (
-        <SampleSettingsModal
-          course={course}
-          lessons={flatLessons}
-          onClose={() => setSampleOpen(false)}
-          onSave={saveSample}
-        />
-      )}
+      {/* Sample picker — the sheet with the live video scrub preview (episode
+          picker + inline clip player + start/duration sliders). It saves
+          course.sample itself via useUpdateCourse. */}
+      <SampleSettingsPopover
+        open={sampleOpen}
+        onOpenChange={setSampleOpen}
+        course={course}
+        initial={course.sample ?? null}
+        unit={isEpisodic ? 'episode' : 'lesson'}
+      />
     </>
   )
 }

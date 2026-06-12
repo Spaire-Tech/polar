@@ -16,6 +16,20 @@ function outlineJsonSchema(): Record<string, unknown> {
   if (cachedJsonSchema) return cachedJsonSchema
   const js = z.toJSONSchema(outlineSchema) as Record<string, unknown>
   delete js['$schema']
+  // The Zod schema marks arc/kicker/instructor/faq OPTIONAL so the client's
+  // partial-JSON streaming never stalls — but with constrained decoding the
+  // model legally OMITS optional fields, which silently dropped the
+  // instructor + FAQ sections from generated pages. The API-side schema
+  // requires everything the page renders; the client stays lenient.
+  js['required'] = ['arc', 'modules', 'instructor', 'faq', 'hero']
+  const moduleItems = (
+    (js['properties'] as Record<string, unknown> | undefined)?.[
+      'modules'
+    ] as Record<string, unknown> | undefined
+  )?.['items'] as Record<string, unknown> | undefined
+  if (moduleItems) {
+    moduleItems['required'] = ['kicker', 'title', 'description', 'lessons']
+  }
   cachedJsonSchema = js
   return js
 }

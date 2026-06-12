@@ -52,7 +52,7 @@ def _serialize_lesson(
 
     When ``accessible`` is False (paywall- or drip-locked), strip body fields
     that would let a client bypass the lock (content, mux playback id,
-    description, attachments).
+    attachments).
     """
     base = {
         "id": str(lesson.id),
@@ -68,9 +68,12 @@ def _serialize_lesson(
         ),
         "comments_mode": getattr(lesson, "comments_mode", "visible"),
         "completed": str(lesson.id) in completed_ids,
+        # The one-line card description is marketing copy the public landing
+        # renders on every lesson card (locked included) — it sells the
+        # lesson, it doesn't reveal it. Only body fields below are gated.
+        "description": getattr(lesson, "description", None),
     }
     if accessible:
-        base["description"] = getattr(lesson, "description", None)
         base["content"] = lesson.content
         playback_id = getattr(lesson, "mux_playback_id", None)
         base["mux_playback_id"] = playback_id
@@ -83,7 +86,6 @@ def _serialize_lesson(
         base["mux_playback_url"] = None
         base["mux_status"] = getattr(lesson, "mux_status", None)
     else:
-        base["description"] = None
         base["content"] = None
         base["mux_playback_id"] = None
         base["mux_playback_url"] = None

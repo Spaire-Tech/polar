@@ -886,7 +886,7 @@ export function GeneratedPortalPage({
   const card = cardVariant === 'spotlight' ? spotlightCard : catalogCard
 
   return (
-    <div className={`gpp${dark ? ' dark' : ''}`}>
+    <div className={`gpp${dark ? ' dark' : ''}${isEpisodic ? ' epi' : ''}`}>
       {/* ════════ MARQUEE HERO (Marquee Course Page.html) ════════ */}
       {heroVariant === 'marquee' ? (
         <header
@@ -1062,7 +1062,7 @@ export function GeneratedPortalPage({
 
           <div className="hero-eyebrow">
             <span className="dot" />
-            <span>Spaire Original</span>
+            <span>{brand}</span>
           </div>
 
           {creatorBar}
@@ -1578,6 +1578,7 @@ export function GeneratedPortalPage({
         {enrollLesson && (
           <div className="enroll-sheet">
             <div className={`es-cover${coverUrl ? ' filled' : ''}`}>
+              <div className="es-grab" />
               <div className="ph-ambient" />
               <div
                 className="photo"
@@ -2585,6 +2586,9 @@ export function GeneratedPortalPage({
           font-size: clamp(28px, 3vw, 40px);
           font-weight: 600;
           letter-spacing: -0.025em;
+          /* the app's global heading styles leak a 1.5 line-height in here;
+             the design relies on the browser default (~1.15) */
+          line-height: 1.15;
           color: var(--text);
           transition: color 0.4s ease;
         }
@@ -3288,6 +3292,19 @@ export function GeneratedPortalPage({
           display: grid;
           place-items: center;
         }
+        /* Bottom-sheet grab handle — mobile-only (the phone design). */
+        .gpp .es-grab {
+          position: absolute;
+          top: 8px;
+          left: 50%;
+          transform: translateX(-50%);
+          z-index: 3;
+          width: 38px;
+          height: 5px;
+          border-radius: 980px;
+          background: rgba(255, 255, 255, 0.5);
+          display: none;
+        }
         .gpp .es-cover .photo-shade {
           display: block;
           background: linear-gradient(
@@ -3495,7 +3512,13 @@ export function GeneratedPortalPage({
            icon-pill creator bar, single-column instructor, 82%-wide card
            rail, and the compact sample + FAQ. */
         @media (max-width: 640px) {
+          /* The mobile designs put EVERY section on one 20px axis (--gut)
+             and cap the page at a centered 520px column. The gut override
+             is load-bearing: the hero title, the band's CTA buttons, and
+             the rails all reference it — miss it and the buttons sit on a
+             different axis than the text above them. */
           .gpp {
+            --gut: 20px;
             max-width: 520px;
             margin: 0 auto;
           }
@@ -3557,6 +3580,9 @@ export function GeneratedPortalPage({
           }
           .gpp .hero-actions {
             flex-direction: column;
+            /* reset the desktop row's align-items: center — the design's
+               buttons fill the 20px-gutter column edge to edge */
+            align-items: stretch;
             gap: 10px;
             margin-top: 22px;
           }
@@ -3676,6 +3702,7 @@ export function GeneratedPortalPage({
             aspect-ratio: 16 / 10;
             margin-top: 24px;
             border-radius: 18px;
+            box-shadow: 0 24px 22px rgba(0, 0, 0, 0.05);
           }
           .gpp .ph-cta .ph-ic {
             width: 56px;
@@ -3720,6 +3747,7 @@ export function GeneratedPortalPage({
           }
           .gpp .card {
             border-radius: 18px;
+            box-shadow: 0 14px 14px rgba(0, 0, 0, 0.04);
           }
           .gpp .card-info {
             padding: 0 16px 13px;
@@ -3795,8 +3823,12 @@ export function GeneratedPortalPage({
           .gpp .band {
             display: flex;
             flex-direction: column;
+            /* reset the desktop grid's align-items: start — without this the
+               CTA buttons shrink to their text width and float off-axis
+               instead of filling the 20px-gutter column like the design */
+            align-items: stretch;
             gap: 16px;
-            padding: 64px 20px 26px;
+            padding: 64px var(--gut) 26px;
           }
           .gpp .band-actions {
             gap: 10px;
@@ -3808,6 +3840,7 @@ export function GeneratedPortalPage({
           }
           .gpp .band-free {
             text-align: center;
+            margin-top: 0;
           }
           .gpp .band-desc {
             display: flex;
@@ -3871,16 +3904,111 @@ export function GeneratedPortalPage({
             margin: 0 -20px;
             padding: 4px 20px 16px;
           }
+          .gpp .lc-card {
+            border-radius: 16px;
+          }
           .gpp .lc-info {
             padding: 15px 16px 16px;
           }
+          .gpp .lc-num {
+            font-size: 10px;
+            letter-spacing: 0.08em;
+            margin-bottom: 5px;
+          }
+          .gpp .lc-title {
+            font-size: 17px;
+            margin-bottom: 6px;
+          }
+          .gpp .lc-desc {
+            font-size: 13.5px;
+            line-height: 1.5;
+            min-height: 40px;
+          }
+          .gpp .lc-meta {
+            padding-top: 10px;
+            font-size: 12.5px;
+          }
 
-          /* ── enroll sheet (mobile) ── */
-          .gpp .es-body {
-            padding: 26px 22px 28px;
+          /* ── episodic (marquee) section rhythm — its design spaces the
+             instructor / strip / FAQ tighter than the module-course page ── */
+          .gpp.epi .instructor {
+            padding: 56px var(--gut) 8px;
+          }
+          .gpp.epi .lessons {
+            padding: 52px var(--gut) 8px;
+          }
+          .gpp.epi .faq {
+            padding-top: 44px;
+          }
+
+          /* ── enroll sheet → bottom sheet (the mobile design slides it up
+             from the bottom edge, full-width, rounded top corners) ── */
+          .gpp .enroll-overlay {
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            padding: 0;
+          }
+          .gpp .enroll-sheet {
+            width: 100%;
+            max-width: 520px;
+            max-height: 92svh;
+            border-radius: 24px 24px 0 0;
+            box-shadow: 0 -20px 60px rgba(0, 0, 0, 0.35);
+            transform: translateY(100%);
+            transition: transform 0.46s cubic-bezier(0.2, 1, 0.3, 1),
+              background 0.4s ease;
+            padding-bottom: env(safe-area-inset-bottom, 0px);
+          }
+          .gpp .enroll-overlay.show .enroll-sheet {
+            transform: none;
+          }
+          .gpp .es-grab {
+            display: block;
+          }
+          .gpp .es-cover {
+            aspect-ratio: 16 / 9;
+          }
+          .gpp .es-eyebrow {
+            top: 24px;
+            left: 20px;
+            font-size: 10px;
           }
           .gpp .es-title {
-            font-size: 22px;
+            font-size: 23px;
+            left: 20px;
+            right: 64px;
+            bottom: 16px;
+          }
+          .gpp .es-close {
+            top: 14px;
+            right: 14px;
+            width: 36px;
+            height: 36px;
+          }
+          .gpp .es-body {
+            padding: 26px 22px 30px;
+          }
+          .gpp .es-h {
+            font-size: 23px;
+            margin-top: 9px;
+          }
+          .gpp .es-sub {
+            font-size: 14px;
+            max-width: 340px;
+            margin-top: 9px;
+          }
+          .gpp .es-price {
+            font-size: 36px;
+            margin-top: 18px;
+          }
+          .gpp .es-actions {
+            gap: 12px;
+            margin-top: 20px;
+          }
+          .gpp .es-enroll {
+            max-width: none;
+            font-size: 16px;
           }
         }
       `}</style>

@@ -281,7 +281,11 @@ export function PublicPortalView({
   return (
     <div className="gpp-fullbleed" data-gpp-fullbleed>
       <GeneratedPortalPage
-        brand={organization.name ?? 'Spaire Originals'}
+        brand={
+          // The public landing's top-left title is the INSTRUCTOR's name —
+          // creator-facing surfaces (editor, wizard) show "Spaire Originals".
+          landing.instructor_name || organization.name || 'Spaire Originals'
+        }
         title={landing.title ?? product.name}
         titleLines={heroTitleLines}
         eyebrow={heroEyebrow}

@@ -172,7 +172,7 @@ export function WizardPortalPreview({
 
       <div className="flex-1 overflow-y-auto">
         <GeneratedPortalPage
-          brand={organization.name ?? 'Spaire Originals'}
+          brand="Spaire Originals"
           title={draft.title || 'Untitled Original'}
           titleLines={draft.titleLines}
           eyebrow={draft.eyebrow || 'A Spaire Original'}
