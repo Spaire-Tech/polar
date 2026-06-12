@@ -1062,7 +1062,7 @@ export function GeneratedPortalPage({
 
           <div className="hero-eyebrow">
             <span className="dot" />
-            <span>Spaire Original</span>
+            <span>{brand}</span>
           </div>
 
           {creatorBar}

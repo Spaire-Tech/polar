@@ -278,17 +278,21 @@ function SampleHlsPlayer({
 
 // ── Editor-only settings popover ───────────────────────────────────────────
 
-function SampleSettingsPopover({
+export function SampleSettingsPopover({
   open,
   onOpenChange,
   course,
   initial,
+  unit = 'episode',
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
   course: CourseRead
   initial: CourseRead['sample']
+  /** "episode" for series, "lesson" for module courses — labels only. */
+  unit?: 'episode' | 'lesson'
 }) {
+  const unitCap = unit === 'lesson' ? 'Lesson' : 'Episode'
   const updateCourse = useUpdateCourse()
   const allLessons = useMemo(() => flattenLessonsWithIndex(course), [course])
   const playableLessons = useMemo(
@@ -417,7 +421,7 @@ function SampleSettingsPopover({
               marginBottom: 8,
             }}
           >
-            Episode Sample
+            {unitCap} Sample
           </div>
           <h3
             style={{
@@ -439,8 +443,8 @@ function SampleSettingsPopover({
                 lineHeight: 1.5,
               }}
             >
-              No episodes are ready to play yet. Upload at least one video to an
-              episode, then come back here.
+              No {unit}s are ready to play yet. Upload at least one video to a{' '}
+              {unit}, then come back here.
             </p>
           ) : (
             <>
@@ -490,7 +494,7 @@ function SampleSettingsPopover({
                     marginBottom: 8,
                   }}
                 >
-                  Episode
+                  {unitCap}
                 </div>
                 <select
                   value={lessonId ?? ''}
@@ -508,7 +512,7 @@ function SampleSettingsPopover({
                 >
                   {playableLessons.map(({ lesson, index }) => (
                     <option key={lesson.id} value={lesson.id}>
-                      {`Episode ${String(index + 1).padStart(2, '0')} · ${lesson.title}`}
+                      {`${unitCap} ${String(index + 1).padStart(2, '0')} · ${lesson.title}`}
                     </option>
                   ))}
                 </select>

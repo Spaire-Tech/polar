@@ -3,6 +3,7 @@
 import { CustomizeTab } from '@/components/Courses/editor/CustomizeTab'
 import type { CourseRead } from '@/hooks/queries/courses'
 import type { schemas } from '@spaire/client'
+import { useEffect, useState } from 'react'
 
 // Render-only harness for the customize shell + canvas with a fully
 // populated mock course (AI hero/instructor/faq + lessons), so the
@@ -139,9 +140,43 @@ const organization = {
 } as unknown as schemas['Organization']
 
 export default function CustomizeShellPreviewPage() {
+  // `?trial=sample` — exercise the lesson-sample path: the sample screen on
+  // the canvas plus the SampleSettingsPopover (with its inline scrub
+  // preview), backed by one fake mux-ready lesson.
+  // Read after mount — reading window.location during render makes the
+  // server and client render different trees (hydration mismatch).
+  const [sampleMode, setSampleMode] = useState(false)
+  useEffect(() => {
+    setSampleMode(
+      new URLSearchParams(window.location.search).get('trial') === 'sample',
+    )
+  }, [])
+  const effectiveCourse = sampleMode
+    ? ({
+        ...course,
+        trial_mode: 'lesson_sample',
+        modules: course.modules.map((m, mi) =>
+          mi === 0
+            ? {
+                ...m,
+                lessons: m.lessons.map((l, li) =>
+                  li === 0
+                    ? {
+                        ...l,
+                        mux_status: 'ready',
+                        mux_playback_id: 'fake-playback-id',
+                        duration_seconds: 300,
+                      }
+                    : l,
+                ),
+              }
+            : m,
+        ),
+      } as unknown as CourseRead)
+    : course
   return (
     <div style={{ height: '100vh' }}>
-      <CustomizeTab course={course} organization={organization} />
+      <CustomizeTab course={effectiveCourse} organization={organization} />
     </div>
   )
 }
