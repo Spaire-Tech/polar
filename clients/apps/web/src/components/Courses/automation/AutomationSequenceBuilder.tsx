@@ -855,6 +855,11 @@ function AutomationStyles() {
         font-family: var(--sf); color: var(--text); background: transparent;
         border: none; outline: none; letter-spacing: -0.014em;
       }
+      /* kill the app's global box-shadow focus ring on borderless fields */
+      .asq input:focus, .asq textarea:focus, .asq select:focus,
+      .asq input:focus-visible, .asq textarea:focus-visible, .asq select:focus-visible {
+        outline: none; box-shadow: none;
+      }
       .asq input::placeholder, .asq textarea::placeholder { color: var(--text-2); opacity: 0.8; }
 
       .asq .topbar {
