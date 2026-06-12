@@ -578,7 +578,7 @@ export function GeneratedPortalPage({
     <div className="creator-bar">
       {editable && onAddCover && (
         <button
-          className="add-pill"
+          className="add-pill is-cover"
           type="button"
           onClick={onAddCover}
           disabled={coverBusy}
@@ -591,7 +591,7 @@ export function GeneratedPortalPage({
       )}
       {editable && coverUrl && onCoverPosition && (
         <button
-          className={`add-pill${repositioning ? ' active' : ''}`}
+          className={`add-pill is-reposition${repositioning ? ' active' : ''}`}
           type="button"
           onClick={() => {
             setRepositioning((r) => !r)
@@ -609,14 +609,22 @@ export function GeneratedPortalPage({
           onClick={onAddTrailer}
           disabled={trailerBusy}
         >
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+          <svg
+            className="add-pill-ic"
+            width="13"
+            height="13"
+            viewBox="0 0 24 24"
+            fill="currentColor"
+          >
             <path d={PLAY_PATH} />
           </svg>
-          {trailerBusy
-            ? 'Uploading…'
-            : trailerUrl
-              ? 'Change trailer'
-              : 'Add trailer'}
+          <span>
+            {trailerBusy
+              ? 'Uploading…'
+              : trailerUrl
+                ? 'Change trailer'
+                : 'Add trailer'}
+          </span>
         </button>
       )}
       {themeToggle}
@@ -992,6 +1000,26 @@ export function GeneratedPortalPage({
           </div>
 
           {creatorBar}
+
+          {/* Mobile-only centered Add cover (the design moves cover upload
+              out of the icon-pill bar on phones). Hidden ≥640px by default. */}
+          {editable && onAddCover && (
+            <button
+              className="hero-cta"
+              type="button"
+              onClick={onAddCover}
+              disabled={coverBusy}
+            >
+              {PillImageIcon}
+              <span>
+                {coverBusy
+                  ? 'Uploading…'
+                  : coverUrl
+                    ? 'Change cover'
+                    : 'Add cover'}
+              </span>
+            </button>
+          )}
 
           <div className="hero-content">
             <div className="hero-meta">
@@ -2257,6 +2285,38 @@ export function GeneratedPortalPage({
           gap: 13px;
           margin-top: 26px;
         }
+        /* Mobile centered Add-cover button (anchored below the icon-pill
+           bar). Hidden on desktop; the mobile media query reveals it. */
+        .gpp .hero-cta {
+          display: none;
+          position: absolute;
+          top: clamp(84px, 15%, 130px);
+          left: 50%;
+          transform: translateX(-50%);
+          z-index: 4;
+          align-items: center;
+          gap: 8px;
+          height: 40px;
+          padding: 0 18px;
+          border-radius: 980px;
+          background: rgba(255, 255, 255, 0.14);
+          color: #fff;
+          -webkit-backdrop-filter: blur(40px) saturate(150%);
+          backdrop-filter: blur(40px) saturate(150%);
+          font-family: var(--sf);
+          font-size: 14px;
+          font-weight: 600;
+          letter-spacing: -0.01em;
+          white-space: nowrap;
+          transition: background 0.2s, transform 0.16s;
+        }
+        .gpp .hero-cta:active {
+          background: rgba(255, 255, 255, 0.28);
+          transform: translateX(-50%) scale(0.96);
+        }
+        .gpp .hero.filled .hero-cta {
+          background: rgba(10, 11, 13, 0.46);
+        }
         .gpp .btn-trailer {
           display: inline-flex;
           align-items: center;
@@ -3027,38 +3087,267 @@ export function GeneratedPortalPage({
             flex-basis: min(465px, 84%);
           }
         }
-        @media (max-width: 760px) {
-          .gpp .row {
-            margin-top: 32px;
+        /* ============================================================ MOBILE
+           Full phone layout — a faithful port of "Course Page Empty State
+           (Mobile).html". ~390px-first; the page caps content width and the
+           sections restack: cover hero with a centered Add-cover button +
+           icon-pill creator bar, single-column instructor, 82%-wide card
+           rail, and the compact sample + FAQ. */
+        @media (max-width: 640px) {
+          .gpp {
+            max-width: 520px;
+            margin: 0 auto;
           }
-          .gpp .row .grid {
-            gap: 18px;
+
+          /* ── cover hero ── */
+          .gpp .hero {
+            height: 86svh;
+            min-height: 580px;
+            max-height: 760px;
           }
-          .gpp .row .grid .card,
-          .gpp .row .grid .lc-catalog {
-            flex: 0 0 min(465px, 84%);
+          .gpp .hero .photo-shade {
+            background: linear-gradient(
+              0deg,
+              rgba(5, 5, 8, 0.66) 0%,
+              rgba(5, 5, 8, 0.3) 36%,
+              transparent 60%
+            );
           }
-          .gpp .lessons {
-            padding: 28px 20px 56px;
+          .gpp .hero-ph {
+            top: 44%;
           }
-          .gpp .sample {
-            padding: 48px 20px 8px;
+          .gpp .hero-blend {
+            height: 40px;
           }
           .gpp .hero-eyebrow {
-            top: 30px;
-            left: 24px;
+            top: 22px;
+            left: 20px;
+            font-size: 11px;
           }
-          .gpp .creator-bar {
-            top: 24px;
-            right: 20px;
+          .gpp .hero-eyebrow .dot {
+            width: 6px;
+            height: 6px;
           }
           .gpp .hero-content {
-            left: 24px;
-            right: 24px;
-            bottom: 36px;
+            left: 20px;
+            right: 20px;
+            bottom: 28px;
+          }
+          .gpp .hero-meta {
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 14px;
+          }
+          .gpp .badge {
+            font-size: 10px;
+            padding: 6px 12px;
+          }
+          .gpp .meta-line {
+            font-size: 13px;
+            gap: 8px;
+          }
+          .gpp .hero-title {
+            font-size: clamp(38px, 11.5vw, 48px);
+            line-height: 1.04;
+          }
+          .gpp .hero-desc {
+            margin-top: 14px;
+            font-size: 15px;
           }
           .gpp .hero-actions {
-            flex-wrap: wrap;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 22px;
+          }
+          .gpp .btn-trailer,
+          .gpp .btn-enroll {
+            justify-content: center;
+            height: 50px;
+            font-size: 15px;
+          }
+          .gpp .btn-trailer {
+            padding: 0 20px;
+          }
+          .gpp .btn-trailer .play {
+            width: 28px;
+            height: 28px;
+          }
+          .gpp .btn-enroll {
+            padding: 0 22px;
+          }
+
+          /* creator controls → 44px icon pills; Add-cover is the centered
+             .hero-cta (rendered separately in editable mode). */
+          .gpp .creator-bar {
+            top: 14px;
+            right: 14px;
+            gap: 8px;
+          }
+          .gpp .creator-bar .add-pill {
+            width: 44px;
+            height: 44px;
+            padding: 0;
+            border-radius: 50%;
+            justify-content: center;
+          }
+          .gpp .creator-bar .add-pill span {
+            display: none;
+          }
+          .gpp .creator-bar .add-pill svg {
+            width: 16px;
+            height: 16px;
+          }
+          /* the labelled Add cover + Reposition pills collapse on phones;
+             cover upload lives in the centered .hero-cta, reposition is a
+             desktop-drag affordance. */
+          .gpp .creator-bar .add-pill.is-cover,
+          .gpp .creator-bar .add-pill.is-reposition {
+            display: none;
+          }
+          .gpp .panel .creator-bar {
+            top: 14px;
+            right: 14px;
+          }
+          .gpp .creator-bar .theme-toggle {
+            width: 44px;
+            height: 44px;
+          }
+          .gpp .hero-cta {
+            display: inline-flex;
+          }
+
+          /* ── instructor → single column ── */
+          .gpp .instructor {
+            padding: 64px 20px 8px;
+          }
+          .gpp .inst-inner {
+            grid-template-columns: 1fr;
+            gap: 0;
+          }
+          .gpp .inst-head {
+            grid-template-columns: 76px 1fr;
+            gap: 16px;
+            margin-bottom: 24px;
+          }
+          .gpp .inst-avatar {
+            width: 76px;
+            height: 76px;
+          }
+          .gpp .inst-name {
+            font-size: 30px;
+          }
+          .gpp .inst-sub {
+            margin-top: 8px;
+            font-size: 14px;
+          }
+          .gpp .inst-bio {
+            font-size: 16px;
+          }
+          .gpp .inst-bio + .inst-bio {
+            margin-top: 16px;
+          }
+          .gpp .inst-media {
+            margin-top: 32px;
+            border-radius: 24px;
+          }
+          .gpp .inst-caption {
+            left: 16px;
+            bottom: 16px;
+            font-size: 12.5px;
+          }
+
+          /* ── free sample ── */
+          .gpp .sample {
+            padding: 56px 20px 8px;
+          }
+          .gpp .sample-eyebrow {
+            font-size: 11px;
+            margin-bottom: 10px;
+          }
+          .gpp .sample h2 {
+            font-size: 27px;
+          }
+          .gpp .sample-sub {
+            font-size: 15px;
+            margin-top: 8px;
+          }
+          .gpp .sample-screen {
+            aspect-ratio: 16 / 10;
+            margin-top: 24px;
+            border-radius: 18px;
+          }
+          .gpp .ph-cta .ph-ic {
+            width: 56px;
+            height: 56px;
+          }
+          .gpp .ph-cta .ph-k {
+            font-size: 14px;
+          }
+          .gpp .ph-cta .ph-s {
+            font-size: 12px;
+            margin-top: -7px;
+          }
+
+          /* ── lesson rails — one card at a time ── */
+          .gpp .lessons {
+            padding: 40px 20px 64px;
+          }
+          .gpp .row {
+            margin-top: 36px;
+          }
+          .gpp .row-head,
+          .gpp .strip-rh {
+            font-size: 17px;
+            margin-bottom: 12px;
+          }
+          .gpp .row .grid,
+          .gpp .strip-wrap .grid {
+            gap: 14px;
+            scroll-padding-inline: 20px;
+            margin: 0 -20px;
+            padding: 0 20px;
+          }
+          .gpp .row .grid .card,
+          .gpp .row .grid .lc-catalog,
+          .gpp .strip-wrap .grid .card,
+          .gpp .strip-wrap .grid .lc-catalog {
+            flex: 0 0 82%;
+          }
+          .gpp .card {
+            border-radius: 18px;
+          }
+          .gpp .card-info {
+            padding: 0 16px 13px;
+          }
+          .gpp .card .title {
+            font-size: 16px;
+            margin-top: 4px;
+          }
+          .gpp .card .desc {
+            font-size: 13px;
+            min-height: 37px;
+          }
+
+          /* ── faq ── */
+          .gpp .faq {
+            padding: 16px 20px 88px;
+          }
+          .gpp .faq h2 {
+            font-size: clamp(34px, 10.5vw, 44px);
+            white-space: normal;
+            margin-bottom: 36px;
+          }
+          .gpp .faq-q {
+            padding: 20px 2px;
+            font-size: 17px;
+            gap: 16px;
+          }
+          .gpp .faq-a {
+            padding: 0 28px 6px 2px;
+            font-size: 15px;
+          }
+          .gpp .faq-item.open .faq-a {
+            padding-bottom: 24px;
           }
         }
       `}</style>
