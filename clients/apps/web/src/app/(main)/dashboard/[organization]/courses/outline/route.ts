@@ -1,16 +1,24 @@
-'use server'
-
 import { outlineSchema } from '@/components/Courses/schemas'
 import { getAuthenticatedUser } from '@/utils/user'
 import { z } from 'zod'
 
+// Streaming generation can run ~40s; give the function room so the platform
+// doesn't kill it mid-stream (the "loads forever then fails" symptom).
+export const maxDuration = 300
+export const runtime = 'nodejs'
+
 // JSON Schema for Anthropic's structured outputs (output_config.format),
-// derived once from the Zod schema so the two never drift.
-const OUTLINE_JSON_SCHEMA = (() => {
+// derived from the Zod schema so the two never drift. Computed lazily (NOT
+// at module load) and cached — a throw here must never take down the route
+// module itself (that 404s the whole endpoint).
+let cachedJsonSchema: Record<string, unknown> | null = null
+function outlineJsonSchema(): Record<string, unknown> {
+  if (cachedJsonSchema) return cachedJsonSchema
   const js = z.toJSONSchema(outlineSchema) as Record<string, unknown>
   delete js['$schema']
+  cachedJsonSchema = js
   return js
-})()
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Spaire Original generation. Produces the STRUCTURE (modules/lessons) and all
@@ -177,25 +185,33 @@ export async function POST(req: Request) {
   // verified at 100% across course + series runs — so we call /v1/messages
   // directly, stream the JSON text deltas, and re-emit them as the same plain
   // text stream the client's useObject already consumes (it accumulates the
-  // text and parses partial JSON). The Zod schema is converted to JSON Schema
-  // once at module load (see OUTLINE_JSON_SCHEMA).
+  // text and parses partial JSON). The Zod schema is converted to JSON
+  // Schema lazily (see outlineJsonSchema).
   const apiKey = process.env.ANTHROPIC_API_KEY
   if (!apiKey) {
-     
     console.error('[outline] ANTHROPIC_API_KEY is not set')
     return new Response('Generator not configured', { status: 500 })
   }
+  // Build the endpoint EXACTLY like @ai-sdk/anthropic does (the provider that
+  // already worked in this environment): baseURL defaults to
+  // https://api.anthropic.com/v1 (overridable via ANTHROPIC_BASE_URL) and the
+  // request goes to `${baseURL}/messages`. Matching this avoids any URL
+  // mismatch with whatever gateway/base the deployment is configured for.
   const base = (
     process.env.ANTHROPIC_BASE_URL || 'https://api.anthropic.com/v1'
   ).replace(/\/+$/, '')
-  const messagesUrl = base.endsWith('/v1')
-    ? `${base}/messages`
-    : `${base}/v1/messages`
+  const messagesUrl = `${base}/messages`
+
+  // Don't let a stuck upstream hang the request for minutes — abort well
+  // inside the function budget and surface a clean error instead.
+  const abort = new AbortController()
+  const abortTimer = setTimeout(() => abort.abort(), 240_000)
 
   let upstream: Response
   try {
     upstream = await fetch(messagesUrl, {
       method: 'POST',
+      signal: abort.signal,
       headers: {
         'x-api-key': apiKey,
         'anthropic-version': '2023-06-01',
@@ -207,69 +223,42 @@ export async function POST(req: Request) {
         system: systemPrompt,
         stream: true,
         output_config: {
-          format: { type: 'json_schema', schema: OUTLINE_JSON_SCHEMA },
+          format: { type: 'json_schema', schema: outlineJsonSchema() },
         },
         messages: [{ role: 'user', content: intro }],
       }),
     })
   } catch (err) {
-     
+    clearTimeout(abortTimer)
     console.error('[outline] upstream fetch failed:', err)
     return new Response('Generator unavailable', { status: 502 })
   }
 
   if (!upstream.ok || !upstream.body) {
+    clearTimeout(abortTimer)
     const detail = await upstream.text().catch(() => '')
-     
-    console.error('[outline] upstream error:', upstream.status, detail.slice(0, 500))
-    return new Response('Generation failed', { status: 502 })
+    console.error(
+      '[outline] upstream error:',
+      upstream.status,
+      detail.slice(0, 500),
+    )
+    return new Response('Generation failed', { status: upstream.status })
   }
 
-  // Parse the Anthropic SSE stream → emit the JSON text deltas as a plain
-  // text stream. Log the outcome at the end so an empty result is never
-  // silent (the original "backend says nothing" complaint).
-  const encoder = new TextEncoder()
+  // Pipe the Anthropic SSE stream → a plain text stream of just the JSON text
+  // deltas, which is exactly what the client's useObject accumulates and
+  // parses. Using pipeThrough(TransformStream) (rather than a hand-pulled
+  // ReadableStream) is the idiomatic, backpressure-friendly primitive the
+  // runtime/proxy handle cleanly. The final outcome is logged so an empty
+  // generation is never silent.
   const decoder = new TextDecoder()
-  const reader = upstream.body.getReader()
   let sseBuffer = ''
   let jsonText = ''
   let stopReason: string | null = null
 
-  const stream = new ReadableStream<Uint8Array>({
-    async pull(controller) {
-      const { done, value } = await reader.read()
-      if (done) {
-        // Final outcome log.
-        let moduleCount = 0
-        let lessonCount = 0
-        try {
-          const obj = JSON.parse(jsonText)
-          moduleCount = obj?.modules?.length ?? 0
-          lessonCount =
-            obj?.modules?.reduce(
-              (acc: number, m: { lessons?: unknown[] }) =>
-                acc + (m.lessons?.length ?? 0),
-              0,
-            ) ?? 0
-        } catch {
-          /* partial/invalid — moduleCount stays 0, logged as error below */
-        }
-         
-        console[moduleCount === 0 ? 'error' : 'log'](
-          '[outline] finished:',
-          JSON.stringify({
-            format: isSeries ? 'series' : 'course',
-            moduleCount,
-            lessonCount,
-            stopReason,
-            textLength: jsonText.length,
-          }),
-        )
-        controller.close()
-        return
-      }
-
-      sseBuffer += decoder.decode(value, { stream: true })
+  const transform = new TransformStream<Uint8Array, Uint8Array>({
+    transform(chunk, controller) {
+      sseBuffer += decoder.decode(chunk, { stream: true })
       let nl: number
       while ((nl = sseBuffer.indexOf('\n')) >= 0) {
         const line = sseBuffer.slice(0, nl)
@@ -285,27 +274,52 @@ export async function POST(req: Request) {
             typeof ev.delta.text === 'string'
           ) {
             jsonText += ev.delta.text
-            controller.enqueue(encoder.encode(ev.delta.text))
+            controller.enqueue(new TextEncoder().encode(ev.delta.text))
           } else if (ev.type === 'message_delta' && ev.delta?.stop_reason) {
             stopReason = ev.delta.stop_reason
           } else if (ev.type === 'error') {
-             
             console.error('[outline] stream error event:', ev.error)
           }
         } catch {
-          /* ignore non-JSON keepalive lines */
+          /* ignore keepalive / non-JSON lines */
         }
       }
     },
-    cancel() {
-      void reader.cancel()
+    flush() {
+      clearTimeout(abortTimer)
+      let moduleCount = 0
+      let lessonCount = 0
+      try {
+        const obj = JSON.parse(jsonText)
+        moduleCount = obj?.modules?.length ?? 0
+        lessonCount =
+          obj?.modules?.reduce(
+            (acc: number, m: { lessons?: unknown[] }) =>
+              acc + (m.lessons?.length ?? 0),
+            0,
+          ) ?? 0
+      } catch {
+        /* partial/invalid — logged as an error below */
+      }
+      console[moduleCount === 0 ? 'error' : 'log'](
+        '[outline] finished:',
+        JSON.stringify({
+          format: isSeries ? 'series' : 'course',
+          moduleCount,
+          lessonCount,
+          stopReason,
+          textLength: jsonText.length,
+        }),
+      )
     },
   })
 
-  return new Response(stream, {
+  return new Response(upstream.body.pipeThrough(transform), {
     headers: {
       'content-type': 'text/plain; charset=utf-8',
       'cache-control': 'no-store',
+      // Defeat proxy buffering of the streamed response.
+      'x-accel-buffering': 'no',
     },
   })
 }
