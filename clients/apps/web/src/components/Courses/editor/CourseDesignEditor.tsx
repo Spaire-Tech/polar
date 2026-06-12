@@ -406,6 +406,23 @@ export function CourseDesignEditor({
             ai_instructor: { ...(cur.ai_instructor ?? {}), caption: value },
           }))
           break
+        case 'bdg': {
+          if (ctx?.idx == null) break
+          const i = ctx.idx
+          writeOverrides((cur) => {
+            const next = [
+              ...(cur.badges ?? [
+                'All Levels',
+                'Self-paced',
+                'Captions',
+                'Mobile & TV',
+              ]),
+            ]
+            next[i] = value
+            return { ...cur, badges: next }
+          })
+          break
+        }
         case 'faqQ':
         case 'faqA': {
           if (ctx?.idx == null) break
@@ -540,6 +557,7 @@ export function CourseDesignEditor({
       onAddPortrait={onAddPortrait}
       portraitBusy={portraitBusy}
       faq={aiFaq}
+      badges={course.landing_overrides?.badges ?? undefined}
     />
       {/* Sample picker — the sheet with the live video scrub preview (episode
           picker + inline clip player + start/duration sliders). It saves

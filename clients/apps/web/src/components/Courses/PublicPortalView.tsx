@@ -20,7 +20,7 @@ import type {
 import { api } from '@/utils/client'
 import { CONFIG } from '@/utils/config'
 import { schemas } from '@spaire/client'
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { toast } from '../Toast/use-toast'
 import { formatProductPrice } from './editor/EditableCourseLandingView'
 import {
@@ -215,6 +215,32 @@ export function PublicPortalView({
   const aiInstructor = landing.landing_overrides?.ai_instructor ?? null
   const aiFaq = landing.landing_overrides?.ai_faq ?? []
   const portraitUrl = landing.landing_overrides?.portrait_url ?? null
+  const badges = landing.landing_overrides?.badges ?? undefined
+
+  // Match the document background to the page theme and kill overscroll
+  // bounce — otherwise rubber-banding past the top/bottom flashes the
+  // browser's white canvas behind the dark page (desktop and mobile).
+  useEffect(() => {
+    const root = document.documentElement
+    const body = document.body
+    const bg = dark ? '#141416' : '#ffffff'
+    const prev = {
+      rootBg: root.style.backgroundColor,
+      bodyBg: body.style.backgroundColor,
+      rootOver: root.style.overscrollBehaviorY,
+      bodyOver: body.style.overscrollBehaviorY,
+    }
+    root.style.backgroundColor = bg
+    body.style.backgroundColor = bg
+    root.style.overscrollBehaviorY = 'none'
+    body.style.overscrollBehaviorY = 'none'
+    return () => {
+      root.style.backgroundColor = prev.rootBg
+      body.style.backgroundColor = prev.bodyBg
+      root.style.overscrollBehaviorY = prev.rootOver
+      body.style.overscrollBehaviorY = prev.bodyOver
+    }
+  }, [dark])
 
   // ── Groups — per-lesson media only; placeholder otherwise ────────────────
   const flatLessons = landing.lessons
@@ -281,11 +307,7 @@ export function PublicPortalView({
   return (
     <div className="gpp-fullbleed" data-gpp-fullbleed>
       <GeneratedPortalPage
-        brand={
-          // The public landing's top-left title is the INSTRUCTOR's name —
-          // creator-facing surfaces (editor, wizard) show "Spaire Originals".
-          landing.instructor_name || organization.name || 'Spaire Originals'
-        }
+        brand="Spaire Originals"
         title={landing.title ?? product.name}
         titleLines={heroTitleLines}
         eyebrow={heroEyebrow}
@@ -304,6 +326,7 @@ export function PublicPortalView({
         freeLine={freeLine}
         coverUrl={landing.thumbnail_url}
         coverPosition={landing.thumbnail_object_position}
+        trailerUrl={landing.trailer_url ?? null}
         sampleImageUrl={sample?.thumbnail_url ?? null}
         samplePlayable={samplePlayable}
         samplePlaybackId={sample?.mux_playback_id ?? null}
@@ -319,6 +342,7 @@ export function PublicPortalView({
         portraitUrl={portraitUrl}
         portraitCaption={aiInstructor?.caption ?? ''}
         faq={aiFaq}
+        badges={badges}
         groups={groups}
         lessonCount={landing.lesson_count}
         metaDuration={metaDuration}

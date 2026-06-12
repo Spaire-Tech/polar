@@ -215,6 +215,8 @@ export type GeneratedPortalPageProps = {
   portraitBusy?: boolean
   /** FAQ — AI-written Q/A pairs, all editable. */
   faq?: { q: string; a: string }[]
+  /** The band's badge chips — creator-editable; defaults to the design's. */
+  badges?: string[]
   groups: GeneratedGroup[]
   lessonCount: number
   /** Total runtime, pre-formatted ("4h 15m" / "0 min"). The meta line shows
@@ -267,6 +269,7 @@ export type EditField =
   | 'byline'
   | 'eyebrow'
   | 'badge'
+  | 'bdg'
   | 'instructorName'
   | 'lessonTitle'
   | 'lessonDesc'
@@ -312,6 +315,7 @@ export function GeneratedPortalPage({
   onAddPortrait,
   portraitBusy = false,
   faq = [],
+  badges = ['All Levels', 'Self-paced', 'Captions', 'Mobile & TV'],
   groups,
   lessonCount,
   metaDuration = '0 min',
@@ -439,14 +443,40 @@ export function GeneratedPortalPage({
   const sampleIsHls = Boolean(
     samplePlaybackId || (sampleSrc && sampleSrc.includes('.m3u8')),
   )
+  const [sampleMuted, setSampleMuted] = useState(false)
   const startSample = useCallback(() => {
     if (!samplePlayable) return
+    setSampleMuted(false)
     setSamplePlaying(true)
     sampleScreenRef.current?.scrollIntoView({
       behavior: 'smooth',
       block: 'center',
     })
   }, [samplePlayable])
+  // Auto-play on scroll — the design's "plays automatically when scrolled
+  // into view". Starts MUTED (browsers only allow muted autoplay) and fires
+  // once per visit; the viewer can unmute via the player controls, and an
+  // explicit click/play always runs with sound.
+  const sampleAutoPlayedRef = useRef(false)
+  useEffect(() => {
+    if (!samplePlayable || samplePlaying || sampleAutoPlayedRef.current) return
+    const screen = sampleScreenRef.current
+    if (!screen) return
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          if (e.intersectionRatio >= 0.6 && !sampleAutoPlayedRef.current) {
+            sampleAutoPlayedRef.current = true
+            setSampleMuted(true)
+            setSamplePlaying(true)
+          }
+        }
+      },
+      { threshold: [0.6] },
+    )
+    io.observe(screen)
+    return () => io.disconnect()
+  }, [samplePlayable, samplePlaying])
   const stopSample = useCallback(() => {
     sampleVideoRef.current?.pause()
     setSamplePlaying(false)
@@ -991,10 +1021,18 @@ export function GeneratedPortalPage({
                 {metaDuration}
               </div>
               <div className="bd-badges">
-                <span className="bdg rate">All Levels</span>
-                <span className="bdg">Self-paced</span>
-                <span className="bdg">Captions</span>
-                <span className="bdg">Mobile &amp; TV</span>
+                {badges.map((b, i) => (
+                  <EditText
+                    key={i}
+                    editable={editable}
+                    onEditText={onEditText}
+                    field="bdg"
+                    value={b}
+                    className={i === 0 ? 'bdg rate' : 'bdg'}
+                    tag="span"
+                    ctx={{ idx: i }}
+                  />
+                ))}
                 {showTrailerButton && (
                   <button
                     className="bd-trailer"
@@ -1349,6 +1387,7 @@ export function GeneratedPortalPage({
                   playbackUrl={sampleSrc}
                   poster={sampleImageUrl}
                   controls
+                  muted={sampleMuted}
                   className="sample-video"
                   onVideoElement={onSampleVideoEl}
                   onEnded={stopSample}
@@ -1359,6 +1398,7 @@ export function GeneratedPortalPage({
                   src={sampleSrc ?? undefined}
                   poster={sampleImageUrl ?? undefined}
                   controls
+                  muted={sampleMuted}
                   playsInline
                   ref={onSampleVideoEl}
                   onEnded={stopSample}
@@ -3403,6 +3443,9 @@ export function GeneratedPortalPage({
           font-size: 26px;
           font-weight: 600;
           letter-spacing: -0.025em;
+          /* pin the browser-default line-height — the app's global heading
+             styles leak 1.5 in here and stretch the sheet */
+          line-height: 1.15;
           color: var(--text);
           margin-top: 10px;
           transition: color 0.4s ease;
@@ -3419,6 +3462,7 @@ export function GeneratedPortalPage({
           font-size: 40px;
           font-weight: 700;
           letter-spacing: -0.03em;
+          line-height: 1.15;
           color: var(--text);
           margin-top: 22px;
           transition: color 0.4s ease;
