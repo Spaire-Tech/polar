@@ -171,7 +171,15 @@ function Preview() {
       editable={editable}
       onAddCover={editable ? () => {} : undefined}
       onAddTrailer={editable ? () => {} : undefined}
-      onCoverPosition={editable ? () => {} : undefined}
+      onCoverPosition={
+        editable
+          ? (pos) => {
+              ;(
+                window as unknown as { __coverPos?: string }
+              ).__coverPos = pos
+            }
+          : undefined
+      }
       onAddLessonImage={editable ? () => {} : undefined}
       onConfigureSample={editable ? () => {} : undefined}
       onEditText={

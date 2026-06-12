@@ -297,7 +297,7 @@ export function LessonEditorV2({
     return sorted.findIndex((l) => l.id === lesson.id) + 1
   }, [module.lessons, lesson.id])
 
-  const automationHref = `/dashboard/${organizationSlug}/email?course=${course.id}&lesson=${lesson.id}`
+  const automationHref = `/dashboard/${organizationSlug}/email-marketing/sequences/new?course_id=${course.id}&lesson_id=${lesson.id}`
 
   return (
     <div className="led">
@@ -805,6 +805,16 @@ function LessonEditorStyles() {
         border: none;
         outline: none;
         letter-spacing: -0.014em;
+      }
+      /* The app's global form styles add a 1px box-shadow focus ring (the
+         "black box/underline" around writable fields). The design has none —
+         these are borderless inline fields — so neutralise it on focus. */
+      .led input:focus,
+      .led textarea:focus,
+      .led input:focus-visible,
+      .led textarea:focus-visible {
+        outline: none;
+        box-shadow: none;
       }
       .led input::placeholder,
       .led textarea::placeholder {
