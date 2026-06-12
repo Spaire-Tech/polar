@@ -45,9 +45,9 @@ function buildLesson(video: boolean): CourseLessonRead {
     is_free_preview: false,
     published: false,
     duration_seconds: video ? 760 : null,
-    thumbnail_url: video
-      ? 'https://images.unsplash.com/photo-1509440159596-0249088772ff?w=1200&q=70&auto=format&fit=crop'
-      : null,
+    thumbnail_url:
+      'https://images.unsplash.com/photo-1509440159596-0249088772ff?w=1200&q=70&auto=format&fit=crop',
+    thumbnail_object_position: '50% 50%',
     mux_playback_id: video ? 'fake-id' : null,
     mux_status: video ? 'ready' : null,
     comments_mode: 'visible',
