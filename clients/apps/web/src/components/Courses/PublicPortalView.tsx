@@ -131,6 +131,11 @@ export function PublicPortalView({
     [landing.lessons],
   )
   const cadence = recurring ? 'cancel anytime' : 'one-time purchase'
+  const enrollPriceSub = isFreeProduct
+    ? `${landing.lesson_count} ${unit}${landing.lesson_count === 1 ? '' : 's'} · Free`
+    : recurring
+      ? `Subscription · ${landing.lesson_count} ${unit}${landing.lesson_count === 1 ? '' : 's'} · cancel anytime`
+      : `One-time purchase · ${landing.lesson_count} ${unit}${landing.lesson_count === 1 ? '' : 's'} · Lifetime access`
   const sample = landing.sample
   const samplePlayable = Boolean(sample?.mux_playback_id)
 
@@ -313,6 +318,7 @@ export function PublicPortalView({
         groups={groups}
         lessonCount={landing.lesson_count}
         metaDuration={metaDuration}
+        enrollPriceSub={enrollPriceSub}
         unit={unit}
         dark={dark}
         showTrailerButton={

@@ -436,6 +436,11 @@ export function CourseDesignEditor({
   const [sampleOpen, setSampleOpen] = useState(false)
   const { priceLabel, recurring } = formatPrice(product)
   const cadence = recurring ? 'cancel anytime' : 'one-time purchase'
+  const enrollPriceSub = !paywallEnabled
+    ? `${flatLessons.length} ${unit}${flatLessons.length === 1 ? '' : 's'} · Free`
+    : recurring
+      ? `Subscription · ${flatLessons.length} ${unit}${flatLessons.length === 1 ? '' : 's'} · cancel anytime`
+      : `One-time purchase · ${flatLessons.length} ${unit}${flatLessons.length === 1 ? '' : 's'} · Lifetime access`
   const buyLabel = !paywallEnabled
     ? 'Enroll Free'
     : recurring
@@ -525,6 +530,7 @@ export function CourseDesignEditor({
       groups={groups}
       lessonCount={flatLessons.length}
       metaDuration={metaDuration}
+      enrollPriceSub={enrollPriceSub}
       unit={unit}
       dark={dark}
       onToggleDark={toggleDark}
