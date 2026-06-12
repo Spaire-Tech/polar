@@ -125,6 +125,7 @@ export function AudienceFields({
   setSubject,
   reach,
   onTouch,
+  lockedAudienceLabel,
 }: {
   organization: schemas['Organization']
   audience: string
@@ -137,6 +138,9 @@ export function AudienceFields({
   setSubject: (next: string) => void
   reach: number
   onTouch?: () => void
+  /** When set, the audience picker is replaced by this static label
+      (e.g. automation sequences define their own audience). */
+  lockedAudienceLabel?: string
 }) {
   const segments = useSegments(organization.id)
   const [open, setOpen] = useState<'aud' | 'exc' | null>(null)
@@ -161,37 +165,46 @@ export function AudienceFields({
       <div className="recip-row">
         <span className="recip-lbl">To</span>
         <div className="recip-field">
-          <div style={{ position: 'relative' }}>
-            <button
-              className="aud-chip"
-              onClick={() => setOpen(open === 'aud' ? null : 'aud')}
-            >
+          {lockedAudienceLabel ? (
+            <span className="aud-chip" style={{ cursor: 'default' }}>
               <span className="aic">
-                <Icon name={aud.icon} size={18} />
+                <Icon name="people" size={18} />
               </span>
-              {aud.name} <span className="cnt">· {fmt(aud.count)}</span>
-              <span className="cv">
-                <Icon name="chevronDown" size={15} />
-              </span>
-            </button>
-            {open === 'aud' && (
-              <SegMenu
-                segments={segments}
-                selected={audience}
-                onPick={pickAud}
-                onClose={() => setOpen(null)}
-              />
-            )}
-          </div>
+              {lockedAudienceLabel}
+            </span>
+          ) : (
+            <div style={{ position: 'relative' }}>
+              <button
+                className="aud-chip"
+                onClick={() => setOpen(open === 'aud' ? null : 'aud')}
+              >
+                <span className="aic">
+                  <Icon name={aud.icon} size={18} />
+                </span>
+                {aud.name} <span className="cnt">· {fmt(aud.count)}</span>
+                <span className="cv">
+                  <Icon name="chevronDown" size={15} />
+                </span>
+              </button>
+              {open === 'aud' && (
+                <SegMenu
+                  segments={segments}
+                  selected={audience}
+                  onPick={pickAud}
+                  onClose={() => setOpen(null)}
+                />
+              )}
+            </div>
+          )}
         </div>
-        {!showExclude && (
+        {!lockedAudienceLabel && !showExclude && (
           <div className="recip-toggle">
             <button onClick={() => setShowExclude(true)}>Exclude</button>
           </div>
         )}
       </div>
 
-      {showExclude && (
+      {!lockedAudienceLabel && showExclude && (
         <div className="recip-row">
           <span className="recip-lbl" style={{ width: 56 }}>
             Skip

@@ -125,10 +125,29 @@ const todayISO = () => {
 // App
 // ---------------------------------------------------------------------------
 
+// When `sequenceMode` is set, ComposerApp is hosted as an automation
+// sequence's email editor instead of a broadcast composer: no audience
+// picker (the sequence defines who gets it), no Schedule / Save draft /
+// Duplicate, and the primary action is "Done" — it hands the authored
+// subject + HTML + block doc back to the sequence and closes.
+export type SequenceMode = {
+  sequenceName?: string
+  initialSubject?: string
+  initialBlocks?: Block[]
+  onSave: (v: {
+    subject: string
+    content_html: string
+    content_json: Record<string, unknown>
+  }) => void
+  onClose: () => void
+}
+
 export function ComposerApp({
   organization,
+  sequenceMode,
 }: {
   organization: schemas['Organization']
+  sequenceMode?: SequenceMode
 }) {
   const router = useRouter()
   const { currentUser } = useAuth()
@@ -137,8 +156,12 @@ export function ComposerApp({
   const [audience, setAudience] = useState<string>('all')
   const [excludes, setExcludes] = useState<string[]>([])
   const [showExclude, setShowExclude] = useState(false)
-  const [subject, setSubject] = useState('')
-  const [blocks, setBlocks] = useState<Block[]>(INITIAL_BLOCKS)
+  const [subject, setSubject] = useState(sequenceMode?.initialSubject ?? '')
+  const [blocks, setBlocks] = useState<Block[]>(
+    sequenceMode?.initialBlocks && sequenceMode.initialBlocks.length > 0
+      ? sequenceMode.initialBlocks
+      : INITIAL_BLOCKS,
+  )
   const [attachments, setAttachments] = useState<Attachment[]>([])
   const [selId, setSelId] = useState<string | null>(null)
   const [mode, setMode] = useState<'edit' | 'preview'>('edit')
@@ -563,30 +586,48 @@ export function ComposerApp({
     }
   }
 
-  const menuItems: MenuItem[] = [
-    { icon: 'flask', label: 'Send a test', fn: doSendTest },
-    { icon: 'paperclip', label: 'Attach files', fn: addAttachment },
-    {
-      icon: 'copy',
-      label: 'Duplicate broadcast',
-      fn: () => showToast('Broadcast duplicated'),
-    },
-    {
-      icon: 'drafts',
-      label: 'Save draft',
-      fn: async () => {
-        const id = await persist()
-        if (id) showToast('Draft saved')
-      },
-    },
-    { sep: true },
-    {
-      icon: 'trash',
-      label: 'Discard draft',
-      danger: true,
-      fn: () => setModal('discard'),
-    },
-  ]
+  // Hand the authored email back to the sequence and close.
+  const finishSequenceEmail = () => {
+    sequenceMode?.onSave({
+      subject: subject || 'Untitled email',
+      content_html: blocksToEmailHtml(blocks),
+      content_json: {
+        v: 'composer.v3',
+        blocks,
+        attachments,
+      } as unknown as Record<string, unknown>,
+    })
+    sequenceMode?.onClose()
+  }
+
+  // In sequence mode the menu is just file attachments — no broadcast-only
+  // actions (Duplicate / Save draft / Discard / Schedule).
+  const menuItems: MenuItem[] = sequenceMode
+    ? [{ icon: 'paperclip', label: 'Attach files', fn: addAttachment }]
+    : [
+        { icon: 'flask', label: 'Send a test', fn: doSendTest },
+        { icon: 'paperclip', label: 'Attach files', fn: addAttachment },
+        {
+          icon: 'copy',
+          label: 'Duplicate broadcast',
+          fn: () => showToast('Broadcast duplicated'),
+        },
+        {
+          icon: 'drafts',
+          label: 'Save draft',
+          fn: async () => {
+            const id = await persist()
+            if (id) showToast('Draft saved')
+          },
+        },
+        { sep: true },
+        {
+          icon: 'trash',
+          label: 'Discard draft',
+          danger: true,
+          fn: () => setModal('discard'),
+        },
+      ]
   const sendMenuItems: MenuItem[] = [
     {
       icon: 'sendFill',
@@ -630,6 +671,11 @@ export function ComposerApp({
       setSubject={setSubject}
       reach={reach}
       onTouch={touch}
+      // Sequences define their own audience (whoever the sequence enrols),
+      // so the audience picker is replaced with a static label.
+      lockedAudienceLabel={
+        sequenceMode ? 'Everyone enrolled in this sequence' : undefined
+      }
     />
   )
 
@@ -664,13 +710,13 @@ export function ComposerApp({
       <div className="topbar">
         <button
           className="tb-x"
-          title="Close"
-          onClick={() => setModal('close')}
+          title={sequenceMode ? 'Back to automation' : 'Close'}
+          onClick={() => (sequenceMode ? sequenceMode.onClose() : setModal('close'))}
         >
           <Icon name="close" size={22} />
         </button>
         <span className={'tb-saved' + (save === 'saving' ? ' saving' : '')}>
-          {savedLabel}
+          {sequenceMode ? '' : savedLabel}
         </span>
         <span className="tb-spacer"></span>
         <button
@@ -699,21 +745,32 @@ export function ComposerApp({
         >
           <Icon name="eye" size={19} /> Preview
         </button>
-        <div className="split-pill" style={{ position: 'relative' }}>
-          <button className="pill pill-dark pill-main" onClick={trySend}>
-            <Icon name="send" size={18} /> {so.schedule ? 'Schedule' : 'Send'}
-          </button>
-          <span className="pill-cv"></span>
+        {sequenceMode ? (
+          // No Send / Schedule split — the email belongs to the sequence;
+          // "Done" saves it and returns to the automation builder.
           <button
-            className="pill-chev"
-            onClick={() => setSendMenu(!sendMenu)}
+            className="pill pill-dark pill-main"
+            onClick={finishSequenceEmail}
           >
-            <Icon name="chevronDown" size={16} />
+            <Icon name="check" size={18} /> Done
           </button>
-          {sendMenu && (
-            <Menu items={sendMenuItems} onClose={() => setSendMenu(false)} />
-          )}
-        </div>
+        ) : (
+          <div className="split-pill" style={{ position: 'relative' }}>
+            <button className="pill pill-dark pill-main" onClick={trySend}>
+              <Icon name="send" size={18} /> {so.schedule ? 'Schedule' : 'Send'}
+            </button>
+            <span className="pill-cv"></span>
+            <button
+              className="pill-chev"
+              onClick={() => setSendMenu(!sendMenu)}
+            >
+              <Icon name="chevronDown" size={16} />
+            </button>
+            {sendMenu && (
+              <Menu items={sendMenuItems} onClose={() => setSendMenu(false)} />
+            )}
+          </div>
+        )}
       </div>
 
       {/* ── Workspace ──────────────────────────────────────────────── */}
@@ -797,6 +854,7 @@ export function ComposerApp({
               setSo={setSo}
               onTouch={touch}
               onTest={doSendTest}
+              sequence={!!sequenceMode}
             />
           )}
         </div>

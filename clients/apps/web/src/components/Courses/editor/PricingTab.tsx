@@ -182,7 +182,7 @@ export function PricingTab({
                 onBlur={() => {
                   if (position == null) setPosition(0)
                 }}
-                className="focus:border-primary w-24 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none"
+                className="w-24 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 focus:outline-none"
               />
               <span className="text-sm text-gray-600">
                 of {allLessons.length} lessons visible
@@ -194,39 +194,6 @@ export function PricingTab({
                 {flaggedAfterPaywall === 1 ? '' : 's'} marked as free preview
                 from the lesson menu.
               </p>
-            )}
-
-            {allLessons.length > 0 && position != null && (
-              <div className="mt-4 flex flex-col gap-1">
-                {allLessons.map((lesson, idx) => {
-                  const locked = idx >= position
-                  return (
-                    <div
-                      key={lesson.id}
-                      className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm"
-                      style={{
-                        backgroundColor: locked
-                          ? 'rgb(254 242 242)'
-                          : 'rgb(240 253 244)',
-                      }}
-                    >
-                      <span className="text-xs text-gray-400">{idx + 1}.</span>
-                      <span className="flex-1 truncate text-gray-900">
-                        {lesson.title}
-                      </span>
-                      <span
-                        className={
-                          locked
-                            ? 'text-xs font-medium text-red-700'
-                            : 'text-xs font-medium text-green-700'
-                        }
-                      >
-                        {locked ? 'Locked' : 'Free preview'}
-                      </span>
-                    </div>
-                  )
-                })}
-              </div>
             )}
 
             {lockedCount === 0 && position != null && (
@@ -289,7 +256,7 @@ function Toggle({
       aria-checked={checked}
       onClick={() => onChange(!checked)}
       className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none ${
-        checked ? 'bg-primary' : 'bg-gray-200'
+        checked ? 'bg-[#3c4ac9]' : 'bg-gray-200'
       }`}
     >
       <span
