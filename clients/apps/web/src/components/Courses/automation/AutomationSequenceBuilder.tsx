@@ -18,6 +18,7 @@ import {
   useUpdateEmailSequence,
 } from '@/hooks/queries/emailMarketing'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import type { schemas } from '@spaire/client'
 import { SequenceEmailModal } from './SequenceEmailModal'
 
 /* ── step model ── */
@@ -133,17 +134,22 @@ function countSteps(steps: Step[]): number {
 }
 
 export function AutomationSequenceBuilder({
+  organization,
   organizationId,
   courseId,
   lessonId,
   sequenceId: initialSequenceId,
+  lessons,
   initial,
   onBack,
 }: {
+  organization?: schemas['Organization']
   organizationId?: string
   courseId?: string
   lessonId?: string
   sequenceId?: string
+  /** The course's real lessons — drive the "Lesson completed" picker. */
+  lessons?: { id: string; title: string }[]
   initial?: {
     name?: string
     desc?: string
@@ -157,11 +163,28 @@ export function AutomationSequenceBuilder({
   const createSeq = useCreateEmailSequence(organizationId ?? '')
   const updateSeq = useUpdateEmailSequence()
 
+  // The course's real lessons feed the "Lesson completed" picker; the mock
+  // names are only a fallback when the builder is opened without a course.
+  const lessonOptions = useMemo(
+    () =>
+      lessons && lessons.length > 0
+        ? lessons.map((l) => l.title)
+        : [
+            'Lesson 1 · Arrival',
+            'Lesson 2 · The Morning Block',
+            'Lesson 3 · Inputs',
+            'Lesson 4 · The Reset',
+            'Lesson 5 · Operating Cadence',
+            'Lesson 6 · The Review',
+          ],
+    [lessons],
+  )
+
   const [name, setName] = useState(initial?.name ?? 'Untitled sequence')
   const [desc, setDesc] = useState(initial?.desc ?? '')
   const [trigger, setTrigger] = useState<Trigger>({
     type: 'enrol',
-    lesson: 'Lesson 1 · Arrival',
+    lesson: lessonOptions[0],
     days: 7,
     ...initial?.trigger,
   })
@@ -173,7 +196,6 @@ export function AutomationSequenceBuilder({
     cap: true,
     ...initial?.send,
   })
-  const [touchedSend, setTouchedSend] = useState(false)
   const [steps, setSteps] = useState<Step[]>(initial?.steps ?? [])
   const [live, setLive] = useState(Boolean(initial?.live))
   const [saveState, setSaveState] = useState<'saved' | 'saving'>('saved')
@@ -394,12 +416,6 @@ export function AutomationSequenceBuilder({
     showToast('Sequence is on')
   }
 
-  const Chip = ({ done }: { done: boolean }) => (
-    <span className={`chip ${done ? 'done' : 'wip'}`}>
-      {done ? 'Complete' : 'In progress'}
-    </span>
-  )
-
   const Connector = ({ path, index }: { path: Path; index: number }) => (
     <div className="conn">
       <div className="line" />
@@ -599,7 +615,6 @@ export function AutomationSequenceBuilder({
           <section className="sec">
             <div className="sec-head">
               <span className="sec-h">Basics</span>
-              <Chip done={Boolean(name.trim())} />
             </div>
             <p className="sec-sub">
               Name and description. These help you find and organise sequences
@@ -636,7 +651,6 @@ export function AutomationSequenceBuilder({
           <section className="sec">
             <div className="sec-head">
               <span className="sec-h">Trigger</span>
-              <Chip done />
             </div>
             <p className="sec-sub">
               The moment that starts this sequence for a student.
@@ -673,7 +687,7 @@ export function AutomationSequenceBuilder({
                           onClick={(e) => e.stopPropagation()}
                           onChange={(e) => commit({ trigger: { ...trigger, lesson: e.target.value } })}
                         >
-                          {['Lesson 1 · Arrival', 'Lesson 2 · The Morning Block', 'Lesson 3 · Inputs', 'Lesson 4 · The Reset', 'Lesson 5 · Operating Cadence', 'Lesson 6 · The Review'].map((l) => (
+                          {lessonOptions.map((l) => (
                             <option key={l}>{l}</option>
                           ))}
                         </select>
@@ -705,7 +719,6 @@ export function AutomationSequenceBuilder({
           <section className="sec">
             <div className="sec-head">
               <span className="sec-h">Send settings</span>
-              <Chip done={touchedSend} />
             </div>
             <p className="sec-sub">
               When and how often subscribers receive the emails.
@@ -726,7 +739,6 @@ export function AutomationSequenceBuilder({
                       type="button"
                       className={send.window === w ? 'on' : ''}
                       onClick={() => {
-                        setTouchedSend(true)
                         commit({ send: { ...send, window: w } })
                       }}
                     >
@@ -753,7 +765,6 @@ export function AutomationSequenceBuilder({
                     type="button"
                     aria-label={t}
                     onClick={() => {
-                      setTouchedSend(true)
                       commit({ send: { ...send, [k]: !send[k] } })
                     }}
                   />
@@ -787,13 +798,7 @@ export function AutomationSequenceBuilder({
             </div>
 
             {steps.length === 0 ? (
-              <>
-                <Connector path={[]} index={0} />
-                <div className="empty-hint">
-                  No steps yet — add an email, wait, branch, action, or goal
-                  with the <b>+</b> above.
-                </div>
-              </>
+              <Connector path={[]} index={0} />
             ) : (
               renderChain([], false)
             )}
@@ -848,21 +853,20 @@ export function AutomationSequenceBuilder({
       )}
 
       {emailEditing &&
-        organizationId &&
+        organization &&
         (() => {
           const st = findStep(steps, emailEditing)
           if (!st || st.type !== 'email') return null
           return (
             <SequenceEmailModal
-              organizationId={organizationId}
+              organization={organization}
+              sequenceName={name}
               initialSubject={st.subject}
-              initialPreview={st.preview}
               initialContentJson={st.content_json}
               onClose={() => setEmailEditing(null)}
               onSave={(v) => {
                 patchStep(st.id, {
                   subject: v.subject,
-                  preview: v.preview,
                   content_json: v.content_json,
                   content_html: v.content_html,
                   // keep the node title in sync with the subject

@@ -8,7 +8,9 @@
 
 import type { schemas } from '@spaire/client'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { useMemo } from 'react'
 import { useEmailSequence } from '@/hooks/queries/emailMarketing'
+import { useCourseById } from '@/hooks/queries/courses'
 import {
   AutomationSequenceBuilder,
   type Step,
@@ -35,15 +37,31 @@ export function AutomationBuilderRoute({
 
   const { data: sequence, isLoading } = useEmailSequence(sequenceId ?? '')
 
-  // Return to the course editor — at the originating lesson when we have one,
-  // otherwise the course's outline.
+  // The course's real lessons feed the "Lesson completed" trigger picker.
+  const { data: course } = useCourseById(courseId)
+  const lessons = useMemo(() => {
+    if (!course?.modules) return undefined
+    const flat = [...course.modules]
+      .sort((a, b) => a.position - b.position)
+      .flatMap((m) =>
+        [...m.lessons]
+          .sort((a, b) => a.position - b.position)
+          .map((l) => ({ id: l.id, title: l.title ?? 'Untitled lesson' })),
+      )
+    return flat.length > 0 ? flat : undefined
+  }, [course])
+
+  // Return to the course editor — at the originating lesson when we have
+  // one, otherwise the course's Automations tab.
   const back = () => {
     if (!courseId) {
       router.push(`/dashboard/${organization.slug}`)
       return
     }
     const base = `/dashboard/${organization.slug}/courses/${courseId}`
-    router.push(lessonId ? `${base}?lesson=${lessonId}` : base)
+    router.push(
+      lessonId ? `${base}?lesson=${lessonId}` : `${base}?tab=automations`,
+    )
   }
 
   if (sequenceId && isLoading) {
@@ -68,9 +86,11 @@ export function AutomationBuilderRoute({
 
   return (
     <AutomationSequenceBuilder
+      organization={organization as unknown as schemas['Organization']}
       organizationId={organization.id}
       courseId={courseId}
       lessonId={lessonId}
+      lessons={lessons}
       sequenceId={sequenceId ?? undefined}
       initial={
         sequenceId

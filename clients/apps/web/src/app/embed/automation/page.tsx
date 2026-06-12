@@ -8,7 +8,20 @@ import {
   AutomationSequenceBuilder,
   type Step,
 } from '@/components/Courses/automation/AutomationSequenceBuilder'
+import type { schemas } from '@spaire/client'
 import { useEffect, useState } from 'react'
+
+const LESSONS = [
+  { id: 'l1', title: 'Grip & Setup' },
+  { id: 'l2', title: 'The Full Swing' },
+  { id: 'l3', title: 'The Short Game' },
+]
+const ORG = {
+  id: 'embed-org',
+  slug: 'spairehq',
+  name: 'Spaire',
+  avatar_url: null,
+} as unknown as schemas['Organization']
 
 const SEEDED: Step[] = [
   { id: 's1', type: 'email', name: 'Welcome — start here' },
@@ -30,10 +43,12 @@ export default function AutomationEmbed() {
   const seeded = params.get('seeded') === '1'
   return (
     <AutomationSequenceBuilder
-      // ?org=1 supplies a fake org id so the email editor modal can be
-      // exercised (saves will no-op against the backend in this harness).
+      // ?org=1 supplies a fake org so the email editor can be exercised
+      // (saves no-op against the backend in this harness).
+      organization={params.get('org') ? ORG : undefined}
       organizationId={params.get('org') ? 'embed-org' : undefined}
       courseId={params.get('course') ? 'c1' : undefined}
+      lessons={params.get('lessons') ? LESSONS : undefined}
       initial={seeded ? { name: 'Onboarding drip', steps: SEEDED } : undefined}
     />
   )
