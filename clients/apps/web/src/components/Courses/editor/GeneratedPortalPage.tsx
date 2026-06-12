@@ -1820,10 +1820,16 @@ export function GeneratedPortalPage({
         .gpp .panel {
           position: relative;
           width: 100%;
-          height: 92vh;
-          min-height: 560px;
+          height: 100svh;
+          min-height: 640px;
           overflow: hidden;
           background: var(--ink);
+          /* title + band in normal flow, anchored to the bottom — the cover
+             image gets all the room above, and a tall title can never run
+             under the band (it pushes the band down instead). */
+          display: flex;
+          flex-direction: column;
+          justify-content: flex-end;
         }
         .gpp .panel-art {
           position: absolute;
@@ -1909,11 +1915,9 @@ export function GeneratedPortalPage({
         }
 
         .gpp .panel-title {
-          position: absolute;
-          left: var(--gut);
-          right: var(--gut);
-          bottom: 242px;
+          position: relative;
           z-index: 4;
+          margin: 0 var(--gut);
         }
         .gpp .pt-eyebrow {
           font-size: 13px;
@@ -1933,18 +1937,17 @@ export function GeneratedPortalPage({
           text-shadow: 0 4px 50px rgba(0, 0, 0, 0.4);
         }
 
-        /* frosted control band — fades into the page color */
+        /* frosted control band — fades into the page color. In normal flow
+           below the title (not absolute), so the title can never overlap. */
         .gpp .band {
-          position: absolute;
-          left: 0;
-          right: 0;
-          bottom: 0;
+          position: relative;
           z-index: 5;
+          margin-top: 26px;
           display: grid;
           grid-template-columns: 280px minmax(0, 1fr) 250px;
           gap: 44px;
           align-items: start;
-          padding: 76px var(--gut) 38px;
+          padding: 34px var(--gut) 38px;
           -webkit-backdrop-filter: blur(32px) saturate(140%);
           backdrop-filter: blur(32px) saturate(140%);
           background: linear-gradient(
@@ -1954,8 +1957,8 @@ export function GeneratedPortalPage({
             rgba(var(--band), 0.45) 82%,
             rgba(var(--band), 0) 100%
           );
-          -webkit-mask-image: linear-gradient(0deg, #000 78%, transparent 100%);
-          mask-image: linear-gradient(0deg, #000 78%, transparent 100%);
+          -webkit-mask-image: linear-gradient(0deg, #000 86%, transparent 100%);
+          mask-image: linear-gradient(0deg, #000 86%, transparent 100%);
           color: var(--bt);
           transition: color 0.4s ease;
         }
@@ -3489,9 +3492,6 @@ export function GeneratedPortalPage({
           .gpp {
             --gut: 22px;
           }
-          .gpp .panel-title {
-            bottom: 234px;
-          }
           .gpp .band {
             grid-template-columns: 1fr;
             gap: 18px;
@@ -3790,9 +3790,9 @@ export function GeneratedPortalPage({
              instead. Everything else (art, scrim, brand, toggle) stays
              absolute, so only these two are flow children. */
           .gpp .panel {
-            height: 88svh;
-            min-height: 620px;
-            max-height: 820px;
+            height: 100svh;
+            min-height: 640px;
+            max-height: none;
             display: flex;
             flex-direction: column;
             justify-content: flex-end;
