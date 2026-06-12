@@ -25,6 +25,7 @@ import { CourseHeader, TabId } from './editor/CourseHeader'
 import { CustomersTab } from './editor/CustomersTab'
 import { CustomizeTab } from './editor/CustomizeTab'
 import { LessonDetail, LessonEdits } from './editor/LessonDetail'
+import { LessonEditorV2 } from './editor/LessonEditorV2'
 import { LessonContentType } from './editor/ModuleCard'
 import { OutlineTab } from './editor/OutlineTab'
 import { PricingTab } from './editor/PricingTab'
@@ -412,20 +413,14 @@ export default function CourseEditor({
             isSaving={isSaving}
           />
         ) : (
-          <LessonDetail
+          <LessonEditorV2
             key={selectedLessonInfo.lesson.id}
             lesson={selectedLessonInfo.lesson}
             module={selectedLessonInfo.module}
             course={course}
             organization={organization}
             organizationSlug={organization.slug}
-            onSave={handleSaveLesson}
-            onDelete={() => handleDeleteLesson(selectedLessonInfo.lesson)}
-            onDirtyChange={setLessonDirty}
-            isSaving={isSaving}
-            onGenerateAI={handleGenerateAI}
-            isGenerating={isGenerating}
-            onStopAI={handleStopAI}
+            onDelete={() => guardedSetSelectedLessonId(null)}
           />
         )
     } else {
