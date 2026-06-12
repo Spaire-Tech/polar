@@ -1,14 +1,13 @@
 'use client'
 
+import { WatchHome } from '@/components/Courses/watch/WatchHome'
 import {
   useCustomerCourse,
   useMarkLessonComplete,
-  type CustomerLessonRead,
 } from '@/hooks/queries/courses'
 import { schemas } from '@spaire/client'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
-import { CoursePortalView } from './CoursePortalView'
 import { MasterClassLessonViewer } from './MasterClassLessonViewer'
 
 interface FlatLesson {
@@ -114,8 +113,10 @@ const LessonViewerPage = ({
     markComplete.mutate(currentLesson.id)
   }
 
-  const handleSelectCustomerLesson = (lesson: CustomerLessonRead) => {
-    const flat = flatLessons.find((l) => l.id === lesson.id)
+  // Text / quiz lessons open the reading view (MasterClassLessonViewer);
+  // video lessons play inside WatchHome's player overlay.
+  const handleOpenTextLesson = (lessonId: string) => {
+    const flat = flatLessons.find((l) => l.id === lessonId)
     if (flat) handleSelectLesson(flat)
   }
 
@@ -194,13 +195,19 @@ const LessonViewerPage = ({
     )
   }
 
-  // No lesson selected — render the redesigned course portal (cinematic
-  // hero, Apple-TV-style module rows, achievements + instructor).
+  // No lesson selected — render the Spaire Originals v2 watch page
+  // (now-playing hero + rail; player, comments, bookmarks, progress).
   return (
-    <CoursePortalView
+    <WatchHome
+      organization={organization}
       data={data}
-      organizationName={organization.name}
-      onSelectLesson={handleSelectCustomerLesson}
+      lessons={flatLessons}
+      token={customerSessionToken}
+      onOpenTextLesson={handleOpenTextLesson}
+      onMarkComplete={(lessonId) => {
+        const lesson = flatLessons.find((l) => l.id === lessonId)
+        if (lesson && !lesson.completed) markComplete.mutate(lessonId)
+      }}
     />
   )
 }
