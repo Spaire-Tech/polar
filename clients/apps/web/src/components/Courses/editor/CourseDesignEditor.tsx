@@ -30,7 +30,7 @@ import {
 } from '@/hooks/queries/courses'
 import { useProduct } from '@/hooks/queries/products'
 import type { schemas } from '@spaire/client'
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from '../../Toast/use-toast'
 import {
   GeneratedPortalPage,
@@ -80,9 +80,12 @@ function formatPrice(product: schemas['Product'] | undefined): {
 export function CourseDesignEditor({
   course,
   organization,
+  onBusyChange,
 }: {
   course: CourseRead
   organization?: schemas['Organization']
+  /** Reports in-flight saves so the host can show a status indicator. */
+  onBusyChange?: (saving: boolean) => void
 }) {
   const updateCourse = useUpdateCourse()
   const updateLesson = useUpdateCourseLesson()
@@ -92,6 +95,33 @@ export function CourseDesignEditor({
   const uploadLessonThumb = useUploadLessonThumbnail()
   const uploadLandingMedia = useUploadLandingMedia()
   const { data: product } = useProduct(course.product_id)
+
+  // ── landing_overrides writes — ALL go through one accumulating ref.
+  // Each write builds on the latest LOCAL state (not the query-cache
+  // snapshot), so two quick edits can't clobber each other while the
+  // first PATCH is still in flight. The ref re-syncs from the server
+  // whenever the course query refreshes.
+  const overridesRef = useRef<NonNullable<CourseRead['landing_overrides']>>(
+    course.landing_overrides ?? {},
+  )
+  useEffect(() => {
+    overridesRef.current = course.landing_overrides ?? {}
+  }, [course.landing_overrides])
+  const writeOverrides = useCallback(
+    (
+      mutate: (
+        cur: NonNullable<CourseRead['landing_overrides']>,
+      ) => NonNullable<CourseRead['landing_overrides']>,
+    ) => {
+      const next = mutate(overridesRef.current)
+      overridesRef.current = next
+      updateCourse.mutate({
+        courseId: course.id,
+        body: { landing_overrides: next },
+      })
+    },
+    [course.id, updateCourse],
+  )
 
   const isEpisodic = course.format === 'series'
   const unit = isEpisodic ? 'episode' : 'lesson'
@@ -104,18 +134,13 @@ export function CourseDesignEditor({
   const toggleDark = useCallback(() => {
     setDark((d) => {
       const next = !d
-      updateCourse.mutate({
-        courseId: course.id,
-        body: {
-          landing_overrides: {
-            ...(course.landing_overrides ?? {}),
-            theme_mode: next ? 'dark' : 'light',
-          },
-        },
-      })
+      writeOverrides((cur) => ({
+        ...cur,
+        theme_mode: next ? 'dark' : 'light',
+      }))
       return next
     })
-  }, [course.id, course.landing_overrides, updateCourse])
+  }, [writeOverrides])
 
   // ── cover ─────────────────────────────────────────────────────────────────
   const [coverBusy, setCoverBusy] = useState(false)
@@ -260,31 +285,18 @@ export function CourseDesignEditor({
   const aiHero = course.landing_overrides?.ai_hero ?? null
   const patchAiHero = useCallback(
     (patch: Record<string, unknown>) => {
-      updateCourse.mutate({
-        courseId: course.id,
-        body: {
-          landing_overrides: {
-            ...(course.landing_overrides ?? {}),
-            ai_hero: { ...(aiHero ?? {}), ...patch },
-          },
-        },
-      })
+      writeOverrides((cur) => ({
+        ...cur,
+        ai_hero: { ...(cur.ai_hero ?? {}), ...patch },
+      }))
     },
-    [course.id, course.landing_overrides, aiHero, updateCourse],
+    [writeOverrides],
   )
   const patchOverrides = useCallback(
-    (patch: Record<string, unknown>) => {
-      updateCourse.mutate({
-        courseId: course.id,
-        body: {
-          landing_overrides: {
-            ...(course.landing_overrides ?? {}),
-            ...patch,
-          },
-        },
-      })
+    (patch: Partial<NonNullable<CourseRead['landing_overrides']>>) => {
+      writeOverrides((cur) => ({ ...cur, ...patch }))
     },
-    [course.id, course.landing_overrides, updateCourse],
+    [writeOverrides],
   )
 
   // ── instructor portrait (its own media slot, S3-backed) ──────────────────
@@ -359,31 +371,41 @@ export function CourseDesignEditor({
           break
         }
         case 'instructorSub':
-          patchOverrides({
-            ai_instructor: { ...(aiInstructor ?? {}), sub: value },
-          })
+          writeOverrides((cur) => ({
+            ...cur,
+            ai_instructor: { ...(cur.ai_instructor ?? {}), sub: value },
+          }))
           break
         case 'instructorBioP': {
           if (ctx?.idx == null) break
-          const bio = [...(aiInstructor?.bio ?? [])]
-          bio[ctx.idx] = value
-          patchOverrides({ ai_instructor: { ...(aiInstructor ?? {}), bio } })
+          const i = ctx.idx
+          writeOverrides((cur) => {
+            const bio = [...(cur.ai_instructor?.bio ?? [])]
+            bio[i] = value
+            return {
+              ...cur,
+              ai_instructor: { ...(cur.ai_instructor ?? {}), bio },
+            }
+          })
           break
         }
         case 'portraitCaption':
-          patchOverrides({
-            ai_instructor: { ...(aiInstructor ?? {}), caption: value },
-          })
+          writeOverrides((cur) => ({
+            ...cur,
+            ai_instructor: { ...(cur.ai_instructor ?? {}), caption: value },
+          }))
           break
         case 'faqQ':
         case 'faqA': {
           if (ctx?.idx == null) break
-          const next = aiFaq.map((f, i) =>
-            i === ctx.idx
-              ? { ...f, [field === 'faqQ' ? 'q' : 'a']: value }
-              : f,
-          )
-          patchOverrides({ ai_faq: next })
+          const i = ctx.idx
+          const key = field === 'faqQ' ? 'q' : 'a'
+          writeOverrides((cur) => ({
+            ...cur,
+            ai_faq: (cur.ai_faq ?? []).map((f, j) =>
+              j === i ? { ...f, [key]: value } : f,
+            ),
+          }))
           break
         }
       }
@@ -393,9 +415,7 @@ export function CourseDesignEditor({
       flatLessons,
       sortedModules,
       patchAiHero,
-      patchOverrides,
-      aiInstructor,
-      aiFaq,
+      writeOverrides,
       updateCourse,
       updateLesson,
       updateModule,
@@ -433,6 +453,23 @@ export function CourseDesignEditor({
   const samplePlayable = Boolean(
     sample?.enabled && sampleLesson?.mux_playback_id,
   )
+
+  // Report in-flight saves to the host bar.
+  const busy =
+    updateCourse.isPending ||
+    updateLesson.isPending ||
+    updateModule.isPending ||
+    uploadThumb.isPending ||
+    uploadTrailer.isPending ||
+    uploadLessonThumb.isPending ||
+    uploadLandingMedia.isPending ||
+    coverBusy ||
+    trailerBusy ||
+    portraitBusy ||
+    lessonImageBusy != null
+  useEffect(() => {
+    onBusyChange?.(busy)
+  }, [busy, onBusyChange])
 
   const saveSample = useCallback(
     (next: {

@@ -90,6 +90,66 @@ const LockChip = () => (
   </div>
 )
 
+
+// Touch-to-edit text (the design's contenteditable). Module-level so its
+// identity is stable across renders — defined inline it would REMOUNT on
+// every parent re-render (FAQ toggle, trailer peek, strip scroll), killing
+// focus mid-typing. React renders NO children here; the text is written via
+// effects and only synced from props while the element is NOT focused, so an
+// in-flight edit can never be clobbered by a background refetch.
+function EditText({
+  field,
+  value,
+  className,
+  tag: Tag = 'span',
+  ctx,
+  editable,
+  onEditText,
+}: {
+  field: EditField
+  value: string
+  className?: string
+  tag?: 'span' | 'div' | 'h1' | 'h2' | 'p'
+  ctx?: { flatIdx?: number; groupIdx?: number; idx?: number }
+  editable?: boolean
+  onEditText?: (
+    field: EditField,
+    value: string,
+    ctx?: { flatIdx?: number; groupIdx?: number; idx?: number },
+  ) => void
+}) {
+  const ref = useRef<HTMLElement | null>(null)
+  const focusedRef = useRef(false)
+  useEffect(() => {
+    const el = ref.current
+    if (el && !focusedRef.current && el.textContent !== value) {
+      el.textContent = value
+    }
+  }, [value])
+  if (!editable || !onEditText) {
+    return <Tag className={className}>{value}</Tag>
+  }
+  return (
+    <Tag
+      ref={ref as never}
+      className={`${className ?? ''} gpp-editable`}
+      contentEditable
+      suppressContentEditableWarning
+      spellCheck={false}
+      onPointerDown={(e: React.PointerEvent) => e.stopPropagation()}
+      onClick={(e: React.MouseEvent) => e.stopPropagation()}
+      onFocus={() => {
+        focusedRef.current = true
+      }}
+      onBlur={(e: React.FocusEvent<HTMLElement>) => {
+        focusedRef.current = false
+        const next = (e.currentTarget.textContent ?? '').trim()
+        if (next !== value) onEditText(field, next, ctx)
+      }}
+    />
+  )
+}
+
 export type GeneratedLesson = {
   title: string
   description: string
@@ -416,44 +476,6 @@ export function GeneratedPortalPage({
     })
   }, [openFaq, faq])
 
-  // Touch-to-edit text (the design's contenteditable). Commits on blur only,
-  // so no re-render happens mid-edit → the caret never jumps. Pointer/click
-  // are stopped so editing the hero text doesn't trigger reposition/hover or
-  // a card's onClick.
-  const Edit = ({
-    field,
-    value,
-    className,
-    tag: Tag = 'span',
-    ctx,
-  }: {
-    field: EditField
-    value: string
-    className?: string
-    tag?: 'span' | 'div' | 'h1' | 'h2' | 'p'
-    ctx?: { flatIdx?: number; groupIdx?: number; idx?: number }
-  }) => {
-    if (!editable || !onEditText) {
-      return <Tag className={className}>{value}</Tag>
-    }
-    return (
-      <Tag
-        className={`${className ?? ''} gpp-editable`}
-        contentEditable
-        suppressContentEditableWarning
-        spellCheck={false}
-        onPointerDown={(e: React.PointerEvent) => e.stopPropagation()}
-        onClick={(e: React.MouseEvent) => e.stopPropagation()}
-        onBlur={(e: React.FocusEvent<HTMLElement>) => {
-          const next = (e.currentTarget.textContent ?? '').trim()
-          if (next !== value) onEditText(field, next, ctx)
-        }}
-      >
-        {value}
-      </Tag>
-    )
-  }
-
   const trialShort = !paywallEnabled
     ? `all ${unit}s free`
     : trialMode === 'lesson_sample'
@@ -680,14 +702,18 @@ export function GeneratedPortalPage({
         <div className="ep">
           {unitCap} {l.flatIdx + 1}
         </div>
-        <Edit
+        <EditText
+          editable={editable}
+          onEditText={onEditText}
           field="lessonTitle"
           value={l.title}
           className="title"
           tag="div"
           ctx={{ flatIdx: l.flatIdx }}
         />
-        <Edit
+        <EditText
+          editable={editable}
+          onEditText={onEditText}
           field="lessonDesc"
           value={l.description}
           className="desc"
@@ -778,14 +804,18 @@ export function GeneratedPortalPage({
           <div className="lc-num">
             {unitCap} {l.flatIdx + 1}
           </div>
-          <Edit
+          <EditText
+          editable={editable}
+          onEditText={onEditText}
             field="lessonTitle"
             value={l.title}
             className="lc-title"
             tag="div"
             ctx={{ flatIdx: l.flatIdx }}
           />
-          <Edit
+          <EditText
+          editable={editable}
+          onEditText={onEditText}
             field="lessonDesc"
             value={l.description}
             className="lc-desc"
@@ -843,13 +873,15 @@ export function GeneratedPortalPage({
           {creatorBar}
 
           <div className="panel-title">
-            <Edit
+            <EditText
+          editable={editable}
+          onEditText={onEditText}
               field="eyebrow"
               value={eyebrow}
               className="pt-eyebrow rise d1"
               tag="div"
             />
-            <Edit field="title" value={title} className="pt-h rise d1" tag="h1" />
+            <EditText editable={editable} onEditText={onEditText} field="title" value={title} className="pt-h rise d1" tag="h1" />
           </div>
 
           <div className="band rise d2">
@@ -878,7 +910,7 @@ export function GeneratedPortalPage({
             </div>
 
             <div className="band-desc">
-              <Edit field="desc" value={desc} className="bd-text" tag="p" />
+              <EditText editable={editable} onEditText={onEditText} field="desc" value={desc} className="bd-text" tag="p" />
               <div className="bd-meta">
                 {eyebrow}&nbsp;&nbsp;·&nbsp;&nbsp;{year}
                 &nbsp;&nbsp;·&nbsp;&nbsp;{lessonCount} {unitCap}
@@ -911,13 +943,15 @@ export function GeneratedPortalPage({
 
             <div className="band-cast">
               <div className="bc-k">Instructor</div>
-              <Edit
+              <EditText
+          editable={editable}
+          onEditText={onEditText}
                 field="instructorName"
                 value={instructorName}
                 className="bc-v"
                 tag="div"
               />
-              <Edit field="byline" value={byline} className="bc-sub" tag="div" />
+              <EditText editable={editable} onEditText={onEditText} field="byline" value={byline} className="bc-sub" tag="div" />
             </div>
           </div>
         </header>
@@ -961,7 +995,7 @@ export function GeneratedPortalPage({
 
           <div className="hero-content">
             <div className="hero-meta">
-              <Edit field="badge" value={badge} className="badge" />
+              <EditText editable={editable} onEditText={onEditText} field="badge" value={badge} className="badge" />
               <div className="meta-line">
                 <span>
                   {lessonCount} {unit}
@@ -973,7 +1007,7 @@ export function GeneratedPortalPage({
             </div>
 
             {editable && onEditText ? (
-              <Edit field="title" value={title} className="hero-title" tag="h1" />
+              <EditText editable={editable} onEditText={onEditText} field="title" value={title} className="hero-title" tag="h1" />
             ) : (
               <h1 className="hero-title">
                 {titleLines && titleLines.length > 1
@@ -988,9 +1022,9 @@ export function GeneratedPortalPage({
             )}
 
             <p className="hero-desc">
-              <Edit field="desc" value={desc} />{' '}
+              <EditText editable={editable} onEditText={onEditText} field="desc" value={desc} />{' '}
               <span className="with">
-                — <Edit field="byline" value={byline || `with ${instructorName}`} />
+                — <EditText editable={editable} onEditText={onEditText} field="byline" value={byline || `with ${instructorName}`} />
               </span>
             </p>
 
@@ -1071,13 +1105,17 @@ export function GeneratedPortalPage({
                   </svg>
                 </div>
                 <div className="inst-id">
-                  <Edit
+                  <EditText
+          editable={editable}
+          onEditText={onEditText}
                     field="instructorName"
                     value={instructorName}
                     className="inst-name"
                     tag="h2"
                   />
-                  <Edit
+                  <EditText
+          editable={editable}
+          onEditText={onEditText}
                     field="instructorSub"
                     value={instructorSub}
                     className="inst-sub"
@@ -1086,7 +1124,9 @@ export function GeneratedPortalPage({
                 </div>
               </div>
               {instructorBio.map((p, i) => (
-                <Edit
+                <EditText
+          editable={editable}
+          onEditText={onEditText}
                   key={i}
                   field="instructorBioP"
                   value={p}
@@ -1148,7 +1188,9 @@ export function GeneratedPortalPage({
                 </div>
               )}
               {portraitCaption && (
-                <Edit
+                <EditText
+          editable={editable}
+          onEditText={onEditText}
                   field="portraitCaption"
                   value={portraitCaption}
                   className="inst-caption"
@@ -1345,7 +1387,9 @@ export function GeneratedPortalPage({
             <section className="row" key={gi}>
               <div className="row-head">
                 <span className="mod">Module {gi + 1}</span>
-                <Edit
+                <EditText
+          editable={editable}
+          onEditText={onEditText}
                   field="moduleTitle"
                   value={g.title ?? ''}
                   ctx={{ groupIdx: gi }}
@@ -1371,7 +1415,9 @@ export function GeneratedPortalPage({
                     type="button"
                     onClick={() => setOpenFaq((o) => (o === i ? null : i))}
                   >
-                    <Edit
+                    <EditText
+          editable={editable}
+          onEditText={onEditText}
                       field="faqQ"
                       value={item.q}
                       ctx={{ idx: i }}
@@ -1402,7 +1448,9 @@ export function GeneratedPortalPage({
                         faqClipRefs.current[i] = el
                       }}
                     >
-                      <Edit
+                      <EditText
+          editable={editable}
+          onEditText={onEditText}
                         field="faqA"
                         value={item.a}
                         className="faq-a"
