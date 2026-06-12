@@ -196,6 +196,7 @@ export function WizardPortalPreview({
           groups={groups}
           lessonCount={lessonCount}
           metaDuration="0 min"
+          enrollPriceSub={`${lessonCount} ${unit}${lessonCount === 1 ? '' : 's'} · Lifetime access`}
           unit={unit}
           dark={dark}
           onToggleDark={toggleDark}

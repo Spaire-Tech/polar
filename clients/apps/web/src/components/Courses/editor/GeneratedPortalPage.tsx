@@ -256,6 +256,9 @@ export type GeneratedPortalPageProps = {
     value: string,
     ctx?: { flatIdx?: number; groupIdx?: number; idx?: number },
   ) => void
+  /** Enroll-sheet price sub-line ("One-time purchase · 18 lessons ·
+   *  Lifetime access"). The big price is parsed from buyLabel. */
+  enrollPriceSub?: string
 }
 
 export type EditField =
@@ -332,10 +335,37 @@ export function GeneratedPortalPage({
   lessonImageBusy = null,
   onConfigureSample,
   onEditText,
+  enrollPriceSub,
 }: GeneratedPortalPageProps) {
   const isEpisodic = structure === 'episodic'
   const unitCap = unit === 'episode' ? 'Episode' : 'Lesson'
   const year = new Date().getFullYear()
+
+  // ── enroll sheet (paywall): which locked lesson opened it ──
+  const [enrollLesson, setEnrollLesson] = useState<{
+    n: number
+    title: string
+  } | null>(null)
+  const enrollPrice = (buyLabel.match(/[$€£]\s?[\d.,]+/)?.[0] ?? '').replace(
+    /\s/g,
+    '',
+  )
+  const hasSampleSection = paywallEnabled && trialMode === 'lesson_sample'
+  const closeEnroll = useCallback(() => setEnrollLesson(null), [])
+  useEffect(() => {
+    if (!enrollLesson) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') closeEnroll()
+    }
+    document.addEventListener('keydown', onKey)
+    // Lock background scroll while the sheet is open (the design does this).
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.removeEventListener('keydown', onKey)
+      document.body.style.overflow = prev
+    }
+  }, [enrollLesson, closeEnroll])
 
   // ── hover-trailer peek: play muted on hover, snap back on leave/scroll.
   //    (The protected behavior from the original landing's HeroMedia.) ──
@@ -674,12 +704,22 @@ export function GeneratedPortalPage({
     ).toFixed(2)})`,
   })
 
+  // A locked lesson opens the enroll sheet (the design's paywall modal);
+  // an unlocked one plays via onLessonClick. Editing controls inside the
+  // card stop their own propagation, so this only fires on the card body.
+  const lessonClickable = (l: GeneratedLesson) =>
+    l.locked || Boolean(onLessonClick)
+  const handleLessonClick = (l: GeneratedLesson) => {
+    if (l.locked) setEnrollLesson({ n: l.flatIdx + 1, title: l.title })
+    else onLessonClick?.(l.flatIdx)
+  }
+
   const spotlightCard = (l: GeneratedLesson) => (
     <div
       className={`card${l.imageUrl ? ' filled' : ''}`}
       key={l.flatIdx}
-      onClick={onLessonClick ? () => onLessonClick(l.flatIdx) : undefined}
-      role={onLessonClick ? 'button' : undefined}
+      onClick={lessonClickable(l) ? () => handleLessonClick(l) : undefined}
+      role={lessonClickable(l) ? 'button' : undefined}
     >
       <div className="ph-ambient" style={ambientTint(l.flatIdx + 1)} />
       <div className="glass-tint" />
@@ -754,8 +794,8 @@ export function GeneratedPortalPage({
     <div
       className="lc-catalog"
       key={l.flatIdx}
-      onClick={onLessonClick ? () => onLessonClick(l.flatIdx) : undefined}
-      role={onLessonClick ? 'button' : undefined}
+      onClick={lessonClickable(l) ? () => handleLessonClick(l) : undefined}
+      role={lessonClickable(l) ? 'button' : undefined}
     >
       <div className="lc-card">
         <div className={`lc-thumb${l.imageUrl ? '' : ' ph'}`}>
@@ -1524,6 +1564,126 @@ export function GeneratedPortalPage({
           </div>
         </section>
       )}
+
+      {/* ════════ ENROLL SHEET — a locked lesson was clicked ════════ */}
+      <div
+        className={`enroll-overlay${enrollLesson ? ' show' : ''}`}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Enroll to watch"
+        onClick={(e) => {
+          if (e.target === e.currentTarget) closeEnroll()
+        }}
+      >
+        {enrollLesson && (
+          <div className="enroll-sheet">
+            <div className={`es-cover${coverUrl ? ' filled' : ''}`}>
+              <div className="ph-ambient" />
+              <div
+                className="photo"
+                style={
+                  coverUrl
+                    ? { backgroundImage: `url("${coverUrl}")` }
+                    : undefined
+                }
+              />
+              <div className="photo-shade" />
+              <div className="es-eyebrow">
+                <span className="dot" />
+                <span>Spaire Original</span>
+              </div>
+              <div className="es-title">{title}</div>
+              <button
+                className="es-close"
+                type="button"
+                aria-label="Close"
+                onClick={closeEnroll}
+              >
+                <svg
+                  width="13"
+                  height="13"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.4"
+                  strokeLinecap="round"
+                >
+                  <path d="M5 5l14 14M19 5L5 19" />
+                </svg>
+              </button>
+            </div>
+            <div className="es-body">
+              <div className="es-lesson">
+                <svg
+                  width="11"
+                  height="11"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.1"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <rect x="4.5" y="10.5" width="15" height="10" rx="2.5" />
+                  <path d="M8 10.5V7.8a4 4 0 0 1 8 0v2.7" />
+                </svg>
+                <span>
+                  {unitCap} {enrollLesson.n} · {enrollLesson.title}
+                </span>
+              </div>
+              <h3 className="es-h">Enroll to start watching</h3>
+              <p className="es-sub">
+                This {unit} is part of the{' '}
+                {unit === 'episode' ? 'series' : 'course'}. Enroll once and
+                every {unit} is yours — at your own pace, forever.
+              </p>
+              {enrollPrice && <div className="es-price">{enrollPrice}</div>}
+              {enrollPriceSub && (
+                <div className="es-price-sub">{enrollPriceSub}</div>
+              )}
+              <div className="es-actions">
+                <button
+                  className="es-enroll"
+                  type="button"
+                  onClick={() => {
+                    closeEnroll()
+                    onBuy?.()
+                  }}
+                >
+                  {buyLabel}
+                  <svg
+                    width="15"
+                    height="15"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M5 12h14M13 6l6 6-6 6" />
+                  </svg>
+                </button>
+                {hasSampleSection && (
+                  <button
+                    className="es-sample-link"
+                    type="button"
+                    onClick={() => {
+                      closeEnroll()
+                      heroRef.current
+                        ?.closest('.gpp')
+                        ?.querySelector('.sample')
+                        ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                    }}
+                  >
+                    Watch the free sample first
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* CSS — copied verbatim from the two design files. Selectors are
           prefixed with .gpp (root) and body.dark → .gpp.dark; keyframes get
@@ -3083,6 +3243,213 @@ export function GeneratedPortalPage({
           padding-bottom: 30px;
         }
 
+        /* ============================================================ ENROLL SHEET — locked lesson */
+        .gpp .enroll-overlay {
+          position: fixed;
+          inset: 0;
+          z-index: 100;
+          display: grid;
+          place-items: center;
+          padding: 24px;
+          background: rgba(10, 10, 12, 0.4);
+          -webkit-backdrop-filter: blur(22px) saturate(120%);
+          backdrop-filter: blur(22px) saturate(120%);
+          opacity: 0;
+          pointer-events: none;
+          transition: opacity 0.32s ease;
+        }
+        .gpp .enroll-overlay.show {
+          opacity: 1;
+          pointer-events: auto;
+        }
+        .gpp .enroll-sheet {
+          width: min(540px, 100%);
+          border-radius: 28px;
+          overflow: hidden;
+          max-height: 100%;
+          display: flex;
+          flex-direction: column;
+          background: var(--bg);
+          color: var(--text);
+          box-shadow: 0 50px 100px rgba(0, 0, 0, 0.4),
+            0 8px 28px rgba(0, 0, 0, 0.2);
+          transform: translateY(22px) scale(0.96);
+          transition: transform 0.42s cubic-bezier(0.2, 1, 0.3, 1),
+            background 0.4s ease;
+        }
+        .gpp .enroll-overlay.show .enroll-sheet {
+          transform: none;
+        }
+        .gpp .es-cover {
+          position: relative;
+          flex: none;
+          aspect-ratio: 540 / 280;
+          overflow: hidden;
+          display: grid;
+          place-items: center;
+        }
+        .gpp .es-cover .photo-shade {
+          display: block;
+          background: linear-gradient(
+            0deg,
+            rgba(5, 5, 8, 0.66) 0%,
+            rgba(5, 5, 8, 0.24) 44%,
+            transparent 70%
+          );
+        }
+        .gpp .es-cover.filled .ph-ambient {
+          display: none;
+        }
+        .gpp .es-eyebrow {
+          position: absolute;
+          top: 20px;
+          left: 24px;
+          z-index: 2;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          color: rgba(255, 255, 255, 0.9);
+          font-family: var(--po);
+          font-size: 10px;
+          font-weight: 700;
+          letter-spacing: 0.22em;
+          text-transform: uppercase;
+        }
+        .gpp .es-eyebrow .dot {
+          width: 6px;
+          height: 6px;
+          border-radius: 50%;
+          background: #e0482e;
+        }
+        .gpp .es-title {
+          position: absolute;
+          left: 24px;
+          right: 70px;
+          bottom: 18px;
+          z-index: 2;
+          font-family: var(--po);
+          font-size: 27px;
+          font-weight: 700;
+          letter-spacing: -0.025em;
+          line-height: 1.05;
+          color: #fff;
+        }
+        .gpp .es-close {
+          position: absolute;
+          top: 16px;
+          right: 16px;
+          z-index: 3;
+          width: 32px;
+          height: 32px;
+          border-radius: 50%;
+          background: rgba(10, 11, 13, 0.46);
+          color: #fff;
+          -webkit-backdrop-filter: blur(14px) saturate(150%);
+          backdrop-filter: blur(14px) saturate(150%);
+          display: grid;
+          place-items: center;
+          transition: background 0.18s, transform 0.16s;
+        }
+        .gpp .es-close:hover {
+          background: rgba(40, 40, 46, 0.7);
+          transform: scale(1.06);
+        }
+        .gpp .es-close:active {
+          transform: scale(0.92);
+        }
+        .gpp .es-body {
+          overflow-y: auto;
+          overscroll-behavior: contain;
+          min-height: 0;
+          padding: 30px 36px 34px;
+          text-align: center;
+        }
+        .gpp .es-lesson {
+          font-size: 11px;
+          font-weight: 600;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          color: var(--text-2);
+          transition: color 0.4s ease;
+          display: inline-flex;
+          align-items: center;
+          gap: 7px;
+        }
+        .gpp .es-lesson svg {
+          margin-top: -1px;
+        }
+        .gpp .es-h {
+          font-family: var(--po);
+          font-size: 26px;
+          font-weight: 600;
+          letter-spacing: -0.025em;
+          color: var(--text);
+          margin-top: 10px;
+          transition: color 0.4s ease;
+        }
+        .gpp .es-sub {
+          font-size: 15px;
+          line-height: 1.55;
+          color: var(--text-2);
+          max-width: 380px;
+          margin: 10px auto 0;
+          transition: color 0.4s ease;
+        }
+        .gpp .es-price {
+          font-size: 40px;
+          font-weight: 700;
+          letter-spacing: -0.03em;
+          color: var(--text);
+          margin-top: 22px;
+          transition: color 0.4s ease;
+        }
+        .gpp .es-price-sub {
+          font-size: 13px;
+          color: var(--text-2);
+          margin-top: 4px;
+          transition: color 0.4s ease;
+        }
+        .gpp .es-actions {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 14px;
+          margin-top: 24px;
+        }
+        .gpp .es-enroll {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 9px;
+          width: 100%;
+          max-width: 340px;
+          height: 50px;
+          border-radius: 980px;
+          background: var(--text);
+          color: var(--bg);
+          font-size: 16px;
+          font-weight: 600;
+          letter-spacing: -0.01em;
+          transition: transform 0.16s, opacity 0.16s, background 0.4s ease,
+            color 0.4s ease;
+        }
+        .gpp .es-enroll:hover {
+          opacity: 0.88;
+          transform: scale(1.02);
+        }
+        .gpp .es-enroll:active {
+          transform: scale(0.97);
+        }
+        .gpp .es-sample-link {
+          font-size: 14px;
+          font-weight: 500;
+          color: var(--blue, #0071e3);
+          padding: 4px 8px;
+        }
+        .gpp .es-sample-link:hover {
+          text-decoration: underline;
+        }
+
         /* ============================================================ MEDIA QUERIES */
         @media (max-width: 1200px) {
           .gpp {
@@ -3506,6 +3873,14 @@ export function GeneratedPortalPage({
           }
           .gpp .lc-info {
             padding: 15px 16px 16px;
+          }
+
+          /* ── enroll sheet (mobile) ── */
+          .gpp .es-body {
+            padding: 26px 22px 28px;
+          }
+          .gpp .es-title {
+            font-size: 22px;
           }
         }
       `}</style>
