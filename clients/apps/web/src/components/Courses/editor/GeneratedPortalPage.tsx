@@ -884,6 +884,25 @@ export function GeneratedPortalPage({
           <div className="panel-brand rise">{brand}</div>
           {creatorBar}
 
+          {/* Mobile-only centered Add cover (matches the cover hero). */}
+          {editable && onAddCover && (
+            <button
+              className="hero-cta"
+              type="button"
+              onClick={onAddCover}
+              disabled={coverBusy}
+            >
+              {PillImageIcon}
+              <span>
+                {coverBusy
+                  ? 'Uploading…'
+                  : coverUrl
+                    ? 'Change cover'
+                    : 'Add cover'}
+              </span>
+            </button>
+          )}
+
           <div className="panel-title">
             <EditText
           editable={editable}
@@ -924,8 +943,10 @@ export function GeneratedPortalPage({
             <div className="band-desc">
               <EditText editable={editable} onEditText={onEditText} field="desc" value={desc} className="bd-text" tag="p" />
               <div className="bd-meta">
-                {eyebrow}&nbsp;&nbsp;·&nbsp;&nbsp;{year}
-                &nbsp;&nbsp;·&nbsp;&nbsp;{lessonCount} {unitCap}
+                <span className="bd-meta-eyebrow">
+                  {eyebrow}&nbsp;&nbsp;·&nbsp;&nbsp;
+                </span>
+                {year}&nbsp;&nbsp;·&nbsp;&nbsp;{lessonCount} {unitCap}
                 {lessonCount === 1 ? '' : 's'}&nbsp;&nbsp;·&nbsp;&nbsp;
                 {metaDuration}
               </div>
@@ -1367,7 +1388,10 @@ export function GeneratedPortalPage({
       {isEpisodic ? (
         <div className="lessons">
           <div className="row-head strip-rh">
-            <span className="rh">Episodes</span>
+            {/* Desktop labels this "Episodes"; the mobile design uses
+                "Free preview". Both render, one shows per breakpoint. */}
+            <span className="rh rh-desktop">Episodes</span>
+            <span className="rh rh-mobile">Free preview</span>
             <span className="rh-meta">
               {lessonCount} episode{lessonCount === 1 ? '' : 's'} · {trialShort}
             </span>
@@ -2603,6 +2627,9 @@ export function GeneratedPortalPage({
           gap: 13px;
           margin-bottom: 18px;
         }
+        .gpp .strip-rh .rh-mobile {
+          display: none;
+        }
         .gpp .strip-rh .rh {
           font-size: 19px;
           font-weight: 700;
@@ -3314,11 +3341,15 @@ export function GeneratedPortalPage({
             margin: 0 -20px;
             padding: 0 20px;
           }
+          /* module rows show 82% spotlight cards; the episode strip shows
+             78% catalog cards (per the two mobile designs). */
           .gpp .row .grid .card,
-          .gpp .row .grid .lc-catalog,
+          .gpp .row .grid .lc-catalog {
+            flex: 0 0 82%;
+          }
           .gpp .strip-wrap .grid .card,
           .gpp .strip-wrap .grid .lc-catalog {
-            flex: 0 0 82%;
+            flex: 0 0 78%;
           }
           .gpp .card {
             border-radius: 18px;
@@ -3355,6 +3386,126 @@ export function GeneratedPortalPage({
           }
           .gpp .faq-item.open .faq-a {
             padding-bottom: 24px;
+          }
+
+          /* ── marquee hero (Marquee Course Page Mobile) ── */
+          .gpp .panel {
+            height: 88svh;
+            min-height: 620px;
+            max-height: 820px;
+          }
+          .gpp .panel-scrim {
+            background: linear-gradient(
+              180deg,
+              rgba(0, 0, 0, 0.34) 0%,
+              transparent 26%,
+              transparent 52%,
+              rgba(0, 0, 0, 0.2) 74%
+            );
+          }
+          .gpp .panel-brand {
+            top: 24px;
+            font-size: 11px;
+          }
+          .gpp .panel .creator-bar {
+            top: 14px;
+            right: 14px;
+          }
+          .gpp .panel-title {
+            bottom: 270px;
+          }
+          .gpp .pt-eyebrow {
+            font-size: 12px;
+            margin-bottom: 10px;
+          }
+          .gpp .pt-h {
+            font-size: clamp(38px, 11vw, 46px);
+            line-height: 0.94;
+            max-width: 12ch;
+          }
+          /* band → single column; drop the desktop description + in-band
+             instructor (instructor is its own section below), center meta. */
+          .gpp .band {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            padding: 64px 20px 26px;
+          }
+          .gpp .band-actions {
+            gap: 10px;
+          }
+          .gpp .abtn {
+            height: 50px;
+            border-radius: 13px;
+            font-size: 15px;
+          }
+          .gpp .band-free {
+            text-align: center;
+          }
+          .gpp .band-desc {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            padding-top: 0;
+          }
+          .gpp .band-desc .bd-text {
+            display: none;
+          }
+          .gpp .bd-meta {
+            font-size: 13px;
+            text-align: center;
+            margin-top: 0;
+          }
+          .gpp .bd-meta-eyebrow {
+            display: none;
+          }
+          .gpp .bd-badges {
+            justify-content: center;
+            margin-top: 0;
+          }
+          .gpp .band-cast {
+            display: none;
+          }
+          /* the strip arrows are a desktop hover affordance — no place on
+             touch, where the rail scroll-snaps one card at a time. */
+          .gpp .arrow {
+            display: none;
+          }
+          /* dark mode darkens the catalog cards on phones (the mobile design
+             flips them; desktop keeps them white). */
+          .gpp.dark .lc-card {
+            background: #1d1d20;
+            border-color: rgba(245, 245, 247, 0.12);
+          }
+          .gpp.dark .lc-title {
+            color: #f5f5f7;
+          }
+          .gpp.dark .lc-desc {
+            color: rgba(245, 245, 247, 0.6);
+          }
+          /* free-preview strip header + card sizing. The header sits at the
+             page's 20px inset (the .lessons padding); the grid breaks out of
+             that padding and re-pads itself so the rail scrolls full-bleed
+             with a 20px card inset (no double-inset). */
+          .gpp .strip-rh {
+            margin: 0 0 14px;
+          }
+          .gpp .strip-rh .rh {
+            font-size: 19px;
+          }
+          .gpp .strip-rh .rh-desktop {
+            display: none;
+          }
+          .gpp .strip-rh .rh-mobile {
+            display: inline;
+          }
+          .gpp .strip-wrap .grid {
+            overscroll-behavior-x: contain;
+            margin: 0 -20px;
+            padding: 4px 20px 16px;
+          }
+          .gpp .lc-info {
+            padding: 15px 16px 16px;
           }
         }
       `}</style>
