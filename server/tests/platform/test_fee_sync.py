@@ -5,7 +5,7 @@ import pytest
 from pytest_mock import MockerFixture
 
 from polar.entitlements.tiers import TierKey
-from polar.enums import SubscriptionRecurringInterval
+from polar.enums import RateLimitGroup, SubscriptionRecurringInterval
 from polar.models import Account, Organization, Product, User
 from polar.models.subscription import SubscriptionStatus
 from polar.platform.fee_sync import (
@@ -129,6 +129,10 @@ class TestSyncForOrganization:
             monthly_cents=4900,
             platform_fee_locked=True,
         )
+        # Pre-align the rate-limit group so the lock branch is what the
+        # result reflects (the group syncs regardless of the fee lock).
+        creator.rate_limit_group = RateLimitGroup.elevated
+        await save_fixture(creator)
 
         result = await platform_fee_sync.sync_for_organization(session, creator)
 
@@ -160,12 +164,14 @@ class TestSyncForOrganization:
         assert account._platform_fee_percent == 400
         assert account._platform_fee_fixed == 40
 
-    async def test_writes_tier_rate_for_free(
+    async def test_fee_follows_tier_metadata_not_price(
         self,
         mocker: MockerFixture,
         session: AsyncSession,
         save_fixture: SaveFixture,
     ) -> None:
+        # A $0-priced product stamped tier=pro still syncs the Pro list
+        # rate — the fee comes from the tier definition, not the price.
         creator, account, _ = await _setup_subscribed_creator(
             mocker=mocker,
             save_fixture=save_fixture,
@@ -177,8 +183,8 @@ class TestSyncForOrganization:
 
         assert result.changed is True
         assert result.reason == "updated"
-        assert account._platform_fee_percent == 500
-        assert account._platform_fee_fixed == 50
+        assert account._platform_fee_percent == 400
+        assert account._platform_fee_fixed == 40
 
     async def test_writes_tier_rate_for_pro(
         self,
@@ -232,6 +238,8 @@ class TestSyncForOrganization:
             fee_basis_points=400,
             fee_fixed=40,
         )
+        creator.rate_limit_group = RateLimitGroup.elevated
+        await save_fixture(creator)
 
         result = await platform_fee_sync.sync_for_organization(session, creator)
 

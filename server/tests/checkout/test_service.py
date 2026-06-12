@@ -35,7 +35,12 @@ from polar.config import Environment
 from polar.customer_session.service import customer_session as customer_session_service
 from polar.discount.repository import DiscountRedemptionRepository
 from polar.discount.service import discount as discount_service
-from polar.enums import AccountType, PaymentProcessor, SubscriptionRecurringInterval
+from polar.enums import (
+    AccountType,
+    PaymentProcessor,
+    SubscriptionRecurringInterval,
+    TaxBehavior,
+)
 from polar.event.repository import EventRepository
 from polar.event.system import SystemEvent
 from polar.exceptions import PaymentNotReady, SpaireRequestValidationError
@@ -134,6 +139,8 @@ def calculate_tax_mock(mocker: MockerFixture) -> AsyncMock:
         return_value={
             "processor_id": "TAX_PROCESSOR_ID",
             "amount": 0,
+            "currency": "usd",
+            "tax_behavior": TaxBehavior.exclusive,
             "taxability_reason": TaxabilityReason.standard_rated,
             "tax_rate": {},
         }
@@ -943,6 +950,8 @@ class TestCreate:
         calculate_tax_mock.return_value = {
             "processor_id": "TAX_PROCESSOR_ID",
             "amount": 100,
+            "currency": "usd",
+            "tax_behavior": TaxBehavior.exclusive,
             "taxability_reason": TaxabilityReason.standard_rated,
             "tax_rate": {},
         }
@@ -3031,6 +3040,8 @@ class TestUpdate:
         calculate_tax_mock.return_value = {
             "processor_id": "TAX_PROCESSOR_ID",
             "amount": 100,
+            "currency": "usd",
+            "tax_behavior": TaxBehavior.exclusive,
             "taxability_reason": TaxabilityReason.standard_rated,
             "tax_rate": {},
         }

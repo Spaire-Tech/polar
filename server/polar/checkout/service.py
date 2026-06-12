@@ -478,7 +478,7 @@ class CheckoutService:
             for i, product in enumerate(products)
         ]
 
-        require_billing_address = True
+        require_billing_address = False
         customer_billing_address = checkout_create.customer_billing_address
         if customer_billing_address is not None and any(
             (
@@ -993,6 +993,17 @@ class CheckoutService:
             # Swallow incomplete tax calculation error: require it only on confirm
             except TaxCalculationError:
                 pass
+
+            # Reset is_business_customer if payment form is no longer required
+            # This handles the case where a 100% discount is applied and the
+            # billing address section disappears from the frontend. Runs after
+            # the tax pass so is_payment_form_required reads the post-discount
+            # net_amount.
+            if (
+                not checkout.is_payment_form_required
+                and not checkout.require_billing_address
+            ):
+                checkout.is_business_customer = False
 
             await self._after_checkout_updated(session, checkout)
             return checkout
@@ -2121,15 +2132,6 @@ class CheckoutService:
             exclude_unset=True, exclude=exclude, by_alias=True
         ).items():
             setattr(checkout, attr, value)
-
-        # Reset is_business_customer if payment form is no longer required
-        # This handles the case where a 100% discount is applied and the
-        # billing address section disappears from the frontend
-        if (
-            not checkout.is_payment_form_required
-            and not checkout.require_billing_address
-        ):
-            checkout.is_business_customer = False
 
         checkout = await self._update_trial_end(checkout)
 

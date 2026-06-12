@@ -116,12 +116,12 @@ class TestRequireFeature:
             monthly_cents=0,
         )
 
-        # Email sequences are gated on Pro+ — free should be blocked.
+        # Email A/B testing is gated on Studio+ — Pro should be blocked.
         with pytest.raises(FeatureNotInPlanError) as excinfo:
             await entitlements.require_feature(
-                session, creator.id, "email_sequences_and_segments"
+                session, creator.id, "email_ab_testing"
             )
-        assert excinfo.value.feature == "email_sequences_and_segments"
+        assert excinfo.value.feature == "email_ab_testing"
         assert excinfo.value.tier == TierKey.pro
         assert excinfo.value.status_code == 402
 
