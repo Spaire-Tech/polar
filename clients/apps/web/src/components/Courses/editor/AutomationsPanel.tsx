@@ -8,10 +8,16 @@
 // editor context. The iframe runs the regular /email-marketing/sequences
 // route with ?embed=1, which hides the email marketing chrome.
 
-import { useEmailSequences } from '@/hooks/queries/emailMarketing'
+import {
+  useDeleteEmailSequence,
+  useEmailSequences,
+} from '@/hooks/queries/emailMarketing'
 import AddOutlined from '@mui/icons-material/AddOutlined'
+import DeleteOutlineOutlined from '@mui/icons-material/DeleteOutlineOutlined'
+import EditOutlined from '@mui/icons-material/EditOutlined'
 import { schemas } from '@spaire/client'
 import { useRouter } from 'next/navigation'
+import { toast } from '../../Toast/use-toast'
 
 type SequenceRow = {
   id: string
@@ -54,6 +60,21 @@ export function AutomationsPanel({
   const openEdit = (sequenceId: string) =>
     router.push(`${base}/${sequenceId}${lessonQs}`)
 
+  const deleteSequence = useDeleteEmailSequence()
+  const onDelete = async (row: SequenceRow) => {
+    const ok = window.confirm(
+      `Delete "${row.name}"? Subscribers currently in this sequence stop receiving its emails. This cannot be undone.`,
+    )
+    if (!ok) return
+    try {
+      await deleteSequence.mutateAsync(row.id)
+      toast({ title: 'Automation deleted' })
+      void sequencesQuery.refetch()
+    } catch {
+      toast({ title: 'Could not delete automation' })
+    }
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <NewCard onClick={openNew} />
@@ -71,6 +92,7 @@ export function AutomationsPanel({
                 key={s.id}
                 row={s}
                 onOpen={() => openEdit(s.id)}
+                onDelete={() => void onDelete(s)}
               />
             ))}
           </div>
@@ -105,9 +127,11 @@ function NewCard({ onClick }: { onClick: () => void }) {
 function SequenceRowItem({
   row,
   onOpen,
+  onDelete,
 }: {
   row: SequenceRow
   onOpen: () => void
+  onDelete: () => void
 }) {
   const statusColor =
     row.status === 'active'
@@ -116,10 +140,14 @@ function SequenceRowItem({
         ? 'bg-amber-50 text-amber-700'
         : 'bg-gray-100 text-gray-600'
   return (
-    <button
-      type="button"
+    <div
+      role="button"
+      tabIndex={0}
       onClick={onOpen}
-      className="flex w-full items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-3 text-left transition-colors hover:bg-gray-50"
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') onOpen()
+      }}
+      className="group flex w-full cursor-pointer items-center justify-between gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 text-left transition-colors hover:bg-gray-50"
     >
       <div className="flex min-w-0 flex-col">
         <span className="truncate text-sm font-medium text-gray-900">
@@ -131,11 +159,37 @@ function SequenceRowItem({
           </span>
         ) : null}
       </div>
-      <span
-        className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${statusColor}`}
-      >
-        {row.status}
-      </span>
-    </button>
+      <div className="flex shrink-0 items-center gap-2">
+        <span
+          className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${statusColor}`}
+        >
+          {row.status}
+        </span>
+        <button
+          type="button"
+          aria-label="Edit automation"
+          title="Edit"
+          onClick={(e) => {
+            e.stopPropagation()
+            onOpen()
+          }}
+          className="flex h-7 w-7 items-center justify-center rounded-full text-gray-400 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-gray-100 hover:text-gray-700"
+        >
+          <EditOutlined sx={{ fontSize: 15 }} />
+        </button>
+        <button
+          type="button"
+          aria-label="Delete automation"
+          title="Delete"
+          onClick={(e) => {
+            e.stopPropagation()
+            onDelete()
+          }}
+          className="flex h-7 w-7 items-center justify-center rounded-full text-gray-400 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-red-50 hover:text-red-600"
+        >
+          <DeleteOutlineOutlined sx={{ fontSize: 16 }} />
+        </button>
+      </div>
+    </div>
   )
 }
