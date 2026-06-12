@@ -1,14 +1,14 @@
 import { getServerSideAPI } from '@/utils/client/serverside'
 import { getOrganizationBySlugOrNotFound } from '@/utils/organization'
+import { AutomationBuilderRoute } from '@/components/Courses/automation/AutomationBuilderRoute'
 import { Metadata } from 'next'
-import { NewSequenceRoute } from '../../_components/screens/NewSequenceScreen'
 
 export async function generateMetadata(): Promise<Metadata> {
-  return { title: 'New sequence · Email Marketing' }
+  return { title: 'New automation' }
 }
 
 export default async function Page(props: {
-  params: Promise<{ organization: string }>
+  params: Promise<{ organization: string; courseId: string }>
 }) {
   const params = await props.params
   const api = await getServerSideAPI()
@@ -16,5 +16,11 @@ export default async function Page(props: {
     api,
     params.organization,
   )
-  return <NewSequenceRoute organization={organization} sequenceId={null} />
+  return (
+    <AutomationBuilderRoute
+      organization={organization}
+      courseId={params.courseId}
+      sequenceId={null}
+    />
+  )
 }

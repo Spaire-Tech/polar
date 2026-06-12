@@ -30,6 +30,9 @@ export default function AutomationEmbed() {
   const seeded = params.get('seeded') === '1'
   return (
     <AutomationSequenceBuilder
+      // ?org=1 supplies a fake org id so the email editor modal can be
+      // exercised (saves will no-op against the backend in this harness).
+      organizationId={params.get('org') ? 'embed-org' : undefined}
       courseId={params.get('course') ? 'c1' : undefined}
       initial={seeded ? { name: 'Onboarding drip', steps: SEEDED } : undefined}
     />

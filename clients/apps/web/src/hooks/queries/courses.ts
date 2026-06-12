@@ -595,6 +595,8 @@ export type CustomerCourseEnrollment = {
     thumbnail_url: string | null
     thumbnail_object_position: string | null
     total_duration_seconds: number
+    // The creator's landing theme — drives portal-wide dark mode.
+    theme_mode?: 'light' | 'dark'
   }
   progress: {
     total_lessons: number

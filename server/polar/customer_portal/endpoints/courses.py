@@ -325,6 +325,11 @@ async def list_enrolled_courses(
                     "thumbnail_url": thumbnail_url,
                     "thumbnail_object_position": course.thumbnail_object_position,
                     "total_duration_seconds": total_duration_seconds,
+                    # The creator's landing theme — the portal renders every
+                    # page in this theme (dark landing → dark portal).
+                    "theme_mode": (course.landing_overrides or {}).get(
+                        "theme_mode", "light"
+                    ),
                 },
                 "progress": {
                     "total_lessons": total_lessons,
