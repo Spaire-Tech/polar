@@ -195,6 +195,7 @@ export function WizardPortalPreview({
           coverUrl={draft.heroImageUrl}
           groups={groups}
           lessonCount={lessonCount}
+          metaDuration="0 min"
           unit={unit}
           dark={dark}
           onToggleDark={toggleDark}

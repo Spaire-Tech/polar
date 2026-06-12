@@ -90,6 +90,66 @@ const LockChip = () => (
   </div>
 )
 
+
+// Touch-to-edit text (the design's contenteditable). Module-level so its
+// identity is stable across renders — defined inline it would REMOUNT on
+// every parent re-render (FAQ toggle, trailer peek, strip scroll), killing
+// focus mid-typing. React renders NO children here; the text is written via
+// effects and only synced from props while the element is NOT focused, so an
+// in-flight edit can never be clobbered by a background refetch.
+function EditText({
+  field,
+  value,
+  className,
+  tag: Tag = 'span',
+  ctx,
+  editable,
+  onEditText,
+}: {
+  field: EditField
+  value: string
+  className?: string
+  tag?: 'span' | 'div' | 'h1' | 'h2' | 'p'
+  ctx?: { flatIdx?: number; groupIdx?: number; idx?: number }
+  editable?: boolean
+  onEditText?: (
+    field: EditField,
+    value: string,
+    ctx?: { flatIdx?: number; groupIdx?: number; idx?: number },
+  ) => void
+}) {
+  const ref = useRef<HTMLElement | null>(null)
+  const focusedRef = useRef(false)
+  useEffect(() => {
+    const el = ref.current
+    if (el && !focusedRef.current && el.textContent !== value) {
+      el.textContent = value
+    }
+  }, [value])
+  if (!editable || !onEditText) {
+    return <Tag className={className}>{value}</Tag>
+  }
+  return (
+    <Tag
+      ref={ref as never}
+      className={`${className ?? ''} gpp-editable`}
+      contentEditable
+      suppressContentEditableWarning
+      spellCheck={false}
+      onPointerDown={(e: React.PointerEvent) => e.stopPropagation()}
+      onClick={(e: React.MouseEvent) => e.stopPropagation()}
+      onFocus={() => {
+        focusedRef.current = true
+      }}
+      onBlur={(e: React.FocusEvent<HTMLElement>) => {
+        focusedRef.current = false
+        const next = (e.currentTarget.textContent ?? '').trim()
+        if (next !== value) onEditText(field, next, ctx)
+      }}
+    />
+  )
+}
+
 export type GeneratedLesson = {
   title: string
   description: string
@@ -157,6 +217,9 @@ export type GeneratedPortalPageProps = {
   faq?: { q: string; a: string }[]
   groups: GeneratedGroup[]
   lessonCount: number
+  /** Total runtime, pre-formatted ("4h 15m" / "0 min"). The meta line shows
+   *  lessons · duration · level, exactly like the design. */
+  metaDuration?: string
   unit: 'lesson' | 'episode'
   dark: boolean
   /** Theme toggle (creator-facing). Omit to hide (public page). */
@@ -248,6 +311,7 @@ export function GeneratedPortalPage({
   faq = [],
   groups,
   lessonCount,
+  metaDuration = '0 min',
   unit,
   dark,
   onToggleDark,
@@ -416,44 +480,6 @@ export function GeneratedPortalPage({
     })
   }, [openFaq, faq])
 
-  // Touch-to-edit text (the design's contenteditable). Commits on blur only,
-  // so no re-render happens mid-edit → the caret never jumps. Pointer/click
-  // are stopped so editing the hero text doesn't trigger reposition/hover or
-  // a card's onClick.
-  const Edit = ({
-    field,
-    value,
-    className,
-    tag: Tag = 'span',
-    ctx,
-  }: {
-    field: EditField
-    value: string
-    className?: string
-    tag?: 'span' | 'div' | 'h1' | 'h2' | 'p'
-    ctx?: { flatIdx?: number; groupIdx?: number; idx?: number }
-  }) => {
-    if (!editable || !onEditText) {
-      return <Tag className={className}>{value}</Tag>
-    }
-    return (
-      <Tag
-        className={`${className ?? ''} gpp-editable`}
-        contentEditable
-        suppressContentEditableWarning
-        spellCheck={false}
-        onPointerDown={(e: React.PointerEvent) => e.stopPropagation()}
-        onClick={(e: React.MouseEvent) => e.stopPropagation()}
-        onBlur={(e: React.FocusEvent<HTMLElement>) => {
-          const next = (e.currentTarget.textContent ?? '').trim()
-          if (next !== value) onEditText(field, next, ctx)
-        }}
-      >
-        {value}
-      </Tag>
-    )
-  }
-
   const trialShort = !paywallEnabled
     ? `all ${unit}s free`
     : trialMode === 'lesson_sample'
@@ -556,7 +582,7 @@ export function GeneratedPortalPage({
     <div className="creator-bar">
       {editable && onAddCover && (
         <button
-          className="add-pill"
+          className="add-pill is-cover"
           type="button"
           onClick={onAddCover}
           disabled={coverBusy}
@@ -569,7 +595,7 @@ export function GeneratedPortalPage({
       )}
       {editable && coverUrl && onCoverPosition && (
         <button
-          className={`add-pill${repositioning ? ' active' : ''}`}
+          className={`add-pill is-reposition${repositioning ? ' active' : ''}`}
           type="button"
           onClick={() => {
             setRepositioning((r) => !r)
@@ -587,14 +613,22 @@ export function GeneratedPortalPage({
           onClick={onAddTrailer}
           disabled={trailerBusy}
         >
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+          <svg
+            className="add-pill-ic"
+            width="13"
+            height="13"
+            viewBox="0 0 24 24"
+            fill="currentColor"
+          >
             <path d={PLAY_PATH} />
           </svg>
-          {trailerBusy
-            ? 'Uploading…'
-            : trailerUrl
-              ? 'Change trailer'
-              : 'Add trailer'}
+          <span>
+            {trailerBusy
+              ? 'Uploading…'
+              : trailerUrl
+                ? 'Change trailer'
+                : 'Add trailer'}
+          </span>
         </button>
       )}
       {themeToggle}
@@ -680,14 +714,18 @@ export function GeneratedPortalPage({
         <div className="ep">
           {unitCap} {l.flatIdx + 1}
         </div>
-        <Edit
+        <EditText
+          editable={editable}
+          onEditText={onEditText}
           field="lessonTitle"
           value={l.title}
           className="title"
           tag="div"
           ctx={{ flatIdx: l.flatIdx }}
         />
-        <Edit
+        <EditText
+          editable={editable}
+          onEditText={onEditText}
           field="lessonDesc"
           value={l.description}
           className="desc"
@@ -778,14 +816,18 @@ export function GeneratedPortalPage({
           <div className="lc-num">
             {unitCap} {l.flatIdx + 1}
           </div>
-          <Edit
+          <EditText
+          editable={editable}
+          onEditText={onEditText}
             field="lessonTitle"
             value={l.title}
             className="lc-title"
             tag="div"
             ctx={{ flatIdx: l.flatIdx }}
           />
-          <Edit
+          <EditText
+          editable={editable}
+          onEditText={onEditText}
             field="lessonDesc"
             value={l.description}
             className="lc-desc"
@@ -842,14 +884,35 @@ export function GeneratedPortalPage({
           <div className="panel-brand rise">{brand}</div>
           {creatorBar}
 
+          {/* Mobile-only centered Add cover (matches the cover hero). */}
+          {editable && onAddCover && (
+            <button
+              className="hero-cta"
+              type="button"
+              onClick={onAddCover}
+              disabled={coverBusy}
+            >
+              {PillImageIcon}
+              <span>
+                {coverBusy
+                  ? 'Uploading…'
+                  : coverUrl
+                    ? 'Change cover'
+                    : 'Add cover'}
+              </span>
+            </button>
+          )}
+
           <div className="panel-title">
-            <Edit
+            <EditText
+          editable={editable}
+          onEditText={onEditText}
               field="eyebrow"
               value={eyebrow}
               className="pt-eyebrow rise d1"
               tag="div"
             />
-            <Edit field="title" value={title} className="pt-h rise d1" tag="h1" />
+            <EditText editable={editable} onEditText={onEditText} field="title" value={title} className="pt-h rise d1" tag="h1" />
           </div>
 
           <div className="band rise d2">
@@ -878,11 +941,14 @@ export function GeneratedPortalPage({
             </div>
 
             <div className="band-desc">
-              <Edit field="desc" value={desc} className="bd-text" tag="p" />
+              <EditText editable={editable} onEditText={onEditText} field="desc" value={desc} className="bd-text" tag="p" />
               <div className="bd-meta">
-                {eyebrow}&nbsp;&nbsp;·&nbsp;&nbsp;{year}
-                &nbsp;&nbsp;·&nbsp;&nbsp;{lessonCount} {unitCap}
-                {lessonCount === 1 ? '' : 's'}
+                <span className="bd-meta-eyebrow">
+                  {eyebrow}&nbsp;&nbsp;·&nbsp;&nbsp;
+                </span>
+                {year}&nbsp;&nbsp;·&nbsp;&nbsp;{lessonCount} {unitCap}
+                {lessonCount === 1 ? '' : 's'}&nbsp;&nbsp;·&nbsp;&nbsp;
+                {metaDuration}
               </div>
               <div className="bd-badges">
                 <span className="bdg rate">All Levels</span>
@@ -911,13 +977,15 @@ export function GeneratedPortalPage({
 
             <div className="band-cast">
               <div className="bc-k">Instructor</div>
-              <Edit
+              <EditText
+          editable={editable}
+          onEditText={onEditText}
                 field="instructorName"
                 value={instructorName}
                 className="bc-v"
                 tag="div"
               />
-              <Edit field="byline" value={byline} className="bc-sub" tag="div" />
+              <EditText editable={editable} onEditText={onEditText} field="byline" value={byline} className="bc-sub" tag="div" />
             </div>
           </div>
         </header>
@@ -959,21 +1027,43 @@ export function GeneratedPortalPage({
 
           {creatorBar}
 
+          {/* Mobile-only centered Add cover (the design moves cover upload
+              out of the icon-pill bar on phones). Hidden ≥640px by default. */}
+          {editable && onAddCover && (
+            <button
+              className="hero-cta"
+              type="button"
+              onClick={onAddCover}
+              disabled={coverBusy}
+            >
+              {PillImageIcon}
+              <span>
+                {coverBusy
+                  ? 'Uploading…'
+                  : coverUrl
+                    ? 'Change cover'
+                    : 'Add cover'}
+              </span>
+            </button>
+          )}
+
           <div className="hero-content">
             <div className="hero-meta">
-              <Edit field="badge" value={badge} className="badge" />
+              <EditText editable={editable} onEditText={onEditText} field="badge" value={badge} className="badge" />
               <div className="meta-line">
                 <span>
                   {lessonCount} {unit}
                   {lessonCount === 1 ? '' : 's'}
                 </span>
                 <span className="sep">·</span>
+                <span>{metaDuration}</span>
+                <span className="sep">·</span>
                 <span>All levels</span>
               </div>
             </div>
 
             {editable && onEditText ? (
-              <Edit field="title" value={title} className="hero-title" tag="h1" />
+              <EditText editable={editable} onEditText={onEditText} field="title" value={title} className="hero-title" tag="h1" />
             ) : (
               <h1 className="hero-title">
                 {titleLines && titleLines.length > 1
@@ -988,9 +1078,9 @@ export function GeneratedPortalPage({
             )}
 
             <p className="hero-desc">
-              <Edit field="desc" value={desc} />{' '}
+              <EditText editable={editable} onEditText={onEditText} field="desc" value={desc} />{' '}
               <span className="with">
-                — <Edit field="byline" value={byline || `with ${instructorName}`} />
+                — <EditText editable={editable} onEditText={onEditText} field="byline" value={byline || `with ${instructorName}`} />
               </span>
             </p>
 
@@ -1071,13 +1161,17 @@ export function GeneratedPortalPage({
                   </svg>
                 </div>
                 <div className="inst-id">
-                  <Edit
+                  <EditText
+          editable={editable}
+          onEditText={onEditText}
                     field="instructorName"
                     value={instructorName}
                     className="inst-name"
                     tag="h2"
                   />
-                  <Edit
+                  <EditText
+          editable={editable}
+          onEditText={onEditText}
                     field="instructorSub"
                     value={instructorSub}
                     className="inst-sub"
@@ -1086,7 +1180,9 @@ export function GeneratedPortalPage({
                 </div>
               </div>
               {instructorBio.map((p, i) => (
-                <Edit
+                <EditText
+          editable={editable}
+          onEditText={onEditText}
                   key={i}
                   field="instructorBioP"
                   value={p}
@@ -1148,7 +1244,9 @@ export function GeneratedPortalPage({
                 </div>
               )}
               {portraitCaption && (
-                <Edit
+                <EditText
+          editable={editable}
+          onEditText={onEditText}
                   field="portraitCaption"
                   value={portraitCaption}
                   className="inst-caption"
@@ -1290,7 +1388,10 @@ export function GeneratedPortalPage({
       {isEpisodic ? (
         <div className="lessons">
           <div className="row-head strip-rh">
-            <span className="rh">Episodes</span>
+            {/* Desktop labels this "Episodes"; the mobile design uses
+                "Free preview". Both render, one shows per breakpoint. */}
+            <span className="rh rh-desktop">Episodes</span>
+            <span className="rh rh-mobile">Free preview</span>
             <span className="rh-meta">
               {lessonCount} episode{lessonCount === 1 ? '' : 's'} · {trialShort}
             </span>
@@ -1345,7 +1446,9 @@ export function GeneratedPortalPage({
             <section className="row" key={gi}>
               <div className="row-head">
                 <span className="mod">Module {gi + 1}</span>
-                <Edit
+                <EditText
+          editable={editable}
+          onEditText={onEditText}
                   field="moduleTitle"
                   value={g.title ?? ''}
                   ctx={{ groupIdx: gi }}
@@ -1371,7 +1474,9 @@ export function GeneratedPortalPage({
                     type="button"
                     onClick={() => setOpenFaq((o) => (o === i ? null : i))}
                   >
-                    <Edit
+                    <EditText
+          editable={editable}
+          onEditText={onEditText}
                       field="faqQ"
                       value={item.q}
                       ctx={{ idx: i }}
@@ -1402,7 +1507,9 @@ export function GeneratedPortalPage({
                         faqClipRefs.current[i] = el
                       }}
                     >
-                      <Edit
+                      <EditText
+          editable={editable}
+          onEditText={onEditText}
                         field="faqA"
                         value={item.a}
                         className="faq-a"
@@ -2209,6 +2316,38 @@ export function GeneratedPortalPage({
           gap: 13px;
           margin-top: 26px;
         }
+        /* Mobile centered Add-cover button (anchored below the icon-pill
+           bar). Hidden on desktop; the mobile media query reveals it. */
+        .gpp .hero-cta {
+          display: none;
+          position: absolute;
+          top: clamp(84px, 15%, 130px);
+          left: 50%;
+          transform: translateX(-50%);
+          z-index: 4;
+          align-items: center;
+          gap: 8px;
+          height: 40px;
+          padding: 0 18px;
+          border-radius: 980px;
+          background: rgba(255, 255, 255, 0.14);
+          color: #fff;
+          -webkit-backdrop-filter: blur(40px) saturate(150%);
+          backdrop-filter: blur(40px) saturate(150%);
+          font-family: var(--sf);
+          font-size: 14px;
+          font-weight: 600;
+          letter-spacing: -0.01em;
+          white-space: nowrap;
+          transition: background 0.2s, transform 0.16s;
+        }
+        .gpp .hero-cta:active {
+          background: rgba(255, 255, 255, 0.28);
+          transform: translateX(-50%) scale(0.96);
+        }
+        .gpp .hero.filled .hero-cta {
+          background: rgba(10, 11, 13, 0.46);
+        }
         .gpp .btn-trailer {
           display: inline-flex;
           align-items: center;
@@ -2487,6 +2626,9 @@ export function GeneratedPortalPage({
           align-items: baseline;
           gap: 13px;
           margin-bottom: 18px;
+        }
+        .gpp .strip-rh .rh-mobile {
+          display: none;
         }
         .gpp .strip-rh .rh {
           font-size: 19px;
@@ -2979,38 +3121,391 @@ export function GeneratedPortalPage({
             flex-basis: min(465px, 84%);
           }
         }
-        @media (max-width: 760px) {
-          .gpp .row {
-            margin-top: 32px;
+        /* ============================================================ MOBILE
+           Full phone layout — a faithful port of "Course Page Empty State
+           (Mobile).html". ~390px-first; the page caps content width and the
+           sections restack: cover hero with a centered Add-cover button +
+           icon-pill creator bar, single-column instructor, 82%-wide card
+           rail, and the compact sample + FAQ. */
+        @media (max-width: 640px) {
+          .gpp {
+            max-width: 520px;
+            margin: 0 auto;
           }
-          .gpp .row .grid {
-            gap: 18px;
+
+          /* ── cover hero ── */
+          .gpp .hero {
+            height: 86svh;
+            min-height: 580px;
+            max-height: 760px;
           }
-          .gpp .row .grid .card,
-          .gpp .row .grid .lc-catalog {
-            flex: 0 0 min(465px, 84%);
+          .gpp .hero .photo-shade {
+            background: linear-gradient(
+              0deg,
+              rgba(5, 5, 8, 0.66) 0%,
+              rgba(5, 5, 8, 0.3) 36%,
+              transparent 60%
+            );
           }
-          .gpp .lessons {
-            padding: 28px 20px 56px;
+          .gpp .hero-ph {
+            top: 44%;
           }
-          .gpp .sample {
-            padding: 48px 20px 8px;
+          .gpp .hero-blend {
+            height: 40px;
           }
           .gpp .hero-eyebrow {
-            top: 30px;
-            left: 24px;
+            top: 22px;
+            left: 20px;
+            font-size: 11px;
           }
-          .gpp .creator-bar {
-            top: 24px;
-            right: 20px;
+          .gpp .hero-eyebrow .dot {
+            width: 6px;
+            height: 6px;
           }
           .gpp .hero-content {
-            left: 24px;
-            right: 24px;
-            bottom: 36px;
+            left: 20px;
+            right: 20px;
+            bottom: 28px;
+          }
+          .gpp .hero-meta {
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 14px;
+          }
+          .gpp .badge {
+            font-size: 10px;
+            padding: 6px 12px;
+          }
+          .gpp .meta-line {
+            font-size: 13px;
+            gap: 8px;
+          }
+          .gpp .hero-title {
+            font-size: clamp(38px, 11.5vw, 48px);
+            line-height: 1.04;
+          }
+          .gpp .hero-desc {
+            margin-top: 14px;
+            font-size: 15px;
           }
           .gpp .hero-actions {
-            flex-wrap: wrap;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 22px;
+          }
+          .gpp .btn-trailer,
+          .gpp .btn-enroll {
+            justify-content: center;
+            height: 50px;
+            font-size: 15px;
+          }
+          .gpp .btn-trailer {
+            padding: 0 20px;
+          }
+          .gpp .btn-trailer .play {
+            width: 28px;
+            height: 28px;
+          }
+          .gpp .btn-enroll {
+            padding: 0 22px;
+          }
+
+          /* creator controls → 44px icon pills; Add-cover is the centered
+             .hero-cta (rendered separately in editable mode). */
+          .gpp .creator-bar {
+            top: 14px;
+            right: 14px;
+            gap: 8px;
+          }
+          .gpp .creator-bar .add-pill {
+            width: 44px;
+            height: 44px;
+            padding: 0;
+            border-radius: 50%;
+            justify-content: center;
+          }
+          .gpp .creator-bar .add-pill span {
+            display: none;
+          }
+          .gpp .creator-bar .add-pill svg {
+            width: 16px;
+            height: 16px;
+          }
+          /* the labelled Add cover + Reposition pills collapse on phones;
+             cover upload lives in the centered .hero-cta, reposition is a
+             desktop-drag affordance. */
+          .gpp .creator-bar .add-pill.is-cover,
+          .gpp .creator-bar .add-pill.is-reposition {
+            display: none;
+          }
+          .gpp .panel .creator-bar {
+            top: 14px;
+            right: 14px;
+          }
+          .gpp .creator-bar .theme-toggle {
+            width: 44px;
+            height: 44px;
+          }
+          .gpp .hero-cta {
+            display: inline-flex;
+          }
+
+          /* ── instructor → single column ── */
+          .gpp .instructor {
+            padding: 64px 20px 8px;
+          }
+          .gpp .inst-inner {
+            grid-template-columns: 1fr;
+            gap: 0;
+          }
+          .gpp .inst-head {
+            grid-template-columns: 76px 1fr;
+            gap: 16px;
+            margin-bottom: 24px;
+          }
+          .gpp .inst-avatar {
+            width: 76px;
+            height: 76px;
+          }
+          .gpp .inst-name {
+            font-size: 30px;
+          }
+          .gpp .inst-sub {
+            margin-top: 8px;
+            font-size: 14px;
+          }
+          .gpp .inst-bio {
+            font-size: 16px;
+          }
+          .gpp .inst-bio + .inst-bio {
+            margin-top: 16px;
+          }
+          .gpp .inst-media {
+            margin-top: 32px;
+            border-radius: 24px;
+          }
+          .gpp .inst-caption {
+            left: 16px;
+            bottom: 16px;
+            font-size: 12.5px;
+          }
+
+          /* ── free sample ── */
+          .gpp .sample {
+            padding: 56px 20px 8px;
+          }
+          .gpp .sample-eyebrow {
+            font-size: 11px;
+            margin-bottom: 10px;
+          }
+          .gpp .sample h2 {
+            font-size: 27px;
+          }
+          .gpp .sample-sub {
+            font-size: 15px;
+            margin-top: 8px;
+          }
+          .gpp .sample-screen {
+            aspect-ratio: 16 / 10;
+            margin-top: 24px;
+            border-radius: 18px;
+          }
+          .gpp .ph-cta .ph-ic {
+            width: 56px;
+            height: 56px;
+          }
+          .gpp .ph-cta .ph-k {
+            font-size: 14px;
+          }
+          .gpp .ph-cta .ph-s {
+            font-size: 12px;
+            margin-top: -7px;
+          }
+
+          /* ── lesson rails — one card at a time ── */
+          .gpp .lessons {
+            padding: 40px 20px 64px;
+          }
+          .gpp .row {
+            margin-top: 36px;
+          }
+          .gpp .row-head,
+          .gpp .strip-rh {
+            font-size: 17px;
+            margin-bottom: 12px;
+          }
+          .gpp .row .grid,
+          .gpp .strip-wrap .grid {
+            gap: 14px;
+            scroll-padding-inline: 20px;
+            margin: 0 -20px;
+            padding: 0 20px;
+          }
+          /* module rows show 82% spotlight cards; the episode strip shows
+             78% catalog cards (per the two mobile designs). */
+          .gpp .row .grid .card,
+          .gpp .row .grid .lc-catalog {
+            flex: 0 0 82%;
+          }
+          .gpp .strip-wrap .grid .card,
+          .gpp .strip-wrap .grid .lc-catalog {
+            flex: 0 0 78%;
+          }
+          .gpp .card {
+            border-radius: 18px;
+          }
+          .gpp .card-info {
+            padding: 0 16px 13px;
+          }
+          .gpp .card .title {
+            font-size: 16px;
+            margin-top: 4px;
+          }
+          .gpp .card .desc {
+            font-size: 13px;
+            min-height: 37px;
+          }
+
+          /* ── faq ── */
+          .gpp .faq {
+            padding: 16px 20px 88px;
+          }
+          .gpp .faq h2 {
+            font-size: clamp(34px, 10.5vw, 44px);
+            white-space: normal;
+            margin-bottom: 36px;
+          }
+          .gpp .faq-q {
+            padding: 20px 2px;
+            font-size: 17px;
+            gap: 16px;
+          }
+          .gpp .faq-a {
+            padding: 0 28px 6px 2px;
+            font-size: 15px;
+          }
+          .gpp .faq-item.open .faq-a {
+            padding-bottom: 24px;
+          }
+
+          /* ── marquee hero (Marquee Course Page Mobile) ── */
+          .gpp .panel {
+            height: 88svh;
+            min-height: 620px;
+            max-height: 820px;
+          }
+          .gpp .panel-scrim {
+            background: linear-gradient(
+              180deg,
+              rgba(0, 0, 0, 0.34) 0%,
+              transparent 26%,
+              transparent 52%,
+              rgba(0, 0, 0, 0.2) 74%
+            );
+          }
+          .gpp .panel-brand {
+            top: 24px;
+            font-size: 11px;
+          }
+          .gpp .panel .creator-bar {
+            top: 14px;
+            right: 14px;
+          }
+          .gpp .panel-title {
+            bottom: 270px;
+          }
+          .gpp .pt-eyebrow {
+            font-size: 12px;
+            margin-bottom: 10px;
+          }
+          .gpp .pt-h {
+            font-size: clamp(38px, 11vw, 46px);
+            line-height: 0.94;
+            max-width: 12ch;
+          }
+          /* band → single column; drop the desktop description + in-band
+             instructor (instructor is its own section below), center meta. */
+          .gpp .band {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            padding: 64px 20px 26px;
+          }
+          .gpp .band-actions {
+            gap: 10px;
+          }
+          .gpp .abtn {
+            height: 50px;
+            border-radius: 13px;
+            font-size: 15px;
+          }
+          .gpp .band-free {
+            text-align: center;
+          }
+          .gpp .band-desc {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            padding-top: 0;
+          }
+          .gpp .band-desc .bd-text {
+            display: none;
+          }
+          .gpp .bd-meta {
+            font-size: 13px;
+            text-align: center;
+            margin-top: 0;
+          }
+          .gpp .bd-meta-eyebrow {
+            display: none;
+          }
+          .gpp .bd-badges {
+            justify-content: center;
+            margin-top: 0;
+          }
+          .gpp .band-cast {
+            display: none;
+          }
+          /* the strip arrows are a desktop hover affordance — no place on
+             touch, where the rail scroll-snaps one card at a time. */
+          .gpp .arrow {
+            display: none;
+          }
+          /* dark mode darkens the catalog cards on phones (the mobile design
+             flips them; desktop keeps them white). */
+          .gpp.dark .lc-card {
+            background: #1d1d20;
+            border-color: rgba(245, 245, 247, 0.12);
+          }
+          .gpp.dark .lc-title {
+            color: #f5f5f7;
+          }
+          .gpp.dark .lc-desc {
+            color: rgba(245, 245, 247, 0.6);
+          }
+          /* free-preview strip header + card sizing. The header sits at the
+             page's 20px inset (the .lessons padding); the grid breaks out of
+             that padding and re-pads itself so the rail scrolls full-bleed
+             with a 20px card inset (no double-inset). */
+          .gpp .strip-rh {
+            margin: 0 0 14px;
+          }
+          .gpp .strip-rh .rh {
+            font-size: 19px;
+          }
+          .gpp .strip-rh .rh-desktop {
+            display: none;
+          }
+          .gpp .strip-rh .rh-mobile {
+            display: inline;
+          }
+          .gpp .strip-wrap .grid {
+            overscroll-behavior-x: contain;
+            margin: 0 -20px;
+            padding: 4px 20px 16px;
+          }
+          .gpp .lc-info {
+            padding: 15px 16px 16px;
           }
         }
       `}</style>
