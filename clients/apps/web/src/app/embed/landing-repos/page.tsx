@@ -1,10 +1,11 @@
 'use client'
 
 // Focused harness for item 6 part 2: the landing-customize lesson tile's
-// "Reposition" pill must open the portal-accurate RepositionInPortal overlay
-// (real card variant + aspect), not the generic 16:9 inline drag. Renders
+// "Reposition" pill must open the RepositionInPortal overlay, which now
+// previews the portal HERO (the now-playing marquee), so the focal point is
+// set against the surface students actually see. Renders
 // EditableCourseLandingView in edit mode with real lessonHandlers and a
-// lesson that already has a thumbnail. `?card=catalog` flips the variant.
+// lesson that already has a thumbnail.
 
 import { EditableCourseLandingView } from '@/components/Courses/editor/EditableCourseLandingView'
 import { EditorProvider } from '@/components/Courses/editor/EditorContext'

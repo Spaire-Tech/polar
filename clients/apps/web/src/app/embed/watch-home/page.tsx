@@ -73,6 +73,22 @@ export default function WatchHomeEmbed() {
   }, [])
   if (!params) return null
   const dark = params.get('dark') === '1'
+  // ?heropos=1 — give the focused lesson a real cover + an extreme saved
+  // focal point so the hero's honoring of thumbnail_object_position is
+  // visible/assertable (the default harness lessons have no thumbnail).
+  const heroPosTest = params.get('heropos') === '1'
+  const lessonsForRender = heroPosTest
+    ? LESSONS.map((l) =>
+        l.id === 'l2'
+          ? {
+              ...l,
+              thumbnail_url:
+                'https://images.unsplash.com/photo-1490645935967-10de6ba17061?w=1200&q=60',
+              thumbnail_object_position: '15% 85%',
+            }
+          : l,
+      )
+    : LESSONS
 
   const data = {
     enrollment_id: 'e1',
@@ -115,7 +131,7 @@ export default function WatchHomeEmbed() {
     <WatchHome
       organization={organization}
       data={data}
-      lessons={LESSONS}
+      lessons={lessonsForRender}
       token=""
       onOpenTextLesson={() => undefined}
       onMarkComplete={() => undefined}

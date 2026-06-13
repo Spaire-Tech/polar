@@ -2687,7 +2687,6 @@ function RealLessonEpisodeThumb({
           {reposMode && thumbnailUrl && (
             <div onClick={(e) => e.stopPropagation()}>
               <RepositionInPortal
-                variant={cardVariant}
                 imageUrl={thumbnailUrl}
                 position={effectivePosition}
                 title={lesson.title}

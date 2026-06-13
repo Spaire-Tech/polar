@@ -50,6 +50,7 @@ export type WatchLessonData = {
   position: number
   duration_seconds?: number | null
   thumbnail_url?: string | null
+  thumbnail_object_position?: string | null
   mux_playback_id?: string | null
   mux_status?: string | null
   completed: boolean
@@ -528,23 +529,34 @@ export function WatchHome({
     <div className={`sow${dark ? ' dark' : ''}`}>
       {/* ════════ now-playing hero ════════ */}
       <header className="panel">
-        {lessons.map((l, i) => (
-          <div
-            key={l.id}
-            className={`hero-layer${i === focus ? ' show' : ''}${
-              l.thumbnail_url || course.thumbnail_url ? '' : ' ph'
-            }`}
-            style={
-              l.thumbnail_url || course.thumbnail_url
-                ? {
-                    backgroundImage: `url("${
-                      l.thumbnail_url ?? course.thumbnail_url
-                    }")`,
-                  }
-                : undefined
-            }
-          />
-        ))}
+        {lessons.map((l, i) => {
+          // The hero shows the lesson's own cover when it has one, else the
+          // course cover. Honor whichever image's saved focal point
+          // (thumbnail_object_position) so the framing matches what the
+          // creator set in "Reposition in portal" — falling back to the
+          // template default (center 24%) only when nothing was saved.
+          const usingLessonImage = !!l.thumbnail_url
+          const heroImage = l.thumbnail_url ?? course.thumbnail_url
+          const heroPos = usingLessonImage
+            ? l.thumbnail_object_position
+            : course.thumbnail_object_position
+          return (
+            <div
+              key={l.id}
+              className={`hero-layer${i === focus ? ' show' : ''}${
+                heroImage ? '' : ' ph'
+              }`}
+              style={
+                heroImage
+                  ? {
+                      backgroundImage: `url("${heroImage}")`,
+                      ...(heroPos ? { backgroundPosition: heroPos } : null),
+                    }
+                  : undefined
+              }
+            />
+          )
+        })}
         <div className="panel-scrim" />
         <div className="panel-grain" />
 
