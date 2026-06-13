@@ -17,6 +17,7 @@ from polar.models.course_lesson_progress import CourseLessonProgress
 from polar.models.course_module import CourseModule
 from polar.models.course_note import CourseNote
 from polar.models.lesson_comment import LessonComment
+from polar.models.lesson_comment_like import LessonCommentLike
 
 
 class CourseRepository(
@@ -307,6 +308,59 @@ class LessonCommentRepository(
             LessonComment.lesson_id == lesson_id,
         )
         return await self.get_all(statement)
+
+
+class LessonCommentLikeRepository(
+    RepositoryBase[LessonCommentLike],
+):
+    model = LessonCommentLike
+
+    async def get_like(
+        self, comment_id: UUID, enrollment_id: UUID
+    ) -> LessonCommentLike | None:
+        statement = self.get_base_statement().where(
+            LessonCommentLike.lesson_comment_id == comment_id,
+            LessonCommentLike.enrollment_id == enrollment_id,
+        )
+        return await self.get_one_or_none(statement)
+
+    async def count_for_comment(self, comment_id: UUID) -> int:
+        statement = select(func.count(LessonCommentLike.id)).where(
+            LessonCommentLike.lesson_comment_id == comment_id
+        )
+        result = await self.session.execute(statement)
+        return result.scalar_one()
+
+    async def counts_for_comments(
+        self, comment_ids: Sequence[UUID]
+    ) -> dict[UUID, int]:
+        """Like counts keyed by comment id (only comments with ≥1 like
+        appear). Single grouped query for the whole listing."""
+        if not comment_ids:
+            return {}
+        statement = (
+            select(
+                LessonCommentLike.lesson_comment_id,
+                func.count(LessonCommentLike.id),
+            )
+            .where(LessonCommentLike.lesson_comment_id.in_(comment_ids))
+            .group_by(LessonCommentLike.lesson_comment_id)
+        )
+        result = await self.session.execute(statement)
+        return {row[0]: row[1] for row in result}
+
+    async def liked_comment_ids(
+        self, comment_ids: Sequence[UUID], enrollment_id: UUID
+    ) -> set[UUID]:
+        """Subset of `comment_ids` the given enrollment has liked."""
+        if not comment_ids:
+            return set()
+        statement = select(LessonCommentLike.lesson_comment_id).where(
+            LessonCommentLike.lesson_comment_id.in_(comment_ids),
+            LessonCommentLike.enrollment_id == enrollment_id,
+        )
+        result = await self.session.execute(statement)
+        return {row[0] for row in result}
 
 
 class CourseNoteRepository(

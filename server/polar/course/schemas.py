@@ -272,6 +272,13 @@ class LessonCommentRead(Schema):
     deleted: bool = False
 
 
+class LessonCommentLikeRead(Schema):
+    # Returned by the heart toggle endpoint: the requesting customer's new
+    # liked state plus the comment's refreshed total.
+    liked: bool
+    likes: int
+
+
 class CourseRead(TimestampedSchema):
     id: UUID4
     product_id: UUID4
