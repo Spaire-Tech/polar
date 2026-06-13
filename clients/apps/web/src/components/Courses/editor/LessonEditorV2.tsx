@@ -32,6 +32,7 @@ import { schemas } from '@spaire/client'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from '../../Toast/use-toast'
+import { RepositionInPortal } from '../watch/RepositionInPortal'
 import { WatchPlayer } from '../watch/WatchPlayer'
 
 type SaveState = 'saved' | 'saving'
@@ -305,35 +306,37 @@ export function LessonEditorV2({
     parsePos(lesson.thumbnail_object_position),
   )
   const thumbTileRef = useRef<HTMLDivElement | null>(null)
-  const tDrag = useRef<{
-    x: number
-    y: number
-    px: number
-    py: number
-    moved: boolean
-  } | null>(null)
+  // The "Reposition in portal" overlay (drag + replace in real context).
+  const [reposOpen, setReposOpen] = useState(false)
+  const [reposBusy, setReposBusy] = useState(false)
+  const cardVariant: 'spotlight' | 'catalog' =
+    course.lesson_card_variant === 'spotlight' ? 'spotlight' : 'catalog'
 
+  const uploadThumbnailFile = async (file: File) => {
+    setReposBusy(true)
+    setThumbUrl(URL.createObjectURL(file))
+    setThumbPos({ x: 50, y: 50 })
+    queueSave({ thumbnail_object_position: '50.0% 50.0%' })
+    try {
+      const updated = await uploadThumbnail.mutateAsync({
+        lessonId: lesson.id,
+        file,
+      })
+      setThumbUrl(updated.thumbnail_url ?? null)
+      toast({ title: 'Thumbnail updated' })
+    } catch {
+      toast({ title: 'Thumbnail upload failed' })
+    } finally {
+      setReposBusy(false)
+    }
+  }
   const pickThumbnail = () => {
     const input = document.createElement('input')
     input.type = 'file'
     input.accept = 'image/*'
-    input.onchange = async () => {
+    input.onchange = () => {
       const file = input.files?.[0]
-      if (!file) return
-      // optimistic preview, reset to centre (matches the design)
-      setThumbUrl(URL.createObjectURL(file))
-      setThumbPos({ x: 50, y: 50 })
-      queueSave({ thumbnail_object_position: '50.0% 50.0%' })
-      try {
-        const updated = await uploadThumbnail.mutateAsync({
-          lessonId: lesson.id,
-          file,
-        })
-        setThumbUrl(updated.thumbnail_url ?? null)
-        toast({ title: 'Thumbnail added — drag to reposition' })
-      } catch {
-        toast({ title: 'Thumbnail upload failed' })
-      }
+      if (file) void uploadThumbnailFile(file)
     }
     input.click()
   }
@@ -342,47 +345,9 @@ export function LessonEditorV2({
     setThumbPos({ x: 50, y: 50 })
     queueSave({ thumbnail_url: null, thumbnail_object_position: null })
   }
-  const onThumbDown = (e: React.PointerEvent) => {
-    if (!thumbUrl) return
-    if ((e.target as HTMLElement).closest('.thumb-replace')) return
-    tDrag.current = {
-      x: e.clientX,
-      y: e.clientY,
-      px: thumbPos.x,
-      py: thumbPos.y,
-      moved: false,
-    }
-    ;(e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId)
-    thumbTileRef.current?.classList.add('dragging')
-  }
-  const onThumbMove = (e: React.PointerEvent) => {
-    const d = tDrag.current
-    const tile = thumbTileRef.current
-    if (!d || !tile) return
-    const r = tile.getBoundingClientRect()
-    const dx = ((e.clientX - d.x) / r.width) * 100
-    const dy = ((e.clientY - d.y) / r.height) * 100
-    if (Math.abs(e.clientX - d.x) + Math.abs(e.clientY - d.y) > 4)
-      d.moved = true
-    setThumbPos({
-      x: Math.max(0, Math.min(100, d.px - dx)),
-      y: Math.max(0, Math.min(100, d.py - dy)),
-    })
-  }
-  const onThumbUp = () => {
-    const d = tDrag.current
-    if (!d) return
-    if (d.moved) {
-      // read the latest position from state on the next tick via a setter
-      setThumbPos((p) => {
-        queueSave({
-          thumbnail_object_position: `${p.x.toFixed(1)}% ${p.y.toFixed(1)}%`,
-        })
-        return p
-      })
-    }
-    tDrag.current = null
-    thumbTileRef.current?.classList.remove('dragging')
+  const onRepositionThumb = (pos: string) => {
+    setThumbPos(parsePos(pos))
+    queueSave({ thumbnail_object_position: pos })
   }
 
   const unitCap = isEpisodic ? 'Episode' : 'Lesson'
@@ -523,14 +488,8 @@ export function LessonEditorV2({
                 ref={thumbTileRef}
                 className={`thumb-tile${thumbUrl ? ' filled' : ''}`}
                 role="button"
-                aria-label={thumbUrl ? 'Drag to reposition thumbnail' : 'Add thumbnail'}
-                onPointerDown={onThumbDown}
-                onPointerMove={onThumbMove}
-                onPointerUp={onThumbUp}
-                onPointerCancel={onThumbUp}
-                onClick={() => {
-                  if (!thumbUrl) pickThumbnail()
-                }}
+                aria-label={thumbUrl ? 'Reposition thumbnail in portal' : 'Add thumbnail'}
+                onClick={() => (thumbUrl ? setReposOpen(true) : pickThumbnail())}
               >
                 <div className="ph-ambient" />
                 <div className="glass-tint" />
@@ -541,48 +500,27 @@ export function LessonEditorV2({
                     backgroundPosition: `${thumbPos.x}% ${thumbPos.y}%`,
                   }}
                 />
+                {/* Empty → pick a file. Filled → a centered CTA that opens
+                    the portal preview where the image is repositioned and
+                    replaced in context (matches how it actually renders). */}
                 <div className="thumb-cta">
                   <span className="thumb-ic">
-                    <svg
-                      width="18"
-                      height="18"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.9"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <rect x="3" y="3" width="18" height="18" rx="4" />
-                      <circle cx="9" cy="9" r="2" />
-                      <path d="M21 15l-4.35-4.35a1.4 1.4 0 0 0-2 0L5 20" />
-                    </svg>
+                    {thumbUrl ? (
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M12 3v18M3 12h18M12 3l-2.5 2.5M12 3l2.5 2.5M12 21l-2.5-2.5M12 21l2.5-2.5M3 12l2.5-2.5M3 12l2.5 2.5M21 12l-2.5-2.5M21 12l-2.5 2.5" />
+                      </svg>
+                    ) : (
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="3" y="3" width="18" height="18" rx="4" />
+                        <circle cx="9" cy="9" r="2" />
+                        <path d="M21 15l-4.35-4.35a1.4 1.4 0 0 0-2 0L5 20" />
+                      </svg>
+                    )}
                   </span>
-                  <span className="ph-k">Add a thumbnail</span>
+                  <span className="ph-k">
+                    {thumbUrl ? 'Reposition in portal' : 'Add a thumbnail'}
+                  </span>
                 </div>
-                <button
-                  className="thumb-replace"
-                  type="button"
-                  onClick={pickThumbnail}
-                >
-                  <Ico d="M20 11A8 8 0 1 0 19 15 M20 4v7h-7" w={2.2} s={12} />
-                  Replace
-                </button>
-                <span className="thumb-hint">
-                  <svg
-                    width="12"
-                    height="12"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="M12 3v18M3 12h18M12 3l-2.5 2.5M12 3l2.5 2.5M12 21l-2.5-2.5M12 21l2.5-2.5M3 12l2.5-2.5M3 12l2.5 2.5M21 12l-2.5-2.5M21 12l-2.5 2.5" />
-                  </svg>
-                  Drag to reposition
-                </span>
               </div>
             </div>
           </div>
@@ -762,6 +700,21 @@ export function LessonEditorV2({
           courseTitle={course.title ?? 'Course'}
           instructorName={course.instructor_name}
           onClose={() => setPlaying(false)}
+        />
+      )}
+
+      {reposOpen && (
+        <RepositionInPortal
+          variant={cardVariant}
+          imageUrl={thumbUrl}
+          position={`${thumbPos.x}% ${thumbPos.y}%`}
+          title={title || lesson.title}
+          lessonLabel={`${unitCap} ${lessonIdx}`}
+          description={desc}
+          busy={reposBusy}
+          onReposition={onRepositionThumb}
+          onReplace={(file) => void uploadThumbnailFile(file)}
+          onClose={() => setReposOpen(false)}
         />
       )}
 
@@ -1411,9 +1364,21 @@ function LessonEditorStyles() {
         display: block;
       }
       .led .thumb-tile.filled .ph-ambient,
-      .led .thumb-tile.filled .glass-tint,
-      .led .thumb-tile.filled .thumb-cta {
+      .led .thumb-tile.filled .glass-tint {
         display: none;
+      }
+      /* When filled the CTA stays — it's now "Reposition in portal" — over
+         a subtle scrim so it reads on any image; the scrim deepens on hover. */
+      .led .thumb-tile.filled::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        z-index: 1;
+        background: rgba(0, 0, 0, 0.28);
+        transition: background 0.2s;
+      }
+      .led .thumb-tile.filled:hover::after {
+        background: rgba(0, 0, 0, 0.42);
       }
       .led .thumb-cta {
         position: relative;
