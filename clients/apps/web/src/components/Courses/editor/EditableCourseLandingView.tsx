@@ -34,6 +34,7 @@ import { Fragment, useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { toast } from '../../Toast/use-toast'
 import { HlsVideo } from '../HlsVideo'
+import { RepositionInPortal } from '../watch/RepositionInPortal'
 import { AddSectionDock } from './AddSectionDock'
 import {
   MobileCreatedBy,
@@ -1703,8 +1704,13 @@ function EpisodeGrid({
                   index={i + 1}
                   hue={hue}
                   hovered={isHovered}
-                  lessonHandlers={lessonHandlers}
+                  cardVariant={
+                    course.lesson_card_variant === 'spotlight'
+                      ? 'spotlight'
+                      : 'catalog'
+                  }
                   onOpen={() => setOpenLessonId(lesson.id)}
+                  lessonHandlers={lessonHandlers}
                 />
                 <EpisodeInfo
                   course={course}
@@ -2190,6 +2196,7 @@ function EpisodeThumb({
   index,
   hue,
   hovered,
+  cardVariant,
   lessonHandlers,
   onOpen,
 }: {
@@ -2197,6 +2204,7 @@ function EpisodeThumb({
   index: number
   hue: number
   hovered: boolean
+  cardVariant: 'spotlight' | 'catalog'
   lessonHandlers?: LessonHandlers
   onOpen: () => void
 }) {
@@ -2245,6 +2253,7 @@ function EpisodeThumb({
       hue={hue}
       hovered={hovered}
       isEditMode={ed.mode === 'edit'}
+      cardVariant={cardVariant}
       lessonHandlers={lessonHandlers}
       onOpen={onOpen}
     />
@@ -2312,6 +2321,7 @@ function RealLessonEpisodeThumb({
   hue,
   hovered,
   isEditMode,
+  cardVariant,
   lessonHandlers,
   onOpen,
 }: {
@@ -2320,6 +2330,7 @@ function RealLessonEpisodeThumb({
   hue: number
   hovered: boolean
   isEditMode: boolean
+  cardVariant: 'spotlight' | 'catalog'
   lessonHandlers?: LessonHandlers
   onOpen: () => void
 }) {
@@ -2420,10 +2431,8 @@ function RealLessonEpisodeThumb({
     }
   }, [hovered, hasPeekVideo, scrollSuppressed])
 
-  const onPickThumb = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    e.target.value = ''
-    if (!file || !lessonHandlers) return
+  const uploadThumbFile = async (file: File) => {
+    if (!lessonHandlers) return
     setThumbBusy(true)
     try {
       await lessonHandlers.uploadThumbnail(lesson.id, file)
@@ -2433,6 +2442,13 @@ function RealLessonEpisodeThumb({
     } finally {
       setThumbBusy(false)
     }
+  }
+
+  const onPickThumb = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    await uploadThumbFile(file)
   }
 
   const onPickVideo = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -2664,15 +2680,30 @@ function RealLessonEpisodeThumb({
               </button>
             </div>
           )}
+          {/* Same rule as the lesson editor: reposition + replace happen
+              against the REAL portal card (correct aspect + variant), not a
+              generic 16:9 tile, so the focal point is set where it actually
+              shows for students. */}
           {reposMode && thumbnailUrl && (
-            <ImageReposOverlay
-              currentPosition={effectivePosition}
-              onChange={(next) => {
-                setLivePos(next)
-                commitPosition(next)
-              }}
-              onDone={() => setReposMode(false)}
-            />
+            <div onClick={(e) => e.stopPropagation()}>
+              <RepositionInPortal
+                variant={cardVariant}
+                imageUrl={thumbnailUrl}
+                position={effectivePosition}
+                title={lesson.title}
+                lessonLabel={`Lesson ${index}`}
+                description={lesson.description}
+                busy={thumbBusy}
+                onReposition={(next) => {
+                  setLivePos(next)
+                  commitPosition(next)
+                }}
+                onReplace={(file) => {
+                  void uploadThumbFile(file)
+                }}
+                onClose={() => setReposMode(false)}
+              />
+            </div>
           )}
           {/* Upload + processing progress overlay. Stays mounted across the
               hand-off from "uploading" → "processing" so the user always
