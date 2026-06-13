@@ -309,8 +309,6 @@ export function LessonEditorV2({
   // The "Reposition in portal" overlay (drag + replace in real context).
   const [reposOpen, setReposOpen] = useState(false)
   const [reposBusy, setReposBusy] = useState(false)
-  const cardVariant: 'spotlight' | 'catalog' =
-    course.lesson_card_variant === 'spotlight' ? 'spotlight' : 'catalog'
 
   const uploadThumbnailFile = async (file: File) => {
     setReposBusy(true)
@@ -705,12 +703,12 @@ export function LessonEditorV2({
 
       {reposOpen && (
         <RepositionInPortal
-          variant={cardVariant}
           imageUrl={thumbUrl}
           position={`${thumbPos.x}% ${thumbPos.y}%`}
           title={title || lesson.title}
           lessonLabel={`${unitCap} ${lessonIdx}`}
           description={desc}
+          instructorName={course.instructor_name}
           busy={reposBusy}
           onReposition={onRepositionThumb}
           onReplace={(file) => void uploadThumbnailFile(file)}

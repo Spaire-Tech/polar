@@ -16,7 +16,21 @@ import {
 } from '@/components/Courses/watch/WatchSheets'
 import { useEffect, useState } from 'react'
 
+// Threaded discussion fixture: a pinned instructor comment, a hearted
+// student comment with an instructor reply, and the viewer's own comment.
+// &mod=1 renders the panel with instructor moderation (pin/heart/delete).
 const COMMENTS: WatchComment[] = [
+  {
+    id: 'c0',
+    name: 'Carla Marín',
+    avatarUrl: 'https://i.pravatar.cc/64?img=32',
+    time: '3d',
+    text: 'Welcome to lesson 2 — drop your between-point routines below and I will heart my favorites.',
+    likes: 41,
+    pinned: true,
+    isInstructor: true,
+    replies: [],
+  },
   {
     id: 'c1',
     name: 'Amara Okeke',
@@ -25,6 +39,18 @@ const COMMENTS: WatchComment[] = [
     text: 'Three minutes in and I already understand why I keep losing close matches.',
     likes: 12,
     liked: true,
+    instructorHearted: true,
+    replies: [
+      {
+        id: 'c1r1',
+        name: 'Carla Marín',
+        avatarUrl: 'https://i.pravatar.cc/64?img=32',
+        time: '2d',
+        text: 'That awareness is 80% of the fix. The routine handles the rest.',
+        likes: 8,
+        isInstructor: true,
+      },
+    ],
   },
   {
     id: 'c2',
@@ -33,6 +59,8 @@ const COMMENTS: WatchComment[] = [
     time: '1d',
     text: 'Coming back after 10 years off. Exactly the reset I needed.',
     likes: 5,
+    isOwn: true,
+    replies: [],
   },
 ]
 
@@ -123,6 +151,7 @@ export default function WatchEmbedPage() {
   }
 
   if (params.get('comments')) {
+    const mod = params.get('mod') === '1'
     return (
       <div style={{ height: '100vh', background: dark ? '#141416' : '#fff' }}>
         {open && (
@@ -130,9 +159,14 @@ export default function WatchEmbedPage() {
             lessonLabel="Lesson 2 · The Athlete’s Mindset"
             comments={COMMENTS}
             dark={dark}
+            canModerate={mod}
+            instructorName="Carla Marín"
             onClose={() => setOpen(false)}
             onLike={() => undefined}
             onPost={() => undefined}
+            onDelete={() => undefined}
+            onPin={mod ? () => undefined : undefined}
+            onHeart={mod ? () => undefined : undefined}
           />
         )}
       </div>

@@ -806,6 +806,113 @@ export function WatchStyles() {
         cursor: default;
       }
 
+      /* ── discussion: threading + instructor moderation ── */
+      .sov2 .cmt-pinned {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--text-2);
+        margin-bottom: 3px;
+      }
+      .sov2 .cmt-badge {
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        padding: 2px 7px;
+        border-radius: 980px;
+        background: rgba(125, 125, 135, 0.18);
+        color: var(--text);
+      }
+      .sov2 .cmt-name.is-instructor {
+        color: var(--blue);
+      }
+      .sov2 .cmt-cheart {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        font-size: 11.5px;
+        font-weight: 600;
+        color: var(--text-2);
+      }
+      .sov2 .cmt-cheart:disabled {
+        cursor: default;
+      }
+      .sov2 .cmt-cheart-ico {
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: rgba(125, 125, 135, 0.16);
+        display: grid;
+        place-items: center;
+      }
+      .sov2 .cmt-cheart.on .cmt-cheart-ico {
+        background: rgba(224, 72, 46, 0.14);
+      }
+      .sov2 .cmt-mod {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--text-2);
+        transition: color 0.15s;
+      }
+      .sov2 .cmt-mod:hover {
+        color: var(--text);
+      }
+      .sov2 .cmt-mod.on {
+        color: var(--blue);
+      }
+      .sov2 .cmt-mod.danger:hover {
+        color: #e0482e;
+      }
+      .sov2 .cmt-replies {
+        margin-top: 14px;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+        padding-left: 2px;
+        border-left: 2px solid var(--hair);
+      }
+      .sov2 .cmt.is-reply {
+        padding-left: 12px;
+      }
+      .sov2 .cmt.is-reply .cmt-av {
+        width: 26px;
+        height: 26px;
+      }
+      .sov2 .cmt-compose-wrap {
+        border-top: 1px solid var(--hair);
+      }
+      .sov2 .cmt-compose-wrap .cmt-compose {
+        border-top: none;
+      }
+      .sov2 .cmt-replying {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 24px 0;
+        font-size: 12px;
+        color: var(--text-2);
+      }
+      .sov2 .cmt-replying strong {
+        color: var(--text);
+        font-weight: 600;
+      }
+      .sov2 .cmt-replying-x {
+        margin-left: 4px;
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        background: rgba(125, 125, 135, 0.16);
+        color: var(--text);
+        display: grid;
+        place-items: center;
+      }
+
       @media (max-width: 820px) {
         .sov2 .player-top {
           padding: 18px 20px;

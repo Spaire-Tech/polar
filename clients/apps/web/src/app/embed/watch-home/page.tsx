@@ -50,7 +50,13 @@ const LESSONS: WatchLessonData[] = [
   L(2, 'The Athlete’s Mindset', 'Before technique, the mind. How champions think between points.', 840),
   L(3, 'Grip & Ready Position', 'The foundation everything is built on.', 1080),
   L(4, 'The Forehand', 'The modern forehand from unit turn to follow-through.', 1560),
-  L(5, 'The Backhand', 'Building a backhand you can trust under pressure.', 1440),
+  // Lesson 5: published video that is still processing on Mux — clicking it
+  // must toast (not route to the legacy lesson player).
+  {
+    ...L(5, 'The Backhand', 'Building a backhand you can trust under pressure.', 1440),
+    mux_playback_id: null,
+    mux_status: 'preparing',
+  },
 ]
 
 export default function WatchHomeEmbed() {
@@ -67,6 +73,22 @@ export default function WatchHomeEmbed() {
   }, [])
   if (!params) return null
   const dark = params.get('dark') === '1'
+  // ?heropos=1 — give the focused lesson a real cover + an extreme saved
+  // focal point so the hero's honoring of thumbnail_object_position is
+  // visible/assertable (the default harness lessons have no thumbnail).
+  const heroPosTest = params.get('heropos') === '1'
+  const lessonsForRender = heroPosTest
+    ? LESSONS.map((l) =>
+        l.id === 'l2'
+          ? {
+              ...l,
+              thumbnail_url:
+                'https://images.unsplash.com/photo-1490645935967-10de6ba17061?w=1200&q=60',
+              thumbnail_object_position: '15% 85%',
+            }
+          : l,
+      )
+    : LESSONS
 
   const data = {
     enrollment_id: 'e1',
@@ -109,7 +131,7 @@ export default function WatchHomeEmbed() {
     <WatchHome
       organization={organization}
       data={data}
-      lessons={LESSONS}
+      lessons={lessonsForRender}
       token=""
       onOpenTextLesson={() => undefined}
       onMarkComplete={() => undefined}

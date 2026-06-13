@@ -19,6 +19,9 @@ import {
   useLessonComments,
   useCreateLessonComment,
   useLikeLessonComment,
+  useDeleteLessonComment,
+  usePinLessonComment,
+  useInstructorHeartComment,
   useMintLessonPlaybackUrl,
   type CustomerCourseDetail,
 } from '@/hooks/queries/courses'
@@ -47,6 +50,7 @@ export type WatchLessonData = {
   position: number
   duration_seconds?: number | null
   thumbnail_url?: string | null
+  thumbnail_object_position?: string | null
   mux_playback_id?: string | null
   mux_status?: string | null
   completed: boolean
@@ -283,27 +287,53 @@ export function WatchHome({
   const { data: rawComments } = useLessonComments(token, courseId, ep?.id ?? '')
   const createComment = useCreateLessonComment(token, courseId, ep?.id ?? '')
   const likeComment = useLikeLessonComment(token, courseId, ep?.id ?? '')
-  const comments: WatchComment[] = useMemo(
-    () =>
-      (rawComments ?? [])
-        .filter((c) => !c.deleted)
-        .map((c) => ({
-          id: c.id,
-          name: c.author?.name?.trim() || 'Student',
-          avatarUrl: c.author?.avatar_url ?? null,
-          time: relTime(c.created_at),
-          text: c.content,
-          likes: c.likes ?? 0,
-          liked: c.liked ?? false,
-        })),
+  const deleteComment = useDeleteLessonComment(token, courseId, ep?.id ?? '')
+  const pinComment = usePinLessonComment(token, courseId, ep?.id ?? '')
+  const heartComment = useInstructorHeartComment(token, courseId, ep?.id ?? '')
+  // Build the threaded list: root comments with their replies nested, the
+  // pinned comment hoisted to the top (YouTube semantics). Replies to
+  // soft-deleted parents fall back to root level so they stay reachable.
+  const comments: WatchComment[] = useMemo(() => {
+    const mapOne = (c: NonNullable<typeof rawComments>[number]): WatchComment => ({
+      id: c.id,
+      name: c.author?.name?.trim() || 'Student',
+      avatarUrl: c.author?.avatar_url ?? null,
+      time: relTime(c.created_at),
+      text: c.content,
+      likes: c.likes ?? 0,
+      liked: c.liked ?? false,
+      isOwn: c.is_own,
+      isInstructor: c.author?.is_instructor ?? false,
+      pinned: c.pinned ?? false,
+      instructorHearted: c.instructor_hearted ?? false,
+      replies: [],
+    })
+    const live = (rawComments ?? []).filter((c) => !c.deleted)
+    const roots = new Map<string, WatchComment>()
+    for (const c of live) {
+      if (!c.parent_id) roots.set(c.id, mapOne(c))
+    }
+    const orphans: WatchComment[] = []
+    for (const c of live) {
+      if (!c.parent_id) continue
+      const parent = roots.get(c.parent_id)
+      if (parent) parent.replies!.push(mapOne(c))
+      else orphans.push(mapOne(c))
+    }
+    const list = [...roots.values(), ...orphans]
+    list.sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0))
+    return list
+  }, [rawComments])
+  const viewerIsInstructor = useMemo(
+    () => (rawComments ?? []).some((c) => c.viewer_is_instructor),
     [rawComments],
   )
   const commentsVisible = (ep?.comments_mode ?? 'visible') === 'visible'
   const [showComments, setShowComments] = useState(false)
   const postComment = useCallback(
-    (text: string) => {
+    (text: string, parentId?: string | null) => {
       createComment.mutate(
-        { content: text },
+        { content: text, parent_id: parentId ?? null },
         { onError: () => showToast('Could not post comment') },
       )
     },
@@ -317,6 +347,35 @@ export function WatchHome({
       likeComment.mutate(id)
     },
     [likeComment],
+  )
+  // Moderation + own-comment delete. Pin and the creator heart are
+  // instructor-only (the buttons only render when viewerIsInstructor, and
+  // the server enforces it regardless).
+  const onDeleteComment = useCallback(
+    (id: string) => {
+      deleteComment.mutate(id, {
+        onError: () => showToast('Could not delete comment'),
+      })
+    },
+    [deleteComment, showToast],
+  )
+  const onPinComment = useCallback(
+    (id: string) => {
+      if (pinComment.isPending) return
+      pinComment.mutate(id, {
+        onError: () => showToast('Could not pin comment'),
+      })
+    },
+    [pinComment, showToast],
+  )
+  const onHeartComment = useCallback(
+    (id: string) => {
+      if (heartComment.isPending) return
+      heartComment.mutate(id, {
+        onError: () => showToast('Could not heart comment'),
+      })
+    },
+    [heartComment, showToast],
   )
 
   /* ── overview sheet ── */
@@ -337,9 +396,20 @@ export function WatchHome({
         showToast('This lesson unlocks later')
         return
       }
-      if (l.content_type !== 'video' || !l.mux_playback_id) {
+      if (l.content_type !== 'video') {
         // Text / quiz lessons use the reading view.
         onOpenTextLesson(l.id)
+        return
+      }
+      if (!l.mux_playback_id) {
+        // A published video lesson whose video isn't playable yet. The old
+        // behavior routed to the legacy lesson player, which dead-ended —
+        // say what's actually happening instead.
+        showToast(
+          l.mux_status
+            ? 'The video is still processing — check back in a few minutes'
+            : 'No video has been uploaded for this lesson yet',
+        )
         return
       }
       const frac = fractionOf(l) ?? 0
@@ -459,23 +529,34 @@ export function WatchHome({
     <div className={`sow${dark ? ' dark' : ''}`}>
       {/* ════════ now-playing hero ════════ */}
       <header className="panel">
-        {lessons.map((l, i) => (
-          <div
-            key={l.id}
-            className={`hero-layer${i === focus ? ' show' : ''}${
-              l.thumbnail_url || course.thumbnail_url ? '' : ' ph'
-            }`}
-            style={
-              l.thumbnail_url || course.thumbnail_url
-                ? {
-                    backgroundImage: `url("${
-                      l.thumbnail_url ?? course.thumbnail_url
-                    }")`,
-                  }
-                : undefined
-            }
-          />
-        ))}
+        {lessons.map((l, i) => {
+          // The hero shows the lesson's own cover when it has one, else the
+          // course cover. Honor whichever image's saved focal point
+          // (thumbnail_object_position) so the framing matches what the
+          // creator set in "Reposition in portal" — falling back to the
+          // template default (center 24%) only when nothing was saved.
+          const usingLessonImage = !!l.thumbnail_url
+          const heroImage = l.thumbnail_url ?? course.thumbnail_url
+          const heroPos = usingLessonImage
+            ? l.thumbnail_object_position
+            : course.thumbnail_object_position
+          return (
+            <div
+              key={l.id}
+              className={`hero-layer${i === focus ? ' show' : ''}${
+                heroImage ? '' : ' ph'
+              }`}
+              style={
+                heroImage
+                  ? {
+                      backgroundImage: `url("${heroImage}")`,
+                      ...(heroPos ? { backgroundPosition: heroPos } : null),
+                    }
+                  : undefined
+              }
+            />
+          )
+        })}
         <div className="panel-scrim" />
         <div className="panel-grain" />
 
@@ -798,9 +879,14 @@ export function WatchHome({
           comments={comments}
           viewerAvatarUrl={data.customer_avatar_url}
           dark={dark}
+          canModerate={viewerIsInstructor}
+          instructorName={course.instructor_name ?? organization.name}
           onClose={() => setShowComments(false)}
           onLike={onLikeComment}
           onPost={commentsVisible ? postComment : undefined}
+          onDelete={onDeleteComment}
+          onPin={viewerIsInstructor ? onPinComment : undefined}
+          onHeart={viewerIsInstructor ? onHeartComment : undefined}
         />
       )}
 
@@ -818,8 +904,12 @@ export function WatchHome({
           instructorName={course.instructor_name ?? organization.name}
           startSec={playing.startSec}
           comments={commentsVisible ? comments : undefined}
+          canModerateComments={viewerIsInstructor}
           onPostComment={commentsVisible ? postComment : undefined}
           onLikeComment={onLikeComment}
+          onDeleteComment={onDeleteComment}
+          onPinComment={viewerIsInstructor ? onPinComment : undefined}
+          onHeartComment={viewerIsInstructor ? onHeartComment : undefined}
           onClose={() => setPlaying(null)}
           onProgress={(f) => onPlayerProgress(playing.lesson.id, f)}
           onComplete={() => onPlayerComplete(playing.lesson.id)}
