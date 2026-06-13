@@ -1,11 +1,11 @@
 'use client'
 
-import { useCustomerCourses } from '@/hooks/queries/courses'
 import { schemas } from '@spaire/client'
 import { usePathname, useSearchParams } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef } from 'react'
 import { MobileTabBar } from './_components/MobileTabBar'
 import { TopBar } from './_components/TopBar'
+import { usePortalTheme } from './usePortalTheme'
 import './portal.css'
 
 const isCourseRoute = (pathname: string): boolean => {
@@ -18,39 +18,6 @@ const isAuthRoute = (pathname: string): boolean => {
     pathname.endsWith('/portal/authenticate') ||
     pathname.endsWith('/portal/claim')
   )
-}
-
-// Portal-wide dark mode: the creator's landing theme follows the customer
-// into EVERY portal page (Overview / Courses / Downloads / Orders /
-// Billing). Dark when any enrolled course's landing theme is dark; the
-// answer is cached per org so revisits don't flash light while the
-// courses query resolves.
-const themeCacheKey = (slug: string) => `sp_theme:${slug}`
-
-const usePortalDark = (slug: string, token: string): boolean => {
-  const { data: enrollments } = useCustomerCourses(token || null)
-  const [dark, setDark] = useState(false)
-  useEffect(() => {
-    try {
-      setDark(window.localStorage.getItem(themeCacheKey(slug)) === 'dark')
-    } catch {
-      /* ignore */
-    }
-  }, [slug])
-  useEffect(() => {
-    if (!enrollments) return
-    const isDark = enrollments.some((e) => e.course.theme_mode === 'dark')
-    setDark(isDark)
-    try {
-      window.localStorage.setItem(
-        themeCacheKey(slug),
-        isDark ? 'dark' : 'light',
-      )
-    } catch {
-      /* ignore */
-    }
-  }, [enrollments, slug])
-  return dark
 }
 
 export const PortalShell = ({
@@ -66,7 +33,8 @@ export const PortalShell = ({
     searchParams.get('customer_session_token') ??
     searchParams.get('member_session_token') ??
     ''
-  const dark = usePortalDark(organization.slug, token)
+  const { dark } = usePortalTheme(organization.slug, token)
+  const rootRef = useRef<HTMLDivElement | null>(null)
   const rootClass = `spaire-portal sp-app sp-app--mobile-tabs${
     dark ? ' sp-dark' : ''
   }`
@@ -75,18 +43,30 @@ export const PortalShell = ({
   const immersive = isCourseRoute(pathname) && !!searchParams.get('lesson')
   const auth = isAuthRoute(pathname)
 
-  // The browser canvas (overscroll) must match the theme on every page.
+  // Paint every ancestor (and the browser canvas) the theme colour. The
+  // (main) layout wraps the portal in a bg-white div; without this the
+  // short pages (Courses / Downloads / Orders) leaked white below the
+  // content and the overscroll flashed white.
   useEffect(() => {
     if (immersive || auth) return
     const bg = dark ? '#141416' : '#ffffff'
+    const touched: { el: HTMLElement; prev: string }[] = []
+    let node: HTMLElement | null = rootRef.current?.parentElement ?? null
+    while (node && node !== document.body) {
+      touched.push({ el: node, prev: node.style.backgroundColor })
+      node.style.backgroundColor = bg
+      node = node.parentElement
+    }
     const root = document.documentElement
+    const body = document.body
     const prevRoot = root.style.backgroundColor
-    const prevBody = document.body.style.backgroundColor
+    const prevBody = body.style.backgroundColor
     root.style.backgroundColor = bg
-    document.body.style.backgroundColor = bg
+    body.style.backgroundColor = bg
     return () => {
+      for (const { el, prev } of touched) el.style.backgroundColor = prev
       root.style.backgroundColor = prevRoot
-      document.body.style.backgroundColor = prevBody
+      body.style.backgroundColor = prevBody
     }
   }, [dark, immersive, auth])
 
@@ -105,11 +85,9 @@ export const PortalShell = ({
 
   // The course portal page renders its own full-bleed layout (cinematic hero
   // + module rows) and so opts out of the standard .sp-page max-width wrapper.
-  // Mobile bottom tab bar stays — the customer needs to be able to leave the
-  // course back to Overview / Orders / Billing.
   if (isCourseRoute(pathname)) {
     return (
-      <div className={rootClass}>
+      <div ref={rootRef} className={rootClass}>
         <TopBar organization={organization} />
         <main className="sp-course-portal">{children}</main>
         <MobileTabBar organization={organization} />
@@ -118,7 +96,7 @@ export const PortalShell = ({
   }
 
   return (
-    <div className={rootClass}>
+    <div ref={rootRef} className={rootClass}>
       <TopBar organization={organization} />
       <main className="sp-page">{children}</main>
       <MobileTabBar organization={organization} />

@@ -1439,3 +1439,87 @@
   --sp-muted-2: rgba(245, 245, 247, 0.4);
   color-scheme: dark;
 }
+
+/* ============================================================
+   DARK MODE — element-level fixes (nav, search, progress, leaks).
+   Light rules hardcode #f4f4f4 / #f0f0f0 / #ececec / white; these
+   override them so the whole portal reads dark.
+   ============================================================ */
+
+/* Active/hover tab: the pill goes light, so the label + icon on it
+   must go DARK (otherwise white-on-white is unreadable). */
+.spaire-portal.sp-dark .sp-tab:hover {
+  color: var(--sp-ink);
+  background: rgba(245, 245, 247, 0.1);
+}
+.spaire-portal.sp-dark .sp-tab.is-active {
+  color: var(--sp-accent-ink);
+  background: var(--sp-accent);
+}
+.spaire-portal.sp-dark .sp-iconbtn:hover {
+  background: rgba(245, 245, 247, 0.1);
+}
+.spaire-portal.sp-dark .sp-tabbar-item.is-active .sp-tabbar-icon {
+  background: rgba(245, 245, 247, 0.12);
+}
+
+/* Search — translucent "water glass" dark, no black focus ring. */
+.spaire-portal.sp-dark .sp-search {
+  background: rgba(245, 245, 247, 0.08);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  backdrop-filter: blur(14px) saturate(140%);
+  color: var(--sp-muted);
+  box-shadow: inset 0 0 0 1px rgba(245, 245, 247, 0.08);
+}
+.spaire-portal.sp-dark .sp-search:hover {
+  background: rgba(245, 245, 247, 0.14);
+  color: var(--sp-ink-2);
+}
+.spaire-portal.sp-dark .sp-search:focus-within {
+  box-shadow: inset 0 0 0 1px rgba(245, 245, 247, 0.18);
+  outline: none;
+}
+.spaire-portal.sp-dark .sp-search input,
+.spaire-portal.sp-dark .sp-search input:focus {
+  outline: none;
+  box-shadow: none;
+}
+
+/* Progress track — was #ececec (invisible against the light fill). */
+.spaire-portal.sp-dark .sp-progress {
+  background: rgba(245, 245, 247, 0.14);
+}
+
+/* Mobile bottom tab bar + active chip. */
+.spaire-portal.sp-dark .sp-tabbar {
+  background: rgba(20, 20, 22, 0.92);
+  border-top-color: var(--sp-line);
+}
+
+/* Misc light leaks that had no dark override. */
+.spaire-portal.sp-dark .sp-pill.is-pending {
+  background: rgba(245, 200, 120, 0.16);
+  color: #f0c27b;
+}
+.spaire-portal.sp-dark .sp-dl-format,
+.spaire-portal.sp-dark .sp-dl-done {
+  background: rgba(20, 20, 22, 0.85);
+  color: var(--sp-ink-2);
+}
+
+/* The page wrapper must paint dark all the way down — the (main)
+   layout behind the portal is bg-white, so a transparent .sp-page on
+   short pages (Courses / Downloads / Orders) leaked white below the
+   content. .sp-app already fills 100vh; make the routed area grow into
+   it and carry the theme bg. */
+.spaire-portal .sp-app {
+  background: var(--sp-bg);
+}
+.spaire-portal .sp-page,
+.spaire-portal .sp-course-portal {
+  flex: 1 1 auto;
+  background: var(--sp-bg);
+}
+.spaire-portal .sp-route {
+  min-height: 100%;
+}
