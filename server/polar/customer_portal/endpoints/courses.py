@@ -1009,14 +1009,20 @@ async def _load_authors(
 ) -> dict[UUID, LessonCommentAuthor]:
     if not enrollment_ids:
         return {}
-    stmt = select(CourseEnrollment.id, Customer.name, Customer.email).join(
-        Customer, Customer.id == CourseEnrollment.customer_id
-    ).where(CourseEnrollment.id.in_(enrollment_ids))
+    stmt = select(
+        CourseEnrollment.id,
+        Customer.name,
+        Customer.email,
+        Customer.avatar_url,
+    ).join(Customer, Customer.id == CourseEnrollment.customer_id).where(
+        CourseEnrollment.id.in_(enrollment_ids)
+    )
     result = await session.execute(stmt)
     return {
         row.id: LessonCommentAuthor(
             enrollment_id=row.id,
             name=_resolve_author_name(row.name, row.email),
+            avatar_url=row.avatar_url,
         )
         for row in result
     }

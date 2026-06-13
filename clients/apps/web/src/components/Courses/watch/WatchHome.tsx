@@ -18,6 +18,7 @@
 import {
   useLessonComments,
   useCreateLessonComment,
+  useLikeLessonComment,
   useMintLessonPlaybackUrl,
   type CustomerCourseDetail,
 } from '@/hooks/queries/courses'
@@ -281,6 +282,7 @@ export function WatchHome({
   /* ── comments (focused lesson) ── */
   const { data: rawComments } = useLessonComments(token, courseId, ep?.id ?? '')
   const createComment = useCreateLessonComment(token, courseId, ep?.id ?? '')
+  const likeComment = useLikeLessonComment(token, courseId, ep?.id ?? '')
   const comments: WatchComment[] = useMemo(
     () =>
       (rawComments ?? [])
@@ -288,8 +290,11 @@ export function WatchHome({
         .map((c) => ({
           id: c.id,
           name: c.author?.name?.trim() || 'Student',
+          avatarUrl: c.author?.avatar_url ?? null,
           time: relTime(c.created_at),
           text: c.content,
+          likes: c.likes ?? 0,
+          liked: c.liked ?? false,
         })),
     [rawComments],
   )
@@ -303,6 +308,15 @@ export function WatchHome({
       )
     },
     [createComment, showToast],
+  )
+  // One like per customer (the mutation is idempotent server-side); guard
+  // against a second in-flight toggle while the first resolves.
+  const onLikeComment = useCallback(
+    (id: string) => {
+      if (likeComment.isPending) return
+      likeComment.mutate(id)
+    },
+    [likeComment],
   )
 
   /* ── overview sheet ── */
@@ -785,6 +799,7 @@ export function WatchHome({
           viewerAvatarUrl={data.customer_avatar_url}
           dark={dark}
           onClose={() => setShowComments(false)}
+          onLike={onLikeComment}
           onPost={commentsVisible ? postComment : undefined}
         />
       )}
@@ -804,6 +819,7 @@ export function WatchHome({
           startSec={playing.startSec}
           comments={commentsVisible ? comments : undefined}
           onPostComment={commentsVisible ? postComment : undefined}
+          onLikeComment={onLikeComment}
           onClose={() => setPlaying(null)}
           onProgress={(f) => onPlayerProgress(playing.lesson.id, f)}
           onComplete={() => onPlayerComplete(playing.lesson.id)}
