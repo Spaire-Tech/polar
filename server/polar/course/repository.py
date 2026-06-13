@@ -1,7 +1,7 @@
 from collections.abc import Sequence
 from uuid import UUID
 
-from sqlalchemy import Select, func, select
+from sqlalchemy import Select, func, select, update
 
 from polar.auth.models import AuthSubject, Organization, User, is_organization, is_user
 from polar.kit.repository import (
@@ -293,6 +293,19 @@ class LessonCommentRepository(
             LessonComment.enrollment_id == enrollment_id,
             LessonComment.lesson_id == lesson_id,
         )
+
+    async def clear_pins_for_lesson(self, lesson_id: UUID) -> None:
+        """Unpin every comment on a lesson — called before pinning a new
+        one so the lesson holds at most a single pin (YouTube semantics)."""
+        statement = (
+            update(LessonComment)
+            .where(
+                LessonComment.lesson_id == lesson_id,
+                LessonComment.pinned_at.isnot(None),
+            )
+            .values(pinned_at=None)
+        )
+        await self.session.execute(statement)
 
     async def get_tombstone_parents(
         self, lesson_id: UUID, parent_ids: set[UUID]

@@ -35,8 +35,12 @@ export function WatchPlayer({
   instructorName,
   startSec = 0,
   comments,
+  canModerateComments,
   onPostComment,
   onLikeComment,
+  onDeleteComment,
+  onPinComment,
+  onHeartComment,
   onClose,
   onProgress,
   onComplete,
@@ -46,8 +50,12 @@ export function WatchPlayer({
   instructorName?: string | null
   startSec?: number
   comments?: WatchComment[]
-  onPostComment?: (text: string) => void
+  canModerateComments?: boolean
+  onPostComment?: (text: string, parentId?: string | null) => void
   onLikeComment?: (id: string) => void
+  onDeleteComment?: (id: string) => void
+  onPinComment?: (id: string) => void
+  onHeartComment?: (id: string) => void
   onClose: () => void
   onProgress?: (frac: number) => void
   onComplete?: () => void
@@ -375,9 +383,14 @@ export function WatchPlayer({
           dark
           lessonLabel={`Lesson ${lesson.n} · ${lesson.title}`}
           comments={comments!}
+          canModerate={canModerateComments}
+          instructorName={instructorName}
           onClose={() => setSide(null)}
           onLike={onLikeComment}
           onPost={onPostComment}
+          onDelete={onDeleteComment}
+          onPin={onPinComment}
+          onHeart={onHeartComment}
         />
       )}
 

@@ -50,7 +50,13 @@ const LESSONS: WatchLessonData[] = [
   L(2, 'The Athlete’s Mindset', 'Before technique, the mind. How champions think between points.', 840),
   L(3, 'Grip & Ready Position', 'The foundation everything is built on.', 1080),
   L(4, 'The Forehand', 'The modern forehand from unit turn to follow-through.', 1560),
-  L(5, 'The Backhand', 'Building a backhand you can trust under pressure.', 1440),
+  // Lesson 5: published video that is still processing on Mux — clicking it
+  // must toast (not route to the legacy lesson player).
+  {
+    ...L(5, 'The Backhand', 'Building a backhand you can trust under pressure.', 1440),
+    mux_playback_id: null,
+    mux_status: 'preparing',
+  },
 ]
 
 export default function WatchHomeEmbed() {

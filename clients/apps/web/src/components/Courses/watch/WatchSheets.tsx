@@ -209,17 +209,37 @@ export type WatchComment = {
   text: string
   likes?: number
   liked?: boolean
+  // Viewer-relative + moderation state (YouTube-style discussion).
+  isOwn?: boolean
+  isInstructor?: boolean
+  pinned?: boolean
+  instructorHearted?: boolean
+  replies?: WatchComment[]
 }
 
 function CommentRow({
   c,
+  isReply,
+  canModerate,
+  instructorName,
   onLike,
+  onReply,
+  onDelete,
+  onPin,
+  onHeart,
 }: {
   c: WatchComment
+  isReply?: boolean
+  canModerate?: boolean
+  instructorName?: string | null
   onLike?: (id: string) => void
+  onReply?: (c: WatchComment) => void
+  onDelete?: (id: string) => void
+  onPin?: (id: string) => void
+  onHeart?: (id: string) => void
 }) {
   return (
-    <div className="cmt">
+    <div className={`cmt${isReply ? ' is-reply' : ''}`}>
       {c.avatarUrl ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img className="cmt-av" src={c.avatarUrl} alt={c.name} />
@@ -227,14 +247,23 @@ function CommentRow({
         <div className="cmt-av" />
       )}
       <div className="cmt-main">
+        {c.pinned && (
+          <div className="cmt-pinned">
+            <Glyph d={SF.pin} size={11} stroke={2} />
+            Pinned{instructorName ? ` by ${instructorName}` : ''}
+          </div>
+        )}
         <div className="cmt-top">
-          <span className="cmt-name">{c.name}</span>
+          <span className={`cmt-name${c.isInstructor ? ' is-instructor' : ''}`}>
+            {c.name}
+          </span>
+          {c.isInstructor && <span className="cmt-badge">Instructor</span>}
           <span className="cmt-dot" />
           <span className="cmt-time">{c.time}</span>
         </div>
         <div className="cmt-text">{c.text}</div>
-        {onLike && (
-          <div className="cmt-actions">
+        <div className="cmt-actions">
+          {onLike && (
             <button
               className={`cmt-like ${c.liked ? 'on' : ''}`}
               onClick={() => onLike(c.id)}
@@ -247,6 +276,75 @@ function CommentRow({
               />
               {(c.likes ?? 0) > 0 && <span>{c.likes}</span>}
             </button>
+          )}
+          {/* The single creator heart, YouTube-style: shown to everyone
+              once given; the instructor can toggle it. */}
+          {(c.instructorHearted || (canModerate && onHeart)) && (
+            <button
+              className={`cmt-cheart ${c.instructorHearted ? 'on' : ''}`}
+              onClick={canModerate && onHeart ? () => onHeart(c.id) : undefined}
+              disabled={!canModerate || !onHeart}
+              title={
+                c.instructorHearted
+                  ? `Loved by ${instructorName ?? 'the instructor'}`
+                  : 'Heart as instructor'
+              }
+            >
+              <span className="cmt-cheart-ico">
+                <Glyph
+                  d={SF.heart}
+                  size={11}
+                  fill={c.instructorHearted ? '#e0482e' : 'none'}
+                  stroke={c.instructorHearted ? 0 : 2}
+                />
+              </span>
+              {c.instructorHearted && (
+                <span className="cmt-cheart-by">
+                  by {instructorName ?? 'instructor'}
+                </span>
+              )}
+            </button>
+          )}
+          {onReply && !isReply && (
+            <button className="cmt-reply" onClick={() => onReply(c)}>
+              Reply
+            </button>
+          )}
+          {canModerate && onPin && !isReply && (
+            <button
+              className={`cmt-mod ${c.pinned ? 'on' : ''}`}
+              onClick={() => onPin(c.id)}
+              title={c.pinned ? 'Unpin' : 'Pin to top'}
+            >
+              <Glyph d={SF.pin} size={13} stroke={2} />
+              {c.pinned ? 'Unpin' : 'Pin'}
+            </button>
+          )}
+          {(c.isOwn || canModerate) && onDelete && (
+            <button
+              className="cmt-mod danger"
+              onClick={() => onDelete(c.id)}
+              title="Delete comment"
+            >
+              <Glyph d={SF.trash} size={13} stroke={2} />
+              Delete
+            </button>
+          )}
+        </div>
+        {(c.replies?.length ?? 0) > 0 && (
+          <div className="cmt-replies">
+            {c.replies!.map((r) => (
+              <CommentRow
+                key={r.id}
+                c={r}
+                isReply
+                canModerate={canModerate}
+                instructorName={instructorName}
+                onLike={onLike}
+                onDelete={onDelete}
+                onHeart={onHeart}
+              />
+            ))}
           </div>
         )}
       </div>
@@ -259,28 +357,51 @@ export function CommentsPanel({
   comments,
   viewerAvatarUrl,
   dark,
+  canModerate,
+  instructorName,
   onClose,
   onLike,
   onPost,
+  onDelete,
+  onPin,
+  onHeart,
 }: {
   lessonLabel: string
   comments: WatchComment[]
   viewerAvatarUrl?: string | null
   dark?: boolean
+  /** True when the viewer is the course's instructor — unlocks pin,
+   *  creator-heart, and delete-any (YouTube-style moderation). */
+  canModerate?: boolean
+  instructorName?: string | null
   onClose: () => void
   onLike?: (id: string) => void
-  onPost?: (text: string) => void
+  onPost?: (text: string, parentId?: string | null) => void
+  onDelete?: (id: string) => void
+  onPin?: (id: string) => void
+  onHeart?: (id: string) => void
 }) {
   const [text, setText] = useState('')
+  const [replyTo, setReplyTo] = useState<WatchComment | null>(null)
   const listRef = useRef<HTMLDivElement | null>(null)
+  const inputRef = useRef<HTMLInputElement | null>(null)
   useEsc(onClose)
+  const total = comments.reduce(
+    (n, c) => n + 1 + (c.replies?.length ?? 0),
+    0,
+  )
   useEffect(() => {
     if (listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight
-  }, [comments.length])
+  }, [total])
   const post = () => {
     if (!text.trim() || !onPost) return
-    onPost(text.trim())
+    onPost(text.trim(), replyTo?.id ?? null)
     setText('')
+    setReplyTo(null)
+  }
+  const startReply = (c: WatchComment) => {
+    setReplyTo(c)
+    inputRef.current?.focus()
   }
   return (
     <div
@@ -303,7 +424,7 @@ export function CommentsPanel({
           </button>
         </div>
         <div className="cmt-count">
-          {comments.length} {comments.length === 1 ? 'comment' : 'comments'}
+          {total} {total === 1 ? 'comment' : 'comments'}
         </div>
         <div className="cmt-list" ref={listRef}>
           {comments.length === 0 ? (
@@ -314,33 +435,65 @@ export function CommentsPanel({
               Be the first to comment on this lesson.
             </div>
           ) : (
-            comments.map((c) => <CommentRow key={c.id} c={c} onLike={onLike} />)
+            comments.map((c) => (
+              <CommentRow
+                key={c.id}
+                c={c}
+                canModerate={canModerate}
+                instructorName={instructorName}
+                onLike={onLike}
+                onReply={onPost ? startReply : undefined}
+                onDelete={onDelete}
+                onPin={onPin}
+                onHeart={onHeart}
+              />
+            ))
           )}
         </div>
         {onPost && (
-          <div className="cmt-compose">
-            {viewerAvatarUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img className="cmt-av sm" src={viewerAvatarUrl} alt="You" />
-            ) : (
-              <div className="cmt-av sm" />
+          <div className="cmt-compose-wrap">
+            {replyTo && (
+              <div className="cmt-replying">
+                <Glyph d={SF.reply} size={12} stroke={2} />
+                Replying to <strong>{replyTo.name}</strong>
+                <button
+                  className="cmt-replying-x"
+                  onClick={() => setReplyTo(null)}
+                  aria-label="Cancel reply"
+                >
+                  <Glyph d={SF.close} size={10} stroke={2.6} />
+                </button>
+              </div>
             )}
-            <input
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') post()
-              }}
-              placeholder="Add to the discussion…"
-            />
-            <button
-              className="cmt-send"
-              disabled={!text.trim()}
-              onClick={post}
-              aria-label="Post"
-            >
-              <Glyph d={SF.send} size={19} fill="currentColor" />
-            </button>
+            <div className="cmt-compose">
+              {viewerAvatarUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img className="cmt-av sm" src={viewerAvatarUrl} alt="You" />
+              ) : (
+                <div className="cmt-av sm" />
+              )}
+              <input
+                ref={inputRef}
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') post()
+                }}
+                placeholder={
+                  replyTo
+                    ? `Reply to ${replyTo.name}…`
+                    : 'Add to the discussion…'
+                }
+              />
+              <button
+                className="cmt-send"
+                disabled={!text.trim()}
+                onClick={post}
+                aria-label="Post"
+              >
+                <Glyph d={SF.send} size={19} fill="currentColor" />
+              </button>
+            </div>
           </div>
         )}
       </aside>

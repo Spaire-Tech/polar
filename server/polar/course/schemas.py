@@ -254,6 +254,9 @@ class LessonCommentAuthor(Schema):
     enrollment_id: UUID4
     name: str | None = None
     avatar_url: str | None = None
+    # True when this author is the course's instructor (their customer
+    # email matches an org member's user email) — drives the badge.
+    is_instructor: bool = False
 
 
 class LessonCommentRead(Schema):
@@ -267,6 +270,13 @@ class LessonCommentRead(Schema):
     # Hearts — total count + whether the requesting customer has liked it.
     likes: int = 0
     liked: bool = False
+    # Instructor moderation, YouTube-style: a pinned comment sorts to the
+    # top; instructor_hearted is the single creator heart.
+    pinned: bool = False
+    instructor_hearted: bool = False
+    # True when the REQUESTING customer is the course's instructor — the
+    # client uses it to show pin / heart / delete-any controls.
+    viewer_is_instructor: bool = False
     # True when the comment has been soft-deleted but is included in the
     # response as a tombstone so its replies remain renderable.
     deleted: bool = False

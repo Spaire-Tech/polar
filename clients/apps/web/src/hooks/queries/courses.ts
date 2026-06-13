@@ -1110,10 +1110,19 @@ export type LessonCommentRead = {
     enrollment_id: string
     name: string | null
     avatar_url?: string | null
+    // The course's instructor — drives the badge next to the name.
+    is_instructor?: boolean
   }
   // Hearts — total count + whether the requesting customer has liked it.
   likes?: number
   liked?: boolean
+  // Instructor moderation (YouTube-style): a pinned comment sorts to the
+  // top; instructor_hearted is the single creator heart.
+  pinned?: boolean
+  instructor_hearted?: boolean
+  // True when the REQUESTING customer is the instructor — shows the
+  // pin / heart / delete-any controls.
+  viewer_is_instructor?: boolean
   // Soft-deleted parents come back as tombstones so their replies stay in
   // the tree. The frontend renders them as "Comment deleted" placeholders.
   deleted?: boolean
@@ -1197,6 +1206,62 @@ export const useDeleteLessonComment = (
       getQueryClient().invalidateQueries({
         queryKey: ['lesson-comments', token, courseId, lessonId],
       })
+    },
+  })
+
+// Instructor-only: pin/unpin a comment (at most one pinned per lesson —
+// the server unpins siblings) and the single creator heart. Both write the
+// fresh state straight into the cached list.
+export const usePinLessonComment = (
+  token: string | null | undefined,
+  courseId: string | undefined,
+  lessonId: string | null | undefined,
+) =>
+  useMutation({
+    mutationFn: (commentId: string) =>
+      portalApiFetch<{ pinned: boolean }>(
+        `/v1/customer-portal/courses/${courseId}/lessons/${lessonId}/comments/${commentId}/pin`,
+        token!,
+        { method: 'POST' },
+      ),
+    onSuccess: (res, commentId) => {
+      getQueryClient().setQueryData<LessonCommentRead[]>(
+        ['lesson-comments', token, courseId, lessonId],
+        (prev) =>
+          prev?.map((c) =>
+            c.id === commentId
+              ? { ...c, pinned: res.pinned }
+              : // Single-pin semantics: pinning one unpins the rest.
+                res.pinned
+                ? { ...c, pinned: false }
+                : c,
+          ),
+      )
+    },
+  })
+
+export const useInstructorHeartComment = (
+  token: string | null | undefined,
+  courseId: string | undefined,
+  lessonId: string | null | undefined,
+) =>
+  useMutation({
+    mutationFn: (commentId: string) =>
+      portalApiFetch<{ hearted: boolean }>(
+        `/v1/customer-portal/courses/${courseId}/lessons/${lessonId}/comments/${commentId}/instructor-heart`,
+        token!,
+        { method: 'POST' },
+      ),
+    onSuccess: (res, commentId) => {
+      getQueryClient().setQueryData<LessonCommentRead[]>(
+        ['lesson-comments', token, courseId, lessonId],
+        (prev) =>
+          prev?.map((c) =>
+            c.id === commentId
+              ? { ...c, instructor_hearted: res.hearted }
+              : c,
+          ),
+      )
     },
   })
 

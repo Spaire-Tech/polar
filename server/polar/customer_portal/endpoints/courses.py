@@ -8,7 +8,8 @@ from sqlalchemy.orm import selectinload
 
 log = logging.getLogger(__name__)
 
-from polar.auth.models import is_customer, is_member
+from polar.auth.models import AuthSubject, Member, is_customer, is_member
+from polar.auth.models import Customer as CustomerSubject
 from polar.course import mux as mux_client
 from polar.course.repository import CourseLessonRepository
 from polar.organization.repository import OrganizationRepository
@@ -36,12 +37,14 @@ from polar.models.course_enrollment import CourseEnrollment
 from polar.models.course_lesson_progress import CourseLessonProgress
 from polar.models.product import Product
 from polar.models.product_media import ProductMedia
+from polar.models.user import User
+from polar.models.user_organization import UserOrganization
 from polar.openapi import APITag
 from polar.postgres import AsyncSession, get_db_session
 from polar.routing import APIRouter
 
 from .. import auth
-from ..utils import get_customer_id
+from ..utils import get_customer, get_customer_id
 
 router = APIRouter(prefix="/courses", tags=["customer_portal_courses", APITag.public])
 
@@ -1005,8 +1008,28 @@ def _resolve_author_name(name: str | None, email: str | None) -> str | None:
     return None
 
 
+async def _instructor_emails(
+    session: AsyncSession, organization_id: UUID
+) -> set[str]:
+    """Lowercased emails of the course org's members. A portal customer
+    whose email matches one of these is the instructor — they authored the
+    course and moderate its discussion (badge, pin, heart, delete-any)."""
+    stmt = (
+        select(User.email)
+        .join(UserOrganization, UserOrganization.user_id == User.id)
+        .where(
+            UserOrganization.organization_id == organization_id,
+            UserOrganization.deleted_at.is_(None),
+        )
+    )
+    result = await session.execute(stmt)
+    return {row.email.lower() for row in result if row.email}
+
+
 async def _load_authors(
-    session: AsyncSession, enrollment_ids: set[UUID]
+    session: AsyncSession,
+    enrollment_ids: set[UUID],
+    instructor_emails: set[str] | None = None,
 ) -> dict[UUID, LessonCommentAuthor]:
     if not enrollment_ids:
         return {}
@@ -1024,9 +1047,29 @@ async def _load_authors(
             enrollment_id=row.id,
             name=_resolve_author_name(row.name, row.email),
             avatar_url=row.avatar_url,
+            is_instructor=bool(
+                instructor_emails
+                and row.email
+                and row.email.lower() in instructor_emails
+            ),
         )
         for row in result
     }
+
+
+async def _viewer_is_instructor(
+    session: AsyncSession,
+    auth_subject: AuthSubject[CustomerSubject | Member],
+    organization_id: UUID,
+    instructor_emails: set[str] | None = None,
+) -> tuple[bool, set[str]]:
+    """(is_instructor, instructor_emails) for the requesting customer.
+    Pass pre-fetched emails to skip the org-members query."""
+    if instructor_emails is None:
+        instructor_emails = await _instructor_emails(session, organization_id)
+    customer = get_customer(auth_subject)
+    email = (customer.email or "").lower()
+    return bool(email and email in instructor_emails), instructor_emails
 
 
 @router.get(
@@ -1051,7 +1094,15 @@ async def list_lesson_comments(
     comments = await course_service.list_lesson_comments(
         session, lesson_id=lesson_id
     )
-    authors = await _load_authors(session, {c.enrollment_id for c in comments})
+    # Instructor identity: badge authors whose customer email matches an
+    # org member, and tell the client whether the VIEWER is the instructor
+    # (drives pin / heart / delete-any controls).
+    viewer_instructor, instructor_emails = await _viewer_is_instructor(
+        session, auth_subject, enrollment.course.organization_id
+    )
+    authors = await _load_authors(
+        session, {c.enrollment_id for c in comments}, instructor_emails
+    )
     # Hearts — total per comment + whether this enrollment has liked it.
     # Tombstones never carry likes (their body is stripped too).
     like_targets = [c.id for c in comments if c.deleted_at is None]
@@ -1075,6 +1126,11 @@ async def list_lesson_comments(
             ),
             likes=like_counts.get(c.id, 0),
             liked=c.id in liked_ids,
+            pinned=c.pinned_at is not None and c.deleted_at is None,
+            instructor_hearted=(
+                c.instructor_hearted_at is not None and c.deleted_at is None
+            ),
+            viewer_is_instructor=viewer_instructor,
             deleted=c.deleted_at is not None,
         )
         for c in comments
@@ -1119,7 +1175,10 @@ async def create_lesson_comment(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-    authors = await _load_authors(session, {enrollment.id})
+    viewer_instructor, instructor_emails = await _viewer_is_instructor(
+        session, auth_subject, enrollment.course.organization_id
+    )
+    authors = await _load_authors(session, {enrollment.id}, instructor_emails)
     return LessonCommentRead(
         id=comment.id,
         lesson_id=comment.lesson_id,
@@ -1131,6 +1190,7 @@ async def create_lesson_comment(
             enrollment.id,
             LessonCommentAuthor(enrollment_id=enrollment.id, name=None),
         ),
+        viewer_is_instructor=viewer_instructor,
     )
 
 
@@ -1153,9 +1213,85 @@ async def delete_lesson_comment(
     comment = await course_service.get_lesson_comment(session, comment_id)
     if comment is None or comment.lesson_id != lesson_id:
         raise HTTPException(status_code=404, detail="Comment not found")
+    # Own comments are always deletable; the instructor moderates the whole
+    # discussion (YouTube-style) and can delete anyone's.
     if comment.enrollment_id != enrollment.id:
-        raise HTTPException(status_code=403, detail="Not your comment")
+        viewer_instructor, _ = await _viewer_is_instructor(
+            session, auth_subject, enrollment.course.organization_id
+        )
+        if not viewer_instructor:
+            raise HTTPException(status_code=403, detail="Not your comment")
     await course_service.delete_lesson_comment(session, comment)
+
+
+async def _get_moderatable_comment(
+    session: AsyncSession,
+    auth_subject: AuthSubject[CustomerSubject | Member],
+    course_id: UUID,
+    lesson_id: UUID,
+    comment_id: UUID,
+):
+    """Shared guard for pin/heart: lesson must be enrolled + accessible,
+    the comment live, and the viewer the course's instructor."""
+    customer_id = get_customer_id(auth_subject)
+    enrollment, _ = await _verify_lesson_in_enrolled_course(
+        session, customer_id, course_id, lesson_id
+    )
+    viewer_instructor, _ = await _viewer_is_instructor(
+        session, auth_subject, enrollment.course.organization_id
+    )
+    if not viewer_instructor:
+        raise HTTPException(
+            status_code=403, detail="Only the instructor can moderate comments"
+        )
+    comment = await course_service.get_lesson_comment(session, comment_id)
+    if (
+        comment is None
+        or comment.lesson_id != lesson_id
+        or comment.deleted_at is not None
+    ):
+        raise HTTPException(status_code=404, detail="Comment not found")
+    return comment
+
+
+@router.post(
+    "/{course_id}/lessons/{lesson_id}/comments/{comment_id}/pin",
+    summary="Toggle Lesson Comment Pin",
+)
+async def pin_lesson_comment(
+    course_id: UUID,
+    lesson_id: UUID,
+    comment_id: UUID,
+    auth_subject: auth.CustomerPortalUnionRead,
+    session: AsyncSession = Depends(get_db_session),
+) -> dict[str, bool]:
+    comment = await _get_moderatable_comment(
+        session, auth_subject, course_id, lesson_id, comment_id
+    )
+    pinned = await course_service.toggle_lesson_comment_pin(
+        session, comment=comment
+    )
+    return {"pinned": pinned}
+
+
+@router.post(
+    "/{course_id}/lessons/{lesson_id}/comments/{comment_id}/instructor-heart",
+    summary="Toggle Instructor Heart",
+)
+async def instructor_heart_comment(
+    course_id: UUID,
+    lesson_id: UUID,
+    comment_id: UUID,
+    auth_subject: auth.CustomerPortalUnionRead,
+    session: AsyncSession = Depends(get_db_session),
+) -> dict[str, bool]:
+    comment = await _get_moderatable_comment(
+        session, auth_subject, course_id, lesson_id, comment_id
+    )
+    hearted = await course_service.toggle_instructor_heart(
+        session, comment=comment
+    )
+    return {"hearted": hearted}
 
 
 @router.post(

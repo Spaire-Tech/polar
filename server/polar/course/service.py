@@ -826,6 +826,43 @@ class CourseService:
         liked = await repo.liked_comment_ids(comment_ids, enrollment_id)
         return counts, liked
 
+    async def toggle_lesson_comment_pin(
+        self,
+        session: AsyncSession,
+        *,
+        comment: LessonComment,
+    ) -> bool:
+        """Pin/unpin a comment, YouTube-style: at most one pinned comment
+        per lesson, so pinning clears the pin on any sibling first.
+        Returns the comment's new pinned state."""
+        repo = LessonCommentRepository.from_session(session)
+        if comment.pinned_at is not None:
+            await repo.update(comment, update_dict={"pinned_at": None})
+            return False
+        await repo.clear_pins_for_lesson(comment.lesson_id)
+        await repo.update(
+            comment, update_dict={"pinned_at": datetime.now(tz=UTC)}
+        )
+        return True
+
+    async def toggle_instructor_heart(
+        self,
+        session: AsyncSession,
+        *,
+        comment: LessonComment,
+    ) -> bool:
+        """Toggle the single creator heart on a comment. Returns the new
+        hearted state."""
+        repo = LessonCommentRepository.from_session(session)
+        hearted = comment.instructor_hearted_at is None
+        await repo.update(
+            comment,
+            update_dict={
+                "instructor_hearted_at": datetime.now(tz=UTC) if hearted else None
+            },
+        )
+        return hearted
+
     # --- Flat lesson gating logic ---
 
     async def get_all_lessons_for_course(
