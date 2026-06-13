@@ -71,6 +71,7 @@ from .form_submission import FormSubmission
 from .held_balance import HeldBalance
 from .issue_reward import IssueReward
 from .lesson_comment import LessonComment
+from .lesson_comment_like import LessonCommentLike
 from .license_key import LicenseKey
 from .license_key_activation import LicenseKeyActivation
 from .login_code import LoginCode
@@ -207,6 +208,7 @@ __all__ = [
     "LegacyRecurringProductPriceFixed",
     "LegacyRecurringProductPriceFree",
     "LessonComment",
+    "LessonCommentLike",
     "LicenseKey",
     "LicenseKeyActivation",
     "LoginCode",

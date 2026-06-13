@@ -670,6 +670,110 @@ export function WatchPageStyles() {
         gap: 5px;
       }
 
+      /* ── spotlight lesson card (text over the image) ── */
+      .sow .grid .lc-spot {
+        flex: 0 0 calc((100% - 60px) / 4);
+        scroll-snap-align: start;
+      }
+      .sow .lc-spot {
+        cursor: pointer;
+        letter-spacing: -0.014em;
+      }
+      .sow .spot-card {
+        position: relative;
+        width: 100%;
+        aspect-ratio: 465 / 320;
+        border-radius: 18px;
+        overflow: hidden;
+        background: #111;
+        box-shadow: 0 14px 14px rgba(0, 0, 0, 0.04);
+        transition: transform 0.26s cubic-bezier(0.34, 1.3, 0.64, 1),
+          box-shadow 0.26s;
+      }
+      .sow .lc-spot:hover .spot-card {
+        transform: translateY(-5px);
+        box-shadow: 0 16px 48px rgba(0, 0, 0, 0.22);
+      }
+      .sow .spot-card .img {
+        position: absolute;
+        inset: 0;
+        background-size: cover;
+        background-position: center;
+      }
+      .sow .spot-card.ph .img {
+        background: radial-gradient(
+            42% 52% at 20% 28%,
+            #6e7a5e 0%,
+            transparent 70%
+          ),
+          radial-gradient(46% 56% at 76% 22%, #8a7565 0%, transparent 70%),
+          radial-gradient(52% 62% at 62% 82%, #46464c 0%, transparent 72%),
+          #57544e;
+      }
+      .sow .spot-shade {
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(
+          to top,
+          rgba(0, 0, 0, 0.85) 0%,
+          rgba(0, 0, 0, 0.4) 40%,
+          rgba(0, 0, 0, 0.1) 100%
+        );
+      }
+      .sow .spot-info {
+        position: absolute;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        z-index: 10;
+        padding: 0 16px 14px;
+      }
+      .sow .spot-info .lc-num {
+        color: rgba(235, 235, 245, 0.66);
+      }
+      .sow .spot-title {
+        font-size: 16px;
+        font-weight: 600;
+        letter-spacing: -0.015em;
+        line-height: 1.2;
+        color: #fff;
+        margin-top: 2px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .sow .spot-desc {
+        font-size: 13px;
+        line-height: 1.45;
+        color: rgba(235, 235, 245, 0.72);
+        margin-top: 3px;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        min-height: 37px;
+      }
+      .sow .spot-info .lc-meta {
+        color: rgba(235, 235, 245, 0.75);
+        margin-top: 6px;
+        padding-top: 0;
+      }
+      @media (max-width: 1200px) {
+        .sow .grid .lc-spot {
+          flex-basis: calc((100% - 40px) / 3);
+        }
+      }
+      @media (max-width: 820px) {
+        .sow .grid .lc-spot {
+          flex-basis: calc((100% - 20px) / 2);
+        }
+      }
+      @media (max-width: 560px) {
+        .sow .grid .lc-spot {
+          flex-basis: 82%;
+        }
+      }
+
       /* now-playing equaliser bars */
       .sow .nowbars {
         display: inline-flex;

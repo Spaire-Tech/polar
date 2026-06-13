@@ -90,6 +90,8 @@ export default function WatchHomeEmbed() {
       format: 'course',
       paywall_enabled: false,
       paywall_position: null,
+      lesson_card_variant:
+        params.get('card') === 'spotlight' ? 'spotlight' : 'catalog',
       landing_overrides: { theme_mode: dark ? 'dark' : 'light' },
       modules: [],
       lessons: [],

@@ -16,6 +16,7 @@ from polar.models.course_module import CourseModule
 from polar.models.course_note import CourseNote
 from polar.models.customer import Customer
 from polar.models.lesson_comment import LessonComment
+from polar.models.lesson_comment_like import LessonCommentLike
 from polar.models.product_benefit import ProductBenefit
 from polar.postgres import AsyncSession
 
@@ -26,6 +27,7 @@ from .repository import (
     CourseModuleRepository,
     CourseNoteRepository,
     CourseRepository,
+    LessonCommentLikeRepository,
     LessonCommentRepository,
 )
 from .schemas import (
@@ -777,6 +779,52 @@ class CourseService:
     ) -> None:
         repo = LessonCommentRepository.from_session(session)
         await repo.soft_delete(comment)
+
+    async def toggle_lesson_comment_like(
+        self,
+        session: AsyncSession,
+        *,
+        comment: LessonComment,
+        enrollment_id: UUID,
+    ) -> tuple[bool, int]:
+        """Toggle the requesting enrollment's heart on a comment.
+
+        Returns (liked, likes) — the new liked state for this enrollment and
+        the comment's total like count. The unique (comment, enrollment)
+        constraint means a row can exist at most once, so a second call
+        hard-deletes it: there is no way to double-like.
+        """
+        repo = LessonCommentLikeRepository.from_session(session)
+        existing = await repo.get_like(comment.id, enrollment_id)
+        if existing is not None:
+            await session.delete(existing)
+            await session.flush()
+            liked = False
+        else:
+            await repo.create(
+                LessonCommentLike(
+                    lesson_comment_id=comment.id,
+                    enrollment_id=enrollment_id,
+                ),
+                flush=True,
+            )
+            liked = True
+        likes = await repo.count_for_comment(comment.id)
+        return liked, likes
+
+    async def get_lesson_comment_likes(
+        self,
+        session: AsyncSession,
+        *,
+        comment_ids: Sequence[UUID],
+        enrollment_id: UUID,
+    ) -> tuple[dict[UUID, int], set[UUID]]:
+        """Bulk like data for a listing: (counts by comment id, set of
+        comment ids the requesting enrollment has liked)."""
+        repo = LessonCommentLikeRepository.from_session(session)
+        counts = await repo.counts_for_comments(comment_ids)
+        liked = await repo.liked_comment_ids(comment_ids, enrollment_id)
+        return counts, liked
 
     # --- Flat lesson gating logic ---
 

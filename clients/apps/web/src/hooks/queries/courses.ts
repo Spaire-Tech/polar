@@ -1106,7 +1106,14 @@ export type LessonCommentRead = {
   content: string
   created_at: string
   is_own: boolean
-  author: { enrollment_id: string; name: string | null }
+  author: {
+    enrollment_id: string
+    name: string | null
+    avatar_url?: string | null
+  }
+  // Hearts — total count + whether the requesting customer has liked it.
+  likes?: number
+  liked?: boolean
   // Soft-deleted parents come back as tombstones so their replies stay in
   // the tree. The frontend renders them as "Comment deleted" placeholders.
   deleted?: boolean
@@ -1143,6 +1150,34 @@ export const useCreateLessonComment = (
       getQueryClient().invalidateQueries({
         queryKey: ['lesson-comments', token, courseId, lessonId],
       })
+    },
+  })
+
+// Toggle a heart on a lesson comment. The server flips the like for the
+// requesting customer (one per customer — no double-likes) and returns the
+// new count + state, which we write straight into the cached comment list.
+export const useLikeLessonComment = (
+  token: string | null | undefined,
+  courseId: string | undefined,
+  lessonId: string | null | undefined,
+) =>
+  useMutation({
+    mutationFn: (commentId: string) =>
+      portalApiFetch<{ liked: boolean; likes: number }>(
+        `/v1/customer-portal/courses/${courseId}/lessons/${lessonId}/comments/${commentId}/like`,
+        token!,
+        { method: 'POST' },
+      ),
+    onSuccess: (res, commentId) => {
+      getQueryClient().setQueryData<LessonCommentRead[]>(
+        ['lesson-comments', token, courseId, lessonId],
+        (prev) =>
+          prev?.map((c) =>
+            c.id === commentId
+              ? { ...c, liked: res.liked, likes: res.likes }
+              : c,
+          ),
+      )
     },
   })
 

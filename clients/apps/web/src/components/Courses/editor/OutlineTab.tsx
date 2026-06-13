@@ -104,19 +104,12 @@ function formatDuration(seconds: number | null): string {
   return `${m}m`
 }
 
-// The outline renders the SAME card the landing shows — Spotlight (text
-// over the image) or Catalog (text under the image) per the course's
-// lesson_card_variant — with the editor's affordances layered on top:
-// drag-to-reorder, Live / lock / drip chips, hover play, options menu
-// (publish / schedule / free preview / delete).
 function LessonCard({
   lesson,
   position,
   locked,
   isSelected,
   isReorderable,
-  variant,
-  unitCap,
   onSelect,
   onUpdate,
   onDelete,
@@ -126,8 +119,6 @@ function LessonCard({
   locked: boolean
   isSelected: boolean
   isReorderable: boolean
-  variant: 'spotlight' | 'catalog'
-  unitCap: string
   onSelect: () => void
   onUpdate: (patch: LessonOptionsPatch) => void
   onDelete: () => void
@@ -142,159 +133,6 @@ function LessonCard({
   } = useSortable({ id: lesson.id, disabled: !isReorderable })
   const [menuOpen, setMenuOpen] = useState(false)
 
-  // Editor chips shared by both variants, overlaid on the artwork.
-  const overlays = (
-    <>
-      {isReorderable && (
-        <button
-          {...attributes}
-          {...listeners}
-          onClick={(e) => e.stopPropagation()}
-          aria-label="Drag to reorder lesson"
-          className="absolute top-2 left-2 z-20 flex h-[22px] w-[22px] cursor-grab items-center justify-center rounded-md bg-black/45 opacity-0 backdrop-blur-sm transition-opacity group-hover:opacity-100 active:cursor-grabbing"
-        >
-          <DragIndicatorOutlined sx={{ fontSize: 13 }} className="text-white" />
-        </button>
-      )}
-      <div className="absolute top-2 right-2 z-10 flex items-center gap-1.5">
-        {(lesson.drip_days != null || lesson.release_at) && (
-          <span className="rounded-full bg-amber-500/90 px-2 py-[3px] text-[9px] font-bold tracking-[0.06em] text-white uppercase backdrop-blur-sm">
-            {lesson.drip_days != null ? `Drip ${lesson.drip_days}d` : 'Scheduled'}
-          </span>
-        )}
-        {lesson.published ? (
-          <span className="inline-flex items-center gap-1 rounded-full bg-green-100/95 px-2 py-[3px] text-[9px] font-semibold tracking-[0.05em] text-green-700 uppercase">
-            <span className="h-1 w-1 rounded-full bg-green-500" />
-            Live
-          </span>
-        ) : (
-          <span className="rounded-full bg-black/45 px-2 py-[3px] text-[9px] font-semibold tracking-[0.05em] text-white/85 uppercase backdrop-blur-sm">
-            Draft
-          </span>
-        )}
-        {locked && (
-          <span className="flex h-[20px] w-[20px] items-center justify-center rounded-full bg-black/45 backdrop-blur-sm">
-            <LockOutlined sx={{ fontSize: 11 }} className="text-white" />
-          </span>
-        )}
-      </div>
-      {/* hover play — the landing's circular play affordance */}
-      <div className="absolute inset-0 z-[5] flex items-center justify-center bg-transparent transition-colors group-hover:bg-black/15">
-        <div className="flex h-10 w-10 scale-75 items-center justify-center rounded-full bg-white/95 pl-[2px] opacity-0 shadow-[0_8px_32px_rgba(0,0,0,0.4)] transition-all group-hover:scale-100 group-hover:opacity-100">
-          <PlayArrowRounded sx={{ fontSize: 20 }} className="text-gray-900" />
-        </div>
-      </div>
-    </>
-  )
-
-  const optionsButton = (overlaid: boolean) => (
-    <div
-      className={
-        overlaid ? 'absolute right-2 bottom-2 z-30' : 'relative'
-      }
-    >
-      <button
-        onClick={(e) => {
-          e.stopPropagation()
-          setMenuOpen((v) => !v)
-        }}
-        className={
-          overlaid
-            ? 'flex h-7 w-7 items-center justify-center rounded-full bg-black/45 text-white/90 opacity-0 backdrop-blur-sm transition-opacity group-hover:opacity-100 hover:bg-black/65'
-            : 'flex items-center rounded-md p-[2px_3px] text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700'
-        }
-        aria-label="Lesson options"
-      >
-        <MoreHorizOutlined sx={{ fontSize: overlaid ? 16 : 14 }} />
-      </button>
-      {menuOpen && (
-        <LessonOptionsMenu
-          lesson={lesson}
-          onUpdate={onUpdate}
-          onDelete={onDelete}
-          onClose={() => setMenuOpen(false)}
-        />
-      )}
-    </div>
-  )
-
-  if (variant === 'spotlight') {
-    // ── Spotlight — the landing's image card, text over the photo. ──
-    return (
-      <div
-        ref={setNodeRef}
-        style={{
-          transform: CSS.Transform.toString(transform),
-          transition,
-          opacity: isDragging ? 0.4 : 1,
-        }}
-        onClick={onSelect}
-        className={[
-          'group relative cursor-pointer overflow-visible rounded-[18px] transition-all',
-          menuOpen ? 'z-40' : isDragging ? 'z-30' : '',
-          'hover:-translate-y-0.5',
-          isSelected
-            ? 'ring-2 ring-gray-900 ring-offset-2'
-            : '',
-        ].join(' ')}
-      >
-        <div
-          className="relative w-full overflow-hidden rounded-[18px] shadow-[0_14px_14px_rgba(0,0,0,0.04)]"
-          style={{ aspectRatio: '465 / 320' }}
-        >
-          {lesson.thumbnail_url ? (
-            <img
-              src={lesson.thumbnail_url}
-              alt=""
-              className="absolute inset-0 h-full w-full object-cover"
-              style={{
-                objectPosition: lesson.thumbnail_object_position ?? '50% 50%',
-              }}
-            />
-          ) : (
-            // the landing's liquid-glass placeholder
-            <div
-              className="absolute -inset-[15%]"
-              style={{
-                background:
-                  'radial-gradient(42% 52% at 20% 28%, #6e7a5e 0%, transparent 70%), radial-gradient(46% 56% at 76% 22%, #8a7565 0%, transparent 70%), radial-gradient(52% 62% at 62% 82%, #46464c 0%, transparent 72%), radial-gradient(36% 46% at 28% 78%, #5d6e6a 0%, transparent 70%), #57544e',
-                filter: 'blur(40px)',
-              }}
-            />
-          )}
-          <div
-            className="absolute inset-0"
-            style={{
-              background:
-                'linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.4) 40%, rgba(0,0,0,0.1) 100%)',
-            }}
-          />
-          {overlays}
-          {/* landing card-info: text over the image */}
-          <div className="absolute right-0 bottom-0 left-0 z-10 px-4 pb-[13px]">
-            <div className="text-[10px] font-semibold tracking-[0.07em] text-[rgba(235,235,245,0.66)] uppercase">
-              {unitCap} {position}
-            </div>
-            <div className="mt-1 truncate text-[16px] leading-[1.2] font-semibold tracking-[-0.015em] text-white">
-              {lesson.title}
-            </div>
-            {lesson.description && (
-              <div className="mt-[3px] line-clamp-2 text-[13px] leading-[1.45] text-[rgba(235,235,245,0.72)]">
-                {lesson.description}
-              </div>
-            )}
-            <div className="mt-[6px] flex items-center gap-1.5 text-[12px] font-medium text-[rgba(235,235,245,0.75)] tabular-nums">
-              <ScheduleOutlined sx={{ fontSize: 12 }} />
-              {formatDuration(lesson.duration_seconds)}
-            </div>
-          </div>
-          {optionsButton(true)}
-        </div>
-      </div>
-    )
-  }
-
-  // ── Catalog — the landing's white card, text under the image. ──
   return (
     <div
       ref={setNodeRef}
@@ -306,36 +144,87 @@ function LessonCard({
       onClick={onSelect}
       className={cardWrapperClass(isSelected, isDragging, menuOpen)}
     >
-      <div
-        className="relative w-full overflow-hidden rounded-t-2xl bg-[#111]"
-        style={{ aspectRatio: '380 / 214' }}
-      >
+      <div className="relative aspect-video w-full overflow-hidden rounded-t-2xl">
         <ThumbArt
           thumbnailUrl={lesson.thumbnail_url ?? null}
           objectPosition={lesson.thumbnail_object_position ?? null}
           position={position}
         />
-        {overlays}
-      </div>
-      {/* landing lc-info: text under the image */}
-      <div className="flex flex-col px-4 pt-[13px] pb-[14px]">
-        <div className="mb-[5px] text-[10px] font-semibold tracking-[0.08em] text-[#86868b] uppercase">
-          {unitCap} {position}
+        {/* Ep badge — fades out on hover so the drag handle can sit in the same spot. */}
+        <div className="absolute top-[7px] left-2 z-10 text-[9px] font-semibold tracking-[0.07em] text-white/75 uppercase [text-shadow:0_1px_3px_rgba(0,0,0,0.5)] transition-opacity group-hover:opacity-0">
+          Ep {position}
         </div>
-        <div className="truncate text-[15px] leading-[1.2] font-semibold tracking-[-0.02em] text-[#1d1d1f]">
-          {lesson.title}
-        </div>
-        {lesson.description && (
-          <div className="mt-[5px] line-clamp-2 min-h-[36px] text-[12.5px] leading-[1.5] text-[rgba(0,0,0,0.56)]">
-            {lesson.description}
+        {isReorderable && (
+          <button
+            {...attributes}
+            {...listeners}
+            onClick={(e) => e.stopPropagation()}
+            aria-label="Drag to reorder lesson"
+            className="absolute top-[7px] left-2 z-20 flex h-[18px] w-[18px] cursor-grab items-center justify-center rounded-md bg-black/45 opacity-0 backdrop-blur-sm transition-opacity group-hover:opacity-100 active:cursor-grabbing"
+          >
+            <DragIndicatorOutlined sx={{ fontSize: 11 }} className="text-white" />
+          </button>
+        )}
+        {locked && (
+          <div className="absolute top-[7px] right-2 flex h-[18px] w-[18px] items-center justify-center rounded-full bg-black/45 backdrop-blur-sm">
+            <LockOutlined sx={{ fontSize: 10 }} className="text-white" />
           </div>
         )}
-        <div className="mt-2 flex items-center justify-between">
-          <div className="flex items-center gap-1.5 text-[12px] font-medium text-[#86868b] tabular-nums">
-            <ScheduleOutlined sx={{ fontSize: 12 }} />
+        {lesson.published && (
+          <span className="absolute top-[7px] right-2 inline-flex items-center gap-1 rounded-full bg-green-100 px-1.5 py-0.5 text-[9px] font-semibold tracking-[0.05em] text-green-700 uppercase">
+            <span className="h-1 w-1 rounded-full bg-green-500" />
+            Live
+          </span>
+        )}
+        {(lesson.drip_days != null || lesson.release_at) && (
+          <div className="absolute bottom-[7px] left-2 z-10 flex items-center gap-1">
+            {lesson.drip_days != null && (
+              <span className="rounded-md bg-amber-500/90 px-1.5 py-[2px] text-[8.5px] font-bold tracking-[0.08em] text-white uppercase backdrop-blur-sm">
+                Drip {lesson.drip_days}d
+              </span>
+            )}
+            {lesson.release_at && lesson.drip_days == null && (
+              <span className="rounded-md bg-amber-500/90 px-1.5 py-[2px] text-[8.5px] font-bold tracking-[0.08em] text-white uppercase backdrop-blur-sm">
+                Scheduled
+              </span>
+            )}
+          </div>
+        )}
+        <div className="absolute inset-0 flex items-center justify-center bg-transparent transition-colors group-hover:bg-black/15">
+          <div className="flex h-8 w-8 scale-75 items-center justify-center rounded-full bg-white/90 opacity-0 shadow-md transition-all group-hover:scale-100 group-hover:opacity-100">
+            <PlayArrowRounded sx={{ fontSize: 16 }} className="text-gray-900" />
+          </div>
+        </div>
+      </div>
+      <div className="px-[11px] pt-[9px] pb-[11px]">
+        <div className="mb-[5px] line-clamp-2 text-[11.5px] leading-[1.35] font-semibold tracking-tight text-gray-900">
+          {lesson.title}
+        </div>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-[3px] text-[10.5px] text-gray-400">
+            <ScheduleOutlined sx={{ fontSize: 10 }} />
             {formatDuration(lesson.duration_seconds)}
           </div>
-          {optionsButton(false)}
+          <div className="relative">
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                setMenuOpen((v) => !v)
+              }}
+              className="flex items-center rounded-md p-[2px_3px] text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700"
+              aria-label="Lesson options"
+            >
+              <MoreHorizOutlined sx={{ fontSize: 14 }} />
+            </button>
+            {menuOpen && (
+              <LessonOptionsMenu
+                lesson={lesson}
+                onUpdate={onUpdate}
+                onDelete={onDelete}
+                onClose={() => setMenuOpen(false)}
+              />
+            )}
+          </div>
         </div>
       </div>
     </div>
@@ -420,12 +309,6 @@ export function OutlineTab({
 }) {
   const [query, setQuery] = useState('')
   const previewAccess = usePreviewAccess()
-
-  // The outline mirrors the landing: render whichever lesson-card variant
-  // the creator chose (Spotlight = text over the image, Catalog = under).
-  const cardVariant: 'spotlight' | 'catalog' =
-    course.lesson_card_variant === 'spotlight' ? 'spotlight' : 'catalog'
-  const unitCap = course.format === 'series' ? 'Episode' : 'Lesson'
 
   const handlePreview = async () => {
     try {
@@ -555,8 +438,6 @@ export function OutlineTab({
           <ModuleGroups
             groups={freeGroups}
             locked={false}
-            variant={cardVariant}
-            unitCap={unitCap}
             isReorderable={!trimmed}
             selectedLessonId={selectedLessonId}
             onSelectLesson={onSelectLesson}
@@ -576,8 +457,6 @@ export function OutlineTab({
               <ModuleGroups
                 groups={paidGroups}
                 locked
-                variant={cardVariant}
-                unitCap={unitCap}
                 isReorderable={!trimmed}
                 selectedLessonId={selectedLessonId}
                 onSelectLesson={onSelectLesson}
@@ -596,8 +475,6 @@ export function OutlineTab({
             <ModuleGroups
               groups={emptyModules}
               locked={false}
-              variant={cardVariant}
-              unitCap={unitCap}
               isReorderable={false}
               selectedLessonId={selectedLessonId}
               onSelectLesson={onSelectLesson}
@@ -635,8 +512,6 @@ function ModuleGroups({
   groups,
   locked,
   isReorderable,
-  variant,
-  unitCap,
   selectedLessonId,
   onSelectLesson,
   onAddLesson,
@@ -649,8 +524,6 @@ function ModuleGroups({
   groups: ModuleGroup[]
   locked: boolean
   isReorderable: boolean
-  variant: 'spotlight' | 'catalog'
-  unitCap: string
   selectedLessonId: string | null
   onSelectLesson: (lessonId: string) => void
   onAddLesson?: (
@@ -708,8 +581,6 @@ function ModuleGroups({
                 locked={locked}
                 isReorderable={canReorder && group.items.length > 1}
                 isSelected={selectedLessonId === lesson.id}
-                variant={variant}
-                unitCap={unitCap}
                 onSelect={() => onSelectLesson(lesson.id)}
                 onUpdate={(patch) => onUpdateLesson(lesson, patch)}
                 onDelete={() => onDeleteLesson(lesson)}

@@ -20,6 +20,7 @@ const COMMENTS: WatchComment[] = [
   {
     id: 'c1',
     name: 'Amara Okeke',
+    avatarUrl: 'https://i.pravatar.cc/64?img=5',
     time: '2d',
     text: 'Three minutes in and I already understand why I keep losing close matches.',
     likes: 12,
@@ -28,6 +29,7 @@ const COMMENTS: WatchComment[] = [
   {
     id: 'c2',
     name: 'Diego Fuentes',
+    avatarUrl: 'https://i.pravatar.cc/64?img=12',
     time: '1d',
     text: 'Coming back after 10 years off. Exactly the reset I needed.',
     likes: 5,

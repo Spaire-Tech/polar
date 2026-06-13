@@ -23,6 +23,7 @@ from polar.course.schemas import (
     CourseProgressRead,
     LessonCommentAuthor,
     LessonCommentCreate,
+    LessonCommentLikeRead,
     LessonCommentRead,
     QuizAnswerResult,
     QuizAttemptResult,
@@ -1009,14 +1010,20 @@ async def _load_authors(
 ) -> dict[UUID, LessonCommentAuthor]:
     if not enrollment_ids:
         return {}
-    stmt = select(CourseEnrollment.id, Customer.name, Customer.email).join(
-        Customer, Customer.id == CourseEnrollment.customer_id
-    ).where(CourseEnrollment.id.in_(enrollment_ids))
+    stmt = select(
+        CourseEnrollment.id,
+        Customer.name,
+        Customer.email,
+        Customer.avatar_url,
+    ).join(Customer, Customer.id == CourseEnrollment.customer_id).where(
+        CourseEnrollment.id.in_(enrollment_ids)
+    )
     result = await session.execute(stmt)
     return {
         row.id: LessonCommentAuthor(
             enrollment_id=row.id,
             name=_resolve_author_name(row.name, row.email),
+            avatar_url=row.avatar_url,
         )
         for row in result
     }
@@ -1045,6 +1052,12 @@ async def list_lesson_comments(
         session, lesson_id=lesson_id
     )
     authors = await _load_authors(session, {c.enrollment_id for c in comments})
+    # Hearts — total per comment + whether this enrollment has liked it.
+    # Tombstones never carry likes (their body is stripped too).
+    like_targets = [c.id for c in comments if c.deleted_at is None]
+    like_counts, liked_ids = await course_service.get_lesson_comment_likes(
+        session, comment_ids=like_targets, enrollment_id=enrollment.id
+    )
     return [
         LessonCommentRead(
             id=c.id,
@@ -1060,6 +1073,8 @@ async def list_lesson_comments(
                 c.enrollment_id,
                 LessonCommentAuthor(enrollment_id=c.enrollment_id, name=None),
             ),
+            likes=like_counts.get(c.id, 0),
+            liked=c.id in liked_ids,
             deleted=c.deleted_at is not None,
         )
         for c in comments
@@ -1141,6 +1156,40 @@ async def delete_lesson_comment(
     if comment.enrollment_id != enrollment.id:
         raise HTTPException(status_code=403, detail="Not your comment")
     await course_service.delete_lesson_comment(session, comment)
+
+
+@router.post(
+    "/{course_id}/lessons/{lesson_id}/comments/{comment_id}/like",
+    response_model=LessonCommentLikeRead,
+    summary="Toggle Lesson Comment Like",
+)
+async def like_lesson_comment(
+    course_id: UUID,
+    lesson_id: UUID,
+    comment_id: UUID,
+    auth_subject: auth.CustomerPortalUnionRead,
+    session: AsyncSession = Depends(get_db_session),
+) -> LessonCommentLikeRead:
+    customer_id = get_customer_id(auth_subject)
+    enrollment, lesson = await _verify_lesson_in_enrolled_course(
+        session, customer_id, course_id, lesson_id
+    )
+    # Hidden comments aren't shown, so they can't be liked either.
+    if getattr(lesson, "comments_mode", "visible") == "hidden":
+        raise HTTPException(
+            status_code=403, detail="Comments are disabled for this lesson"
+        )
+    comment = await course_service.get_lesson_comment(session, comment_id)
+    if (
+        comment is None
+        or comment.lesson_id != lesson_id
+        or comment.deleted_at is not None
+    ):
+        raise HTTPException(status_code=404, detail="Comment not found")
+    liked, likes = await course_service.toggle_lesson_comment_like(
+        session, comment=comment, enrollment_id=enrollment.id
+    )
+    return LessonCommentLikeRead(liked=liked, likes=likes)
 
 
 # ── Notes ──────────────────────────────────────────────────────────────────

@@ -253,6 +253,7 @@ class LessonCommentCreate(Schema):
 class LessonCommentAuthor(Schema):
     enrollment_id: UUID4
     name: str | None = None
+    avatar_url: str | None = None
 
 
 class LessonCommentRead(Schema):
@@ -263,9 +264,19 @@ class LessonCommentRead(Schema):
     created_at: datetime
     is_own: bool
     author: LessonCommentAuthor
+    # Hearts — total count + whether the requesting customer has liked it.
+    likes: int = 0
+    liked: bool = False
     # True when the comment has been soft-deleted but is included in the
     # response as a tombstone so its replies remain renderable.
     deleted: bool = False
+
+
+class LessonCommentLikeRead(Schema):
+    # Returned by the heart toggle endpoint: the requesting customer's new
+    # liked state plus the comment's refreshed total.
+    liked: bool
+    likes: int
 
 
 class CourseRead(TimestampedSchema):

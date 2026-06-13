@@ -20,6 +20,7 @@ import Link from 'next/link'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import * as React from 'react'
 import { BellIcon, BookmarkIcon, SearchIcon } from './icons'
+import { usePortalTheme } from '../usePortalTheme'
 import {
   type CustomerWithProfile,
   OnboardingModal,
@@ -184,6 +185,7 @@ export const TopBar = ({
           >
             <SearchIcon size={18} />
           </button>
+          <ThemeToggle slug={organization.slug} token={token ?? ''} />
           <NotificationsBell token={token} />
           <Link
             href={buildHref(`/${organization.slug}/portal/bookmarks`)}
@@ -205,6 +207,50 @@ export const TopBar = ({
         </div>
       </div>
     </header>
+  )
+}
+
+// Dark / light toggle — the customer's choice overrides the course's
+// landing theme and is remembered per org (usePortalTheme).
+function ThemeToggle({ slug, token }: { slug: string; token: string }) {
+  const { dark, toggle } = usePortalTheme(slug, token)
+  return (
+    <button
+      type="button"
+      className="sp-iconbtn"
+      onClick={toggle}
+      aria-label={dark ? 'Switch to light mode' : 'Switch to dark mode'}
+      title={dark ? 'Light mode' : 'Dark mode'}
+    >
+      {dark ? (
+        <svg
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <circle cx="12" cy="12" r="4" />
+          <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
+        </svg>
+      ) : (
+        <svg
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z" />
+        </svg>
+      )}
+    </button>
   )
 }
 

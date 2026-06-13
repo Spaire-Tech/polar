@@ -18,6 +18,7 @@
 import {
   useLessonComments,
   useCreateLessonComment,
+  useLikeLessonComment,
   useMintLessonPlaybackUrl,
   type CustomerCourseDetail,
 } from '@/hooks/queries/courses'
@@ -180,6 +181,10 @@ export function WatchHome({
   const dark = course.landing_overrides?.theme_mode === 'dark'
   const isEpisodic = course.format === 'series'
   const unitCap = isEpisodic ? 'Episode' : 'Lesson'
+  // Render whichever lesson-card the creator chose at onboarding, same as
+  // the landing — Spotlight (text over the image) or Catalog (text under).
+  const cardVariant: 'spotlight' | 'catalog' =
+    course.lesson_card_variant === 'spotlight' ? 'spotlight' : 'catalog'
 
   const completedIds = useMemo(
     () => new Set(Object.keys(data.progress?.completed ?? {})),
@@ -277,6 +282,7 @@ export function WatchHome({
   /* ── comments (focused lesson) ── */
   const { data: rawComments } = useLessonComments(token, courseId, ep?.id ?? '')
   const createComment = useCreateLessonComment(token, courseId, ep?.id ?? '')
+  const likeComment = useLikeLessonComment(token, courseId, ep?.id ?? '')
   const comments: WatchComment[] = useMemo(
     () =>
       (rawComments ?? [])
@@ -284,8 +290,11 @@ export function WatchHome({
         .map((c) => ({
           id: c.id,
           name: c.author?.name?.trim() || 'Student',
+          avatarUrl: c.author?.avatar_url ?? null,
           time: relTime(c.created_at),
           text: c.content,
+          likes: c.likes ?? 0,
+          liked: c.liked ?? false,
         })),
     [rawComments],
   )
@@ -299,6 +308,15 @@ export function WatchHome({
       )
     },
     [createComment, showToast],
+  )
+  // One like per customer (the mutation is idempotent server-side); guard
+  // against a second in-flight toggle while the first resolves.
+  const onLikeComment = useCallback(
+    (id: string) => {
+      if (likeComment.isPending) return
+      likeComment.mutate(id)
+    },
+    [likeComment],
   )
 
   /* ── overview sheet ── */
@@ -619,6 +637,100 @@ export function WatchHome({
             {lessons.map((l, i) => {
               const st = statusOf(l)
               const frac = fractionOf(l)
+              const imgStyle =
+                l.thumbnail_url || course.thumbnail_url
+                  ? {
+                      backgroundImage: `url("${
+                        l.thumbnail_url ?? course.thumbnail_url
+                      }")`,
+                    }
+                  : undefined
+              const overlays = (
+                <>
+                  {l.locked ? (
+                    <div className="lc-state lc-lock">
+                      <Glyph d={SF.locksm} size={11} stroke={2.1} />
+                    </div>
+                  ) : st === 'watched' ? (
+                    <div className="lc-state lc-done">
+                      <Glyph d={SF.check} size={11} stroke={2.8} />
+                    </div>
+                  ) : null}
+                  {l.duration_seconds ? (
+                    <div className="lc-dur">
+                      <Glyph d={SF.play2} size={11} fill="currentColor" stroke={0} />
+                      <span>{fmtTime(l.duration_seconds)}</span>
+                    </div>
+                  ) : null}
+                  {frac != null && (
+                    <div className="lc-progbar">
+                      <i style={{ width: `${frac * 100}%` }} />
+                    </div>
+                  )}
+                  <div className="lc-play">
+                    <div className="lc-play-btn">
+                      <Glyph d={SF.play} size={18} fill="currentColor" />
+                    </div>
+                  </div>
+                  <button
+                    className="lc-ovbtn"
+                    type="button"
+                    aria-label="Lesson overview"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setFocus(i)
+                      setOverviewFor(l)
+                    }}
+                  >
+                    <Glyph d={SF.info} size={17} stroke={1.9} />
+                  </button>
+                </>
+              )
+              const meta =
+                st === 'watched' ? (
+                  <span className="ok">
+                    <Glyph d={SF.check} size={13} stroke={2.6} />
+                    Watched
+                  </span>
+                ) : st === 'progress' ? (
+                  <span>Continue · {Math.round((frac ?? 0) * 100)}%</span>
+                ) : (
+                  <>
+                    <Glyph d={SF.play2} size={12} fill="currentColor" stroke={0} />
+                    <span>
+                      {l.duration_seconds ? fmtTime(l.duration_seconds) : '—'}
+                    </span>
+                  </>
+                )
+
+              if (cardVariant === 'spotlight') {
+                return (
+                  <div
+                    className="lc-spot"
+                    key={l.id}
+                    onMouseEnter={() => setFocus(i)}
+                    onClick={() => void playLesson(l)}
+                  >
+                    <div className={`spot-card${imgStyle ? '' : ' ph'}`}>
+                      <div className="img" style={imgStyle} />
+                      <div className="spot-shade" />
+                      {overlays}
+                      <div className="spot-info">
+                        <div className="lc-num">
+                          {unitCap} {i + 1}
+                          {bookmarks.has(l.id) ? ' · Saved' : ''}
+                        </div>
+                        <div className="spot-title">{l.title}</div>
+                        {l.description && (
+                          <div className="spot-desc">{l.description}</div>
+                        )}
+                        <div className="lc-meta">{meta}</div>
+                      </div>
+                    </div>
+                  </div>
+                )
+              }
+
               return (
                 <div
                   className="lc-catalog"
@@ -628,62 +740,8 @@ export function WatchHome({
                 >
                   <div className="lc-card">
                     <div className="lc-thumb">
-                      <div
-                        className={`img${
-                          l.thumbnail_url || course.thumbnail_url ? '' : ' ph'
-                        }`}
-                        style={
-                          l.thumbnail_url || course.thumbnail_url
-                            ? {
-                                backgroundImage: `url("${
-                                  l.thumbnail_url ?? course.thumbnail_url
-                                }")`,
-                              }
-                            : undefined
-                        }
-                      />
-                      {l.locked ? (
-                        <div className="lc-state lc-lock">
-                          <Glyph d={SF.locksm} size={11} stroke={2.1} />
-                        </div>
-                      ) : st === 'watched' ? (
-                        <div className="lc-state lc-done">
-                          <Glyph d={SF.check} size={11} stroke={2.8} />
-                        </div>
-                      ) : null}
-                      {l.duration_seconds ? (
-                        <div className="lc-dur">
-                          <Glyph
-                            d={SF.play2}
-                            size={11}
-                            fill="currentColor"
-                            stroke={0}
-                          />
-                          <span>{fmtTime(l.duration_seconds)}</span>
-                        </div>
-                      ) : null}
-                      {frac != null && (
-                        <div className="lc-progbar">
-                          <i style={{ width: `${frac * 100}%` }} />
-                        </div>
-                      )}
-                      <div className="lc-play">
-                        <div className="lc-play-btn">
-                          <Glyph d={SF.play} size={18} fill="currentColor" />
-                        </div>
-                      </div>
-                      <button
-                        className="lc-ovbtn"
-                        type="button"
-                        aria-label="Lesson overview"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          setFocus(i)
-                          setOverviewFor(l)
-                        }}
-                      >
-                        <Glyph d={SF.info} size={17} stroke={1.9} />
-                      </button>
+                      <div className={`img${imgStyle ? '' : ' ph'}`} style={imgStyle} />
+                      {overlays}
                     </div>
                     <div className="lc-info">
                       <div className="lc-num">
@@ -692,32 +750,7 @@ export function WatchHome({
                       </div>
                       <div className="lc-title">{l.title}</div>
                       <div className="lc-desc">{l.description ?? ''}</div>
-                      <div className="lc-meta">
-                        {st === 'watched' ? (
-                          <span className="ok">
-                            <Glyph d={SF.check} size={13} stroke={2.6} />
-                            Watched
-                          </span>
-                        ) : st === 'progress' ? (
-                          <span>
-                            Continue · {Math.round((frac ?? 0) * 100)}%
-                          </span>
-                        ) : (
-                          <>
-                            <Glyph
-                              d={SF.play2}
-                              size={12}
-                              fill="currentColor"
-                              stroke={0}
-                            />
-                            <span>
-                              {l.duration_seconds
-                                ? fmtTime(l.duration_seconds)
-                                : '—'}
-                            </span>
-                          </>
-                        )}
-                      </div>
+                      <div className="lc-meta">{meta}</div>
                     </div>
                   </div>
                 </div>
@@ -766,6 +799,7 @@ export function WatchHome({
           viewerAvatarUrl={data.customer_avatar_url}
           dark={dark}
           onClose={() => setShowComments(false)}
+          onLike={onLikeComment}
           onPost={commentsVisible ? postComment : undefined}
         />
       )}
@@ -785,6 +819,7 @@ export function WatchHome({
           startSec={playing.startSec}
           comments={commentsVisible ? comments : undefined}
           onPostComment={commentsVisible ? postComment : undefined}
+          onLikeComment={onLikeComment}
           onClose={() => setPlaying(null)}
           onProgress={(f) => onPlayerProgress(playing.lesson.id, f)}
           onComplete={() => onPlayerComplete(playing.lesson.id)}

@@ -370,6 +370,9 @@ export function WatchPlayer({
 
       {side === 'discussion' && hasDiscussion && (
         <CommentsPanel
+          // The player is always dark, so its discussion panel is too —
+          // otherwise it rendered as a white sheet over the dark video.
+          dark
           lessonLabel={`Lesson ${lesson.n} · ${lesson.title}`}
           comments={comments!}
           onClose={() => setSide(null)}

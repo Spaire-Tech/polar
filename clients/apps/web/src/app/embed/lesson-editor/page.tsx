@@ -69,6 +69,7 @@ const courseMock = {
   id: 'c1',
   title: 'The Science of Baking',
   format: 'course',
+  lesson_card_variant: 'spotlight',
   instructor_name: 'Claire Saffitz',
   modules: [moduleMock],
 } as unknown as CourseRead
