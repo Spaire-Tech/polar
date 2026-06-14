@@ -617,8 +617,10 @@ export function WatchHome({
                 type="button"
                 onClick={() => void playLesson(ep)}
               >
-                <Glyph d={SF.play} size={17} fill="currentColor" /> {playLabel}{' '}
-                {unitCap} {epN}
+                <span className="play">
+                  <Glyph d={SF.play} size={15} fill="currentColor" />
+                </span>{' '}
+                {playLabel} {unitCap} {epN}
               </button>
               <button
                 className="abtn glass"

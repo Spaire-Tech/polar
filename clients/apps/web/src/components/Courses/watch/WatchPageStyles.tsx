@@ -210,6 +210,56 @@ export function WatchPageStyles() {
         margin-top: 26px;
         flex-wrap: wrap;
       }
+      /* Cover-hero CTAs adopt the landing cover-hero's pill style (btn-trailer /
+         btn-enroll) instead of the marquee's square abtn — same playback
+         actions, just the landing's shape/size. Always light-on-image (the
+         cover sits over a photo), so colours are fixed, not theme vars. */
+      .sow .panel.cover .hero-actions .abtn {
+        height: auto;
+        border-radius: 980px;
+        box-shadow: none;
+      }
+      .sow .panel.cover .hero-actions .abtn.play {
+        gap: 11px;
+        padding: 12px 24px 12px 12px;
+        background: #fff;
+        color: #111;
+      }
+      .sow .panel.cover .hero-actions .abtn.play .play {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background: #111;
+        color: #fff;
+        display: grid;
+        place-items: center;
+        flex: none;
+      }
+      .sow .panel.cover .hero-actions .abtn.glass {
+        padding: 15px 26px;
+        background: rgba(255, 255, 255, 0.14);
+        color: #fff;
+        -webkit-backdrop-filter: blur(40px) saturate(150%);
+        backdrop-filter: blur(40px) saturate(150%);
+      }
+      .sow .panel.cover .hero-actions .abtn.glass:hover {
+        background: rgba(255, 255, 255, 0.24);
+      }
+      .sow .panel.cover .hero-actions .icon-row {
+        margin-top: 0;
+      }
+      .sow .panel.cover .hero-actions .icon-glass {
+        width: 52px;
+        height: 52px;
+        background: rgba(255, 255, 255, 0.14);
+        color: #fff;
+        box-shadow: none;
+        -webkit-backdrop-filter: blur(40px) saturate(150%);
+        backdrop-filter: blur(40px) saturate(150%);
+      }
+      .sow .panel.cover .hero-actions .icon-glass:hover {
+        background: rgba(255, 255, 255, 0.24);
+      }
       /* progress retained — the marquee band shows it too */
       .sow .cv-progress {
         margin-top: 26px;
