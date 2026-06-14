@@ -117,6 +117,96 @@ export function WatchPageStyles() {
         mix-blend-mode: overlay;
         background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
       }
+      /* ════════ cover hero — full-bleed, lower-left content stack ════════ */
+      /* The creator-chosen 'cover' hero: same full-viewport panel, but the
+         frosted band is replaced by a left-anchored title/desc/actions stack
+         over a bottom-weighted scrim (mirrors the public landing's cover). */
+      .sow .panel.cover .panel-scrim {
+        background:
+          linear-gradient(
+            to top,
+            rgba(0, 0, 0, 0.85) 0%,
+            rgba(0, 0, 0, 0.42) 32%,
+            transparent 68%
+          ),
+          linear-gradient(105deg, rgba(0, 0, 0, 0.5) 0%, transparent 56%);
+      }
+      .sow .cover-content {
+        position: relative;
+        z-index: 4;
+        margin: 0 var(--gut) 56px;
+        max-width: 760px;
+        color: #fff;
+      }
+      .sow .cv-kicker {
+        display: inline-flex;
+        align-items: center;
+        gap: 9px;
+        font-size: 13px;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        color: rgba(255, 255, 255, 0.82);
+        margin-bottom: 14px;
+      }
+      .sow .cv-kicker.done {
+        color: #6ddb8a;
+      }
+      .sow .cv-title {
+        font-size: clamp(40px, 5vw, 76px);
+        font-weight: 700;
+        line-height: 1.02;
+        letter-spacing: -0.025em;
+        text-wrap: balance;
+      }
+      .sow .cv-meta {
+        margin-top: 16px;
+        font-size: 14.5px;
+        font-weight: 500;
+        color: rgba(255, 255, 255, 0.74);
+      }
+      .sow .cv-desc {
+        margin-top: 14px;
+        max-width: 580px;
+        font-size: 15.5px;
+        line-height: 1.55;
+        color: rgba(255, 255, 255, 0.86);
+        display: -webkit-box;
+        -webkit-line-clamp: 3;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+      }
+      .sow .cv-actions {
+        display: flex;
+        align-items: center;
+        gap: 13px;
+        margin-top: 26px;
+        flex-wrap: wrap;
+      }
+      .sow .cv-progress {
+        margin-top: 26px;
+        max-width: 420px;
+      }
+      .sow .cv-pt {
+        display: flex;
+        justify-content: space-between;
+        font-size: 12.5px;
+        font-weight: 600;
+        color: rgba(255, 255, 255, 0.72);
+        margin-bottom: 7px;
+      }
+      .sow .cv-pbar {
+        height: 4px;
+        border-radius: 980px;
+        background: rgba(255, 255, 255, 0.22);
+        overflow: hidden;
+      }
+      .sow .cv-pbar i {
+        display: block;
+        height: 100%;
+        border-radius: 980px;
+        background: #fff;
+      }
+
       .sow .panel-brand {
         position: absolute;
         left: var(--gut);

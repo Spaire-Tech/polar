@@ -185,6 +185,11 @@ export function WatchHome({
   const dark = course.landing_overrides?.theme_mode === 'dark'
   const isEpisodic = course.format === 'series'
   const unitCap = isEpisodic ? 'Episode' : 'Lesson'
+  // Honor the hero the creator chose at onboarding — the public landing
+  // already does this, the portal used to hard-render the marquee. 'cover'
+  // is the full-bleed lower-left layout; 'marquee' is the frosted band.
+  const heroVariant: 'marquee' | 'cover' =
+    course.hero_variant === 'marquee' ? 'marquee' : 'cover'
   // Render whichever lesson-card the creator chose at onboarding, same as
   // the landing — Spotlight (text over the image) or Catalog (text under).
   const cardVariant: 'spotlight' | 'catalog' =
@@ -528,7 +533,7 @@ export function WatchHome({
   return (
     <div className={`sow${dark ? ' dark' : ''}`}>
       {/* ════════ now-playing hero ════════ */}
-      <header className="panel">
+      <header className={`panel${heroVariant === 'cover' ? ' cover' : ''}`}>
         {lessons.map((l, i) => {
           // The hero shows the lesson's own cover when it has one, else the
           // course cover. Honor whichever image's saved focal point
@@ -571,6 +576,90 @@ export function WatchHome({
           </span>
         </div>
 
+        {heroVariant === 'cover' ? (
+          /* ════ cover hero — full-bleed, lower-left content stack ════ */
+          <div className="cover-content">
+            <div className={`cv-kicker${status === 'watched' ? ' done' : ''}`}>
+              {kicker}
+            </div>
+            <h1 className="cv-title">{ep.title}</h1>
+            <div className="cv-meta">
+              {course.title}&nbsp;&nbsp;·&nbsp;&nbsp;{lessons.length}{' '}
+              {unitCap.toLowerCase()}
+              {lessons.length === 1 ? '' : 's'}&nbsp;&nbsp;·&nbsp;&nbsp;
+              {fmtRuntime(totalRuntime)}
+              {ep.duration_seconds ? `  ·  ${fmtTime(ep.duration_seconds)}` : ''}
+            </div>
+            {ep.description ? (
+              <p className="cv-desc">{ep.description}</p>
+            ) : null}
+            <div className="cv-actions">
+              <button
+                className="abtn play"
+                type="button"
+                onClick={() => void playLesson(ep)}
+              >
+                <Glyph d={SF.play} size={17} fill="currentColor" /> {playLabel}{' '}
+                {unitCap} {epN}
+              </button>
+              <button
+                className="abtn glass"
+                type="button"
+                onClick={() => setOverviewFor(ep)}
+              >
+                <Glyph d={SF.doc} size={18} stroke={1.9} /> Overview
+              </button>
+              <div className="icon-row">
+                <button
+                  className={`icon-glass${isBookmarked ? ' on' : ''}`}
+                  type="button"
+                  aria-label="Bookmark lesson"
+                  onClick={() => toggleBookmark(ep)}
+                >
+                  <Glyph
+                    d={SF.bookmark}
+                    size={19}
+                    fill={isBookmarked ? 'currentColor' : 'none'}
+                    stroke={isBookmarked ? 0 : 2}
+                  />
+                </button>
+                {commentsVisible && (
+                  <button
+                    className="icon-glass"
+                    type="button"
+                    aria-label="Discussion"
+                    onClick={() => setShowComments(true)}
+                  >
+                    <Glyph d={SF.bubble} size={19} stroke={2} />
+                    {comments.length > 0 && (
+                      <span className="icon-badge">{comments.length}</span>
+                    )}
+                  </button>
+                )}
+              </div>
+            </div>
+            <div className="cv-progress">
+              <div className="cv-pt">
+                <span>Your progress</span>
+                <span>
+                  {lessonsDone} of {lessons.length}
+                </span>
+              </div>
+              <div className="cv-pbar">
+                <i
+                  style={{
+                    width: `${
+                      lessons.length
+                        ? Math.round((lessonsDone / lessons.length) * 100)
+                        : 0
+                    }%`,
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+        ) : (
+          <>
         <div className="panel-title">
           <div className={`pt-kicker${status === 'watched' ? ' done' : ''}`}>
             {kicker}
@@ -681,6 +770,8 @@ export function WatchHome({
             </div>
           </div>
         </div>
+          </>
+        )}
       </header>
 
       {/* ════════ lesson rail ════════ */}
