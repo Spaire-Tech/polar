@@ -577,23 +577,41 @@ export function WatchHome({
         </div>
 
         {heroVariant === 'cover' ? (
-          /* ════ cover hero — full-bleed, lower-left content stack ════ */
-          <div className="cover-content">
-            <div className={`cv-kicker${status === 'watched' ? ' done' : ''}`}>
-              {kicker}
+          /* ════ cover hero — ported 1:1 from the public landing's cover hero
+             (.hero in "Course Page Empty State.html"): lower-left meta/title/
+             desc stack over the full-bleed still, with the portal's playback
+             buttons + progress (same set as the marquee band). ════ */
+          <div className="hero-content">
+            <div className="hero-meta">
+              <span className={`badge${status === 'watched' ? ' done' : ''}`}>
+                {status === 'watched'
+                  ? 'Watched'
+                  : status === 'progress'
+                    ? 'Continue'
+                    : `${unitCap} ${epN}`}
+              </span>
+              <span className="meta-line">
+                <span>{course.title}</span>
+                <span className="sep">·</span>
+                <span>
+                  {lessons.length} {unitCap.toLowerCase()}
+                  {lessons.length === 1 ? '' : 's'}
+                </span>
+                <span className="sep">·</span>
+                <span>{fmtRuntime(totalRuntime)}</span>
+                {ep.duration_seconds ? (
+                  <>
+                    <span className="sep">·</span>
+                    <span>{fmtTime(ep.duration_seconds)}</span>
+                  </>
+                ) : null}
+              </span>
             </div>
-            <h1 className="cv-title">{ep.title}</h1>
-            <div className="cv-meta">
-              {course.title}&nbsp;&nbsp;·&nbsp;&nbsp;{lessons.length}{' '}
-              {unitCap.toLowerCase()}
-              {lessons.length === 1 ? '' : 's'}&nbsp;&nbsp;·&nbsp;&nbsp;
-              {fmtRuntime(totalRuntime)}
-              {ep.duration_seconds ? `  ·  ${fmtTime(ep.duration_seconds)}` : ''}
-            </div>
+            <h1 className="hero-title">{ep.title}</h1>
             {ep.description ? (
-              <p className="cv-desc">{ep.description}</p>
+              <p className="hero-desc">{ep.description}</p>
             ) : null}
-            <div className="cv-actions">
+            <div className="hero-actions">
               <button
                 className="abtn play"
                 type="button"

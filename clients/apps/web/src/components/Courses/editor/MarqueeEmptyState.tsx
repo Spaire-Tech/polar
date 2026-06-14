@@ -1,5 +1,11 @@
 'use client'
 
+// ⚠️ DEAD CODE (verified 2026-06-14): the only reference to MarqueeEmptyState
+// is its design-harness route (app/embed/marquee-empty-state). No production
+// surface renders it — the live creator-facing empty state is the
+// GeneratedPortalPage path. Kept as a design reference / behind the embed
+// harness; safe to delete (with its embed page) once confirmed.
+//
 // MarqueeEmptyState — literal clone of "Marquee Empty State.html": the
 // creator-facing course page at the end of onboarding for the Marquee hero +
 // Episodic + first-3-episodes-free + Catalog cards combination, with dark

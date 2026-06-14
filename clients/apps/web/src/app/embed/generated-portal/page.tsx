@@ -74,6 +74,7 @@ function Preview() {
   // window + scroll-pause behavior can be verified without a Mux asset.
   const fakeSample = params.get('fakesample') === '1'
   const [sampleUrl, setSampleUrl] = useState<string | null>(null)
+  const [lessonPos, setLessonPos] = useState<Record<number, string>>({})
   useEffect(() => {
     if (!fakeSample || sampleUrl) return
     const canvas = document.createElement('canvas')
@@ -106,7 +107,19 @@ function Preview() {
   const toLesson = ([title, description]: [string, string]) => {
     const flatIdx = flat++
     const locked = trialMode === 'lesson_sample' || flatIdx >= freeLessons
-    return { title, description, flatIdx, free: !locked, locked }
+    // Give the first two lessons a still so the editor's Reposition pill +
+    // overlay are exercisable; lessonPos holds the live drag result.
+    const imageUrl =
+      editable && flatIdx < 2 ? '/assets/onboarding/cover-hero.jpg' : undefined
+    return {
+      title,
+      description,
+      flatIdx,
+      free: !locked,
+      locked,
+      imageUrl,
+      imagePosition: lessonPos[flatIdx],
+    }
   }
   const groups: GeneratedGroup[] =
     structure === 'episodic'
@@ -181,6 +194,12 @@ function Preview() {
           : undefined
       }
       onAddLessonImage={editable ? () => {} : undefined}
+      onRepositionLesson={
+        editable
+          ? (i, pos) => setLessonPos((p) => ({ ...p, [i]: pos }))
+          : undefined
+      }
+      onReplaceLessonImage={editable ? () => {} : undefined}
       onConfigureSample={editable ? () => {} : undefined}
       onEditText={
         editable

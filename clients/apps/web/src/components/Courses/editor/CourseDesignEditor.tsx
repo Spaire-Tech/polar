@@ -236,6 +236,7 @@ export function CourseDesignEditor({
               description: l.description ?? '',
               flatIdx,
               imageUrl: l.thumbnail_url ?? null,
+              imagePosition: l.thumbnail_object_position ?? null,
               durationLabel: fmtDur(l.duration_seconds),
               free: !isLocked(flatIdx),
               locked: isLocked(flatIdx),
@@ -257,6 +258,7 @@ export function CourseDesignEditor({
               description: l.description ?? '',
               flatIdx,
               imageUrl: l.thumbnail_url ?? null,
+              imagePosition: l.thumbnail_object_position ?? null,
               durationLabel: fmtDur(l.duration_seconds),
               free: !isLocked(flatIdx),
               locked: isLocked(flatIdx),
@@ -282,6 +284,43 @@ export function CourseDesignEditor({
           setLessonImageBusy(null)
         }
       })
+    },
+    [flatLessons, uploadLessonThumb, unitCap],
+  )
+
+  // Per-lesson still reposition — debounced commit, same 600ms pattern as the
+  // cover (onCoverPosition). One timer is enough: only one lesson is being
+  // dragged at a time (the overlay is modal).
+  const lessonReposTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const onRepositionLesson = useCallback(
+    (flatIdx: number, pos: string) => {
+      const lesson = flatLessons[flatIdx]
+      if (!lesson) return
+      if (lessonReposTimer.current) clearTimeout(lessonReposTimer.current)
+      lessonReposTimer.current = setTimeout(() => {
+        updateLesson.mutate({
+          lessonId: lesson.id,
+          body: { thumbnail_object_position: pos },
+        })
+      }, 600)
+    },
+    [flatLessons, updateLesson],
+  )
+
+  // Replace a still from inside the reposition overlay (it hands back a File).
+  const onReplaceLessonImage = useCallback(
+    async (flatIdx: number, file: File) => {
+      const lesson = flatLessons[flatIdx]
+      if (!lesson) return
+      setLessonImageBusy(flatIdx)
+      try {
+        await uploadLessonThumb.mutateAsync({ lessonId: lesson.id, file })
+        toast({ title: `${unitCap} image updated` })
+      } catch {
+        toast({ title: 'Upload failed', description: 'Please try again.' })
+      } finally {
+        setLessonImageBusy(null)
+      }
     },
     [flatLessons, uploadLessonThumb, unitCap],
   )
@@ -546,6 +585,8 @@ export function CourseDesignEditor({
       trailerBusy={trailerBusy}
       onCoverPosition={onCoverPosition}
       onAddLessonImage={onAddLessonImage}
+      onRepositionLesson={onRepositionLesson}
+      onReplaceLessonImage={onReplaceLessonImage}
       lessonImageBusy={lessonImageBusy}
       onConfigureSample={() => setSampleOpen(true)}
       onEditText={onEditText}

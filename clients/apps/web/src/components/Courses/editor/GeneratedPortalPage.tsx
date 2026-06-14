@@ -26,6 +26,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { HlsVideo } from '../HlsVideo'
+import { RepositionInPortal } from '../watch/RepositionInPortal'
 
 const PLAY_PATH =
   'M8 5.5v13a1 1 0 0 0 1.5.87l11-6.5a1 1 0 0 0 0-1.74l-11-6.5A1 1 0 0 0 8 5.5Z'
@@ -156,6 +157,8 @@ export type GeneratedLesson = {
   flatIdx: number
   /** Real lesson still when it exists; otherwise the glass placeholder. */
   imageUrl?: string | null
+  /** object-position for the lesson still (creator-set via Reposition). */
+  imagePosition?: string | null
   durationLabel?: string | null
   free: boolean
   locked: boolean
@@ -248,6 +251,13 @@ export type GeneratedPortalPageProps = {
    *  Commit/debounce is the caller's job. */
   onCoverPosition?: (pos: string) => void
   onAddLessonImage?: (flatIdx: number) => void
+  /** Live object-position updates while the creator drags a lesson still in
+   *  the reposition overlay. Commit/debounce is the caller's job (mirrors
+   *  onCoverPosition). */
+  onRepositionLesson?: (flatIdx: number, pos: string) => void
+  /** Replace a lesson still with the file picked inside the reposition
+   *  overlay (mirrors onAddLessonImage but receives the File directly). */
+  onReplaceLessonImage?: (flatIdx: number, file: File) => void | Promise<void>
   lessonImageBusy?: number | null
   /** Configure-sample affordance on the sample screen (editor only). */
   onConfigureSample?: () => void
@@ -336,6 +346,8 @@ export function GeneratedPortalPage({
   trailerBusy = false,
   onCoverPosition,
   onAddLessonImage,
+  onRepositionLesson,
+  onReplaceLessonImage,
   lessonImageBusy = null,
   onConfigureSample,
   onEditText,
@@ -395,6 +407,17 @@ export function GeneratedPortalPage({
     window.addEventListener('scroll', onScroll, { passive: true })
     return () => window.removeEventListener('scroll', onScroll)
   }, [trailerUrl, trailerPeek])
+
+  // ── per-lesson still reposition: opens the shared RepositionInPortal
+  //    overlay; live position updates flow to onRepositionLesson (the caller
+  //    debounces + persists thumbnail_object_position). Keyed by flatIdx so the
+  //    overlay tracks fresh lesson data (e.g. after an in-overlay Replace). ──
+  const [reposIdx, setReposIdx] = useState<number | null>(null)
+  const reposLesson =
+    reposIdx == null
+      ? null
+      : (groups.flatMap((g) => g.lessons).find((l) => l.flatIdx === reposIdx) ??
+        null)
 
   // ── reposition: drag the cover to move object-position; live callback,
   //    caller persists. Activated from the design's ⤧ pill. ──
@@ -756,7 +779,12 @@ export function GeneratedPortalPage({
       <div
         className="photo"
         style={
-          l.imageUrl ? { backgroundImage: `url("${l.imageUrl}")` } : undefined
+          l.imageUrl
+            ? {
+                backgroundImage: `url("${l.imageUrl}")`,
+                backgroundPosition: l.imagePosition ?? undefined,
+              }
+            : undefined
         }
       />
       <div className="photo-shade" />
@@ -778,6 +806,18 @@ export function GeneratedPortalPage({
               Add image or cover
             </>
           )}
+        </button>
+      )}
+      {editable && l.imageUrl && onRepositionLesson && (
+        <button
+          className="card-add is-repos"
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation()
+            setReposIdx(l.flatIdx)
+          }}
+        >
+          ⤧ Reposition
         </button>
       )}
       <div className="card-info">
@@ -831,7 +871,11 @@ export function GeneratedPortalPage({
         <div className={`lc-thumb${l.imageUrl ? '' : ' ph'}`}>
           {l.imageUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={l.imageUrl} alt="" />
+            <img
+              src={l.imageUrl}
+              alt=""
+              style={{ objectPosition: l.imagePosition ?? undefined }}
+            />
           ) : (
             <>
               <div
@@ -859,6 +903,18 @@ export function GeneratedPortalPage({
                   Add image or cover
                 </>
               )}
+            </button>
+          )}
+          {editable && l.imageUrl && onRepositionLesson && (
+            <button
+              className="thumb-add is-repos"
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                setReposIdx(l.flatIdx)
+              }}
+            >
+              ⤧ Reposition
             </button>
           )}
           {l.durationLabel && (
@@ -1726,6 +1782,29 @@ export function GeneratedPortalPage({
         )}
       </div>
 
+      {/* Per-lesson still reposition — the same overlay the lesson editor
+          uses. Position updates stream live to onRepositionLesson (caller
+          debounces + persists); Replace swaps the still; Save & return just
+          closes. Keyed by reposIdx so it tracks fresh lesson data. */}
+      {reposLesson && reposLesson.imageUrl && (
+        <RepositionInPortal
+          imageUrl={reposLesson.imageUrl}
+          position={reposLesson.imagePosition}
+          title={reposLesson.title}
+          lessonLabel={`${unitCap} ${reposLesson.flatIdx + 1}`}
+          description={reposLesson.description}
+          instructorName={instructorName}
+          busy={lessonImageBusy === reposLesson.flatIdx}
+          onReposition={(pos) =>
+            onRepositionLesson?.(reposLesson.flatIdx, pos)
+          }
+          onReplace={(file) =>
+            void onReplaceLessonImage?.(reposLesson.flatIdx, file)
+          }
+          onClose={() => setReposIdx(null)}
+        />
+      )}
+
       {/* CSS — copied verbatim from the two design files. Selectors are
           prefixed with .gpp (root) and body.dark → .gpp.dark; keyframes get
           a gpp- prefix because this style block is global. */}
@@ -2350,6 +2429,15 @@ export function GeneratedPortalPage({
           opacity: 1;
           pointer-events: auto;
         }
+        /* Reposition pill — the second control, stacked below the Add/Replace
+           pill so the two never overlap. Inherits .thumb-add/.card-add styling
+           and the filled-hover reveal; only the vertical offset changes. */
+        .gpp .thumb-add.is-repos {
+          top: calc(50% + 42px);
+        }
+        .gpp .card-add.is-repos {
+          top: 58px;
+        }
         .gpp .change-pill {
           position: absolute;
           top: 16px;
@@ -2745,9 +2833,14 @@ export function GeneratedPortalPage({
         /* 4-up when the viewport supports it; below that, cards hold a
            cinematic minimum width and the rail scrolls — never shrink into
            squat tiles. */
-        .gpp .row .grid .card,
-        .gpp .row .grid .lc-catalog {
+        .gpp .row .grid .card {
           flex: 0 0 max(calc((100% - 90px) / 4), 400px);
+          scroll-snap-align: start;
+        }
+        /* Catalog cards mirror the customer portal: a clean 4-up that scales
+           with the container (no 400px min-width floor → no chunky 3-up rail). */
+        .gpp .row .grid .lc-catalog {
+          flex: 0 0 calc((100% - 90px) / 4);
           scroll-snap-align: start;
         }
 
@@ -2868,7 +2961,9 @@ export function GeneratedPortalPage({
         .gpp .strip-wrap .grid::-webkit-scrollbar {
           display: none;
         }
-        .gpp .strip-wrap .grid .lc-catalog,
+        .gpp .strip-wrap .grid .lc-catalog {
+          flex: 0 0 calc((100% - 90px) / 4);
+        }
         .gpp .strip-wrap .grid .card {
           flex: 0 0 max(calc((100% - 90px) / 4), 400px);
           scroll-snap-align: start;
@@ -2923,7 +3018,7 @@ export function GeneratedPortalPage({
         }
         .gpp .lc-card {
           width: 100%;
-          border-radius: 24px;
+          border-radius: 16px;
           overflow: hidden;
           background: #ffffff;
           border: 1px solid #e6e6e9;
