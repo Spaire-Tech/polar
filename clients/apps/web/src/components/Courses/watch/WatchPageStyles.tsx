@@ -121,67 +121,88 @@ export function WatchPageStyles() {
       /* The creator-chosen 'cover' hero: same full-viewport panel, but the
          frosted band is replaced by a left-anchored title/desc/actions stack
          over a bottom-weighted scrim (mirrors the public landing's cover). */
+      /* ── cover hero content — ported 1:1 from the public landing's cover
+         hero (.gpp .hero-* in "Course Page Empty State.html"); only the scope
+         changes (.gpp → .sow .panel.cover) and the horizontal inset uses the
+         portal's --gut so it lines up with the brand/top controls. ── */
       .sow .panel.cover .panel-scrim {
         background:
           linear-gradient(
             to top,
-            rgba(0, 0, 0, 0.85) 0%,
-            rgba(0, 0, 0, 0.42) 32%,
-            transparent 68%
+            rgba(0, 0, 0, 0.86) 0%,
+            rgba(0, 0, 0, 0.45) 34%,
+            transparent 70%
           ),
           linear-gradient(105deg, rgba(0, 0, 0, 0.5) 0%, transparent 56%);
       }
-      .sow .cover-content {
+      .sow .panel.cover .hero-content {
         position: relative;
         z-index: 4;
-        margin: 0 var(--gut) 56px;
+        margin: 0 var(--gut) 52px;
         max-width: 760px;
         color: #fff;
       }
-      .sow .cv-kicker {
+      .sow .panel.cover .hero-meta {
+        display: flex;
+        align-items: center;
+        gap: 13px;
+        margin-bottom: 18px;
+      }
+      .sow .panel.cover .badge {
         display: inline-flex;
         align-items: center;
+        background: rgba(255, 255, 255, 0.92);
+        color: #1d1d1f;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        padding: 7px 14px;
+        border-radius: 980px;
+      }
+      .sow .panel.cover .badge.done {
+        background: #6ddb8a;
+        color: #08110b;
+      }
+      .sow .panel.cover .meta-line {
+        display: flex;
+        align-items: center;
         gap: 9px;
-        font-size: 13px;
-        font-weight: 600;
-        letter-spacing: 0.02em;
-        color: rgba(255, 255, 255, 0.82);
-        margin-bottom: 14px;
+        font-size: 15px;
+        font-weight: 500;
+        color: rgba(255, 255, 255, 0.78);
       }
-      .sow .cv-kicker.done {
-        color: #6ddb8a;
+      .sow .panel.cover .meta-line .sep {
+        opacity: 0.55;
       }
-      .sow .cv-title {
-        font-size: clamp(40px, 5vw, 76px);
+      .sow .panel.cover .hero-title {
+        margin: 0;
+        font-size: clamp(46px, 5.6vw, 84px);
         font-weight: 700;
         line-height: 1.02;
         letter-spacing: -0.025em;
         text-wrap: balance;
       }
-      .sow .cv-meta {
-        margin-top: 16px;
-        font-size: 14.5px;
-        font-weight: 500;
-        color: rgba(255, 255, 255, 0.74);
-      }
-      .sow .cv-desc {
-        margin-top: 14px;
+      .sow .panel.cover .hero-desc {
+        margin: 18px 0 0;
         max-width: 580px;
-        font-size: 15.5px;
+        font-size: 16px;
+        font-weight: 500;
         line-height: 1.55;
-        color: rgba(255, 255, 255, 0.86);
+        color: rgba(255, 255, 255, 0.88);
         display: -webkit-box;
         -webkit-line-clamp: 3;
         -webkit-box-orient: vertical;
         overflow: hidden;
       }
-      .sow .cv-actions {
+      .sow .panel.cover .hero-actions {
         display: flex;
         align-items: center;
         gap: 13px;
         margin-top: 26px;
         flex-wrap: wrap;
       }
+      /* progress retained — the marquee band shows it too */
       .sow .cv-progress {
         margin-top: 26px;
         max-width: 420px;
