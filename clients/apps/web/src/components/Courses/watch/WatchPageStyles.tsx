@@ -182,6 +182,13 @@ export function WatchPageStyles() {
         line-height: 1.02;
         letter-spacing: -0.025em;
         text-wrap: balance;
+        /* A long lesson title clamps to two lines so the lower-left stack stays
+           the landing's compact height and never overflows the hero. */
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        overflow-wrap: anywhere;
       }
       .sow .panel.cover .hero-desc {
         margin: 18px 0 0;
@@ -190,8 +197,9 @@ export function WatchPageStyles() {
         font-weight: 500;
         line-height: 1.55;
         color: rgba(255, 255, 255, 0.88);
+        /* calm, like the landing — two lines max for any lesson description */
         display: -webkit-box;
-        -webkit-line-clamp: 3;
+        -webkit-line-clamp: 2;
         -webkit-box-orient: vertical;
         overflow: hidden;
       }
@@ -440,6 +448,13 @@ export function WatchPageStyles() {
         font-weight: 400;
         color: var(--bt);
         max-width: 62ch;
+        /* Keep the lesson blurb calm — clamp long descriptions so the band
+           stays the landing's proportion (the hero is glanceable, not a wall
+           of text). */
+        display: -webkit-box;
+        -webkit-line-clamp: 3;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
       }
       .sow .bd-meta {
         font-size: 13.5px;
@@ -480,6 +495,12 @@ export function WatchPageStyles() {
         line-height: 1.45;
         color: var(--bt2);
         margin-top: 10px;
+        /* Instructor line stays a calm short byline — even a page-long bio
+           shows as two tidy lines here (matches the landing's AI byline). */
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
       }
       .sow .bc-progress {
         margin-top: 14px;
@@ -547,6 +568,9 @@ export function WatchPageStyles() {
       }
       .sow .grid .lc-catalog {
         flex: 0 0 calc((100% - 60px) / 4);
+        /* min-width:0 keeps the card at its flex-basis — long titles/content
+           wrap inside instead of stretching the card wider. */
+        min-width: 0;
         scroll-snap-align: start;
       }
       .sow .arrow {
@@ -747,9 +771,12 @@ export function WatchPageStyles() {
         line-height: 1.2;
         color: var(--text);
         margin-bottom: 7px;
-        white-space: nowrap;
+        /* Long titles wrap to a second line and clamp — never widen the card. */
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
         overflow: hidden;
-        text-overflow: ellipsis;
+        overflow-wrap: anywhere;
         transition: color 0.4s ease;
       }
       .sow .lc-desc {
@@ -784,6 +811,7 @@ export function WatchPageStyles() {
       /* ── spotlight lesson card (text over the image) ── */
       .sow .grid .lc-spot {
         flex: 0 0 calc((100% - 60px) / 4);
+        min-width: 0;
         scroll-snap-align: start;
       }
       .sow .lc-spot {
@@ -849,9 +877,11 @@ export function WatchPageStyles() {
         line-height: 1.2;
         color: #fff;
         margin-top: 2px;
-        white-space: nowrap;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
         overflow: hidden;
-        text-overflow: ellipsis;
+        overflow-wrap: anywhere;
       }
       .sow .spot-desc {
         font-size: 13px;
