@@ -124,8 +124,8 @@ export function CoverHero({
             BlinkMacSystemFont, system-ui, sans-serif;
           position: relative;
           width: 100%;
-          height: 100vh;
-          min-height: 560px;
+          height: 100svh;
+          min-height: 640px;
           overflow: hidden;
           background: #0a0807;
           font-family: var(--po);

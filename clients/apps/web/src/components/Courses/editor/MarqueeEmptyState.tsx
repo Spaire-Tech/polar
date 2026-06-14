@@ -505,8 +505,9 @@ export function MarqueeEmptyState() {
         .panel {
           position: relative;
           width: 100%;
-          height: 92vh;
-          min-height: 560px;
+          /* Full-viewport tall, matching the live marquee/cover heroes. */
+          height: 100svh;
+          min-height: 640px;
           overflow: hidden;
           background: var(--ink);
         }

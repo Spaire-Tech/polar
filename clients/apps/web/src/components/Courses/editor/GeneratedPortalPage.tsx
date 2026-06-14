@@ -2164,8 +2164,10 @@ export function GeneratedPortalPage({
         .gpp .hero {
           position: relative;
           width: 100%;
-          height: 92vh;
-          min-height: 540px;
+          /* Full-viewport tall, same as the marquee (.panel) — the cover hero
+             owns the whole first screen. */
+          height: 100svh;
+          min-height: 640px;
           overflow: hidden;
           background: transparent;
           font-family: var(--po);
@@ -3567,11 +3569,11 @@ export function GeneratedPortalPage({
             margin: 0 auto;
           }
 
-          /* ── cover hero ── */
+          /* ── cover hero ── full-viewport, same as the marquee ── */
           .gpp .hero {
-            height: 86svh;
-            min-height: 580px;
-            max-height: 760px;
+            height: 100svh;
+            min-height: 640px;
+            max-height: none;
           }
           .gpp .hero .photo-shade {
             background: linear-gradient(

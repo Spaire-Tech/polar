@@ -112,6 +112,9 @@ export default function WatchHomeEmbed() {
       format: 'course',
       paywall_enabled: false,
       paywall_position: null,
+      // ?hero=marquee|cover — the portal now honors the creator's choice
+      // (default cover, matching the public landing + backend default).
+      hero_variant: params.get('hero') === 'marquee' ? 'marquee' : 'cover',
       lesson_card_variant:
         params.get('card') === 'spotlight' ? 'spotlight' : 'catalog',
       landing_overrides: { theme_mode: dark ? 'dark' : 'light' },
