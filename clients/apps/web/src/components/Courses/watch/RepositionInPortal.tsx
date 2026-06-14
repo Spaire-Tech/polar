@@ -11,6 +11,7 @@
 // hands back the picked File (host uploads + returns the new URL).
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 
 function parsePos(p?: string | null): { x: number; y: number } {
   const m = /([\d.]+)%\s+([\d.]+)%/.exec(p ?? '')
@@ -43,6 +44,13 @@ export function RepositionInPortal({
   onClose: () => void
 }) {
   const [pos, setPos] = useState(() => parsePos(position))
+  // Render into document.body. The overlay is position:fixed, but in the
+  // landing editor each lesson card sits inside an ancestor with a CSS
+  // transform (hover scale) + overflow:hidden — which makes fixed children
+  // position/clip against that tiny card instead of the viewport, trapping
+  // this modal. Portaling to body escapes any transformed/clipped ancestor.
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => setMounted(true), [])
   const tileRef = useRef<HTMLDivElement | null>(null)
   const drag = useRef<{
     x: number
@@ -100,7 +108,9 @@ export function RepositionInPortal({
     input.click()
   }
 
-  return (
+  if (!mounted) return null
+
+  return createPortal(
     <div
       className="rip-overlay"
       role="dialog"
@@ -413,7 +423,8 @@ export function RepositionInPortal({
           opacity: 0.9;
         }
       `}</style>
-    </div>
+    </div>,
+    document.body,
   )
 }
 
