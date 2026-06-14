@@ -2745,9 +2745,14 @@ export function GeneratedPortalPage({
         /* 4-up when the viewport supports it; below that, cards hold a
            cinematic minimum width and the rail scrolls — never shrink into
            squat tiles. */
-        .gpp .row .grid .card,
-        .gpp .row .grid .lc-catalog {
+        .gpp .row .grid .card {
           flex: 0 0 max(calc((100% - 90px) / 4), 400px);
+          scroll-snap-align: start;
+        }
+        /* Catalog cards mirror the customer portal: a clean 4-up that scales
+           with the container (no 400px min-width floor → no chunky 3-up rail). */
+        .gpp .row .grid .lc-catalog {
+          flex: 0 0 calc((100% - 90px) / 4);
           scroll-snap-align: start;
         }
 
@@ -2868,7 +2873,9 @@ export function GeneratedPortalPage({
         .gpp .strip-wrap .grid::-webkit-scrollbar {
           display: none;
         }
-        .gpp .strip-wrap .grid .lc-catalog,
+        .gpp .strip-wrap .grid .lc-catalog {
+          flex: 0 0 calc((100% - 90px) / 4);
+        }
         .gpp .strip-wrap .grid .card {
           flex: 0 0 max(calc((100% - 90px) / 4), 400px);
           scroll-snap-align: start;
@@ -2923,7 +2930,7 @@ export function GeneratedPortalPage({
         }
         .gpp .lc-card {
           width: 100%;
-          border-radius: 24px;
+          border-radius: 16px;
           overflow: hidden;
           background: #ffffff;
           border: 1px solid #e6e6e9;
