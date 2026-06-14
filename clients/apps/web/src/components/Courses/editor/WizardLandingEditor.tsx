@@ -1,5 +1,13 @@
 'use client'
 
+// ⚠️ DEAD CODE (verified 2026-06-14): nothing imports or renders
+// WizardLandingEditor. The onboarding wizard's landing step now goes through
+// WizardPortalPreview → GeneratedPortalPage, same as the dashboard
+// (CustomizeTab → CourseDesignEditor → GeneratedPortalPage). This file, and the
+// <EditableCourseLandingView> component it is the sole production renderer of,
+// are no longer reachable in the app. Safe to delete once confirmed; kept for
+// now pending sign-off.
+//
 // WizardLandingEditor — onboarding step that previews the same v2 landing
 // the dashboard customize tab shows. The shell mirrors CustomizeTab: no left
 // rail, no right inspector, only a slim top bar with Back / Create course.

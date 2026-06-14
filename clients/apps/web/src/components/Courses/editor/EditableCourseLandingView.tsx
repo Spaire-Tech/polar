@@ -173,6 +173,16 @@ function useEnroll(productId: string | undefined) {
   return { enroll, busy, enabled }
 }
 
+// ⚠️ DEAD CODE (verified 2026-06-14): the <EditableCourseLandingView>
+// component is only rendered by WizardLandingEditor (itself dead) and the
+// app/embed/landing-repos design harness. The production landing — both public
+// (PublicPortalView) and the editor (CourseDesignEditor) — renders
+// GeneratedPortalPage instead, which is the surface the catalog-card fix
+// targeted. NOTE: this file's other exports are still live — formatProductPrice
+// (PublicPortalView) and TrailerModal (EditableCourseLandingViewMobile) — so
+// the file cannot be deleted wholesale; only this component + its private
+// helpers (EpisodeGrid, RealLessonEpisodeThumb, EpisodeInfo, …) are dead. Move
+// the two live exports out first, then remove the rest. Kept pending sign-off.
 export function EditableCourseLandingView({
   course,
   organizationName,
