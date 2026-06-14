@@ -2852,6 +2852,7 @@ export function GeneratedPortalPage({
           border-radius: 24px;
           overflow: hidden;
           box-shadow: 0 20px 18px rgba(0, 0, 0, 0.04);
+          min-width: 0;
         }
         .gpp .card[role='button'] {
           cursor: pointer;
@@ -2878,9 +2879,11 @@ export function GeneratedPortalPage({
           line-height: 1.2;
           color: #fff;
           margin-top: 5px;
-          white-space: nowrap;
+          display: -webkit-box;
+          -webkit-line-clamp: 2;
+          -webkit-box-orient: vertical;
           overflow: hidden;
-          text-overflow: ellipsis;
+          overflow-wrap: anywhere;
         }
         .gpp .card .desc {
           font-size: 14px;
@@ -3015,6 +3018,9 @@ export function GeneratedPortalPage({
           -webkit-font-smoothing: antialiased;
           -moz-osx-font-smoothing: grayscale;
           letter-spacing: -0.014em;
+          /* keep the card at its flex-basis — long titles wrap inside instead
+             of stretching the card wider. */
+          min-width: 0;
         }
         .gpp .lc-card {
           width: 100%;
@@ -3147,9 +3153,13 @@ export function GeneratedPortalPage({
           line-height: 1.2;
           color: #1d1d1f;
           margin-bottom: 7px;
-          white-space: nowrap;
+          /* Long titles wrap to a second line and clamp — they never widen or
+             grow the fixed-size card. */
+          display: -webkit-box;
+          -webkit-line-clamp: 2;
+          -webkit-box-orient: vertical;
           overflow: hidden;
-          text-overflow: ellipsis;
+          overflow-wrap: anywhere;
         }
         .gpp .lc-desc {
           font-size: 14px;
@@ -3172,6 +3182,25 @@ export function GeneratedPortalPage({
           font-weight: 500;
           color: #86868b;
           font-variant-numeric: tabular-nums;
+        }
+        /* Dark mode: darken the whole catalog card — body + info block — on
+           every breakpoint, matching the customer portal (the info part below
+           turns dark too, instead of staying white). */
+        .gpp.dark .lc-card {
+          background: #1d1d20;
+          border-color: rgba(245, 245, 247, 0.12);
+        }
+        .gpp.dark .lc-num {
+          color: rgba(245, 245, 247, 0.6);
+        }
+        .gpp.dark .lc-title {
+          color: #f5f5f7;
+        }
+        .gpp.dark .lc-desc {
+          color: rgba(245, 245, 247, 0.6);
+        }
+        .gpp.dark .lc-meta {
+          color: rgba(245, 245, 247, 0.6);
         }
 
         /* ============================================================ INSTRUCTOR — Apple/MasterClass style */
@@ -4033,18 +4062,8 @@ export function GeneratedPortalPage({
           .gpp .arrow {
             display: none;
           }
-          /* dark mode darkens the catalog cards on phones (the mobile design
-             flips them; desktop keeps them white). */
-          .gpp.dark .lc-card {
-            background: #1d1d20;
-            border-color: rgba(245, 245, 247, 0.12);
-          }
-          .gpp.dark .lc-title {
-            color: #f5f5f7;
-          }
-          .gpp.dark .lc-desc {
-            color: rgba(245, 245, 247, 0.6);
-          }
+          /* (dark-mode catalog card darkening now lives in the base rules so it
+             applies on every breakpoint — matching the customer portal.) */
           /* free-preview strip header + card sizing. The header sits at the
              page's 20px inset (the .lessons padding); the grid breaks out of
              that padding and re-pads itself so the rail scrolls full-bleed
