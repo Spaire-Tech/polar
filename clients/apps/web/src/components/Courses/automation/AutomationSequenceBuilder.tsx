@@ -198,7 +198,16 @@ export function AutomationSequenceBuilder({
   })
   const [steps, setSteps] = useState<Step[]>(initial?.steps ?? [])
   const [live, setLive] = useState(Boolean(initial?.live))
-  const [saveState, setSaveState] = useState<'saved' | 'saving'>('saved')
+  const [saveState, setSaveState] = useState<'saved' | 'saving' | 'unsaved'>(
+    'saved',
+  )
+  // A NEW automation is not written to the backend until the creator
+  // explicitly saves (Save as draft / Turn on) or confirms "save as draft"
+  // on the way out — so typing no longer spawns a phantom draft in the list.
+  // `dirty` tracks unsaved local edits while the sequence is still uncreated.
+  const [dirty, setDirty] = useState(false)
+  // "Leave with unsaved changes" prompt (uncreated sequence + edits).
+  const [leavePrompt, setLeavePrompt] = useState(false)
   const [toastMsg, setToastMsg] = useState<string | null>(null)
   const [menu, setMenu] = useState<{
     path: Path
@@ -217,62 +226,107 @@ export function AutomationSequenceBuilder({
     toastTimer.current = setTimeout(() => setToastMsg(null), 2400)
   }, [])
 
-  // ── persistence: debounced save to the email-sequences backend ──
+  // ── persistence: save to the email-sequences backend ──
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const persist = useCallback(
-    (next: {
-      name: string
-      desc: string
-      trigger: Trigger
-      send: Send
-      steps: Step[]
-      live: boolean
-    }) => {
-      if (!organizationId) return // embed/standalone: local only
-      setSaveState('saving')
-      if (saveTimer.current) clearTimeout(saveTimer.current)
-      saveTimer.current = setTimeout(async () => {
-        const flow_doc = {
-          version: 1,
-          // the design's richer trigger + send settings ride in flow_doc so
-          // the full authored intent persists alongside the executable steps
-          course_trigger: next.trigger,
-          send_settings: next.send,
-          steps: next.steps,
-        }
-        try {
-          if (!seqIdRef.current) {
-            const created = await createSeq.mutateAsync({
-              name: next.name.trim() || 'Untitled sequence',
-              description: next.desc,
-              trigger_type: 'on_purchase',
-              trigger_config: { course_trigger: next.trigger, send_settings: next.send },
-              flow_doc,
-              course_id: courseId,
-              lesson_id: lessonId,
-            })
-            seqIdRef.current = created?.id ?? null
-          } else {
+
+  type SavePayload = {
+    name: string
+    desc: string
+    trigger: Trigger
+    send: Send
+    steps: Step[]
+    live: boolean
+  }
+
+  // The actual write. Creates the sequence on first save, updates it after.
+  const doSave = useCallback(
+    async (next: SavePayload): Promise<boolean> => {
+      const flow_doc = {
+        version: 1,
+        // the design's richer trigger + send settings ride in flow_doc so
+        // the full authored intent persists alongside the executable steps
+        course_trigger: next.trigger,
+        send_settings: next.send,
+        steps: next.steps,
+      }
+      try {
+        if (!seqIdRef.current) {
+          const created = await createSeq.mutateAsync({
+            name: next.name.trim() || 'Untitled sequence',
+            description: next.desc,
+            trigger_type: 'on_purchase',
+            trigger_config: {
+              course_trigger: next.trigger,
+              send_settings: next.send,
+            },
+            flow_doc,
+            course_id: courseId,
+            lesson_id: lessonId,
+          })
+          seqIdRef.current = created?.id ?? null
+          // The backend always creates as a draft. If the creator turned it
+          // on in the same action, flip it live now that we have an id.
+          if (next.live && seqIdRef.current) {
             await updateSeq.mutateAsync({
               sequenceId: seqIdRef.current,
-              name: next.name.trim() || 'Untitled sequence',
-              description: next.desc,
-              trigger_config: {
-                course_trigger: next.trigger,
-                send_settings: next.send,
-                flow_doc,
-              },
-              status: next.live ? 'active' : 'draft',
+              status: 'active',
             })
           }
-          setSaveState('saved')
-        } catch {
-          setSaveState('saved')
-          showToast('Could not save')
+        } else {
+          await updateSeq.mutateAsync({
+            sequenceId: seqIdRef.current,
+            name: next.name.trim() || 'Untitled sequence',
+            description: next.desc,
+            trigger_config: {
+              course_trigger: next.trigger,
+              send_settings: next.send,
+              flow_doc,
+            },
+            status: next.live ? 'active' : 'draft',
+          })
         }
-      }, 700)
+        setDirty(false)
+        setSaveState('saved')
+        return true
+      } catch {
+        setSaveState('unsaved')
+        showToast('Could not save')
+        return false
+      }
     },
-    [organizationId, courseId, lessonId, createSeq, updateSeq, showToast],
+    [courseId, lessonId, createSeq, updateSeq, showToast],
+  )
+
+  // Debounced autosave — but ONLY for sequences that already exist. A new
+  // (uncreated) automation is never auto-created from typing; it just marks
+  // itself dirty and waits for an explicit save / the leave prompt.
+  const persist = useCallback(
+    (next: SavePayload) => {
+      if (!organizationId) return // embed/standalone: local only
+      if (!seqIdRef.current) {
+        setDirty(true)
+        setSaveState('unsaved')
+        return
+      }
+      setSaveState('saving')
+      if (saveTimer.current) clearTimeout(saveTimer.current)
+      saveTimer.current = setTimeout(() => void doSave(next), 700)
+    },
+    [organizationId, doSave],
+  )
+
+  // Explicit, immediate save (Save as draft / Turn on / leave prompt). Cancels
+  // any pending debounce and writes the current state right away.
+  const saveNow = useCallback(
+    async (over?: { live?: boolean }): Promise<boolean> => {
+      if (!organizationId) return false
+      if (saveTimer.current) clearTimeout(saveTimer.current)
+      const liveNext = over?.live ?? live
+      if (over?.live !== undefined) setLive(over.live)
+      setSaveState('saving')
+      return doSave({ name, desc, trigger, send, steps, live: liveNext })
+    },
+    [organizationId, name, desc, trigger, send, steps, live, doSave],
   )
 
   // Single funnel: update state + queue a save.
@@ -403,7 +457,7 @@ export function AutomationSequenceBuilder({
 
   const turnOn = () => {
     if (live) {
-      commit({ live: false })
+      void saveNow({ live: false })
       showToast('Sequence turned off')
       return
     }
@@ -412,9 +466,20 @@ export function AutomationSequenceBuilder({
       showToast('Add at least one email first')
       return
     }
-    commit({ live: true })
+    void saveNow({ live: true })
     showToast('Sequence is on')
   }
+
+  // Back guard: a NEW automation with unsaved edits asks whether to keep it
+  // as a draft before leaving, instead of having silently auto-created one.
+  // Already-saved sequences autosave, so they just leave.
+  const handleBack = useCallback(() => {
+    if (dirty && !seqIdRef.current) {
+      setLeavePrompt(true)
+      return
+    }
+    onBack?.()
+  }, [dirty, onBack])
 
   const Connector = ({ path, index }: { path: Path; index: number }) => (
     <div className="conn">
@@ -575,7 +640,7 @@ export function AutomationSequenceBuilder({
     <div className="asq">
       {/* ════════ TOP BAR ════════ */}
       <header className="topbar">
-        <button className="tb-back" type="button" onClick={onBack}>
+        <button className="tb-back" type="button" onClick={handleBack}>
           <Svg d={IC.back} s={16} w={2.4} /> Automations
         </button>
         <div className="tb-crumb">
@@ -583,14 +648,18 @@ export function AutomationSequenceBuilder({
           <div className="tb-name">{name.trim() || 'Untitled sequence'}</div>
         </div>
         <span className="tb-status">
-          {saveState === 'saving' ? 'Saving…' : 'Saved'}
+          {saveState === 'saving'
+            ? 'Saving…'
+            : saveState === 'unsaved'
+              ? 'Unsaved'
+              : 'Saved'}
         </span>
         <div className="tb-actions">
           <button
             className="btn-glass"
             type="button"
             onClick={() => {
-              commit({ live: false })
+              void saveNow({ live: false })
               showToast('Saved as draft')
             }}
           >
@@ -852,6 +921,58 @@ export function AutomationSequenceBuilder({
         </div>
       )}
 
+      {leavePrompt && (
+        <div
+          className="leave-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Unsaved automation"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setLeavePrompt(false)
+          }}
+        >
+          <div className="leave-card">
+            <div className="leave-title">Save this automation?</div>
+            <div className="leave-body">
+              You haven’t saved this automation yet. Keep it as a draft so you
+              can finish it later, or discard it.
+            </div>
+            <div className="leave-actions">
+              <button
+                className="leave-discard"
+                type="button"
+                onClick={() => {
+                  setLeavePrompt(false)
+                  onBack?.()
+                }}
+              >
+                Discard
+              </button>
+              <div className="leave-right">
+                <button
+                  className="leave-cancel"
+                  type="button"
+                  onClick={() => setLeavePrompt(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  className="leave-save"
+                  type="button"
+                  onClick={async () => {
+                    const ok = await saveNow({ live: false })
+                    setLeavePrompt(false)
+                    if (ok) onBack?.()
+                  }}
+                >
+                  Save as draft
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {emailEditing &&
         organization &&
         (() => {
@@ -1091,6 +1212,31 @@ function AutomationStyles() {
 
       .asq .toast { position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%); z-index: 600; display: inline-flex; align-items: center; gap: 9px; height: 44px; padding: 0 20px; border-radius: 980px; background: rgba(15, 15, 18, 0.8); color: #fff; -webkit-backdrop-filter: blur(20px) saturate(150%); backdrop-filter: blur(20px) saturate(150%); font-size: 14px; font-weight: 600; box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3); }
       .asq .toast .tk { color: #6ddb8a; display: grid; place-items: center; }
+
+      .asq .leave-overlay {
+        position: fixed; inset: 0; z-index: 700; display: grid; place-items: center;
+        padding: 24px; background: rgba(15, 15, 18, 0.42);
+        -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+      }
+      .asq .leave-card {
+        width: min(420px, 100%); background: var(--card); border-radius: 18px;
+        padding: 22px; box-shadow: 0 40px 90px rgba(0, 0, 0, 0.34);
+      }
+      .asq .leave-title { font-size: 17px; font-weight: 650; letter-spacing: -0.02em; }
+      .asq .leave-body { margin-top: 8px; font-size: 13.5px; line-height: 1.5; color: var(--text-2); }
+      .asq .leave-actions {
+        margin-top: 20px; display: flex; align-items: center; justify-content: space-between; gap: 10px;
+      }
+      .asq .leave-right { display: flex; align-items: center; gap: 8px; }
+      .asq .leave-discard, .asq .leave-cancel, .asq .leave-save {
+        height: 38px; padding: 0 16px; border-radius: 980px; font-size: 13.5px; font-weight: 600;
+      }
+      .asq .leave-discard { color: #c2433a; background: rgba(194, 67, 58, 0.1); }
+      .asq .leave-discard:hover { background: rgba(194, 67, 58, 0.16); }
+      .asq .leave-cancel { color: var(--text); background: rgba(0, 0, 0, 0.06); }
+      .asq .leave-cancel:hover { background: rgba(0, 0, 0, 0.1); }
+      .asq .leave-save { color: #fff; background: var(--blue); }
+      .asq .leave-save:hover { opacity: 0.92; }
 
       @media (max-width: 980px) {
         .asq { height: auto; overflow: auto; }

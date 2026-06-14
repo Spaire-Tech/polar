@@ -500,9 +500,11 @@ export default function CourseEditor({
       setSelectedLessonId(null)
       return
     }
-    // Otherwise return to the previous page (typically the products list).
-    // The wizard uses router.replace after creation so it never sits in history.
-    router.back()
+    // Otherwise leave the editor for the Courses list. This is a DETERMINISTIC
+    // push, not router.back(): visiting the standalone automation builder (and
+    // other sub-routes) pushes entries onto history, so router.back() would
+    // retrace into the automation builder instead of leaving the course.
+    router.push(`/dashboard/${organization.slug}/courses`)
   }
 
   return (
