@@ -178,6 +178,7 @@ function Preview() {
       ]}
       samplePlayable={fakeSample && !!sampleUrl}
       samplePlaybackUrl={sampleUrl}
+      trailerUrl={fakeSample ? sampleUrl : undefined}
       sampleStart={2}
       sampleDuration={2}
       playStartsSample={fakeSample && !!sampleUrl}
