@@ -383,7 +383,7 @@ export function GeneratedPortalPage({
     }
   }, [enrollLesson, closeEnroll])
 
-  // ── hover-trailer peek: play muted on hover, snap back on leave/scroll.
+  // ── hover-trailer peek: play WITH sound on hover, snap back on leave/scroll.
   //    (The protected behavior from the original landing's HeroMedia.) ──
   const heroRef = useRef<HTMLElement | null>(null)
   const trailerVideoRef = useRef<HTMLVideoElement | null>(null)
@@ -394,8 +394,17 @@ export function GeneratedPortalPage({
     if (!v) return
     if (trailerPeek) {
       v.currentTime = 0
-      v.muted = true
-      void v.play().catch(() => setTrailerPeek(false))
+      // The creator wants the trailer audible the moment you hover. Try to play
+      // unmuted first; if the browser blocks autoplay-with-sound (no prior user
+      // gesture on the page), fall back to a muted peek so the video still
+      // shows — sound then works on the next hover once any interaction has
+      // happened.
+      v.muted = false
+      v.volume = 1
+      void v.play().catch(() => {
+        v.muted = true
+        void v.play().catch(() => setTrailerPeek(false))
+      })
     } else {
       v.pause()
     }
@@ -719,13 +728,14 @@ export function GeneratedPortalPage({
   )
 
   // Hover-trailer layer — shared by both heroes. Sits above the still,
-  // below the text/band. Muted; fades in while peeking.
+  // below the text/band. Fades in while peeking. Muted state is controlled
+  // imperatively in the peek effect (we want sound on hover), so no static
+  // `muted` attribute here — it would re-mute the element on every re-render.
   const trailerLayer = trailerUrl ? (
     <video
       ref={trailerVideoRef}
       className={`trailer-layer${trailerPeek ? ' on' : ''}`}
       src={trailerUrl}
-      muted
       playsInline
       loop
       preload="metadata"
