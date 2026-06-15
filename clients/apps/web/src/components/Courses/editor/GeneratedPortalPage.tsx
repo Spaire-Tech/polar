@@ -388,6 +388,10 @@ export function GeneratedPortalPage({
   const heroRef = useRef<HTMLElement | null>(null)
   const trailerVideoRef = useRef<HTMLVideoElement | null>(null)
   const [trailerPeek, setTrailerPeek] = useState(false)
+  const trailerPeekRef = useRef(false)
+  useEffect(() => {
+    trailerPeekRef.current = trailerPeek
+  }, [trailerPeek])
   useEffect(() => {
     if (!trailerUrl) return
     const v = trailerVideoRef.current
@@ -397,8 +401,8 @@ export function GeneratedPortalPage({
       // The creator wants the trailer audible the moment you hover. Try to play
       // unmuted first; if the browser blocks autoplay-with-sound (no prior user
       // gesture on the page), fall back to a muted peek so the video still
-      // shows — sound then works on the next hover once any interaction has
-      // happened.
+      // shows. The gesture-unlock effect below turns the sound on the instant
+      // the visitor interacts with anything.
       v.muted = false
       v.volume = 1
       void v.play().catch(() => {
@@ -409,6 +413,31 @@ export function GeneratedPortalPage({
       v.pause()
     }
   }, [trailerPeek, trailerUrl])
+  // Browsers block autoplay-WITH-sound until the page has had a user gesture.
+  // The dashboard editor always has one (you clicked your way in), but a fresh
+  // visitor who opens the public landing and only hovers has not — so the first
+  // peek can come up muted. Listen for the first real interaction anywhere on
+  // the page and, if the trailer is peeking right then, unmute it immediately;
+  // every later hover then plays with sound (activation is sticky).
+  useEffect(() => {
+    if (!trailerUrl) return
+    const unmuteIfPeeking = () => {
+      const v = trailerVideoRef.current
+      if (v && trailerPeekRef.current && v.muted) {
+        v.muted = false
+        v.volume = 1
+        void v.play().catch(() => {})
+      }
+    }
+    window.addEventListener('pointerdown', unmuteIfPeeking, true)
+    window.addEventListener('keydown', unmuteIfPeeking, true)
+    window.addEventListener('touchstart', unmuteIfPeeking, true)
+    return () => {
+      window.removeEventListener('pointerdown', unmuteIfPeeking, true)
+      window.removeEventListener('keydown', unmuteIfPeeking, true)
+      window.removeEventListener('touchstart', unmuteIfPeeking, true)
+    }
+  }, [trailerUrl])
   useEffect(() => {
     if (!trailerUrl || !trailerPeek) return
     // Any scroll pauses the peek — same rule the original hero enforced.
