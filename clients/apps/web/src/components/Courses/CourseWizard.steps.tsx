@@ -154,7 +154,7 @@ export function SpaireOnboardingStyles() {
          doesn't float down the middle of the viewport. */
       .so-stage--top {
         align-items: flex-start;
-        padding-top: 64px;
+        padding-top: 28px;
       }
       .so-screen {
         width: 100%;
