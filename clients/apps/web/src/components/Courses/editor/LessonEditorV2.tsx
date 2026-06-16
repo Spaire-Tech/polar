@@ -459,12 +459,9 @@ export function LessonEditorV2({
                   ready={!processing && captions}
                   busy={processing}
                 />
-                <AutoRow
-                  label="Transcript & chapters"
-                  sub="Searchable transcript, generated from the video"
-                  ready={!processing && Boolean(lesson.mux_playback_id)}
-                  busy={processing}
-                />
+                {/* "Transcript & chapters" hidden — not implemented (no
+                    generation, storage, or player UI), so the status was
+                    misleading. Re-add once the feature actually exists. */}
               </div>
             )}
             {/* Thumbnail — lesson card cover image, drag to reposition */}
