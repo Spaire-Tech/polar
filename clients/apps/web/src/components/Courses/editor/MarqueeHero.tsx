@@ -123,7 +123,14 @@ export function MarqueeHero({
 
       <div className="panel-title">
         <div className={`pt-eyebrow${rise} d1`}>{eyebrow}</div>
-        <h1 className={`pt-h${rise} d1`}>{title}</h1>
+        <h1 className={`pt-h${rise} d1`}>
+          {title.split('\n').map((line, i) => (
+            <span key={i}>
+              {i > 0 && <br />}
+              {line}
+            </span>
+          ))}
+        </h1>
       </div>
 
       <div className={`band${rise} d2`}>
