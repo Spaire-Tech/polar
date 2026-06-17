@@ -95,3 +95,22 @@
   color: var(--t3);
   font-style: italic;
 }
+
+/* Activity submission: external link chip. */
+.spaire-hub .sub-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: var(--fill);
+  color: var(--accent);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  word-break: break-all;
+}
+.spaire-hub .sub-link:hover {
+  background: var(--fill-2);
+}

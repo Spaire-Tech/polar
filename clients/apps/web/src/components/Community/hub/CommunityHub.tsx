@@ -20,11 +20,14 @@ import { type CourseRead } from '@/hooks/queries/courses'
 import { schemas } from '@spaire/client'
 import { useRouter } from 'next/navigation'
 import * as React from 'react'
+import { type CourseChannel, ActivitiesTab } from './Activities'
 import { HeroCover } from './atoms'
+import { EventsTab } from './Events'
 import { FeedTab } from './Feed'
 import './hub-extra.css'
 import './hub.css'
 import { Glyph } from './icons'
+import { type ChannelOption } from './pickers'
 
 const { useState, useEffect, useRef, useCallback } = React
 
@@ -138,6 +141,26 @@ export function CommunityHub({ organization, course }: Props) {
   const selfAvatar =
     identityQ.data?.avatar_url || organization.avatar_url || null
 
+  // Activities attach to a course "channel": episodes (lessons) for a series,
+  // otherwise modules. Derived from the loaded course.
+  const channel: CourseChannel = React.useMemo(() => {
+    if (course.format === 'series') {
+      const options: ChannelOption[] = course.modules.flatMap((m) =>
+        (m.lessons ?? []).map((l) => ({
+          id: l.id,
+          label: l.title,
+          thumb: l.thumbnail_url ?? null,
+        })),
+      )
+      return { kind: 'lesson', noun: 'episode', options }
+    }
+    return {
+      kind: 'module',
+      noun: 'module',
+      options: course.modules.map((m) => ({ id: m.id, label: m.title })),
+    }
+  }, [course.format, course.modules])
+
   return (
     <div className={`spaire-hub${dark ? ' dark' : ''}`}>
       <header className="cr-top">
@@ -223,6 +246,16 @@ export function CommunityHub({ organization, course }: Props) {
         {tab === 'feed' ? (
           <FeedTab
             courseId={courseId}
+            selfName={selfName}
+            selfAvatar={selfAvatar}
+            showToast={showToast}
+          />
+        ) : tab === 'events' ? (
+          <EventsTab courseId={courseId} showToast={showToast} />
+        ) : tab === 'brief' ? (
+          <ActivitiesTab
+            courseId={courseId}
+            channel={channel}
             selfName={selfName}
             selfAvatar={selfAvatar}
             showToast={showToast}
