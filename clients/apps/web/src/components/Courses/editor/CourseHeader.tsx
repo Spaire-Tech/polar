@@ -17,9 +17,7 @@ export type TabId =
 const TABS: { id: TabId; label: string }[] = [
   { id: 'outline', label: 'Outline' },
   { id: 'customize', label: 'Landing' },
-  // Community is HIDDEN for now (not fully functional) — hide, don't
-  // delete; restore by uncommenting.
-  // { id: 'community', label: 'Community' },
+  { id: 'community', label: 'Community' },
   { id: 'automations', label: 'Automations' },
   { id: 'settings', label: 'Settings' },
   { id: 'pricing', label: 'Pricing' },

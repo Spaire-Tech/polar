@@ -1,0 +1,601 @@
+'use client'
+/* eslint-disable @next/next/no-img-element */
+
+/**
+ * Community Hub — Feed tab (creator).
+ *
+ * The running conversation. LinkedIn IA, Apple restraint: rich author block,
+ * verified host seal, a single quiet Like + Comment, pin-to-top, and a per-post
+ * ••• menu. Consumes the real CommunityPostRead / CommunityCommentRead shapes
+ * and wires to the creator community endpoints.
+ */
+import { HlsVideo } from '@/components/Courses/HlsVideo'
+import {
+  type CommunityAuthor,
+  type CommunityCommentRead,
+  type CommunityPostMediaRead,
+  type CommunityPostRead,
+  useCommunityPostComments,
+  useCreateCommunityComment,
+  useCreateCommunityPost,
+  useCreatorCommunityFeed,
+  useCreatorDeleteComment,
+  useCreatorDeletePost,
+  usePinPost,
+  useToggleCommentReaction,
+  useTogglePostReaction,
+  useUnpinPost,
+} from '@/hooks/queries/community'
+import * as React from 'react'
+import { Composer } from './composer'
+import { timeAgo } from './format'
+import { Glyph } from './icons'
+
+const { useMemo, useState } = React
+
+const TRUNC = 280
+
+function authorName(a: CommunityAuthor): string {
+  return a.name || (a.kind === 'instructor' ? 'Host' : 'Member')
+}
+function headlineFor(a: CommunityAuthor): string {
+  return a.kind === 'instructor' ? 'Host' : 'Member'
+}
+function reactionCount(reactions: { count: number }[]): number {
+  return reactions.reduce((n, r) => n + r.count, 0)
+}
+function iLiked(reactions: { mine: boolean }[]): boolean {
+  return reactions.some((r) => r.mine)
+}
+
+type CommentNode = CommunityCommentRead & { replies: CommunityCommentRead[] }
+function buildTree(comments: CommunityCommentRead[]): CommentNode[] {
+  const tops = comments.filter((c) => !c.parent_id)
+  const byParent = new Map<string, CommunityCommentRead[]>()
+  for (const c of comments) {
+    if (c.parent_id) {
+      const arr = byParent.get(c.parent_id) ?? []
+      arr.push(c)
+      byParent.set(c.parent_id, arr)
+    }
+  }
+  return tops.map((t) => ({ ...t, replies: byParent.get(t.id) ?? [] }))
+}
+
+/* ---------- media ---------- */
+function PostMedia({ media }: { media: CommunityPostMediaRead[] }) {
+  if (media.length === 0) return null
+  const videos = media.filter((m) => m.media_type === 'video')
+  const images = media.filter((m) => m.media_type === 'image')
+  return (
+    <>
+      {videos.map((v) =>
+        v.mux_status === 'ready' && (v.playback_url || v.mux_playback_id) ? (
+          <div key={v.id} className="crf-media crf-video">
+            <HlsVideo
+              playbackId={v.mux_playback_id}
+              playbackUrl={v.playback_url}
+              poster={v.thumbnail_url}
+            />
+          </div>
+        ) : (
+          <div key={v.id} className="crf-media crf-video crf-video-pending">
+            <div className="crf-video-encoding">
+              <Glyph d="video" size={22} stroke={1.7} /> Processing video…
+            </div>
+          </div>
+        ),
+      )}
+      {images.length > 0 && (
+        <div className={`crf-imgs n${Math.min(images.length, 4)}`}>
+          {images.map((m) => (
+            <img
+              key={m.id}
+              src={m.public_url ?? undefined}
+              alt=""
+              style={{ objectPosition: 'center' }}
+            />
+          ))}
+        </div>
+      )}
+    </>
+  )
+}
+
+/* ---------- comment ---------- */
+function HubComment({
+  c,
+  depth,
+  courseId,
+  postId,
+  selfAvatar,
+  onReply,
+}: {
+  c: CommentNode | CommunityCommentRead
+  depth: number
+  courseId: string
+  postId: string
+  selfAvatar?: string | null
+  onReply: (parentId: string, text: string) => void
+}) {
+  const [replying, setReplying] = useState(false)
+  const [text, setText] = useState('')
+  const react = useToggleCommentReaction(null, courseId, postId, 'creator')
+  const del = useCreatorDeleteComment(courseId)
+  const a = c.author
+  const replies = 'replies' in c ? c.replies : []
+  const likes = reactionCount(c.reactions)
+  const liked = iLiked(c.reactions)
+  const submit = () => {
+    const t = text.trim()
+    if (!t) return
+    onReply(c.id, t)
+    setText('')
+    setReplying(false)
+  }
+  if (c.deleted) {
+    return (
+      <div className="cmt">
+        <span className="cmt-av tomb" />
+        <div className="cmt-main">
+          <div className="cmt-bubble tomb">
+            <div className="cmt-text dim">This comment was removed.</div>
+          </div>
+          {replies.length > 0 && (
+            <div className="cmt-thread">
+              {replies.map((r) => (
+                <HubComment
+                  key={r.id}
+                  c={r}
+                  depth={depth + 1}
+                  courseId={courseId}
+                  postId={postId}
+                  selfAvatar={selfAvatar}
+                  onReply={onReply}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    )
+  }
+  return (
+    <div className="cmt">
+      {a.avatar_url ? (
+        <img
+          className={`cmt-av${depth ? ' sm' : ''}`}
+          src={a.avatar_url}
+          alt={authorName(a)}
+        />
+      ) : (
+        <span className={`cmt-av${depth ? ' sm' : ''} hub-av-fallback`} />
+      )}
+      <div className="cmt-main">
+        <div className="cmt-bubble">
+          <div className="cmt-name">
+            {authorName(a)}
+            {a.kind === 'instructor' && <span className="role">Host</span>}
+          </div>
+          <div className="cmt-text">{c.content}</div>
+        </div>
+        <div className="cmt-actions">
+          <span className="t">{timeAgo(c.created_at)}</span>
+          <button
+            className={liked ? 'on' : ''}
+            onClick={() =>
+              react.mutate({ commentId: c.id, emoji: 'heart' })
+            }
+          >
+            {liked ? 'Liked' : 'Like'}
+            {likes > 0 ? ` · ${likes}` : ''}
+          </button>
+          {depth === 0 && (
+            <button onClick={() => setReplying((r) => !r)}>Reply</button>
+          )}
+          {c.is_own && (
+            <button onClick={() => del.mutate(c.id)}>Delete</button>
+          )}
+        </div>
+        {replying && (
+          <div className="cmt-compose" style={{ marginTop: 10 }}>
+            {selfAvatar ? (
+              <img src={selfAvatar} alt="" />
+            ) : (
+              <span className="hub-av-fallback" />
+            )}
+            <input
+              autoFocus
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') submit()
+              }}
+              placeholder={`Reply to ${authorName(a).split(' ')[0]}…`}
+            />
+            <button className="cmt-send" disabled={!text.trim()} onClick={submit}>
+              Reply
+            </button>
+          </div>
+        )}
+        {replies.length > 0 && (
+          <div className="cmt-thread">
+            {replies.map((r) => (
+              <HubComment
+                key={r.id}
+                c={r}
+                depth={depth + 1}
+                courseId={courseId}
+                postId={postId}
+                selfAvatar={selfAvatar}
+                onReply={onReply}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+/* ---------- comments section (lazy: only mounts when opened) ---------- */
+function Comments({
+  courseId,
+  postId,
+  selfName,
+  selfAvatar,
+}: {
+  courseId: string
+  postId: string
+  selfName: string
+  selfAvatar?: string | null
+}) {
+  const commentsQ = useCommunityPostComments(null, courseId, postId, 'creator')
+  const create = useCreateCommunityComment(null, courseId, postId, 'creator')
+  const [text, setText] = useState('')
+  const tree = useMemo(() => buildTree(commentsQ.data ?? []), [commentsQ.data])
+
+  const reply = (parentId: string, content: string) =>
+    create.mutate({ content, parent_id: parentId })
+  const submit = () => {
+    const t = text.trim()
+    if (!t) return
+    create.mutate({ content: t })
+    setText('')
+  }
+
+  return (
+    <div className="comments">
+      {tree.map((c) => (
+        <HubComment
+          key={c.id}
+          c={c}
+          depth={0}
+          courseId={courseId}
+          postId={postId}
+          selfAvatar={selfAvatar}
+          onReply={reply}
+        />
+      ))}
+      <div className="cmt-compose">
+        {selfAvatar ? (
+          <img src={selfAvatar} alt="" />
+        ) : (
+          <span className="hub-av-fallback" />
+        )}
+        <input
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') submit()
+          }}
+          placeholder={`Reply as ${selfName.split(' ')[0]}…`}
+        />
+        <button className="cmt-send" disabled={!text.trim()} onClick={submit}>
+          Post
+        </button>
+      </div>
+    </div>
+  )
+}
+
+/* ---------- post ---------- */
+export function HubPost({
+  post,
+  courseId,
+  selfName,
+  selfAvatar,
+}: {
+  post: CommunityPostRead
+  courseId: string
+  selfName: string
+  selfAvatar?: string | null
+}) {
+  const [open, setOpen] = useState(!!post.pinned_at)
+  const [expanded, setExpanded] = useState(false)
+  const [menu, setMenu] = useState(false)
+
+  const reactPost = useTogglePostReaction(null, courseId, 'creator')
+  const pin = usePinPost(courseId)
+  const unpin = useUnpinPost(courseId)
+  const del = useCreatorDeletePost(courseId)
+
+  const a = post.author
+  const isHost = a.kind === 'instructor'
+  const pinned = !!post.pinned_at
+  const liked = iLiked(post.reactions)
+  const likes = post.reaction_count
+  const comments = post.comment_count
+
+  const long = post.body.length > TRUNC
+  const shown =
+    long && !expanded
+      ? post.body.slice(0, post.body.lastIndexOf(' ', TRUNC)) + '…'
+      : post.body
+
+  const togglePin = () =>
+    pinned ? unpin.mutate(post.id) : pin.mutate({ postId: post.id, pinType: 'announcement' })
+
+  const copyLink = () => {
+    const base =
+      typeof window !== 'undefined' ? window.location.href.split('#')[0] : ''
+    navigator.clipboard?.writeText(`${base}#post-${post.id}`)
+  }
+
+  return (
+    <article className="crf-post" id={`post-${post.id}`}>
+      {pinned && (
+        <div className="crf-pin">
+          <Glyph d="pin" size={13} stroke={1.9} /> Pinned to the top of the feed
+        </div>
+      )}
+
+      <header className="crf-head">
+        {a.avatar_url ? (
+          <img
+            className={`crf-av${isHost ? ' host' : ''}`}
+            src={a.avatar_url}
+            alt={authorName(a)}
+          />
+        ) : (
+          <span className={`crf-av${isHost ? ' host' : ''} hub-av-fallback`} />
+        )}
+        <div className="crf-id">
+          <div className="crf-name">
+            {authorName(a)}
+            {isHost && (
+              <span className="crf-seal" title="Verified host">
+                <Glyph d="seal" size={14} stroke={1.7} />
+              </span>
+            )}
+          </div>
+          <div className="crf-headline">{headlineFor(a)}</div>
+          <div className="crf-meta">
+            {timeAgo(post.created_at)}
+            <span className="dot">·</span>
+            <Glyph d="globe" size={12} stroke={1.7} />
+          </div>
+        </div>
+        <button
+          className={`crf-pinbtn${pinned ? ' on' : ''}`}
+          onClick={togglePin}
+          aria-label={pinned ? 'Unpin from feed' : 'Pin to top'}
+          title={pinned ? 'Unpin from feed' : 'Pin to top'}
+        >
+          <Glyph
+            d="pin"
+            size={18}
+            stroke={1.9}
+            fill={pinned ? 'currentColor' : 'none'}
+          />
+        </button>
+        <div className="crf-menu-wrap">
+          <button
+            className="crf-more"
+            aria-label="Post options"
+            onClick={() => setMenu((m) => !m)}
+          >
+            <Glyph d="more" size={18} stroke={2.4} />
+          </button>
+          {menu && (
+            <>
+              <div className="crf-menu-scrim" onClick={() => setMenu(false)} />
+              <div className="crf-menu">
+                <button
+                  onClick={() => {
+                    togglePin()
+                    setMenu(false)
+                  }}
+                >
+                  <Glyph d="pin" size={16} stroke={1.8} />{' '}
+                  {pinned ? 'Unpin from feed' : 'Pin to top'}
+                </button>
+                <button
+                  onClick={() => {
+                    copyLink()
+                    setMenu(false)
+                  }}
+                >
+                  <Glyph d="share" size={16} stroke={1.8} /> Copy link
+                </button>
+                <button
+                  className="danger"
+                  onClick={() => {
+                    del.mutate(post.id)
+                    setMenu(false)
+                  }}
+                >
+                  <Glyph d="trash" size={16} stroke={1.8} /> Remove post
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      </header>
+
+      {post.body.trim() && (
+        <div className="crf-text">
+          {shown}
+          {long && !expanded && (
+            <button className="crf-morelink" onClick={() => setExpanded(true)}>
+              more
+            </button>
+          )}
+        </div>
+      )}
+
+      <PostMedia media={post.media} />
+
+      {(likes > 0 || comments > 0) && (
+        <div className="crf-proof">
+          <span className="crf-proof-l">
+            {likes > 0 && (
+              <>
+                <span className="crf-rxdot">
+                  <Glyph d="heartFeed" size={11} fill="currentColor" />
+                </span>
+                <span className="crf-proof-t">{likes.toLocaleString()}</span>
+              </>
+            )}
+          </span>
+          {comments > 0 && (
+            <button className="crf-proof-r" onClick={() => setOpen((o) => !o)}>
+              {comments} {comments === 1 ? 'comment' : 'comments'}
+            </button>
+          )}
+        </div>
+      )}
+
+      <div className="crf-bar">
+        <button
+          className={`crf-act${liked ? ' on' : ''}`}
+          onClick={() => reactPost.mutate({ postId: post.id, emoji: 'heart' })}
+        >
+          <Glyph
+            d="heartFeed"
+            size={20}
+            stroke={liked ? 1.9 : 1.8}
+            fill={liked ? 'currentColor' : 'none'}
+          />
+          <span>{liked ? 'Liked' : 'Like'}</span>
+        </button>
+        <button className="crf-act" onClick={() => setOpen((o) => !o)}>
+          <Glyph d="comment" size={20} stroke={1.8} />
+          <span>Comment</span>
+        </button>
+      </div>
+
+      {open && (
+        <Comments
+          courseId={courseId}
+          postId={post.id}
+          selfName={selfName}
+          selfAvatar={selfAvatar}
+        />
+      )}
+    </article>
+  )
+}
+
+/* ---------- tab ---------- */
+export function FeedTab({
+  courseId,
+  selfName,
+  selfAvatar,
+  showToast,
+}: {
+  courseId: string
+  selfName: string
+  selfAvatar?: string | null
+  showToast: (m: string) => void
+}) {
+  const feedQ = useCreatorCommunityFeed(courseId, {
+    sort: 'recent',
+    module_id: null,
+    lesson_id: null,
+    tag_id: null,
+  })
+  const create = useCreateCommunityPost(null, courseId, 'creator')
+
+  const posts = useMemo(() => {
+    const seen = new Set<string>()
+    const out: CommunityPostRead[] = []
+    for (const page of feedQ.data?.pages ?? []) {
+      for (const p of page.items) {
+        if (seen.has(p.id)) continue
+        seen.add(p.id)
+        out.push(p)
+      }
+    }
+    return out
+  }, [feedQ.data])
+
+  return (
+    <>
+      <div className="cr-head">
+        <div>
+          <div className="h">Feed</div>
+          <div className="s">
+            The running conversation at the heart of your community. Post
+            announcements and prompts as the host, pin what matters, and reply
+            right in the thread — exactly as your members will see it.
+          </div>
+        </div>
+      </div>
+
+      <Composer
+        courseId={courseId}
+        mode="creator"
+        avatar={selfAvatar}
+        authorName={selfName}
+        placeholder="Share an update with your community…"
+        onCreate={(body) => create.mutateAsync(body)}
+        showToast={showToast}
+      />
+
+      {feedQ.isLoading ? (
+        <div className="crf-stack">
+          {[0, 1].map((i) => (
+            <div key={i} className="card" style={{ height: 200 }} />
+          ))}
+        </div>
+      ) : posts.length === 0 ? (
+        <div className="card crf-empty">
+          <span className="crf-empty-ic">
+            <Glyph d="bubble" size={26} stroke={1.7} />
+          </span>
+          <h3>Your feed is quiet — for now</h3>
+          <p>
+            Post a welcome so members arrive to a room that already feels alive.
+            Introduce yourself, set the tone, and tell them what to do first.
+          </p>
+        </div>
+      ) : (
+        <>
+          <div className="crf-stack">
+            {posts.map((p) => (
+              <HubPost
+                key={p.id}
+                post={p}
+                courseId={courseId}
+                selfName={selfName}
+                selfAvatar={selfAvatar}
+              />
+            ))}
+          </div>
+          {feedQ.hasNextPage && (
+            <div style={{ textAlign: 'center', marginTop: 16 }}>
+              <button
+                className="btn btn-quiet"
+                disabled={feedQ.isFetchingNextPage}
+                onClick={() => feedQ.fetchNextPage()}
+              >
+                {feedQ.isFetchingNextPage ? 'Loading…' : 'Load more'}
+              </button>
+            </div>
+          )}
+        </>
+      )}
+    </>
+  )
+}

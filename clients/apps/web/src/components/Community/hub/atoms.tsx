@@ -1,4 +1,5 @@
 'use client'
+/* eslint-disable @next/next/no-img-element */
 
 /**
  * Community Hub (Creator) — shared atoms.
@@ -191,8 +192,6 @@ export function posY(pos?: string | null): number {
   return m ? parseFloat(m[1]) : 50
 }
 
-type DragState = { y: number; base: number; h: number; moved: boolean } | null
-
 /* ---------- CoverDrop (form cover: upload + reposition) ---------- */
 export function CoverDrop({
   src,
@@ -208,36 +207,30 @@ export function CoverDrop({
   const ref = useRef<HTMLDivElement>(null)
   const [openPick, input] = useFilePick(onFile)
   const [drag, setDrag] = useState(false)
-  const dd = useRef<DragState>(null)
   const canPos = !!src && !!onPos
 
-  const move = useCallback(
-    (e: PointerEvent) => {
-      const s = dd.current
-      if (!s) return
-      const dy = e.clientY - s.y
-      if (Math.abs(dy) > 3) s.moved = true
-      if (s.moved && canPos && onPos) {
-        const pct = Math.max(0, Math.min(100, s.base - (dy / s.h) * 100))
-        onPos(`center ${pct}%`)
-      }
-    },
-    [canPos, onPos],
-  )
-  const up = useCallback(() => {
-    const s = dd.current
-    window.removeEventListener('pointermove', move)
-    window.removeEventListener('pointerup', up)
-    if (s && !s.moved) openPick()
-    dd.current = null
-  }, [move, openPick])
+  // Pointer-drag to reposition (object-position). Drag state lives in the
+  // handler closure — a <3px drag is treated as a click → file picker.
   const down = (e: React.PointerEvent) => {
     if (e.button) return
-    dd.current = {
+    const start = {
       y: e.clientY,
       base: posY(pos),
       h: ref.current?.offsetHeight || 200,
-      moved: false,
+    }
+    let moved = false
+    const move = (ev: PointerEvent) => {
+      const dy = ev.clientY - start.y
+      if (Math.abs(dy) > 3) moved = true
+      if (moved && canPos && onPos) {
+        const pct = Math.max(0, Math.min(100, start.base - (dy / start.h) * 100))
+        onPos(`center ${pct}%`)
+      }
+    }
+    const up = () => {
+      window.removeEventListener('pointermove', move)
+      window.removeEventListener('pointerup', up)
+      if (!moved) openPick()
     }
     window.addEventListener('pointermove', move)
     window.addEventListener('pointerup', up)
@@ -302,34 +295,26 @@ export function HeroCover({
 }) {
   const ref = useRef<HTMLDivElement>(null)
   const [openPick, fileInput] = useFilePick(onFile)
-  const d = useRef<DragState>(null)
-  const move = useCallback(
-    (e: PointerEvent) => {
-      const s = d.current
-      if (!s) return
-      const dy = e.clientY - s.y
-      if (Math.abs(dy) > 3) s.moved = true
-      if (s.moved) {
-        const pct = Math.max(0, Math.min(100, s.base - (dy / s.h) * 100))
-        onPos(`center ${pct}%`)
-      }
-    },
-    [onPos],
-  )
-  const up = useCallback(() => {
-    const s = d.current
-    window.removeEventListener('pointermove', move)
-    window.removeEventListener('pointerup', up)
-    if (s && !s.moved) openPick()
-    d.current = null
-  }, [move, openPick])
   const down = (e: React.PointerEvent) => {
     if (e.button) return
-    d.current = {
+    const start = {
       y: e.clientY,
       base: posY(pos),
       h: ref.current?.offsetHeight || 340,
-      moved: false,
+    }
+    let moved = false
+    const move = (ev: PointerEvent) => {
+      const dy = ev.clientY - start.y
+      if (Math.abs(dy) > 3) moved = true
+      if (moved) {
+        const pct = Math.max(0, Math.min(100, start.base - (dy / start.h) * 100))
+        onPos(`center ${pct}%`)
+      }
+    }
+    const up = () => {
+      window.removeEventListener('pointermove', move)
+      window.removeEventListener('pointerup', up)
+      if (!moved) openPick()
     }
     window.addEventListener('pointermove', move)
     window.addEventListener('pointerup', up)

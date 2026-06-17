@@ -181,7 +181,7 @@ const SUBMISSION_POOL = [
   { who: 'diego', img: UN('1574680096145-d05b474e2155', 1100), text: 'Morning footwork ladder before work. Trying to make the split-step automatic so I stop thinking about it mid-point.', time: '8h' },
   { who: 'priya', img: UN('1622279457486-62dcc4a431d6', 1100), text: 'Slice approach into the net. Coach said my shoulder turn was late — does this look better?', time: '12h' },
   { who: 'tom',   img: UN('1530915365347-e35b749a0381', 1100), text: 'First tournament rally of the season. Lost the point but the rally itself felt clean. Progress.', time: '1d' },
-  { who: 'lena',  img: UN('1526232761682-d26e85d9e311', 1100), text: 'Backhand cross-court, 30 reps. Posting the ugly ones too so it’s honest.', time: '1d' },
+  { who: 'lena',  img: UN('1542144582-1ba00456b5e3', 1100), text: 'Backhand cross-court, 30 reps. Posting the ugly ones too so it’s honest.', time: '1d' },
   { who: 'marco', img: UN('1517649763962-0c623066013b', 1100), text: 'Return of serve practice. Standing a step further back changed everything for me.', time: '2d' },
   { who: 'nadia', img: UN('1559586616-361e18714958', 1100), text: 'Volley at the net — hands felt soft today. Finally not flinching at pace.', time: '2d' },
   { who: 'ben',   img: UN('1530915365347-e35b749a0381', 1100), text: 'Quick one: 30 practice serves before the rain. Box on the left is second serves, right is first.', time: '3d' },
@@ -334,7 +334,8 @@ function SubComposer({ onPost }) {
   );
 }
 
-function ActivityPage({ act, onBack, showToast, events = [] }) {
+function ActivityPage({ act, onBack, showToast, events = [], author, viewer }) {
+  const A = author || { who: 'carla', name: window.CHOST.name, avatar: window.CHOST.avatar };
   const f = fmtOf(act.format); const ep = act.episode ? episodeOf(act.episode) : null;
   const [posts, setPosts] = us(() => act.submissions || []);
   const newComment = (who, text) => ({ id: 'k' + Date.now() + Math.random().toString(36).slice(2, 5), who, time: 'now', text, likes: 0, liked: false, replies: [] });
@@ -344,16 +345,16 @@ function ActivityPage({ act, onBack, showToast, events = [] }) {
     setPosts(prev => prev.map(p => {
       if (p.id !== a.postId) return p;
       if (a.type === 'likePost') return { ...p, liked: !p.liked, likes: p.likes + (p.liked ? -1 : 1) };
-      if (a.type === 'comment') return { ...p, comments: [...(p.comments || []), newComment('host', a.text)] };
+      if (a.type === 'comment') return { ...p, comments: [...(p.comments || []), newComment(A.who, a.text)] };
       if (a.type === 'likeComment') return { ...p, comments: (p.comments || []).map(c => c.id === a.commentId ? { ...c, liked: !c.liked, likes: c.likes + (c.liked ? -1 : 1) } : c) };
-      if (a.type === 'reply') return { ...p, comments: (p.comments || []).map(c => c.id === a.commentId ? { ...c, replies: [...(c.replies || []), newComment('host', a.text)] } : c) };
+      if (a.type === 'reply') return { ...p, comments: (p.comments || []).map(c => c.id === a.commentId ? { ...c, replies: [...(c.replies || []), newComment(A.who, a.text)] } : c) };
       if (a.type === 'vote') return p.poll && p.poll.voted == null ? { ...p, poll: { ...p.poll, voted: a.optionId, options: p.poll.options.map(o => o.id === a.optionId ? { ...o, votes: o.votes + 1 } : o) } } : p;
       if (a.type === 'pin') return p;
       return p;
     }));
   };
   const addSubmission = (payload) => {
-    setPosts(prev => [{ id: 'mine' + Date.now(), who: 'carla', time: 'now', text: '', media: null, likes: 0, liked: false, comments: [], ...payload }, ...prev]);
+    setPosts(prev => [{ id: 'mine' + Date.now(), who: A.who, time: 'now', text: '', media: null, likes: 0, liked: false, comments: [], ...payload }, ...prev]);
     showToast('Posted to the activity');
   };
   const Post = window.CRFPost;
@@ -374,7 +375,7 @@ function ActivityPage({ act, onBack, showToast, events = [] }) {
       </div>
 
       <div className="act-feed">
-        <window.RichComposer onPost={addSubmission} events={events} showToast={showToast} placeholder="Share your submission — a clip, a photo, or a note…" cta="Post"/>
+        <window.RichComposer onPost={addSubmission} events={events} showToast={showToast} avatar={A.avatar} authorName={A.name} placeholder="Share your submission — a clip, a photo, or a note…" cta="Post"/>
         {posts.length === 0 ? (
           <div className="card act-feed-empty">
             <span className="ev-empty-ic"><G d={CR.grid} size={24} stroke={1.7}/></span>
@@ -383,7 +384,7 @@ function ActivityPage({ act, onBack, showToast, events = [] }) {
           </div>
         ) : (
           <div className="crf-stack">
-            {posts.map(p => <Post key={p.id} post={p} onAction={onAction}/>)}
+            {posts.map(p => <Post key={p.id} post={p} onAction={onAction} viewer={viewer}/>)}
           </div>
         )}
       </div>
@@ -974,8 +975,9 @@ function Popover({ onClose, className, children }) {
   );
 }
 
-function RichComposer({ onPost, events = [], showToast, placeholder = 'Share something with your community…', avatar, cta = 'Post' }) {
+function RichComposer({ onPost, events = [], showToast, placeholder = 'Share something with your community…', avatar, authorName, cta = 'Post' }) {
   const av = avatar || window.CHOST.avatar;
+  const aName = authorName || window.CHOST.name;
   const [open, setOpen] = us(false);
   const [text, setText] = us('');
   const [media, setMedia] = us(null);
@@ -1027,7 +1029,7 @@ function RichComposer({ onPost, events = [], showToast, placeholder = 'Share som
     <div className="card crf-composer open">
       <div className="crf-comp-head">
         <img src={av} alt=""/>
-        <div className="crf-comp-who"><div className="n">{window.CHOST.name}</div></div>
+        <div className="crf-comp-who"><div className="n">{aName}</div></div>
         <button className="crf-more" onClick={reset} aria-label="Close"><G d={SF.close} size={18} stroke={2}/></button>
       </div>
 
@@ -1242,4 +1244,14 @@ function App() {
   );
 }
 
-ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+window.CUI = {
+  Field, Seg, Toggle, CoverDrop, HeroCover, Ring,
+  RichComposer, PostExtras, EventAttach, EventCard, EventSheet, ActivityCard, ActivityPage,
+  ProviderLogo, providerOf,
+  fmtDateLabel, fmtTimeLabel, coverFor, actCover, fmtOf, FORMATS,
+  EPISODES, episodeOf, mockSubmissions, useUpload, readFileData, CR,
+};
+
+if (!window.__NO_AUTOMOUNT) {
+  ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+}
