@@ -141,6 +141,15 @@ export interface CommunitySettingsRead {
   watching_rail_threshold: number
   presence_blurb: string | null
   prompt_of_week_post_id: string | null
+  who_can_post: 'everyone' | 'approved'
+  moderate_new_members: boolean
+  profanity_filter: boolean
+  default_meeting_provider: 'zoom' | 'meet' | 'teams' | 'webex' | 'other'
+  member_rsvp: boolean
+  notify_new_submissions: boolean
+  notify_new_comments: boolean
+  weekly_digest: boolean
+  archived: boolean
   created_at: string
   modified_at: string | null
 }

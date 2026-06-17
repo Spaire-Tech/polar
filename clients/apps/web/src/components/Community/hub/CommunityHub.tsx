@@ -28,6 +28,8 @@ import './hub-extra.css'
 import './hub.css'
 import { Glyph } from './icons'
 import { type ChannelOption } from './pickers'
+import { SettingsTab } from './Settings'
+import { StartTab } from './Start'
 
 const { useState, useEffect, useRef, useCallback } = React
 
@@ -161,6 +163,11 @@ export function CommunityHub({ organization, course }: Props) {
     }
   }, [course.format, course.modules])
 
+  const lessonsCount = React.useMemo(
+    () => course.modules.reduce((n, m) => n + (m.lessons?.length ?? 0), 0),
+    [course.modules],
+  )
+
   return (
     <div className={`spaire-hub${dark ? ' dark' : ''}`}>
       <header className="cr-top">
@@ -260,57 +267,28 @@ export function CommunityHub({ organization, course }: Props) {
             selfAvatar={selfAvatar}
             showToast={showToast}
           />
+        ) : tab === 'frame' ? (
+          <SettingsTab
+            courseId={courseId}
+            courseTitle={course.title ?? 'Your course'}
+            brandName={organization.name}
+            courseCoverUrl={course.thumbnail_url ?? null}
+            lessonsCount={lessonsCount}
+            onViewCourse={backToEditor}
+            showToast={showToast}
+          />
         ) : (
-          <HubTabPlaceholder tab={tab} />
+          <StartTab
+            courseId={courseId}
+            hostName={selfName}
+            published={published}
+            onPublish={publish}
+            goTab={setTab}
+          />
         )}
       </div>
 
       {toast && <div className="toast">{toast}</div>}
     </div>
-  )
-}
-
-/**
- * Temporary section placeholder. Each tab is replaced by its real
- * implementation in its own build phase (Feed → Activities → Events →
- * Settings → Start).
- */
-function HubTabPlaceholder({ tab }: { tab: HubTab }) {
-  const copy: Record<HubTab, { h: string; s: string }> = {
-    start: {
-      h: 'Start',
-      s: 'Welcome + setup checklist. Coming in the Start build phase.',
-    },
-    feed: {
-      h: 'Feed',
-      s: 'The running conversation with your community. Up next.',
-    },
-    brief: {
-      h: 'Activities',
-      s: 'The thing you ask members to make and bring.',
-    },
-    events: { h: 'Events', s: 'Live moments that bring the room together.' },
-    frame: {
-      h: 'Settings',
-      s: 'Everything that shapes how your community looks and runs.',
-    },
-  }
-  const c = copy[tab]
-  return (
-    <>
-      <div className="cr-head">
-        <div>
-          <div className="h">{c.h}</div>
-          <div className="s">{c.s}</div>
-        </div>
-      </div>
-      <div className="card ev-empty">
-        <span className="ev-empty-ic">
-          <Glyph d="grid" size={26} stroke={1.7} />
-        </span>
-        <h3>Building this section</h3>
-        <p>{c.s}</p>
-      </div>
-    </>
   )
 }

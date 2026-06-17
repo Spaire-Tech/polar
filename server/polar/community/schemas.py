@@ -30,6 +30,15 @@ class CommunitySettingsRead(TimestampedSchema):
     watching_rail_threshold: int
     presence_blurb: str | None = None
     prompt_of_week_post_id: UUID4 | None = None
+    who_can_post: Literal["everyone", "approved"]
+    moderate_new_members: bool
+    profanity_filter: bool
+    default_meeting_provider: Literal["zoom", "meet", "teams", "webex", "other"]
+    member_rsvp: bool
+    notify_new_submissions: bool
+    notify_new_comments: bool
+    weekly_digest: bool
+    archived: bool
 
 
 class CommunitySettingsUpdate(Schema):
@@ -50,6 +59,17 @@ class CommunitySettingsUpdate(Schema):
     watching_rail_threshold: int | None = Field(default=None, ge=1)
     presence_blurb: str | None = None
     prompt_of_week_post_id: UUID4 | None = None
+    who_can_post: Literal["everyone", "approved"] | None = None
+    moderate_new_members: bool | None = None
+    profanity_filter: bool | None = None
+    default_meeting_provider: (
+        Literal["zoom", "meet", "teams", "webex", "other"] | None
+    ) = None
+    member_rsvp: bool | None = None
+    notify_new_submissions: bool | None = None
+    notify_new_comments: bool | None = None
+    weekly_digest: bool | None = None
+    archived: bool | None = None
 
 
 # =====================================================================
