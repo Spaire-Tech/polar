@@ -45,23 +45,35 @@ const TABS: { k: HubTab; label: string }[] = [
 type Props = {
   organization: schemas['Organization']
   course: CourseRead
+  /** Embedded inside the course editor: render the slim "Community › {course}"
+   *  breadcrumb bar instead of the full-page nav (no back, no theme toggle, no
+   *  draft pill), and let the editor control the theme. */
+  embedded?: boolean
+  dark?: boolean
 }
 
-export function CommunityHub({ organization, course }: Props) {
+export function CommunityHub({
+  organization,
+  course,
+  embedded = false,
+  dark: darkProp,
+}: Props) {
   const router = useRouter()
   const courseId = course.id
 
-  // —— theme (persisted; toggled on the hub root, not <body>, so it stays scoped) ——
-  const [dark, setDark] = useState(false)
+  // —— theme. Standalone: own persisted toggle. Embedded: controlled by the
+  // editor (one unified `spaire_theme`), no toggle rendered here. ——
+  const [internalDark, setInternalDark] = useState(false)
   useEffect(() => {
-    setDark(localStorage.getItem('spaire_theme') === 'dark')
+    setInternalDark(localStorage.getItem('spaire_theme') === 'dark')
   }, [])
   const toggleTheme = () =>
-    setDark((d) => {
+    setInternalDark((d) => {
       const next = !d
       localStorage.setItem('spaire_theme', next ? 'dark' : 'light')
       return next
     })
+  const dark = darkProp ?? internalDark
 
   const [tab, setTab] = useState<HubTab>('start')
 
@@ -171,34 +183,55 @@ export function CommunityHub({ organization, course }: Props) {
   )
 
   return (
-    <div className={`spaire-hub${dark ? ' dark' : ''}`}>
-      <header className="cr-top">
-        <div className="wrap cr-top-in">
-          <button className="cr-back" onClick={backToEditor}>
-            <Glyph d="back" size={16} stroke={2.4} /> Editor
-          </button>
-          <div className="cr-crumb">{course.title}</div>
-          <span className={`cr-state${published ? ' live' : ''}`}>
-            <span className="sdot" />
-            {published ? 'Published' : 'Draft'}
-          </span>
-          <button
-            className="cr-tt"
-            aria-label="Toggle appearance"
-            onClick={toggleTheme}
-          >
-            <span className="ic-moon">
-              <Glyph d="moon" size={17} stroke={1.9} />
+    <div
+      className={`spaire-hub${dark ? ' dark' : ''}${
+        embedded ? ' is-embedded' : ''
+      }`}
+    >
+      {embedded ? (
+        <div className="ch-statusbar">
+          <div className="ch-crumb">
+            <span className="ch-crumb-parent">Community</span>
+            <span className="ch-crumb-sep">›</span>
+            <span className="ch-crumb-title">
+              {course.title ?? 'Untitled course'}
             </span>
-            <span className="ic-sun">
-              <Glyph d="sun" size={17} stroke={1.9} />
-            </span>
-          </button>
-          <button className="btn btn-primary btn-sm" onClick={publish}>
-            {published ? 'Published' : 'Publish'}
-          </button>
+          </div>
+          <div className="ch-statusbar-right">
+            <button className="btn btn-primary btn-sm" onClick={publish}>
+              {published ? 'Published' : 'Publish'}
+            </button>
+          </div>
         </div>
-      </header>
+      ) : (
+        <header className="cr-top">
+          <div className="wrap cr-top-in">
+            <button className="cr-back" onClick={backToEditor}>
+              <Glyph d="back" size={16} stroke={2.4} /> Editor
+            </button>
+            <div className="cr-crumb">{course.title}</div>
+            <span className={`cr-state${published ? ' live' : ''}`}>
+              <span className="sdot" />
+              {published ? 'Published' : 'Draft'}
+            </span>
+            <button
+              className="cr-tt"
+              aria-label="Toggle appearance"
+              onClick={toggleTheme}
+            >
+              <span className="ic-moon">
+                <Glyph d="moon" size={17} stroke={1.9} />
+              </span>
+              <span className="ic-sun">
+                <Glyph d="sun" size={17} stroke={1.9} />
+              </span>
+            </button>
+            <button className="btn btn-primary btn-sm" onClick={publish}>
+              {published ? 'Published' : 'Publish'}
+            </button>
+          </div>
+        </header>
+      )}
 
       <HeroCover
         src={cover}

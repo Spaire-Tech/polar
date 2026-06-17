@@ -466,7 +466,7 @@ export default function CourseEditor({
     mainContent = <CustomizeTab course={course} organization={organization} />
   } else if (activeTab === 'community') {
     mainContent = (
-      <CommunityTab course={course} organizationSlug={organization.slug} />
+      <CommunityTab course={course} organization={organization} dark={dark} />
     )
   } else if (activeTab === 'automations') {
     mainContent = (

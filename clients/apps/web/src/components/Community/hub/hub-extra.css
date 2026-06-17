@@ -196,3 +196,54 @@
   box-shadow: none !important;
   border: 0 !important;
 }
+
+/* Embedded (in-editor) status bar — mirrors the Landing tab's slim breadcrumb
+   bar ("Community › {course}") with the Publish action on the right. Replaces
+   the full-page cr-top nav when the hub lives inside the course editor. */
+.spaire-hub .ch-statusbar {
+  display: flex;
+  height: 48px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--hair);
+  background: var(--surface);
+}
+.spaire-hub .ch-crumb {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+}
+.spaire-hub .ch-crumb-parent {
+  font-size: 12px;
+  color: var(--t2);
+}
+.spaire-hub .ch-crumb-sep {
+  font-size: 13px;
+  color: var(--t3);
+}
+.spaire-hub .ch-crumb-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+}
+.spaire-hub .ch-statusbar-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Embedded: the full-page sticky `.cr-top` (52px) is gone — the editor's own
+   header sits outside this scroll container. The sticky tabs were offset by
+   that 52px, which leaves a dead gap above them when scrolled. Stick them to
+   the top of the editor's scroll viewport instead. The status bar and hero
+   scroll away above as normal page content. */
+.spaire-hub.is-embedded .tabs {
+  top: 0;
+}

@@ -1,27 +1,27 @@
 'use client'
 
+import { CommunityHub } from '@/components/Community/hub/CommunityHub'
 import { type CourseRead } from '@/hooks/queries/courses'
-import { useRouter } from 'next/navigation'
-import { useEffect } from 'react'
+import { schemas } from '@spaire/client'
 
 type Props = {
   course: CourseRead
-  organizationSlug: string
+  organization: schemas['Organization']
+  dark?: boolean
 }
 
-// The community surface is now a full-page console ("Community Hub - Creator")
-// at /dashboard/{org}/courses/{courseId}/community — it carries its own nav,
-// hero, and tabs. Entering the editor's Community tab redirects there. This
-// replaces the old v5 CommunityPreview embed.
-export function CommunityTab({ course, organizationSlug }: Props) {
-  const router = useRouter()
-  useEffect(() => {
-    router.replace(`/dashboard/${organizationSlug}/courses/${course.id}/community`)
-  }, [router, organizationSlug, course.id])
-
+// The community surface now lives inside the course editor as a tab (like
+// Outline / Landing), with the hub's embedded breadcrumb status bar. The
+// editor header owns the universal dark toggle, so the hub renders in
+// `embedded` mode (no full-page nav, no theme toggle, no draft pill) and the
+// editor controls its theme.
+export function CommunityTab({ course, organization, dark }: Props) {
   return (
-    <div className="flex h-full items-center justify-center">
-      <div className="h-8 w-8 animate-spin rounded-full border-2 border-blue-500 border-t-transparent" />
-    </div>
+    <CommunityHub
+      course={course}
+      organization={organization}
+      embedded
+      dark={dark}
+    />
   )
 }
