@@ -54,12 +54,12 @@ export function CommunityHub({ organization, course }: Props) {
   // —— theme (persisted; toggled on the hub root, not <body>, so it stays scoped) ——
   const [dark, setDark] = useState(false)
   useEffect(() => {
-    setDark(localStorage.getItem('spaire_hub_theme') === 'dark')
+    setDark(localStorage.getItem('spaire_theme') === 'dark')
   }, [])
   const toggleTheme = () =>
     setDark((d) => {
       const next = !d
-      localStorage.setItem('spaire_hub_theme', next ? 'dark' : 'light')
+      localStorage.setItem('spaire_theme', next ? 'dark' : 'light')
       return next
     })
 

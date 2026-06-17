@@ -3,6 +3,8 @@
 import { CourseRead } from '@/hooks/queries/courses'
 import AddOutlined from '@mui/icons-material/AddOutlined'
 import ChevronLeftOutlined from '@mui/icons-material/ChevronLeftOutlined'
+import DarkModeOutlined from '@mui/icons-material/DarkModeOutlined'
+import LightModeOutlined from '@mui/icons-material/LightModeOutlined'
 import { cn } from '@spaire/ui/lib/utils'
 
 export type TabId =
@@ -30,6 +32,8 @@ export function CourseHeader({
   onTabChange,
   onAddContent,
   onBack,
+  dark,
+  onToggleDark,
 }: {
   course: CourseRead
   organizationSlug: string
@@ -40,6 +44,8 @@ export function CourseHeader({
   onAddContent?: () => void
   onBack?: () => void
   onClose?: () => void
+  dark?: boolean
+  onToggleDark?: () => void
 }) {
   const moduleCount = course.modules.length
   const lessonCount = course.modules.reduce(
@@ -71,6 +77,20 @@ export function CourseHeader({
           </div>
         </div>
         <div className="flex items-center justify-end gap-2">
+          {onToggleDark && (
+            <button
+              onClick={onToggleDark}
+              aria-label={dark ? 'Switch to light mode' : 'Switch to dark mode'}
+              title={dark ? 'Light mode' : 'Dark mode'}
+              className="flex h-7 w-7 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900"
+            >
+              {dark ? (
+                <LightModeOutlined sx={{ fontSize: 17 }} />
+              ) : (
+                <DarkModeOutlined sx={{ fontSize: 17 }} />
+              )}
+            </button>
+          )}
           {activeTab === 'outline' && (
             <button
               onClick={onAddContent}
