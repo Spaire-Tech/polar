@@ -1,37 +1,27 @@
 'use client'
 
-import { CommunityPreview } from '@/components/Community/CommunityPreview'
 import { type CourseRead } from '@/hooks/queries/courses'
+import { useRouter } from 'next/navigation'
+import { useEffect } from 'react'
 
 type Props = {
   course: CourseRead
   organizationSlug: string
 }
 
-// Full-page community surface inside the course editor.  Threads the
-// org slug so the preview can deep-link into the live customer-portal
-// community.
+// The community surface is now a full-page console ("Community Hub - Creator")
+// at /dashboard/{org}/courses/{courseId}/community — it carries its own nav,
+// hero, and tabs. Entering the editor's Community tab redirects there. This
+// replaces the old v5 CommunityPreview embed.
 export function CommunityTab({ course, organizationSlug }: Props) {
+  const router = useRouter()
+  useEffect(() => {
+    router.replace(`/dashboard/${organizationSlug}/courses/${course.id}/community`)
+  }, [router, organizationSlug, course.id])
+
   return (
-    <div className="h-full w-full">
-      <CommunityPreview
-        courseId={course.id}
-        courseTitle={course.title ?? undefined}
-        courseCoverUrl={course.thumbnail_url ?? null}
-        courseCoverPosition={course.thumbnail_object_position ?? null}
-        organizationSlug={organizationSlug}
-        discussionsKind={course.format === 'series' ? 'episode' : 'module'}
-        lessons={
-          course.format === 'series'
-            ? course.modules.flatMap((m) =>
-                (m.lessons ?? []).map((l) => ({
-                  id: l.id,
-                  label: l.title,
-                })),
-              )
-            : course.modules.map((m) => ({ id: m.id, label: m.title }))
-        }
-      />
+    <div className="flex h-full items-center justify-center">
+      <div className="h-8 w-8 animate-spin rounded-full border-2 border-blue-500 border-t-transparent" />
     </div>
   )
 }

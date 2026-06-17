@@ -1,0 +1,267 @@
+'use client'
+
+/**
+ * Community Hub — Creator console (full-page surface, replaces the v5
+ * CommunityPreview). Implements the "Community Hub - Creator" design handoff:
+ * frosted top nav, repositionable hero cover, Start · Feed · Activities ·
+ * Events · Settings tabs, light/dark glass. Built section-by-section — this
+ * file is the shell + theme + nav + hero + tab routing. Tab bodies land in
+ * their own phases (see __design/creator-handoff/BUILD-PLAN.md §7).
+ */
+import {
+  type CommunitySettingsRead,
+  useCreatorCommunityMembers,
+  useCreatorCommunitySettings,
+  useUpdateCommunitySettings,
+  useUploadPostImage,
+} from '@/hooks/queries/community'
+import { type CourseRead } from '@/hooks/queries/courses'
+import { schemas } from '@spaire/client'
+import { useRouter } from 'next/navigation'
+import * as React from 'react'
+import { HeroCover } from './atoms'
+import './hub.css'
+import { Glyph } from './icons'
+
+const { useState, useEffect, useRef, useCallback } = React
+
+export type HubTab = 'start' | 'feed' | 'brief' | 'events' | 'frame'
+const TABS: { k: HubTab; label: string }[] = [
+  { k: 'start', label: 'Start' },
+  { k: 'feed', label: 'Feed' },
+  { k: 'brief', label: 'Activities' },
+  { k: 'events', label: 'Events' },
+  { k: 'frame', label: 'Settings' },
+]
+
+type Props = {
+  organization: schemas['Organization']
+  course: CourseRead
+}
+
+export function CommunityHub({ organization, course }: Props) {
+  const router = useRouter()
+  const courseId = course.id
+
+  // —— theme (persisted; toggled on the hub root, not <body>, so it stays scoped) ——
+  const [dark, setDark] = useState(false)
+  useEffect(() => {
+    setDark(localStorage.getItem('spaire_hub_theme') === 'dark')
+  }, [])
+  const toggleTheme = () =>
+    setDark((d) => {
+      const next = !d
+      localStorage.setItem('spaire_hub_theme', next ? 'dark' : 'light')
+      return next
+    })
+
+  const [tab, setTab] = useState<HubTab>('start')
+
+  // —— toast ——
+  const [toast, setToast] = useState<string | null>(null)
+  const tRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const showToast = useCallback((m: string) => {
+    setToast(m)
+    if (tRef.current) clearTimeout(tRef.current)
+    tRef.current = setTimeout(() => setToast(null), 2400)
+  }, [])
+
+  // —— data ——
+  const settingsQ = useCreatorCommunitySettings(courseId)
+  const updateSettings = useUpdateCommunitySettings(courseId)
+  const membersQ = useCreatorCommunityMembers(courseId)
+  const uploadImg = useUploadPostImage(null, courseId, 'creator')
+
+  const settings = settingsQ.data
+  const published = !!settings?.enabled
+  const memberCount = membersQ.data?.length ?? 0
+
+  // —— optimistic cover state layered over settings (instant preview) ——
+  const [coverOverride, setCoverOverride] = useState<{
+    url?: string
+    pos?: string
+  }>({})
+  const cover =
+    coverOverride.url ?? settings?.hero_thumbnail_url ?? course.thumbnail_url
+  const coverPos =
+    coverOverride.pos ??
+    settings?.hero_thumbnail_object_position ??
+    'center 36%'
+
+  const patch = useCallback(
+    (p: Partial<CommunitySettingsRead>) => updateSettings.mutate(p),
+    [updateSettings],
+  )
+
+  // drag-to-reposition: debounce the persisted write, keep the preview instant
+  const posTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const onCoverPos = (pos: string) => {
+    setCoverOverride((o) => ({ ...o, pos }))
+    if (posTimer.current) clearTimeout(posTimer.current)
+    posTimer.current = setTimeout(
+      () => patch({ hero_thumbnail_object_position: pos }),
+      450,
+    )
+  }
+  const onCoverFile = async (file: File, dataUrl: string) => {
+    setCoverOverride((o) => ({ ...o, url: dataUrl })) // optimistic
+    try {
+      const res = await uploadImg.mutateAsync(file)
+      setCoverOverride((o) => ({ ...o, url: res.public_url }))
+      patch({ hero_thumbnail_url: res.public_url })
+      showToast('Cover updated')
+    } catch {
+      setCoverOverride((o) => ({ ...o, url: undefined }))
+      showToast('Could not upload that image')
+    }
+  }
+
+  const publish = () => {
+    if (published) {
+      showToast('Your community is live')
+      return
+    }
+    patch({ enabled: true })
+    showToast('Your community is live')
+  }
+
+  const backToEditor = () =>
+    router.push(`/dashboard/${organization.slug}/courses/${courseId}`)
+
+  const name = settings?.feed_title_override || course.title || 'Your community'
+  const host = course.instructor_name || organization.name
+
+  return (
+    <div className={`spaire-hub${dark ? ' dark' : ''}`}>
+      <header className="cr-top">
+        <div className="wrap cr-top-in">
+          <button className="cr-back" onClick={backToEditor}>
+            <Glyph d="back" size={16} stroke={2.4} /> Editor
+          </button>
+          <div className="cr-crumb">{course.title}</div>
+          <span className={`cr-state${published ? ' live' : ''}`}>
+            <span className="sdot" />
+            {published ? 'Published' : 'Draft'}
+          </span>
+          <button
+            className="cr-tt"
+            aria-label="Toggle appearance"
+            onClick={toggleTheme}
+          >
+            <span className="ic-moon">
+              <Glyph d="moon" size={17} stroke={1.9} />
+            </span>
+            <span className="ic-sun">
+              <Glyph d="sun" size={17} stroke={1.9} />
+            </span>
+          </button>
+          <button className="btn btn-primary btn-sm" onClick={publish}>
+            {published ? 'Published' : 'Publish'}
+          </button>
+        </div>
+      </header>
+
+      <HeroCover
+        src={cover}
+        pos={coverPos}
+        onFile={onCoverFile}
+        onPos={onCoverPos}
+      >
+        <div className="wrap mh-brand">{organization.name}</div>
+        <div className="wrap mh-head">
+          <h1 className="mh-title">{name}</h1>
+          <div className="mh-by">Hosted by {host}</div>
+        </div>
+      </HeroCover>
+
+      <div className="mh-bar">
+        <div className="wrap mh-bar-in">
+          <div className="mh-meta">
+            <b>{memberCount}</b> {memberCount === 1 ? 'member' : 'members'}
+            <span style={{ margin: '0 10px', opacity: 0.5 }}>·</span>
+            <span className="mh-draft">
+              {published ? 'Live · accepting members' : 'Not published yet'}
+            </span>
+          </div>
+          <span className="spacer" />
+          <button
+            className="btn btn-quiet btn-sm"
+            onClick={() =>
+              window.open(
+                `/${organization.slug}/portal/courses/${courseId}/community`,
+                '_blank',
+              )
+            }
+          >
+            <Glyph d="eye" size={15} stroke={1.9} /> View as student
+          </button>
+        </div>
+      </div>
+
+      <div className="tabs cr-tabs">
+        <div className="wrap tabs-in">
+          {TABS.map((t) => (
+            <button
+              key={t.k}
+              className={`tab ${tab === t.k ? 'on' : ''}`}
+              onClick={() => setTab(t.k)}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="wrap content">
+        <HubTabPlaceholder tab={tab} />
+      </div>
+
+      {toast && <div className="toast">{toast}</div>}
+    </div>
+  )
+}
+
+/**
+ * Temporary section placeholder. Each tab is replaced by its real
+ * implementation in its own build phase (Feed → Activities → Events →
+ * Settings → Start).
+ */
+function HubTabPlaceholder({ tab }: { tab: HubTab }) {
+  const copy: Record<HubTab, { h: string; s: string }> = {
+    start: {
+      h: 'Start',
+      s: 'Welcome + setup checklist. Coming in the Start build phase.',
+    },
+    feed: {
+      h: 'Feed',
+      s: 'The running conversation with your community. Up next.',
+    },
+    brief: {
+      h: 'Activities',
+      s: 'The thing you ask members to make and bring.',
+    },
+    events: { h: 'Events', s: 'Live moments that bring the room together.' },
+    frame: {
+      h: 'Settings',
+      s: 'Everything that shapes how your community looks and runs.',
+    },
+  }
+  const c = copy[tab]
+  return (
+    <>
+      <div className="cr-head">
+        <div>
+          <div className="h">{c.h}</div>
+          <div className="s">{c.s}</div>
+        </div>
+      </div>
+      <div className="card ev-empty">
+        <span className="ev-empty-ic">
+          <Glyph d="grid" size={26} stroke={1.7} />
+        </span>
+        <h3>Building this section</h3>
+        <p>{c.s}</p>
+      </div>
+    </>
+  )
+}
