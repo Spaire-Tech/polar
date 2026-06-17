@@ -23,9 +23,7 @@ import {
   useCreateCommunityActivity,
   usePostSubmissionComment,
   useSubmissionComments,
-  useSubmitToCommunityActivity,
   useUploadPostImage,
-  useUploadPostVideo,
 } from '@/hooks/queries/community'
 import * as React from 'react'
 import { CoverDrop, Field, Seg } from './atoms'
@@ -71,7 +69,7 @@ function ActivityForm({
   const [formatLabel, setFormatLabel] = useState('Video')
   const [channelId, setChannelId] = useState<string | null>(null)
   const [cover, setCover] = useState('')
-  const [coverPos, setCoverPos] = useState('center 50%')
+  const [coverPos, setCoverPos] = useState('50% 50%')
   const [busy, setBusy] = useState(false)
 
   const uploadImg = useUploadPostImage(null, courseId, 'creator')
@@ -356,214 +354,6 @@ function SubmissionCard({
   )
 }
 
-/* ---------- submission composer (adapts to the activity's format) ---------- */
-function SubComposer({
-  courseId,
-  activity,
-  selfAvatar,
-  showToast,
-}: {
-  courseId: string
-  activity: CommunityActivityRead
-  selfAvatar?: string | null
-  showToast: (m: string) => void
-}) {
-  const [open, setOpen] = useState(false)
-  const [text, setText] = useState('')
-  const [link, setLink] = useState('')
-  const [image, setImage] = useState<{ file_id: string; url: string } | null>(null)
-  const [video, setVideo] = useState<{ upload_id: string; url: string; progress: number } | null>(null)
-  const [busy, setBusy] = useState(false)
-  const imgInput = React.useRef<HTMLInputElement>(null)
-  const vidInput = React.useRef<HTMLInputElement>(null)
-
-  const uploadImg = useUploadPostImage(null, courseId, 'creator')
-  const uploadVid = useUploadPostVideo(null, courseId, 'creator')
-  const submitMut = useSubmitToCommunityActivity(null, courseId)
-
-  const t = activity.submission_type
-  const reset = () => {
-    setText('')
-    setLink('')
-    setImage(null)
-    setVideo(null)
-    setOpen(false)
-  }
-  const pickImage = async (file: File | undefined) => {
-    if (!file) return
-    setBusy(true)
-    try {
-      const res = await uploadImg.mutateAsync(file)
-      setImage({ file_id: res.file_id, url: res.public_url })
-      setOpen(true)
-    } catch {
-      showToast('Could not upload that image')
-    } finally {
-      setBusy(false)
-    }
-  }
-  const pickVideo = async (file: File | undefined) => {
-    if (!file) return
-    setVideo({ upload_id: '', url: URL.createObjectURL(file), progress: 0 })
-    setOpen(true)
-    setBusy(true)
-    try {
-      const res = await uploadVid.mutateAsync({
-        file,
-        onProgress: (f) => setVideo((v) => (v ? { ...v, progress: f } : v)),
-      })
-      setVideo((v) => (v ? { ...v, upload_id: res.upload_id, progress: 1 } : v))
-    } catch {
-      setVideo(null)
-      showToast('Could not upload that video')
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  const canSubmit =
-    !busy &&
-    ((t === 'photo' && !!image) ||
-      (t === 'video' && !!video?.upload_id) ||
-      (t === 'link' && !!link.trim()) ||
-      (t === 'text' && !!text.trim()))
-
-  const submit = async () => {
-    if (!canSubmit) return
-    setBusy(true)
-    try {
-      await submitMut.mutateAsync({
-        activityId: activity.id,
-        body: {
-          submission_type: t,
-          body: text.trim() || null,
-          file_id: t === 'photo' ? image?.file_id : null,
-          mux_upload_id: t === 'video' ? video?.upload_id : null,
-          link_url: t === 'link' ? link.trim() : null,
-        },
-      })
-      reset()
-      showToast('Posted to the activity')
-    } catch {
-      showToast('Could not post that')
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  const placeholder =
-    t === 'text'
-      ? 'Write your submission…'
-      : 'Say something about it — what you worked on, what you want eyes on…'
-
-  return (
-    <div className={`card composer${open ? ' composer-open' : ''}`}>
-      <div className="composer-row" style={open ? { alignItems: 'flex-start' } : undefined}>
-        {selfAvatar ? <img src={selfAvatar} alt="You" /> : <span className="hub-av-fallback" />}
-        {open ? (
-          <textarea
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            placeholder={placeholder}
-          />
-        ) : (
-          <button className="composer-fake" onClick={() => setOpen(true)}>
-            Share your submission — a clip, a photo, or a note…
-          </button>
-        )}
-        {!open && t === 'photo' && (
-          <button
-            className="sub-photo-btn"
-            onClick={() => imgInput.current?.click()}
-            aria-label="Add a photo"
-          >
-            <Glyph d="image" size={19} stroke={1.8} />
-          </button>
-        )}
-      </div>
-
-      {open && t === 'link' && (
-        <input
-          className="input"
-          style={{ marginTop: 10 }}
-          value={link}
-          placeholder="https://…"
-          onChange={(e) => setLink(e.target.value)}
-        />
-      )}
-      {open && image && (
-        <div className="sub-comp-media">
-          <img src={image.url} alt="" />
-          <button className="sub-comp-rm" onClick={() => setImage(null)} aria-label="Remove image">
-            <Glyph d="close" size={15} stroke={2.2} />
-          </button>
-        </div>
-      )}
-      {open && video && (
-        <div className="sub-comp-media">
-          <video src={video.url} controls playsInline />
-          {video.progress < 1 && (
-            <div className="comp-att-prog">
-              <span style={{ width: `${Math.round(video.progress * 100)}%` }} />
-            </div>
-          )}
-          <button className="sub-comp-rm" onClick={() => setVideo(null)} aria-label="Remove video">
-            <Glyph d="close" size={15} stroke={2.2} />
-          </button>
-        </div>
-      )}
-
-      {open && (
-        <div className="composer-foot">
-          {t === 'photo' && (
-            <button className="text-btn" onClick={() => imgInput.current?.click()}>
-              <Glyph d="image" size={16} stroke={1.8} /> {image ? 'Replace photo' : 'Add photo'}
-            </button>
-          )}
-          {t === 'video' && (
-            <button className="text-btn" onClick={() => vidInput.current?.click()}>
-              <Glyph d="video" size={16} stroke={1.8} /> {video ? 'Replace video' : 'Add video'}
-            </button>
-          )}
-          <span className="sp" />
-          <button className="btn btn-quiet btn-sm" onClick={reset}>
-            Cancel
-          </button>
-          <button
-            className="btn btn-primary btn-sm"
-            disabled={!canSubmit}
-            style={!canSubmit ? { opacity: 0.4 } : undefined}
-            onClick={submit}
-          >
-            {busy ? 'Posting…' : 'Post'}
-          </button>
-        </div>
-      )}
-
-      <input
-        ref={imgInput}
-        type="file"
-        accept="image/*"
-        style={{ display: 'none' }}
-        onChange={(e) => {
-          pickImage(e.target.files?.[0])
-          e.target.value = ''
-        }}
-      />
-      <input
-        ref={vidInput}
-        type="file"
-        accept="video/*"
-        style={{ display: 'none' }}
-        onChange={(e) => {
-          pickVideo(e.target.files?.[0])
-          e.target.value = ''
-        }}
-      />
-    </div>
-  )
-}
-
 /* ---------- activity page (submissions) ---------- */
 function ActivityPage({
   act,
@@ -571,14 +361,12 @@ function ActivityPage({
   selfName,
   selfAvatar,
   onBack,
-  showToast,
 }: {
   act: CommunityActivityRead
   courseId: string
   selfName: string
   selfAvatar?: string | null
   onBack: () => void
-  showToast: (m: string) => void
 }) {
   const subsQ = useCommunityActivitySubmissions(null, courseId, act.id, 'creator')
   const submissions = subsQ.data ?? []
@@ -614,12 +402,6 @@ function ActivityPage({
       </div>
 
       <div className="act-feed">
-        <SubComposer
-          courseId={courseId}
-          activity={act}
-          selfAvatar={selfAvatar}
-          showToast={showToast}
-        />
         {submissions.length === 0 ? (
           <div className="card act-feed-empty">
             <span className="ev-empty-ic">
@@ -627,8 +409,8 @@ function ActivityPage({
             </span>
             <h3>No submissions yet</h3>
             <p>
-              Be the first to post — share a clip, a photo, or a note and your
-              members will follow.
+              When members respond to this activity, their submissions collect
+              here — reply on each one to give feedback.
             </p>
           </div>
         ) : (
@@ -682,7 +464,6 @@ export function ActivitiesTab({
         selfName={selfName}
         selfAvatar={selfAvatar}
         onBack={() => setOpenId(null)}
-        showToast={showToast}
       />
     )
   }

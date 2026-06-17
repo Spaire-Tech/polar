@@ -302,14 +302,16 @@ const invalidateAllFeeds = (
   token: string | null | undefined,
   courseId: string,
 ) => {
+  const qc = getQueryClient()
   if (mode === 'customer' && token) {
-    getQueryClient().invalidateQueries({
-      queryKey: ['community-feed', token, courseId],
-    })
+    qc.invalidateQueries({ queryKey: ['community-feed', token, courseId] })
   } else {
-    getQueryClient().invalidateQueries({
-      queryKey: ['creator-community-feed', courseId],
-    })
+    // The creator hub renders useCreatorCommunityFeed (key
+    // 'creator-community-preview') and the moderation list keys on
+    // 'creator-community-posts'. Invalidate both (prefix match hits the
+    // filtered/cursor variants) so the feed refreshes in place.
+    qc.invalidateQueries({ queryKey: ['creator-community-preview', courseId] })
+    qc.invalidateQueries({ queryKey: ['creator-community-posts', courseId] })
   }
 }
 
@@ -740,7 +742,7 @@ export const useTogglePostReaction = (
   // surface the user is actually looking at.
   const feedQueryKey =
     mode === 'creator'
-      ? (['creator-community-feed', courseId] as const)
+      ? (['creator-community-preview', courseId] as const)
       : (['community-feed', token, courseId] as const)
 
   // The customer feed is a useInfiniteQuery — its cached shape is
@@ -1168,7 +1170,8 @@ export const useVotePostPoll = (
       if (!courseId) return
       const queryClient = getQueryClient()
       const keys: readonly unknown[][] = [
-        ['creator-community-feed', courseId],
+        ['creator-community-preview', courseId],
+        ['creator-community-posts', courseId],
         ['community-feed', token, courseId],
       ]
       for (const key of keys) {

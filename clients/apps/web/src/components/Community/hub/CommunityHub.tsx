@@ -95,7 +95,7 @@ export function CommunityHub({ organization, course }: Props) {
   const coverPos =
     coverOverride.pos ??
     settings?.hero_thumbnail_object_position ??
-    'center 36%'
+    '50% 36%'
 
   const patch = useCallback(
     (p: Partial<CommunitySettingsRead>) => updateSettings.mutate(p),
@@ -139,6 +139,8 @@ export function CommunityHub({ organization, course }: Props) {
 
   const name = settings?.feed_title_override || course.title || 'Your community'
   const host = course.instructor_name || organization.name
+  const defaultTagline = `Hosted by ${host}`
+  const tagline = settings?.feed_eyebrow_override || defaultTagline
   const selfName = identityQ.data?.name || host
   const selfAvatar =
     identityQ.data?.avatar_url || organization.avatar_url || null
@@ -207,7 +209,7 @@ export function CommunityHub({ organization, course }: Props) {
         <div className="wrap mh-brand">{organization.name}</div>
         <div className="wrap mh-head">
           <h1 className="mh-title">{name}</h1>
-          <div className="mh-by">Hosted by {host}</div>
+          <div className="mh-by">{tagline}</div>
         </div>
       </HeroCover>
 
@@ -273,6 +275,7 @@ export function CommunityHub({ organization, course }: Props) {
             courseTitle={course.title ?? 'Your course'}
             brandName={organization.name}
             courseCoverUrl={course.thumbnail_url ?? null}
+            defaultTagline={defaultTagline}
             lessonsCount={lessonsCount}
             onViewCourse={backToEditor}
             showToast={showToast}

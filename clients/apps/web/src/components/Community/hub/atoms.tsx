@@ -224,7 +224,7 @@ export function CoverDrop({
       if (Math.abs(dy) > 3) moved = true
       if (moved && canPos && onPos) {
         const pct = Math.max(0, Math.min(100, start.base - (dy / start.h) * 100))
-        onPos(`center ${pct}%`)
+        onPos(`50% ${pct}%`)
       }
     }
     const up = () => {
@@ -308,7 +308,7 @@ export function HeroCover({
       if (Math.abs(dy) > 3) moved = true
       if (moved) {
         const pct = Math.max(0, Math.min(100, start.base - (dy / start.h) * 100))
-        onPos(`center ${pct}%`)
+        onPos(`50% ${pct}%`)
       }
     }
     const up = () => {
