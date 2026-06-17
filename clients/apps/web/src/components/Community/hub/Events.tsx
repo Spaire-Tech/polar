@@ -294,7 +294,7 @@ function EventCard({
 }
 
 /* ---------- detail sheet ---------- */
-function EventSheet({
+export function EventSheet({
   ev,
   onClose,
   showToast,

@@ -172,3 +172,27 @@
   outline-offset: 2px;
   border-radius: 8px;
 }
+
+/* The composer writing box and the Start ring must read clean — the design
+   has no border/outline/box-shadow on them. Force it off regardless of any
+   inherited dashboard/UA focus ring (some global focus styles use the blue
+   --ring colour, which was leaking a square outline onto these). */
+.spaire-hub .crf-composer textarea,
+.spaire-hub .crf-composer textarea:focus,
+.spaire-hub .crf-composer textarea:focus-visible,
+.spaire-hub .composer textarea,
+.spaire-hub .composer textarea:focus {
+  outline: none !important;
+  box-shadow: none !important;
+  border: 0 !important;
+}
+.spaire-hub .ring,
+.spaire-hub .ring svg,
+.spaire-hub .ring svg:focus,
+.spaire-hub .setup-ring,
+.spaire-hub .setup-ring:focus,
+.spaire-hub .setup-ring *:focus {
+  outline: none !important;
+  box-shadow: none !important;
+  border: 0 !important;
+}

@@ -13,6 +13,7 @@ import { HlsVideo } from '@/components/Courses/HlsVideo'
 import {
   type CommunityAuthor,
   type CommunityCommentRead,
+  type CommunityEventRead,
   type CommunityPollRead,
   type CommunityPostEventRef,
   type CommunityPostMediaRead,
@@ -31,6 +32,7 @@ import {
 } from '@/hooks/queries/community'
 import * as React from 'react'
 import { Composer } from './composer'
+import { EventSheet } from './Events'
 import { timeAgo } from './format'
 import { Glyph } from './icons'
 import { fmtDateLabel, providerFromUrl, ProviderLogo, providerOf } from './pickers'
@@ -83,43 +85,77 @@ function PostPoll({ courseId, post }: { courseId: string; post: CommunityPostRea
   )
 }
 
-/* ---------- embedded event card ---------- */
+/* ---------- embedded event card (opens the event detail sheet) ---------- */
+function eventRefToRead(e: CommunityPostEventRef): CommunityEventRead {
+  return {
+    id: e.id,
+    course_id: '',
+    title: e.title,
+    type: e.type,
+    description: null,
+    start_at: e.start_at,
+    timezone: e.timezone,
+    duration_minutes: e.duration_minutes,
+    meeting_url: e.meeting_url,
+    location: null,
+    cover_url: e.cover_url,
+    cover_object_position: e.cover_object_position,
+    notify_on_publish: false,
+    rsvp_count: 0,
+    host: { user_id: '', name: '', avatar_url: null },
+    going: false,
+    live: false,
+    past: false,
+    created_at: e.start_at,
+    modified_at: null,
+  }
+}
+
 function PostEvent({ event }: { event: CommunityPostEventRef }) {
+  const [sheet, setSheet] = useState(false)
   const provider = providerFromUrl(event.meeting_url)
   const when = new Date(event.start_at)
-  const open = () => {
-    if (event.meeting_url) window.open(event.meeting_url, '_blank')
-  }
   return (
-    <div className="ev-attach tap" onClick={open}>
-      <div
-        className="ev-attach-cover"
-        style={{
-          backgroundImage: event.cover_url ? `url(${event.cover_url})` : undefined,
-          backgroundPosition: event.cover_object_position || 'center',
-        }}
-      >
-        <span className="ev-attach-prov">
-          <ProviderLogo k={provider} size={22} />
-        </span>
-      </div>
-      <div className="ev-attach-body">
-        <div className="ev-attach-type">
-          {TYPE_LABEL[event.type] ?? event.type}
+    <>
+      <div className="ev-attach tap" onClick={() => setSheet(true)} role="button">
+        <div
+          className="ev-attach-cover"
+          style={{
+            backgroundImage: event.cover_url
+              ? `url(${event.cover_url})`
+              : undefined,
+            backgroundPosition: event.cover_object_position || 'center',
+          }}
+        >
+          <span className="ev-attach-prov">
+            <ProviderLogo k={provider} size={22} />
+          </span>
         </div>
-        <div className="ev-attach-title">{event.title}</div>
-        <div className="ev-attach-when">
-          <Glyph d="calendar" size={13} stroke={1.9} />{' '}
-          {fmtDateLabel(event.start_at.slice(0, 10))} ·{' '}
-          {when.toLocaleTimeString('en-US', {
-            hour: 'numeric',
-            minute: '2-digit',
-            timeZone: event.timezone || undefined,
-          })}{' '}
-          · Join with {providerOf(provider).name}
+        <div className="ev-attach-body">
+          <div className="ev-attach-type">
+            {TYPE_LABEL[event.type] ?? event.type}
+          </div>
+          <div className="ev-attach-title">{event.title}</div>
+          <div className="ev-attach-when">
+            <Glyph d="calendar" size={13} stroke={1.9} />{' '}
+            {fmtDateLabel(event.start_at.slice(0, 10))} ·{' '}
+            {when.toLocaleTimeString('en-US', {
+              hour: 'numeric',
+              minute: '2-digit',
+              timeZone: event.timezone || undefined,
+            })}{' '}
+            · Join with {providerOf(provider).name}
+          </div>
         </div>
       </div>
-    </div>
+      {sheet && (
+        <EventSheet
+          ev={eventRefToRead(event)}
+          onClose={() => setSheet(false)}
+          showToast={() => {}}
+        />
+      )}
+    </>
   )
 }
 

@@ -965,6 +965,11 @@ export const useDeleteCommunityTag = (courseId: string | undefined) =>
       getQueryClient().invalidateQueries({
         queryKey: creatorPostsKey(courseId),
       })
+      // Also refresh the hub feed (useCreatorCommunityFeed →
+      // 'creator-community-preview'); prefix match hits the filtered key.
+      getQueryClient().invalidateQueries({
+        queryKey: ['creator-community-preview', courseId],
+      })
     },
   })
 
@@ -1055,6 +1060,11 @@ export const useCreatorDeletePost = (courseId: string | undefined) =>
       getQueryClient().invalidateQueries({
         queryKey: creatorPostsKey(courseId),
       })
+      // Also refresh the hub feed (useCreatorCommunityFeed →
+      // 'creator-community-preview'); prefix match hits the filtered key.
+      getQueryClient().invalidateQueries({
+        queryKey: ['creator-community-preview', courseId],
+      })
     },
   })
 
@@ -1068,6 +1078,11 @@ export const useCreatorDeleteComment = (courseId: string | undefined) =>
       if (!courseId) return
       getQueryClient().invalidateQueries({
         queryKey: creatorPostsKey(courseId),
+      })
+      // Also refresh the hub feed (useCreatorCommunityFeed →
+      // 'creator-community-preview'); prefix match hits the filtered key.
+      getQueryClient().invalidateQueries({
+        queryKey: ['creator-community-preview', courseId],
       })
     },
   })
@@ -1098,6 +1113,11 @@ export const usePinPost = (courseId: string | undefined) =>
       getQueryClient().invalidateQueries({
         queryKey: creatorPostsKey(courseId),
       })
+      // Also refresh the hub feed (useCreatorCommunityFeed →
+      // 'creator-community-preview'); prefix match hits the filtered key.
+      getQueryClient().invalidateQueries({
+        queryKey: ['creator-community-preview', courseId],
+      })
       // Settings holds prompt_of_week_post_id — refresh so the editor
       // shows the new pin in its preview.
       getQueryClient().invalidateQueries({
@@ -1117,6 +1137,11 @@ export const useUnpinPost = (courseId: string | undefined) =>
       if (!courseId) return
       getQueryClient().invalidateQueries({
         queryKey: creatorPostsKey(courseId),
+      })
+      // Also refresh the hub feed (useCreatorCommunityFeed →
+      // 'creator-community-preview'); prefix match hits the filtered key.
+      getQueryClient().invalidateQueries({
+        queryKey: ['creator-community-preview', courseId],
       })
       getQueryClient().invalidateQueries({
         queryKey: creatorSettingsKey(courseId),
