@@ -248,8 +248,10 @@ class CommunityModuleChip(Schema):
 
 
 class CommunityPostCreate(Schema):
-    # Phase 1 ships text only. Video lands in Phase 3 alongside Mux.
-    type: Literal["text"] = "text"
+    # text + video. A video post carries exactly one media entry with
+    # media_type='video' and a mux_upload_id from /media/mux-upload;
+    # CommunityService._validate_media enforces that shape.
+    type: Literal["text", "video"] = "text"
     title: str | None = Field(default=None, max_length=280)
     body: str = Field(min_length=1, max_length=20_000)
     body_format: Literal["markdown", "plain"] = "markdown"

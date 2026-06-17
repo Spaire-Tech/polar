@@ -10,6 +10,7 @@
  */
 import {
   type CommunitySettingsRead,
+  useCreatorCommunityIdentity,
   useCreatorCommunityMembers,
   useCreatorCommunitySettings,
   useUpdateCommunitySettings,
@@ -20,6 +21,8 @@ import { schemas } from '@spaire/client'
 import { useRouter } from 'next/navigation'
 import * as React from 'react'
 import { HeroCover } from './atoms'
+import { FeedTab } from './Feed'
+import './hub-extra.css'
 import './hub.css'
 import { Glyph } from './icons'
 
@@ -70,6 +73,7 @@ export function CommunityHub({ organization, course }: Props) {
   const settingsQ = useCreatorCommunitySettings(courseId)
   const updateSettings = useUpdateCommunitySettings(courseId)
   const membersQ = useCreatorCommunityMembers(courseId)
+  const identityQ = useCreatorCommunityIdentity(courseId)
   const uploadImg = useUploadPostImage(null, courseId, 'creator')
 
   const settings = settingsQ.data
@@ -94,11 +98,11 @@ export function CommunityHub({ organization, course }: Props) {
   )
 
   // drag-to-reposition: debounce the persisted write, keep the preview instant
-  const posTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const posTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const onCoverPos = (pos: string) => {
     setCoverOverride((o) => ({ ...o, pos }))
-    if (posTimer.current) clearTimeout(posTimer.current)
-    posTimer.current = setTimeout(
+    if (posTimerRef.current) clearTimeout(posTimerRef.current)
+    posTimerRef.current = setTimeout(
       () => patch({ hero_thumbnail_object_position: pos }),
       450,
     )
@@ -130,6 +134,9 @@ export function CommunityHub({ organization, course }: Props) {
 
   const name = settings?.feed_title_override || course.title || 'Your community'
   const host = course.instructor_name || organization.name
+  const selfName = identityQ.data?.name || host
+  const selfAvatar =
+    identityQ.data?.avatar_url || organization.avatar_url || null
 
   return (
     <div className={`spaire-hub${dark ? ' dark' : ''}`}>
@@ -213,7 +220,16 @@ export function CommunityHub({ organization, course }: Props) {
       </div>
 
       <div className="wrap content">
-        <HubTabPlaceholder tab={tab} />
+        {tab === 'feed' ? (
+          <FeedTab
+            courseId={courseId}
+            selfName={selfName}
+            selfAvatar={selfAvatar}
+            showToast={showToast}
+          />
+        ) : (
+          <HubTabPlaceholder tab={tab} />
+        )}
       </div>
 
       {toast && <div className="toast">{toast}</div>}

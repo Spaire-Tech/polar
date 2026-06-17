@@ -72,7 +72,7 @@ function CRFComment({ c, depth = 0, onLike, onReply }) {
 
 /* ---------- post card ---------- */
 const CRF_TRUNC = 280;
-function CRFPost({ post, onAction }) {
+function CRFPost({ post, onAction, viewer = 'host' }) {
   const [open, setOpen] = usF(post.pinned);
   const [text, setText] = usF('');
   const [expanded, setExpanded] = usF(false);
@@ -84,6 +84,8 @@ function CRFPost({ post, onAction }) {
   const long = post.text.length > CRF_TRUNC;
   const shownText = long && !expanded ? post.text.slice(0, post.text.lastIndexOf(' ', CRF_TRUNC)) + '…' : post.text;
   const isHost = post.who === 'carla' || post.who === 'host';
+  const isMember = viewer === 'member';
+  const mine = post.who === viewer;
 
   return (
     <article className="crf-post">
@@ -99,29 +101,40 @@ function CRFPost({ post, onAction }) {
           <div className="crf-headline">{headlineFor(post)}</div>
           <div className="crf-meta">{post.time}<span className="dot">·</span><GG d={CRF.globe} size={12} stroke={1.7}/></div>
         </div>
+        {!isMember && (
         <button className={`crf-pinbtn${post.pinned ? ' on' : ''}`} onClick={() => onAction({ type: 'pin', postId: post.id })} aria-label={post.pinned ? 'Unpin from feed' : 'Pin to top'} title={post.pinned ? 'Unpin from feed' : 'Pin to top'}>
           <GG d={CRF.pin} size={18} stroke={1.9} fill={post.pinned ? 'currentColor' : 'none'}/>
         </button>
+        )}
         <div className="crf-menu-wrap">
           <button className="crf-more" aria-label="Post options" onClick={() => setMenu(m => !m)}><GG d={CRF.more} size={18} stroke={2.4}/></button>
           {menu && (
             <React.Fragment>
               <div className="crf-menu-scrim" onClick={() => setMenu(false)}></div>
               <div className="crf-menu">
+                {!isMember && (
                 <button onClick={() => { onAction({ type: 'pin', postId: post.id }); setMenu(false); }}>
                   <GG d={CRF.pin} size={16} stroke={1.8}/> {post.pinned ? 'Unpin from feed' : 'Pin to top'}
                 </button>
+                )}
                 <button onClick={() => { onAction({ type: 'toast', msg: 'Link to post copied' }); setMenu(false); }}>
                   <GG d={SFG.share} size={16} stroke={1.8}/> Copy link
                 </button>
-                {!isHost && (
+                {!isMember && !isHost && (
                   <button onClick={() => { onAction({ type: 'toast', msg: `Highlighted ${author.name.split(' ')[0]}'s post` }); setMenu(false); }}>
                     <GG d={SFG.bolt} size={16} stroke={1.8}/> Feature this post
                   </button>
                 )}
+                {isMember && !mine && (
+                  <button onClick={() => { onAction({ type: 'toast', msg: 'Report sent to the moderators' }); setMenu(false); }}>
+                    <GG d="M4 21V4 M4 4h13l-2 4 2 4H4" size={16} stroke={1.8}/> Report post
+                  </button>
+                )}
+                {(!isMember || mine) && (
                 <button className="danger" onClick={() => { onAction({ type: 'remove', postId: post.id }); setMenu(false); }}>
-                  <GG d="M5 7h14 M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2 M7 7l1 13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1l1-13" size={16} stroke={1.8}/> Remove post
+                  <GG d="M5 7h14 M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2 M7 7l1 13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1l1-13" size={16} stroke={1.8}/> {isMember ? 'Delete post' : 'Remove post'}
                 </button>
+                )}
               </div>
             </React.Fragment>
           )}
