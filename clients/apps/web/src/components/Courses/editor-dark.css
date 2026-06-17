@@ -109,14 +109,60 @@
 }
 
 /* ---- form fields ---- */
-.editor-dark input,
+/* Bare inputs/textareas/selects default to the UA white background (no bg
+   utility class to remap), so give them an explicit dark fill. Inputs that
+   carry an explicit bg-* class are handled by the surface rules above (higher
+   specificity wins). */
+.editor-dark input:not([type='checkbox']):not([type='radio']):not(
+    [type='range']
+  ),
 .editor-dark textarea,
 .editor-dark select {
+  background-color: #1c1c1e !important;
   color: #f5f5f7;
 }
 .editor-dark input::placeholder,
 .editor-dark textarea::placeholder {
   color: #7e7e86 !important;
+}
+
+/* ---- light-tint info / alert cards → dark tints ---- */
+.editor-dark .bg-blue-50,
+.editor-dark [class*='bg-blue-50/'] {
+  background-color: rgba(38, 92, 204, 0.12) !important;
+}
+.editor-dark .border-blue-100,
+.editor-dark .border-blue-200 {
+  border-color: rgba(60, 110, 230, 0.3) !important;
+}
+.editor-dark .bg-indigo-50,
+.editor-dark [class*='bg-indigo-50/'] {
+  background-color: rgba(60, 74, 201, 0.14) !important;
+}
+.editor-dark .bg-amber-50,
+.editor-dark .bg-yellow-50,
+.editor-dark [class*='bg-amber-50/'] {
+  background-color: rgba(190, 140, 30, 0.14) !important;
+}
+.editor-dark .border-amber-100,
+.editor-dark .border-amber-200 {
+  border-color: rgba(200, 150, 40, 0.3) !important;
+}
+.editor-dark .bg-green-50,
+.editor-dark .bg-emerald-50 {
+  background-color: rgba(40, 160, 90, 0.12) !important;
+}
+.editor-dark .border-green-100,
+.editor-dark .border-green-200 {
+  border-color: rgba(50, 170, 100, 0.3) !important;
+}
+.editor-dark .bg-red-50,
+.editor-dark .bg-rose-50 {
+  background-color: rgba(200, 60, 50, 0.12) !important;
+}
+.editor-dark .border-red-100,
+.editor-dark .border-red-200 {
+  border-color: rgba(210, 70, 60, 0.3) !important;
 }
 
 /* ---- elevation reads softer on a dark canvas ---- */
