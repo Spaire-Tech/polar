@@ -89,3 +89,17 @@ class UnsupportedPostType(BadRequest):
             "Video posts are not yet supported. "
             "Submit `type=text` for Phase 1."
         )
+
+
+class PollNotFound(ResourceNotFound):
+    """The post doesn't exist on this course, or carries no poll."""
+
+    def __init__(self) -> None:
+        super().__init__("Poll not found.")
+
+
+class InvalidPollOption(BadRequest):
+    """The option_id isn't one of the poll's options."""
+
+    def __init__(self) -> None:
+        super().__init__("Invalid poll option.")

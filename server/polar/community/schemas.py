@@ -199,9 +199,11 @@ class CommunityPostMediaCreate(Schema):
       passes `mux_upload_id` here. Exactly one video per post.
     """
 
-    media_type: Literal["image", "video"] = "image"
+    media_type: Literal["image", "video", "gif"] = "image"
     file_id: UUID4 | None = None
     mux_upload_id: str | None = Field(default=None, max_length=255)
+    # GIF branch: the GIPHY media URL.
+    external_url: str | None = Field(default=None, max_length=1000)
     position: int = Field(default=0, ge=0, le=3)
 
 
@@ -228,8 +230,10 @@ class CommunityPostVideoUploadResult(Schema):
 
 class CommunityPostMediaRead(Schema):
     id: UUID4
-    media_type: Literal["image", "video"]
+    media_type: Literal["image", "video", "gif"]
     position: int
+    # GIF branch — the external (GIPHY) URL the client renders directly.
+    external_url: str | None = None
     # Image branch — file_id is the File row; public_url is the
     # rendered S3 URL the client uses in <img>. Resolved server-side
     # so the client doesn't need to know which bucket each service
@@ -267,6 +271,43 @@ class CommunityModuleChip(Schema):
     module_title: str | None = None
 
 
+class CommunityPollCreate(Schema):
+    """A poll attached to a new post: 2–4 short options."""
+
+    options: list[str] = Field(min_length=2, max_length=4)
+
+
+class CommunityPollOptionRead(Schema):
+    id: str
+    text: str
+    votes: int = 0
+
+
+class CommunityPollRead(Schema):
+    options: list[CommunityPollOptionRead]
+    total: int = 0
+    # The option id the viewer voted for, or None.
+    my_vote: str | None = None
+
+
+class CommunityPollVote(Schema):
+    option_id: str = Field(max_length=8)
+
+
+class CommunityPostEventRef(Schema):
+    """Compact event summary embedded on a post that links an event."""
+
+    id: UUID4
+    title: str
+    type: Literal["workshop", "office", "cohort", "guest"]
+    start_at: datetime
+    timezone: str
+    duration_minutes: int
+    cover_url: str | None = None
+    cover_object_position: str | None = None
+    meeting_url: str | None = None
+
+
 class CommunityPostCreate(Schema):
     # text + video. A video post carries exactly one media entry with
     # media_type='video' and a mux_upload_id from /media/mux-upload;
@@ -289,6 +330,9 @@ class CommunityPostCreate(Schema):
         default_factory=list,
         max_length=4,
     )
+    # Optional poll (2–4 options) and/or an embedded event card.
+    poll: CommunityPollCreate | None = None
+    event_id: UUID4 | None = None
 
 
 class CommunityPostUpdate(Schema):
@@ -338,6 +382,9 @@ class CommunityPostRead(TimestampedSchema):
     # activity_id so the simpler "Open activity →" link still works
     # for clients that haven't picked up the new field.
     activity: "CommunityPostActivityPin | None" = None
+    # Composer extras.
+    poll: CommunityPollRead | None = None
+    event: CommunityPostEventRef | None = None
 
 
 class CommunityPostActivityPin(Schema):
