@@ -18,6 +18,7 @@ import {
   useUploadPostImage,
 } from '@/hooks/queries/community'
 import * as React from 'react'
+import { createPortal } from 'react-dom'
 import { CoverDrop, Field, Seg } from './atoms'
 import { Glyph } from './icons'
 import {
@@ -322,9 +323,19 @@ export function EventSheet({
     if (ev.meeting_url) window.open(ev.meeting_url, '_blank')
     else showToast('No meeting link set')
   }
-  return (
-    <div className="ev-overlay" onClick={onClose}>
-      <div className="ev-sheet" onClick={(e) => e.stopPropagation()}>
+  // Portal to <body> so the fixed overlay anchors to the viewport. Inside a
+  // feed/composer card the surrounding `.crf-post` / `.card` gets a
+  // backdrop-filter in dark mode, which would otherwise make this fixed
+  // overlay anchor to that card ("opens inside a feed"). Re-apply the
+  // `.spaire-hub` scope (and current theme) on the portal root so the scoped
+  // styles still match.
+  const isDark =
+    typeof document !== 'undefined' &&
+    !!document.querySelector('.spaire-hub.dark')
+  return createPortal(
+    <div className={`spaire-hub${isDark ? ' dark' : ''}`}>
+      <div className="ev-overlay" onClick={onClose}>
+        <div className="ev-sheet" onClick={(e) => e.stopPropagation()}>
         <div
           className="ev-sheet-cover"
           style={{
@@ -356,7 +367,9 @@ export function EventSheet({
           )}
         </div>
       </div>
-    </div>
+      </div>
+    </div>,
+    document.body,
   )
 }
 
