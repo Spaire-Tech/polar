@@ -17,8 +17,9 @@ import {
 import { getQueryClient } from '@/utils/api/query'
 import { schemas } from '@spaire/client'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { toast } from '../Toast/use-toast'
+import './editor-dark.css'
 import { AutomationsPanel } from './editor/AutomationsPanel'
 import { CommunityTab } from './editor/CommunityTab'
 import { CourseHeader, TabId } from './editor/CourseHeader'
@@ -113,6 +114,21 @@ export default function CourseEditor({
   const [isSaving, setIsSaving] = useState(false)
   const [isGenerating, setIsGenerating] = useState(false)
   const abortRef = useRef<AbortController | null>(null)
+
+  // Universal editor theme. Persisted under one key shared with the community
+  // hub so a single toggle drives both surfaces (and the dark matches the
+  // community/landing palette).
+  const [dark, setDark] = useState(false)
+  useEffect(() => {
+    setDark(localStorage.getItem('spaire_theme') === 'dark')
+  }, [])
+  const toggleDark = useCallback(() => {
+    setDark((d) => {
+      const next = !d
+      localStorage.setItem('spaire_theme', next ? 'dark' : 'light')
+      return next
+    })
+  }, [])
 
   const addLesson = useAddCourseLesson()
   const updateLesson = useUpdateCourseLesson()
@@ -508,7 +524,9 @@ export default function CourseEditor({
   }
 
   return (
-    <div className="flex h-screen flex-col bg-gray-50">
+    <div
+      className={`flex h-screen flex-col bg-gray-50${dark ? ' editor-dark' : ''}`}
+    >
       <CourseHeader
         course={course}
         organizationSlug={organization.slug}
@@ -517,6 +535,8 @@ export default function CourseEditor({
         onAddContent={handleAddContent}
         onBack={handleBack}
         onClose={handleClose}
+        dark={dark}
+        onToggleDark={toggleDark}
       />
       <div className="flex-1 overflow-y-auto">{mainContent}</div>
     </div>
