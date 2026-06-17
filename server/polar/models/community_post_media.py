@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from sqlalchemy import CheckConstraint, ForeignKey, Integer, String, Uuid
+from sqlalchemy import CheckConstraint, ForeignKey, Integer, String, Text, Uuid
 from sqlalchemy.orm import Mapped, declared_attr, mapped_column, relationship
 
 from polar.kit.db.models import RecordModel
@@ -19,15 +19,16 @@ class CommunityPostMedia(RecordModel):
     __tablename__ = "community_post_media"
     __table_args__ = (
         CheckConstraint(
-            "media_type IN ('image', 'video')",
+            "media_type IN ('image', 'video', 'gif')",
             name="community_post_media_type_check",
         ),
         # Image rows need file_id; video rows need at least an upload or
-        # asset id from Mux.
+        # asset id from Mux; gif rows carry an external (GIPHY) URL.
         CheckConstraint(
             "(media_type = 'image' AND file_id IS NOT NULL) "
             "OR (media_type = 'video' "
-            "    AND (mux_upload_id IS NOT NULL OR mux_asset_id IS NOT NULL))",
+            "    AND (mux_upload_id IS NOT NULL OR mux_asset_id IS NOT NULL)) "
+            "OR (media_type = 'gif' AND external_url IS NOT NULL)",
             name="community_post_media_branch_check",
         ),
     )
@@ -49,6 +50,11 @@ class CommunityPostMedia(RecordModel):
         ForeignKey("files.id", ondelete="set null"),
         nullable=True,
         default=None,
+    )
+
+    # GIF branch — the external (GIPHY) media URL.
+    external_url: Mapped[str | None] = mapped_column(
+        Text, nullable=True, default=None
     )
 
     # Video branch — mirrors course_lessons.

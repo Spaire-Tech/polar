@@ -37,6 +37,7 @@ from polar.file.s3 import S3_SERVICES
 from polar.kit.comments import find_orphan_parent_ids, merge_with_tombstones
 from polar.kit.utils import utc_now
 from polar.models.community_comment import CommunityComment
+from polar.models.community_event import CommunityEvent
 from polar.models.community_post import CommunityPost
 from polar.models.community_post_media import CommunityPostMedia
 from polar.models.community_settings import CommunitySettings
@@ -54,7 +55,9 @@ from .exceptions import (
     InvalidLessonReference,
     InvalidMediaReference,
     InvalidParentComment,
+    InvalidPollOption,
     InvalidTagReference,
+    PollNotFound,
     TagSlugConflict,
     TagSlugInvalid,
     UnsupportedPostType,
@@ -77,6 +80,8 @@ from .schemas import (
     CommunityLessonChip,
     CommunityMemberRead,
     CommunityPinPayload,
+    CommunityPollOptionRead,
+    CommunityPollRead,
     CommunityPostCreate,
     CommunityPostImageUploadResult,
     CommunityPostMediaCreate,
@@ -395,6 +400,25 @@ class CommunityService:
             media=payload.media,
         )
 
+        # An embedded event must belong to this course.
+        if payload.event_id is not None:
+            await self._validate_event_belongs_to_course(
+                session, course_id=course_id, event_id=payload.event_id
+            )
+
+        # Poll → JSONB. Option ids are positional ("o0".."o3") so votes /
+        # voters stay compact and stable for the life of the post.
+        poll_json: dict | None = None
+        if payload.poll is not None:
+            poll_json = {
+                "options": [
+                    {"id": f"o{i}", "text": text}
+                    for i, text in enumerate(payload.poll.options)
+                ],
+                "votes": {},
+                "voters": {},
+            }
+
         publish_at = payload.publish_at or utc_now()
 
         post = CommunityPost(
@@ -408,6 +432,8 @@ class CommunityService:
             lesson_id=payload.lesson_id,
             tag_id=payload.tag_id,
             published_at=publish_at,
+            poll=poll_json,
+            event_id=payload.event_id,
         )
         repo = CommunityPostRepository.from_session(session)
         created = await repo.create(post, flush=True)
@@ -425,6 +451,13 @@ class CommunityService:
                         media_type="video",
                         mux_upload_id=entry.mux_upload_id,
                         mux_status="waiting",
+                        position=entry.position,
+                    )
+                elif entry.media_type == "gif":
+                    media = CommunityPostMedia(
+                        post_id=created.id,
+                        media_type="gif",
+                        external_url=entry.external_url,
                         position=entry.position,
                     )
                 else:
@@ -572,13 +605,19 @@ class CommunityService:
 
         image_entries = [m for m in media if m.media_type == "image"]
         video_entries = [m for m in media if m.media_type == "video"]
+        gif_entries = [m for m in media if m.media_type == "gif"]
 
-        # Type contract: text → only images; video → exactly one video,
-        # nothing else.
+        # Type contract: text → images and/or gifs; video → exactly one
+        # video, nothing else.
         if post_type == "text" and video_entries:
             raise InvalidMediaReference()
         if post_type == "video":
-            if len(video_entries) != 1 or image_entries:
+            if len(video_entries) != 1 or image_entries or gif_entries:
+                raise InvalidMediaReference()
+
+        # GIF validation — external_url must be non-empty.
+        for m in gif_entries:
+            if not m.external_url or not m.external_url.strip():
                 raise InvalidMediaReference()
 
         # Image validation — must have file_id, must be uploaded under
@@ -612,16 +651,33 @@ class CommunityService:
         seen: set[str] = set()
         deduped: list[CommunityPostMediaCreate] = []
         for entry in media:
-            key = (
-                f"f:{entry.file_id}"
-                if entry.media_type == "image"
-                else f"m:{entry.mux_upload_id}"
-            )
+            if entry.media_type == "image":
+                key = f"f:{entry.file_id}"
+            elif entry.media_type == "gif":
+                key = f"g:{entry.external_url}"
+            else:
+                key = f"m:{entry.mux_upload_id}"
             if key in seen:
                 continue
             seen.add(key)
             deduped.append(entry)
         return deduped
+
+    async def _validate_event_belongs_to_course(
+        self,
+        session: AsyncSession,
+        *,
+        course_id: UUID,
+        event_id: UUID,
+    ) -> None:
+        """Reject an embedded event_id that isn't a live event on this
+        course (wrong course, soft-deleted, or non-existent)."""
+        from polar.community.events_repository import CommunityEventRepository
+
+        repo = CommunityEventRepository.from_session(session)
+        event = await repo.get_by_id(event_id)
+        if event is None or event.course_id != course_id:
+            raise InvalidMediaReference()
 
     async def _get_post_for_render(
         self, session: AsyncSession, post_id: UUID
@@ -639,6 +695,82 @@ class CommunityService:
                 "this should be impossible within the same session"
             )
         return fresh
+
+    async def vote_poll(
+        self,
+        session: AsyncSession,
+        *,
+        course_id: UUID,
+        post_id: UUID,
+        option_id: str,
+        voter_enrollment_id: UUID | None = None,
+        voter_user_id: UUID | None = None,
+    ) -> CommunityPost:
+        """Record one vote on a post's poll. One vote per user — picking a
+        new option switches the previous one; re-picking the same option
+        is idempotent. Returns the post, re-hydrated for serialization."""
+        repo = CommunityPostRepository.from_session(session)
+        post = await repo.get_by_id(post_id)
+        if post is None or post.course_id != course_id or post.poll is None:
+            raise PollNotFound()
+
+        poll = dict(post.poll)
+        option_ids = {o["id"] for o in poll.get("options", [])}
+        if option_id not in option_ids:
+            raise InvalidPollOption()
+
+        voter_key = (
+            f"u:{voter_user_id}"
+            if voter_user_id is not None
+            else f"e:{voter_enrollment_id}"
+        )
+        voters = dict(poll.get("voters") or {})
+        votes = dict(poll.get("votes") or {})
+        previous = voters.get(voter_key)
+        if previous != option_id:
+            if previous is not None:
+                votes[previous] = max(0, votes.get(previous, 0) - 1)
+            votes[option_id] = votes.get(option_id, 0) + 1
+            voters[voter_key] = option_id
+            poll["votes"] = votes
+            poll["voters"] = voters
+            # Reassigning the attribute (vs mutating in place) is enough
+            # for SQLAlchemy to flush the JSONB change.
+            post.poll = poll
+            await session.flush()
+        return await self._get_post_for_render(session, post.id)
+
+    @staticmethod
+    def build_poll_read(
+        poll: dict | None,
+        *,
+        viewer_enrollment_id: UUID | None,
+        viewer_user_id: UUID | None,
+    ) -> CommunityPollRead | None:
+        """Build the per-viewer poll payload (option vote counts + the
+        viewer's own vote) from the stored JSONB."""
+        if not poll:
+            return None
+        votes = poll.get("votes") or {}
+        voters = poll.get("voters") or {}
+        viewer_key = (
+            f"u:{viewer_user_id}"
+            if viewer_user_id is not None
+            else f"e:{viewer_enrollment_id}"
+            if viewer_enrollment_id is not None
+            else None
+        )
+        options = [
+            CommunityPollOptionRead(
+                id=o["id"], text=o["text"], votes=int(votes.get(o["id"], 0))
+            )
+            for o in poll.get("options", [])
+        ]
+        return CommunityPollRead(
+            options=options,
+            total=sum(o.votes for o in options),
+            my_vote=voters.get(viewer_key) if viewer_key else None,
+        )
 
     async def get_post(
         self, session: AsyncSession, post_id: UUID
@@ -1444,6 +1576,8 @@ class CommunityService:
                 "authors": {},
                 "lessons": {},
                 "reactions": {},
+                "polls": {},
+                "events": {},
             }
 
         enrollment_ids = {
@@ -1508,6 +1642,33 @@ class CommunityService:
             activity_post_ids
         )
 
+        # Polls (per-viewer vote counts + the viewer's own vote) read
+        # straight off each post's JSONB — no extra query.
+        polls = {
+            p.id: self.build_poll_read(
+                p.poll,
+                viewer_enrollment_id=viewer_enrollment_id,
+                viewer_user_id=viewer_user_id,
+            )
+            for p in posts
+            if p.poll
+        }
+
+        # Embedded event cards — one bulk fetch for every linked event.
+        events: dict[UUID, CommunityEvent] = {}
+        event_ids = {p.event_id for p in posts if p.event_id}
+        if event_ids:
+            from .events_repository import CommunityEventRepository
+
+            event_repo = CommunityEventRepository.from_session(session)
+            statement = event_repo.get_base_statement().where(
+                CommunityEvent.id.in_(event_ids)
+            )
+            by_id = {e.id: e for e in await event_repo.get_all(statement)}
+            for p in posts:
+                if p.event_id and p.event_id in by_id:
+                    events[p.id] = by_id[p.event_id]
+
         return {
             "authors": authors,
             "lessons": lessons,
@@ -1515,6 +1676,8 @@ class CommunityService:
             "activities": activity_by_post,
             "activity_summaries": activity_summary_by_post,
             "modules": module_info_by_post,
+            "polls": polls,
+            "events": events,
         }
 
 

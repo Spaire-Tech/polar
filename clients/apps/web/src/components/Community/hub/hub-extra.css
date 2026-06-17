@@ -114,3 +114,28 @@
 .spaire-hub .sub-link:hover {
   background: var(--fill-2);
 }
+
+/* GIF picker: search box + loading/empty state (GIPHY). */
+.spaire-hub .pop-gif .gif-search {
+  width: 100%;
+  margin-bottom: 8px;
+}
+.spaire-hub .gif-loading {
+  grid-column: 1 / -1;
+  padding: 24px 0;
+  text-align: center;
+  color: var(--t3);
+  font-size: 13px;
+}
+
+/* emoji-mart picker popover — let the component own its own size. */
+.spaire-hub .pop-emoji-mart {
+  padding: 0;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+.spaire-hub .pop-emoji-mart em-emoji-picker {
+  --rgb-background: 255, 255, 255;
+  max-height: 360px;
+}

@@ -11,12 +11,14 @@ from sqlalchemy import (
     Text,
     Uuid,
 )
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, declared_attr, mapped_column, relationship
 
 from polar.kit.db.models import RecordModel
 
 if TYPE_CHECKING:
     from polar.models.community_comment import CommunityComment
+    from polar.models.community_event import CommunityEvent
     from polar.models.community_post_media import CommunityPostMedia
     from polar.models.community_tag import CommunityTag
     from polar.models.course import Course
@@ -150,9 +152,29 @@ class CommunityPost(RecordModel):
     reaction_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     comment_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
+    # Poll attachment. Shape:
+    #   { "options": [{"id": "o0", "text": "..."}],
+    #     "votes":   {"o0": 3, "o1": 5},
+    #     "voters":  {"u:<uuid>": "o0", "e:<uuid>": "o1"} }
+    # Null when the post carries no poll. One vote per user is enforced in
+    # the service via the voters map.
+    poll: Mapped[dict | None] = mapped_column(JSONB, nullable=True, default=None)
+
+    # Embedded event card — soft link to a scheduled community_event.
+    event_id: Mapped[UUID | None] = mapped_column(
+        Uuid,
+        ForeignKey("community_events.id", ondelete="set null"),
+        nullable=True,
+        default=None,
+    )
+
     @declared_attr
     def course(cls) -> Mapped["Course"]:
         return relationship("Course", lazy="raise")
+
+    @declared_attr
+    def event(cls) -> Mapped["CommunityEvent | None"]:
+        return relationship("CommunityEvent", lazy="raise")
 
     @declared_attr
     def lesson(cls) -> Mapped["CourseLesson | None"]:

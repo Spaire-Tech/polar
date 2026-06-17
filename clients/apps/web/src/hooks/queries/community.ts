@@ -62,8 +62,10 @@ export interface CommunityLessonChip {
 
 export interface CommunityPostMediaRead {
   id: string
-  media_type: 'image' | 'video'
+  media_type: 'image' | 'video' | 'gif'
   position: number
+  /** GIF branch — the external (GIPHY) URL the client renders directly. */
+  external_url: string | null
   file_id: string | null
   public_url: string | null
   mux_playback_id: string | null
@@ -71,6 +73,29 @@ export interface CommunityPostMediaRead {
   mux_status: string | null
   duration_seconds: number | null
   thumbnail_url: string | null
+}
+
+export interface CommunityPollOptionRead {
+  id: string
+  text: string
+  votes: number
+}
+export interface CommunityPollRead {
+  options: CommunityPollOptionRead[]
+  total: number
+  /** The option id the viewer voted for, or null. */
+  my_vote: string | null
+}
+export interface CommunityPostEventRef {
+  id: string
+  title: string
+  type: CommunityEventType
+  start_at: string
+  timezone: string
+  duration_minutes: number
+  cover_url: string | null
+  cover_object_position: string | null
+  meeting_url: string | null
 }
 
 export interface CommunityPostRead {
@@ -105,6 +130,9 @@ export interface CommunityPostRead {
     submission_type: 'photo' | 'video' | 'text' | 'link'
     submission_count: number
   } | null
+  /** Composer extras. */
+  poll?: CommunityPollRead | null
+  event?: CommunityPostEventRef | null
   created_at: string
   modified_at: string | null
 }
@@ -408,16 +436,22 @@ export const useCommunityFeed = (
 
 export interface CommunityPostMediaCreateBody {
   // Image branch: composer uploads via /media/upload, passes file_id.
-  // Video branch (Phase 3A): composer creates an upload via
-  // /media/mux-upload, PUTs bytes to Mux, then passes mux_upload_id.
-  media_type?: 'image' | 'video'
+  // Video branch: composer creates an upload via /media/mux-upload,
+  // PUTs bytes to Mux, then passes mux_upload_id.
+  // GIF branch: composer passes the GIPHY media URL as external_url.
+  media_type?: 'image' | 'video' | 'gif'
   file_id?: string
   mux_upload_id?: string
+  external_url?: string
   position?: number
 }
 
+export interface CommunityPollCreateBody {
+  options: string[]
+}
+
 export interface CommunityPostCreateBody {
-  // Phase 3A: 'video' posts carry exactly one video entry in media[].
+  // 'video' posts carry exactly one video entry in media[].
   type?: 'text' | 'video'
   body: string
   title?: string | null
@@ -425,6 +459,8 @@ export interface CommunityPostCreateBody {
   lesson_id?: string | null
   tag_id?: string | null
   media?: CommunityPostMediaCreateBody[]
+  poll?: CommunityPollCreateBody | null
+  event_id?: string | null
 }
 
 const invalidateFeed = (token: string, courseId: string) => {
@@ -1083,6 +1119,63 @@ export const useUnpinPost = (courseId: string | undefined) =>
       getQueryClient().invalidateQueries({
         queryKey: creatorSettingsKey(courseId),
       })
+    },
+  })
+
+// Poll voting — writes the server's authoritative poll back into every
+// feed cache that might hold the post (creator preview + customer feed,
+// infinite or single-page).
+type PollFeedCache =
+  | CommunityFeedPage
+  | { pages: CommunityFeedPage[]; pageParams: unknown[] }
+  | undefined
+const patchFeedPostPoll = (
+  data: PollFeedCache,
+  postId: string,
+  poll: CommunityPollRead,
+): PollFeedCache => {
+  if (!data) return data
+  const patchPage = (page: CommunityFeedPage): CommunityFeedPage => ({
+    ...page,
+    items: page.items.map((p) => (p.id === postId ? { ...p, poll } : p)),
+  })
+  if ('pages' in data) {
+    return { ...data, pages: data.pages.map(patchPage) }
+  }
+  return patchPage(data)
+}
+
+export const useVotePostPoll = (
+  token: string | null | undefined,
+  courseId: string | undefined,
+  mode: CommunityIOMode = 'creator',
+) =>
+  useMutation({
+    mutationFn: ({
+      postId,
+      optionId,
+    }: {
+      postId: string
+      optionId: string
+    }) =>
+      communityFetch<CommunityPollRead>(
+        mode,
+        token,
+        `${communityBase(mode, courseId!)}/posts/${postId}/poll/vote`,
+        { method: 'POST', body: JSON.stringify({ option_id: optionId }) },
+      ),
+    onSuccess: (poll, { postId }) => {
+      if (!courseId) return
+      const queryClient = getQueryClient()
+      const keys: readonly unknown[][] = [
+        ['creator-community-feed', courseId],
+        ['community-feed', token, courseId],
+      ]
+      for (const key of keys) {
+        queryClient.setQueriesData<PollFeedCache>({ queryKey: key }, (data) =>
+          patchFeedPostPoll(data, postId, poll),
+        )
+      }
     },
   })
 

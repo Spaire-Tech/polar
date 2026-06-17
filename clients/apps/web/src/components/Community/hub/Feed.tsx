@@ -13,6 +13,8 @@ import { HlsVideo } from '@/components/Courses/HlsVideo'
 import {
   type CommunityAuthor,
   type CommunityCommentRead,
+  type CommunityPollRead,
+  type CommunityPostEventRef,
   type CommunityPostMediaRead,
   type CommunityPostRead,
   useCommunityPostComments,
@@ -25,11 +27,101 @@ import {
   useToggleCommentReaction,
   useTogglePostReaction,
   useUnpinPost,
+  useVotePostPoll,
 } from '@/hooks/queries/community'
 import * as React from 'react'
 import { Composer } from './composer'
 import { timeAgo } from './format'
 import { Glyph } from './icons'
+import { fmtDateLabel, providerFromUrl, ProviderLogo, providerOf } from './pickers'
+
+const TYPE_LABEL: Record<string, string> = {
+  workshop: 'Workshop',
+  office: 'Q&A',
+  cohort: 'Watch Party',
+  guest: 'Guest',
+}
+
+/* ---------- poll ---------- */
+function PostPoll({ courseId, post }: { courseId: string; post: CommunityPostRead }) {
+  const poll = post.poll as CommunityPollRead
+  const vote = useVotePostPoll(null, courseId, 'creator')
+  const voted = poll.my_vote != null
+  return (
+    <div className="poll">
+      {poll.options.map((o) => {
+        const pct = poll.total ? Math.round((o.votes / poll.total) * 100) : 0
+        const mine = poll.my_vote === o.id
+        return (
+          <button
+            key={o.id}
+            className={`poll-opt${voted ? ' voted' : ''}${mine ? ' mine' : ''}`}
+            disabled={voted || vote.isPending}
+            onClick={() => vote.mutate({ postId: post.id, optionId: o.id })}
+          >
+            <span
+              className="poll-fill"
+              style={{ width: voted ? `${pct}%` : '0%' }}
+            />
+            <span className="poll-label">
+              {o.text}
+              {mine && (
+                <span className="poll-check">
+                  <Glyph d="check" size={13} stroke={2.6} />
+                </span>
+              )}
+            </span>
+            {voted && <span className="poll-pct">{pct}%</span>}
+          </button>
+        )
+      })}
+      <div className="poll-meta">
+        {poll.total} {poll.total === 1 ? 'vote' : 'votes'}
+        {!voted && ' · tap to vote'}
+      </div>
+    </div>
+  )
+}
+
+/* ---------- embedded event card ---------- */
+function PostEvent({ event }: { event: CommunityPostEventRef }) {
+  const provider = providerFromUrl(event.meeting_url)
+  const when = new Date(event.start_at)
+  const open = () => {
+    if (event.meeting_url) window.open(event.meeting_url, '_blank')
+  }
+  return (
+    <div className="ev-attach tap" onClick={open}>
+      <div
+        className="ev-attach-cover"
+        style={{
+          backgroundImage: event.cover_url ? `url(${event.cover_url})` : undefined,
+          backgroundPosition: event.cover_object_position || 'center',
+        }}
+      >
+        <span className="ev-attach-prov">
+          <ProviderLogo k={provider} size={22} />
+        </span>
+      </div>
+      <div className="ev-attach-body">
+        <div className="ev-attach-type">
+          {TYPE_LABEL[event.type] ?? event.type}
+        </div>
+        <div className="ev-attach-title">{event.title}</div>
+        <div className="ev-attach-when">
+          <Glyph d="calendar" size={13} stroke={1.9} />{' '}
+          {fmtDateLabel(event.start_at.slice(0, 10))} ·{' '}
+          {when.toLocaleTimeString('en-US', {
+            hour: 'numeric',
+            minute: '2-digit',
+            timeZone: event.timezone || undefined,
+          })}{' '}
+          · Join with {providerOf(provider).name}
+        </div>
+      </div>
+    </div>
+  )
+}
 
 const { useMemo, useState } = React
 
@@ -67,8 +159,17 @@ function PostMedia({ media }: { media: CommunityPostMediaRead[] }) {
   if (media.length === 0) return null
   const videos = media.filter((m) => m.media_type === 'video')
   const images = media.filter((m) => m.media_type === 'image')
+  const gifs = media.filter((m) => m.media_type === 'gif')
   return (
     <>
+      {gifs.map((g) =>
+        g.external_url ? (
+          <div key={g.id} className="crf-media crf-gif">
+            <img src={g.external_url} alt="GIF" />
+            <span className="gif-badge">GIF</span>
+          </div>
+        ) : null,
+      )}
       {videos.map((v) =>
         v.mux_status === 'ready' && (v.playback_url || v.mux_playback_id) ? (
           <div key={v.id} className="crf-media crf-video">
@@ -445,6 +546,8 @@ export function HubPost({
       )}
 
       <PostMedia media={post.media} />
+      {post.poll && <PostPoll courseId={courseId} post={post} />}
+      {post.event && <PostEvent event={post.event} />}
 
       {(likes > 0 || comments > 0) && (
         <div className="crf-proof">
