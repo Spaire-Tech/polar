@@ -5,14 +5,16 @@
  * Community Hub — shared rich composer (Feed).
  *
  * Wired to the real post-create pipeline: text, photo (S3 → file_id), video
- * (Mux direct upload → mux_upload_id), GIF (live GIPHY search → external_url),
- * Apple emoji (emoji-mart, set="apple"), polls (2–4 options), and event-link
- * (embed a scheduled event). The composer owns all upload/search state and
- * hands a finished CommunityPostCreateBody to `onCreate`.
+ * (Mux direct upload → mux_upload_id), emoji (emoji-mart, native set — no CDN
+ * sprites so it always renders), polls (2–4 options), and event-link (embed a
+ * scheduled event; clicking the attached card opens its detail sheet). The
+ * composer owns all upload state and hands a finished CommunityPostCreateBody
+ * to `onCreate`.
+ *
+ * GIF is intentionally omitted for now.
  */
 import data from '@emoji-mart/data'
 import Picker from '@emoji-mart/react'
-import { GiphyFetch } from '@giphy/js-fetch-api'
 import {
   type CommunityEventRead,
   type CommunityIOMode,
@@ -22,14 +24,12 @@ import {
   useUploadPostVideo,
 } from '@/hooks/queries/community'
 import * as React from 'react'
+import { createPortal } from 'react-dom'
+import { EventSheet } from './Events'
 import { Glyph } from './icons'
 import { fmtDateLabel, providerFromUrl, ProviderLogo } from './pickers'
 
-const { useEffect, useRef, useState } = React
-
-// GIPHY public dev key — override with NEXT_PUBLIC_GIPHY_API_KEY in production.
-const GIPHY_KEY = process.env.NEXT_PUBLIC_GIPHY_API_KEY || 'dc6zaTOxFJmzC'
-const giphy = new GiphyFetch(GIPHY_KEY)
+const { useRef, useState } = React
 
 const TYPE_LABEL: Record<string, string> = {
   workshop: 'Workshop',
@@ -38,86 +38,23 @@ const TYPE_LABEL: Record<string, string> = {
   guest: 'Guest',
 }
 
-type GifPick = { preview: string; url: string }
-
-/* ---------- GIF picker (live GIPHY search) ---------- */
-function GifPicker({ onPick }: { onPick: (g: GifPick) => void }) {
-  const [q, setQ] = useState('')
-  const [gifs, setGifs] = useState<
-    { id: string | number; preview: string; url: string }[]
-  >([])
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    let alive = true
-    setLoading(true)
-    const run = async () => {
-      try {
-        const res = q.trim()
-          ? await giphy.search(q.trim(), { limit: 24 })
-          : await giphy.trending({ limit: 24 })
-        if (!alive) return
-        setGifs(
-          res.data.map((g) => ({
-            id: g.id,
-            preview: g.images.fixed_width_small?.url || g.images.fixed_width.url,
-            url: g.images.downsized_medium?.url || g.images.original.url,
-          })),
-        )
-      } catch {
-        if (alive) setGifs([])
-      } finally {
-        if (alive) setLoading(false)
-      }
-    }
-    const t = setTimeout(run, q ? 300 : 0)
-    return () => {
-      alive = false
-      clearTimeout(t)
-    }
-  }, [q])
-
-  return (
-    <div className="pop pop-gif">
-      <input
-        className="input gif-search"
-        autoFocus
-        value={q}
-        placeholder="Search GIPHY…"
-        onChange={(e) => setQ(e.target.value)}
-      />
-      <div className="pop-grid gif-grid">
-        {loading ? (
-          <div className="gif-loading">Loading…</div>
-        ) : gifs.length === 0 ? (
-          <div className="gif-loading">No GIFs found</div>
-        ) : (
-          gifs.map((g) => (
-            <button
-              key={g.id}
-              className="gif-cell"
-              onClick={() => onPick({ preview: g.preview, url: g.url })}
-            >
-              <img src={g.preview} alt="" loading="lazy" />
-            </button>
-          ))
-        )}
-      </div>
-    </div>
-  )
-}
-
 /* ---------- compact event attach card ---------- */
 function EventAttach({
   ev,
+  onOpen,
   onRemove,
 }: {
   ev: CommunityEventRead
+  onOpen?: () => void
   onRemove?: () => void
 }) {
   const provider = providerFromUrl(ev.meeting_url)
   return (
-    <div className="ev-attach">
+    <div
+      className={`ev-attach${onOpen ? ' tap' : ''}`}
+      onClick={onOpen}
+      role={onOpen ? 'button' : undefined}
+    >
       <div
         className="ev-attach-cover"
         style={{
@@ -140,13 +77,58 @@ function EventAttach({
       {onRemove && (
         <button
           className="ev-attach-rm"
-          onClick={onRemove}
+          onClick={(e) => {
+            e.stopPropagation()
+            onRemove()
+          }}
           aria-label="Remove"
         >
           <Glyph d="close" size={15} stroke={2.2} />
         </button>
       )}
     </div>
+  )
+}
+
+/* ---------- emoji picker, rendered in a portal so card backdrop-filter
+   stacking contexts can't bury it under the feed ---------- */
+function EmojiPortal({
+  anchor,
+  onPick,
+  onClose,
+}: {
+  anchor: DOMRect
+  onPick: (native: string) => void
+  onClose: () => void
+}) {
+  // Position below the button, clamped to the viewport (flip up if it would
+  // overflow the bottom).
+  const W = 352
+  const H = 420
+  let left = anchor.left
+  if (left + W > window.innerWidth - 12) left = window.innerWidth - W - 12
+  if (left < 12) left = 12
+  const below = anchor.bottom + 8
+  const openUp = below + H > window.innerHeight - 12
+  const top = openUp ? Math.max(12, anchor.top - H - 8) : below
+  return createPortal(
+    <>
+      <div
+        onClick={onClose}
+        style={{ position: 'fixed', inset: 0, zIndex: 4000 }}
+      />
+      <div style={{ position: 'fixed', top, left, zIndex: 4001 }}>
+        <Picker
+          data={data}
+          set="native"
+          theme="auto"
+          previewPosition="none"
+          skinTonePosition="none"
+          onEmojiSelect={(e: { native: string }) => onPick(e.native)}
+        />
+      </div>
+    </>,
+    document.body,
   )
 }
 
@@ -183,15 +165,17 @@ export function Composer({
     url: string
     progress: number
   } | null>(null)
-  const [gif, setGif] = useState<GifPick | null>(null)
   const [poll, setPoll] = useState<string[] | null>(null)
   const [event, setEvent] = useState<CommunityEventRead | null>(null)
-  const [pop, setPop] = useState<'gif' | 'emoji' | 'event' | null>(null)
+  const [eventPick, setEventPick] = useState(false)
+  const [sheetEvent, setSheetEvent] = useState<CommunityEventRead | null>(null)
+  const [emojiRect, setEmojiRect] = useState<DOMRect | null>(null)
   const [busy, setBusy] = useState(false)
 
   const taRef = useRef<HTMLTextAreaElement>(null)
   const imgInput = useRef<HTMLInputElement>(null)
   const vidInput = useRef<HTMLInputElement>(null)
+  const emojiBtn = useRef<HTMLButtonElement>(null)
 
   const uploadImg = useUploadPostImage(null, courseId, mode)
   const uploadVid = useUploadPostVideo(null, courseId, mode)
@@ -209,17 +193,16 @@ export function Composer({
     setText('')
     setImage(null)
     setVideo(null)
-    setGif(null)
     setPoll(null)
     setEvent(null)
-    setPop(null)
+    setEventPick(false)
+    setEmojiRect(null)
     setOpen(false)
   }
 
   const onPickImage = async (file: File | undefined) => {
     if (!file) return
     setVideo(null)
-    setGif(null)
     setBusy(true)
     try {
       const res = await uploadImg.mutateAsync(file)
@@ -234,7 +217,6 @@ export function Composer({
   const onPickVideo = async (file: File | undefined) => {
     if (!file) return
     setImage(null)
-    setGif(null)
     setVideo({ upload_id: '', url: URL.createObjectURL(file), progress: 0 })
     setOpen(true)
     setBusy(true)
@@ -254,8 +236,16 @@ export function Composer({
 
   const insertEmoji = (native: string) => {
     setText((t) => t + native)
-    setPop(null)
+    setEmojiRect(null)
     setTimeout(() => taRef.current?.focus(), 0)
+  }
+  const toggleEmoji = () => {
+    if (emojiRect) {
+      setEmojiRect(null)
+      return
+    }
+    const r = emojiBtn.current?.getBoundingClientRect()
+    if (r) setEmojiRect(r)
   }
 
   const setPollOption = (i: number, v: string) =>
@@ -270,7 +260,6 @@ export function Composer({
     !!text.trim() ||
     !!image ||
     !!(video && video.upload_id) ||
-    !!gif ||
     validPoll ||
     !!event
 
@@ -282,13 +271,10 @@ export function Composer({
       body.media = [
         { media_type: 'video', mux_upload_id: video.upload_id, position: 0 },
       ]
-    } else {
-      const media: NonNullable<CommunityPostCreateBody['media']> = []
-      if (image)
-        media.push({ media_type: 'image', file_id: image.file_id, position: 0 })
-      if (gif)
-        media.push({ media_type: 'gif', external_url: gif.url, position: 0 })
-      if (media.length) body.media = media
+    } else if (image) {
+      body.media = [
+        { media_type: 'image', file_id: image.file_id, position: 0 },
+      ]
     }
     if (validPoll && poll)
       body.poll = { options: poll.map((o) => o.trim()).filter(Boolean) }
@@ -359,7 +345,7 @@ export function Composer({
           <button
             onClick={() => {
               expand()
-              setPop('event')
+              setEventPick(true)
             }}
           >
             <Glyph d="calendar" size={18} stroke={1.8} /> Event
@@ -418,19 +404,6 @@ export function Composer({
           </button>
         </div>
       )}
-      {gif && (
-        <div className="comp-att">
-          <img src={gif.preview} alt="GIF" />
-          <span className="gif-badge">GIF</span>
-          <button
-            className="comp-att-rm"
-            onClick={() => setGif(null)}
-            aria-label="Remove"
-          >
-            <Glyph d="close" size={15} stroke={2.2} />
-          </button>
-        </div>
-      )}
       {poll && (
         <div className="poll-build">
           <div className="poll-build-head">
@@ -464,7 +437,13 @@ export function Composer({
           )}
         </div>
       )}
-      {event && <EventAttach ev={event} onRemove={() => setEvent(null)} />}
+      {event && (
+        <EventAttach
+          ev={event}
+          onOpen={() => setSheetEvent(event)}
+          onRemove={() => setEvent(null)}
+        />
+      )}
 
       <div className="crf-comp-foot">
         <div className="crf-comp-tools">
@@ -474,53 +453,14 @@ export function Composer({
           <button title="Video" onClick={() => vidInput.current?.click()}>
             <Glyph d="video" size={20} stroke={1.8} />
           </button>
-          <div className="tool-wrap">
-            <button
-              title="GIF"
-              className={`tool-gif${pop === 'gif' ? ' on' : ''}`}
-              onClick={() => setPop(pop === 'gif' ? null : 'gif')}
-            >
-              GIF
-            </button>
-            {pop === 'gif' && (
-              <>
-                <div className="pop-scrim" onClick={() => setPop(null)} />
-                <GifPicker
-                  onPick={(g) => {
-                    setGif(g)
-                    setImage(null)
-                    setVideo(null)
-                    setPop(null)
-                  }}
-                />
-              </>
-            )}
-          </div>
-          <div className="tool-wrap">
-            <button
-              title="Emoji"
-              className={pop === 'emoji' ? 'on' : ''}
-              onClick={() => setPop(pop === 'emoji' ? null : 'emoji')}
-            >
-              <Glyph d="smiley" size={20} stroke={1.8} />
-            </button>
-            {pop === 'emoji' && (
-              <>
-                <div className="pop-scrim" onClick={() => setPop(null)} />
-                <div className="pop pop-emoji-mart">
-                  <Picker
-                    data={data}
-                    set="apple"
-                    theme="auto"
-                    previewPosition="none"
-                    onEmojiSelect={(e: { native: string }) =>
-                      insertEmoji(e.native)
-                    }
-                  />
-                </div>
-              </>
-            )}
-          </div>
+          <button
+            ref={emojiBtn}
+            title="Emoji"
+            className={emojiRect ? 'on' : ''}
+            onClick={toggleEmoji}
+          >
+            <Glyph d="smiley" size={20} stroke={1.8} />
+          </button>
           <button
             title="Poll"
             className={poll ? 'on' : ''}
@@ -531,14 +471,14 @@ export function Composer({
           <div className="tool-wrap">
             <button
               title="Event"
-              className={event || pop === 'event' ? 'on' : ''}
-              onClick={() => setPop(pop === 'event' ? null : 'event')}
+              className={event || eventPick ? 'on' : ''}
+              onClick={() => setEventPick((v) => !v)}
             >
               <Glyph d="calendar" size={20} stroke={1.8} />
             </button>
-            {pop === 'event' && (
+            {eventPick && (
               <>
-                <div className="pop-scrim" onClick={() => setPop(null)} />
+                <div className="pop-scrim" onClick={() => setEventPick(false)} />
                 <div className="pop pop-event">
                   <div className="pop-title">Link an event</div>
                   {events.length === 0 ? (
@@ -553,7 +493,7 @@ export function Composer({
                           className="event-pick-row"
                           onClick={() => {
                             setEvent(ev)
-                            setPop(null)
+                            setEventPick(false)
                           }}
                         >
                           <span
@@ -592,6 +532,21 @@ export function Composer({
           {busy ? 'Posting…' : cta}
         </button>
       </div>
+
+      {emojiRect && (
+        <EmojiPortal
+          anchor={emojiRect}
+          onPick={insertEmoji}
+          onClose={() => setEmojiRect(null)}
+        />
+      )}
+      {sheetEvent && (
+        <EventSheet
+          ev={sheetEvent}
+          onClose={() => setSheetEvent(null)}
+          showToast={showToast}
+        />
+      )}
 
       {hiddenInputs}
     </div>
