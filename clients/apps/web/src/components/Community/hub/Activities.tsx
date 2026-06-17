@@ -71,7 +71,7 @@ function ActivityForm({
   const [formatLabel, setFormatLabel] = useState('Video')
   const [channelId, setChannelId] = useState<string | null>(null)
   const [cover, setCover] = useState('')
-  const [coverPos, setCoverPos] = useState('center 50%')
+  const [coverPos, setCoverPos] = useState('50% 50%')
   const [busy, setBusy] = useState(false)
 
   const uploadImg = useUploadPostImage(null, courseId, 'creator')

@@ -96,7 +96,7 @@ const emptyForm = (provider: ProviderKey): FormState => ({
   link: '',
   desc: '',
   cover: '',
-  coverPos: 'center 50%',
+  coverPos: '50% 50%',
 })
 
 function EventForm({

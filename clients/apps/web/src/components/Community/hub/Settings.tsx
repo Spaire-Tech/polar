@@ -88,6 +88,7 @@ export function SettingsTab({
   courseTitle,
   brandName,
   courseCoverUrl,
+  defaultTagline,
   lessonsCount,
   onViewCourse,
   showToast,
@@ -96,6 +97,7 @@ export function SettingsTab({
   courseTitle: string
   brandName: string
   courseCoverUrl?: string | null
+  defaultTagline: string
   lessonsCount: number
   onViewCourse: () => void
   showToast: (m: string) => void
@@ -128,7 +130,7 @@ export function SettingsTab({
 
   const cover = coverOverride.url ?? s.hero_thumbnail_url ?? courseCoverUrl
   const coverPos =
-    coverOverride.pos ?? s.hero_thumbnail_object_position ?? 'center 50%'
+    coverOverride.pos ?? s.hero_thumbnail_object_position ?? '50% 50%'
   const onCoverPos = (pos: string) => {
     setCoverOverride((o) => ({ ...o, pos }))
     patch({ hero_thumbnail_object_position: pos })
@@ -178,14 +180,14 @@ export function SettingsTab({
         <TextRow
           label="Name"
           hint="The title across the top of the room"
-          value={s.feed_title_override ?? ''}
-          onCommit={(v) => patch({ feed_title_override: v || null })}
+          value={s.feed_title_override ?? courseTitle}
+          onCommit={(v) => patch({ feed_title_override: v.trim() || null })}
         />
         <TextRow
           label="Tagline"
           hint="One line under the name"
-          value={s.feed_eyebrow_override ?? ''}
-          onCommit={(v) => patch({ feed_eyebrow_override: v || null })}
+          value={s.feed_eyebrow_override ?? defaultTagline}
+          onCommit={(v) => patch({ feed_eyebrow_override: v.trim() || null })}
         />
       </div>
 
