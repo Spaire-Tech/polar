@@ -1940,3 +1940,63 @@ export const usePostSubmissionComment = (
       })
     },
   })
+
+// ---------------------------------------------------------------------
+// Student Profile tab — identity + notification preferences
+//
+// These live outside the /community surface (they're per-customer, not
+// per-course) but power the student community's Profile tab. Token-based,
+// matching the rest of the customer community data layer.
+// ---------------------------------------------------------------------
+
+export type CustomerNotificationPreferences = {
+  email_enabled: boolean
+  bell_enabled: boolean
+}
+
+/** Update the student's display name + avatar (shared with the portal). */
+export const useUpdateCommunityProfile = (token: string | null | undefined) =>
+  useMutation({
+    mutationFn: (body: { name: string | null; avatar_url: string | null }) =>
+      portalFetch<{ id: string; name: string | null; avatar_url: string | null }>(
+        '/v1/customer-portal/customers/me/profile',
+        token!,
+        { method: 'PATCH', body: JSON.stringify(body) },
+      ),
+    onSuccess: () => {
+      const qc = getQueryClient()
+      qc.invalidateQueries({ queryKey: ['customer'] })
+      qc.invalidateQueries({ queryKey: ['customer-course'] })
+    },
+  })
+
+export const useCustomerNotificationPreferences = (
+  token: string | null | undefined,
+) =>
+  useQuery<CustomerNotificationPreferences>({
+    queryKey: ['customer-notification-preferences', token ?? ''],
+    queryFn: () =>
+      portalFetch<CustomerNotificationPreferences>(
+        '/v1/customer-portal/notifications/preferences',
+        token!,
+      ),
+    enabled: !!token,
+  })
+
+export const useUpdateCustomerNotificationPreferences = (
+  token: string | null | undefined,
+) =>
+  useMutation({
+    mutationFn: (body: CustomerNotificationPreferences) =>
+      portalFetch<CustomerNotificationPreferences>(
+        '/v1/customer-portal/notifications/preferences',
+        token!,
+        { method: 'PATCH', body: JSON.stringify(body) },
+      ),
+    onSuccess: (data) => {
+      getQueryClient().setQueryData(
+        ['customer-notification-preferences', token ?? ''],
+        data,
+      )
+    },
+  })

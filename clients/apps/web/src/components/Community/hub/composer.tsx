@@ -135,6 +135,8 @@ function EmojiPortal({
 type Props = {
   courseId: string
   mode?: CommunityIOMode
+  /** Customer session token (customer mode); null/undefined for the creator. */
+  token?: string | null
   avatar?: string | null
   authorName?: string | null
   placeholder?: string
@@ -147,6 +149,7 @@ type Props = {
 export function Composer({
   courseId,
   mode = 'creator',
+  token = null,
   avatar,
   authorName,
   placeholder = 'Share an update with your community…',
@@ -177,9 +180,9 @@ export function Composer({
   const vidInput = useRef<HTMLInputElement>(null)
   const emojiBtn = useRef<HTMLButtonElement>(null)
 
-  const uploadImg = useUploadPostImage(null, courseId, mode)
-  const uploadVid = useUploadPostVideo(null, courseId, mode)
-  const eventsQ = useCommunityEvents(null, courseId, mode)
+  const uploadImg = useUploadPostImage(token, courseId, mode)
+  const uploadVid = useUploadPostVideo(token, courseId, mode)
+  const eventsQ = useCommunityEvents(token, courseId, mode)
   const events = eventsQ.data ?? []
 
   const av = avatar || undefined

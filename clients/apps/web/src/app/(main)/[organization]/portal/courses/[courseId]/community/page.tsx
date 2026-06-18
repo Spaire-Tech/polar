@@ -1,4 +1,4 @@
-import { CommunityFeed } from '@/components/Community/CommunityFeed'
+import { CommunityHubStudent } from '@/components/Community/hub/CommunityHubStudent'
 import { getServerSideAPI } from '@/utils/client/serverside'
 import { getOrganizationOrNotFound } from '@/utils/customerPortal'
 import { redirect } from 'next/navigation'
@@ -26,10 +26,10 @@ export default async function Page(props: {
   }
 
   return (
-    <CommunityFeed
+    <CommunityHubStudent
       courseId={params.courseId}
+      token={token}
       organizationSlug={organization.slug}
-      customerSessionToken={token}
     />
   )
 }

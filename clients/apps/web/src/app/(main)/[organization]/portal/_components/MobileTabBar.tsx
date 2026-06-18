@@ -161,16 +161,14 @@ const buildTabs = (
       matches: (p) => p.includes('/portal/courses'),
       icon: StackIcon,
     },
-    // Community is HIDDEN for now (not fully functional) — hide, don't
-    // delete; restore by uncommenting.
-    // {
-    //   href: `/${slug}/portal/community`,
-    //   label: 'Community',
-    //   matches: (p) =>
-    //     p.includes('/portal/community') ||
-    //     /\/portal\/courses\/[^/]+\/community/.test(p),
-    //   icon: ChatIcon,
-    // },
+    {
+      href: `/${slug}/portal/community`,
+      label: 'Community',
+      matches: (p) =>
+        p.includes('/portal/community') ||
+        /\/portal\/courses\/[^/]+\/community/.test(p),
+      icon: ChatIcon,
+    },
     {
       href: `/${slug}/portal/downloads`,
       label: 'Downloads',

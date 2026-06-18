@@ -14,16 +14,20 @@ import {
   type CommunityAuthor,
   type CommunityCommentRead,
   type CommunityEventRead,
+  type CommunityPostCreateBody,
   type CommunityPollRead,
   type CommunityPostEventRef,
   type CommunityPostMediaRead,
   type CommunityPostRead,
+  useCommunityFeed,
   useCommunityPostComments,
   useCreateCommunityComment,
   useCreateCommunityPost,
   useCreatorCommunityFeed,
   useCreatorDeleteComment,
   useCreatorDeletePost,
+  useDeleteCommunityComment,
+  useDeleteCommunityPost,
   usePinPost,
   useToggleCommentReaction,
   useTogglePostReaction,
@@ -32,6 +36,7 @@ import {
 } from '@/hooks/queries/community'
 import * as React from 'react'
 import { Composer } from './composer'
+import { useHub } from './context'
 import { EventSheet } from './Events'
 import { timeAgo } from './format'
 import { HeadInfo } from './HeadInfo'
@@ -48,7 +53,8 @@ const TYPE_LABEL: Record<string, string> = {
 /* ---------- poll ---------- */
 function PostPoll({ courseId, post }: { courseId: string; post: CommunityPostRead }) {
   const poll = post.poll as CommunityPollRead
-  const vote = useVotePostPoll(null, courseId, 'creator')
+  const { mode, token } = useHub()
+  const vote = useVotePostPoll(token, courseId, mode)
   const voted = poll.my_vote != null
   return (
     <div className="poll">
@@ -258,8 +264,11 @@ function HubComment({
 }) {
   const [replying, setReplying] = useState(false)
   const [text, setText] = useState('')
-  const react = useToggleCommentReaction(null, courseId, postId, 'creator')
-  const del = useCreatorDeleteComment(courseId)
+  const { mode, token } = useHub()
+  const react = useToggleCommentReaction(token, courseId, postId, mode)
+  const delCreator = useCreatorDeleteComment(courseId)
+  const delCustomer = useDeleteCommunityComment(token, courseId, postId, mode)
+  const del = mode === 'creator' ? delCreator : delCustomer
   const a = c.author
   const replies = 'replies' in c ? c.replies : []
   const likes = reactionCount(c.reactions)
@@ -388,8 +397,9 @@ function Comments({
   selfName: string
   selfAvatar?: string | null
 }) {
-  const commentsQ = useCommunityPostComments(null, courseId, postId, 'creator')
-  const create = useCreateCommunityComment(null, courseId, postId, 'creator')
+  const { mode, token } = useHub()
+  const commentsQ = useCommunityPostComments(token, courseId, postId, mode)
+  const create = useCreateCommunityComment(token, courseId, postId, mode)
   const [text, setText] = useState('')
   const tree = useMemo(() => buildTree(commentsQ.data ?? []), [commentsQ.data])
 
@@ -453,13 +463,21 @@ export function HubPost({
   const [expanded, setExpanded] = useState(false)
   const [menu, setMenu] = useState(false)
 
-  const reactPost = useTogglePostReaction(null, courseId, 'creator')
+  const { mode, token, viewer, selfEnrollmentId } = useHub()
+  const reactPost = useTogglePostReaction(token, courseId, mode)
   const pin = usePinPost(courseId)
   const unpin = useUnpinPost(courseId)
-  const del = useCreatorDeletePost(courseId)
+  const delCreator = useCreatorDeletePost(courseId)
+  const delCustomer = useDeleteCommunityPost(token, courseId, mode)
+  const del = mode === 'creator' ? delCreator : delCustomer
 
   const a = post.author
   const isHost = a.kind === 'instructor'
+  // Host moderates everything; a member may remove only their OWN post.
+  const ownPost =
+    a.kind === 'student' && !!selfEnrollmentId && a.enrollment_id === selfEnrollmentId
+  const canPin = viewer === 'host'
+  const canRemove = viewer === 'host' || ownPost
   const pinned = !!post.pinned_at
   const liked = iLiked(post.reactions)
   const likes = post.reaction_count
@@ -514,19 +532,21 @@ export function HubPost({
             <Glyph d="globe" size={12} stroke={1.7} />
           </div>
         </div>
-        <button
-          className={`crf-pinbtn${pinned ? ' on' : ''}`}
-          onClick={togglePin}
-          aria-label={pinned ? 'Unpin from feed' : 'Pin to top'}
-          title={pinned ? 'Unpin from feed' : 'Pin to top'}
-        >
-          <Glyph
-            d="pin"
-            size={18}
-            stroke={1.9}
-            fill={pinned ? 'currentColor' : 'none'}
-          />
-        </button>
+        {canPin && (
+          <button
+            className={`crf-pinbtn${pinned ? ' on' : ''}`}
+            onClick={togglePin}
+            aria-label={pinned ? 'Unpin from feed' : 'Pin to top'}
+            title={pinned ? 'Unpin from feed' : 'Pin to top'}
+          >
+            <Glyph
+              d="pin"
+              size={18}
+              stroke={1.9}
+              fill={pinned ? 'currentColor' : 'none'}
+            />
+          </button>
+        )}
         <div className="crf-menu-wrap">
           <button
             className="crf-more"
@@ -539,15 +559,17 @@ export function HubPost({
             <>
               <div className="crf-menu-scrim" onClick={() => setMenu(false)} />
               <div className="crf-menu">
-                <button
-                  onClick={() => {
-                    togglePin()
-                    setMenu(false)
-                  }}
-                >
-                  <Glyph d="pin" size={16} stroke={1.8} />{' '}
-                  {pinned ? 'Unpin from feed' : 'Pin to top'}
-                </button>
+                {canPin && (
+                  <button
+                    onClick={() => {
+                      togglePin()
+                      setMenu(false)
+                    }}
+                  >
+                    <Glyph d="pin" size={16} stroke={1.8} />{' '}
+                    {pinned ? 'Unpin from feed' : 'Pin to top'}
+                  </button>
+                )}
                 <button
                   onClick={() => {
                     copyLink()
@@ -556,15 +578,17 @@ export function HubPost({
                 >
                   <Glyph d="share" size={16} stroke={1.8} /> Copy link
                 </button>
-                <button
-                  className="danger"
-                  onClick={() => {
-                    del.mutate(post.id)
-                    setMenu(false)
-                  }}
-                >
-                  <Glyph d="trash" size={16} stroke={1.8} /> Remove post
-                </button>
+                {canRemove && (
+                  <button
+                    className="danger"
+                    onClick={() => {
+                      del.mutate(post.id)
+                      setMenu(false)
+                    }}
+                  >
+                    <Glyph d="trash" size={16} stroke={1.8} /> Remove post
+                  </button>
+                )}
               </div>
             </>
           )}
@@ -638,6 +662,112 @@ export function HubPost({
 }
 
 /* ---------- tab ---------- */
+
+// Flatten + de-dupe the paginated feed (creator and customer pages share the
+// same `{ items }` page shape).
+function flattenFeed(
+  pages: { items: CommunityPostRead[] }[] | undefined,
+): CommunityPostRead[] {
+  const seen = new Set<string>()
+  const out: CommunityPostRead[] = []
+  for (const page of pages ?? []) {
+    for (const p of page.items) {
+      if (seen.has(p.id)) continue
+      seen.add(p.id)
+      out.push(p)
+    }
+  }
+  return out
+}
+
+// Shared feed body: composer + post list + states. The viewer context
+// (creator/host vs customer/member) is supplied by <HubProvider>, so the same
+// body serves both consoles — the only difference is which feed query feeds it.
+function FeedBody({
+  courseId,
+  posts,
+  isLoading,
+  hasNextPage,
+  isFetchingNextPage,
+  fetchNextPage,
+  onCreate,
+  selfName,
+  selfAvatar,
+  placeholder,
+  empty,
+  showToast,
+}: {
+  courseId: string
+  posts: CommunityPostRead[]
+  isLoading: boolean
+  hasNextPage: boolean
+  isFetchingNextPage: boolean
+  fetchNextPage: () => void
+  onCreate: (body: CommunityPostCreateBody) => Promise<unknown>
+  selfName: string
+  selfAvatar?: string | null
+  placeholder: string
+  empty: { title: string; body: string }
+  showToast: (m: string) => void
+}) {
+  const { mode, token } = useHub()
+  return (
+    <>
+      <Composer
+        courseId={courseId}
+        mode={mode}
+        token={token}
+        avatar={selfAvatar}
+        authorName={selfName}
+        placeholder={placeholder}
+        onCreate={onCreate}
+        showToast={showToast}
+      />
+
+      {isLoading ? (
+        <div className="crf-stack">
+          {[0, 1].map((i) => (
+            <div key={i} className="card" style={{ height: 200 }} />
+          ))}
+        </div>
+      ) : posts.length === 0 ? (
+        <div className="card crf-empty">
+          <span className="crf-empty-ic">
+            <Glyph d="bubble" size={26} stroke={1.7} />
+          </span>
+          <h3>{empty.title}</h3>
+          <p>{empty.body}</p>
+        </div>
+      ) : (
+        <>
+          <div className="crf-stack">
+            {posts.map((p) => (
+              <HubPost
+                key={p.id}
+                post={p}
+                courseId={courseId}
+                selfName={selfName}
+                selfAvatar={selfAvatar}
+              />
+            ))}
+          </div>
+          {hasNextPage && (
+            <div style={{ textAlign: 'center', marginTop: 16 }}>
+              <button
+                className="btn btn-quiet"
+                disabled={isFetchingNextPage}
+                onClick={fetchNextPage}
+              >
+                {isFetchingNextPage ? 'Loading…' : 'Load more'}
+              </button>
+            </div>
+          )}
+        </>
+      )}
+    </>
+  )
+}
+
 export function FeedTab({
   courseId,
   selfName,
@@ -656,19 +786,7 @@ export function FeedTab({
     tag_id: null,
   })
   const create = useCreateCommunityPost(null, courseId, 'creator')
-
-  const posts = useMemo(() => {
-    const seen = new Set<string>()
-    const out: CommunityPostRead[] = []
-    for (const page of feedQ.data?.pages ?? []) {
-      for (const p of page.items) {
-        if (seen.has(p.id)) continue
-        seen.add(p.id)
-        out.push(p)
-      }
-    }
-    return out
-  }, [feedQ.data])
+  const posts = useMemo(() => flattenFeed(feedQ.data?.pages), [feedQ.data])
 
   return (
     <>
@@ -685,59 +803,81 @@ export function FeedTab({
         </div>
       </div>
 
-      <Composer
+      <FeedBody
         courseId={courseId}
-        mode="creator"
-        avatar={selfAvatar}
-        authorName={selfName}
-        placeholder="Share an update with your community…"
+        posts={posts}
+        isLoading={feedQ.isLoading}
+        hasNextPage={!!feedQ.hasNextPage}
+        isFetchingNextPage={feedQ.isFetchingNextPage}
+        fetchNextPage={() => feedQ.fetchNextPage()}
         onCreate={(body) => create.mutateAsync(body)}
+        selfName={selfName}
+        selfAvatar={selfAvatar}
+        placeholder="Share an update with your community…"
+        empty={{
+          title: 'Your feed is quiet — for now',
+          body: 'Post a welcome so members arrive to a room that already feels alive. Introduce yourself, set the tone, and tell them what to do first.',
+        }}
         showToast={showToast}
       />
+    </>
+  )
+}
 
-      {feedQ.isLoading ? (
-        <div className="crf-stack">
-          {[0, 1].map((i) => (
-            <div key={i} className="card" style={{ height: 200 }} />
-          ))}
-        </div>
-      ) : posts.length === 0 ? (
-        <div className="card crf-empty">
-          <span className="crf-empty-ic">
-            <Glyph d="bubble" size={26} stroke={1.7} />
-          </span>
-          <h3>Your feed is quiet — for now</h3>
-          <p>
-            Post a welcome so members arrive to a room that already feels alive.
-            Introduce yourself, set the tone, and tell them what to do first.
-          </p>
-        </div>
-      ) : (
-        <>
-          <div className="crf-stack">
-            {posts.map((p) => (
-              <HubPost
-                key={p.id}
-                post={p}
-                courseId={courseId}
-                selfName={selfName}
-                selfAvatar={selfAvatar}
-              />
-            ))}
+// Student (member) feed — same body, customer feed query + create.
+export function StudentFeedTab({
+  courseId,
+  token,
+  selfName,
+  selfAvatar,
+  showToast,
+}: {
+  courseId: string
+  token: string
+  selfName: string
+  selfAvatar?: string | null
+  showToast: (m: string) => void
+}) {
+  const feedQ = useCommunityFeed(token, courseId, {
+    sort: 'recent',
+    module_id: null,
+    lesson_id: null,
+    tag_id: null,
+  })
+  const create = useCreateCommunityPost(token, courseId, 'customer')
+  const posts = useMemo(() => flattenFeed(feedQ.data?.pages), [feedQ.data])
+
+  return (
+    <>
+      <div className="cr-head">
+        <div>
+          <div className="h">
+            Feed
+            <HeadInfo>
+              The running conversation of the room. Share your reps and wins, ask
+              the question you think is too basic, and reply right in the thread.
+            </HeadInfo>
           </div>
-          {feedQ.hasNextPage && (
-            <div style={{ textAlign: 'center', marginTop: 16 }}>
-              <button
-                className="btn btn-quiet"
-                disabled={feedQ.isFetchingNextPage}
-                onClick={() => feedQ.fetchNextPage()}
-              >
-                {feedQ.isFetchingNextPage ? 'Loading…' : 'Load more'}
-              </button>
-            </div>
-          )}
-        </>
-      )}
+        </div>
+      </div>
+
+      <FeedBody
+        courseId={courseId}
+        posts={posts}
+        isLoading={feedQ.isLoading}
+        hasNextPage={!!feedQ.hasNextPage}
+        isFetchingNextPage={feedQ.isFetchingNextPage}
+        fetchNextPage={() => feedQ.fetchNextPage()}
+        onCreate={(body) => create.mutateAsync(body)}
+        selfName={selfName}
+        selfAvatar={selfAvatar}
+        placeholder="Share a win, a question, or what you're working on…"
+        empty={{
+          title: 'No posts yet',
+          body: 'Be the first to say hello. Share a win, ask a question, or tell the room what you’re working on.',
+        }}
+        showToast={showToast}
+      />
     </>
   )
 }
