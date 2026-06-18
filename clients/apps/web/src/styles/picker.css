@@ -7,8 +7,8 @@
 
 .pk-library {
   /* Tokens scoped to the picker so they don't leak into the rest of
-     the app. Indigo accent per spec. */
-  --accent: oklch(0.62 0.21 265);
+     the app. Community blue accent (matches the editor + community hub). */
+  --accent: #0066cc;
   --accent-soft: color-mix(in oklab, var(--accent) 12%, white);
   --accent-ink: color-mix(in oklab, var(--accent) 78%, black);
   --bg: #f4f4f6;
