@@ -20,6 +20,7 @@ import {
 import * as React from 'react'
 import { createPortal } from 'react-dom'
 import { CoverDrop, Field, Seg } from './atoms'
+import { useHub } from './context'
 import { HeadInfo } from './HeadInfo'
 import { Glyph } from './icons'
 import {
@@ -384,7 +385,9 @@ export function EventsTab({
   defaultProvider?: ProviderKey
   showToast: (m: string) => void
 }) {
-  const eventsQ = useCommunityEvents(null, courseId, 'creator')
+  const { viewer, mode, token } = useHub()
+  const isHost = viewer === 'host'
+  const eventsQ = useCommunityEvents(token, courseId, mode)
   const events = eventsQ.data ?? []
   const [showForm, setShowForm] = useState(false)
   const [openEv, setOpenEv] = useState<CommunityEventRead | null>(null)
@@ -403,13 +406,13 @@ export function EventsTab({
           <div className="h">
             Events
             <HeadInfo>
-              Live moments that bring the room together — a workshop, a Q&amp;A,
-              or a watch party. Schedule one and it publishes a card members can
-              join in a tap.
+              {isHost
+                ? 'Live moments that bring the room together — a workshop, a Q&A, or a watch party. Schedule one and it publishes a card members can join in a tap.'
+                : 'Live moments with your host and the room — Q&As, watch parties, and workshops. Tap any card to see the details and join.'}
             </HeadInfo>
           </div>
         </div>
-        {!showForm && events.length > 0 && (
+        {isHost && !showForm && events.length > 0 && (
           <button
             className="ev-add-btn"
             onClick={() => setShowForm(true)}
@@ -420,7 +423,7 @@ export function EventsTab({
         )}
       </div>
 
-      {showForm ? (
+      {isHost && showForm ? (
         <EventForm
           courseId={courseId}
           defaultProvider={defaultProvider}
@@ -435,12 +438,18 @@ export function EventsTab({
           </span>
           <h3>No live moments yet</h3>
           <p>
-            Schedule a workshop, Q&amp;A, or watch party. It publishes a card
-            members can join with one tap when it goes live.
+            {isHost
+              ? 'Schedule a workshop, Q&A, or watch party. It publishes a card members can join with one tap when it goes live.'
+              : 'When your host schedules a workshop, Q&A, or watch party, it shows up here for you to join.'}
           </p>
-          <button className="btn btn-primary" onClick={() => setShowForm(true)}>
-            Schedule an event
-          </button>
+          {isHost && (
+            <button
+              className="btn btn-primary"
+              onClick={() => setShowForm(true)}
+            >
+              Schedule an event
+            </button>
+          )}
         </div>
       ) : (
         <>

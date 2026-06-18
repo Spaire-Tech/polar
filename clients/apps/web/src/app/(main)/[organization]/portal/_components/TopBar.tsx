@@ -57,15 +57,13 @@ const buildTabs = (
       label: 'Courses',
       matches: (p) => p.includes('/portal/courses'),
     },
-    // Community is HIDDEN for now (not fully functional) — hide, don't
-    // delete; restore by uncommenting.
-    // {
-    //   href: `/${slug}/portal/community`,
-    //   label: 'Community',
-    //   matches: (p) =>
-    //     p.includes('/portal/community') ||
-    //     /\/portal\/courses\/[^/]+\/community/.test(p),
-    // },
+    {
+      href: `/${slug}/portal/community`,
+      label: 'Community',
+      matches: (p) =>
+        p.includes('/portal/community') ||
+        /\/portal\/courses\/[^/]+\/community/.test(p),
+    },
     {
       href: `/${slug}/portal/downloads`,
       label: 'Downloads',

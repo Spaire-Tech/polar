@@ -23,16 +23,19 @@ import {
   useCreateCommunityActivity,
   usePostSubmissionComment,
   useSubmissionComments,
+  useSubmitToCommunityActivity,
   useUploadPostImage,
+  useUploadPostVideo,
 } from '@/hooks/queries/community'
 import * as React from 'react'
 import { CoverDrop, Field, Seg } from './atoms'
+import { useHub } from './context'
 import { HeadInfo } from './HeadInfo'
 import { timeAgo } from './format'
 import { Glyph } from './icons'
 import { type ChannelOption, EpisodeSelect } from './pickers'
 
-const { useMemo, useState } = React
+const { useMemo, useRef, useState } = React
 
 /* format label ↔ stored submission_type */
 const FORMATS: { label: string; type: ActivitySubmissionType; sub: string }[] = [
@@ -269,14 +272,15 @@ function SubmissionCard({
 }) {
   const [open, setOpen] = useState(false)
   const [text, setText] = useState('')
+  const { mode, token } = useHub()
   const commentsQ = useSubmissionComments(
-    null,
+    token,
     courseId,
     activityId,
     open ? s.id : undefined,
-    'creator',
+    mode,
   )
-  const post = usePostSubmissionComment(null, courseId, activityId, s.id, 'creator')
+  const post = usePostSubmissionComment(token, courseId, activityId, s.id, mode)
   const comments = commentsQ.data ?? []
   const submit = () => {
     const t = text.trim()
@@ -355,6 +359,205 @@ function SubmissionCard({
   )
 }
 
+/* ---------- member submission composer (student view) ----------
+   Renders the input that matches the activity's declared submission_type and
+   posts a real submission to the customer-portal endpoint. */
+function SubmissionComposer({
+  act,
+  courseId,
+  selfName,
+  selfAvatar,
+}: {
+  act: CommunityActivityRead
+  courseId: string
+  selfName: string
+  selfAvatar?: string | null
+}) {
+  const { token } = useHub()
+  const submit = useSubmitToCommunityActivity(token, courseId)
+  const uploadImg = useUploadPostImage(token, courseId, 'customer')
+  const uploadVid = useUploadPostVideo(token, courseId, 'customer')
+
+  const [text, setText] = useState('')
+  const [linkUrl, setLinkUrl] = useState('')
+  const [image, setImage] = useState<{ file_id: string; url: string } | null>(
+    null,
+  )
+  const [video, setVideo] = useState<{ upload_id: string } | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [done, setDone] = useState(act.has_own_submission)
+  const imgInput = useRef<HTMLInputElement>(null)
+  const vidInput = useRef<HTMLInputElement>(null)
+
+  const type = act.submission_type
+  const ready =
+    !busy &&
+    (type === 'text'
+      ? text.trim().length > 0
+      : type === 'link'
+        ? linkUrl.trim().length > 0
+        : type === 'photo'
+          ? !!image
+          : !!video)
+
+  const pickImage = async (file: File) => {
+    setBusy(true)
+    try {
+      const res = await uploadImg.mutateAsync(file)
+      setImage({ file_id: res.file_id, url: res.public_url })
+    } finally {
+      setBusy(false)
+    }
+  }
+  const pickVideo = async (file: File) => {
+    setBusy(true)
+    try {
+      const res = await uploadVid.mutateAsync({ file })
+      setVideo({ upload_id: res.upload_id })
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const send = async () => {
+    if (!ready) return
+    setBusy(true)
+    try {
+      await submit.mutateAsync({
+        activityId: act.id,
+        body: {
+          submission_type: type,
+          body: text.trim() || null,
+          file_id: type === 'photo' ? (image?.file_id ?? null) : null,
+          mux_upload_id: type === 'video' ? (video?.upload_id ?? null) : null,
+          link_url: type === 'link' ? linkUrl.trim() : null,
+        },
+      })
+      setText('')
+      setLinkUrl('')
+      setImage(null)
+      setVideo(null)
+      setDone(true)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  if (done) {
+    return (
+      <div className="card sub-done">
+        <Glyph d="seal" size={18} stroke={1.8} /> Your submission is in. Scroll
+        down to see the room’s responses.
+      </div>
+    )
+  }
+
+  return (
+    <div className="card sub-compose">
+      <div className="sub-compose-head">
+        {selfAvatar ? (
+          <img src={selfAvatar} alt="" />
+        ) : (
+          <span className="hub-av-fallback" />
+        )}
+        <div className="sub-compose-who">{selfName}</div>
+      </div>
+
+      {(type === 'text' || type === 'photo' || type === 'video') && (
+        <textarea
+          className="sub-compose-text"
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder={
+            type === 'text'
+              ? 'Write your response…'
+              : 'Add a caption (optional)…'
+          }
+          rows={type === 'text' ? 4 : 2}
+        />
+      )}
+
+      {type === 'link' && (
+        <input
+          className="sub-compose-link"
+          value={linkUrl}
+          onChange={(e) => setLinkUrl(e.target.value)}
+          placeholder="Paste a link to your work…"
+        />
+      )}
+
+      {type === 'photo' && (
+        <>
+          <input
+            ref={imgInput}
+            type="file"
+            accept="image/*"
+            hidden
+            onChange={(e) => {
+              const f = e.target.files?.[0]
+              if (f) void pickImage(f)
+            }}
+          />
+          {image ? (
+            <div className="sub-compose-prev">
+              <img src={image.url} alt="" />
+              <button onClick={() => setImage(null)} aria-label="Remove">
+                <Glyph d="close" size={16} stroke={2.2} />
+              </button>
+            </div>
+          ) : (
+            <button
+              className="btn btn-quiet sub-compose-attach"
+              onClick={() => imgInput.current?.click()}
+              disabled={busy}
+            >
+              <Glyph d="image" size={16} stroke={1.8} /> Add a photo
+            </button>
+          )}
+        </>
+      )}
+
+      {type === 'video' && (
+        <>
+          <input
+            ref={vidInput}
+            type="file"
+            accept="video/*"
+            hidden
+            onChange={(e) => {
+              const f = e.target.files?.[0]
+              if (f) void pickVideo(f)
+            }}
+          />
+          {video ? (
+            <div className="sub-compose-vid">
+              <Glyph d="video" size={16} stroke={1.8} /> Video ready to submit
+              <button onClick={() => setVideo(null)} aria-label="Remove">
+                <Glyph d="close" size={16} stroke={2.2} />
+              </button>
+            </div>
+          ) : (
+            <button
+              className="btn btn-quiet sub-compose-attach"
+              onClick={() => vidInput.current?.click()}
+              disabled={busy}
+            >
+              <Glyph d="video" size={16} stroke={1.8} />{' '}
+              {busy ? 'Uploading…' : 'Upload a clip'}
+            </button>
+          )}
+        </>
+      )}
+
+      <div className="sub-compose-foot">
+        <button className="btn btn-primary btn-sm" disabled={!ready} onClick={send}>
+          {busy ? 'Working…' : 'Submit'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
 /* ---------- activity page (submissions) ---------- */
 function ActivityPage({
   act,
@@ -369,7 +572,8 @@ function ActivityPage({
   selfAvatar?: string | null
   onBack: () => void
 }) {
-  const subsQ = useCommunityActivitySubmissions(null, courseId, act.id, 'creator')
+  const { viewer, mode, token } = useHub()
+  const subsQ = useCommunityActivitySubmissions(token, courseId, act.id, mode)
   const submissions = subsQ.data ?? []
   return (
     <div className="act-page">
@@ -403,15 +607,28 @@ function ActivityPage({
       </div>
 
       <div className="act-feed">
+        {viewer === 'member' && (
+          <SubmissionComposer
+            act={act}
+            courseId={courseId}
+            selfName={selfName}
+            selfAvatar={selfAvatar}
+          />
+        )}
         {submissions.length === 0 ? (
           <div className="card act-feed-empty">
             <span className="ev-empty-ic">
               <Glyph d="grid" size={24} stroke={1.7} />
             </span>
-            <h3>No submissions yet</h3>
+            <h3>
+              {viewer === 'member'
+                ? 'Be the first to respond'
+                : 'No submissions yet'}
+            </h3>
             <p>
-              When members respond to this activity, their submissions collect
-              here — reply on each one to give feedback.
+              {viewer === 'member'
+                ? 'Add your submission above — it appears here for the room to see and respond to.'
+                : 'When members respond to this activity, their submissions collect here — reply on each one to give feedback.'}
             </p>
           </div>
         ) : (
@@ -442,12 +659,15 @@ export function ActivitiesTab({
   showToast,
 }: {
   courseId: string
-  channel: CourseChannel
+  /** Host-only: where new activities attach. Omitted for the member view. */
+  channel?: CourseChannel
   selfName: string
   selfAvatar?: string | null
   showToast: (m: string) => void
 }) {
-  const actsQ = useCommunityActivities(null, courseId, 'creator')
+  const { viewer, mode, token } = useHub()
+  const isHost = viewer === 'host'
+  const actsQ = useCommunityActivities(token, courseId, mode)
   const activities = useMemo(() => actsQ.data ?? [], [actsQ.data])
   const [showForm, setShowForm] = useState(false)
   const [openId, setOpenId] = useState<string | null>(null)
@@ -476,13 +696,13 @@ export function ActivitiesTab({
           <div className="h">
             Activities
             <HeadInfo>
-              The thing you ask members to make and bring. Write one clear prompt
-              — optionally tied to a {channel.noun} — then publish it. Members
-              respond, and their submissions collect on the card.
+              {isHost
+                ? 'The thing you ask members to make and bring. Write one clear prompt — optionally tied to a lesson — then publish it. Members respond, and their submissions collect on the card.'
+                : 'What the room is working on. Open one to see everyone’s submissions and add your own — a clip, a photo, or a note.'}
             </HeadInfo>
           </div>
         </div>
-        {!showForm && activities.length > 0 && (
+        {isHost && !showForm && activities.length > 0 && (
           <button
             className="ev-add-btn"
             onClick={() => setShowForm(true)}
@@ -493,7 +713,7 @@ export function ActivitiesTab({
         )}
       </div>
 
-      {showForm ? (
+      {isHost && showForm && channel ? (
         <ActivityForm
           courseId={courseId}
           channel={channel}
@@ -506,15 +726,20 @@ export function ActivitiesTab({
           <span className="ev-empty-ic">
             <Glyph d="grid" size={26} stroke={1.7} />
           </span>
-          <h3>No activities yet</h3>
+          <h3>{isHost ? 'No activities yet' : 'Nothing to work on yet'}</h3>
           <p>
-            Ask members to do something — post a rep, a win, a question. Link it
-            to a {channel.noun} if you like. Publish, and submissions collect
-            right here.
+            {isHost
+              ? 'Ask members to do something — post a rep, a win, a question. Link it to a lesson if you like. Publish, and submissions collect right here.'
+              : 'When your host posts an activity, it shows up here for you to respond to.'}
           </p>
-          <button className="btn btn-primary" onClick={() => setShowForm(true)}>
-            Create an activity
-          </button>
+          {isHost && (
+            <button
+              className="btn btn-primary"
+              onClick={() => setShowForm(true)}
+            >
+              Create an activity
+            </button>
+          )}
         </div>
       ) : (
         <div className="ev-grid">

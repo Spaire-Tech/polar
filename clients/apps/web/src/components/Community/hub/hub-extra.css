@@ -197,6 +197,154 @@
   border: 0 !important;
 }
 
+/* —— Student Profile tab: identity card + avatar editor —— */
+.spaire-hub .prof-card {
+  padding: 20px;
+}
+.spaire-hub .prof-id {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+.spaire-hub .prof-id-name {
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--ink);
+}
+.spaire-hub .prof-id-sub {
+  font-size: 13px;
+  color: var(--t3);
+  margin-top: 2px;
+}
+.spaire-hub .avatar-edit {
+  position: relative;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  overflow: hidden;
+  flex: none;
+}
+.spaire-hub .avatar-edit img {
+  width: 64px;
+  height: 64px;
+  object-fit: cover;
+  display: block;
+}
+.spaire-hub .avatar-edit-over {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  background: rgba(10, 11, 13, 0.42);
+  opacity: 0;
+  transition: opacity 0.16s;
+}
+.spaire-hub .avatar-edit:hover .avatar-edit-over {
+  opacity: 1;
+}
+.spaire-hub .prof-save {
+  margin-top: 14px;
+}
+
+/* —— Student Activities: member submission composer —— */
+.spaire-hub .sub-compose {
+  padding: 16px 18px;
+  margin-bottom: 18px;
+}
+.spaire-hub .sub-compose-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.spaire-hub .sub-compose-head img,
+.spaire-hub .sub-compose-head .hub-av-fallback {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex: none;
+}
+.spaire-hub .sub-compose-who {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+}
+.spaire-hub .sub-compose-text,
+.spaire-hub .sub-compose-link {
+  width: 100%;
+  border: 1px solid var(--hair);
+  border-radius: 12px;
+  background: var(--fill);
+  color: var(--ink);
+  font: inherit;
+  font-size: 15px;
+  padding: 11px 14px;
+  outline: none;
+  resize: vertical;
+}
+.spaire-hub .sub-compose-text::placeholder,
+.spaire-hub .sub-compose-link::placeholder {
+  color: var(--t3);
+}
+.spaire-hub .sub-compose-attach {
+  margin-top: 12px;
+}
+.spaire-hub .sub-compose-prev {
+  position: relative;
+  margin-top: 12px;
+  border-radius: 12px;
+  overflow: hidden;
+  max-width: 280px;
+}
+.spaire-hub .sub-compose-prev img {
+  width: 100%;
+  display: block;
+}
+.spaire-hub .sub-compose-prev button,
+.spaire-hub .sub-compose-vid button {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(10, 11, 13, 0.55);
+  color: #fff;
+}
+.spaire-hub .sub-compose-vid {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--fill);
+  color: var(--t2);
+  font-size: 14px;
+  font-weight: 600;
+}
+.spaire-hub .sub-compose-foot {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 14px;
+}
+.spaire-hub .sub-done {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 18px;
+  margin-bottom: 18px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--accent);
+}
+
 /* Section-header info popover. The "?" glyph sits inline after the tab title
    (.cr-head .h) and reveals the section's blurb on click — replacing the long
    always-on sub-headline. */
