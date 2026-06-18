@@ -35,6 +35,7 @@ import {
   useVotePostPoll,
 } from '@/hooks/queries/community'
 import * as React from 'react'
+import { createPortal } from 'react-dom'
 import { Composer } from './composer'
 import { useHub } from './context'
 import { EventSheet } from './Events'
@@ -166,7 +167,7 @@ function PostEvent({ event }: { event: CommunityPostEventRef }) {
   )
 }
 
-const { useMemo, useState } = React
+const { useCallback, useEffect, useMemo, useState } = React
 
 const TRUNC = 280
 
@@ -197,12 +198,23 @@ function buildTree(comments: CommunityCommentRead[]): CommentNode[] {
   return tops.map((t) => ({ ...t, replies: byParent.get(t.id) ?? [] }))
 }
 
-/* ---------- media ---------- */
-function PostMedia({ media }: { media: CommunityPostMediaRead[] }) {
+/* ---------- media ----------
+   Images render as the design's LinkedIn-style gallery (1–4 cells, +N overflow);
+   each cell opens the split-pane lightbox via onOpenImage(index). */
+function PostMedia({
+  media,
+  onOpenImage,
+}: {
+  media: CommunityPostMediaRead[]
+  onOpenImage: (index: number) => void
+}) {
   if (media.length === 0) return null
   const videos = media.filter((m) => m.media_type === 'video')
   const images = media.filter((m) => m.media_type === 'image')
   const gifs = media.filter((m) => m.media_type === 'gif')
+  const n = images.length
+  const layout =
+    n === 1 ? 'one' : n === 2 ? 'two' : n === 3 ? 'three' : 'four'
   return (
     <>
       {gifs.map((g) =>
@@ -230,19 +242,188 @@ function PostMedia({ media }: { media: CommunityPostMediaRead[] }) {
           </div>
         ),
       )}
-      {images.length > 0 && (
-        <div className={`crf-imgs n${Math.min(images.length, 4)}`}>
-          {images.map((m) => (
-            <img
+      {n > 0 && (
+        <div className={`crf-gallery g-${layout}`}>
+          {images.slice(0, 4).map((m, k) => (
+            <button
               key={m.id}
-              src={m.public_url ?? undefined}
-              alt=""
-              style={{ objectPosition: 'center' }}
-            />
+              className="crf-gcell"
+              onClick={() => onOpenImage(k)}
+              style={{ backgroundImage: `url(${m.public_url ?? ''})` }}
+              aria-label={`Photo ${k + 1}`}
+            >
+              {k === 3 && n > 4 && <span className="crf-gmore">+{n - 4}</span>}
+            </button>
           ))}
         </div>
       )}
     </>
+  )
+}
+
+/* ---------- split-pane photo viewer (the redesigned picture view) ----------
+   Image left (with prev/next + count), the post + its comments on the right.
+   Rendered in a portal so the feed card's backdrop-filter can't bury it. */
+function PostLightbox({
+  post,
+  images,
+  start,
+  onClose,
+  courseId,
+  selfName,
+  selfAvatar,
+}: {
+  post: CommunityPostRead
+  images: string[]
+  start: number
+  onClose: () => void
+  courseId: string
+  selfName: string
+  selfAvatar?: string | null
+}) {
+  const [i, setI] = useState(start)
+  const { mode, token } = useHub()
+  const reactPost = useTogglePostReaction(token, courseId, mode)
+  const n = images.length
+  const go = useCallback((d: number) => setI((v) => (v + d + n) % n), [n])
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+      else if (e.key === 'ArrowRight') go(1)
+      else if (e.key === 'ArrowLeft') go(-1)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [go, onClose])
+
+  const a = post.author
+  const isHost = a.kind === 'instructor'
+  const liked = iLiked(post.reactions)
+  const likes = post.reaction_count
+  const comments = post.comment_count
+  const dark =
+    typeof document !== 'undefined' &&
+    !!document.querySelector('.spaire-hub')?.classList.contains('dark')
+
+  return createPortal(
+    <div className={`spaire-hub${dark ? ' dark' : ''}`}>
+      <div className="crf-lb" onClick={onClose}>
+        <button className="crf-lb-x" onClick={onClose} aria-label="Close">
+          <Glyph d="close" size={22} stroke={2.2} />
+        </button>
+        <div className="crf-lb-shell" onClick={(e) => e.stopPropagation()}>
+          <div className="crf-lb-img">
+            <img src={images[i]} alt="" />
+            {n > 1 && (
+              <button
+                className="crf-lb-nav prev"
+                onClick={() => go(-1)}
+                aria-label="Previous"
+              >
+                <Glyph d="back" size={26} stroke={2.4} />
+              </button>
+            )}
+            {n > 1 && (
+              <button
+                className="crf-lb-nav next"
+                onClick={() => go(1)}
+                aria-label="Next"
+              >
+                <Glyph d="chevR" size={26} stroke={2.4} />
+              </button>
+            )}
+            {n > 1 && (
+              <div className="crf-lb-count">
+                {i + 1} / {n}
+              </div>
+            )}
+          </div>
+          <div className="crf-lb-side">
+            <header className="crf-head">
+              {a.avatar_url ? (
+                <img
+                  className={`crf-av${isHost ? ' host' : ''}`}
+                  src={a.avatar_url}
+                  alt={authorName(a)}
+                />
+              ) : (
+                <span
+                  className={`crf-av${isHost ? ' host' : ''} hub-av-fallback`}
+                />
+              )}
+              <div className="crf-id">
+                <div className="crf-name">
+                  {authorName(a)}
+                  {isHost && (
+                    <span className="crf-seal" title="Verified host">
+                      <Glyph d="seal" size={14} stroke={1.7} />
+                    </span>
+                  )}
+                </div>
+                <div className="crf-headline">{headlineFor(a)}</div>
+                <div className="crf-meta">
+                  {timeAgo(post.created_at)}
+                  <span className="dot">·</span>
+                  <Glyph d="globe" size={12} stroke={1.7} />
+                </div>
+              </div>
+            </header>
+
+            {post.body.trim() && (
+              <div className="crf-text crf-lb-text">{post.body}</div>
+            )}
+
+            {(likes > 0 || comments > 0) && (
+              <div className="crf-proof">
+                <span className="crf-proof-l">
+                  {likes > 0 && (
+                    <>
+                      <span className="crf-rxdot">
+                        <Glyph d="heartFeed" size={11} fill="currentColor" />
+                      </span>
+                      <span className="crf-proof-t">
+                        {likes.toLocaleString()}
+                      </span>
+                    </>
+                  )}
+                </span>
+                {comments > 0 && (
+                  <span className="crf-proof-r">
+                    {comments} {comments === 1 ? 'comment' : 'comments'}
+                  </span>
+                )}
+              </div>
+            )}
+
+            <div className="crf-bar">
+              <button
+                className={`crf-act${liked ? ' on' : ''}`}
+                onClick={() =>
+                  reactPost.mutate({ postId: post.id, emoji: 'heart' })
+                }
+              >
+                <Glyph
+                  d="heartFeed"
+                  size={20}
+                  stroke={liked ? 1.9 : 1.8}
+                  fill={liked ? 'currentColor' : 'none'}
+                />
+                <span>{liked ? 'Liked' : 'Like'}</span>
+              </button>
+            </div>
+
+            <Comments
+              courseId={courseId}
+              postId={post.id}
+              selfName={selfName}
+              selfAvatar={selfAvatar}
+            />
+          </div>
+        </div>
+      </div>
+    </div>,
+    document.body,
   )
 }
 
@@ -462,6 +643,15 @@ export function HubPost({
   const [open, setOpen] = useState(!!post.pinned_at)
   const [expanded, setExpanded] = useState(false)
   const [menu, setMenu] = useState(false)
+  const [lightbox, setLightbox] = useState(-1)
+
+  const imageUrls = useMemo(
+    () =>
+      post.media
+        .filter((m) => m.media_type === 'image' && m.public_url)
+        .map((m) => m.public_url as string),
+    [post.media],
+  )
 
   const { mode, token, viewer, selfEnrollmentId } = useHub()
   const reactPost = useTogglePostReaction(token, courseId, mode)
@@ -606,9 +796,21 @@ export function HubPost({
         </div>
       )}
 
-      <PostMedia media={post.media} />
+      <PostMedia media={post.media} onOpenImage={setLightbox} />
       {post.poll && <PostPoll courseId={courseId} post={post} />}
       {post.event && <PostEvent event={post.event} />}
+
+      {lightbox >= 0 && imageUrls.length > 0 && (
+        <PostLightbox
+          post={post}
+          images={imageUrls}
+          start={lightbox}
+          onClose={() => setLightbox(-1)}
+          courseId={courseId}
+          selfName={selfName}
+          selfAvatar={selfAvatar}
+        />
+      )}
 
       {(likes > 0 || comments > 0) && (
         <div className="crf-proof">
