@@ -53,11 +53,12 @@ function usePortalDark(slug: string): boolean {
 }
 
 type StudentTab = 'feed' | 'brief' | 'events' | 'members' | 'profile'
+// The design's tab bar is Feed · Activities · Events · Profile. Members stays
+// reachable in the switch below (and via direct state) but is not a visible tab.
 const TABS: { k: StudentTab; label: string }[] = [
   { k: 'feed', label: 'Feed' },
   { k: 'brief', label: 'Activities' },
   { k: 'events', label: 'Events' },
-  { k: 'members', label: 'Members' },
   { k: 'profile', label: 'Profile' },
 ]
 
