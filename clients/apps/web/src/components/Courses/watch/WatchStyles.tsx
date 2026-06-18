@@ -382,6 +382,7 @@ export function WatchStyles() {
         position: absolute;
         inset: 0;
         pointer-events: none;
+        transition: opacity 0.35s ease;
         background: linear-gradient(
           180deg,
           rgba(0, 0, 0, 0.55) 0%,
@@ -389,6 +390,18 @@ export function WatchStyles() {
           transparent 60%,
           rgba(0, 0, 0, 0.78) 100%
         );
+      }
+
+      /* Idle chrome fades away while the video plays; any interaction
+         (handled in WatchPlayer) brings it back. */
+      .sov2.player.ui-hidden {
+        cursor: none;
+      }
+      .sov2.player.ui-hidden .player-top,
+      .sov2.player.ui-hidden .player-controls,
+      .sov2.player.ui-hidden .player-vignette {
+        opacity: 0;
+        pointer-events: none;
       }
       .sov2 .pbtn {
         position: relative;
@@ -446,6 +459,7 @@ export function WatchStyles() {
         align-items: center;
         gap: 18px;
         padding: 26px 36px;
+        transition: opacity 0.35s ease;
       }
       .sov2 .player-title {
         flex: 1;
@@ -511,6 +525,7 @@ export function WatchStyles() {
         bottom: 0;
         z-index: 5;
         padding: 0 36px 28px;
+        transition: opacity 0.35s ease;
       }
       .sov2 .scrub-row {
         display: flex;
