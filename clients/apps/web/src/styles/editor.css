@@ -7,7 +7,7 @@
 
 .spaire-editor {
   /* Tokens scoped to the editor; popovers + drag overlay re-use them. */
-  --accent: #6e56ff;
+  --accent: #0066cc;
   --accent-soft: color-mix(in oklab, var(--accent) 12%, white);
   --accent-ink: color-mix(in oklab, var(--accent) 78%, black);
   --canvas: #ffffff;
@@ -901,7 +901,7 @@ body:has(.edit-pop-backdrop) .spaire-editor-root {
 
 /* ── Layout picker on the Links section heading ──────────────────
    Hover the section heading to reveal a small floating layout
-   switcher. Indigo selection state matches the editor accent. */
+   switcher. Selection state matches the editor accent (community blue). */
 .spaire-editor .layout-picker {
   display: inline-flex;
   border: 1px solid var(--line);
@@ -1141,7 +1141,7 @@ body:has(.edit-pop-backdrop) .spaire-editor-root {
   border: 0;
   border-radius: 999px;
   /* Black — every editor CTA is ink (Subscribe is the only colored
-     button). Purple stays reserved for input focus, not buttons. */
+     button). The blue accent stays reserved for input focus, not buttons. */
   background: var(--ink);
   color: white;
   font-size: 13px;
