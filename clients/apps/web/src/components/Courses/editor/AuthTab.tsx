@@ -1,35 +1,88 @@
 'use client'
 
 import { CourseRead } from '@/hooks/queries/courses'
+import { useUpdateOrganization } from '@/hooks/queries/org'
 import { schemas } from '@spaire/client'
+import { cn } from '@spaire/ui/lib/utils'
 import { useMutation } from '@tanstack/react-query'
-import { useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { toast } from '../../Toast/use-toast'
+// Reuse the *real* customer-portal sign-in stylesheet so this canvas is
+// genuinely WYSIWYG — same split layout, tokens, type scale the customer sees.
+import '../../../app/(main)/[organization]/portal/_auth/portal-auth.css'
 
 const SIGN_IN_IMAGE_PATH = (organizationId: string) =>
   `${process.env.NEXT_PUBLIC_API_URL}/v1/organizations/${organizationId}/customer-portal-sign-in-image`
 
+const DEFAULT_POSITION = '50% 50%'
+
+const clamp = (v: number, min: number, max: number) =>
+  Math.min(max, Math.max(min, v))
+
+const pointToPosition = (
+  clientX: number,
+  clientY: number,
+  el: HTMLElement,
+): string => {
+  const rect = el.getBoundingClientRect()
+  const x = clamp(((clientX - rect.left) / rect.width) * 100, 0, 100)
+  const y = clamp(((clientY - rect.top) / rect.height) * 100, 0, 100)
+  return `${x.toFixed(1)}% ${y.toFixed(1)}%`
+}
+
+const MoonIcon = () => (
+  <svg
+    width="19"
+    height="19"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.8"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z" />
+  </svg>
+)
+
 /**
  * Course-builder "Auth" tab.
  *
- * Lets the creator upload the image shown on their customer portal sign-in
- * screen. The portal sign-in is org-scoped (one screen shared across every
- * product and course), so this image applies to the creator's whole portal —
- * we say so plainly in the copy. When no image is uploaded, the portal falls
- * back to a course cover; the preview here uses *this* course's cover so the
- * default is tangible.
+ * Renders the *real* customer-portal sign-in screen full-bleed under the tabs
+ * (same component styling the customer sees) and makes the left photo editable
+ * in place — exactly like the Landing canvas: click to add a cover photo, drag
+ * to reposition, replace, or remove. Everything autosaves.
+ *
+ * The portal sign-in is org-scoped, so the image applies to the creator's whole
+ * portal (every product and course), not just this course. When none is
+ * uploaded the portal falls back to a course cover — the canvas shows this
+ * course's cover as that default.
  */
 export function AuthTab({
   course,
   organization,
+  dark,
 }: {
   course: CourseRead
   organization: schemas['Organization']
+  dark?: boolean
 }) {
   const [imageUrl, setImageUrl] = useState<string | null>(
     organization.customer_portal_sign_in_image_url ?? null,
   )
+  const [position, setPosition] = useState<string>(
+    organization.customer_portal_sign_in_image_position ?? DEFAULT_POSITION,
+  )
+  const [dragging, setDragging] = useState(false)
+
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const visualRef = useRef<HTMLDivElement>(null)
+  const positionRef = useRef(position)
+  useEffect(() => {
+    positionRef.current = position
+  }, [position])
+
+  const updateOrg = useUpdateOrganization()
 
   const upload = useMutation({
     mutationFn: async (file: File) => {
@@ -48,6 +101,9 @@ export function AuthTab({
     },
     onSuccess: (data) => {
       setImageUrl(data.customer_portal_sign_in_image_url ?? null)
+      setPosition(
+        data.customer_portal_sign_in_image_position ?? DEFAULT_POSITION,
+      )
       toast({ title: 'Sign-in image updated' })
     },
     onError: (err) => {
@@ -72,6 +128,9 @@ export function AuthTab({
     },
     onSuccess: (data) => {
       setImageUrl(data.customer_portal_sign_in_image_url ?? null)
+      setPosition(
+        data.customer_portal_sign_in_image_position ?? DEFAULT_POSITION,
+      )
       toast({ title: 'Sign-in image removed' })
     },
     onError: (err) => {
@@ -82,163 +141,273 @@ export function AuthTab({
     },
   })
 
-  const handleFiles = (file: File | undefined) => {
-    if (!file) return
-    if (!file.type.startsWith('image/')) {
-      toast({ title: 'Please choose an image file' })
-      return
+  const handleFiles = useCallback(
+    (file: File | undefined) => {
+      if (!file) return
+      if (!file.type.startsWith('image/')) {
+        toast({ title: 'Please choose an image file' })
+        return
+      }
+      if (file.size > 10 * 1024 * 1024) {
+        toast({ title: 'Image must be under 10 MB' })
+        return
+      }
+      upload.mutate(file)
+    },
+    [upload],
+  )
+
+  const usingCustom = !!imageUrl
+  const previewUrl = imageUrl ?? course.thumbnail_url ?? null
+  // Reposition applies to the uploaded image. While showing the course-cover
+  // fallback, we mirror that course's own object-position (read-only).
+  const activePosition = usingCustom
+    ? position
+    : (course.thumbnail_object_position ?? DEFAULT_POSITION)
+
+  const commitPosition = useCallback(() => {
+    updateOrg.mutate({
+      id: organization.id,
+      body: { customer_portal_sign_in_image_position: positionRef.current },
+    })
+  }, [updateOrg, organization.id])
+
+  // Drag-to-reposition: live-update while dragging, persist on release. Only
+  // active for an uploaded image (the fallback course cover is read-only here).
+  useEffect(() => {
+    if (!dragging) return
+    const onMove = (e: MouseEvent) => {
+      e.preventDefault()
+      if (visualRef.current) {
+        setPosition(pointToPosition(e.clientX, e.clientY, visualRef.current))
+      }
     }
-    if (file.size > 10 * 1024 * 1024) {
-      toast({ title: 'Image must be under 10 MB' })
-      return
+    const onUp = () => {
+      setDragging(false)
+      commitPosition()
     }
-    upload.mutate(file)
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+    return () => {
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+    }
+  }, [dragging, commitPosition])
+
+  const onVisualMouseDown = (e: React.MouseEvent) => {
+    if (!usingCustom || !visualRef.current) return
+    e.preventDefault()
+    setPosition(pointToPosition(e.clientX, e.clientY, visualRef.current))
+    setDragging(true)
   }
 
-  const [dragOver, setDragOver] = useState(false)
-  const busy = upload.isPending || remove.isPending
-
-  // What the customer actually sees: explicit upload → this course's cover
-  // (the portal resolves the org-wide default the same way, from the most
-  // recent course thumbnail).
-  const previewUrl = imageUrl ?? course.thumbnail_url ?? null
-  const usingCustom = !!imageUrl
+  const busy = upload.isPending || remove.isPending || updateOrg.isPending
 
   return (
-    <div className="mx-auto w-full max-w-3xl px-8 py-8">
-      <div className="mb-6">
-        <h1 className="text-lg font-medium text-gray-900">Sign-in design</h1>
-        <p className="mt-1 text-gray-500">
-          The image on your customer portal sign-in screen. Your customers see
-          it when they sign in to access their purchases. It applies to your{' '}
-          <span className="font-medium text-gray-700">whole portal</span> —
-          every product and course — not just this one. If you don&apos;t upload
-          an image, we use this course&apos;s cover image.
-        </p>
+    <div className="flex h-full flex-col bg-white">
+      {/* Slim status bar — mirrors the Landing tab. */}
+      <div className="flex h-12 flex-shrink-0 items-center justify-between gap-3 border-b border-gray-200 bg-white px-4">
+        <div className="flex min-w-0 items-center gap-2">
+          <span className="text-[12px] text-gray-500">Customer portal</span>
+          <span className="text-[13px] text-gray-400">›</span>
+          <span className="truncate text-[13px] font-medium text-gray-900">
+            Sign-in page
+          </span>
+        </div>
+        <div className="flex items-center gap-3">
+          <span
+            className="text-[11.5px] text-gray-400"
+            role="status"
+            aria-live="polite"
+          >
+            {busy ? 'Saving…' : 'Changes save automatically'}
+          </span>
+          <a
+            href={`/${organization.slug}/portal/request`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="rounded-md border border-gray-200 bg-white px-3 py-[6px] text-[12px] font-medium text-gray-700 transition-colors hover:bg-gray-50"
+          >
+            Preview ↗
+          </a>
+        </div>
       </div>
 
-      {/* Live preview of the split sign-in layout */}
-      <div className="overflow-hidden rounded-2xl border border-gray-200 shadow-sm">
-        <div className="grid grid-cols-[1.05fr_1fr]">
-          {/* Left — photo */}
-          <div className="relative min-h-[260px] bg-gray-100">
-            {previewUrl ? (
-              <>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
+      {/* Full-bleed real sign-in canvas. */}
+      <div className="flex-1 overflow-hidden">
+        <div
+          className={cn('spaire-portal', dark && 'sp-dark')}
+          style={{ height: '100%' }}
+        >
+          <div className="spauth spauth--embed">
+            {/* LEFT — the editable photo */}
+            <div
+              ref={visualRef}
+              className={cn(
+                'spauth-visual',
+                usingCustom && 'spauth-visual--editable',
+                dragging && 'spauth-dragging',
+              )}
+              {...(previewUrl ? { 'data-filled': '' } : {})}
+              onMouseDown={onVisualMouseDown}
+            >
+              {previewUrl && (
+                // eslint-disable-next-line @next/next/no-img-element
                 <img
+                  className="spauth-visual-img"
                   src={previewUrl}
-                  alt="Sign-in preview"
-                  className="absolute inset-0 h-full w-full object-cover"
+                  alt=""
+                  draggable={false}
+                  style={{ objectPosition: activePosition }}
                 />
+              )}
+              <div className="spauth-scrim" />
+              <div className="spauth-foot">
+                <div className="spauth-mark">{organization.name}</div>
+                <div className="spauth-line">Welcome back.</div>
+              </div>
+
+              {/* empty state — no upload and no course cover to fall back to */}
+              {!previewUrl && (
                 <div
-                  className="absolute inset-0"
-                  style={{
-                    background:
-                      'linear-gradient(180deg, rgba(8,12,11,.30) 0%, transparent 30%, transparent 60%, rgba(8,12,11,.55) 100%)',
-                  }}
-                />
-                <div className="absolute bottom-5 left-5 text-white">
-                  <div className="text-[11px] font-semibold tracking-[0.14em] uppercase opacity-80">
-                    {organization.name}
+                  className="spauth-empty"
+                  onClick={() => !busy && fileInputRef.current?.click()}
+                >
+                  <div className="spauth-empty-icon">
+                    <svg
+                      width="22"
+                      height="22"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <rect x="3" y="3" width="18" height="18" rx="2" />
+                      <circle cx="9" cy="9" r="2" />
+                      <path d="m21 15-3.5-3.5L8 21" />
+                    </svg>
                   </div>
-                  <div className="mt-1.5 text-xl font-semibold">
-                    Welcome back.
+                  <div className="spauth-empty-title">Add a cover photo</div>
+                  <div className="spauth-empty-sub">
+                    Click to upload the image your customers see when they sign
+                    in. Applies to your whole portal.
                   </div>
                 </div>
-              </>
-            ) : (
-              <div className="absolute inset-0 flex items-center justify-center px-6 text-center text-sm text-gray-400">
-                No cover image yet — upload one here or set a course cover in
-                Settings.
-              </div>
-            )}
-          </div>
+              )}
 
-          {/* Right — faux flow */}
-          <div className="flex flex-col justify-center gap-4 bg-white px-8 py-10">
-            <div className="text-2xl font-semibold tracking-tight text-gray-900">
-              Sign in
+              {/* reposition hint (only when an uploaded image is draggable) */}
+              {usingCustom && (
+                <div className="spauth-edit-hint">
+                  <svg
+                    width="13"
+                    height="13"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M5 9l-3 3 3 3M9 5l3-3 3 3M15 19l-3 3-3-3M19 9l3 3-3 3M2 12h20M12 2v20" />
+                  </svg>
+                  Drag to reposition
+                </div>
+              )}
+
+              {/* floating controls */}
+              {previewUrl && (
+                <div className="spauth-edit-tools">
+                  <button
+                    type="button"
+                    className="spauth-edit-btn"
+                    onClick={() => !busy && fileInputRef.current?.click()}
+                  >
+                    <svg
+                      width="15"
+                      height="15"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.9"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M4 9a8 8 0 0 1 13.6-3.2L20 8M20 4v4h-4" />
+                      <path d="M20 15a8 8 0 0 1-13.6 3.2L4 16M4 20v-4h4" />
+                    </svg>
+                    {usingCustom ? 'Replace image' : 'Upload image'}
+                  </button>
+                  {usingCustom && (
+                    <button
+                      type="button"
+                      className="spauth-edit-btn spauth-edit-btn--danger"
+                      onClick={() => !busy && remove.mutate()}
+                    >
+                      Remove
+                    </button>
+                  )}
+                </div>
+              )}
+
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  handleFiles(e.target.files?.[0])
+                  e.target.value = ''
+                }}
+              />
             </div>
-            <div className="text-[13px] leading-relaxed text-gray-500">
-              Enter your email address to access your purchases. A verification
-              code will be sent to you.
-            </div>
-            <div className="mt-1 h-[44px] rounded-xl border border-gray-200 bg-white px-3 text-[13px] leading-[44px] text-gray-400">
-              you@example.com
-            </div>
-            <div className="flex h-[44px] items-center justify-center rounded-xl bg-gray-900 text-[13px] font-semibold text-white">
-              Send code
+
+            {/* RIGHT — non-interactive preview of the flow */}
+            <div className="spauth-panel spauth-panel--preview">
+              <div className="spauth-topbar">
+                <span className="spauth-toggle">
+                  <MoonIcon />
+                </span>
+              </div>
+              <div className="spauth-stage">
+                <div className="spauth-inner">
+                  <h1 className="spauth-title">Sign in</h1>
+                  <p className="spauth-sub">
+                    Enter your email address to access your purchases. A
+                    verification code will be sent to you.
+                  </p>
+                  <div className="spauth-field">
+                    <label className="spauth-field-label">Email address</label>
+                    <div
+                      className="spauth-field-input"
+                      style={{ lineHeight: '54px' }}
+                    >
+                      <span style={{ color: 'var(--au-t3)' }}>
+                        you@example.com
+                      </span>
+                    </div>
+                  </div>
+                  <div className="spauth-btn">Send code</div>
+                  <p className="spauth-footnote">
+                    By continuing you agree to the Terms &amp; Privacy Policy.
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Uploader / controls */}
-      <div
-        role="button"
-        tabIndex={0}
-        onClick={() => !busy && fileInputRef.current?.click()}
-        onKeyDown={(e) => {
-          if ((e.key === 'Enter' || e.key === ' ') && !busy) {
-            e.preventDefault()
-            fileInputRef.current?.click()
-          }
-        }}
-        onDragOver={(e) => {
-          e.preventDefault()
-          setDragOver(true)
-        }}
-        onDragLeave={() => setDragOver(false)}
-        onDrop={(e) => {
-          e.preventDefault()
-          setDragOver(false)
-          if (!busy) handleFiles(e.dataTransfer.files?.[0])
-        }}
-        className={`mt-5 flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed px-6 py-10 text-center transition-colors ${
-          dragOver
-            ? 'border-[#0066cc] bg-[#0066cc]/5'
-            : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-        } ${busy ? 'pointer-events-none opacity-60' : ''}`}
-      >
-        <p className="text-sm font-medium text-gray-900">
-          {busy
-            ? 'Uploading…'
-            : usingCustom
-              ? 'Replace sign-in image'
-              : 'Upload a sign-in image'}
-        </p>
-        <p className="mt-1 text-xs text-gray-500">
-          Drag &amp; drop or click to browse · JPG, PNG, WEBP or GIF · up to 10
-          MB
-        </p>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*"
-          className="hidden"
-          onChange={(e) => {
-            handleFiles(e.target.files?.[0])
-            e.target.value = ''
-          }}
-        />
-      </div>
-
-      <div className="mt-3 flex items-center justify-between">
-        <p className="text-xs text-gray-500">
+      {/* status footer: which image is in use */}
+      <div className="flex h-9 flex-shrink-0 items-center justify-between border-t border-gray-200 bg-white px-4 text-[12px] text-gray-500">
+        <span>
           {usingCustom
-            ? 'Using your uploaded image.'
-            : "Using this course's cover image as the default."}
-        </p>
-        {usingCustom && (
-          <button
-            type="button"
-            onClick={() => !busy && remove.mutate()}
-            disabled={busy}
-            className="text-xs font-medium text-red-500 hover:text-red-600 disabled:opacity-50"
-          >
-            Remove image
-          </button>
-        )}
+            ? 'Using your uploaded image. Drag the photo to reposition.'
+            : previewUrl
+              ? "Using this course's cover as the default. Upload an image to customize."
+              : 'No image yet — add a cover photo or set a course cover in Settings.'}
+        </span>
       </div>
     </div>
   )
