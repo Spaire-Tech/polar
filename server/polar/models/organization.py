@@ -369,6 +369,13 @@ class Organization(RateLimitGroupMixin, RecordModel):
     when falling back to a course thumbnail the portal uses that course's own
     object-position instead."""
 
+    customer_portal_sign_in_theme: Mapped[str | None] = mapped_column(
+        String, nullable=True, default=None
+    )
+    """Creator-chosen appearance for the customer portal sign-in screen:
+    "light" or "dark". The customer does not toggle this — it's part of the
+    creator's design. None is treated as "light"."""
+
     @property
     def allow_customer_updates(self) -> bool:
         return self.customer_portal_settings["subscription"]["update_plan"]

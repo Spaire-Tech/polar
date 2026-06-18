@@ -5,8 +5,8 @@ import { usePathname, useSearchParams } from 'next/navigation'
 import { useEffect, useRef } from 'react'
 import { MobileTabBar } from './_components/MobileTabBar'
 import { TopBar } from './_components/TopBar'
-import { usePortalTheme } from './usePortalTheme'
 import './portal.css'
+import { usePortalTheme } from './usePortalTheme'
 
 const isCourseRoute = (pathname: string): boolean => {
   return /\/portal\/courses\/[^/]+/.test(pathname)
@@ -75,9 +75,13 @@ export const PortalShell = ({
   }
 
   if (auth) {
-    // Sign-in / claim screens render full-bleed without the portal nav.
+    // Sign-in / claim screens render full-bleed without the portal nav. Their
+    // light/dark is the creator's design choice (set in the course builder's
+    // Auth tab), NOT a customer toggle — so it follows the org setting here,
+    // not usePortalTheme.
+    const signInDark = organization.customer_portal_sign_in_theme === 'dark'
     return (
-      <div className={`spaire-portal sp-app${dark ? ' sp-dark' : ''}`}>
+      <div className={`spaire-portal sp-app ${signInDark ? 'sp-dark' : ''}`}>
         {children}
       </div>
     )
