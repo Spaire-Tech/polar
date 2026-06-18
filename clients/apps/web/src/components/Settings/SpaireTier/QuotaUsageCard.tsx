@@ -99,6 +99,14 @@ const QuotaRow = ({ quota }: { quota: QuotaUsage }) => {
               : `${quota.remaining?.toLocaleString() ?? 0} ${meta.unit} remaining`}
           </span>
         </div>
+        {quota.is_exceeded && (
+          <a
+            href="#plans"
+            className="text-xs font-medium text-blue-500 hover:text-blue-600"
+          >
+            Upgrade your plan to raise this limit →
+          </a>
+        )}
       </div>
     </SettingsGroupItem>
   )

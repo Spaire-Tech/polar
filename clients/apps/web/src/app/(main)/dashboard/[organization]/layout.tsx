@@ -1,4 +1,5 @@
 import { OrganizationContextProvider } from '@/providers/maintainerOrganization'
+import TrialBanner from '@/components/Settings/SpaireTier/TrialBanner'
 import { getServerSideAPI } from '@/utils/client/serverside'
 import { getOrganizationBySlugOrNotFound } from '@/utils/organization'
 import { getUserOrganizations } from '@/utils/user'
@@ -57,7 +58,7 @@ export default async function Layout(props: {
   // releases when EITHER:
   //   (a) ai_onboarding_completed_at is stamped, OR
   //   (b) the org has a real platform subscription (not the
-  //       auto-attached Pro trial) — i.e. the creator went through
+  //       auto-attached Starter trial) — i.e. the creator went through
   //       upgrade-checkout at some point. This second branch keeps
   //       established customers from being bounced into onboarding
   //       just because their pre-existing org never tripped the new
@@ -84,7 +85,7 @@ export default async function Layout(props: {
   if (!planPicked && !isOnboardingRoute && !isFinanceAccountRoute) {
     // Second source of truth for "creator finished plan selection":
     // they have an active platform subscription that is NOT the
-    // auto-attached Pro trial. Fetching this on every dashboard
+    // auto-attached Starter trial. Fetching this on every dashboard
     // request is cheap (one indexed lookup) and protects existing
     // paid customers from getting bounced into onboarding on
     // deploy. Any error here fails open to a redirect so a
@@ -129,6 +130,10 @@ export default async function Layout(props: {
       organization={organization}
       organizations={userOrganizations}
     >
+      <TrialBanner
+        organizationId={organization.id}
+        organizationSlug={organization.slug}
+      />
       {children}
     </OrganizationContextProvider>
   )

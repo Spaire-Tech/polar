@@ -17,7 +17,6 @@ import {
   useSwitchSpairePlan,
 } from '@/hooks/queries/spaireTier'
 import CheckOutlined from '@mui/icons-material/CheckOutlined'
-import InfoOutlined from '@mui/icons-material/InfoOutlined'
 import { useQueryClient } from '@tanstack/react-query'
 import Button from '@spaire/ui/components/atoms/Button'
 import { schemas } from '@spaire/client'
@@ -49,6 +48,8 @@ const SpairePlanCards = ({ organization }: SpairePlanCardsProps) => {
   const cancelSub = useCancelSpaireSubscription(organization.id)
 
   const confirmCancel = useModal()
+  const confirmSwitch = useModal()
+  const [switchTarget, setSwitchTarget] = useState<PaidTierKey | null>(null)
   const [interval, setInterval] = useState<BillingInterval>(
     subscription.data?.billing_interval ?? 'month',
   )
@@ -113,6 +114,21 @@ const SpairePlanCards = ({ organization }: SpairePlanCardsProps) => {
     [switchPlan, interval, organization.id, queryClient],
   )
 
+  const requestSwitch = useCallback(
+    (tier: PaidTierKey) => {
+      setSwitchTarget(tier)
+      confirmSwitch.show()
+    },
+    [confirmSwitch],
+  )
+
+  const onConfirmSwitch = useCallback(async () => {
+    if (switchTarget === null) return
+    confirmSwitch.hide()
+    await doSwitch(switchTarget)
+    setSwitchTarget(null)
+  }, [switchTarget, confirmSwitch, doSwitch])
+
   const onCancel = useCallback(async () => {
     try {
       await cancelSub.mutateAsync()
@@ -170,7 +186,7 @@ const SpairePlanCards = ({ organization }: SpairePlanCardsProps) => {
               cancelAtPeriodEnd={Boolean(sub?.cancel_at_period_end)}
               pending={pending}
               onUpgrade={startCheckout}
-              onSwitch={doSwitch}
+              onSwitch={requestSwitch}
               onCancel={confirmCancel.show}
             />
           ))}
@@ -197,6 +213,27 @@ const SpairePlanCards = ({ organization }: SpairePlanCardsProps) => {
         destructiveText={isTrial ? 'Yes, end trial' : 'Yes, cancel'}
         destructive
         onConfirm={onCancel}
+      />
+
+      <ConfirmModal
+        isShown={confirmSwitch.isShown}
+        hide={() => {
+          confirmSwitch.hide()
+          setSwitchTarget(null)
+        }}
+        title={
+          switchTarget
+            ? `Switch to Spaire ${tierDisplayName(switchTarget)}?`
+            : 'Switch plan?'
+        }
+        description={
+          switchTarget
+            ? `You'll move to Spaire ${tierDisplayName(switchTarget)}${
+                interval === 'year' ? ' (annual)' : ''
+              } now. Your card on file is used and a prorated amount for the rest of this billing period is invoiced immediately. Your transaction fee updates to the new plan's rate right away.`
+            : ''
+        }
+        onConfirm={onConfirmSwitch}
       />
     </div>
   )
@@ -398,7 +435,6 @@ const FeatureRow = ({ label }: { label: string }) => (
 // -----------------------------------------------------------------------------
 
 type CtaKind =
-  | { kind: 'over_limits' } // disabled, the user is at the cap of a lower tier
   | { kind: 'cancel' } // CURRENT and active — show Cancel
   | { kind: 'end_trial' } // CURRENT and trialing — show End trial
   | { kind: 'convert_trial' } // trialing on this exact tier+interval, prompt to add card
@@ -556,17 +592,6 @@ const PlanCardButton = ({
         >
           Downgrade
         </Button>
-      )
-    case 'over_limits':
-      return (
-        <button
-          type="button"
-          disabled
-          className="flex w-full flex-row items-center justify-center gap-x-1 rounded-xl bg-gray-50 px-4 py-2 text-sm font-medium text-gray-400"
-        >
-          <InfoOutlined style={{ fontSize: 14 }} />
-          Over limits
-        </button>
       )
     case 'noop':
       return <div className="h-10" />
