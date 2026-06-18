@@ -443,6 +443,13 @@ class OrganizationBase(IDSchema, TimestampedSchema):
             "sign-in image, set by dragging to reposition in the Auth tab."
         ),
     )
+    customer_portal_sign_in_theme: str | None = Field(
+        None,
+        description=(
+            "Creator-chosen appearance for the customer portal sign-in screen: "
+            "'light' or 'dark'. Null is treated as 'light'."
+        ),
+    )
     proration_behavior: SubscriptionProrationBehavior = Field(
         description="Proration behavior applied when customer updates their subscription from the portal.",
     )
@@ -618,6 +625,14 @@ class OrganizationUpdate(Schema):
         description=(
             "CSS object-position (e.g. '50% 30%') for the customer portal "
             "sign-in image. Set by dragging to reposition in the Auth tab."
+        ),
+    )
+    customer_portal_sign_in_theme: str | None = Field(
+        None,
+        max_length=16,
+        description=(
+            "Creator-chosen appearance for the customer portal sign-in screen: "
+            "'light' or 'dark'."
         ),
     )
 

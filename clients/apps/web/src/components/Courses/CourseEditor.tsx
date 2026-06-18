@@ -563,9 +563,7 @@ export default function CourseEditor({
       />
     )
   } else if (activeTab === 'auth') {
-    mainContent = (
-      <AuthTab course={course} organization={organization} dark={dark} />
-    )
+    mainContent = <AuthTab course={course} organization={organization} />
   } else if (activeTab === 'pricing') {
     mainContent = (
       <PricingTab

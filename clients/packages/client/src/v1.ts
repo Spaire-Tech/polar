@@ -14365,6 +14365,11 @@ export interface components {
        * @description CSS object-position (e.g. '50% 30%') for the customer portal sign-in image, set by dragging to reposition in the Auth tab.
        */
       customer_portal_sign_in_image_position?: string | null
+      /**
+       * Customer Portal Sign In Theme
+       * @description Creator-chosen appearance for the customer portal sign-in screen: 'light' or 'dark'. Null is treated as 'light'.
+       */
+      customer_portal_sign_in_theme?: string | null
       /** @description Proration behavior applied when customer updates their subscription from the portal. */
       proration_behavior: components['schemas']['SubscriptionProrationBehavior']
       /**
@@ -21154,6 +21159,11 @@ export interface components {
        * @description CSS object-position (e.g. '50% 30%') for the customer portal sign-in image, set by dragging to reposition in the Auth tab.
        */
       customer_portal_sign_in_image_position?: string | null
+      /**
+       * Customer Portal Sign In Theme
+       * @description Creator-chosen appearance for the customer portal sign-in screen: 'light' or 'dark'. Null is treated as 'light'.
+       */
+      customer_portal_sign_in_theme?: string | null
       /** @description Proration behavior applied when customer updates their subscription from the portal. */
       proration_behavior: components['schemas']['SubscriptionProrationBehavior']
       /**
@@ -22137,6 +22147,11 @@ export interface components {
        * @description CSS object-position (e.g. '50% 30%') for the customer portal sign-in image. Set by dragging to reposition in the Auth tab.
        */
       customer_portal_sign_in_image_position?: string | null
+      /**
+       * Customer Portal Sign In Theme
+       * @description Creator-chosen appearance for the customer portal sign-in screen.
+       */
+      customer_portal_sign_in_theme?: string | null
       /**
        * Email
        * @description Public support email.

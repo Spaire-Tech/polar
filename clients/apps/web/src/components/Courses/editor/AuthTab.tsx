@@ -16,6 +16,8 @@ const SIGN_IN_IMAGE_PATH = (organizationId: string) =>
 
 const DEFAULT_POSITION = '50% 50%'
 
+type Theme = 'light' | 'dark'
+
 const clamp = (v: number, min: number, max: number) =>
   Math.min(max, Math.max(min, v))
 
@@ -30,48 +32,34 @@ const pointToPosition = (
   return `${x.toFixed(1)}% ${y.toFixed(1)}%`
 }
 
-const MoonIcon = () => (
-  <svg
-    width="19"
-    height="19"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.8"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z" />
-  </svg>
-)
-
 /**
  * Course-builder "Auth" tab.
  *
  * Renders the *real* customer-portal sign-in screen full-bleed under the tabs
- * (same component styling the customer sees) and makes the left photo editable
- * in place — exactly like the Landing canvas: click to add a cover photo, drag
- * to reposition, replace, or remove. Everything autosaves.
+ * (same component styling the customer sees) and edits it in place like the
+ * Landing canvas: add a cover photo, drag to reposition, replace/remove, and
+ * choose the light/dark appearance. Everything autosaves.
  *
- * The portal sign-in is org-scoped, so the image applies to the creator's whole
- * portal (every product and course), not just this course. When none is
- * uploaded the portal falls back to a course cover — the canvas shows this
+ * The portal sign-in is org-scoped, so the image + theme apply to the creator's
+ * whole portal (every product and course), not just this course. When no image
+ * is uploaded the portal falls back to a course cover — the canvas shows this
  * course's cover as that default.
  */
 export function AuthTab({
   course,
   organization,
-  dark,
 }: {
   course: CourseRead
   organization: schemas['Organization']
-  dark?: boolean
 }) {
   const [imageUrl, setImageUrl] = useState<string | null>(
     organization.customer_portal_sign_in_image_url ?? null,
   )
   const [position, setPosition] = useState<string>(
     organization.customer_portal_sign_in_image_position ?? DEFAULT_POSITION,
+  )
+  const [theme, setTheme] = useState<Theme>(
+    organization.customer_portal_sign_in_theme === 'dark' ? 'dark' : 'light',
   )
   const [dragging, setDragging] = useState(false)
 
@@ -172,6 +160,18 @@ export function AuthTab({
     })
   }, [updateOrg, organization.id])
 
+  const chooseTheme = useCallback(
+    (next: Theme) => {
+      if (next === theme) return
+      setTheme(next)
+      updateOrg.mutate({
+        id: organization.id,
+        body: { customer_portal_sign_in_theme: next },
+      })
+    },
+    [theme, updateOrg, organization.id],
+  )
+
   // Drag-to-reposition: live-update while dragging, persist on release. Only
   // active for an uploaded image (the fallback course cover is read-only here).
   useEffect(() => {
@@ -202,10 +202,11 @@ export function AuthTab({
   }
 
   const busy = upload.isPending || remove.isPending || updateOrg.isPending
+  const dark = theme === 'dark'
 
   return (
     <div className="flex h-full flex-col bg-white">
-      {/* Slim status bar — mirrors the Landing tab. */}
+      {/* Slim status bar — mirrors the Landing tab + the creator theme control. */}
       <div className="flex h-12 flex-shrink-0 items-center justify-between gap-3 border-b border-gray-200 bg-white px-4">
         <div className="flex min-w-0 items-center gap-2">
           <span className="text-[12px] text-gray-500">Customer portal</span>
@@ -215,6 +216,24 @@ export function AuthTab({
           </span>
         </div>
         <div className="flex items-center gap-3">
+          {/* creator-chosen appearance — what the customer sees */}
+          <div className="flex items-center rounded-lg border border-gray-200 p-0.5">
+            {(['light', 'dark'] as Theme[]).map((t) => (
+              <button
+                key={t}
+                type="button"
+                onClick={() => chooseTheme(t)}
+                className={cn(
+                  'rounded-md px-2.5 py-[3px] text-[12px] font-medium capitalize transition-colors',
+                  theme === t
+                    ? 'bg-gray-900 text-white'
+                    : 'text-gray-500 hover:text-gray-900',
+                )}
+              >
+                {t}
+              </button>
+            ))}
+          </div>
           <span
             className="text-[11.5px] text-gray-400"
             role="status"
@@ -262,10 +281,7 @@ export function AuthTab({
                 />
               )}
               <div className="spauth-scrim" />
-              <div className="spauth-foot">
-                <div className="spauth-mark">{organization.name}</div>
-                <div className="spauth-line">Welcome back.</div>
-              </div>
+              <div className="spauth-brand">{organization.name}</div>
 
               {/* empty state — no upload and no course cover to fall back to */}
               {!previewUrl && (
@@ -316,7 +332,7 @@ export function AuthTab({
                 </div>
               )}
 
-              {/* floating controls */}
+              {/* floating controls, centered so they're seen */}
               {previewUrl && (
                 <div className="spauth-edit-tools">
                   <button
@@ -365,11 +381,6 @@ export function AuthTab({
 
             {/* RIGHT — non-interactive preview of the flow */}
             <div className="spauth-panel spauth-panel--preview">
-              <div className="spauth-topbar">
-                <span className="spauth-toggle">
-                  <MoonIcon />
-                </span>
-              </div>
               <div className="spauth-stage">
                 <div className="spauth-inner">
                   <h1 className="spauth-title">Sign in</h1>

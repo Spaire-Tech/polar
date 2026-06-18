@@ -92,35 +92,25 @@
 .spauth-visual:not([data-filled]) .spauth-scrim {
   opacity: 0;
 }
-.spauth-foot {
+/* org name, top-left over the photo */
+.spauth-brand {
   position: absolute;
+  top: 34px;
   left: 40px;
-  bottom: 36px;
   z-index: 3;
   pointer-events: none;
+  max-width: 78%;
   color: #fff;
-  max-width: 70%;
-}
-.spauth-mark {
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  opacity: 0.82;
-}
-.spauth-line {
   font-family: var(--au-po);
   font-weight: 600;
-  font-size: 26px;
-  line-height: 1.18;
-  letter-spacing: -0.02em;
-  margin-top: 10px;
-  text-wrap: balance;
-  text-shadow: 0 1px 24px rgba(0, 0, 0, 0.35);
+  font-size: 20px;
+  letter-spacing: -0.01em;
+  text-shadow: 0 1px 18px rgba(0, 0, 0, 0.4);
 }
-/* with no photo the foot would sit on a light neutral panel — hide it */
-.spauth-visual:not([data-filled]) .spauth-foot {
-  display: none;
+/* no photo → neutral panel; render the name in ink instead of white */
+.spauth-visual:not([data-filled]) .spauth-brand {
+  color: var(--au-ink);
+  text-shadow: none;
 }
 
 /* ---------- right: the flow ---------- */
@@ -356,19 +346,22 @@
 
 /* ---------- code step ---------- */
 .spauth-codegrid {
-  margin-top: 26px;
+  margin-top: 24px;
   display: grid;
   grid-template-columns: repeat(6, 1fr);
-  gap: 10px;
+  gap: 8px;
 }
 .spauth-codecell {
-  height: 62px;
-  border-radius: 13px;
+  aspect-ratio: 1 / 1;
+  width: 100%;
+  height: auto;
+  padding: 0;
+  border-radius: 12px;
   text-align: center;
   background: var(--au-field);
   color: var(--au-ink);
   border: 1px solid var(--au-field-line);
-  font-size: 26px;
+  font-size: 24px;
   font-weight: 600;
   font-family: inherit;
   font-variant-numeric: tabular-nums;
@@ -543,8 +536,8 @@
     gap: 7px;
   }
   .spauth-codecell {
-    height: 54px;
-    font-size: 22px;
+    font-size: 20px;
+    border-radius: 10px;
   }
   .spauth-title {
     font-size: 29px;
@@ -570,11 +563,12 @@
   cursor: grabbing;
 }
 
-/* floating controls over the photo (creator-only) */
+/* floating controls over the photo (creator-only), centered so they're seen */
 .spauth-edit-tools {
   position: absolute;
-  left: 20px;
-  bottom: 20px;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
   z-index: 5;
   display: flex;
   align-items: center;
