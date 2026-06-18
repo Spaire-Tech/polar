@@ -14360,6 +14360,11 @@ export interface components {
        * @description Image shown on the left panel of the customer portal sign-in screen. Configured from the course builder's Auth tab and applies to the whole organization's portal sign-in. When unset, the portal falls back to the organization's most recent course thumbnail.
        */
       customer_portal_sign_in_image_url?: string | null
+      /**
+       * Customer Portal Sign In Image Position
+       * @description CSS object-position (e.g. '50% 30%') for the customer portal sign-in image, set by dragging to reposition in the Auth tab.
+       */
+      customer_portal_sign_in_image_position?: string | null
       /** @description Proration behavior applied when customer updates their subscription from the portal. */
       proration_behavior: components['schemas']['SubscriptionProrationBehavior']
       /**
@@ -21144,6 +21149,11 @@ export interface components {
        * @description Image shown on the left panel of the customer portal sign-in screen. Configured from the course builder's Auth tab and applies to the whole organization's portal sign-in. When unset, the portal falls back to the organization's most recent course thumbnail.
        */
       customer_portal_sign_in_image_url?: string | null
+      /**
+       * Customer Portal Sign In Image Position
+       * @description CSS object-position (e.g. '50% 30%') for the customer portal sign-in image, set by dragging to reposition in the Auth tab.
+       */
+      customer_portal_sign_in_image_position?: string | null
       /** @description Proration behavior applied when customer updates their subscription from the portal. */
       proration_behavior: components['schemas']['SubscriptionProrationBehavior']
       /**
@@ -22122,6 +22132,11 @@ export interface components {
       name?: string | null
       /** Avatar Url */
       avatar_url?: string | null
+      /**
+       * Customer Portal Sign In Image Position
+       * @description CSS object-position (e.g. '50% 30%') for the customer portal sign-in image. Set by dragging to reposition in the Auth tab.
+       */
+      customer_portal_sign_in_image_position?: string | null
       /**
        * Email
        * @description Public support email.

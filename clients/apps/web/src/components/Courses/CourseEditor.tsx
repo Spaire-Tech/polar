@@ -496,7 +496,9 @@ export default function CourseEditor({
       />
     )
   } else if (activeTab === 'auth') {
-    mainContent = <AuthTab course={course} organization={organization} />
+    mainContent = (
+      <AuthTab course={course} organization={organization} dark={dark} />
+    )
   } else if (activeTab === 'pricing') {
     mainContent = (
       <PricingTab
@@ -529,7 +531,7 @@ export default function CourseEditor({
 
   return (
     <div
-      className={`flex h-screen flex-col bg-gray-50${dark ? 'editor-dark' : ''}`}
+      className={`flex h-screen flex-col bg-gray-50 ${dark ? 'editor-dark' : ''}`}
     >
       <CourseHeader
         course={course}

@@ -436,6 +436,13 @@ class OrganizationBase(IDSchema, TimestampedSchema):
             "thumbnail."
         ),
     )
+    customer_portal_sign_in_image_position: str | None = Field(
+        None,
+        description=(
+            "CSS object-position (e.g. '50% 30%') for the customer portal "
+            "sign-in image, set by dragging to reposition in the Auth tab."
+        ),
+    )
     proration_behavior: SubscriptionProrationBehavior = Field(
         description="Proration behavior applied when customer updates their subscription from the portal.",
     )
@@ -604,6 +611,15 @@ class OrganizationCreate(Schema):
 class OrganizationUpdate(Schema):
     name: NameInput | None = None
     avatar_url: AvatarUrl | None = None
+
+    customer_portal_sign_in_image_position: str | None = Field(
+        None,
+        max_length=32,
+        description=(
+            "CSS object-position (e.g. '50% 30%') for the customer portal "
+            "sign-in image. Set by dragging to reposition in the Auth tab."
+        ),
+    )
 
     email: EmailStrDNS | None = Field(None, description="Public support email.")
     website: HttpUrlToStr | None = Field(

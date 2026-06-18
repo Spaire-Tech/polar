@@ -251,7 +251,7 @@ const ClientPage = ({
       </p>
 
       <div
-        className={`spauth-codegrid${error ? 'spauth-err' : ''}`}
+        className={`spauth-codegrid ${error ? 'spauth-err' : ''}`}
         onPaste={handlePaste}
       >
         {cells.map((value, i) => (
@@ -260,7 +260,7 @@ const ClientPage = ({
             ref={(el) => {
               inputsRef.current[i] = el
             }}
-            className={`spauth-codecell${value ? 'spauth-filled' : ''}`}
+            className={`spauth-codecell ${value ? 'spauth-filled' : ''}`}
             type="text"
             inputMode="text"
             autoComplete={i === 0 ? 'one-time-code' : 'off'}
@@ -292,7 +292,7 @@ const ClientPage = ({
         <span>Didn&apos;t get it?</span>
         <button
           type="button"
-          className={`spauth-link spauth-resend${
+          className={`spauth-link spauth-resend ${
             resendLeft > 0 ? 'spauth-waiting' : ''
           }`}
           onClick={handleResend}

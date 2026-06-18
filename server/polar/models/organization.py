@@ -361,6 +361,14 @@ class Organization(RateLimitGroupMixin, RecordModel):
     per-course). When unset, the portal falls back to the organization's most
     recent course thumbnail."""
 
+    customer_portal_sign_in_image_position: Mapped[str | None] = mapped_column(
+        String, nullable=True, default=None
+    )
+    """CSS object-position (e.g. "50% 30%") for the sign-in image, set by
+    dragging to reposition in the Auth tab. Applies to the uploaded image;
+    when falling back to a course thumbnail the portal uses that course's own
+    object-position instead."""
+
     @property
     def allow_customer_updates(self) -> bool:
         return self.customer_portal_settings["subscription"]["update_plan"]

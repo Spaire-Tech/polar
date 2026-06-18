@@ -124,7 +124,7 @@ const ClientPage = ({
             <button
               key={customer.id}
               type="button"
-              className={`spauth-account${
+              className={`spauth-account ${
                 selectedCustomerId === customer.id ? 'spauth-selected' : ''
               }`}
               onClick={() => setSelectedCustomerId(customer.id)}
@@ -161,7 +161,7 @@ const ClientPage = ({
 
       <form onSubmit={handleSubmit((data) => onSubmit(data))}>
         <div
-          className={`spauth-field${formState.errors.email ? 'spauth-err' : ''}`}
+          className={`spauth-field ${formState.errors.email ? 'spauth-err' : ''}`}
         >
           <label className="spauth-field-label" htmlFor="email">
             Email address

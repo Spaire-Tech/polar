@@ -54,6 +54,8 @@ export const PortalAuthScene = ({
   // creator's cached/derived theme and stays in sync with the shell.
   const { dark, toggle } = usePortalTheme(organization.slug, '')
   const imageUrl = organization.customer_portal_sign_in_image_url
+  const imagePosition =
+    organization.customer_portal_sign_in_image_position ?? undefined
 
   return (
     <div className="spauth">
@@ -68,6 +70,9 @@ export const PortalAuthScene = ({
             src={imageUrl}
             alt=""
             aria-hidden="true"
+            style={
+              imagePosition ? { objectPosition: imagePosition } : undefined
+            }
           />
         )}
         <div className="spauth-scrim" />
