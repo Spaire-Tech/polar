@@ -30,8 +30,11 @@ logging.getLogger(__name__)
 
 # Markers stored on subscription.user_metadata["trial_reminders_sent"].
 # Numbers are days-remaining-when-sent so the cron can decide which
-# reminder is due based on (trial_end - now).days.
-_REMINDER_DAYS = (7, 2, 0)
+# reminder is due based on (trial_end - now).days. Kept in ASCENDING order
+# so _due_marker returns the most-urgent (smallest) threshold the trial has
+# reached — iterating descending was the original bug that made every run
+# resolve to 7, so the T-2 and T-0 reminders never fired.
+_REMINDER_DAYS = (0, 2, 7)
 _METADATA_KEY = "trial_reminders_sent"
 
 
@@ -44,9 +47,18 @@ def _days_remaining(trial_end: datetime, now: datetime) -> int:
 def _due_marker(days_remaining: int) -> int | None:
     """Map a days-remaining value to the reminder marker that should fire.
 
-    The cron runs daily; we may overshoot a marker by a day if the cron
-    is delayed. Picking the smallest marker still <= days_remaining
-    (and >= 0) catches the first un-sent one without double-firing.
+    Returns the smallest marker M such that ``days_remaining <= M`` — i.e.
+    the most-urgent threshold the trial has already reached. Examples
+    (markers 0, 2, 7):
+
+      - days_remaining == 7  -> 7  (halfway reminder)
+      - days_remaining == 5  -> 7  (still in the T-7 window)
+      - days_remaining == 2  -> 2  (two days left)
+      - days_remaining == 0  -> 0  (last day)
+      - days_remaining == 9  -> None (T-7 not reached yet)
+
+    Per-marker idempotency (``_already_sent``) prevents a delayed cron from
+    re-firing a threshold it skipped past.
     """
     if days_remaining < 0:
         return None

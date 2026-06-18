@@ -248,13 +248,16 @@ class TestSyncForOrganization:
         assert account._platform_fee_percent == 400
         assert account._platform_fee_fixed == 40
 
-    async def test_legacy_tier_leaves_fee_alone(
+    async def test_legacy_tier_resets_fee_to_default(
         self,
         mocker: MockerFixture,
         session: AsyncSession,
         save_fixture: SaveFixture,
     ) -> None:
-        # No platform org configured -> legacy tier.
+        # No platform org configured -> legacy tier. A creator who held a
+        # paid tier and churned must not keep the lower rate written onto
+        # their account: Legacy resets the columns to NULL so the global
+        # default (worst) rate applies.
         _patch_platform_org_id(mocker, None)
         creator_owner = await create_user(save_fixture)
         creator = await create_organization(save_fixture)
@@ -262,17 +265,45 @@ class TestSyncForOrganization:
             save_fixture,
             creator,
             creator_owner,
-            fee_basis_points=400,
-            fee_fixed=40,
+            fee_basis_points=350,
+            fee_fixed=30,
+        )
+
+        result = await platform_fee_sync.sync_for_organization(session, creator)
+
+        assert result.changed is True
+        assert result.reason == "reset_to_default"
+        # Fee reset to NULL -> Account.platform_fee falls back to the global
+        # default (5% + 50c).
+        assert account._platform_fee_percent is None
+        assert account._platform_fee_fixed is None
+        assert account.platform_fee == (500, 50)
+
+    async def test_legacy_tier_already_default_is_noop(
+        self,
+        mocker: MockerFixture,
+        session: AsyncSession,
+        save_fixture: SaveFixture,
+    ) -> None:
+        # An account that never had a per-account rate written is already on
+        # the global default; Legacy sync leaves it untouched.
+        _patch_platform_org_id(mocker, None)
+        creator_owner = await create_user(save_fixture)
+        creator = await create_organization(save_fixture)
+        account = await create_account(
+            save_fixture,
+            creator,
+            creator_owner,
+            fee_basis_points=None,
+            fee_fixed=None,
         )
 
         result = await platform_fee_sync.sync_for_organization(session, creator)
 
         assert result.changed is False
         assert result.reason == "legacy_tier"
-        # Existing fee preserved.
-        assert account._platform_fee_percent == 400
-        assert account._platform_fee_fixed == 40
+        assert account._platform_fee_percent is None
+        assert account._platform_fee_fixed is None
 
 
 @pytest.mark.asyncio

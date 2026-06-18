@@ -20,11 +20,14 @@ import structlog
 from polar.account.repository import AccountRepository
 from polar.customer.repository import CustomerRepository
 from polar.entitlements.service import entitlements as entitlements_service
-from polar.entitlements.tiers import TierKey
+from polar.entitlements.tiers import TierKey, tier_from_value
 from polar.enums import RateLimitGroup
 from polar.exceptions import PolarError
+from polar.kit.utils import utc_now
 from polar.models import Organization, Subscription
+from polar.models.subscription import SubscriptionStatus
 from polar.organization.repository import OrganizationRepository
+from polar.platform.repository import platform_subscription_repository
 from polar.platform.service import platform as platform_service
 from polar.postgres import AsyncSession
 from polar.worker import enqueue_job
@@ -115,12 +118,33 @@ class PlatformFeeSyncService:
                 reason="rate_limit_only" if rate_limit_changed else "locked",
             )
 
-        # Legacy tier: leave the Account fee columns as-is — the global
-        # default kicks in via Account.platform_fee fallback. Writing the
-        # global default values explicitly would be lossy (we'd no longer
-        # be able to tell "never synced" from "synced to global default").
-        # Rate-limit group was already synced above.
+        # Legacy tier: reset the Account fee columns to NULL so the global
+        # default — the worst rate (5% + 50¢) — applies via the
+        # Account.platform_fee fallback. This is the churn path: a creator
+        # who previously held Studio/Scale (and therefore had a lower rate
+        # written onto their Account) must NOT keep that negotiated rate on
+        # the $0 Legacy fallback, or canceling would leave them cheaper
+        # than every paid plan. Nulling rather than writing the default
+        # explicitly preserves the "never synced == on global default"
+        # semantics. The lock check above already returned for locked
+        # accounts, so reaching here means unlocked (or force=True).
         if tier_entitlements.tier == TierKey.legacy:
+            if (
+                account._platform_fee_percent is not None
+                or account._platform_fee_fixed is not None
+            ):
+                previous_percent = account._platform_fee_percent
+                previous_fixed = account._platform_fee_fixed
+                account._platform_fee_percent = None
+                account._platform_fee_fixed = None
+                log.info(
+                    "platform.fee_sync.reset_to_default",
+                    organization_id=str(organization.id),
+                    account_id=str(account.id),
+                    previous_percent=previous_percent,
+                    previous_fixed=previous_fixed,
+                )
+                return _SyncResult(changed=True, reason="reset_to_default")
             return _SyncResult(
                 changed=rate_limit_changed,
                 reason="rate_limit_only" if rate_limit_changed else "legacy_tier",
@@ -209,6 +233,72 @@ async def maybe_enqueue_sync_from_subscription(
     creator_org_id = await _platform_creator_org_id(session, subscription)
     if creator_org_id is not None:
         enqueue_sync(creator_org_id)
+
+
+async def maybe_supersede_platform_trial(
+    session: AsyncSession, subscription: Subscription
+) -> None:
+    """When a creator's NEW *paid* Spaire subscription is created (via the
+    upgrade checkout), cancel their other active platform subscriptions —
+    the auto-attached Starter trial they're converting from, or a Legacy
+    fallback — so they end up holding exactly the one paid subscription.
+
+    This is the counterpart to NOT pre-revoking the trial before checkout:
+    the trial stays live (and the creator keeps their entitlements + the
+    remaining trial days) until payment actually succeeds and this runs.
+    If the creator abandons checkout, no new sub is created, this never
+    fires, and the trial is untouched.
+
+    No-op unless `subscription` is a creator's platform sub on a paid tier.
+    The auto-trial itself (managed_by=trial) and Legacy resubscribes are
+    skipped so they never cancel anything.
+    """
+    if not platform_service.is_configured():
+        return
+
+    managed_by = (subscription.user_metadata or {}).get("managed_by")
+    if managed_by == "trial":
+        # We're creating the auto-trial itself — nothing to supersede.
+        return
+
+    customer_repository = CustomerRepository.from_session(session)
+    customer = await customer_repository.get_by_id(subscription.customer_id)
+    if customer is None:
+        return
+    if not platform_service.is_platform_organization(customer.organization_id):
+        return
+
+    # Only a paid-tier subscription supersedes. A Legacy resubscribe must
+    # not cancel anything (it's the fallback, not a conversion target).
+    product = subscription.product
+    tier_value = (product.user_metadata or {}).get("tier") if product else None
+    tier = tier_from_value(tier_value) if isinstance(tier_value, str) else None
+    if tier is None or tier == TierKey.legacy:
+        return
+
+    subscription_repo = platform_subscription_repository(session)
+    others = await subscription_repo.list_active_for_customer(customer.id)
+    now = utc_now()
+    superseded: list[str] = []
+    for other in others:
+        if other.id == subscription.id:
+            continue
+        other.status = SubscriptionStatus.canceled
+        other.canceled_at = now
+        other.ended_at = now
+        other.cancel_at_period_end = False
+        superseded.append(str(other.id))
+
+    if superseded:
+        await session.flush()
+        log.info(
+            "platform.supersede_trial.done",
+            organization_id=customer.user_metadata.get("creator_org_id"),
+            customer_id=str(customer.id),
+            new_subscription_id=str(subscription.id),
+            new_tier=tier.value,
+            superseded_subscription_ids=superseded,
+        )
 
 
 async def maybe_enqueue_resubscribe_from_revoke(

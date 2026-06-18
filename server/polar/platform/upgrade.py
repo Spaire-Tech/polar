@@ -7,6 +7,8 @@ existing checkout creation path's auth validation passes — the platform
 org owns the product, so it's authorized to sell it.
 """
 
+from datetime import datetime, timedelta
+from math import ceil
 from typing import Literal
 from uuid import UUID
 
@@ -16,11 +18,12 @@ from polar.auth.models import AuthSubject
 from polar.auth.scope import Scope
 from polar.checkout.schemas import CheckoutProductCreate
 from polar.checkout.service import checkout as checkout_service
-from polar.entitlements.tiers import TierKey
+from polar.customer.repository import CustomerRepository
+from polar.entitlements.tiers import TierKey, tier_from_value
 from polar.exceptions import PolarError
+from polar.kit.trial import TrialInterval
 from polar.kit.utils import utc_now
-from polar.models import Checkout, Organization
-from polar.models.subscription import SubscriptionStatus
+from polar.models import Checkout, Customer, Organization
 from polar.platform.billing import platform_billing
 from polar.platform.repository import (
     platform_customer_repository,
@@ -84,6 +87,36 @@ class MissingPlatformCustomer(PlatformUpgradeError):
 
 
 class PlatformUpgradeService:
+    async def _apply_real_billing_email(
+        self,
+        session: AsyncSession,
+        customer: Customer,
+        real_email: str | None,
+    ) -> None:
+        """Set the platform Customer's email to the creator's real address
+        so Stripe receipts / tax invoices are deliverable.
+
+        The platform `customers` table is unique on (organization_id,
+        lower(email)). A single person who owns several Spaire orgs has one
+        platform Customer per org; if they all share one real email, only
+        the first can hold it. So we only adopt the real email when no other
+        platform Customer in the org already has it — otherwise we keep the
+        synthetic placeholder (the real email is still prefilled on the
+        checkout form via customer_email).
+        """
+        if real_email is None:
+            return
+        if customer.email.lower() == real_email.lower():
+            return
+        customer_repository = CustomerRepository.from_session(session)
+        existing = await customer_repository.get_by_email_and_organization(
+            real_email, customer.organization_id
+        )
+        if existing is not None and existing.id != customer.id:
+            return
+        customer.email = real_email
+        await session.flush()
+
     async def create_checkout(
         self,
         session: AsyncSession,
@@ -130,94 +163,77 @@ class PlatformUpgradeService:
         if customer is None:
             raise MissingPlatformCustomer()
 
-        # We deliberately do NOT overwrite customer.email with the user's
-        # real email here. The platform-org `customers` table has a
-        # unique constraint on (organization_id, lower(email)), and a
-        # single creator who owns multiple Spaire orgs would have one
-        # Customer per org — they can't all share the same real email.
-        # The synthetic `creator-{slug}@billing.spairehq.internal`
-        # address keeps each Customer row unique. Stripe still gets the
-        # real email via CheckoutProductCreate.customer_email below, so
-        # receipts and tax invoices reach the creator's actual inbox.
+        # Put the creator's real email on the platform Customer (when it
+        # doesn't collide with another of their orgs) so Stripe receipts
+        # and tax invoices reach a real inbox instead of the synthetic
+        # `creator-{slug}@billing.spairehq.internal` placeholder.
+        await self._apply_real_billing_email(session, customer, billing_email)
 
-        # `subscription_id` on CheckoutProductCreate is Polar's "convert
-        # from free to paid" hook — it only accepts subscriptions whose
-        # prices are all free. So we pass it ONLY when the creator is on
-        # the Legacy ($0) product (grandfathered orgs upgrading for the
-        # first time). For paid trialing subs we instead revoke the
-        # auto-trial inline (see below) — Polar's checkout uniqueness
-        # check would otherwise reject the new checkout with
-        # AlreadyActiveSubscriptionError.
+        # Resolve the creator's current active platform subscription to
+        # decide how the checkout should treat it.
+        #
+        #   - Trialing (the auto-attached Starter trial, or any trial):
+        #     carry the REMAINING trial days onto the paid subscription and
+        #     leave the trial live. It is NOT revoked here — payment must
+        #     succeed first, after which maybe_supersede_platform_trial
+        #     cancels it. If the creator abandons checkout, the trial is
+        #     untouched and they keep their remaining days. Polar's
+        #     checkout uniqueness check is satisfied because the platform
+        #     org runs with allow_multiple_subscriptions enabled.
+        #   - Legacy ($0): convert it in place via Polar's upgrade-from-free
+        #     hook (`subscription_id`). No trial — a churned/grandfathered
+        #     creator pays immediately.
+        #   - Active on a paid tier: not an upgrade-checkout operation
+        #     (use switch-plan instead).
         subscription_repo = platform_subscription_repository(session)
         existing_sub = await subscription_repo.get_active_for_customer(customer.id)
 
         existing_subscription_id: UUID | None = None
+        carryover_trial_end: datetime | None = None
         if existing_sub is not None:
-            existing_tier = (
+            tier_value = (
                 (existing_sub.product.user_metadata or {}).get("tier")
                 if existing_sub.product is not None
                 else None
             )
-            managed_by = (existing_sub.user_metadata or {}).get("managed_by")
-            if existing_tier == TierKey.legacy.value:
-                # Legacy is the only $0 product we ship; safe to pass to
-                # Polar's upgrade-from-free path.
+            existing_tier = (
+                tier_from_value(tier_value) if isinstance(tier_value, str) else None
+            )
+            if existing_sub.trialing:
+                carryover_trial_end = existing_sub.trial_end
+            elif existing_tier == TierKey.legacy:
                 existing_subscription_id = existing_sub.id
-            elif existing_sub.trialing and managed_by == "trial":
-                # Auto-attached Pro trial from organization.created. The
-                # Pro product is billable, so Polar's checkout-side
-                # `_validate_subscription_uniqueness` will refuse to
-                # create another billable subscription for this customer.
-                # We can't pass `subscription_id` to upgrade-from either
-                # — that only accepts $0 subs. Revoke the trial in
-                # place so the customer's slate is clean before checkout
-                # creates a fresh, payment-method-backed subscription on
-                # the chosen tier. If checkout never completes the
-                # creator simply lands on no platform sub (Legacy
-                # fallback) and the dashboard plan-gate bounces them
-                # back to /onboarding/plan to retry.
-                now = utc_now()
-                existing_sub.status = SubscriptionStatus.canceled
-                existing_sub.canceled_at = now
-                existing_sub.ended_at = now
-                existing_sub.cancel_at_period_end = False
-                await session.flush()
-                log.info(
-                    "platform.upgrade_checkout.revoked_auto_trial",
-                    organization_id=str(organization.id),
-                    subscription_id=str(existing_sub.id),
-                    target_tier=tier.value,
-                )
-            elif existing_sub.trialing:
-                # Trialing on a paid product that wasn't auto-attached
-                # (rare — e.g. a creator who already converted once and
-                # is now on a fresh Stripe-managed trial). Fall through
-                # and let Polar's uniqueness check decide; we don't
-                # want to revoke a real Stripe-managed subscription
-                # from under the user.
-                pass
-            elif existing_tier == tier.value:
-                # Active (non-trialing) on the same paid tier — already
-                # paid for it, no upgrade to perform.
-                raise AlreadyOnPaidTier()
             else:
-                # Active on a different paid tier → use switch_plan,
-                # not upgrade-checkout.
+                # Active (non-trialing) on a paid tier — same tier or a
+                # different one both route through switch-plan, not here.
                 raise AlreadyOnPaidTier()
 
         # Use model_validate so pydantic coerces success_url (a plain str)
         # into the HttpUrl-shaped SuccessUrl type the schema requires.
-        # `customer_email` (when supplied) prefills the user's real email
-        # on the Polar/Stripe checkout form so receipts and tax invoices
-        # land in their actual inbox — independent of the synthetic
-        # platform-Customer email kept above for uniqueness.
         checkout_payload: dict[str, object] = {
             "product_id": target_product.id,
             "customer_id": customer.id,
             "subscription_id": existing_subscription_id,
             "success_url": success_url,
         }
+
+        now = utc_now()
+        if carryover_trial_end is not None and carryover_trial_end > now:
+            # Grant only the days remaining on the original trial, not a
+            # fresh 14. Round up to whole days; clamp to the schema's 1..1000.
+            remaining_days = ceil((carryover_trial_end - now) / timedelta(days=1))
+            remaining_days = max(1, min(remaining_days, 1000))
+            checkout_payload["trial_interval"] = TrialInterval.day
+            checkout_payload["trial_interval_count"] = remaining_days
+        else:
+            # No active trial to carry (Legacy / expired / none): the
+            # conversion bills immediately. This is also what closes the
+            # "cancel trial, re-upgrade for a fresh 14 days" abuse loop —
+            # once an org is on Legacy, an upgrade carries no trial.
+            checkout_payload["allow_trial"] = False
+
         if billing_email is not None:
+            # Also prefill the checkout form with the real email.
             checkout_payload["customer_email"] = billing_email
         checkout_create = CheckoutProductCreate.model_validate(checkout_payload)
 

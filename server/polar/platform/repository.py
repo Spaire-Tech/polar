@@ -104,6 +104,23 @@ class _PlatformSubscriptionRepository(RepositoryBase[Subscription]):
         )
         return await self.get_one_or_none(statement)
 
+    async def list_active_for_customer(
+        self, customer_id: UUID
+    ) -> list[Subscription]:
+        """Every active/trialing subscription for a platform customer,
+        newest first. Used by trial supersession to cancel the leftover
+        auto-trial / Legacy subs once a paid subscription is created.
+        """
+        statement = (
+            select(Subscription)
+            .where(Subscription.customer_id == customer_id)
+            .where(Subscription.status.in_(SubscriptionStatus.active_statuses()))
+            .where(Subscription.deleted_at.is_(None))
+            .options(selectinload(Subscription.product))
+            .order_by(Subscription.created_at.desc())
+        )
+        return list(await self.get_all(statement))
+
     async def list_expired_trials(
         self, platform_org_id: UUID, *, before: datetime
     ) -> list[Subscription]:

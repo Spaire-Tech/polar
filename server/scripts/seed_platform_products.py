@@ -313,6 +313,29 @@ PRODUCT_SPECS: list[ProductSpec] = [
 # ---------------------------------------------------------------------------
 
 
+def _configure_platform_org(
+    platform_org: Organization, *, dry_run: bool
+) -> str:
+    """Ensure the platform org is configured for self-billing.
+
+    `allow_multiple_subscriptions` must be True so the upgrade-checkout flow
+    can create a creator's new paid subscription WHILE their auto-trial is
+    still active (the trial is only superseded once payment succeeds). Each
+    creator still ends up with exactly one active platform subscription —
+    the setting only relaxes Polar's checkout uniqueness guard, which would
+    otherwise reject the conversion checkout.
+    """
+    current = dict(platform_org.subscription_settings)
+    if current.get("allow_multiple_subscriptions") is True:
+        return "unchanged"
+    if not dry_run:
+        platform_org.subscription_settings = {
+            **current,
+            "allow_multiple_subscriptions": True,
+        }
+    return "updated"
+
+
 async def _upsert_meter(
     session: AsyncSession,
     platform_org: Organization,
@@ -636,6 +659,12 @@ async def run(
         typer.echo(
             f"Platform organization: {platform_org.name} "
             f"(slug={platform_org.slug}, id={platform_org.id})\n"
+        )
+
+        settings_action = _configure_platform_org(platform_org, dry_run=dry_run)
+        typer.echo(
+            f"Org settings:\n  {_format_action(settings_action)}  "
+            "allow_multiple_subscriptions=true\n"
         )
 
         typer.echo("Meters:")

@@ -84,6 +84,7 @@ from polar.organization.repository import OrganizationRepository
 from polar.platform.fee_sync import (
     maybe_enqueue_resubscribe_from_revoke,
     maybe_enqueue_sync_from_subscription,
+    maybe_supersede_platform_trial,
 )
 from polar.product.guard import (
     is_custom_price,
@@ -811,6 +812,11 @@ class SubscriptionService:
         # creator's Spaire tier subscription), keep the creator's
         # Account.platform_fee aligned with the tier's list rate.
         await maybe_enqueue_sync_from_subscription(session, subscription)
+
+        # If this is a creator's new *paid* Spaire subscription (the
+        # outcome of the upgrade checkout), cancel the leftover auto-trial /
+        # Legacy subs now that payment has succeeded.
+        await maybe_supersede_platform_trial(session, subscription)
 
         assert subscription.started_at is not None
         await event_service.create_event(

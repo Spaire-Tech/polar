@@ -13,6 +13,7 @@ from polar.enums import SubscriptionRecurringInterval
 from scripts.seed_platform_products import (
     METER_SPECS,
     PRODUCT_SPECS,
+    _configure_platform_org,
     _find_product_by_tier_and_interval,
     _upsert_catalog_price,
     _upsert_meter,
@@ -265,6 +266,29 @@ class TestSeedPlatformProducts:
         assert active[0].price_amount == 5900
         assert isinstance(archived[0], ProductPriceFixed)
         assert archived[0].price_amount == 4900
+
+    async def test_configure_platform_org_enables_multiple_subscriptions(
+        self,
+        save_fixture: SaveFixture,
+    ) -> None:
+        platform_org = await create_organization(save_fixture)
+        assert platform_org.subscription_settings["allow_multiple_subscriptions"] is False
+
+        action = _configure_platform_org(platform_org, dry_run=False)
+        assert action == "updated"
+        assert platform_org.subscription_settings["allow_multiple_subscriptions"] is True
+
+        # Idempotent.
+        assert _configure_platform_org(platform_org, dry_run=False) == "unchanged"
+
+    async def test_configure_platform_org_dry_run_does_not_mutate(
+        self,
+        save_fixture: SaveFixture,
+    ) -> None:
+        platform_org = await create_organization(save_fixture)
+        action = _configure_platform_org(platform_org, dry_run=True)
+        assert action == "updated"
+        assert platform_org.subscription_settings["allow_multiple_subscriptions"] is False
 
     async def test_migrates_legacy_pro_product_to_starter_in_place(
         self,
