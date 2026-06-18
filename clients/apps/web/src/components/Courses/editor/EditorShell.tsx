@@ -340,7 +340,7 @@ function DesignPanel() {
           <select
             value={t.fontHeading}
             onChange={(e) => ed.setTheme({ fontHeading: e.target.value })}
-            className="w-full rounded-md border border-gray-200 bg-white px-2.5 py-2 text-[12.5px] focus:border-blue-500 focus:outline-none"
+            className="w-full rounded-md border border-gray-200 bg-white px-2.5 py-2 text-[12.5px] focus:border-[#0066cc] focus:outline-none"
           >
             {FONT_PAIRS.map((f) => (
               <option key={f.id} value={f.id}>
@@ -353,7 +353,7 @@ function DesignPanel() {
           <select
             value={t.fontBody}
             onChange={(e) => ed.setTheme({ fontBody: e.target.value })}
-            className="w-full rounded-md border border-gray-200 bg-white px-2.5 py-2 text-[12.5px] focus:border-blue-500 focus:outline-none"
+            className="w-full rounded-md border border-gray-200 bg-white px-2.5 py-2 text-[12.5px] focus:border-[#0066cc] focus:outline-none"
           >
             {FONT_PAIRS.map((f) => (
               <option key={f.id} value={f.id}>
@@ -1042,7 +1042,7 @@ function AIPanel({ organizationSlug }: { organizationSlug?: string }) {
               setTarget(e.target.value)
               setResult(null)
             }}
-            className="w-full rounded-md border border-gray-200 bg-white px-2.5 py-2 text-[12.5px] focus:border-blue-500 focus:outline-none"
+            className="w-full rounded-md border border-gray-200 bg-white px-2.5 py-2 text-[12.5px] focus:border-[#0066cc] focus:outline-none"
           >
             {AI_TARGETS.map((t) => (
               <option key={t.path} value={t.path}>
@@ -1065,7 +1065,7 @@ function AIPanel({ organizationSlug }: { organizationSlug?: string }) {
               value={intent}
               onChange={(e) => setIntent(e.target.value)}
               rows={3}
-              className="w-full resize-none rounded-md border border-gray-200 bg-white px-2.5 py-2 text-[12.5px] tracking-tight text-gray-900 transition-colors focus:border-blue-500 focus:outline-none"
+              className="w-full resize-none rounded-md border border-gray-200 bg-white px-2.5 py-2 text-[12.5px] tracking-tight text-gray-900 transition-colors focus:border-[#0066cc] focus:outline-none"
               placeholder="Make it punchier, add urgency, etc."
             />
           </Field>
@@ -1160,13 +1160,13 @@ function TextField({
           value={v}
           rows={3}
           onChange={(e) => ed.setText(path, e.target.value)}
-          className="w-full resize-none rounded-md border border-gray-200 bg-white px-2.5 py-2 text-[12.5px] tracking-tight text-gray-900 transition-colors focus:border-blue-500 focus:outline-none"
+          className="w-full resize-none rounded-md border border-gray-200 bg-white px-2.5 py-2 text-[12.5px] tracking-tight text-gray-900 transition-colors focus:border-[#0066cc] focus:outline-none"
         />
       ) : (
         <input
           value={v}
           onChange={(e) => ed.setText(path, e.target.value)}
-          className="w-full rounded-md border border-gray-200 bg-white px-2.5 py-2 text-[12.5px] tracking-tight text-gray-900 transition-colors focus:border-blue-500 focus:outline-none"
+          className="w-full rounded-md border border-gray-200 bg-white px-2.5 py-2 text-[12.5px] tracking-tight text-gray-900 transition-colors focus:border-[#0066cc] focus:outline-none"
         />
       )}
     </Field>

@@ -27,6 +27,7 @@ import {
 } from '@/hooks/queries/community'
 import * as React from 'react'
 import { CoverDrop, Field, Seg } from './atoms'
+import { HeadInfo } from './HeadInfo'
 import { timeAgo } from './format'
 import { Glyph } from './icons'
 import { type ChannelOption, EpisodeSelect } from './pickers'
@@ -472,11 +473,13 @@ export function ActivitiesTab({
     <>
       <div className="cr-head">
         <div>
-          <div className="h">Activities</div>
-          <div className="s">
-            The thing you ask members to make and bring. Write one clear prompt —
-            optionally tied to a {channel.noun} — then publish it. Members
-            respond, and their submissions collect on the card.
+          <div className="h">
+            Activities
+            <HeadInfo>
+              The thing you ask members to make and bring. Write one clear prompt
+              — optionally tied to a {channel.noun} — then publish it. Members
+              respond, and their submissions collect on the card.
+            </HeadInfo>
           </div>
         </div>
         {!showForm && activities.length > 0 && (

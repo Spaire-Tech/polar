@@ -136,7 +136,7 @@ function SchedulePanel({
               min={0}
               value={dripDays}
               onChange={(e) => setDripDays(parseInt(e.target.value || '0'))}
-              className="w-20 rounded-lg border border-gray-300 px-2 py-1.5 text-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 focus:outline-none"
+              className="w-20 rounded-lg border border-gray-300 px-2 py-1.5 text-sm focus:border-[#0066cc] focus:ring-2 focus:ring-blue-100 focus:outline-none"
             />
             <span className="text-sm text-gray-600">
               day{dripDays === 1 ? '' : 's'} after enrollment
@@ -159,7 +159,7 @@ function SchedulePanel({
               type="date"
               value={releaseAt}
               onChange={(e) => setReleaseAt(e.target.value)}
-              className="rounded-lg border border-gray-300 px-2 py-1.5 text-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 focus:outline-none"
+              className="rounded-lg border border-gray-300 px-2 py-1.5 text-sm focus:border-[#0066cc] focus:ring-2 focus:ring-blue-100 focus:outline-none"
             />
           </div>
         )}

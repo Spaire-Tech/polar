@@ -163,7 +163,7 @@ export function SettingsTab({
                 'mt-2 w-full rounded-xl border px-3.5 py-2.5 text-sm text-gray-900 focus:ring-2 focus:outline-none ' +
                 (titleError
                   ? 'border-red-400 focus:border-red-500 focus:ring-red-100'
-                  : 'border-gray-300 focus:border-indigo-500 focus:ring-indigo-100')
+                  : 'border-gray-300 focus:border-[#0066cc] focus:ring-blue-100')
               }
               placeholder="e.g. The Art of Persuasive Writing"
             />
@@ -184,7 +184,7 @@ export function SettingsTab({
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               rows={4}
-              className="mt-2 w-full rounded-xl border border-gray-300 px-3.5 py-2.5 text-sm text-gray-900 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 focus:outline-none"
+              className="mt-2 w-full rounded-xl border border-gray-300 px-3.5 py-2.5 text-sm text-gray-900 focus:border-[#0066cc] focus:ring-2 focus:ring-blue-100 focus:outline-none"
               placeholder="What learners walk away with."
             />
           </div>
@@ -208,7 +208,7 @@ export function SettingsTab({
               type="text"
               value={instructorName}
               onChange={(e) => setInstructorName(e.target.value)}
-              className="mt-2 w-full rounded-xl border border-gray-300 px-3.5 py-2.5 text-sm text-gray-900 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 focus:outline-none"
+              className="mt-2 w-full rounded-xl border border-gray-300 px-3.5 py-2.5 text-sm text-gray-900 focus:border-[#0066cc] focus:ring-2 focus:ring-blue-100 focus:outline-none"
               placeholder="e.g. Dr. Lena Marchetti"
             />
           </div>
@@ -221,7 +221,7 @@ export function SettingsTab({
               value={instructorBio}
               onChange={(e) => setInstructorBio(e.target.value)}
               rows={4}
-              className="mt-2 w-full rounded-xl border border-gray-300 px-3.5 py-2.5 text-sm text-gray-900 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 focus:outline-none"
+              className="mt-2 w-full rounded-xl border border-gray-300 px-3.5 py-2.5 text-sm text-gray-900 focus:border-[#0066cc] focus:ring-2 focus:ring-blue-100 focus:outline-none"
               placeholder="Short third-person bio."
             />
           </div>

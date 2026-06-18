@@ -34,6 +34,7 @@ import * as React from 'react'
 import { Composer } from './composer'
 import { EventSheet } from './Events'
 import { timeAgo } from './format'
+import { HeadInfo } from './HeadInfo'
 import { Glyph } from './icons'
 import { fmtDateLabel, providerFromUrl, ProviderLogo, providerOf } from './pickers'
 
@@ -673,11 +674,13 @@ export function FeedTab({
     <>
       <div className="cr-head">
         <div>
-          <div className="h">Feed</div>
-          <div className="s">
-            The running conversation at the heart of your community. Post
-            announcements and prompts as the host, pin what matters, and reply
-            right in the thread — exactly as your members will see it.
+          <div className="h">
+            Feed
+            <HeadInfo>
+              The running conversation at the heart of your community. Post
+              announcements and prompts as the host, pin what matters, and reply
+              right in the thread — exactly as your members will see it.
+            </HeadInfo>
           </div>
         </div>
       </div>

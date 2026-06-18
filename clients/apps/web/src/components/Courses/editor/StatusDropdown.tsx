@@ -20,7 +20,7 @@ const STATUS_OPTIONS: {
   { value: 'draft', label: 'Draft', Icon: DescriptionOutlined, tone: 'bg-gray-100 text-gray-700' },
   { value: 'published', label: 'Publish', Icon: CheckCircleOutlined, tone: 'bg-green-100 text-green-700' },
   { value: 'scheduled', label: 'Schedule', Icon: CalendarTodayOutlined, tone: 'bg-blue-100 text-blue-700' },
-  { value: 'drip', label: 'Drip', Icon: WaterDropOutlined, tone: 'bg-indigo-100 text-indigo-700' },
+  { value: 'drip', label: 'Drip', Icon: WaterDropOutlined, tone: 'bg-blue-100 text-[#0066cc]' },
   { value: 'locked', label: 'Lock', Icon: LockOutlined, tone: 'bg-gray-900 text-white' },
 ]
 

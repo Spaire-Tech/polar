@@ -182,7 +182,7 @@ export function PricingTab({
                 onBlur={() => {
                   if (position == null) setPosition(0)
                 }}
-                className="w-24 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 focus:outline-none"
+                className="w-24 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#0066cc] focus:ring-2 focus:ring-blue-100 focus:outline-none"
               />
               <span className="text-sm text-gray-600">
                 of {allLessons.length} lessons visible
@@ -256,7 +256,7 @@ function Toggle({
       aria-checked={checked}
       onClick={() => onChange(!checked)}
       className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none ${
-        checked ? 'bg-[#3c4ac9]' : 'bg-gray-200'
+        checked ? 'bg-[#0066cc]' : 'bg-gray-200'
       }`}
     >
       <span
