@@ -271,6 +271,30 @@ class ProductService:
         existing_prices = set(product.prices)
         added_prices: list[ProductPrice] = []
         if update_schema.prices is not None:
+            # Seat-based product pricing is Studio+. The create path gates
+            # this; gate it here too so it can't be introduced via an update
+            # (create a normal product, then PATCH in a seat price). Only
+            # block when the product isn't ALREADY seat-priced, so a creator
+            # who later downgraded can still edit a seat product they made
+            # while entitled.
+            from polar.models.product_price import (
+                ProductPriceAmountType,
+                ProductPriceSeatUnit,
+            )
+
+            payload_has_seat_price = any(
+                getattr(price, "amount_type", None)
+                == ProductPriceAmountType.seat_based
+                for price in update_schema.prices
+            )
+            product_already_seat_priced = any(
+                isinstance(price, ProductPriceSeatUnit) for price in product.prices
+            )
+            if payload_has_seat_price and not product_already_seat_priced:
+                await entitlements_service.require_feature(
+                    session, product.organization_id, "seat_based_product_pricing"
+                )
+
             (
                 _,
                 existing_prices,

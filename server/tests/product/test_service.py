@@ -7,6 +7,8 @@ import pytest
 from pytest_mock import MockerFixture
 
 from polar.auth.models import AuthSubject
+from polar.entitlements.exceptions import FeatureNotInPlanError
+from polar.entitlements.tiers import TierKey
 from polar.enums import SubscriptionRecurringInterval
 from polar.exceptions import SpaireRequestValidationError
 from polar.kit.currency import PresentmentCurrency
@@ -38,6 +40,9 @@ from polar.product.schemas import (
     ProductPriceFixedCreate,
     ProductPriceFreeCreate,
     ProductPriceMeteredUnitCreate,
+    ProductPriceSeatBasedCreate,
+    ProductPriceSeatTier,
+    ProductPriceSeatTiers,
     ProductUpdate,
 )
 from polar.product.service import product as product_service
@@ -947,6 +952,76 @@ class TestCreate:
 
             assert len(fixed_prices) == 1
             assert len(metered_prices) == 1
+
+
+def _seat_price_create() -> ProductPriceSeatBasedCreate:
+    return ProductPriceSeatBasedCreate(
+        amount_type=ProductPriceAmountType.seat_based,
+        seat_tiers=ProductPriceSeatTiers(
+            tiers=[ProductPriceSeatTier(min_seats=1, price_per_seat=1000)],
+        ),
+    )
+
+
+@pytest.mark.asyncio
+class TestUpdateSeatPricingGate:
+    """Seat-based pricing (Studio+) must be gated on update, not just create,
+    so it can't be introduced by PATCHing a seat price onto a product made
+    while the creator lacked the feature."""
+
+    @pytest.mark.auth(AuthSubjectFixture(subject="user"))
+    async def test_introducing_seat_price_via_update_is_gated(
+        self,
+        mocker: MockerFixture,
+        session: AsyncSession,
+        auth_subject: AuthSubject[User],
+        product: Product,
+        user_organization: UserOrganization,
+    ) -> None:
+        # `product` has no seat price. Simulate a tier without the feature.
+        require_feature = mocker.patch(
+            "polar.product.service.entitlements_service.require_feature",
+            side_effect=FeatureNotInPlanError(
+                "seat_based_product_pricing", TierKey.starter
+            ),
+        )
+
+        update_schema = ProductUpdate(prices=[_seat_price_create()])
+
+        with pytest.raises(FeatureNotInPlanError):
+            await product_service.update(
+                session, product, update_schema, auth_subject
+            )
+        require_feature.assert_awaited_once()
+        assert require_feature.await_args.args[2] == "seat_based_product_pricing"
+
+    @pytest.mark.auth(AuthSubjectFixture(subject="user"))
+    async def test_existing_seat_product_is_not_regated(
+        self,
+        mocker: MockerFixture,
+        save_fixture: SaveFixture,
+        session: AsyncSession,
+        auth_subject: AuthSubject[User],
+        organization: Organization,
+        user_organization: UserOrganization,
+    ) -> None:
+        # A product that ALREADY has seat pricing (created while entitled)
+        # must remain editable even if the creator later downgraded.
+        seat_product = await create_product(
+            save_fixture,
+            organization=organization,
+            recurring_interval=SubscriptionRecurringInterval.month,
+            prices=[("seat", 1000, "usd")],
+        )
+        require_feature = mocker.patch(
+            "polar.product.service.entitlements_service.require_feature",
+        )
+
+        update_schema = ProductUpdate(name="Renamed seat product")
+        await product_service.update(
+            session, seat_product, update_schema, auth_subject
+        )
+        require_feature.assert_not_called()
 
 
 @pytest.mark.asyncio

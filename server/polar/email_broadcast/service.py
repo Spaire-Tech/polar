@@ -352,26 +352,29 @@ class EmailBroadcastService:
             to_email=to_email,
         )
 
-    async def send(
+    async def _resolve_audience(
         self,
         session: AsyncSession,
         broadcast: EmailBroadcast,
-    ) -> EmailBroadcast:
-        """Initiate sending a broadcast. Creates send records and enqueues jobs."""
-        repository = EmailBroadcastRepository.from_session(session)
+    ) -> list[EmailSubscriber]:
+        """Resolve a broadcast's recipients.
 
-        # Audience precedence: inline filter_rules → saved segment → all active.
+        Audience precedence: inline filter_rules → saved segment → all active.
+        """
+        repository = EmailBroadcastRepository.from_session(session)
         if broadcast.filter_rules:
             from polar.email_subscriber.service import (
                 email_subscriber as subscriber_service,
             )
 
-            subscribers = await subscriber_service.resolve_filter_subscribers(
-                session,
-                organization_id=broadcast.organization_id,
-                filter_rules=broadcast.filter_rules,
+            return list(
+                await subscriber_service.resolve_filter_subscribers(
+                    session,
+                    organization_id=broadcast.organization_id,
+                    filter_rules=broadcast.filter_rules,
+                )
             )
-        elif broadcast.segment_id is not None:
+        if broadcast.segment_id is not None:
             from polar.email_segment.service import email_segment as segment_service
             from polar.models.email_segment import EmailSegment
 
@@ -380,25 +383,68 @@ class EmailBroadcastService:
                 subscriber_ids = await segment_service.get_subscriber_ids(
                     session, segment
                 )
-                subscribers = []
+                subscribers: list[EmailSubscriber] = []
                 for sid in subscriber_ids:
                     sub = await session.get(EmailSubscriber, sid)
                     if sub is not None:
                         subscribers.append(sub)
-            else:
-                subscribers = await repository.get_active_subscribers_for_org(
-                    broadcast.organization_id
-                )
-        else:
-            subscribers = await repository.get_active_subscribers_for_org(
+                return subscribers
+        return list(
+            await repository.get_active_subscribers_for_org(
                 broadcast.organization_id
             )
+        )
+
+    async def _enforce_send_quota(
+        self,
+        session: AsyncSession,
+        broadcast: EmailBroadcast,
+        recipient_count: int,
+    ) -> None:
+        """Reject up-front (402) if sending to `recipient_count` recipients
+        would push the org past its monthly email-send quota.
+
+        This runs at schedule/send time so a creator finds out immediately —
+        instead of the broadcast silently failing per-recipient in the worker
+        once the cap is hit. The worker keeps its own per-send check as a
+        backstop. Honors the tier's overage grace via quotas.enforce.
+        """
+        if recipient_count <= 0:
+            return
+        from polar.organization.repository import OrganizationRepository
+        from polar.quotas.definitions import QuotaKey
+        from polar.quotas.producers import enforce as enforce_quota
+
+        org_repo = OrganizationRepository.from_session(session)
+        organization = await org_repo.get_by_id(broadcast.organization_id)
+        if organization is None:
+            return
+        await enforce_quota(
+            session,
+            organization,
+            QuotaKey.email_sends_monthly,
+            requested_storage_units=recipient_count,
+        )
+
+    async def send(
+        self,
+        session: AsyncSession,
+        broadcast: EmailBroadcast,
+    ) -> EmailBroadcast:
+        """Initiate sending a broadcast. Creates send records and enqueues jobs."""
+        repository = EmailBroadcastRepository.from_session(session)
+
+        subscribers = await self._resolve_audience(session, broadcast)
 
         if not subscribers:
             broadcast.status = EmailBroadcastStatus.sent
             broadcast.sent_at = utc_now()
             broadcast.total_recipients = 0
             return await repository.update(broadcast)
+
+        # Enforce the monthly email-send quota before creating any send
+        # records, so an over-cap broadcast fails fast with a 402.
+        await self._enforce_send_quota(session, broadcast, len(subscribers))
 
         # Did the user configure an A/B test? If so, only the test slice gets
         # variant labels right now; the remainder stays variant=null and is
@@ -475,6 +521,13 @@ class EmailBroadcastService:
             EmailBroadcastStatus.sent,
         ):
             raise BroadcastAlreadySent()
+
+        # Reject at schedule time if the broadcast's current audience already
+        # exceeds the monthly send quota, so the creator isn't surprised by a
+        # silent failure when the schedule fires. The audience may grow before
+        # then; send() re-checks at fire time.
+        audience = await self._resolve_audience(session, broadcast)
+        await self._enforce_send_quota(session, broadcast, len(audience))
 
         repository = EmailBroadcastRepository.from_session(session)
         broadcast.status = EmailBroadcastStatus.scheduled
