@@ -879,8 +879,7 @@ function LessonEditorStyles() {
         letter-spacing: -0.014em;
         -webkit-font-smoothing: antialiased;
       }
-      body.dark .led,
-      .editor-dark .led {
+      body.dark .led {
         --bg: #141416;
         --card: #1d1d20;
         --text: #f5f5f7;
