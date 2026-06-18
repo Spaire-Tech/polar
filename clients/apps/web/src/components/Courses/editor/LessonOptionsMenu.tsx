@@ -231,7 +231,7 @@ function SchedulePanel({
               min={0}
               value={daysInput}
               onChange={(e) => setDaysInput(e.target.value)}
-              className="w-16 rounded-lg border border-gray-300 px-2 py-1 text-[12.5px] focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 focus:outline-none"
+              className="w-16 rounded-lg border border-gray-300 px-2 py-1 text-[12.5px] focus:border-[#0066cc] focus:ring-2 focus:ring-blue-100 focus:outline-none"
             />
             <span className="text-[12px] text-gray-600">
               day{daysInput === '1' ? '' : 's'} after enrollment
@@ -254,7 +254,7 @@ function SchedulePanel({
               type="date"
               value={date}
               onChange={(e) => setDate(e.target.value)}
-              className="rounded-lg border border-gray-300 px-2 py-1 text-[12.5px] focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 focus:outline-none"
+              className="rounded-lg border border-gray-300 px-2 py-1 text-[12.5px] focus:border-[#0066cc] focus:ring-2 focus:ring-blue-100 focus:outline-none"
             />
           </div>
         )}

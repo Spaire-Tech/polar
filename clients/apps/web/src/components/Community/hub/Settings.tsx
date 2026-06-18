@@ -17,6 +17,7 @@ import {
 } from '@/hooks/queries/community'
 import * as React from 'react'
 import { CoverDrop, Field, Seg, Toggle } from './atoms'
+import { HeadInfo } from './HeadInfo'
 import { ProviderSelect, type ProviderKey } from './pickers'
 
 const { useEffect, useState } = React
@@ -152,11 +153,13 @@ export function SettingsTab({
     <>
       <div className="cr-head">
         <div>
-          <div className="h">Settings</div>
-          <div className="s">
-            Everything that shapes how your community looks, who gets in, and how
-            it runs day to day. Members never see these controls — they just
-            experience the room they create.
+          <div className="h">
+            Settings
+            <HeadInfo>
+              Everything that shapes how your community looks, who gets in, and
+              how it runs day to day. Members never see these controls — they
+              just experience the room they create.
+            </HeadInfo>
           </div>
         </div>
       </div>

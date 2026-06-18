@@ -135,10 +135,6 @@
 .editor-dark .border-blue-200 {
   border-color: rgba(60, 110, 230, 0.3) !important;
 }
-.editor-dark .bg-indigo-50,
-.editor-dark [class*='bg-indigo-50/'] {
-  background-color: rgba(60, 74, 201, 0.14) !important;
-}
 .editor-dark .bg-amber-50,
 .editor-dark .bg-yellow-50,
 .editor-dark [class*='bg-amber-50/'] {
@@ -163,6 +159,21 @@
 .editor-dark .border-red-100,
 .editor-dark .border-red-200 {
   border-color: rgba(210, 70, 60, 0.3) !important;
+}
+
+/* ---- community-blue accent: brighten to the community dark accent ----
+   The editor's accent is the community light blue (#0066cc). On a dark canvas
+   that reads muddy, so lift it to the community *dark* accent (#2997ff) — the
+   same blue the community hub uses in dark mode — for active tabs, focus
+   borders, primary buttons, links, toggles. */
+.editor-dark .text-\[\#0066cc\] {
+  color: #2997ff !important;
+}
+.editor-dark .border-\[\#0066cc\] {
+  border-color: #2997ff !important;
+}
+.editor-dark .bg-\[\#0066cc\] {
+  background-color: #2997ff !important;
 }
 
 /* ---- elevation reads softer on a dark canvas ---- */

@@ -1018,7 +1018,7 @@ function AutomationStyles() {
         --card: #ffffff;
         --text: #1d1d1f;
         --text-2: #86868b;
-        --blue: #3c4ac9;
+        --blue: #0066cc;
         --hair: rgba(0, 0, 0, 0.07);
         --ans: #4a4a4f;
         --sf: -apple-system, BlinkMacSystemFont, 'SF Pro Display',

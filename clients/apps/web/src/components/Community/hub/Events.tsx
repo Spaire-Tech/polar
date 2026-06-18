@@ -20,6 +20,7 @@ import {
 import * as React from 'react'
 import { createPortal } from 'react-dom'
 import { CoverDrop, Field, Seg } from './atoms'
+import { HeadInfo } from './HeadInfo'
 import { Glyph } from './icons'
 import {
   browserTz,
@@ -399,11 +400,13 @@ export function EventsTab({
     <>
       <div className="cr-head">
         <div>
-          <div className="h">Events</div>
-          <div className="s">
-            Live moments that bring the room together — a workshop, a Q&amp;A, or
-            a watch party. Schedule one and it publishes a card members can join
-            in a tap.
+          <div className="h">
+            Events
+            <HeadInfo>
+              Live moments that bring the room together — a workshop, a Q&amp;A,
+              or a watch party. Schedule one and it publishes a card members can
+              join in a tap.
+            </HeadInfo>
           </div>
         </div>
         {!showForm && events.length > 0 && (
