@@ -529,7 +529,7 @@ export default function CourseEditor({
 
   return (
     <div
-      className={`flex h-screen flex-col bg-gray-50${dark ? 'editor-dark' : ''}`}
+      className={`flex h-screen flex-col bg-gray-50 ${dark ? 'editor-dark' : ''}`}
     >
       <CourseHeader
         course={course}
