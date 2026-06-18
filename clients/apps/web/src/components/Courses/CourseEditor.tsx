@@ -20,12 +20,13 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { toast } from '../Toast/use-toast'
 import './editor-dark.css'
+import { AuthTab } from './editor/AuthTab'
 import { AutomationsPanel } from './editor/AutomationsPanel'
 import { CommunityTab } from './editor/CommunityTab'
 import { CourseHeader, TabId } from './editor/CourseHeader'
 import { CustomersTab } from './editor/CustomersTab'
 import { CustomizeTab } from './editor/CustomizeTab'
-import { LessonDetail, LessonEdits } from './editor/LessonDetail'
+import { LessonEdits } from './editor/LessonDetail'
 import { LessonEditorV2 } from './editor/LessonEditorV2'
 import { LessonContentType } from './editor/ModuleCard'
 import { OutlineTab } from './editor/OutlineTab'
@@ -83,6 +84,7 @@ export default function CourseEditor({
     'community',
     'automations',
     'settings',
+    'auth',
     'pricing',
     'customers',
   ])
@@ -493,6 +495,8 @@ export default function CourseEditor({
         isSaving={updateCourse.isPending}
       />
     )
+  } else if (activeTab === 'auth') {
+    mainContent = <AuthTab course={course} organization={organization} />
   } else if (activeTab === 'pricing') {
     mainContent = (
       <PricingTab
@@ -525,7 +529,7 @@ export default function CourseEditor({
 
   return (
     <div
-      className={`flex h-screen flex-col bg-gray-50${dark ? ' editor-dark' : ''}`}
+      className={`flex h-screen flex-col bg-gray-50${dark ? 'editor-dark' : ''}`}
     >
       <CourseHeader
         course={course}

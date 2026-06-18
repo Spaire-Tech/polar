@@ -37,6 +37,19 @@ async def get(
     if organization is None:
         raise ResourceNotFound()
 
-    return CustomerOrganizationData.model_validate(
+    data = CustomerOrganizationData.model_validate(
         {"organization": organization, "products": organization.products}
     )
+
+    # Resolve the sign-in image (explicit upload → most recent course
+    # thumbnail) on the response object. We mutate the validated schema rather
+    # than the ORM instance so the fallback is never persisted as the explicit
+    # value.
+    if data.organization.customer_portal_sign_in_image_url is None:
+        data.organization.customer_portal_sign_in_image_url = (
+            await customer_organization_service.resolve_sign_in_image_url(
+                session, organization
+            )
+        )
+
+    return data

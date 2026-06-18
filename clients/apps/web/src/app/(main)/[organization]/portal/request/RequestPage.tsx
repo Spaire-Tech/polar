@@ -2,27 +2,18 @@
 
 import { useCustomerPortalSessionRequest } from '@/hooks/queries'
 import { setValidationErrors } from '@/utils/api/errors'
-import Button from '@spaire/ui/components/atoms/Button'
-import Input from '@spaire/ui/components/atoms/Input'
-import ShadowBox from '@spaire/ui/components/atoms/ShadowBox'
 import { useRouter } from 'next/navigation'
 
 import { api } from '@/utils/client'
 import { schemas } from '@spaire/client'
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormMessage,
-} from '@spaire/ui/components/ui/form'
-import { Label } from '@spaire/ui/components/ui/label'
-import {
-  RadioGroup,
-  RadioGroupItem,
-} from '@spaire/ui/components/ui/radio-group'
 import { useCallback, useState } from 'react'
 import { useForm } from 'react-hook-form'
+import { PortalAuthScene } from '../_auth/PortalAuthScene'
+
+// Where the authenticate step reads the address back for the "we sent a code
+// to <email>" echo and for resending. sessionStorage (not a query param) keeps
+// the address out of the URL/history.
+export const PORTAL_EMAIL_KEY = 'spaire_portal_signin_email'
 
 interface CustomerSelectionOption {
   id: string
@@ -34,6 +25,7 @@ interface CustomerSelectionRequiredResponse {
   detail: string
   customers: CustomerSelectionOption[]
 }
+
 const ClientPage = ({
   organization,
   email,
@@ -47,7 +39,7 @@ const ClientPage = ({
       email: email || '',
     },
   })
-  const { control, handleSubmit, setError, getValues } = form
+  const { register, handleSubmit, setError, getValues, formState } = form
   const sessionRequest = useCustomerPortalSessionRequest(api, organization.id)
 
   const [customers, setCustomers] = useState<CustomerSelectionOption[]>([])
@@ -78,6 +70,12 @@ const ClientPage = ({
         }
         return
       }
+
+      try {
+        sessionStorage.setItem(PORTAL_EMAIL_KEY, email)
+      } catch {
+        /* ignore */
+      }
       router.push(`/${organization.slug}/portal/authenticate`)
     },
     [sessionRequest, setError, router, organization],
@@ -91,115 +89,134 @@ const ClientPage = ({
 
   if (showCustomerPicker) {
     return (
-      <ShadowBox className="flex w-full max-w-7xl flex-col items-center gap-12 md:px-32 md:py-24">
-        <div className="flex w-full flex-col gap-y-6 md:max-w-sm">
-          <div className="flex flex-col gap-4">
-            <h2 className="text-2xl text-black">
-              Select an account
-            </h2>
-            <p className=" text-gray-500">
-              Multiple accounts are associated with this email. Please select
-              the account you want to access.
-            </p>
-          </div>
-          <RadioGroup
-            value={selectedCustomerId}
-            onValueChange={setSelectedCustomerId}
-            className="flex flex-col gap-3"
+      <PortalAuthScene organization={organization}>
+        <button
+          type="button"
+          className="spauth-back"
+          onClick={() => {
+            setShowCustomerPicker(false)
+            setSelectedCustomerId('')
+            setCustomers([])
+          }}
+        >
+          <svg
+            width="17"
+            height="17"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
           >
-            {customers.map((customer) => (
-              <div
-                key={customer.id}
-                className=" flex items-center space-x-3 rounded-lg border p-4 hover:bg-gray-50"
-              >
-                <RadioGroupItem value={customer.id} id={customer.id} />
-                <Label
-                  htmlFor={customer.id}
-                  className="flex-1 cursor-pointer font-medium"
-                >
-                  {customer.name || 'Unnamed account'}
-                </Label>
-              </div>
-            ))}
-          </RadioGroup>
-          <div className="flex gap-3">
-            <Button
-              variant="ghost"
-              size="lg"
-              onClick={() => {
-                setShowCustomerPicker(false)
-                setSelectedCustomerId('')
-                setCustomers([])
-              }}
+            <path d="M15 5l-7 7 7 7" />
+          </svg>
+          Back
+        </button>
+        <h1 className="spauth-title">Select an account</h1>
+        <p className="spauth-sub">
+          Multiple accounts are associated with this email. Choose the one you
+          want to access.
+        </p>
+
+        <div className="spauth-accounts">
+          {customers.map((customer) => (
+            <button
+              key={customer.id}
+              type="button"
+              className={`spauth-account${
+                selectedCustomerId === customer.id ? 'spauth-selected' : ''
+              }`}
+              onClick={() => setSelectedCustomerId(customer.id)}
             >
-              Back
-            </Button>
-            <Button
-              size="lg"
-              className="flex-1"
-              loading={sessionRequest.isPending}
-              disabled={sessionRequest.isPending || !selectedCustomerId}
-              onClick={handleCustomerSelect}
-            >
-              Continue
-            </Button>
-          </div>
+              <span className="spauth-account-dot" />
+              {customer.name || 'Unnamed account'}
+            </button>
+          ))}
         </div>
-      </ShadowBox>
+
+        <button
+          type="button"
+          className="spauth-btn"
+          onClick={handleCustomerSelect}
+          disabled={sessionRequest.isPending || !selectedCustomerId}
+        >
+          {sessionRequest.isPending ? (
+            <span className="spauth-spin" />
+          ) : (
+            'Continue'
+          )}
+        </button>
+      </PortalAuthScene>
     )
   }
 
   return (
-    <ShadowBox className="flex w-full max-w-7xl flex-col items-center gap-12 md:px-32 md:py-24">
-      <div className="flex w-full flex-col gap-y-6 md:max-w-sm">
-        <div className="flex flex-col gap-4">
-          <h2 className="text-2xl text-black">Sign in</h2>
-          <p className=" text-gray-500">
-            Enter your email address to access your purchases. A verification
-            code will be sent to you.
-          </p>
+    <PortalAuthScene organization={organization}>
+      <h1 className="spauth-title">Sign in</h1>
+      <p className="spauth-sub">
+        Enter your email address to access your purchases. A verification code
+        will be sent to you.
+      </p>
+
+      <form onSubmit={handleSubmit((data) => onSubmit(data))}>
+        <div
+          className={`spauth-field${formState.errors.email ? 'spauth-err' : ''}`}
+        >
+          <label className="spauth-field-label" htmlFor="email">
+            Email address
+          </label>
+          <input
+            id="email"
+            className="spauth-field-input"
+            type="email"
+            inputMode="email"
+            autoComplete="email"
+            autoCapitalize="off"
+            spellCheck={false}
+            placeholder="you@example.com"
+            {...register('email', { required: 'Enter a valid email address.' })}
+          />
+          {formState.errors.email && (
+            <div className="spauth-field-msg">
+              {formState.errors.email.message}
+            </div>
+          )}
         </div>
-        <Form {...form}>
-          <form
-            className="flex w-full flex-col gap-y-6"
-            onSubmit={handleSubmit((data) => onSubmit(data))}
-          >
-            <FormField
-              control={control}
-              name="email"
-              rules={{
-                required: 'This field is required',
-              }}
-              render={({ field }) => {
-                return (
-                  <FormItem>
-                    <FormControl>
-                      <Input
-                        type="email"
-                        required
-                        placeholder="Email address"
-                        autoComplete="email"
-                        className="bg-white shadow-xs"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )
-              }}
-            />
-            <Button
-              type="submit"
-              size="lg"
-              loading={sessionRequest.isPending}
-              disabled={sessionRequest.isPending}
-            >
-              Access my purchases
-            </Button>
-          </form>
-        </Form>
-      </div>
-    </ShadowBox>
+
+        <button
+          type="submit"
+          className="spauth-btn"
+          disabled={sessionRequest.isPending}
+        >
+          {sessionRequest.isPending ? (
+            <span className="spauth-spin" />
+          ) : (
+            'Send code'
+          )}
+        </button>
+      </form>
+
+      <p className="spauth-footnote">
+        By continuing you agree to the{' '}
+        <a
+          href="https://www.spairehq.com/legal/terms-of-service"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Terms
+        </a>{' '}
+        &amp;{' '}
+        <a
+          href="https://www.spairehq.com/legal/privacy-policy"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Privacy Policy
+        </a>
+        .
+      </p>
+    </PortalAuthScene>
   )
 }
 
