@@ -110,7 +110,7 @@ class TestGrandfatherOrganizations:
         platform_org = await create_organization(save_fixture)
         _patch_platform_org_id(mocker, platform_org.id)
         pro_product = await _seed_tier_product(
-            save_fixture, platform_org=platform_org, tier=TierKey.pro.value
+            save_fixture, platform_org=platform_org, tier=TierKey.starter.value
         )
         await _seed_tier_product(
             save_fixture, platform_org=platform_org, tier=TierKey.legacy.value

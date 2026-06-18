@@ -36,15 +36,15 @@ def _patch_platform_org_id(mocker: MockerFixture, org_id: UUID | None) -> None:
     mocker.patch("polar.platform.service.settings.PLATFORM_ORG_ID", org_id)
 
 
-def _patch_pro_limits(mocker: MockerFixture, **limit_overrides: int | None) -> None:
-    """See tests/quotas/test_service.py:_patch_pro_limits."""
-    base = get_definition(TierKey.pro)
+def _patch_starter_limits(mocker: MockerFixture, **limit_overrides: int | None) -> None:
+    """See tests/quotas/test_service.py:_patch_starter_limits."""
+    base = get_definition(TierKey.starter)
     overridden = dataclasses.replace(
         base, limits=dataclasses.replace(base.limits, **limit_overrides)
     )
 
     def _resolve(tier: TierKey) -> "object":
-        if tier == TierKey.pro:
+        if tier == TierKey.starter:
             return overridden
         return get_definition(tier)
 
@@ -223,13 +223,13 @@ class TestEnforce:
         _patch_platform_org_id(mocker, platform_org.id)
         # Patch Pro down to 5000/mo so we can fill near-cap with 4999
         # events. Pro's real limit is 250k.
-        _patch_pro_limits(mocker, email_sends_monthly=5000)
+        _patch_starter_limits(mocker, email_sends_monthly=5000)
         creator = await create_organization(save_fixture)
         await _subscribe(
             save_fixture,
             platform_org=platform_org,
             creator=creator,
-            tier="pro",
+            tier="starter",
             monthly_cents=0,
         )
         # Pro grace = 10%, ceiling = 5500. 4999 + requested=2 lands in
@@ -267,7 +267,7 @@ class TestEnforce:
             save_fixture,
             platform_org=platform_org,
             creator=creator,
-            tier="pro",
+            tier="starter",
             monthly_cents=4900,
         )
 
@@ -326,7 +326,7 @@ class TestProducersIntegrateWithService:
             save_fixture,
             platform_org=platform_org,
             creator=creator,
-            tier="pro",
+            tier="starter",
             monthly_cents=4900,
         )
 

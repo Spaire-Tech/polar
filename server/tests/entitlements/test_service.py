@@ -97,7 +97,7 @@ class TestGetTier:
         _patch_platform_org_id(mocker, platform_org.id)
 
         product = await _seed_tier_product(
-            save_fixture, platform_org=platform_org, tier="pro", monthly_cents=4900
+            save_fixture, platform_org=platform_org, tier="starter", monthly_cents=4900
         )
         customer = await create_customer(
             save_fixture,
@@ -120,7 +120,7 @@ class TestGetTier:
     @pytest.mark.parametrize(
         "tier_label,expected,monthly_cents",
         [
-            ("pro", TierKey.pro, 4900),
+            ("pro", TierKey.starter, 4900),
             ("studio", TierKey.studio, 12900),
             ("scale", TierKey.scale, 29900),
         ],
@@ -172,7 +172,7 @@ class TestGetTier:
         _patch_platform_org_id(mocker, platform_org.id)
 
         product = await _seed_tier_product(
-            save_fixture, platform_org=platform_org, tier="pro", monthly_cents=4900
+            save_fixture, platform_org=platform_org, tier="starter", monthly_cents=4900
         )
         customer = await create_customer(
             save_fixture,
@@ -189,7 +189,7 @@ class TestGetTier:
 
         tier = await entitlements.get_tier(session, creator.id)
 
-        assert tier == TierKey.pro
+        assert tier == TierKey.starter
 
     async def test_unrecognized_tier_metadata_returns_legacy(
         self,
@@ -251,7 +251,7 @@ class TestGetForOrganization:
         _patch_platform_org_id(mocker, platform_org.id)
 
         product = await _seed_tier_product(
-            save_fixture, platform_org=platform_org, tier="pro", monthly_cents=4900
+            save_fixture, platform_org=platform_org, tier="starter", monthly_cents=4900
         )
         customer = await create_customer(
             save_fixture,
@@ -268,16 +268,16 @@ class TestGetForOrganization:
 
         result = await entitlements.get_for_organization(session, creator.id)
 
-        assert result.tier == TierKey.pro
+        assert result.tier == TierKey.starter
         assert result.transaction_fee.percent_basis_points == 400
         assert result.transaction_fee.fixed_cents == 40
         assert result.monthly_price_cents == 4900
         assert result.features.email_sequences_and_segments is True
         assert result.features.white_label_course_player is False
         assert result.features.customer_wallet is False
-        assert result.limits.published_courses == 3
-        assert result.limits.active_email_sequences == 1
-        assert result.limits.email_sends_monthly == 10_000
+        assert result.limits.published_courses == 5
+        assert result.limits.active_email_sequences == 3
+        assert result.limits.email_sends_monthly == 25_000
 
     async def test_legacy_has_unlimited_limits(
         self,
@@ -306,30 +306,46 @@ class TestTierDefinitions:
         assert studio.monthly_price_cents == 12900
         assert studio.transaction_fee.percent_basis_points == 380
         assert studio.transaction_fee.fixed_cents == 35
-        assert studio.limits.published_courses == 15
-        assert studio.limits.active_email_sequences == 10
+        assert studio.limits.published_courses == 25
+        assert studio.limits.active_email_sequences == 15
         assert studio.limits.video_hours_hosted == 50
+        assert studio.limits.email_subscribers == 25_000
         assert studio.limits.email_sends_monthly == 100_000
         assert studio.limits.dashboard_team_seats == 5
         assert studio.features.white_label_course_player is True
         assert studio.features.customer_wallet is True
         assert studio.features.custom_pricing_negotiation is False
 
-    def test_pro_shape(self) -> None:
+    def test_starter_shape(self) -> None:
         from polar.entitlements.tiers import get_definition
 
-        pro = get_definition(TierKey.pro)
-        assert pro.monthly_price_cents == 4900
-        assert pro.transaction_fee.percent_basis_points == 400
-        assert pro.transaction_fee.fixed_cents == 40
-        assert pro.limits.published_courses == 3
-        assert pro.limits.active_email_sequences == 1
-        assert pro.limits.email_sends_monthly == 10_000
-        assert pro.features.email_sequences_and_segments is True
-        # email_ab_testing was pulled up to Studio+ so Pro doesn't have it.
-        assert pro.features.email_ab_testing is False
-        assert pro.features.customer_wallet is False
-        assert pro.rate_limit_group == "elevated"
+        starter = get_definition(TierKey.starter)
+        assert starter.monthly_price_cents == 4900
+        assert starter.transaction_fee.percent_basis_points == 400
+        assert starter.transaction_fee.fixed_cents == 40
+        assert starter.limits.published_courses == 5
+        assert starter.limits.active_email_sequences == 3
+        assert starter.limits.video_hours_hosted == 25
+        assert starter.limits.email_subscribers == 5_000
+        assert starter.limits.email_sends_monthly == 25_000
+        assert starter.features.email_sequences_and_segments is True
+        # email_ab_testing was pulled up to Studio+ so Starter doesn't have it.
+        assert starter.features.email_ab_testing is False
+        assert starter.features.customer_wallet is False
+        assert starter.rate_limit_group == "elevated"
+
+    def test_legacy_bills_at_worst_rate(self) -> None:
+        from polar.entitlements.tiers import get_definition
+
+        legacy = get_definition(TierKey.legacy)
+        # Legacy has no feature/quota enforcement but is billed at the
+        # global default — the worst rate we charge — so an un-converted
+        # org is never cheaper than a paid plan.
+        assert legacy.monthly_price_cents == 0
+        assert legacy.transaction_fee.percent_basis_points == 500
+        assert legacy.transaction_fee.fixed_cents == 50
+        assert legacy.limits.published_courses is None
+        assert legacy.features.audit_logs is True
 
     def test_scale_shape(self) -> None:
         from polar.entitlements.tiers import get_definition

@@ -125,7 +125,7 @@ class TestSyncForOrganization:
         creator, account, _ = await _setup_subscribed_creator(
             mocker=mocker,
             save_fixture=save_fixture,
-            tier=TierKey.pro,
+            tier=TierKey.starter,
             monthly_cents=4900,
             platform_fee_locked=True,
         )
@@ -151,7 +151,7 @@ class TestSyncForOrganization:
         creator, account, _ = await _setup_subscribed_creator(
             mocker=mocker,
             save_fixture=save_fixture,
-            tier=TierKey.pro,
+            tier=TierKey.starter,
             monthly_cents=4900,
             platform_fee_locked=True,
         )
@@ -175,7 +175,7 @@ class TestSyncForOrganization:
         creator, account, _ = await _setup_subscribed_creator(
             mocker=mocker,
             save_fixture=save_fixture,
-            tier=TierKey.pro,
+            tier=TierKey.starter,
             monthly_cents=0,
         )
 
@@ -195,7 +195,7 @@ class TestSyncForOrganization:
         creator, account, _ = await _setup_subscribed_creator(
             mocker=mocker,
             save_fixture=save_fixture,
-            tier=TierKey.pro,
+            tier=TierKey.starter,
             monthly_cents=4900,
         )
 
@@ -233,7 +233,7 @@ class TestSyncForOrganization:
         creator, account, _ = await _setup_subscribed_creator(
             mocker=mocker,
             save_fixture=save_fixture,
-            tier=TierKey.pro,
+            tier=TierKey.starter,
             monthly_cents=4900,
             fee_basis_points=400,
             fee_fixed=40,
@@ -311,7 +311,7 @@ class TestMaybeEnqueueFromSubscription:
         product = await _seed_tier_product(
             save_fixture,
             platform_org=platform_org,
-            tier=TierKey.pro.value,
+            tier=TierKey.starter.value,
             monthly_cents=4900,
         )
         customer = await create_customer(
@@ -407,7 +407,7 @@ class TestMaybeEnqueueFromSubscription:
         product = await _seed_tier_product(
             save_fixture,
             platform_org=platform_org,
-            tier=TierKey.pro.value,
+            tier=TierKey.starter.value,
             monthly_cents=4900,
         )
         # Customer on platform org but missing the creator_org_id metadata.

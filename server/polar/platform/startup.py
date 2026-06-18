@@ -1,10 +1,10 @@
 """Startup verification for Spaire-on-Spaire billing.
 
 When SPAIRE_PLATFORM_ORG_ID is set, the API requires the four tier
-products (legacy, pro, studio, scale) and the four overage meters to
+products (legacy, starter, studio, scale) and the four overage meters to
 exist on the platform org. Without them:
 
-  - organization.created actor can't start the new org on a Pro trial
+  - organization.created actor can't start the new org on a Starter trial
     (TierProductMissing), leaving them with no platform subscription.
   - EntitlementsService falls back to "legacy" (unlimited) for those
     orgs, so they aren't billed correctly until ops notices.
@@ -24,6 +24,8 @@ from polar.kit.db.postgres import AsyncSession
 from polar.platform.repository import platform_product_repository
 from polar.platform.service import (
     PlatformError,
+)
+from polar.platform.service import (
     platform as platform_service,
 )
 
@@ -36,11 +38,11 @@ class PlatformStartupError(Exception):
     so the operator knows exactly what to run."""
 
 
-_REQUIRED_TIERS = (TierKey.legacy, TierKey.pro, TierKey.studio, TierKey.scale)
+_REQUIRED_TIERS = (TierKey.legacy, TierKey.starter, TierKey.studio, TierKey.scale)
 
 # Tiers that must carry a 14-day trial configuration on their Product row.
 # Legacy is intentionally excluded — it's a $0 grandfather product, no trial.
-_TRIAL_REQUIRED_TIERS = (TierKey.pro, TierKey.studio, TierKey.scale)
+_TRIAL_REQUIRED_TIERS = (TierKey.starter, TierKey.studio, TierKey.scale)
 
 
 async def verify_platform_setup(session: AsyncSession) -> None:
@@ -110,9 +112,10 @@ async def verify_platform_setup(session: AsyncSession) -> None:
         raise PlatformStartupError(
             f"Platform organization '{platform_org.slug}' has tier products "
             f"missing a trial configuration: {', '.join(missing_trial_tiers)}. "
-            "Re-run `uv run task seed_platform_products` so Pro/Studio/Scale "
-            "carry their 14-day trial — without it, every new org receives "
-            "active (non-trial) Pro for $0 indefinitely."
+            "Re-run `uv run task seed_platform_products` so "
+            "Starter/Studio/Scale carry their 14-day trial — without it, "
+            "every new org receives active (non-trial) Starter for $0 "
+            "indefinitely."
         )
 
     log.info(

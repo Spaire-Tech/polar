@@ -37,7 +37,7 @@ export default function PlanPage() {
   const ordered = useMemo<TierPlan[]>(() => {
     if (!plans.data?.items) return []
     const map = new Map(plans.data.items.map((p) => [p.tier, p]))
-    return (['pro', 'studio', 'scale'] as const)
+    return (['starter', 'studio', 'scale'] as const)
       .map((t) => map.get(t))
       .filter((p): p is TierPlan => Boolean(p))
   }, [plans.data])
@@ -313,13 +313,15 @@ const formatCount = (n: number): string => {
 }
 
 const featuresForTier = (plan: TierPlan): string[] => {
-  if (plan.tier === 'pro') {
+  if (plan.tier === 'starter') {
     return [
       'Merchant of Record — Spaire handles tax & VAT',
       `${formatTransactionFee(plan.transaction_fee)} per transaction`,
       `${plan.limits.published_courses} published courses`,
       `${formatCount(plan.limits.email_subscribers ?? 0)} email subscribers`,
-      `${plan.limits.active_email_sequences} active email sequence`,
+      `${plan.limits.active_email_sequences} active email ${
+        plan.limits.active_email_sequences === 1 ? 'sequence' : 'sequences'
+      }`,
       `${plan.limits.video_hours_hosted} hours of hosted video`,
       'Sandbox / test environment',
     ]

@@ -140,30 +140,30 @@ class PlatformBillingService:
         enqueue_fee_sync(organization.id)
         return subscription
 
-    async def ensure_pro_trial_subscription(
+    async def ensure_starter_trial_subscription(
         self,
         session: AsyncSession,
         organization: Organization,
     ) -> Subscription | None:
         """Convenience wrapper called from the org-creation hook.
 
-        Starts a 14-day Pro trial. The Pro product carries the trial
-        configuration (trial_interval=day, count=14) and `_create_subscription`
-        promotes that to a `trialing` status with `trial_end` set 14 days
-        from now. After the trial expires the platform.expire_trials
-        cron lapses the sub and re-subscribes the org to Legacy unless
-        the creator has converted via upgrade-checkout (which captures
-        a payment method and supersedes this auto-trial with a fresh
-        Stripe-managed subscription on the chosen tier).
+        Starts a 14-day Starter trial. The Starter product carries the
+        trial configuration (trial_interval=day, count=14) and
+        `_create_subscription` promotes that to a `trialing` status with
+        `trial_end` set 14 days from now. After the trial expires the
+        platform.expire_trials cron lapses the sub and re-subscribes the
+        org to Legacy unless the creator has converted via upgrade-checkout
+        (which captures a payment method and supersedes this auto-trial
+        with a fresh Stripe-managed subscription on the chosen tier).
 
         Pre-attaching this trial is what gives a freshly created org a
-        real Pro tier from the first dashboard hit — without it,
+        real Starter tier from the first dashboard hit — without it,
         EntitlementsService.get_tier silently falls back to Legacy
-        (unlimited everything), which is the exact bypass the PRICING.md
+        (unlimited features), which is the exact bypass the PRICING.md
         rollout is supposed to close.
         """
         return await self.ensure_subscription(
-            session, organization, tier=TierKey.pro, managed_by="trial"
+            session, organization, tier=TierKey.starter, managed_by="trial"
         )
 
     async def ensure_platform_customer(

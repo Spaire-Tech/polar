@@ -1,6 +1,6 @@
 # Spaire Pricing
 
-Three paid tiers — **Pro**, **Studio**, **Scale** — calibrated against what the platform actually ships today and benchmarked against Kajabi, Podia, Thinkific, Lemon Squeezy, Paddle, and Gumroad. Every paid tier ships with a **14-day free trial** so creators can build inside Spaire before being charged.
+Three paid tiers — **Starter**, **Studio**, **Scale** — calibrated against what the platform actually ships today and benchmarked against Kajabi, Podia, Thinkific, Lemon Squeezy, Paddle, and Gumroad. Every paid tier ships with a **14-day free trial** so creators can build inside Spaire before being charged.
 
 Spaire's positioning vs. those competitors:
 
@@ -12,7 +12,7 @@ The tiering story: "Stripe-grade infra + Kajabi-grade creator tools + MoR tax ha
 
 ---
 
-## Universal — applies to Pro, Studio, and Scale
+## Universal — applies to Starter, Studio, and Scale
 
 The following are part of the product on every tier. Gating any of these would break delivery for paying customers.
 
@@ -31,7 +31,7 @@ The following are part of the product on every tier. Gating any of these would b
 | Email broadcasts | ✓ |
 | Discount codes (creator-shared) | ✓ |
 | CSV exports of analytics & customer data | ✓ |
-| "Powered by Spaire" badge on storefront & checkout | shown on Pro; removable on Studio & Scale |
+| "Powered by Spaire" badge on storefront & checkout | shown on Starter; removable on Studio & Scale |
 | Payout settlement | 7-day delay from transaction date |
 | Settlement grandfathering | orgs created before May 12, 2026 keep instant payouts |
 | Stripe chargeback fee | $15 passthrough to creator |
@@ -43,7 +43,7 @@ The following are part of the product on every tier. Gating any of these would b
 
 ## Tier differentiators
 
-| Lever | Pro | Studio | Scale |
+| Lever | Starter | Studio | Scale |
 |---|---|---|---|
 | **Best for** | Solo creators starting out | Small teams scaling up | Established businesses |
 | **Free trial** | 14 days | 14 days | 14 days |
@@ -51,12 +51,12 @@ The following are part of the product on every tier. Gating any of these would b
 | **Annual** (save 20%) | $39/mo · $470/yr | $103/mo · $1,238/yr | $239/mo · $2,870/yr |
 | **Transaction fee** | 4% + $0.40 | 3.8% + $0.35 | 3.5% + $0.30 |
 | **Custom pricing at scale** | — | — | available above $50k/mo GMV |
-| **Published courses** | 3 | 15 | 100 |
+| **Published courses** | 5 | 25 | 100 |
 | **Lessons per course** | 50 | unlimited | unlimited |
-| **Active email sequences** | 1 | 10 | unlimited |
-| **Email subscribers** | 1,000 | 10,000 | 50,000 |
-| **Email sends / month** ‡ | 10,000 | 100,000 | 500,000 |
-| **Course video hours hosted** ‡ | 10 | 50 | 200 |
+| **Active email sequences** | 3 | 15 | unlimited |
+| **Email subscribers** | 5,000 | 25,000 | 50,000 |
+| **Email sends / month** ‡ | 25,000 | 100,000 | 500,000 |
+| **Course video hours hosted** ‡ | 25 | 50 | 200 |
 | **Course video views / month** ‡ | 5,000 | 50,000 | 250,000 |
 | **Downloadables storage** ‡ | 5 GB | 50 GB | 250 GB |
 | **Dashboard team seats** | 1 | 5 | 20 |
@@ -106,7 +106,7 @@ The following are part of the product on every tier. Gating any of these would b
 
 **Sandbox / test mode:** a non-production environment for testing integrations without real payments or transaction fees.
 
-**Legacy:** internal-only fallback tier for organizations created before tiered pricing existed, plus the $0 destination an org lands on after canceling. Not a public plan; not selectable from the upgrade modal.
+**Legacy:** internal-only fallback tier for organizations created before tiered pricing existed, plus the destination an org lands on after a trial lapses or a paid plan is canceled. There is no monthly fee, but transactions are billed at the global default rate (5% + $0.50) — the worst rate we charge — so Legacy is never cheaper than a paid plan. Features and quotas are unenforced. Not a public plan; not selectable from the upgrade modal.
 
 ---
 
@@ -127,7 +127,7 @@ Spaire's true per-transaction cost as MoR on Stripe is roughly:
 
 This is why:
 
-- **Pro at $49/mo + 4% + $0.40** is the entry point — the monthly fee covers compliance overhead while the per-transaction rate keeps margin on US card volume.
+- **Starter at $49/mo + 4% + $0.40** is the entry point — the monthly fee covers compliance overhead while the per-transaction rate keeps margin on US card volume.
 - **Studio at $129/mo + 3.8% + $0.35** trades a higher fixed fee for a lower variable rate. It pays off for creators above ~$15k/mo GMV.
 - **Scale at $299/mo + 3.5% + $0.30** is at-cost on the variable side; the monthly fee is the margin. Below 3.5% requires negotiated volume commitments.
 
@@ -137,10 +137,10 @@ Custom pricing for the Scale tier kicks in above $50k/month GMV. The negotiated 
 
 ## Trial & onboarding flow
 
-1. Creator signs up → backend auto-starts a **14-day Pro trial** subscription on the platform org. No card required at signup.
-2. During the trial the creator has Pro entitlements (limits + features) and can build courses, send emails, etc.
-3. At any point the creator can switch the target tier (Pro / Studio / Scale) via the upgrade modal in `Settings → Billing`. The upgrade-checkout endpoint converts the trialing subscription in-place — they enter a payment method, the trial keeps running for the remaining days, then bills at the picked tier.
-4. If the trial expires without conversion, the subscription lapses and the org is moved to **Legacy** (no charge, no enforcement) so creators don't hard-lose access mid-month while ops follows up.
+1. Creator signs up → backend auto-starts a **14-day Starter trial** subscription on the platform org. No card required at signup.
+2. During the trial the creator has Starter entitlements (limits + features) and can build courses, send emails, etc.
+3. At any point the creator can switch the target tier (Starter / Studio / Scale) via the upgrade modal in `Settings → Plan`. The upgrade-checkout endpoint converts the trialing subscription in-place — they enter a payment method, the remaining trial days carry over to the paid subscription, then it bills at the picked tier.
+4. If the trial expires without conversion, the subscription lapses and the org is moved to **Legacy** — no feature/quota enforcement, but billed at the global default transaction rate (5% + $0.50), which is the worst rate we charge. So an un-converted org keeps access but never pays *less* than a paid plan; letting the trial lapse is never the cheaper choice.
 
 ---
 
@@ -183,9 +183,9 @@ Custom pricing for the Scale tier kicks in above $50k/month GMV. The negotiated 
 
 ### Trial conversion follow-ups
 
-- Cron task to expire / lapse Pro trials that didn't capture a payment method by day 14 — currently Pro-trial subscriptions run indefinitely once `trial_end` passes; they need to be flipped to `past_due` or canceled, then auto-resubscribed to Legacy via the existing `platform.resubscribe_to_legacy` actor.
-- Creator-facing reminder emails at trial day 7, day 12, and day 14.
-- "Trial extension" override for support to give a creator more time.
+- Cron task to expire / lapse Starter trials that didn't capture a payment method by day 14, then auto-resubscribe to Legacy via the `platform.resubscribe_to_legacy` actor. Platform-internal trial subscriptions are excluded from the generic subscription-cycle scheduler so the trial-expiry cron is the single owner of their end-of-life.
+- Creator-facing reminder emails at trial day 7, day 2, and day 0.
+- "Trial extension" override for support to give a creator more time (`scripts/extend_platform_trial.py`).
 
 ### Deliberately removed from the table
 
@@ -197,8 +197,8 @@ Custom pricing for the Scale tier kicks in above $50k/month GMV. The negotiated 
 
 ## Recommended ship order
 
-1. **Trial conversion plumbing** — lapse-expired-trial cron, reminder emails, support extension. This is the highest-leverage gap; without it Pro trials sit in `trialing` forever.
-2. **Studio differentiators** — white-label player toggle, customer wallet polish so the +$80 between Pro and Studio is visible.
+1. **Trial conversion plumbing** — lapse-expired-trial cron, reminder emails, support extension. This is the highest-leverage gap; without it Starter trials sit in `trialing` forever.
+2. **Studio differentiators** — white-label player toggle, customer wallet polish so the +$80 between Starter and Studio is visible.
 3. **Cohort retention curves** — closes the cohort_analytics roadmap row that's open across all three tiers.
 4. **Scale-tier build** — sandbox/test mode, audit logs UI, then the domain bundles.
 5. **Defer until paying Scale demand exists** — SSO, SCIM, course certificates, affiliate portal.

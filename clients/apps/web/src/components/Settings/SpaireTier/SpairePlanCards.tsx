@@ -31,7 +31,7 @@ interface SpairePlanCardsProps {
 }
 
 /**
- * Plan-selection grid — three cards (Pro / Studio / Scale) styled to
+ * Plan-selection grid — three cards (Starter / Studio / Scale) styled to
  * match the Framer/Webflow plan-card pattern, with a single global
  * Monthly/Annual toggle.
  *
@@ -57,7 +57,7 @@ const SpairePlanCards = ({ organization }: SpairePlanCardsProps) => {
   const ordered = useMemo<TierPlan[]>(() => {
     if (!plans.data?.items) return []
     const map = new Map(plans.data.items.map((p) => [p.tier, p]))
-    return (['pro', 'studio', 'scale'] as const)
+    return (['starter', 'studio', 'scale'] as const)
       .map((t) => map.get(t))
       .filter((p): p is TierPlan => Boolean(p))
   }, [plans.data])
@@ -419,7 +419,7 @@ interface ResolveCtaArgs {
 
 const TIER_ORDER: Record<string, number> = {
   legacy: 0,
-  pro: 1,
+  starter: 1,
   studio: 2,
   scale: 3,
 }
@@ -444,8 +444,8 @@ const resolveCta = (args: ResolveCtaArgs): CtaKind => {
     return { kind: 'cancel' }
   }
 
-  // Same tier, different interval (e.g. Pro monthly user looking at Pro
-  // annual). Allow the switch via update_product unless trialing.
+  // Same tier, different interval (e.g. Starter monthly user looking at
+  // Starter annual). Allow the switch via update_product unless trialing.
   if (plan.tier === currentTier && interval !== currentInterval) {
     if (isTrial) {
       return { kind: 'convert_trial' }
@@ -599,7 +599,7 @@ const PrimaryBlackButton = ({
 // -----------------------------------------------------------------------------
 
 const buildFeatureLines = (plan: TierPlan): string[] => {
-  if (plan.tier === 'pro') return proLines(plan)
+  if (plan.tier === 'starter') return starterLines(plan)
   if (plan.tier === 'studio') return studioLines(plan)
   if (plan.tier === 'scale') return scaleLines(plan)
   // Defensive — Legacy isn't in the card grid.
@@ -612,17 +612,19 @@ const formatCount = (n: number): string => {
   return String(n)
 }
 
-// Pro lists the full baseline. Studio and Scale list only the
+// Starter lists the full baseline. Studio and Scale list only the
 // incremental delta — the "Everything from X, plus:" header above them
 // in the card carries the inheritance, so re-listing identical rows
 // would just inflate the cards.
-const proLines = (plan: TierPlan): string[] => [
+const starterLines = (plan: TierPlan): string[] => [
   'Merchant of Record — Spaire handles tax & VAT',
   `${formatTransactionFee(plan.transaction_fee)} per transaction`,
   `${plan.limits.published_courses} published courses`,
   `${formatCount(plan.limits.email_subscribers ?? 0)} email subscribers`,
   `${formatCount(plan.limits.email_sends_monthly ?? 0)} email sends / month`,
-  `${plan.limits.active_email_sequences} active email sequence`,
+  `${plan.limits.active_email_sequences} active email ${
+    plan.limits.active_email_sequences === 1 ? 'sequence' : 'sequences'
+  }`,
   `${plan.limits.video_hours_hosted} hours of hosted video`,
   'Sandbox / test environment',
 ]

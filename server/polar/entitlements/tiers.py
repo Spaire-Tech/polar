@@ -11,14 +11,42 @@ from polar.config import settings
 
 
 class TierKey(StrEnum):
-    pro = "pro"
+    starter = "starter"
     studio = "studio"
     scale = "scale"
     # Fallback for orgs that don't have a platform-org subscription yet:
     # either because the platform is not configured (single-tenant /
     # development), the grandfather migration hasn't run, or the org is
-    # the platform org itself. Treated as "unlimited" — no enforcement.
+    # the platform org itself. Treated as "unlimited" feature/quota-wise,
+    # but billed at the global default (worst) transaction rate so an
+    # un-converted org is never cheaper than a paid plan.
     legacy = "legacy"
+
+
+# The Starter tier originally shipped under the key "pro". Existing platform
+# product/subscription metadata, older API clients, and historical analytics
+# may still carry "pro"; normalize it to the canonical "starter" before any
+# enum resolution so no existing record silently falls back to legacy.
+_TIER_ALIASES: dict[str, str] = {"pro": "starter"}
+
+
+def normalize_tier_value(value: str) -> str:
+    """Map a (possibly legacy) tier string onto its canonical TierKey value.
+
+    Unknown values pass through unchanged so the caller's own
+    ``TierKey(...)`` lookup raises/falls back as before.
+    """
+    return _TIER_ALIASES.get(value, value)
+
+
+def tier_from_value(value: str) -> TierKey | None:
+    """Resolve a raw tier string (honoring aliases) to a TierKey, or None
+    when it doesn't name a known tier."""
+    try:
+        return TierKey(normalize_tier_value(value))
+    except ValueError:
+        return None
+
 
 
 @dataclass(frozen=True)
@@ -93,9 +121,11 @@ class TierEntitlements:
     overage_grace_pct: int
 
 
-# `legacy` matches the behavior the platform had before tier billing existed:
-# unlimited everything, fee from the global config default. This is the
-# fallback for any org that doesn't have an active platform-org subscription.
+# `legacy` keeps unlimited features/quotas (no enforcement) but bills at the
+# global config default, which is deliberately the *worst* transaction rate
+# (5% + 50¢). This is the fallback for any org without an active platform-org
+# subscription — an un-converted or churned org is therefore never cheaper
+# than a paid plan, so letting a trial lapse is never the rational choice.
 _LEGACY = TierEntitlements(
     tier=TierKey.legacy,
     transaction_fee=TransactionFee(
@@ -136,31 +166,32 @@ _LEGACY = TierEntitlements(
 )
 
 
-_PRO = TierEntitlements(
-    tier=TierKey.pro,
+_STARTER = TierEntitlements(
+    tier=TierKey.starter,
     transaction_fee=TransactionFee(percent_basis_points=400, fixed_cents=40),
     limits=TierLimits(
-        # Tight caps on Pro by design — the cheapest tier intentionally
-        # squeezes any creator with a real catalog / list / team into
-        # Studio so the $80 jump pays for itself.
-        published_courses=3,
+        # Starter is a real entry plan, not a punishing trial tier: it can
+        # serve a creator with a small-but-real audience. Studio still has
+        # clear reasons to upgrade (bigger list, more Originals/sequences,
+        # custom sender domain, A/B testing, wallet, team seats).
+        published_courses=5,
         lessons_per_course=50,
-        active_email_sequences=1,
-        video_hours_hosted=10,
+        active_email_sequences=3,
+        video_hours_hosted=25,
         video_views_monthly=5_000,
         storage_gb=5,
-        email_subscribers=1_000,
-        email_sends_monthly=10_000,
+        email_subscribers=5_000,
+        email_sends_monthly=25_000,
         dashboard_team_seats=1,
     ),
     features=TierFeatures(
         drip_scheduling=True,
         # email_sequences gate exists; the limit on the count lives in
-        # TierLimits.active_email_sequences. Pro gets 1; Studio gets 10.
+        # TierLimits.active_email_sequences. Starter gets 3; Studio gets 15.
         email_sequences_and_segments=True,
-        # Pulled up to Studio+. Pro doesn't get A/B testing — most Pro
-        # customers have lists under 1,000, where A/B testing has no
-        # statistical power anyway.
+        # Pulled up to Studio+. Starter doesn't get A/B testing — most
+        # Starter customers have lists where A/B testing has little
+        # statistical power, and it helps justify the Studio price.
         email_ab_testing=False,
         # stackable_discounts: roadmap — discount engine doesn't support
         # combining codes yet. Flip to True when the engine ships it.
@@ -201,14 +232,15 @@ _STUDIO = TierEntitlements(
         # Studio is the "real business" tier — generous on courses /
         # lessons / sequences (no working creator hits these caps often)
         # but bounded on contacts / sends / video so Scale stays
-        # meaningful.
-        published_courses=15,
+        # meaningful. Limits scale ~5x off Starter so the jump feels
+        # proportional.
+        published_courses=25,
         lessons_per_course=None,
-        active_email_sequences=10,
+        active_email_sequences=15,
         video_hours_hosted=50,
         video_views_monthly=50_000,
         storage_gb=50,
-        email_subscribers=10_000,
+        email_subscribers=25_000,
         email_sends_monthly=100_000,
         dashboard_team_seats=5,
     ),
@@ -287,7 +319,7 @@ def get_definition(tier: TierKey) -> TierEntitlements:
 
 
 _TIER_DEFINITIONS: dict[TierKey, TierEntitlements] = {
-    TierKey.pro: _PRO,
+    TierKey.starter: _STARTER,
     TierKey.studio: _STUDIO,
     TierKey.scale: _SCALE,
     TierKey.legacy: _LEGACY,

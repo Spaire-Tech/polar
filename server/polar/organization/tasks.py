@@ -70,10 +70,10 @@ async def organization_created(organization_id: uuid.UUID) -> None:
         if organization is None:
             raise OrganizationDoesNotExist(organization_id)
 
-        # Start the new creator org on a 14-day Pro trial so they land
-        # on real Pro entitlements (capped limits, real tier) from the
-        # moment the dashboard opens — instead of silently falling
-        # through EntitlementsService's "no subscription -> legacy"
+        # Start the new creator org on a 14-day Starter trial so they
+        # land on real Starter entitlements (capped limits, real tier)
+        # from the moment the dashboard opens — instead of silently
+        # falling through EntitlementsService's "no subscription -> legacy"
         # branch, which used to grant unlimited everything until a
         # human noticed.
         #
@@ -87,10 +87,12 @@ async def organization_created(organization_id: uuid.UUID) -> None:
         # haven't been seeded, we log and continue — the org should
         # still be creatable in dev / single-tenant setups.
         try:
-            await platform_billing.ensure_pro_trial_subscription(session, organization)
+            await platform_billing.ensure_starter_trial_subscription(
+                session, organization
+            )
         except TierProductMissing as exc:
             log.warning(
-                "organization.created.pro_trial_skipped",
+                "organization.created.starter_trial_skipped",
                 organization_id=str(organization_id),
                 reason=exc.message,
             )

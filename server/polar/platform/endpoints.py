@@ -19,29 +19,35 @@ from uuid import UUID
 from fastapi import Depends
 
 from polar.auth.models import is_user
+from polar.customer_session.service import (
+    customer_session as customer_session_service,
+)
 from polar.entitlements.schemas import Entitlements
 from polar.entitlements.service import entitlements as entitlements_service
 from polar.entitlements.tiers import TierKey, get_definition
+from polar.enums import SubscriptionRecurringInterval
 from polar.exceptions import ResourceNotFound
 from polar.integrations.resend import domains as resend_domains
 from polar.kit.trial import TrialInterval
 from polar.kit.utils import utc_now
 from polar.locker import Locker, get_locker
-from polar.enums import SubscriptionRecurringInterval
 from polar.models import Product
 from polar.models.product_price import ProductPriceFixed
 from polar.openapi import APITag
 from polar.organization.repository import OrganizationRepository
 from polar.organization.schemas import OrganizationID
-from polar.postgres import AsyncReadSession, AsyncSession, get_db_read_session, get_db_session
+from polar.postgres import (
+    AsyncReadSession,
+    AsyncSession,
+    get_db_read_session,
+    get_db_session,
+)
 from polar.quotas.definitions import QuotaKey
-from polar.quotas.schemas import OrganizationUsage, QuotaUsage as QuotaUsageSchema
+from polar.quotas.schemas import OrganizationUsage
+from polar.quotas.schemas import QuotaUsage as QuotaUsageSchema
 from polar.quotas.service import quotas as quotas_service
 from polar.routing import APIRouter
 from polar.subscription.schemas import Subscription as SubscriptionSchema
-from polar.customer_session.service import (
-    customer_session as customer_session_service,
-)
 
 from . import auth
 from .management import platform_management
@@ -68,9 +74,9 @@ from .upgrade import platform_upgrade
 router = APIRouter(prefix="/platform", tags=["platform", APITag.private])
 
 
-_PLAN_TIERS = (TierKey.pro, TierKey.studio, TierKey.scale)
+_PLAN_TIERS = (TierKey.starter, TierKey.studio, TierKey.scale)
 _TIER_NAMES = {
-    TierKey.pro: "Spaire Pro",
+    TierKey.starter: "Spaire Starter",
     TierKey.studio: "Spaire Studio",
     TierKey.scale: "Spaire Scale",
 }

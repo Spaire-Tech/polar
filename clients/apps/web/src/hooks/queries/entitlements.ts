@@ -18,8 +18,12 @@ export type LimitKey = keyof TierLimits
  * up or down a tier.
  */
 const FEATURE_REQUIRED_TIER: Record<FeatureKey, SpaireTierKey> = {
-  drip_scheduling: 'pro',
-  email_sequences_and_segments: 'studio',
+  drip_scheduling: 'starter',
+  // Sequences & segments are included on Starter (3 active on Starter,
+  // 15 on Studio) — the count cap is enforced separately, the feature
+  // itself is not gated above Starter. Must match the backend, which
+  // sets email_sequences_and_segments=True on Starter.
+  email_sequences_and_segments: 'starter',
   email_ab_testing: 'studio',
   stackable_discounts: 'studio',
   custom_email_sender_domain: 'studio',
@@ -27,7 +31,7 @@ const FEATURE_REQUIRED_TIER: Record<FeatureKey, SpaireTierKey> = {
   cohort_analytics: 'studio',
   customer_wallet: 'studio',
   white_label_course_player: 'studio',
-  sandbox_mode: 'pro',
+  sandbox_mode: 'starter',
   custom_pricing_negotiation: 'scale',
   custom_storefront_domain: 'scale',
   custom_checkout_domain: 'scale',

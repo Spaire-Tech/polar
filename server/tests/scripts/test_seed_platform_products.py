@@ -9,15 +9,17 @@ from polar.models.product_price import (
     ProductPriceFixed,
     ProductPriceFree,
 )
+from polar.enums import SubscriptionRecurringInterval
 from scripts.seed_platform_products import (
     METER_SPECS,
     PRODUCT_SPECS,
+    _find_product_by_tier_and_interval,
     _upsert_catalog_price,
     _upsert_meter,
     _upsert_product,
 )
 from tests.fixtures.database import SaveFixture
-from tests.fixtures.random_objects import create_organization
+from tests.fixtures.random_objects import create_organization, create_product
 
 
 @pytest.mark.asyncio
@@ -177,20 +179,20 @@ class TestSeedPlatformProducts:
         assert isinstance(legacy_price, ProductPriceFree)
         assert legacy_price.amount_type == ProductPriceAmountType.free
 
-        # Pro — monthly $49 + annual $470.40 (20% off 12 × $49 = $588).
-        pro_monthly = await _find("pro", "month")
-        assert pro_monthly.name == "Spaire Pro"
-        assert pro_monthly.trial_interval_count == 14
-        pro_monthly_price = await _price_for(pro_monthly)
-        assert isinstance(pro_monthly_price, ProductPriceFixed)
-        assert pro_monthly_price.price_amount == 4900
+        # Starter — monthly $49 + annual $470.40 (20% off 12 × $49 = $588).
+        starter_monthly = await _find("starter", "month")
+        assert starter_monthly.name == "Spaire Starter"
+        assert starter_monthly.trial_interval_count == 14
+        starter_monthly_price = await _price_for(starter_monthly)
+        assert isinstance(starter_monthly_price, ProductPriceFixed)
+        assert starter_monthly_price.price_amount == 4900
 
-        pro_annual = await _find("pro", "year")
-        assert pro_annual.name == "Spaire Pro (Annual)"
-        assert pro_annual.trial_interval_count == 14
-        pro_annual_price = await _price_for(pro_annual)
-        assert isinstance(pro_annual_price, ProductPriceFixed)
-        assert pro_annual_price.price_amount == 4900 * 12 * 80 // 100  # 47,040
+        starter_annual = await _find("starter", "year")
+        assert starter_annual.name == "Spaire Starter (Annual)"
+        assert starter_annual.trial_interval_count == 14
+        starter_annual_price = await _price_for(starter_annual)
+        assert isinstance(starter_annual_price, ProductPriceFixed)
+        assert starter_annual_price.price_amount == 4900 * 12 * 80 // 100  # 47,040
 
         # Studio — monthly $129 + annual $1,238.40.
         studio_monthly = await _find("studio", "month")
@@ -230,20 +232,20 @@ class TestSeedPlatformProducts:
         mocker.patch(
             "polar.platform.service.settings.PLATFORM_ORG_ID", platform_org.id
         )
-        pro_spec = next(s for s in PRODUCT_SPECS if s.tier == "pro")
+        starter_spec = next(s for s in PRODUCT_SPECS if s.tier == "starter")
 
         product, _ = await _upsert_product(
-            session, platform_org, pro_spec, dry_run=False
+            session, platform_org, starter_spec, dry_run=False
         )
         await _upsert_catalog_price(
-            session, product, pro_spec.price, dry_run=False
+            session, product, starter_spec.price, dry_run=False
         )
         await session.flush()
 
         # Simulate a price change: same product, different amount.
         from dataclasses import replace
 
-        new_price_spec = replace(pro_spec.price, price_amount_cents=5900)
+        new_price_spec = replace(starter_spec.price, price_amount_cents=5900)
         action = await _upsert_catalog_price(
             session, product, new_price_spec, dry_run=False
         )
@@ -263,3 +265,58 @@ class TestSeedPlatformProducts:
         assert active[0].price_amount == 5900
         assert isinstance(archived[0], ProductPriceFixed)
         assert archived[0].price_amount == 4900
+
+    async def test_migrates_legacy_pro_product_to_starter_in_place(
+        self,
+        mocker: MockerFixture,
+        session: AsyncSession,
+        save_fixture: SaveFixture,
+    ) -> None:
+        """A product seeded under the original "pro" tier key is adopted by
+        the Starter spec and re-stamped to "starter" — same row, no
+        duplicate — so existing subscriptions keep pointing at it."""
+        platform_org = await create_organization(save_fixture)
+        mocker.patch(
+            "polar.platform.service.settings.PLATFORM_ORG_ID", platform_org.id
+        )
+
+        legacy_pro = await create_product(
+            save_fixture,
+            organization=platform_org,
+            name="Spaire Pro",
+            recurring_interval=SubscriptionRecurringInterval.month,
+            prices=[(4900, "usd")],
+        )
+        legacy_pro.user_metadata = {"tier": "pro", "billing_interval": "month"}
+        await save_fixture(legacy_pro)
+
+        # The Starter monthly spec must find the legacy "pro" row...
+        starter_spec = next(
+            s
+            for s in PRODUCT_SPECS
+            if s.tier == "starter" and s.billing_interval == "month"
+        )
+        found = await _find_product_by_tier_and_interval(
+            session, platform_org.id, "starter", "month"
+        )
+        assert found is not None
+        assert found.id == legacy_pro.id
+
+        # ...and upserting re-stamps it in place rather than creating a new one.
+        product, action = await _upsert_product(
+            session, platform_org, starter_spec, dry_run=False
+        )
+        await session.flush()
+        assert product.id == legacy_pro.id
+        assert action == "updated"
+        assert product.user_metadata["tier"] == "starter"
+        assert product.name == "Spaire Starter"
+
+        total = (
+            await session.execute(
+                select(func.count(Product.id)).where(
+                    Product.organization_id == platform_org.id
+                )
+            )
+        ).scalar_one()
+        assert total == 1

@@ -1,9 +1,14 @@
-"""Seed the Pro/Studio/Scale subscription products and overage meters in
+"""Seed the Starter/Studio/Scale subscription products and overage meters in
 the Spaire platform organization.
 
 Idempotent: re-running updates existing rows in place rather than creating
 duplicates. Products and meters are identified by metadata tier key and
 name respectively, both scoped to the platform organization.
+
+The Starter tier originally shipped under the key "pro". Re-seeding migrates
+those rows in place — the (tier, interval) finder accepts the legacy "pro"
+key for the Starter spec and re-stamps it to "starter" — so existing
+subscriptions keep pointing at the same Product, now correctly named.
 
 Usage:
     python -m scripts.seed_platform_products run
@@ -47,7 +52,8 @@ from polar.models.product_price import (
     ProductPriceFixed,
     ProductPriceFree,
 )
-from polar.platform.service import PlatformError, platform as platform_service
+from polar.platform.service import PlatformError
+from polar.platform.service import platform as platform_service
 from polar.postgres import create_async_engine
 
 cli = typer.Typer()
@@ -75,7 +81,7 @@ def typer_async(f):  # type: ignore
 
 
 # ---------------------------------------------------------------------------
-# Specs — the source of truth for what Spaire Pro/Studio/Scale look like.
+# Specs — the source of truth for what Spaire Starter/Studio/Scale look like.
 # ---------------------------------------------------------------------------
 
 
@@ -155,16 +161,16 @@ class PriceSpec:
     amount_type: ProductPriceAmountType
     price_currency: str = "usd"
     price_amount_cents: int | None = None  # required if amount_type == fixed
-    # tax_behavior=inclusive on Pro/Studio/Scale means the headline price
-    # ($49 / $129 / $299) is what the creator pays — Spaire absorbs the
-    # sales tax internally rather than tacking it on top. Legacy stays
+    # tax_behavior=inclusive on Starter/Studio/Scale means the headline
+    # price ($49 / $129 / $299) is what the creator pays — Spaire absorbs
+    # the sales tax internally rather than tacking it on top. Legacy stays
     # None (no tax to compute on a $0 product).
     tax_behavior: TaxBehaviorOption | None = None
 
 
 @dataclass(frozen=True)
 class ProductSpec:
-    tier: str  # "pro" | "studio" | "scale" | "legacy" — stamped onto user_metadata["tier"]
+    tier: str  # "starter" | "studio" | "scale" | "legacy" — stamped onto user_metadata["tier"]
     # "month" | "year" — stamped onto user_metadata["billing_interval"] so a
     # creator can pick monthly vs annual at checkout. Legacy is "month" by
     # convention (it's an internal grandfather product, the interval doesn't
@@ -177,16 +183,16 @@ class ProductSpec:
     trial: TrialSpec | None = None
 
 
-_PRO_DESCRIPTION = (
+_STARTER_DESCRIPTION = (
     "For solo creators starting out. 4% + $0.40 per transaction. "
-    "3 published courses, 1,000 email subscribers, 10,000 monthly email "
-    "sends, 1 active email sequence, 10 hours of hosted video, sandbox "
+    "5 published courses, 5,000 email subscribers, 25,000 monthly email "
+    "sends, 3 active email sequences, 25 hours of hosted video, sandbox "
     "environment. 14-day free trial."
 )
 _STUDIO_DESCRIPTION = (
     "For small teams scaling up. 3.8% + $0.35 per transaction. "
-    "Everything in Pro plus 15 published courses, 10,000 subscribers, "
-    "100k monthly sends, 10 active sequences, custom email sender domain, "
+    "Everything in Starter plus 25 published courses, 25,000 subscribers, "
+    "100k monthly sends, 15 active sequences, custom email sender domain, "
     "A/B testing, white-label course player, customer wallet, 5 team "
     "seats. 14-day free trial."
 )
@@ -199,7 +205,7 @@ _SCALE_DESCRIPTION = (
 )
 
 # 20% annual discount = pay for ~10 months, get 12. Stripe-standard.
-_ANNUAL_PRO_CENTS = 4900 * 12 * 80 // 100  # 47,040
+_ANNUAL_STARTER_CENTS = 4900 * 12 * 80 // 100  # 47,040
 _ANNUAL_STUDIO_CENTS = 12900 * 12 * 80 // 100  # 123,840
 _ANNUAL_SCALE_CENTS = 29900 * 12 * 80 // 100  # 287,040
 
@@ -218,12 +224,12 @@ PRODUCT_SPECS: list[ProductSpec] = [
         recurring_interval=SubscriptionRecurringInterval.month,
         price=PriceSpec(amount_type=ProductPriceAmountType.free),
     ),
-    # Pro — monthly + annual
+    # Starter — monthly + annual
     ProductSpec(
-        tier="pro",
+        tier="starter",
         billing_interval="month",
-        name="Spaire Pro",
-        description=_PRO_DESCRIPTION,
+        name="Spaire Starter",
+        description=_STARTER_DESCRIPTION,
         recurring_interval=SubscriptionRecurringInterval.month,
         price=PriceSpec(
             amount_type=ProductPriceAmountType.fixed,
@@ -233,15 +239,15 @@ PRODUCT_SPECS: list[ProductSpec] = [
         trial=TrialSpec(interval=TrialInterval.day, count=14),
     ),
     ProductSpec(
-        tier="pro",
+        tier="starter",
         billing_interval="year",
-        name="Spaire Pro (Annual)",
-        description=_PRO_DESCRIPTION + " Save 20% with annual billing.",
+        name="Spaire Starter (Annual)",
+        description=_STARTER_DESCRIPTION + " Save 20% with annual billing.",
         recurring_interval=SubscriptionRecurringInterval.year,
         price=PriceSpec(
             amount_type=ProductPriceAmountType.fixed,
             tax_behavior=TaxBehaviorOption.inclusive,
-            price_amount_cents=_ANNUAL_PRO_CENTS,
+            price_amount_cents=_ANNUAL_STARTER_CENTS,
         ),
         trial=TrialSpec(interval=TrialInterval.day, count=14),
     ),
@@ -349,6 +355,16 @@ async def _upsert_meter(
     return existing, "updated" if changed else "unchanged"
 
 
+# Tier keys that an existing Product row may carry for a given spec tier.
+# The Starter tier shipped originally as "pro", so a Starter spec must also
+# adopt any leftover "pro"-tagged rows and re-stamp them to "starter".
+_TIER_LOOKUP_ALIASES: dict[str, list[str]] = {"starter": ["starter", "pro"]}
+
+
+def _tier_lookup_values(tier: str) -> list[str]:
+    return _TIER_LOOKUP_ALIASES.get(tier, [tier])
+
+
 async def _find_product_by_tier_and_interval(
     session: AsyncSession,
     platform_org_id: UUID,
@@ -361,11 +377,14 @@ async def _find_product_by_tier_and_interval(
     `billing_interval` user_metadata key — we treat any monthly-recurring
     product with the matching tier as the canonical "month" row so a
     re-seed migrates it in place rather than duplicating it.
+
+    The tier match honors legacy aliases (e.g. the original "pro" key for
+    the Starter tier) so a rename re-stamps the existing row in place.
     """
     result = await session.execute(
         select(Product)
         .where(Product.organization_id == platform_org_id)
-        .where(Product.user_metadata["tier"].astext == tier)
+        .where(Product.user_metadata["tier"].astext.in_(_tier_lookup_values(tier)))
         .where(Product.deleted_at.is_(None))
     )
     products = list(result.scalars().all())
@@ -459,11 +478,16 @@ async def _upsert_product(
         if not dry_run:
             existing.trial_interval_count = target_trial_count
         changed = True
-    if (existing.user_metadata or {}).get("billing_interval") != spec.billing_interval:
-        # Stamp the interval onto pre-existing rows (the previous seed
-        # didn't store this key).
+    existing_metadata = existing.user_metadata or {}
+    if (
+        existing_metadata.get("billing_interval") != spec.billing_interval
+        or existing_metadata.get("tier") != spec.tier
+    ):
+        # Stamp the interval onto pre-existing rows (an early seed didn't
+        # store this key) and re-stamp the tier key when migrating a
+        # renamed tier in place (e.g. "pro" -> "starter").
         if not dry_run:
-            merged = dict(existing.user_metadata or {})
+            merged = dict(existing_metadata)
             merged.update(target_metadata)
             existing.user_metadata = merged
         changed = True
@@ -590,7 +614,7 @@ def _format_billing_type(spec: ProductSpec) -> str:
 
 @cli.command(
     help=(
-        "Seed Pro/Studio/Scale subscription products and overage meters in "
+        "Seed Starter/Studio/Scale subscription products and overage meters in "
         "the platform organization."
     )
 )

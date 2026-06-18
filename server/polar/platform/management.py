@@ -11,7 +11,7 @@ from typing import Literal
 
 import structlog
 
-from polar.entitlements.tiers import TierKey
+from polar.entitlements.tiers import TierKey, tier_from_value
 from polar.enums import SubscriptionProrationBehavior, SubscriptionRecurringInterval
 from polar.exceptions import PolarError
 from polar.kit.utils import utc_now
@@ -31,7 +31,7 @@ from polar.worker import enqueue_job
 log: structlog.stdlib.BoundLogger = structlog.get_logger()
 
 
-_PAID_TIERS = (TierKey.pro, TierKey.studio, TierKey.scale)
+_PAID_TIERS = (TierKey.starter, TierKey.studio, TierKey.scale)
 
 
 class PlatformManagementError(PolarError): ...
@@ -81,7 +81,7 @@ class CannotSwitchDuringTrial(PlatformManagementError):
 
 
 class _ResolvedSubscription:
-    __slots__ = ("subscription", "current_tier", "current_interval")
+    __slots__ = ("current_interval", "current_tier", "subscription")
 
     def __init__(
         self,
@@ -116,10 +116,9 @@ async def _resolve_active(
     tier_value = (subscription.product.user_metadata or {}).get("tier")
     if not isinstance(tier_value, str):
         raise NoActiveSubscription()
-    try:
-        current_tier = TierKey(tier_value)
-    except ValueError as exc:
-        raise NoActiveSubscription() from exc
+    current_tier = tier_from_value(tier_value)
+    if current_tier is None:
+        raise NoActiveSubscription()
 
     # Derive the current billing interval from the subscription itself
     # (single source of truth — the Product's user_metadata may not be

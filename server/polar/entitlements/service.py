@@ -28,7 +28,7 @@ from polar.platform.service import platform as platform_service
 from polar.postgres import AsyncReadSession
 
 from .exceptions import FeatureNotInPlanError, TierLimitReachedError
-from .tiers import TierEntitlements, TierKey, get_definition
+from .tiers import TierEntitlements, TierKey, get_definition, tier_from_value
 
 
 class EntitlementsService:
@@ -75,10 +75,10 @@ class EntitlementsService:
         if not isinstance(tier_value, str):
             return TierKey.legacy
 
-        try:
-            return TierKey(tier_value)
-        except ValueError:
-            return TierKey.legacy
+        # Honor the "pro" -> "starter" alias so a creator whose platform
+        # product still carries the original "pro" metadata resolves to
+        # Starter entitlements rather than silently dropping to Legacy.
+        return tier_from_value(tier_value) or TierKey.legacy
 
     # ------------------------------------------------------------------
     # Guards — call-site helpers that check and raise.

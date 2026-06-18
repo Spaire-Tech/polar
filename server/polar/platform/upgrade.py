@@ -33,7 +33,7 @@ from polar.postgres import AsyncSession
 log: structlog.stdlib.BoundLogger = structlog.get_logger()
 
 
-_UPGRADEABLE_TIERS = (TierKey.pro, TierKey.studio, TierKey.scale)
+_UPGRADEABLE_TIERS = (TierKey.starter, TierKey.studio, TierKey.scale)
 
 
 class PlatformUpgradeError(PolarError): ...
@@ -43,7 +43,7 @@ class TierNotUpgradeable(PlatformUpgradeError):
     def __init__(self, tier: TierKey) -> None:
         super().__init__(
             f"Tier '{tier.value}' is not a valid upgrade target. "
-            "Use 'pro', 'studio', or 'scale'.",
+            "Use 'starter', 'studio', or 'scale'.",
             400,
         )
 

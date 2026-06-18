@@ -40,7 +40,7 @@ class TestOrganizationCreated:
 
         await organization_created(organization.id)
 
-    async def test_starts_pro_trial(
+    async def test_starts_starter_trial(
         self,
         mocker: MockerFixture,
         organization: Organization,
@@ -51,7 +51,7 @@ class TestOrganizationCreated:
         falling through EntitlementsService's no-sub -> legacy branch
         (which used to grant unlimited everything)."""
         ensure_trial_mock = mocker.patch(
-            "polar.organization.tasks.platform_billing.ensure_pro_trial_subscription",
+            "polar.organization.tasks.platform_billing.ensure_starter_trial_subscription",
             return_value=None,
         )
 
@@ -77,8 +77,8 @@ class TestOrganizationCreated:
         from polar.platform.billing import TierProductMissing as _TPM
 
         mocker.patch(
-            "polar.organization.tasks.platform_billing.ensure_pro_trial_subscription",
-            side_effect=_TPM(TierKey.pro),
+            "polar.organization.tasks.platform_billing.ensure_starter_trial_subscription",
+            side_effect=_TPM(TierKey.starter),
         )
         ensure_customer_mock = mocker.patch(
             "polar.organization.tasks.platform_billing.ensure_platform_customer",

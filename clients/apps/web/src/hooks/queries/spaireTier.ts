@@ -23,9 +23,9 @@ const platformApi = api as unknown as any
 // Types — mirror polar/platform/schemas.py
 // -----------------------------------------------------------------------------
 
-export type SpaireTierKey = 'pro' | 'studio' | 'scale' | 'legacy'
+export type SpaireTierKey = 'starter' | 'studio' | 'scale' | 'legacy'
 
-export type PaidTierKey = 'pro' | 'studio' | 'scale'
+export type PaidTierKey = 'starter' | 'studio' | 'scale'
 
 export type BillingInterval = 'month' | 'year'
 
@@ -98,7 +98,7 @@ export interface CurrentSpaireSubscription {
   current_period_end: string | null
   trial_end: string | null
   cancel_at_period_end: boolean
-  // True only while the active sub is the auto-created Pro trial
+  // True only while the active sub is the auto-created Starter trial
   // (managed_by=trial). Flips False once the creator goes through
   // upgrade-checkout. Onboarding review uses this to verify a Stripe
   // checkout actually finished when it sees ?upgraded=1.
@@ -343,11 +343,14 @@ export const renewalSentence = (
 }
 
 const TIER_DISPLAY_NAME: Record<SpaireTierKey, string> = {
-  pro: 'Pro',
+  starter: 'Starter',
   studio: 'Studio',
   scale: 'Scale',
   legacy: 'Legacy',
 }
 
-export const tierDisplayName = (tier: SpaireTierKey): string =>
-  TIER_DISPLAY_NAME[tier]
+// The Starter tier shipped originally as "pro". The backend now normalizes
+// it to "starter" everywhere, but tolerate a stale/cached "pro" value so the
+// UI never renders an empty plan name.
+export const tierDisplayName = (tier: SpaireTierKey | 'pro'): string =>
+  tier === 'pro' ? 'Starter' : TIER_DISPLAY_NAME[tier]
