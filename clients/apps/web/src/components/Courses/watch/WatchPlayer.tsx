@@ -68,10 +68,12 @@ export function WatchPlayer({
   const [hasCaptions, setHasCaptions] = useState(false)
   const [cc, setCc] = useState(false)
   const [side, setSide] = useState<null | 'discussion'>(null)
+  const [uiVisible, setUiVisible] = useState(true)
   const barRef = useRef<HTMLDivElement | null>(null)
   const dragging = useRef(false)
   const done = useRef(false)
   const startedRef = useRef(false)
+  const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // ── element wiring ──
   const onVideoEl = useCallback(
@@ -129,6 +131,43 @@ export function WatchPlayer({
       }
     }
   }, [cc, hasCaptions])
+
+  // ── auto-hiding chrome ──
+  // The title, controls and vignette are only there when the viewer needs
+  // them. They show on entry and on any interaction (mouse, touch, keys,
+  // scrubbing); after a few idle seconds of playback they fade away so the
+  // viewer can focus on the video. Pausing keeps them up.
+  const scheduleHide = useCallback(() => {
+    if (hideTimer.current) clearTimeout(hideTimer.current)
+    hideTimer.current = setTimeout(() => {
+      // Only fade out while the video is actually playing — a paused
+      // player always keeps its controls visible.
+      if (videoRef.current && !videoRef.current.paused) setUiVisible(false)
+    }, 3000)
+  }, [])
+
+  const revealUi = useCallback(() => {
+    setUiVisible(true)
+    if (videoRef.current && !videoRef.current.paused) scheduleHide()
+    else if (hideTimer.current) clearTimeout(hideTimer.current)
+  }, [scheduleHide])
+
+  // Keep chrome up whenever paused; restart the idle countdown on play.
+  useEffect(() => {
+    if (paused) {
+      if (hideTimer.current) clearTimeout(hideTimer.current)
+      setUiVisible(true)
+    } else {
+      scheduleHide()
+    }
+  }, [paused, scheduleHide])
+
+  useEffect(
+    () => () => {
+      if (hideTimer.current) clearTimeout(hideTimer.current)
+    },
+    [],
+  )
 
   const frac = dur > 0 ? Math.min(1, t / dur) : 0
 
@@ -204,6 +243,7 @@ export function WatchPlayer({
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
       if ((e.target as HTMLElement)?.tagName === 'INPUT') return
+      revealUi()
       if (e.key === 'Escape') {
         if (side) setSide(null)
         else exit()
@@ -215,7 +255,7 @@ export function WatchPlayer({
     }
     window.addEventListener('keydown', h)
     return () => window.removeEventListener('keydown', h)
-  }, [side, exit, togglePlay, seekBy])
+  }, [side, exit, togglePlay, seekBy, revealUi])
 
   // Lock page scroll while the player is up.
   useEffect(() => {
@@ -242,7 +282,13 @@ export function WatchPlayer({
   }, [onComplete])
 
   return (
-    <div className="sov2 player" data-watch-player>
+    <div
+      className={`sov2 player${uiVisible ? '' : ' ui-hidden'}`}
+      data-watch-player
+      onMouseMove={revealUi}
+      onMouseDown={revealUi}
+      onTouchStart={revealUi}
+    >
       <div className="player-video">
         {isHls ? (
           <HlsVideo
