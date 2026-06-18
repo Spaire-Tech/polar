@@ -175,6 +175,13 @@
 .editor-dark .bg-\[\#0066cc\] {
   background-color: #2997ff !important;
 }
+/* Focus halo: the light-blue `ring-blue-100` (#dbeafe) reads near-white on the
+   dark canvas. Remap it to a soft tint of the same community dark blue so the
+   focus ring matches the (already-blue) focus border on inputs/textareas across
+   settings, pricing, and the rest of the editor. */
+.editor-dark .focus\:ring-blue-100:focus {
+  --tw-ring-color: rgba(41, 151, 255, 0.4) !important;
+}
 
 /* ---- elevation reads softer on a dark canvas ---- */
 .editor-dark .shadow-sm,
