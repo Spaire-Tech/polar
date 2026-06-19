@@ -748,43 +748,19 @@ export function AutomationSequenceBuilder({
             </div>
           </section>
 
-          {/* Trigger */}
-          <section className="sec">
-            <div className="sec-head">
-              <span className="sec-h">Trigger</span>
-            </div>
-            <p className="sec-sub">
-              {lessonMode
-                ? 'This automation runs for one lesson — it starts the moment a student completes it.'
-                : 'The moment that starts this sequence for a student.'}
-            </p>
-            <div className="card">
-              {lessonMode ? (
-                <div className="radio-row on is-locked">
-                  <span className="rr-dot" />
-                  <span className="rr-main">
-                    <span className="rr-t">
-                      When a student completes this lesson
-                    </span>
-                    <span className="rr-s">
-                      Fires once per student, as soon as they mark this lesson
-                      complete.
-                    </span>
-                    <span className="rr-extra rr-lesson-fixed">
-                      <Svg d={IC.exit} s={13} w={2.4} />
-                      {lessonTitle}
-                    </span>
-                  </span>
-                  <span className="rr-lock" aria-hidden>
-                    <Svg
-                      d="M6 10V8a6 6 0 0 1 12 0v2 M5 10h14v10H5z"
-                      s={15}
-                      w={1.9}
-                    />
-                  </span>
-                </div>
-              ) : (
-                (
+          {/* Trigger — only the course-level builder needs a picker. A lesson
+              automation's trigger is fixed ("completes this lesson"), already
+              shown as the trigger node in the tree, so the left panel hides it. */}
+          {!lessonMode && (
+            <section className="sec">
+              <div className="sec-head">
+                <span className="sec-h">Trigger</span>
+              </div>
+              <p className="sec-sub">
+                The moment that starts this sequence for a student.
+              </p>
+              <div className="card">
+                {(
                   [
                     ['enrol', 'Student enrols', 'Send the moment they get access to the course.'],
                     ['lesson', 'Lesson completed', 'Pick a specific lesson — fires when a student finishes it.'],
@@ -839,10 +815,10 @@ export function AutomationSequenceBuilder({
                       )}
                     </span>
                   </button>
-                ))
-              )}
-            </div>
-          </section>
+                ))}
+              </div>
+            </section>
+          )}
 
           {/* Send settings */}
           <section className="sec">
@@ -1179,12 +1155,6 @@ function AutomationStyles() {
       .asq .rr-s { font-size: 12.5px; line-height: 1.45; color: var(--text-2); margin-top: 1px; }
       .asq .rr-extra { margin-top: 9px; display: none; }
       .asq .radio-row.on .rr-extra { display: block; }
-      /* Locked, single-option trigger for a lesson automation. Reads as a
-         selected row but is non-interactive — the lesson is the trigger. */
-      .asq .radio-row.is-locked { cursor: default; }
-      .asq .radio-row.is-locked:hover { background: transparent; }
-      .asq .rr-lesson-fixed { display: inline-flex; align-items: center; gap: 7px; padding: 6px 11px; border-radius: 8px; background: rgba(48, 110, 255, 0.09); color: var(--blue); font-size: 12.5px; font-weight: 600; }
-      .asq .rr-lock { flex: none; align-self: center; color: var(--text-2); opacity: 0.6; }
       .asq .mini-select {
         width: 100%; appearance: none; -webkit-appearance: none;
         font-size: 13.5px; font-weight: 600; color: var(--text);
