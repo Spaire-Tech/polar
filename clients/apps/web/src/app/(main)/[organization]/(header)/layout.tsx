@@ -6,7 +6,9 @@ import {
 import { ProfileCard } from '@/components/Profile/ProfileCard'
 import { getServerSideAPI } from '@/utils/client/serverside'
 import { getStorefrontOrNotFound } from '@/utils/storefront'
+import { cn } from '@spaire/ui/lib/utils'
 import React from 'react'
+import '@/styles/space-dark.css'
 
 export default async function Layout(props: {
   params: Promise<{ organization: string }>
@@ -23,8 +25,20 @@ export default async function Layout(props: {
     params.organization,
   )
 
+  // Publishable Space theme — when the creator sets theme = 'dark', the public
+  // page renders in the same scoped dark palette the editor previews.
+  const settings = (
+    'storefront_settings' in organization ? organization.storefront_settings : null
+  ) as { theme?: 'light' | 'dark' } | null
+  const dark = settings?.theme === 'dark'
+
   return (
-    <div className="min-h-screen bg-white text-gray-900">
+    <div
+      className={cn(
+        'min-h-screen bg-white text-gray-900',
+        dark && 'space-dark',
+      )}
+    >
       {/* Strip dark mode synchronously, before hydration, so dark-theme
           users don't flash dark styles on a public Space page. */}
       <script
