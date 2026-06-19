@@ -1175,12 +1175,8 @@ function AutomationStyles() {
 
       .asq .canvas {
         flex: 1; min-width: 0; overflow: auto; overscroll-behavior: contain;
-        background-image:
-          radial-gradient(rgba(20, 22, 50, 0.06) 1px, transparent 1px),
-          radial-gradient(55% 42% at 16% 8%, rgba(60, 74, 201, 0.075), transparent 70%),
-          radial-gradient(48% 40% at 88% 24%, rgba(190, 120, 70, 0.05), transparent 70%),
-          radial-gradient(60% 48% at 50% 100%, rgba(70, 140, 200, 0.06), transparent 72%);
-        background-size: 22px 22px, auto, auto, auto; background-color: var(--canvas);
+        background-image: radial-gradient(rgba(20, 22, 50, 0.06) 1px, transparent 1px);
+        background-size: 22px 22px; background-color: var(--canvas);
       }
       .asq .canvas-head { position: sticky; top: 0; z-index: 10; display: flex; align-items: baseline; gap: 12px; padding: 18px 32px 14px; background: linear-gradient(180deg, var(--canvas) 55%, transparent); }
       .asq .ch-t { font-family: var(--po); font-size: 17px; font-weight: 600; letter-spacing: -0.02em; }
@@ -1306,11 +1302,7 @@ function AutomationStyles() {
         box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.08), 0 1px 4px rgba(0, 0, 0, 0.45);
       }
       .asq.dark .canvas {
-        background-image:
-          radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
-          radial-gradient(55% 42% at 16% 8%, rgba(80, 100, 230, 0.14), transparent 70%),
-          radial-gradient(48% 40% at 88% 24%, rgba(200, 130, 80, 0.08), transparent 70%),
-          radial-gradient(60% 48% at 50% 100%, rgba(80, 150, 210, 0.1), transparent 72%);
+        background-image: radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px);
       }
       .asq.dark .node {
         background: rgba(255, 255, 255, 0.045);
