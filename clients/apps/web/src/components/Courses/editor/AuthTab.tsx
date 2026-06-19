@@ -32,6 +32,37 @@ const pointToPosition = (
   return `${x.toFixed(1)}% ${y.toFixed(1)}%`
 }
 
+const MoonIcon = () => (
+  <svg
+    width="19"
+    height="19"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.8"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z" />
+  </svg>
+)
+
+const SunIcon = () => (
+  <svg
+    width="19"
+    height="19"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.8"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <circle cx="12" cy="12" r="4.2" />
+    <path d="M12 2v2.6M12 19.4V22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M2 12h2.6M19.4 12H22M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8" />
+  </svg>
+)
+
 /**
  * Course-builder "Auth" tab.
  *
@@ -216,24 +247,6 @@ export function AuthTab({
           </span>
         </div>
         <div className="flex items-center gap-3">
-          {/* creator-chosen appearance — what the customer sees */}
-          <div className="flex items-center rounded-lg border border-gray-200 p-0.5">
-            {(['light', 'dark'] as Theme[]).map((t) => (
-              <button
-                key={t}
-                type="button"
-                onClick={() => chooseTheme(t)}
-                className={cn(
-                  'rounded-md px-2.5 py-[3px] text-[12px] font-medium capitalize transition-colors',
-                  theme === t
-                    ? 'bg-gray-900 text-white'
-                    : 'text-gray-500 hover:text-gray-900',
-                )}
-              >
-                {t}
-              </button>
-            ))}
-          </div>
           <span
             className="text-[11.5px] text-gray-400"
             role="status"
@@ -379,8 +392,22 @@ export function AuthTab({
               />
             </div>
 
-            {/* RIGHT — non-interactive preview of the flow */}
+            {/* RIGHT — non-interactive preview of the flow, with the
+                creator's appearance toggle (the icon) top-right */}
             <div className="spauth-panel spauth-panel--preview">
+              <div className="spauth-topbar">
+                <button
+                  type="button"
+                  className="spauth-toggle"
+                  onClick={() => chooseTheme(dark ? 'light' : 'dark')}
+                  aria-label={
+                    dark ? 'Switch to light mode' : 'Switch to dark mode'
+                  }
+                  title={dark ? 'Light mode' : 'Dark mode'}
+                >
+                  {dark ? <SunIcon /> : <MoonIcon />}
+                </button>
+              </div>
               <div className="spauth-stage">
                 <div className="spauth-inner">
                   <h1 className="spauth-title">Sign in</h1>
