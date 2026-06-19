@@ -21403,6 +21403,13 @@ export interface components {
        */
       enabled?: boolean
       /**
+       * Theme
+       * @description Color theme for the public storefront
+       * @default light
+       * @enum {string}
+       */
+      theme?: 'light' | 'dark'
+      /**
        * Show Header
        * @description Show the storefront header/banner
        */

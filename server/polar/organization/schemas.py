@@ -167,6 +167,9 @@ class SpaceItem(Schema):
 
 class OrganizationStorefrontSettings(Schema):
     enabled: bool = Field(False, description="Whether the storefront is enabled")
+    theme: Literal["light", "dark"] = Field(
+        "light", description="Color theme for the public storefront"
+    )
     show_header: bool = Field(True, description="Show the storefront header/banner")
     header_image_url: str | None = Field(
         None, description="URL of the storefront header/banner image"

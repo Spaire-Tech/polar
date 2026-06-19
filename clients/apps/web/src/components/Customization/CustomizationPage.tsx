@@ -27,7 +27,7 @@ import ChevronLeftOutlined from '@mui/icons-material/ChevronLeftOutlined'
 import DarkModeOutlined from '@mui/icons-material/DarkModeOutlined'
 import LightModeOutlined from '@mui/icons-material/LightModeOutlined'
 import { cn } from '@spaire/ui/lib/utils'
-import '@/styles/editor-dark.css'
+import '@/styles/space-dark.css'
 import { ArrangePanel } from './InlineEdit/ArrangePanel'
 import { MobilePreviewFrame } from './MobilePreviewFrame'
 import { SpaceEmptyHero } from './SpaceEmptyHero'
@@ -69,21 +69,6 @@ const Customization = ({
   const [previewDevice, setPreviewDevice] = useState<'desktop' | 'mobile'>(
     'desktop',
   )
-  // Editor chrome light/dark — creator comfort, shared with the course
-  // editor via `spaire_theme`. Themes the top bar, tabs and Settings tab;
-  // the Storefront canvas always renders the real (light) storefront until
-  // the published-theme setting ships.
-  const [dark, setDark] = useState(false)
-  useEffect(() => {
-    setDark(localStorage.getItem('spaire_theme') === 'dark')
-  }, [])
-  const toggleDark = useCallback(() => {
-    setDark((d) => {
-      const next = !d
-      localStorage.setItem('spaire_theme', next ? 'dark' : 'light')
-      return next
-    })
-  }, [])
   const isSpaceEnabled = organization.storefront_settings?.enabled ?? false
   const [isEditing, setIsEditing] = useState(!isSpaceEnabled)
 
@@ -102,6 +87,26 @@ const Customization = ({
   })
 
   const isDirty = form.formState.isDirty
+
+  // The Space's light/dark theme is a published setting
+  // (storefront_settings.theme). The top-bar switch writes it — dirtying the
+  // form so the editor chrome + canvas preview it, and Publish ships it to the
+  // public Space page.
+  const watchedTheme =
+    (form.watch('storefront_settings') as
+      | { theme?: 'light' | 'dark' }
+      | undefined)?.theme ??
+    organization.storefront_settings?.theme ??
+    'light'
+  const dark = watchedTheme === 'dark'
+  const toggleDark = () => {
+    const current = form.getValues('storefront_settings') ?? {}
+    form.setValue(
+      'storefront_settings',
+      { ...current, theme: dark ? 'light' : 'dark' },
+      { shouldDirty: true },
+    )
+  }
 
   // ── Add-to-Space picker callbacks ─────────────────────────────────
   // The picker is form-context-agnostic; it just hands us payloads and
@@ -653,14 +658,14 @@ const Customization = ({
   return (
     <Form {...form}>
       <ForceLightMode />
-      <div className="spaire-editor spaire-editor-root">
+      <div
+        className={cn('spaire-editor spaire-editor-root', dark && 'space-dark')}
+      >
         {/* ── Chrome: course-editor top bar + tabs ──────────────────
-            The top bar + tabs theme light/dark (creator comfort). The
-            Storefront canvas below stays light (the real storefront);
-            only the chrome + Settings tab carry `.editor-dark`. */}
-        <div
-          className={cn('flex flex-shrink-0 flex-col', dark && 'editor-dark')}
-        >
+            The whole editor root carries `.space-dark` when the Space theme is
+            dark, so the chrome AND the storefront canvas preview the published
+            dark theme together. */}
+        <div className="flex flex-shrink-0 flex-col">
           <div className="relative z-10 grid h-12 grid-cols-[1fr_auto_1fr] items-center border-b border-gray-200 bg-gray-50/85 px-5 backdrop-blur">
             <div className="flex items-center">
               <button
@@ -669,7 +674,7 @@ const Customization = ({
                 className="flex items-center gap-0.5 py-1 text-[13px] tracking-tight text-[#0066cc] transition-opacity hover:opacity-70"
               >
                 <ChevronLeftOutlined sx={{ fontSize: 16 }} />
-                Spaire
+                Dashboard
               </button>
             </div>
             <div className="flex flex-col items-center">
@@ -870,14 +875,10 @@ const Customization = ({
             )}
           </>
         ) : (
-          <div
-            className={cn(
-              'min-h-0 flex-1 overflow-y-auto',
-              dark && 'editor-dark',
-            )}
-          >
+          <div className="min-h-0 flex-1 overflow-y-auto">
             <SpaceSettingsTab
               organization={organization}
+              dark={dark}
               onOpenLinks={() => {
                 setActiveTab('storefront')
                 setLinksMode(true)
