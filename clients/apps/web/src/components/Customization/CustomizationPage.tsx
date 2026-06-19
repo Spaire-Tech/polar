@@ -23,10 +23,15 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
+import ChevronLeftOutlined from '@mui/icons-material/ChevronLeftOutlined'
+import DarkModeOutlined from '@mui/icons-material/DarkModeOutlined'
+import LightModeOutlined from '@mui/icons-material/LightModeOutlined'
+import { cn } from '@spaire/ui/lib/utils'
+import '@/styles/editor-dark.css'
 import { ArrangePanel } from './InlineEdit/ArrangePanel'
 import { MobilePreviewFrame } from './MobilePreviewFrame'
 import { SpaceEmptyHero } from './SpaceEmptyHero'
-import { SpaceSettingsPanel } from './InlineEdit/SpaceSettingsPanel'
+import { SpaceSettingsTab } from './SpaceSettingsTab'
 import { SpaceEditorCanvas } from './SpaceEditorShell'
 import {
   AddToSpacePicker,
@@ -57,11 +62,28 @@ const Customization = ({
   const [publishing, setPublishing] = useState(false)
   const [linksMode, setLinksMode] = useState(false)
   const [pickerOpen, setPickerOpen] = useState(false)
-  const [settingsOpen, setSettingsOpen] = useState(false)
   const [arrangeOpen, setArrangeOpen] = useState(false)
+  const [activeTab, setActiveTab] = useState<'storefront' | 'settings'>(
+    'storefront',
+  )
   const [previewDevice, setPreviewDevice] = useState<'desktop' | 'mobile'>(
     'desktop',
   )
+  // Editor chrome light/dark — creator comfort, shared with the course
+  // editor via `spaire_theme`. Themes the top bar, tabs and Settings tab;
+  // the Storefront canvas always renders the real (light) storefront until
+  // the published-theme setting ships.
+  const [dark, setDark] = useState(false)
+  useEffect(() => {
+    setDark(localStorage.getItem('spaire_theme') === 'dark')
+  }, [])
+  const toggleDark = useCallback(() => {
+    setDark((d) => {
+      const next = !d
+      localStorage.setItem('spaire_theme', next ? 'dark' : 'light')
+      return next
+    })
+  }, [])
   const isSpaceEnabled = organization.storefront_settings?.enabled ?? false
   const [isEditing, setIsEditing] = useState(!isSpaceEnabled)
 
@@ -80,15 +102,6 @@ const Customization = ({
   })
 
   const isDirty = form.formState.isDirty
-
-  // Live (form-watched) view of `enabled` for UI elements that should
-  // reflect pending toggles before publish. `isSpaceEnabled` (above)
-  // stays bound to persisted org state so flows that depend on what's
-  // actually published (preview, "Back to preview") behave correctly.
-  const watchedEnabled =
-    (form.watch('storefront_settings') as
-      | { enabled?: boolean }
-      | undefined)?.enabled ?? isSpaceEnabled
 
   // ── Add-to-Space picker callbacks ─────────────────────────────────
   // The picker is form-context-agnostic; it just hands us payloads and
@@ -628,7 +641,6 @@ const Customization = ({
     // we revert to what's actually published right now, not to the
     // (potentially stale) SSR'd organization prop.
     form.reset()
-    setSettingsOpen(false)
     setArrangeOpen(false)
     setLinksMode(false)
     setPickerOpen(false)
@@ -642,232 +654,236 @@ const Customization = ({
     <Form {...form}>
       <ForceLightMode />
       <div className="spaire-editor spaire-editor-root">
-        <div className="toolbar">
-          <div className="tb-left">
-            <button type="button" className="tb-back" onClick={handleBack}>
-              {'←'} {isSpaceEnabled ? 'Back to preview' : 'Dashboard'}
-            </button>
-          </div>
-          <div className="tb-center">
-            <span
-              className="tb-status"
-              data-pub={!isDirty && isSpaceEnabled ? '1' : '0'}
-            >
-              <span className="dot" />
-              {isDirty
-                ? 'Unsaved'
-                : isSpaceEnabled
-                  ? 'Published'
-                  : 'Draft'}
-            </span>
-          </div>
-          <div className="tb-right">
-            <button
-              type="button"
-              className="tb-enable-toggle"
-              data-on={watchedEnabled ? '1' : '0'}
-              onClick={() => {
-                const next = !watchedEnabled
-                if (!next) {
-                  if (
-                    !window.confirm(
-                      'Disable your Space? Your public URL will return 404 to visitors until you re-enable it.',
-                    )
-                  ) {
-                    return
-                  }
+        {/* ── Chrome: course-editor top bar + tabs ──────────────────
+            The top bar + tabs theme light/dark (creator comfort). The
+            Storefront canvas below stays light (the real storefront);
+            only the chrome + Settings tab carry `.editor-dark`. */}
+        <div
+          className={cn('flex flex-shrink-0 flex-col', dark && 'editor-dark')}
+        >
+          <div className="relative z-10 grid h-12 grid-cols-[1fr_auto_1fr] items-center border-b border-gray-200 bg-gray-50/85 px-5 backdrop-blur">
+            <div className="flex items-center">
+              <button
+                type="button"
+                onClick={handleBack}
+                className="flex items-center gap-0.5 py-1 text-[13px] tracking-tight text-[#0066cc] transition-opacity hover:opacity-70"
+              >
+                <ChevronLeftOutlined sx={{ fontSize: 16 }} />
+                Spaire
+              </button>
+            </div>
+            <div className="flex flex-col items-center">
+              <div className="text-[13px] font-semibold tracking-tight text-gray-900">
+                {organization.name || 'Your Space'}
+              </div>
+              <div className="flex items-center gap-1.5 text-[11px] text-gray-500">
+                <span
+                  className={cn(
+                    'h-1.5 w-1.5 rounded-full',
+                    isDirty
+                      ? 'bg-amber-500'
+                      : isSpaceEnabled
+                        ? 'bg-emerald-500'
+                        : 'bg-gray-400',
+                  )}
+                />
+                {isDirty ? 'Unsaved' : isSpaceEnabled ? 'Published' : 'Draft'}
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-2">
+              {activeTab === 'storefront' && (
+                <button
+                  type="button"
+                  onClick={() => setArrangeOpen((o) => !o)}
+                  aria-pressed={arrangeOpen}
+                  className={cn(
+                    'rounded-full px-3 py-[5px] text-xs font-medium tracking-tight transition-colors',
+                    arrangeOpen
+                      ? 'bg-gray-100 text-gray-900'
+                      : 'text-gray-600 hover:bg-gray-100',
+                  )}
+                >
+                  Arrange
+                </button>
+              )}
+              {isDirty && (
+                <button
+                  type="button"
+                  onClick={discardChanges}
+                  className="rounded-full px-3 py-[5px] text-xs font-medium tracking-tight text-gray-500 transition-colors hover:bg-gray-100"
+                >
+                  Discard
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={toggleDark}
+                aria-label={
+                  dark ? 'Switch to light mode' : 'Switch to dark mode'
                 }
-                const current = form.getValues('storefront_settings') ?? {}
-                form.setValue(
-                  'storefront_settings',
-                  { ...current, enabled: next },
-                  { shouldDirty: true },
-                )
-              }}
-              aria-pressed={watchedEnabled}
-              title={watchedEnabled ? 'Disable Store' : 'Enable Store'}
-            >
-              <span className="sp-toggle" data-on={watchedEnabled ? '1' : '0'}>
-                <i />
-              </span>
-              {watchedEnabled ? 'Store enabled' : 'Enable Store'}
-            </button>
-            <button
-              type="button"
-              className="tb-icon-btn"
-              onClick={() => {
-                setArrangeOpen((o) => !o)
-                if (!arrangeOpen) {
-                  setSettingsOpen(false)
-                  setLinksMode(false)
-                }
-              }}
-              aria-pressed={arrangeOpen}
-              title="Arrange products and links"
-            >
-              Arrange
-            </button>
-            <button
-              type="button"
-              className="tb-icon-btn"
-              onClick={() => setSettingsOpen((o) => !o)}
-              aria-pressed={settingsOpen}
-            >
-              Settings
-            </button>
-            <button
-              type="button"
-              className="tb-publish"
-              onClick={handlePublish}
-              disabled={!isDirty || publishing}
-            >
-              {publishing
-                ? 'Publishing…'
-                : isDirty
-                  ? 'Publish changes'
-                  : 'Published'}
-            </button>
+                title={dark ? 'Light mode' : 'Dark mode'}
+                className="flex h-7 w-7 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900"
+              >
+                {dark ? (
+                  <LightModeOutlined sx={{ fontSize: 17 }} />
+                ) : (
+                  <DarkModeOutlined sx={{ fontSize: 17 }} />
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={handlePublish}
+                disabled={!isDirty || publishing}
+                className="flex items-center gap-1 rounded-full bg-[#0066cc] px-3.5 py-[5px] text-xs font-medium tracking-tight text-white transition-[filter] hover:brightness-110 disabled:cursor-default disabled:opacity-40"
+              >
+                {publishing ? 'Publishing…' : isDirty ? 'Publish' : 'Published'}
+              </button>
+            </div>
+          </div>
+
+          {/* Tabs — Storefront · Settings */}
+          <div className="flex flex-shrink-0 items-center justify-center border-b border-gray-200 bg-white">
+            {(['storefront', 'settings'] as const).map((tab) => {
+              const active = tab === activeTab
+              return (
+                <button
+                  key={tab}
+                  type="button"
+                  onClick={() => setActiveTab(tab)}
+                  className={cn(
+                    '-mb-px border-b-2 px-4 py-2.5 text-[13px] capitalize tracking-tight transition-colors',
+                    active
+                      ? 'border-[#0066cc] font-medium text-[#0066cc]'
+                      : 'border-transparent text-gray-500 hover:text-gray-900',
+                  )}
+                >
+                  {tab}
+                </button>
+              )
+            })}
           </div>
         </div>
 
-        {/* Unsaved-changes banner */}
-        {isDirty && (
-          <div className="unsaved-banner">
-            <div>
-              <b>You have unpublished changes.</b>
-              <button type="button" onClick={handlePublish}>
-                Publish now
-              </button>
-              <button
-                type="button"
-                className="discard"
-                onClick={discardChanges}
-              >
-                Discard
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Canvas — ProfileCard + Storefront content blocks */}
-        <SpaceEditorCanvas
-          organization={organization}
-          hasSettingsPanel={settingsOpen || linksMode || arrangeOpen}
-          onAddToSpace={() => setPickerOpen(true)}
-        />
-
-        {/* Arrange panel — single source of truth for reordering every
-            item in the Space (products, categories, links). The
-            per-item drag handles in the canvas still work, but this
-            panel is the recommended way for users who find inline
-            drag confusing. */}
-        {arrangeOpen && (
-          <aside
-            className="side-panel open"
-            style={{ width: 'min(440px, 100vw)' }}
-            aria-label="Arrange items"
-          >
-            <ArrangePanel
+        {activeTab === 'storefront' ? (
+          <>
+            {/* Canvas — ProfileCard + Storefront content blocks */}
+            <SpaceEditorCanvas
               organization={organization}
-              products={(storefrontData?.products ?? []) as schemas['ProductStorefront'][]}
-              forms={
-                ((storefrontData as { forms?: FormPublic[] } | undefined)
-                  ?.forms ?? []) as FormPublic[]
-              }
-              onClose={() => setArrangeOpen(false)}
+              hasSettingsPanel={linksMode || arrangeOpen}
+              onAddToSpace={() => setPickerOpen(true)}
             />
-          </aside>
-        )}
 
-        {/* Settings side panel (PR D — redesigned to match the
-            design hand-off: Visibility, Available for Work, Display,
-            Blocks). All inline-editable profile fields live on the
-            canvas itself (PR C) so this panel only carries the
-            page-level settings. */}
-        <SpaceSettingsPanel
-          organization={organization}
-          open={settingsOpen}
-          onClose={() => setSettingsOpen(false)}
-          onOpenLinks={() => {
-            setSettingsOpen(false)
-            setLinksMode(true)
-          }}
-        />
-
-        {/* Manage Links side panel — opens from the Settings form's
-            "Manage links" button. PR D folds this into the new panel. */}
-        {linksMode && (
-          <aside
-            className="side-panel open"
-            style={{ width: 'min(540px, 100vw)' }}
-            aria-label="Manage links"
-          >
-            <div className="sp-head">
-              <h2>Manage links</h2>
-              <button
-                type="button"
-                className="tb-icon-btn"
-                onClick={() => setLinksMode(false)}
-                aria-label="Close links panel"
+            {/* Arrange panel — single source of truth for reordering
+                every item in the Space (products, categories, links). */}
+            {arrangeOpen && (
+              <aside
+                className="side-panel open"
+                style={{ width: 'min(440px, 100vw)' }}
+                aria-label="Arrange items"
               >
-                {'×'}
-              </button>
-            </div>
-            <div className="sp-body" style={{ padding: '20px 24px 80px' }}>
-              <StorefrontLinksPanel
+                <ArrangePanel
+                  organization={organization}
+                  products={(storefrontData?.products ?? []) as schemas['ProductStorefront'][]}
+                  forms={
+                    ((storefrontData as { forms?: FormPublic[] } | undefined)
+                      ?.forms ?? []) as FormPublic[]
+                  }
+                  onClose={() => setArrangeOpen(false)}
+                />
+              </aside>
+            )}
+
+            {/* Manage Links side panel — opens from the Settings tab's
+                "Manage links" button. */}
+            {linksMode && (
+              <aside
+                className="side-panel open"
+                style={{ width: 'min(540px, 100vw)' }}
+                aria-label="Manage links"
+              >
+                <div className="sp-head">
+                  <h2>Manage links</h2>
+                  <button
+                    type="button"
+                    className="tb-icon-btn"
+                    onClick={() => setLinksMode(false)}
+                    aria-label="Close links panel"
+                  >
+                    {'×'}
+                  </button>
+                </div>
+                <div className="sp-body" style={{ padding: '20px 24px 80px' }}>
+                  <StorefrontLinksPanel
+                    organization={organization}
+                    onBack={() => setLinksMode(false)}
+                  />
+                </div>
+              </aside>
+            )}
+
+            {/* Floating Add-to-Space FAB — hidden when the canvas is
+                fully empty (the SpaceEmptyHero shows its own CTA). */}
+            {(() => {
+              const liveSettings = (form.watch('storefront_settings') as
+                | {
+                    featured_product_ids?: string[]
+                    storefront_links?: unknown[]
+                    featured_mode?: 'all' | 'curated'
+                  }
+                | undefined) ?? {}
+              const featuredMode = liveSettings.featured_mode ?? 'curated'
+              const featuredIds = liveSettings.featured_product_ids ?? []
+              const visibleProductCount =
+                featuredMode === 'curated'
+                  ? featuredIds.length
+                  : storefrontData?.products?.length ?? 0
+              const linkCount = liveSettings.storefront_links?.length ?? 0
+              if (visibleProductCount === 0 && linkCount === 0) return null
+              return (
+                <div
+                  className={`add-fab-wrap${linksMode || arrangeOpen ? ' has-panel' : ''}`}
+                >
+                  <button
+                    type="button"
+                    className="add-fab"
+                    onClick={() => setPickerOpen(true)}
+                  >
+                    <span className="plus">+</span>
+                    Add to Space
+                    <span className="kbd">{'⌘'}K</span>
+                  </button>
+                </div>
+              )
+            })()}
+
+            {pickerOpen && (
+              <AddToSpacePicker
                 organization={organization}
-                onBack={() => setLinksMode(false)}
+                alreadySelectedProductIds={
+                  ((form.getValues('storefront_settings') ?? {}) as {
+                    featured_product_ids?: string[]
+                  }).featured_product_ids ?? []
+                }
+                onClose={() => setPickerOpen(false)}
+                callbacks={pickerCallbacks}
               />
-            </div>
-          </aside>
-        )}
-
-        {/* Floating Add-to-Space FAB — hidden when the canvas is fully
-            empty (the SpaceEmptyHero already shows its own CTA). */}
-        {(() => {
-          const liveSettings = (form.watch('storefront_settings') as
-            | {
-                featured_product_ids?: string[]
-                storefront_links?: unknown[]
-                featured_mode?: 'all' | 'curated'
-              }
-            | undefined) ?? {}
-          const featuredMode = liveSettings.featured_mode ?? 'curated'
-          const featuredIds = liveSettings.featured_product_ids ?? []
-          const visibleProductCount =
-            featuredMode === 'curated'
-              ? featuredIds.length
-              : storefrontData?.products?.length ?? 0
-          const linkCount = liveSettings.storefront_links?.length ?? 0
-          if (visibleProductCount === 0 && linkCount === 0) return null
-          return (
-            <div
-              className={`add-fab-wrap${settingsOpen || linksMode || arrangeOpen ? ' has-panel' : ''}`}
-            >
-              <button
-                type="button"
-                className="add-fab"
-                onClick={() => setPickerOpen(true)}
-              >
-                <span className="plus">+</span>
-                Add to Space
-                <span className="kbd">{'⌘'}K</span>
-              </button>
-            </div>
-          )
-        })()}
-
-        {pickerOpen && (
-          <AddToSpacePicker
-            organization={organization}
-            alreadySelectedProductIds={
-              ((form.getValues('storefront_settings') ?? {}) as {
-                featured_product_ids?: string[]
-              }).featured_product_ids ?? []
-            }
-            onClose={() => setPickerOpen(false)}
-            callbacks={pickerCallbacks}
-          />
+            )}
+          </>
+        ) : (
+          <div
+            className={cn(
+              'min-h-0 flex-1 overflow-y-auto',
+              dark && 'editor-dark',
+            )}
+          >
+            <SpaceSettingsTab
+              organization={organization}
+              onOpenLinks={() => {
+                setActiveTab('storefront')
+                setLinksMode(true)
+              }}
+            />
+          </div>
         )}
       </div>
     </Form>
