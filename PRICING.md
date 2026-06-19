@@ -106,7 +106,10 @@ The following are part of the product on every tier. Gating any of these would b
 
 **Sandbox / test mode:** a non-production environment for testing integrations without real payments or transaction fees.
 
-**Legacy:** internal-only fallback tier for organizations created before tiered pricing existed, plus the destination an org lands on after a trial lapses or a paid plan is canceled. There is no monthly fee, but transactions are billed at the global default rate (5% + $0.50) — the worst rate we charge — so Legacy is never cheaper than a paid plan. Features and quotas are unenforced. Not a public plan; not selectable from the upgrade modal.
+**No-plan states:** there is **no** free or unlimited fallback tier. An organization is always in exactly one of: a paid plan (Starter/Studio/Scale, possibly trialing), or one of two internal no-plan states:
+
+- **`inactive`** — a real creator org on a configured platform with no active plan (never converted, trial lapsed, or churned). Everything is gated off (zero limits, no features); the dashboard routes them to plan selection and the delinquency lifecycle governs storefront/admin access. Not a product, not selectable; it's a resolved state.
+- **`unmanaged`** — platform billing isn't configured at all (single-tenant / self-hosted / dev), or the platform org resolving itself. Unlimited, no enforcement. No real creator can land here.
 
 ---
 
@@ -144,7 +147,7 @@ Custom pricing for the Scale tier kicks in above $50k/month GMV. The negotiated 
 1. Creator signs up → backend auto-starts a **14-day Starter trial** subscription on the platform org. No card required at signup.
 2. During the trial the creator has Starter entitlements (limits + features) and can build courses, send emails, etc.
 3. At any point the creator can switch the target tier (Starter / Studio / Scale) via the upgrade modal in `Settings → Plan`. The upgrade-checkout endpoint converts the trialing subscription in-place — they enter a payment method, the remaining trial days carry over to the paid subscription, then it bills at the picked tier.
-4. If the trial expires without conversion, the subscription lapses and the org is moved to **Legacy** — no feature/quota enforcement, but billed at the global default transaction rate (5% + $0.50), which is the worst rate we charge. So an un-converted org keeps access but never pays *less* than a paid plan; letting the trial lapse is never the cheaper choice.
+4. If the trial expires without conversion, the subscription lapses and the org has **no active plan** — it resolves to the restrictive `inactive` state (everything gated off). There is no free fallback. The dashboard routes the creator to plan selection, and the delinquency lifecycle (retry → payout-hold/fee-netting → suspension → stop-selling) governs storefront/admin access for a creator who was paying and then lapsed.
 
 ---
 
@@ -187,7 +190,7 @@ Custom pricing for the Scale tier kicks in above $50k/month GMV. The negotiated 
 
 ### Trial conversion follow-ups
 
-- Cron task to expire / lapse Starter trials that didn't capture a payment method by day 14, then auto-resubscribe to Legacy via the `platform.resubscribe_to_legacy` actor. Platform-internal trial subscriptions are excluded from the generic subscription-cycle scheduler so the trial-expiry cron is the single owner of their end-of-life.
+- Cron task to expire / lapse Starter trials that didn't capture a payment method by day 14; the org then has no active plan (resolves to `inactive`). Platform-internal trial subscriptions are excluded from the generic subscription-cycle scheduler so the trial-expiry cron is the single owner of their end-of-life.
 - Creator-facing reminder emails at trial day 7, day 2, and day 0.
 - "Trial extension" override for support to give a creator more time (`scripts/extend_platform_trial.py`).
 

@@ -4,7 +4,7 @@ Three reminders per trial — at T-7, T-2, and T-0 days before
 `trial_end`. Each one is sent at most once per (subscription, marker)
 pair; we record the marker in the subscription's `user_metadata` to
 keep the implementation table-less. After expiry, `platform.expire_trials`
-takes over (revoke + resubscribe to Legacy).
+takes over (revoke; the org then has no plan and resolves to `inactive`).
 
 Runs as a daily cron actor (`platform.notify_trial_reminders`).
 """
@@ -125,18 +125,18 @@ def _render(
         body = (
             f"Hi {organization.name},<br><br>"
             f"Your {tier_label} trial ends on {when}. Add a payment method "
-            "from <strong>Settings → Billing</strong> to keep your access — "
-            "otherwise your org will move to the Legacy plan and you'll "
-            "lose Pro features."
+            "from <strong>Settings → Plan</strong> to keep your access — "
+            "otherwise your plan ends and you'll lose access until you pick "
+            "a plan."
         )
     else:  # marker == 0 — last day
         subject = f"Last day of your {tier_label} trial"
         body = (
             f"Hi {organization.name},<br><br>"
             f"This is the last day of your {tier_label} trial. Add a "
-            "payment method from <strong>Settings → Billing</strong> "
-            "before the day ends to keep going. After expiry your org "
-            "moves to the Legacy plan automatically."
+            "payment method from <strong>Settings → Plan</strong> "
+            "before the day ends to keep going. After expiry your plan "
+            "ends and your access is paused until you pick one."
         )
 
     html_content = (

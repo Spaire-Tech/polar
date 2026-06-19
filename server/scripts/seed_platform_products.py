@@ -211,19 +211,6 @@ _ANNUAL_SCALE_CENTS = 29900 * 12 * 80 // 100  # 287,040
 
 
 PRODUCT_SPECS: list[ProductSpec] = [
-    ProductSpec(
-        tier="legacy",
-        billing_interval="month",
-        name="Spaire Legacy",
-        description=(
-            "Grandfathered plan for organizations created before tiered "
-            "pricing existed. Preserves the pre-tier transaction fee "
-            "(global default), no quota enforcement, full feature access. "
-            "Not available for new signups."
-        ),
-        recurring_interval=SubscriptionRecurringInterval.month,
-        price=PriceSpec(amount_type=ProductPriceAmountType.free),
-    ),
     # Starter — monthly + annual
     ProductSpec(
         tier="starter",

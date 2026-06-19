@@ -287,17 +287,10 @@ class TestEnforce:
         session: AsyncSession,
         save_fixture: SaveFixture,
     ) -> None:
-        platform_org = await create_organization(save_fixture)
-        _patch_platform_org_id(mocker, platform_org.id)
+        # Every paid tier caps storage. The only unlimited path is
+        # `unmanaged` — platform billing not configured (dev / self-host).
+        _patch_platform_org_id(mocker, None)
         creator = await create_organization(save_fixture)
-        # Every paid tier caps storage now; Legacy is the unlimited tier.
-        await _subscribe(
-            save_fixture,
-            platform_org=platform_org,
-            creator=creator,
-            tier="legacy",
-            monthly_cents=0,
-        )
 
         result = await enforce(
             session,

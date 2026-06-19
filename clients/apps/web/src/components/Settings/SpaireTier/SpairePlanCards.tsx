@@ -135,8 +135,8 @@ const SpairePlanCards = ({ organization }: SpairePlanCardsProps) => {
       toast({
         title: isTrial ? 'Trial ended' : 'Subscription canceled',
         description: isTrial
-          ? 'Your trial has ended. Your org has been moved to the Legacy plan; upgrade any time from this page.'
-          : 'Your Spaire subscription will end at the close of the current billing period. Your org will move to the Legacy plan automatically.',
+          ? 'Your trial has ended. Your org has no active plan — pick one any time from this page to restore access.'
+          : 'Your Spaire subscription will end at the close of the current billing period, after which your org will have no active plan until you pick one.',
       })
       queryClient.invalidateQueries({
         queryKey: ['spaire', 'subscription', organization.id],
@@ -203,12 +203,12 @@ const SpairePlanCards = ({ organization }: SpairePlanCardsProps) => {
         title={isTrial ? 'End your trial?' : 'Cancel your Spaire plan?'}
         description={
           isTrial
-            ? 'Your trial will end immediately. You will lose paid features and your org will move to the Legacy plan. You can upgrade again at any time.'
+            ? 'Your trial will end immediately. You will lose access until you pick a plan — you can choose one again at any time.'
             : sub?.current_period_end
               ? `Your plan stays active through ${new Date(
                   sub.current_period_end,
-                ).toLocaleDateString()}. After that your org moves to the Legacy plan automatically.`
-              : 'Your plan will be canceled at the end of the current billing period and your org will be moved to Legacy.'
+                ).toLocaleDateString()}. After that your org has no active plan until you pick one.`
+              : 'Your plan will be canceled at the end of the current billing period, after which your org has no active plan until you pick one.'
         }
         destructiveText={isTrial ? 'Yes, end trial' : 'Yes, cancel'}
         destructive
@@ -439,7 +439,7 @@ type CtaKind =
   | { kind: 'end_trial' } // CURRENT and trialing — show End trial
   | { kind: 'convert_trial' } // trialing on this exact tier+interval, prompt to add card
   | { kind: 'switch'; primary: boolean } // paid → paid switch
-  | { kind: 'upgrade'; primary: boolean } // Legacy or trial → checkout
+  | { kind: 'upgrade'; primary: boolean } // no plan or trial → checkout
   | { kind: 'downgrade' } // paid on a higher tier → switch down
   | { kind: 'noop' }
 
@@ -454,7 +454,9 @@ interface ResolveCtaArgs {
 }
 
 const TIER_ORDER: Record<string, number> = {
-  legacy: 0,
+  // No-plan states rank below every paid tier so any plan reads as an upgrade.
+  inactive: 0,
+  unmanaged: 0,
   starter: 1,
   studio: 2,
   scale: 3,
@@ -466,7 +468,8 @@ const resolveCta = (args: ResolveCtaArgs): CtaKind => {
 
   const planRank = TIER_ORDER[plan.tier]
   const currentRank = TIER_ORDER[currentTier]
-  const isLegacy = currentTier === 'legacy'
+  // No active plan (inactive/unmanaged) takes the checkout path, like a trial.
+  const isNoPlan = currentTier === 'inactive' || currentTier === 'unmanaged'
 
   // The card representing the user's exact current (tier, interval).
   const exactlyCurrent = plan.tier === currentTier && interval === currentInterval
@@ -489,8 +492,8 @@ const resolveCta = (args: ResolveCtaArgs): CtaKind => {
     return { kind: 'switch', primary: true }
   }
 
-  // Legacy or trial → a paid tier: checkout.
-  if (isLegacy || isTrial) {
+  // No plan or trial → a paid tier: checkout.
+  if (isNoPlan || isTrial) {
     return { kind: 'upgrade', primary: planRank >= currentRank }
   }
 

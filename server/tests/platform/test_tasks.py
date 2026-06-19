@@ -1,9 +1,10 @@
 """Tests for the platform trial-expiry cron.
 
-platform_expire_trials is now the SOLE owner of the auto-attached Starter
+platform_expire_trials is the SOLE owner of the auto-attached Starter
 trial's end-of-life (the generic subscription-cycle scheduler excludes it).
-These tests verify it lapses an expired trial and hands the org off to the
-resubscribe-to-Legacy actor, and leaves a not-yet-expired trial alone.
+These tests verify it lapses an expired trial in place (the org then has no
+plan and resolves to `inactive` — there is no free fallback), and leaves a
+not-yet-expired trial alone.
 """
 
 from datetime import timedelta
@@ -55,7 +56,7 @@ async def _starter_product(
 
 @pytest.mark.asyncio
 class TestPlatformExpireTrials:
-    async def test_expired_trial_is_canceled_and_handed_off(
+    async def test_expired_trial_is_canceled(
         self,
         mocker: MockerFixture,
         session: AsyncSession,
@@ -87,13 +88,11 @@ class TestPlatformExpireTrials:
 
         refreshed = await session.get(type(trial), trial.id)
         assert refreshed is not None
+        # Trial is lapsed in place; the org now has no plan -> inactive.
+        # There is no resubscribe-to-anything (no free fallback).
         assert refreshed.status == SubscriptionStatus.canceled
         assert refreshed.ended_at is not None
-
-        enqueue_job_mock.assert_any_call(
-            "platform.resubscribe_to_legacy",
-            organization_id=creator.id,
-        )
+        enqueue_job_mock.assert_not_called()
 
     async def test_active_trial_is_left_alone(
         self,

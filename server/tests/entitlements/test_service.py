@@ -46,7 +46,7 @@ async def _seed_tier_product(
 
 @pytest.mark.asyncio
 class TestGetTier:
-    async def test_no_platform_org_configured_returns_legacy(
+    async def test_no_platform_org_configured_returns_unmanaged(
         self,
         mocker: MockerFixture,
         session: AsyncSession,
@@ -57,9 +57,9 @@ class TestGetTier:
 
         tier = await entitlements.get_tier(session, creator.id)
 
-        assert tier == TierKey.legacy
+        assert tier == TierKey.unmanaged
 
-    async def test_platform_org_itself_returns_legacy(
+    async def test_platform_org_itself_returns_unmanaged(
         self,
         mocker: MockerFixture,
         session: AsyncSession,
@@ -70,9 +70,9 @@ class TestGetTier:
 
         tier = await entitlements.get_tier(session, platform_org.id)
 
-        assert tier == TierKey.legacy
+        assert tier == TierKey.unmanaged
 
-    async def test_no_platform_customer_returns_legacy(
+    async def test_no_platform_customer_returns_inactive(
         self,
         mocker: MockerFixture,
         session: AsyncSession,
@@ -84,9 +84,9 @@ class TestGetTier:
 
         tier = await entitlements.get_tier(session, creator.id)
 
-        assert tier == TierKey.legacy
+        assert tier == TierKey.inactive
 
-    async def test_no_active_subscription_returns_legacy(
+    async def test_no_active_subscription_returns_inactive(
         self,
         mocker: MockerFixture,
         session: AsyncSession,
@@ -115,7 +115,7 @@ class TestGetTier:
 
         tier = await entitlements.get_tier(session, creator.id)
 
-        assert tier == TierKey.legacy
+        assert tier == TierKey.inactive
 
     @pytest.mark.parametrize(
         "tier_label,expected,monthly_cents",
@@ -191,7 +191,7 @@ class TestGetTier:
 
         assert tier == TierKey.starter
 
-    async def test_unrecognized_tier_metadata_returns_legacy(
+    async def test_unrecognized_tier_metadata_returns_inactive(
         self,
         mocker: MockerFixture,
         session: AsyncSession,
@@ -222,9 +222,9 @@ class TestGetTier:
 
         tier = await entitlements.get_tier(session, creator.id)
 
-        assert tier == TierKey.legacy
+        assert tier == TierKey.inactive
 
-    async def test_missing_org_with_platform_configured_returns_legacy(
+    async def test_missing_org_with_platform_configured_returns_inactive(
         self,
         mocker: MockerFixture,
         session: AsyncSession,
@@ -235,7 +235,7 @@ class TestGetTier:
 
         tier = await entitlements.get_tier(session, uuid4())
 
-        assert tier == TierKey.legacy
+        assert tier == TierKey.inactive
 
 
 @pytest.mark.asyncio
@@ -279,18 +279,19 @@ class TestGetForOrganization:
         assert result.limits.active_email_sequences == 3
         assert result.limits.email_sends_monthly == 25_000
 
-    async def test_legacy_has_unlimited_limits(
+    async def test_unmanaged_has_unlimited_limits(
         self,
         mocker: MockerFixture,
         session: AsyncSession,
         save_fixture: SaveFixture,
     ) -> None:
+        # Platform billing not configured -> unmanaged (unlimited).
         _patch_platform_org_id(mocker, None)
         creator = await create_organization(save_fixture)
 
         result = await entitlements.get_for_organization(session, creator.id)
 
-        assert result.tier == TierKey.legacy
+        assert result.tier == TierKey.unmanaged
         assert result.limits.published_courses is None
         assert result.limits.email_sends_monthly is None
         assert result.features.custom_email_sender_domain is True
@@ -334,18 +335,26 @@ class TestTierDefinitions:
         assert starter.features.customer_wallet is False
         assert starter.rate_limit_group == "elevated"
 
-    def test_legacy_bills_at_worst_rate(self) -> None:
+    def test_unmanaged_is_unlimited(self) -> None:
         from polar.entitlements.tiers import get_definition
 
-        legacy = get_definition(TierKey.legacy)
-        # Legacy has no feature/quota enforcement but is billed at the
-        # global default — the worst rate we charge — so an un-converted
-        # org is never cheaper than a paid plan.
-        assert legacy.monthly_price_cents == 0
-        assert legacy.transaction_fee.percent_basis_points == 500
-        assert legacy.transaction_fee.fixed_cents == 50
-        assert legacy.limits.published_courses is None
-        assert legacy.features.audit_logs is True
+        # unmanaged is the dev / self-host / platform-org fallback: unlimited.
+        unmanaged = get_definition(TierKey.unmanaged)
+        assert unmanaged.monthly_price_cents == 0
+        assert unmanaged.limits.published_courses is None
+        assert unmanaged.features.audit_logs is True
+
+    def test_inactive_is_restrictive(self) -> None:
+        from polar.entitlements.tiers import get_definition
+
+        # inactive is a real creator with no plan: everything gated off, so
+        # there is no free unlimited fallback.
+        inactive = get_definition(TierKey.inactive)
+        assert inactive.monthly_price_cents == 0
+        assert inactive.limits.published_courses == 0
+        assert inactive.limits.email_sends_monthly == 0
+        assert inactive.features.audit_logs is False
+        assert inactive.features.email_sequences_and_segments is False
 
     def test_scale_shape(self) -> None:
         from polar.entitlements.tiers import get_definition

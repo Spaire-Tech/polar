@@ -135,8 +135,7 @@ class PlatformBillingService:
             subscription_metadata=subscription_metadata,
         )
         # Schedule a tier-fee sync so the creator's Account picks up the
-        # tier's list rate. Safe no-op if the org doesn't have an Account
-        # yet, or if the tier is legacy (sync exits early on legacy).
+        # tier's list rate. Safe no-op if the org doesn't have an Account yet.
         enqueue_fee_sync(organization.id)
         return subscription
 
@@ -151,16 +150,15 @@ class PlatformBillingService:
         trial configuration (trial_interval=day, count=14) and
         `_create_subscription` promotes that to a `trialing` status with
         `trial_end` set 14 days from now. After the trial expires the
-        platform.expire_trials cron lapses the sub and re-subscribes the
-        org to Legacy unless the creator has converted via upgrade-checkout
-        (which captures a payment method and supersedes this auto-trial
-        with a fresh Stripe-managed subscription on the chosen tier).
+        platform.expire_trials cron lapses the sub and the org drops to
+        `inactive` (no plan) — unless the creator converted via
+        upgrade-checkout, which captures a payment method and supersedes
+        this auto-trial with a subscription on the chosen tier.
 
         Pre-attaching this trial is what gives a freshly created org a
         real Starter tier from the first dashboard hit — without it,
-        EntitlementsService.get_tier silently falls back to Legacy
-        (unlimited features), which is the exact bypass the PRICING.md
-        rollout is supposed to close.
+        EntitlementsService.get_tier resolves them to `inactive` (no
+        access) until they pick a plan.
         """
         return await self.ensure_subscription(
             session, organization, tier=TierKey.starter, managed_by="trial"

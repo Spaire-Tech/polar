@@ -471,18 +471,10 @@ class TestCheck:
         session: AsyncSession,
         save_fixture: SaveFixture,
     ) -> None:
-        platform_org = await create_organization(save_fixture)
-        _patch_platform_org_id(mocker, platform_org.id)
+        # Every paid tier caps video views. The only unlimited path is
+        # `unmanaged` — platform billing not configured (dev / self-host).
+        _patch_platform_org_id(mocker, None)
         creator = await create_organization(save_fixture)
-        # Every paid tier caps video views now; a subscription to the
-        # Legacy product is the only tier with unlimited quotas.
-        await _subscribe_to_tier(
-            save_fixture,
-            platform_org=platform_org,
-            creator=creator,
-            tier="legacy",
-            monthly_cents=0,
-        )
 
         result = await quotas.check(
             session,
@@ -495,13 +487,13 @@ class TestCheck:
         assert result.reason == "unlimited"
         assert result.limit is None
 
-    async def test_legacy_tier_is_unlimited(
+    async def test_unmanaged_tier_is_unlimited(
         self,
         mocker: MockerFixture,
         session: AsyncSession,
         save_fixture: SaveFixture,
     ) -> None:
-        # No platform org configured -> legacy tier returns None limits.
+        # No platform org configured -> unmanaged tier (unlimited).
         _patch_platform_org_id(mocker, None)
         creator = await create_organization(save_fixture)
 
@@ -598,15 +590,14 @@ class TestCheck:
         assert result.reason == "exceeded"
         assert result.overage_storage_units > 0
 
-    async def test_legacy_has_no_overage_grace(
+    async def test_zero_grace_hard_blocks_at_cap(
         self,
         mocker: MockerFixture,
         session: AsyncSession,
         save_fixture: SaveFixture,
     ) -> None:
-        """Legacy is the only $0 tier left; it carries unlimited limits
-        so the "no grace band, hard-block at the cap" semantics are
-        exercised by patching Pro down to a tiny cap with grace=0."""
+        """The "no grace band, hard-block at the cap" semantics, exercised
+        by patching Starter down to a tiny cap with overage_grace_pct=0."""
         platform_org = await create_organization(save_fixture)
         _patch_platform_org_id(mocker, platform_org.id)
         # Fake a 0% grace on Pro by patching the entitlement field.

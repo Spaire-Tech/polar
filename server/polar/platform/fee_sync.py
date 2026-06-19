@@ -20,7 +20,7 @@ import structlog
 from polar.account.repository import AccountRepository
 from polar.customer.repository import CustomerRepository
 from polar.entitlements.service import entitlements as entitlements_service
-from polar.entitlements.tiers import TierKey, tier_from_value
+from polar.entitlements.tiers import PAID_TIERS, tier_from_value
 from polar.enums import RateLimitGroup
 from polar.exceptions import PolarError
 from polar.kit.utils import utc_now
@@ -118,17 +118,16 @@ class PlatformFeeSyncService:
                 reason="rate_limit_only" if rate_limit_changed else "locked",
             )
 
-        # Legacy tier: reset the Account fee columns to NULL so the global
-        # default — the worst rate (5% + 50¢) — applies via the
-        # Account.platform_fee fallback. This is the churn path: a creator
-        # who previously held Studio/Scale (and therefore had a lower rate
-        # written onto their Account) must NOT keep that negotiated rate on
-        # the $0 Legacy fallback, or canceling would leave them cheaper
-        # than every paid plan. Nulling rather than writing the default
-        # explicitly preserves the "never synced == on global default"
-        # semantics. The lock check above already returned for locked
-        # accounts, so reaching here means unlocked (or force=True).
-        if tier_entitlements.tier == TierKey.legacy:
+        # Non-paid tier (unmanaged / inactive): reset the Account fee columns
+        # to NULL so the global default applies via the Account.platform_fee
+        # fallback. This is the churn path — a creator who previously held
+        # Studio/Scale (and therefore had a lower rate written onto their
+        # Account) must NOT keep that negotiated rate once they have no plan.
+        # Nulling rather than writing the default explicitly preserves the
+        # "never synced == on global default" semantics. The lock check above
+        # already returned for locked accounts, so reaching here means
+        # unlocked (or force=True).
+        if tier_entitlements.tier not in PAID_TIERS:
             if (
                 account._platform_fee_percent is not None
                 or account._platform_fee_fixed is not None
@@ -141,13 +140,14 @@ class PlatformFeeSyncService:
                     "platform.fee_sync.reset_to_default",
                     organization_id=str(organization.id),
                     account_id=str(account.id),
+                    tier=tier_entitlements.tier.value,
                     previous_percent=previous_percent,
                     previous_fixed=previous_fixed,
                 )
                 return _SyncResult(changed=True, reason="reset_to_default")
             return _SyncResult(
                 changed=rate_limit_changed,
-                reason="rate_limit_only" if rate_limit_changed else "legacy_tier",
+                reason="rate_limit_only" if rate_limit_changed else "non_paid_tier",
             )
 
         target_percent = tier_entitlements.transaction_fee.percent_basis_points
@@ -268,12 +268,11 @@ async def maybe_supersede_platform_trial(
     if not platform_service.is_platform_organization(customer.organization_id):
         return
 
-    # Only a paid-tier subscription supersedes. A Legacy resubscribe must
-    # not cancel anything (it's the fallback, not a conversion target).
+    # Only a paid-tier subscription supersedes.
     product = subscription.product
     tier_value = (product.user_metadata or {}).get("tier") if product else None
     tier = tier_from_value(tier_value) if isinstance(tier_value, str) else None
-    if tier is None or tier == TierKey.legacy:
+    if tier not in PAID_TIERS:
         return
 
     subscription_repo = platform_subscription_repository(session)
@@ -298,33 +297,6 @@ async def maybe_supersede_platform_trial(
             new_subscription_id=str(subscription.id),
             new_tier=tier.value,
             superseded_subscription_ids=superseded,
-        )
-
-
-async def maybe_enqueue_resubscribe_from_revoke(
-    session: AsyncSession, subscription: Subscription
-) -> None:
-    """If `subscription` belongs to a creator on the platform org and has
-    just been revoked, enqueue a job that re-creates an active Legacy
-    subscription so the org keeps a valid Spaire entitlement record.
-
-    Otherwise a no-op. Called from subscription/service.py inside
-    _on_subscription_revoked.
-    """
-    creator_org_id = await _platform_creator_org_id(session, subscription)
-    if creator_org_id is None:
-        return
-    try:
-        enqueue_job(
-            "platform.resubscribe_to_legacy", organization_id=creator_org_id
-        )
-    except LookupError:
-        # Scripts / tests without a JobQueueManager — same logic as
-        # enqueue_sync above. The caller can re-run platform_billing
-        # .ensure_subscription(tier=legacy) manually if needed.
-        log.debug(
-            "platform.resubscribe_to_legacy.enqueue_skipped_no_queue_manager",
-            organization_id=str(creator_org_id),
         )
 
 

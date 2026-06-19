@@ -1,12 +1,12 @@
 """Tests for the platform upgrade-checkout flow and trial supersession.
 
-Covers the Phase 1 money-correctness changes:
+Covers the platform upgrade / supersession behavior:
   - maybe_supersede_platform_trial: a new paid Spaire sub cancels the
-    creator's leftover auto-trial / Legacy subs, and is a no-op for the
-    trial itself, non-platform subs, and Legacy resubscribes.
+    creator's leftover auto-trial, and is a no-op for the trial itself,
+    non-platform subs, and non-paid subs.
   - PlatformUpgradeService.create_checkout: does NOT pre-revoke the trial,
     carries the remaining trial days onto the conversion checkout, bills
-    immediately (no trial) when converting from Legacy, and writes the
+    immediately (no trial) for an inactive creator, and writes the
     creator's real billing email onto the platform customer.
 """
 
@@ -137,15 +137,19 @@ class TestMaybeSupersedePlatformTrial:
         customer = await _platform_customer(
             save_fixture, platform_org=platform_org, creator=creator
         )
-        legacy_product = await _tier_product(
-            save_fixture, platform_org=platform_org, tier="legacy", monthly_cents=0
-        )
-        legacy = await create_subscription(
+        # A bystander active sub that must not be touched when supersede is
+        # (incorrectly) invoked on the trial itself.
+        bystander_product = await _tier_product(
             save_fixture,
-            product=legacy_product,
+            platform_org=platform_org,
+            tier="studio",
+            monthly_cents=12900,
+        )
+        bystander = await create_subscription(
+            save_fixture,
+            product=bystander_product,
             customer=customer,
             status=SubscriptionStatus.active,
-            user_metadata={"managed_by": "auto_downgrade_on_revoke"},
         )
 
         trial_product = await _tier_product(
@@ -160,13 +164,13 @@ class TestMaybeSupersedePlatformTrial:
             user_metadata={"managed_by": "trial"},
         )
 
-        # Superseding *on the trial itself* must not cancel the Legacy sub.
+        # Superseding *on the trial itself* (managed_by=trial) returns early.
         await maybe_supersede_platform_trial(session, trial)
 
-        await session.refresh(legacy)
-        assert legacy.status == SubscriptionStatus.active
+        await session.refresh(bystander)
+        assert bystander.status == SubscriptionStatus.active
 
-    async def test_legacy_resubscribe_is_noop(
+    async def test_non_paid_sub_does_not_supersede(
         self,
         mocker: MockerFixture,
         session: AsyncSession,
@@ -179,7 +183,7 @@ class TestMaybeSupersedePlatformTrial:
             save_fixture, platform_org=platform_org, creator=creator
         )
 
-        # Some other active sub that must NOT be touched by a Legacy create.
+        # Some other active sub that must NOT be touched.
         other_product = await _tier_product(
             save_fixture, platform_org=platform_org, tier="starter"
         )
@@ -190,17 +194,19 @@ class TestMaybeSupersedePlatformTrial:
             status=SubscriptionStatus.active,
         )
 
-        legacy_product = await _tier_product(
-            save_fixture, platform_org=platform_org, tier="legacy", monthly_cents=0
+        # A sub whose product carries a non-paid / unknown tier must not
+        # supersede anything (only the three paid tiers do).
+        non_paid_product = await _tier_product(
+            save_fixture, platform_org=platform_org, tier="inactive", monthly_cents=0
         )
-        legacy = await create_subscription(
+        non_paid = await create_subscription(
             save_fixture,
-            product=legacy_product,
+            product=non_paid_product,
             customer=customer,
             status=SubscriptionStatus.active,
         )
 
-        await maybe_supersede_platform_trial(session, legacy)
+        await maybe_supersede_platform_trial(session, non_paid)
 
         await session.refresh(other)
         assert other.status == SubscriptionStatus.active
@@ -313,26 +319,21 @@ class TestCreateCheckout:
         assert checkout_create.trial_interval_count == 10  # ceil(9d1h)
         assert checkout_create.subscription_id is None
 
-    async def test_legacy_conversion_bills_immediately(
+    async def test_inactive_creator_upgrade_bills_immediately(
         self,
         mocker: MockerFixture,
         session: AsyncSession,
         save_fixture: SaveFixture,
     ) -> None:
+        # A creator with a platform customer but NO active subscription
+        # (inactive — never converted / churned) upgrading bills immediately:
+        # no carried trial (closes the re-trial abuse loop), no convert-from
+        # subscription_id.
         platform_org = await create_organization(save_fixture)
         _patch_platform_org_id(mocker, platform_org.id)
         creator = await create_organization(save_fixture)
-        customer = await _platform_customer(
+        await _platform_customer(
             save_fixture, platform_org=platform_org, creator=creator
-        )
-        legacy = await _tier_product(
-            save_fixture, platform_org=platform_org, tier="legacy", monthly_cents=0
-        )
-        legacy_sub = await create_subscription(
-            save_fixture,
-            product=legacy,
-            customer=customer,
-            status=SubscriptionStatus.active,
         )
         await _tier_product(
             save_fixture, platform_org=platform_org, tier="starter"
@@ -348,10 +349,8 @@ class TestCreateCheckout:
         )
 
         checkout_create = create_mock.call_args.args[1]
-        # No trial on a Legacy upgrade (closes the re-trial abuse loop), and
-        # the $0 Legacy sub is converted in place.
         assert checkout_create.allow_trial is False
-        assert checkout_create.subscription_id == legacy_sub.id
+        assert checkout_create.subscription_id is None
 
     async def test_active_paid_tier_rejects_upgrade_checkout(
         self,
@@ -403,15 +402,6 @@ class TestCreateCheckout:
             save_fixture, platform_org=platform_org, creator=creator
         )
         synthetic = customer.email
-        legacy = await _tier_product(
-            save_fixture, platform_org=platform_org, tier="legacy", monthly_cents=0
-        )
-        await create_subscription(
-            save_fixture,
-            product=legacy,
-            customer=customer,
-            status=SubscriptionStatus.active,
-        )
         await _tier_product(
             save_fixture, platform_org=platform_org, tier="starter"
         )

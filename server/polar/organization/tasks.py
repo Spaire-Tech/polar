@@ -79,9 +79,9 @@ async def organization_created(organization_id: uuid.UUID) -> None:
         #
         # The trial-expiry cron (platform.tasks.platform_expire_trials)
         # lapses this sub at day 14 if the creator hasn't converted via
-        # upgrade-checkout, then platform.resubscribe_to_legacy takes
-        # over and the org drops to Legacy ($0, no enforcement). That
-        # is the documented PRICING.md flow.
+        # upgrade-checkout; the org then has no active plan and resolves
+        # to `inactive` (no free fallback). That is the documented
+        # PRICING.md flow.
         #
         # If the platform org isn't configured yet, or its tier products
         # haven't been seeded, we log and continue — the org should

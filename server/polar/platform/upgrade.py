@@ -10,7 +10,6 @@ org owns the product, so it's authorized to sell it.
 from datetime import datetime, timedelta
 from math import ceil
 from typing import Literal
-from uuid import UUID
 
 import structlog
 
@@ -19,7 +18,7 @@ from polar.auth.scope import Scope
 from polar.checkout.schemas import CheckoutProductCreate
 from polar.checkout.service import checkout as checkout_service
 from polar.customer.repository import CustomerRepository
-from polar.entitlements.tiers import TierKey, tier_from_value
+from polar.entitlements.tiers import TierKey
 from polar.exceptions import PolarError
 from polar.kit.trial import TrialInterval
 from polar.kit.utils import utc_now
@@ -188,24 +187,16 @@ class PlatformUpgradeService:
         subscription_repo = platform_subscription_repository(session)
         existing_sub = await subscription_repo.get_active_for_customer(customer.id)
 
-        existing_subscription_id: UUID | None = None
         carryover_trial_end: datetime | None = None
         if existing_sub is not None:
-            tier_value = (
-                (existing_sub.product.user_metadata or {}).get("tier")
-                if existing_sub.product is not None
-                else None
-            )
-            existing_tier = (
-                tier_from_value(tier_value) if isinstance(tier_value, str) else None
-            )
             if existing_sub.trialing:
                 carryover_trial_end = existing_sub.trial_end
-            elif existing_tier == TierKey.legacy:
-                existing_subscription_id = existing_sub.id
             else:
                 # Active (non-trialing) on a paid tier — same tier or a
                 # different one both route through switch-plan, not here.
+                # (An org with no active plan resolves to `inactive`, so
+                # get_active_for_customer returns None and we fall through
+                # to a fresh, immediate-charge checkout below.)
                 raise AlreadyOnPaidTier()
 
         # Use model_validate so pydantic coerces success_url (a plain str)
@@ -213,7 +204,6 @@ class PlatformUpgradeService:
         checkout_payload: dict[str, object] = {
             "product_id": target_product.id,
             "customer_id": customer.id,
-            "subscription_id": existing_subscription_id,
             "success_url": success_url,
         }
 
@@ -226,10 +216,10 @@ class PlatformUpgradeService:
             checkout_payload["trial_interval"] = TrialInterval.day
             checkout_payload["trial_interval_count"] = remaining_days
         else:
-            # No active trial to carry (Legacy / expired / none): the
-            # conversion bills immediately. This is also what closes the
+            # No active trial to carry (inactive / churned / expired): the
+            # conversion bills immediately. This also closes the
             # "cancel trial, re-upgrade for a fresh 14 days" abuse loop —
-            # once an org is on Legacy, an upgrade carries no trial.
+            # once an org has no plan, an upgrade carries no trial.
             checkout_payload["allow_trial"] = False
 
         if billing_email is not None:
@@ -261,9 +251,8 @@ class PlatformUpgradeService:
             tier=tier.value,
             billing_interval=billing_interval,
             checkout_id=str(checkout.id),
-            existing_subscription_id=(
-                str(existing_subscription_id) if existing_subscription_id else None
-            ),
+            carried_trial=carryover_trial_end is not None
+            and carryover_trial_end > now,
         )
         return checkout
 

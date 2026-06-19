@@ -23,7 +23,14 @@ const platformApi = api as unknown as any
 // Types — mirror polar/platform/schemas.py
 // -----------------------------------------------------------------------------
 
-export type SpaireTierKey = 'starter' | 'studio' | 'scale' | 'legacy'
+export type SpaireTierKey =
+  | 'starter'
+  | 'studio'
+  | 'scale'
+  // No-plan fallbacks: `inactive` = real creator with no active plan;
+  // `unmanaged` = dev / self-host (platform billing not configured).
+  | 'inactive'
+  | 'unmanaged'
 
 export type PaidTierKey = 'starter' | 'studio' | 'scale'
 
@@ -320,7 +327,7 @@ export const formatTransactionFee = (fee: TransactionFee): string => {
 /**
  * Match the screenshot's renewal copy:
  *   "This site is charged on a monthly basis and renews on Jun 12th, 2026."
- * Returns null if there's no active subscription yet (Legacy / pre-trial).
+ * Returns null if there's no active subscription yet (no plan / pre-trial).
  */
 export const renewalSentence = (
   sub: CurrentSpaireSubscription,
@@ -346,7 +353,8 @@ const TIER_DISPLAY_NAME: Record<SpaireTierKey, string> = {
   starter: 'Starter',
   studio: 'Studio',
   scale: 'Scale',
-  legacy: 'Legacy',
+  inactive: 'No plan',
+  unmanaged: 'Unmanaged',
 }
 
 // The Starter tier shipped originally as "pro". The backend now normalizes

@@ -2,14 +2,12 @@ import pytest
 from pytest_mock import MockerFixture
 from sqlalchemy import func, select
 
-from polar.kit.db.postgres import AsyncSession
-from polar.models import Meter, Organization, Product, ProductPrice
-from polar.models.product_price import (
-    ProductPriceAmountType,
-    ProductPriceFixed,
-    ProductPriceFree,
-)
 from polar.enums import SubscriptionRecurringInterval
+from polar.kit.db.postgres import AsyncSession
+from polar.models import Meter, Product, ProductPrice
+from polar.models.product_price import (
+    ProductPriceFixed,
+)
 from scripts.seed_platform_products import (
     METER_SPECS,
     PRODUCT_SPECS,
@@ -172,13 +170,15 @@ class TestSeedPlatformProducts:
                 )
             ).scalar_one()
 
-        # Legacy — $0, no trial, grandfather-only.
-        legacy = await _find("legacy", "month")
-        assert legacy.name == "Spaire Legacy"
-        assert legacy.trial_interval is None
-        legacy_price = await _price_for(legacy)
-        assert isinstance(legacy_price, ProductPriceFree)
-        assert legacy_price.amount_type == ProductPriceAmountType.free
+        # No Legacy product — there is no free fallback tier.
+        legacy_count = (
+            await session.execute(
+                select(func.count(Product.id))
+                .where(Product.organization_id == platform_org.id)
+                .where(Product.user_metadata["tier"].astext == "legacy")
+            )
+        ).scalar_one()
+        assert legacy_count == 0
 
         # Starter — monthly $49 + annual $470.40 (20% off 12 × $49 = $588).
         starter_monthly = await _find("starter", "month")

@@ -26,7 +26,11 @@ from polar.discount.service import discount as discount_service
 from polar.email.react import render_email_template
 from polar.email.schemas import EmailAdapter
 from polar.email.sender import enqueue_email
-from polar.enums import SubscriptionProrationBehavior, SubscriptionRecurringInterval, TaxBehavior
+from polar.enums import (
+    SubscriptionProrationBehavior,
+    SubscriptionRecurringInterval,
+    TaxBehavior,
+)
 from polar.event.service import event as event_service
 from polar.event.system import (
     SubscriptionCanceledMetadata,
@@ -40,8 +44,8 @@ from polar.event.system import (
 from polar.exceptions import (
     BadRequest,
     PolarError,
-    SpaireRequestValidationError,
     ResourceUnavailable,
+    SpaireRequestValidationError,
     ValidationError,
 )
 from polar.kit.db.postgres import AsyncReadSession, AsyncSession
@@ -82,7 +86,6 @@ from polar.notifications.service import PartialNotification
 from polar.notifications.service import notifications as notifications_service
 from polar.organization.repository import OrganizationRepository
 from polar.platform.fee_sync import (
-    maybe_enqueue_resubscribe_from_revoke,
     maybe_enqueue_sync_from_subscription,
     maybe_supersede_platform_trial,
 )
@@ -2086,10 +2089,9 @@ class SubscriptionService:
             session, subscription, WebhookEventType.subscription_revoked
         )
 
-        # If this was a creator's Spaire subscription, schedule an
-        # auto-resubscribe to Free so they don't lose tier resolution
-        # (which would otherwise fall back to legacy entitlements).
-        await maybe_enqueue_resubscribe_from_revoke(session, subscription)
+        # No auto-resubscribe: a creator whose Spaire subscription is revoked
+        # has no active plan and resolves to `inactive` (no free fallback).
+        # The dashboard plan-gate and the delinquency lifecycle handle access.
 
         await event_service.create_event(
             session,

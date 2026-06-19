@@ -248,16 +248,16 @@ class TestSyncForOrganization:
         assert account._platform_fee_percent == 700
         assert account._platform_fee_fixed == 30
 
-    async def test_legacy_tier_resets_fee_to_default(
+    async def test_non_paid_tier_resets_fee_to_default(
         self,
         mocker: MockerFixture,
         session: AsyncSession,
         save_fixture: SaveFixture,
     ) -> None:
-        # No platform org configured -> legacy tier. A creator who held a
-        # paid tier and churned must not keep the lower rate written onto
-        # their account: Legacy resets the columns to NULL so the global
-        # default (worst) rate applies.
+        # A non-paid tier (here `unmanaged` via no platform org) resets the
+        # Account fee columns to NULL. This is the churn path: an org that
+        # held a paid tier and now has no plan must not keep the lower rate
+        # written onto its account; the global default (worst) rate applies.
         _patch_platform_org_id(mocker, None)
         creator_owner = await create_user(save_fixture)
         creator = await create_organization(save_fixture)
@@ -279,14 +279,14 @@ class TestSyncForOrganization:
         assert account._platform_fee_fixed is None
         assert account.platform_fee == (500, 50)
 
-    async def test_legacy_tier_already_default_is_noop(
+    async def test_non_paid_tier_already_default_is_noop(
         self,
         mocker: MockerFixture,
         session: AsyncSession,
         save_fixture: SaveFixture,
     ) -> None:
         # An account that never had a per-account rate written is already on
-        # the global default; Legacy sync leaves it untouched.
+        # the global default; the non-paid-tier sync leaves it untouched.
         _patch_platform_org_id(mocker, None)
         creator_owner = await create_user(save_fixture)
         creator = await create_organization(save_fixture)
@@ -301,7 +301,7 @@ class TestSyncForOrganization:
         result = await platform_fee_sync.sync_for_organization(session, creator)
 
         assert result.changed is False
-        assert result.reason == "legacy_tier"
+        assert result.reason == "non_paid_tier"
         assert account._platform_fee_percent is None
         assert account._platform_fee_fixed is None
 

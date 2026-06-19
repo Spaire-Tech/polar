@@ -14,20 +14,30 @@ class TierKey(StrEnum):
     starter = "starter"
     studio = "studio"
     scale = "scale"
-    # Fallback for orgs that don't have a platform-org subscription yet:
-    # either because the platform is not configured (single-tenant /
-    # development), the grandfather migration hasn't run, or the org is
-    # the platform org itself. Treated as "unlimited" feature/quota-wise,
-    # but billed at the global default (worst) transaction rate so an
-    # un-converted org is never cheaper than a paid plan.
-    legacy = "legacy"
+    # `unmanaged`: platform billing is not in play at all — the platform org
+    # is unconfigured (single-tenant / self-hosted / dev), or the org being
+    # resolved IS the platform org itself. Unlimited, no enforcement. This
+    # preserves open-source / single-tenant behavior. It is NOT a state any
+    # real creator can land in.
+    unmanaged = "unmanaged"
+    # `inactive`: a real creator org on a configured platform that has NO
+    # active paid/trialing plan — never converted, trial lapsed, or churned.
+    # Deliberately restrictive (everything gated off) so "no plan == no
+    # access": there is no free, unlimited fallback. The dashboard plan-gate
+    # routes these orgs to /onboarding/plan; the delinquency lifecycle owns
+    # the storefront/admin side. There is no public `inactive` product.
+    inactive = "inactive"
 
 
 # The Starter tier originally shipped under the key "pro". Existing platform
 # product/subscription metadata, older API clients, and historical analytics
 # may still carry "pro"; normalize it to the canonical "starter" before any
-# enum resolution so no existing record silently falls back to legacy.
+# enum resolution so no existing record silently resolves wrong.
 _TIER_ALIASES: dict[str, str] = {"pro": "starter"}
+
+# Tiers a creator actively pays for. Used by fee-sync and access checks to
+# tell a "real plan" apart from the unmanaged/inactive fallbacks.
+PAID_TIERS: tuple[TierKey, ...] = (TierKey.starter, TierKey.studio, TierKey.scale)
 
 
 def normalize_tier_value(value: str) -> str:
@@ -121,13 +131,13 @@ class TierEntitlements:
     overage_grace_pct: int
 
 
-# `legacy` keeps unlimited features/quotas (no enforcement) but bills at the
-# global config default, which is deliberately the *worst* transaction rate
-# (5% + 50¢). This is the fallback for any org without an active platform-org
-# subscription — an un-converted or churned org is therefore never cheaper
-# than a paid plan, so letting a trial lapse is never the rational choice.
-_LEGACY = TierEntitlements(
-    tier=TierKey.legacy,
+# `unmanaged` keeps unlimited features/quotas (no enforcement) and bills at
+# the global config default. It exists ONLY for the cases where platform
+# billing isn't in play — an unconfigured / single-tenant / self-hosted
+# deployment, or the platform org resolving itself. No real creator lands
+# here, so "unlimited" is safe.
+_UNMANAGED = TierEntitlements(
+    tier=TierKey.unmanaged,
     transaction_fee=TransactionFee(
         percent_basis_points=settings.PLATFORM_FEE_BASIS_POINTS,
         fixed_cents=settings.PLATFORM_FEE_FIXED,
@@ -159,6 +169,52 @@ _LEGACY = TierEntitlements(
         custom_checkout_domain=True,
         sso=True,
         audit_logs=True,
+    ),
+    rate_limit_group="default",
+    monthly_price_cents=0,
+    overage_grace_pct=0,
+)
+
+
+# `inactive` is the restrictive state for a real creator org with no active
+# plan (never converted / trial lapsed / churned). Everything is gated off —
+# zero limits, no features — so there is no free, unlimited fallback. The
+# dashboard plan-gate routes these orgs to plan selection; the delinquency
+# lifecycle handles storefront/admin access. Billed at the global default if
+# any stray transaction occurs.
+_INACTIVE = TierEntitlements(
+    tier=TierKey.inactive,
+    transaction_fee=TransactionFee(
+        percent_basis_points=settings.PLATFORM_FEE_BASIS_POINTS,
+        fixed_cents=settings.PLATFORM_FEE_FIXED,
+    ),
+    limits=TierLimits(
+        published_courses=0,
+        lessons_per_course=0,
+        active_email_sequences=0,
+        video_hours_hosted=0,
+        video_views_monthly=0,
+        storage_gb=0,
+        email_subscribers=0,
+        email_sends_monthly=0,
+        dashboard_team_seats=0,
+    ),
+    features=TierFeatures(
+        drip_scheduling=False,
+        email_sequences_and_segments=False,
+        email_ab_testing=False,
+        stackable_discounts=False,
+        custom_email_sender_domain=False,
+        seat_based_product_pricing=False,
+        cohort_analytics=False,
+        custom_pricing_negotiation=False,
+        customer_wallet=False,
+        white_label_course_player=False,
+        sandbox_mode=False,
+        custom_storefront_domain=False,
+        custom_checkout_domain=False,
+        sso=False,
+        audit_logs=False,
     ),
     rate_limit_group="default",
     monthly_price_cents=0,
@@ -331,5 +387,6 @@ _TIER_DEFINITIONS: dict[TierKey, TierEntitlements] = {
     TierKey.starter: _STARTER,
     TierKey.studio: _STUDIO,
     TierKey.scale: _SCALE,
-    TierKey.legacy: _LEGACY,
+    TierKey.unmanaged: _UNMANAGED,
+    TierKey.inactive: _INACTIVE,
 }

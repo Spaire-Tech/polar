@@ -1,13 +1,13 @@
 """Startup verification for Spaire-on-Spaire billing.
 
-When SPAIRE_PLATFORM_ORG_ID is set, the API requires the four tier
-products (legacy, starter, studio, scale) and the four overage meters to
-exist on the platform org. Without them:
+When SPAIRE_PLATFORM_ORG_ID is set, the API requires the three tier
+products (starter, studio, scale) and the four overage meters to exist on
+the platform org. Without them:
 
   - organization.created actor can't start the new org on a Starter trial
     (TierProductMissing), leaving them with no platform subscription.
-  - EntitlementsService falls back to "legacy" (unlimited) for those
-    orgs, so they aren't billed correctly until ops notices.
+  - EntitlementsService resolves those orgs to "inactive" (no access), so
+    legitimate new signups would be blocked until ops notices.
 
 This module surfaces that failure mode at boot time. Run
 `uv run task seed_platform_products` before starting the API on any
@@ -38,10 +38,9 @@ class PlatformStartupError(Exception):
     so the operator knows exactly what to run."""
 
 
-_REQUIRED_TIERS = (TierKey.legacy, TierKey.starter, TierKey.studio, TierKey.scale)
+_REQUIRED_TIERS = (TierKey.starter, TierKey.studio, TierKey.scale)
 
-# Tiers that must carry a 14-day trial configuration on their Product row.
-# Legacy is intentionally excluded — it's a $0 grandfather product, no trial.
+# Every shipped tier carries a 14-day trial configuration on its Product row.
 _TRIAL_REQUIRED_TIERS = (TierKey.starter, TierKey.studio, TierKey.scale)
 
 
@@ -96,8 +95,8 @@ async def verify_platform_setup(session: AsyncSession) -> None:
             f"Platform organization '{platform_org.slug}' is missing tier "
             f"products: {', '.join(missing_tiers)}. Run "
             "`uv run task seed_platform_products` before starting the API. "
-            "Without these products new signups silently fall back to legacy "
-            "entitlements and undercharged transaction fees."
+            "Without these products new signups can't start a Starter trial "
+            "and resolve to 'inactive' (no access)."
         )
 
     if missing_annual_tiers:
