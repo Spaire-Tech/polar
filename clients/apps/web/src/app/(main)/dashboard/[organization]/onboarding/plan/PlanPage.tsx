@@ -328,7 +328,7 @@ const featuresForTier = (plan: TierPlan): string[] => {
   }
   if (plan.tier === 'studio') {
     return [
-      `${formatTransactionFee(plan.transaction_fee)} per transaction (saves ~0.2%)`,
+      `${formatTransactionFee(plan.transaction_fee)} per transaction (saves 2% vs Starter)`,
       `${plan.limits.published_courses} published courses`,
       `${formatCount(plan.limits.email_subscribers ?? 0)} email subscribers`,
       `${plan.limits.active_email_sequences} active email sequences`,
@@ -340,7 +340,7 @@ const featuresForTier = (plan: TierPlan): string[] => {
   }
   if (plan.tier === 'scale') {
     return [
-      `${formatTransactionFee(plan.transaction_fee)} per transaction (saves ~0.5%)`,
+      `${formatTransactionFee(plan.transaction_fee)} per transaction (saves 4% vs Starter)`,
       `${plan.limits.published_courses} published courses`,
       `${formatCount(plan.limits.email_subscribers ?? 0)} email subscribers`,
       'Unlimited email sequences',

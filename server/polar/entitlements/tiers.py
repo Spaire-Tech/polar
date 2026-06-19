@@ -168,7 +168,12 @@ _LEGACY = TierEntitlements(
 
 _STARTER = TierEntitlements(
     tier=TierKey.starter,
-    transaction_fee=TransactionFee(percent_basis_points=400, fixed_cents=40),
+    # Steep fee spine (7% / 5% / 3%, all + $0.30) so moving up a tier buys a
+    # real rate cut, and the entry rate covers the usage-driven serving cost
+    # (Mux/AI/email/storage) that a transaction fee on a low-GMV creator
+    # otherwise wouldn't. The fixed $0.30 covers Stripe's per-transaction
+    # floor so low-ticket sales aren't loss-making.
+    transaction_fee=TransactionFee(percent_basis_points=700, fixed_cents=30),
     limits=TierLimits(
         # Starter is a real entry plan, not a punishing trial tier: it can
         # serve a creator with a small-but-real audience. Studio still has
@@ -227,7 +232,7 @@ _STARTER = TierEntitlements(
 
 _STUDIO = TierEntitlements(
     tier=TierKey.studio,
-    transaction_fee=TransactionFee(percent_basis_points=380, fixed_cents=35),
+    transaction_fee=TransactionFee(percent_basis_points=500, fixed_cents=30),
     limits=TierLimits(
         # Studio is the "real business" tier — generous on courses /
         # lessons / sequences (no working creator hits these caps often)
@@ -272,7 +277,11 @@ _STUDIO = TierEntitlements(
 
 _SCALE = TierEntitlements(
     tier=TierKey.scale,
-    transaction_fee=TransactionFee(percent_basis_points=350, fixed_cents=30),
+    # 3% base is at/under the true MoR cost floor (~3.5%); it stays profitable
+    # only because international/FX cards add the +1.5% passthrough
+    # (PlatformFeeType.international_payment) on top. Margin on this tier comes
+    # from the monthly fee, not the variable rate.
+    transaction_fee=TransactionFee(percent_basis_points=300, fixed_cents=30),
     limits=TierLimits(
         # Scale caps are the ceiling above which custom pricing kicks
         # in. Anything bigger → talk-to-sales. Email sequences are

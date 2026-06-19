@@ -184,20 +184,20 @@ class ProductSpec:
 
 
 _STARTER_DESCRIPTION = (
-    "For solo creators starting out. 4% + $0.40 per transaction. "
+    "For solo creators starting out. 7% + $0.30 per transaction. "
     "5 published courses, 5,000 email subscribers, 25,000 monthly email "
     "sends, 3 active email sequences, 25 hours of hosted video, sandbox "
     "environment. 14-day free trial."
 )
 _STUDIO_DESCRIPTION = (
-    "For small teams scaling up. 3.8% + $0.35 per transaction. "
+    "For small teams scaling up. 5% + $0.30 per transaction. "
     "Everything in Starter plus 25 published courses, 25,000 subscribers, "
     "100k monthly sends, 15 active sequences, custom email sender domain, "
     "A/B testing, white-label course player, customer wallet, 5 team "
     "seats. 14-day free trial."
 )
 _SCALE_DESCRIPTION = (
-    "For established businesses. 3.5% + $0.30 per transaction, with "
+    "For established businesses. 3% + $0.30 per transaction, with "
     "custom pricing available above $50,000/month GMV. 100 published "
     "courses, 50,000 subscribers, 500k monthly sends, unlimited "
     "sequences, 250 GB storage, 20 team seats. Audit logs and dedicated "

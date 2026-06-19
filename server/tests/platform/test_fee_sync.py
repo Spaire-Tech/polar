@@ -161,8 +161,8 @@ class TestSyncForOrganization:
         )
 
         assert result.changed is True
-        assert account._platform_fee_percent == 400
-        assert account._platform_fee_fixed == 40
+        assert account._platform_fee_percent == 700
+        assert account._platform_fee_fixed == 30
 
     async def test_fee_follows_tier_metadata_not_price(
         self,
@@ -183,8 +183,8 @@ class TestSyncForOrganization:
 
         assert result.changed is True
         assert result.reason == "updated"
-        assert account._platform_fee_percent == 400
-        assert account._platform_fee_fixed == 40
+        assert account._platform_fee_percent == 700
+        assert account._platform_fee_fixed == 30
 
     async def test_writes_tier_rate_for_pro(
         self,
@@ -202,8 +202,8 @@ class TestSyncForOrganization:
         result = await platform_fee_sync.sync_for_organization(session, creator)
 
         assert result.changed is True
-        assert account._platform_fee_percent == 400
-        assert account._platform_fee_fixed == 40
+        assert account._platform_fee_percent == 700
+        assert account._platform_fee_fixed == 30
 
     async def test_writes_tier_rate_for_scale(
         self,
@@ -221,7 +221,7 @@ class TestSyncForOrganization:
         result = await platform_fee_sync.sync_for_organization(session, creator)
 
         assert result.changed is True
-        assert account._platform_fee_percent == 350
+        assert account._platform_fee_percent == 300
         assert account._platform_fee_fixed == 30
 
     async def test_idempotent_when_already_in_sync(
@@ -235,8 +235,8 @@ class TestSyncForOrganization:
             save_fixture=save_fixture,
             tier=TierKey.starter,
             monthly_cents=4900,
-            fee_basis_points=400,
-            fee_fixed=40,
+            fee_basis_points=700,
+            fee_fixed=30,
         )
         creator.rate_limit_group = RateLimitGroup.elevated
         await save_fixture(creator)
@@ -245,8 +245,8 @@ class TestSyncForOrganization:
 
         assert result.changed is False
         assert result.reason == "up_to_date"
-        assert account._platform_fee_percent == 400
-        assert account._platform_fee_fixed == 40
+        assert account._platform_fee_percent == 700
+        assert account._platform_fee_fixed == 30
 
     async def test_legacy_tier_resets_fee_to_default(
         self,
@@ -265,7 +265,7 @@ class TestSyncForOrganization:
             save_fixture,
             creator,
             creator_owner,
-            fee_basis_points=350,
+            fee_basis_points=300,
             fee_fixed=30,
         )
 

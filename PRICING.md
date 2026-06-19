@@ -49,7 +49,7 @@ The following are part of the product on every tier. Gating any of these would b
 | **Free trial** | 14 days | 14 days | 14 days |
 | **Monthly** | $49 | $129 | $299 |
 | **Annual** (save 20%) | $39/mo · $470/yr | $103/mo · $1,238/yr | $239/mo · $2,870/yr |
-| **Transaction fee** | 4% + $0.40 | 3.8% + $0.35 | 3.5% + $0.30 |
+| **Transaction fee** | 7% + $0.30 | 5% + $0.30 | 3% + $0.30 |
 | **Custom pricing at scale** | — | — | available above $50k/mo GMV |
 | **Published courses** | 5 | 25 | 100 |
 | **Lessons per course** | 50 | unlimited | unlimited |
@@ -123,13 +123,17 @@ Spaire's true per-transaction cost as MoR on Stripe is roughly:
 | Chargeback fee (per dispute) | $15 |
 | Tax remittance & compliance overhead | ongoing fixed cost |
 
-**Floor cost is ~3.5% + $0.30**, often closer to 4.5% + $0.30 once international and FX are mixed in.
+**Floor cost is ~3.5% + $0.30**, often closer to 4.5% + $0.30 once international and FX are mixed in. International/FX cards add a **+1.5% passthrough** on top of every tier's rate (`PlatformFeeType.international_payment`), so the published rates below are US-card rates.
+
+The fee spine is **steep on purpose** — 7% / 5% / 3% — so moving up a tier buys a real rate cut, and the entry rate covers the usage-driven serving cost (Mux video, AI, email, storage) that a thin transaction fee on a low-GMV creator otherwise wouldn't. The fixed **$0.30** on every tier covers Stripe's per-transaction floor so low-ticket sales aren't loss-making.
 
 This is why:
 
-- **Starter at $49/mo + 4% + $0.40** is the entry point — the monthly fee covers compliance overhead while the per-transaction rate keeps margin on US card volume.
-- **Studio at $129/mo + 3.8% + $0.35** trades a higher fixed fee for a lower variable rate. It pays off for creators above ~$15k/mo GMV.
-- **Scale at $299/mo + 3.5% + $0.30** is at-cost on the variable side; the monthly fee is the margin. Below 3.5% requires negotiated volume commitments.
+- **Starter at $49/mo + 7% + $0.30** is the entry point — the high variable rate covers serving cost on creators who use the platform heavily but sell little, while the monthly fee covers compliance overhead.
+- **Studio at $129/mo + 5% + $0.30** trades a higher fixed fee for a 2-point lower rate. It pays off for creators above **~$4,000/mo GMV** (the extra $80/mo ÷ the 2% rate cut).
+- **Scale at $299/mo + 3% + $0.30** is at/under cost on the variable side; the monthly fee is the margin, and international/FX volume stays profitable via the +1.5% passthrough. It pays off above **~$8,500/mo GMV** vs. Studio.
+
+There is no free tier and no $0 fallback: every active organization is on Starter, Studio, or Scale. An organization that stops paying goes through the delinquency lifecycle (retry → payout-hold/fee-netting → suspension → stop-selling), it does not drop to a free plan.
 
 Custom pricing for the Scale tier kicks in above $50k/month GMV. The negotiated floor is around 3.0% — Stripe's processing cost — and is the same floor competitors like Paddle hold to at scale.
 

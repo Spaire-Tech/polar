@@ -269,8 +269,8 @@ class TestGetForOrganization:
         result = await entitlements.get_for_organization(session, creator.id)
 
         assert result.tier == TierKey.starter
-        assert result.transaction_fee.percent_basis_points == 400
-        assert result.transaction_fee.fixed_cents == 40
+        assert result.transaction_fee.percent_basis_points == 700
+        assert result.transaction_fee.fixed_cents == 30
         assert result.monthly_price_cents == 4900
         assert result.features.email_sequences_and_segments is True
         assert result.features.white_label_course_player is False
@@ -304,8 +304,8 @@ class TestTierDefinitions:
 
         studio = get_definition(TierKey.studio)
         assert studio.monthly_price_cents == 12900
-        assert studio.transaction_fee.percent_basis_points == 380
-        assert studio.transaction_fee.fixed_cents == 35
+        assert studio.transaction_fee.percent_basis_points == 500
+        assert studio.transaction_fee.fixed_cents == 30
         assert studio.limits.published_courses == 25
         assert studio.limits.active_email_sequences == 15
         assert studio.limits.video_hours_hosted == 50
@@ -321,8 +321,8 @@ class TestTierDefinitions:
 
         starter = get_definition(TierKey.starter)
         assert starter.monthly_price_cents == 4900
-        assert starter.transaction_fee.percent_basis_points == 400
-        assert starter.transaction_fee.fixed_cents == 40
+        assert starter.transaction_fee.percent_basis_points == 700
+        assert starter.transaction_fee.fixed_cents == 30
         assert starter.limits.published_courses == 5
         assert starter.limits.active_email_sequences == 3
         assert starter.limits.video_hours_hosted == 25
@@ -352,7 +352,7 @@ class TestTierDefinitions:
 
         scale = get_definition(TierKey.scale)
         assert scale.monthly_price_cents == 29900
-        assert scale.transaction_fee.percent_basis_points == 350
+        assert scale.transaction_fee.percent_basis_points == 300
         assert scale.transaction_fee.fixed_cents == 30
         # Scale caps video at 200 hours; only Legacy is fully unlimited.
         assert scale.limits.video_hours_hosted == 200
