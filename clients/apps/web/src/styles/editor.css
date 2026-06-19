@@ -311,14 +311,27 @@ body:has(.edit-pop-backdrop) .spaire-editor-root {
 .spaire-editor .canvas {
   width: 100%;
   /* Match the public Spaire Space layout
-     (clients/apps/web/src/app/(main)/[organization]/(header)/layout.tsx).
-     Same max-width, same aside width, same gap. The canvas should
-     visually equal what visitors see — no canvas-only sizing. */
-  max-width: 1100px;
+     (clients/apps/web/src/app/(main)/[organization]/(header)/layout.tsx):
+     PublicLayout `wide` is max-w-7xl (1280px), the profile aside is 420px and
+     the column gap is gap-12 (48px). The canvas must visually equal what
+     visitors see — no canvas-only sizing. */
+  max-width: 1280px;
   display: grid;
   grid-template-columns: 420px 1fr;
   gap: 48px;
   align-items: start;
+}
+
+/* Mobile device preview — the editor toggles between desktop and a phone-width
+   single column (the public Space collapses the same way on a narrow viewport).
+   Editing still works; only the canvas width/stacking changes. */
+.spaire-editor .canvas.is-mobile {
+  max-width: 430px;
+  grid-template-columns: 1fr;
+  gap: 28px;
+}
+.spaire-editor .canvas.is-mobile .col-left {
+  position: static;
 }
 
 .spaire-editor .canvas .col-left {
