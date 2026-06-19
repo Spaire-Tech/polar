@@ -20,6 +20,10 @@ class EmailSequenceTriggerType(StrEnum):
     on_subscription_created = "on_subscription_created"
     on_subscription_cancelled = "on_subscription_cancelled"
     on_form_submit = "on_form_submit"
+    # Enters a subscriber when they complete the lesson the sequence is scoped
+    # to (lesson_id). Used by the per-lesson automations built from the lesson
+    # editor — their trigger is always "completes this lesson".
+    on_lesson_completed = "on_lesson_completed"
     manual = "manual"
 
 

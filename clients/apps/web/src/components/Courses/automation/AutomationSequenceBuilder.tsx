@@ -182,14 +182,40 @@ export function AutomationSequenceBuilder({
     [lessons],
   )
 
+  // When the builder is opened for one lesson (the "When a student finishes
+  // this lesson" card in the lesson editor), the trigger is fixed: it can only
+  // fire when a student completes THAT lesson. We lock the trigger to it and
+  // hide the generic picker.
+  const lessonMode = !!lessonId
+  const lessonTitle = useMemo(
+    () =>
+      (lessonId && lessons?.find((l) => l.id === lessonId)?.title) ||
+      initial?.trigger?.lesson ||
+      'this lesson',
+    [lessonId, lessons, initial?.trigger?.lesson],
+  )
+
   const [name, setName] = useState(initial?.name ?? 'Untitled sequence')
   const [desc, setDesc] = useState(initial?.desc ?? '')
   const [trigger, setTrigger] = useState<Trigger>({
-    type: 'enrol',
+    type: lessonId ? 'lesson' : 'enrol',
     lesson: lessonOptions[0],
     days: 7,
     ...initial?.trigger,
+    // In lesson mode the type is always 'lesson' regardless of any stored value.
+    ...(lessonId ? { type: 'lesson' as const } : {}),
   })
+  // Keep the locked lesson trigger's label in sync with the real lesson title
+  // once the course loads. Direct setState (not commit) so it never counts as a
+  // user edit / spawns an autosave.
+  useEffect(() => {
+    if (!lessonMode) return
+    setTrigger((t) =>
+      t.type === 'lesson' && t.lesson === lessonTitle
+        ? t
+        : { ...t, type: 'lesson', lesson: lessonTitle },
+    )
+  }, [lessonMode, lessonTitle])
   const [send, setSend] = useState<Send>({
     window: 'any',
     tz: true,
@@ -272,7 +298,10 @@ export function AutomationSequenceBuilder({
           const created = await createSeq.mutateAsync({
             name: next.name.trim() || 'Untitled sequence',
             description: next.desc,
-            trigger_type: 'on_purchase',
+            // A lesson-scoped automation enters subscribers when they complete
+            // that one lesson; the course-level builder still enrols on
+            // purchase and gates with the chosen course_trigger.
+            trigger_type: lessonId ? 'on_lesson_completed' : 'on_purchase',
             trigger_config: {
               course_trigger: next.trigger,
               send_settings: next.send,
@@ -295,6 +324,9 @@ export function AutomationSequenceBuilder({
             sequenceId: seqIdRef.current,
             name: next.name.trim() || 'Untitled sequence',
             description: next.desc,
+            // Re-assert the lesson-completion trigger so sequences created
+            // before this trigger existed self-heal on the next save.
+            ...(lessonId ? { trigger_type: 'on_lesson_completed' } : {}),
             trigger_config: {
               course_trigger: next.trigger,
               send_settings: next.send,
@@ -748,65 +780,93 @@ export function AutomationSequenceBuilder({
               <span className="sec-h">Trigger</span>
             </div>
             <p className="sec-sub">
-              The moment that starts this sequence for a student.
+              {lessonMode
+                ? 'This automation runs for one lesson — it starts the moment a student completes it.'
+                : 'The moment that starts this sequence for a student.'}
             </p>
             <div className="card">
-              {(
-                [
-                  ['enrol', 'Student enrols', 'Send the moment they get access to the course.'],
-                  ['lesson', 'Lesson completed', 'Pick a specific lesson — fires when a student finishes it.'],
-                  ['first', 'First lesson completed', 'Celebrate momentum the first time they finish any lesson.'],
-                  ['half', 'Halfway through', 'Fires when the student crosses 50% of the course.'],
-                  ['complete', 'Course completed', 'Wrap up — fires when every lesson is done.'],
-                  ['inactive', 'Inactive for N days', 'Pick up where they left off after a quiet stretch.'],
-                ] as [TriggerType, string, string][]
-              ).map(([type, t, s]) => (
-                <button
-                  key={type}
-                  className={`radio-row${trigger.type === type ? ' on' : ''}`}
-                  type="button"
-                  onClick={(e) => {
-                    if ((e.target as HTMLElement).closest('select, input')) return
-                    commit({ trigger: { ...trigger, type } })
-                  }}
-                >
+              {lessonMode ? (
+                <div className="radio-row on is-locked">
                   <span className="rr-dot" />
                   <span className="rr-main">
-                    <span className="rr-t">{t}</span>
-                    <span className="rr-s">{s}</span>
-                    {type === 'lesson' && (
-                      <span className="rr-extra">
-                        <select
-                          className="mini-select"
-                          value={trigger.lesson}
-                          onClick={(e) => e.stopPropagation()}
-                          onChange={(e) => commit({ trigger: { ...trigger, lesson: e.target.value } })}
-                        >
-                          {lessonOptions.map((l) => (
-                            <option key={l}>{l}</option>
-                          ))}
-                        </select>
-                      </span>
-                    )}
-                    {type === 'inactive' && (
-                      <span className="rr-extra">
-                        <span className="lbl">Days quiet</span>
-                        <input
-                          className="mini-num"
-                          type="number"
-                          min={1}
-                          max={90}
-                          value={trigger.days}
-                          onClick={(e) => e.stopPropagation()}
-                          onChange={(e) =>
-                            commit({ trigger: { ...trigger, days: Math.max(1, parseInt(e.target.value || '1', 10)) } })
-                          }
-                        />
-                      </span>
-                    )}
+                    <span className="rr-t">
+                      When a student completes this lesson
+                    </span>
+                    <span className="rr-s">
+                      Fires once per student, as soon as they mark this lesson
+                      complete.
+                    </span>
+                    <span className="rr-extra rr-lesson-fixed">
+                      <Svg d={IC.exit} s={13} w={2.4} />
+                      {lessonTitle}
+                    </span>
                   </span>
-                </button>
-              ))}
+                  <span className="rr-lock" aria-hidden>
+                    <Svg
+                      d="M6 10V8a6 6 0 0 1 12 0v2 M5 10h14v10H5z"
+                      s={15}
+                      w={1.9}
+                    />
+                  </span>
+                </div>
+              ) : (
+                (
+                  [
+                    ['enrol', 'Student enrols', 'Send the moment they get access to the course.'],
+                    ['lesson', 'Lesson completed', 'Pick a specific lesson — fires when a student finishes it.'],
+                    ['first', 'First lesson completed', 'Celebrate momentum the first time they finish any lesson.'],
+                    ['half', 'Halfway through', 'Fires when the student crosses 50% of the course.'],
+                    ['complete', 'Course completed', 'Wrap up — fires when every lesson is done.'],
+                    ['inactive', 'Inactive for N days', 'Pick up where they left off after a quiet stretch.'],
+                  ] as [TriggerType, string, string][]
+                ).map(([type, t, s]) => (
+                  <button
+                    key={type}
+                    className={`radio-row${trigger.type === type ? ' on' : ''}`}
+                    type="button"
+                    onClick={(e) => {
+                      if ((e.target as HTMLElement).closest('select, input')) return
+                      commit({ trigger: { ...trigger, type } })
+                    }}
+                  >
+                    <span className="rr-dot" />
+                    <span className="rr-main">
+                      <span className="rr-t">{t}</span>
+                      <span className="rr-s">{s}</span>
+                      {type === 'lesson' && (
+                        <span className="rr-extra">
+                          <select
+                            className="mini-select"
+                            value={trigger.lesson}
+                            onClick={(e) => e.stopPropagation()}
+                            onChange={(e) => commit({ trigger: { ...trigger, lesson: e.target.value } })}
+                          >
+                            {lessonOptions.map((l) => (
+                              <option key={l}>{l}</option>
+                            ))}
+                          </select>
+                        </span>
+                      )}
+                      {type === 'inactive' && (
+                        <span className="rr-extra">
+                          <span className="lbl">Days quiet</span>
+                          <input
+                            className="mini-num"
+                            type="number"
+                            min={1}
+                            max={90}
+                            value={trigger.days}
+                            onClick={(e) => e.stopPropagation()}
+                            onChange={(e) =>
+                              commit({ trigger: { ...trigger, days: Math.max(1, parseInt(e.target.value || '1', 10)) } })
+                            }
+                          />
+                        </span>
+                      )}
+                    </span>
+                  </button>
+                ))
+              )}
             </div>
           </section>
 
@@ -885,9 +945,13 @@ export function AutomationSequenceBuilder({
               </div>
               <div className="node-main">
                 <div className="node-k">Trigger</div>
-                <div className="node-t">{triggerLabel}</div>
+                <div className="node-t">
+                  {lessonMode ? `Completes “${lessonTitle}”` : triggerLabel}
+                </div>
                 <div className="node-sub">
-                  Enrols every buyer on purchase, then waits for this moment.
+                  {lessonMode
+                    ? 'Starts when a student marks this lesson complete.'
+                    : 'Enrols every buyer on purchase, then waits for this moment.'}
                 </div>
               </div>
             </div>
@@ -1149,6 +1213,12 @@ function AutomationStyles() {
       .asq .rr-s { font-size: 12.5px; line-height: 1.45; color: var(--text-2); margin-top: 1px; }
       .asq .rr-extra { margin-top: 9px; display: none; }
       .asq .radio-row.on .rr-extra { display: block; }
+      /* Locked, single-option trigger for a lesson automation. Reads as a
+         selected row but is non-interactive — the lesson is the trigger. */
+      .asq .radio-row.is-locked { cursor: default; }
+      .asq .radio-row.is-locked:hover { background: transparent; }
+      .asq .rr-lesson-fixed { display: inline-flex; align-items: center; gap: 7px; padding: 6px 11px; border-radius: 8px; background: rgba(48, 110, 255, 0.09); color: var(--blue); font-size: 12.5px; font-weight: 600; }
+      .asq .rr-lock { flex: none; align-self: center; color: var(--text-2); opacity: 0.6; }
       .asq .mini-select {
         width: 100%; appearance: none; -webkit-appearance: none;
         font-size: 13.5px; font-weight: 600; color: var(--text);
