@@ -160,9 +160,7 @@ export function Composer({
 }: Props) {
   const [open, setOpen] = useState(false)
   const [text, setText] = useState('')
-  const [image, setImage] = useState<{ file_id: string; url: string } | null>(
-    null,
-  )
+  const [images, setImages] = useState<{ file_id: string; url: string }[]>([])
   const [video, setVideo] = useState<{
     upload_id: string
     url: string
@@ -194,7 +192,7 @@ export function Composer({
   }
   const reset = () => {
     setText('')
-    setImage(null)
+    setImages([])
     setVideo(null)
     setPoll(null)
     setEvent(null)
@@ -203,23 +201,42 @@ export function Composer({
     setOpen(false)
   }
 
-  const onPickImage = async (file: File | undefined) => {
-    if (!file) return
+  const MAX_IMAGES = 4
+  const onPickImages = async (files: FileList | null) => {
+    if (!files || files.length === 0) return
+    const room = MAX_IMAGES - images.length
+    if (room <= 0) {
+      showToast(`You can attach up to ${MAX_IMAGES} photos`)
+      return
+    }
+    const picked = Array.from(files).slice(0, room)
+    if (picked.length < files.length) {
+      showToast(`Only ${MAX_IMAGES} photos per post — added the first ${room}`)
+    }
     setVideo(null)
+    setOpen(true)
     setBusy(true)
     try {
-      const res = await uploadImg.mutateAsync(file)
-      setImage({ file_id: res.file_id, url: res.public_url })
-      setOpen(true)
+      // Upload sequentially and append each so several photos can ride on one
+      // post (LinkedIn-style gallery, capped at 4 to match the backend).
+      for (const file of picked) {
+        const res = await uploadImg.mutateAsync(file)
+        setImages((prev) => [
+          ...prev,
+          { file_id: res.file_id, url: res.public_url },
+        ])
+      }
     } catch {
       showToast('Could not upload that image')
     } finally {
       setBusy(false)
     }
   }
+  const removeImage = (fileId: string) =>
+    setImages((prev) => prev.filter((im) => im.file_id !== fileId))
   const onPickVideo = async (file: File | undefined) => {
     if (!file) return
-    setImage(null)
+    setImages([])
     setVideo({ upload_id: '', url: URL.createObjectURL(file), progress: 0 })
     setOpen(true)
     setBusy(true)
@@ -261,7 +278,7 @@ export function Composer({
   const validPoll = !!poll && poll.filter((o) => o.trim()).length >= 2
   const hasContent =
     !!text.trim() ||
-    !!image ||
+    images.length > 0 ||
     !!(video && video.upload_id) ||
     validPoll ||
     !!event
@@ -274,10 +291,12 @@ export function Composer({
       body.media = [
         { media_type: 'video', mux_upload_id: video.upload_id, position: 0 },
       ]
-    } else if (image) {
-      body.media = [
-        { media_type: 'image', file_id: image.file_id, position: 0 },
-      ]
+    } else if (images.length > 0) {
+      body.media = images.map((im, i) => ({
+        media_type: 'image' as const,
+        file_id: im.file_id,
+        position: i,
+      }))
     }
     if (validPoll && poll)
       body.poll = { options: poll.map((o) => o.trim()).filter(Boolean) }
@@ -302,9 +321,10 @@ export function Composer({
         ref={imgInput}
         type="file"
         accept="image/*"
+        multiple
         style={{ display: 'none' }}
         onChange={(e) => {
-          onPickImage(e.target.files?.[0])
+          onPickImages(e.target.files)
           e.target.value = ''
         }}
       />
@@ -378,16 +398,20 @@ export function Composer({
         placeholder={placeholder}
       />
 
-      {image && (
-        <div className="comp-att">
-          <img src={image.url} alt="" />
-          <button
-            className="comp-att-rm"
-            onClick={() => setImage(null)}
-            aria-label="Remove"
-          >
-            <Glyph d="close" size={15} stroke={2.2} />
-          </button>
+      {images.length > 0 && (
+        <div className={`comp-atts${images.length === 1 ? ' one' : ''}`}>
+          {images.map((im) => (
+            <div className="comp-att" key={im.file_id}>
+              <img src={im.url} alt="" />
+              <button
+                className="comp-att-rm"
+                onClick={() => removeImage(im.file_id)}
+                aria-label="Remove"
+              >
+                <Glyph d="close" size={15} stroke={2.2} />
+              </button>
+            </div>
+          ))}
         </div>
       )}
       {video && (
@@ -546,6 +570,7 @@ export function Composer({
       {sheetEvent && (
         <EventSheet
           ev={sheetEvent}
+          courseId={courseId}
           onClose={() => setSheetEvent(null)}
           showToast={showToast}
         />

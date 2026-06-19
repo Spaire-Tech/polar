@@ -20,12 +20,13 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { toast } from '../Toast/use-toast'
 import '@/styles/editor-dark.css'
+import { AuthTab } from './editor/AuthTab'
 import { AutomationsPanel } from './editor/AutomationsPanel'
 import { CommunityTab } from './editor/CommunityTab'
 import { CourseHeader, TabId } from './editor/CourseHeader'
 import { CustomersTab } from './editor/CustomersTab'
 import { CustomizeTab } from './editor/CustomizeTab'
-import { LessonDetail, LessonEdits } from './editor/LessonDetail'
+import { LessonEdits } from './editor/LessonDetail'
 import { LessonEditorV2 } from './editor/LessonEditorV2'
 import { LessonContentType } from './editor/ModuleCard'
 import { OutlineTab } from './editor/OutlineTab'
@@ -83,6 +84,7 @@ export default function CourseEditor({
     'community',
     'automations',
     'settings',
+    'auth',
     'pricing',
     'customers',
   ])
@@ -99,15 +101,80 @@ export default function CourseEditor({
   // navigation (lesson swap, outline click) against silently dropping
   // the user's unsaved typing.
   const [lessonDirty, setLessonDirty] = useState(false)
+  // Id of a lesson that was just added from the outline. The redesigned editor
+  // (LessonEditorV2) persists eagerly, so a blank "New Lesson" card would
+  // otherwise be left behind the moment you open it. We track the fresh id and,
+  // if you leave it still untouched, offer Save-as-draft / Discard instead of
+  // silently keeping the empty row.
+  const [newLessonId, setNewLessonId] = useState<string | null>(null)
   const confirmLeaveDirty = (): boolean => {
     if (!lessonDirty) return true
     return window.confirm(
       'This lesson has unsaved changes. Leave without saving?',
     )
   }
+
+  const DEFAULT_LESSON_TITLES = new Set([
+    'New Lesson',
+    'New Video Lesson',
+    'Untitled quiz',
+  ])
+  const findLessonById = (id: string): CourseLessonRead | null => {
+    for (const mod of course.modules) {
+      const l = mod.lessons.find((x) => x.id === id)
+      if (l) return l
+    }
+    return null
+  }
+  // A freshly-added lesson still looks "empty" — default title, no copy, no
+  // video, not published, no authored content.
+  const lessonLooksEmpty = (l: CourseLessonRead): boolean => {
+    const c = (l.content ?? {}) as {
+      overview?: string
+      takeaways?: string[]
+      attachments?: unknown[]
+      textContent?: string
+    }
+    const hasContent =
+      !!(c.overview && c.overview.trim()) ||
+      !!(c.takeaways && c.takeaways.some((t) => t && t.trim())) ||
+      !!(c.attachments && c.attachments.length > 0) ||
+      !!(c.textContent && c.textContent.trim())
+    return (
+      DEFAULT_LESSON_TITLES.has((l.title ?? '').trim()) &&
+      !(l.description ?? '').trim() &&
+      !l.mux_playback_id &&
+      !l.published &&
+      !hasContent
+    )
+  }
+  // Returns true if it's OK to proceed with the navigation. When leaving an
+  // untouched brand-new lesson, ask whether to keep it as a draft or discard.
+  const reconcileNewLesson = (): boolean => {
+    if (!newLessonId || selectedLessonId !== newLessonId) return true
+    const lesson = findLessonById(newLessonId)
+    const id = newLessonId
+    setNewLessonId(null)
+    if (!lesson || !lessonLooksEmpty(lesson)) return true
+    const keepDraft = window.confirm(
+      'This new lesson is still empty.\n\n' +
+        'Click OK to keep it as a draft, or Cancel to discard it.',
+    )
+    if (!keepDraft) {
+      deleteLesson
+        .mutateAsync(id)
+        .then(invalidateCourse)
+        .catch(() => {
+          /* best-effort cleanup */
+        })
+    }
+    return true
+  }
+
   const guardedSetSelectedLessonId = (next: string | null) => {
     if (next === selectedLessonId) return
     if (!confirmLeaveDirty()) return
+    if (!reconcileNewLesson()) return
     setLessonDirty(false)
     setSelectedLessonId(next)
   }
@@ -170,6 +237,7 @@ export default function CourseEditor({
         },
       })
       invalidateCourse()
+      setNewLessonId(lesson.id)
       setSelectedLessonId(lesson.id)
     } catch {
       toast({ title: 'Failed to add lesson' })
@@ -391,6 +459,7 @@ export default function CourseEditor({
 
   const handleTabChange = (tab: TabId) => {
     if (tab !== activeTab && !confirmLeaveDirty()) return
+    if (tab !== activeTab && !reconcileNewLesson()) return
     setActiveTab(tab)
     if (tab !== 'outline') {
       setSelectedLessonId(null)
@@ -493,6 +562,8 @@ export default function CourseEditor({
         isSaving={updateCourse.isPending}
       />
     )
+  } else if (activeTab === 'auth') {
+    mainContent = <AuthTab course={course} organization={organization} />
   } else if (activeTab === 'pricing') {
     mainContent = (
       <PricingTab
@@ -525,7 +596,7 @@ export default function CourseEditor({
 
   return (
     <div
-      className={`flex h-screen flex-col bg-gray-50${dark ? ' editor-dark' : ''}`}
+      className={`flex h-screen flex-col bg-gray-50 ${dark ? 'editor-dark' : ''}`}
     >
       <CourseHeader
         course={course}

@@ -426,6 +426,30 @@ class OrganizationBase(IDSchema, TimestampedSchema):
     avatar_url: str | None = Field(
         description="Avatar URL shown in checkout, customer portal, emails etc."
     )
+    customer_portal_sign_in_image_url: str | None = Field(
+        None,
+        description=(
+            "Image shown on the left panel of the customer portal sign-in "
+            "screen. Configured from the course builder's Auth tab and applies "
+            "to the whole organization's portal sign-in. When unset, the "
+            "portal falls back to the organization's most recent course "
+            "thumbnail."
+        ),
+    )
+    customer_portal_sign_in_image_position: str | None = Field(
+        None,
+        description=(
+            "CSS object-position (e.g. '50% 30%') for the customer portal "
+            "sign-in image, set by dragging to reposition in the Auth tab."
+        ),
+    )
+    customer_portal_sign_in_theme: str | None = Field(
+        None,
+        description=(
+            "Creator-chosen appearance for the customer portal sign-in screen: "
+            "'light' or 'dark'. Null is treated as 'light'."
+        ),
+    )
     proration_behavior: SubscriptionProrationBehavior = Field(
         description="Proration behavior applied when customer updates their subscription from the portal.",
     )
@@ -594,6 +618,23 @@ class OrganizationCreate(Schema):
 class OrganizationUpdate(Schema):
     name: NameInput | None = None
     avatar_url: AvatarUrl | None = None
+
+    customer_portal_sign_in_image_position: str | None = Field(
+        None,
+        max_length=32,
+        description=(
+            "CSS object-position (e.g. '50% 30%') for the customer portal "
+            "sign-in image. Set by dragging to reposition in the Auth tab."
+        ),
+    )
+    customer_portal_sign_in_theme: str | None = Field(
+        None,
+        max_length=16,
+        description=(
+            "Creator-chosen appearance for the customer portal sign-in screen: "
+            "'light' or 'dark'."
+        ),
+    )
 
     email: EmailStrDNS | None = Field(None, description="Public support email.")
     website: HttpUrlToStr | None = Field(

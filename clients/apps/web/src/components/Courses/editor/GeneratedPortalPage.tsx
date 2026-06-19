@@ -304,7 +304,6 @@ export function GeneratedPortalPage({
   structure,
   trialMode,
   paywallEnabled,
-  freeLessons,
   playLabel,
   buyLabel,
   freeLine,
@@ -367,6 +366,12 @@ export function GeneratedPortalPage({
     '',
   )
   const hasSampleSection = paywallEnabled && trialMode === 'lesson_sample'
+  // The primary CTA should lead with the trailer, not the sample. When a
+  // trailer exists the main button plays it and the sample is demoted to the
+  // secondary slot (where the trailer button used to sit). With no trailer the
+  // sample stays primary so the button is never a dead end.
+  const sampleMode = playStartsSample && samplePlayable
+  const trailerPrimary = sampleMode && !!trailerUrl
   const closeEnroll = useCallback(() => setEnrollLesson(null), [])
   useEffect(() => {
     if (!enrollLesson) return
@@ -600,12 +605,6 @@ export function GeneratedPortalPage({
         openFaq === i && clip ? `${clip.scrollHeight}px` : '0px'
     })
   }, [openFaq, faq])
-
-  const trialShort = !paywallEnabled
-    ? `all ${unit}s free`
-    : trialMode === 'lesson_sample'
-      ? 'sample clip free'
-      : `first ${freeLessons} free`
 
   // ── strip arrows: show/hide by scroll position (the design's script) ──
   const stripRef = useRef<HTMLDivElement | null>(null)
@@ -1086,7 +1085,11 @@ export function GeneratedPortalPage({
                 className="abtn play"
                 type="button"
                 onClick={
-                  playStartsSample && samplePlayable ? startSample : onPlay
+                  trailerPrimary
+                    ? onTrailer
+                    : sampleMode
+                      ? startSample
+                      : onPlay
                 }
               >
                 <svg
@@ -1097,7 +1100,7 @@ export function GeneratedPortalPage({
                 >
                   <path d={PLAY_PATH} />
                 </svg>
-                {playLabel}
+                {trailerPrimary ? 'Watch Trailer' : playLabel}
               </button>
               <button className="abtn buy" type="button" onClick={onBuy}>
                 {buyLabel}
@@ -1128,11 +1131,11 @@ export function GeneratedPortalPage({
                     ctx={{ idx: i }}
                   />
                 ))}
-                {showTrailerButton && (
+                {trailerPrimary ? (
                   <button
                     className="bd-trailer"
                     type="button"
-                    onClick={onTrailer}
+                    onClick={startSample}
                   >
                     <svg
                       width="12"
@@ -1142,8 +1145,26 @@ export function GeneratedPortalPage({
                     >
                       <path d={PLAY_PATH} />
                     </svg>
-                    Trailer
+                    Sample
                   </button>
+                ) : (
+                  showTrailerButton && (
+                    <button
+                      className="bd-trailer"
+                      type="button"
+                      onClick={onTrailer}
+                    >
+                      <svg
+                        width="12"
+                        height="12"
+                        viewBox="0 0 24 24"
+                        fill="currentColor"
+                      >
+                        <path d={PLAY_PATH} />
+                      </svg>
+                      Trailer
+                    </button>
+                  )
                 )}
               </div>
             </div>
@@ -1263,9 +1284,11 @@ export function GeneratedPortalPage({
                   className="btn-trailer"
                   type="button"
                   onClick={
-                    playStartsSample && samplePlayable
-                      ? startSample
-                      : (onTrailer ?? onPlay)
+                    trailerPrimary
+                      ? onTrailer
+                      : sampleMode
+                        ? startSample
+                        : (onTrailer ?? onPlay)
                   }
                 >
                   <span className="play">
@@ -1278,7 +1301,30 @@ export function GeneratedPortalPage({
                       <path d={PLAY_PATH} />
                     </svg>
                   </span>
-                  {trialMode === 'lesson_sample' ? playLabel : 'Watch trailer'}
+                  {trailerPrimary
+                    ? 'Watch trailer'
+                    : trialMode === 'lesson_sample'
+                      ? playLabel
+                      : 'Watch trailer'}
+                </button>
+              )}
+              {trailerPrimary && (
+                <button
+                  className="btn-trailer"
+                  type="button"
+                  onClick={startSample}
+                >
+                  <span className="play">
+                    <svg
+                      width="12"
+                      height="12"
+                      viewBox="0 0 24 24"
+                      fill="currentColor"
+                    >
+                      <path d={PLAY_PATH} />
+                    </svg>
+                  </span>
+                  Sample
                 </button>
               )}
               <button className="btn-enroll" type="button" onClick={onBuy}>
@@ -1448,7 +1494,6 @@ export function GeneratedPortalPage({
           <h2>Watch a free sample</h2>
           <p className="sample-sub">
             A few minutes inside the {unit === 'episode' ? 'series' : 'course'}.
-            No account, no card.
           </p>
           <div
             ref={sampleScreenRef}
@@ -1567,9 +1612,6 @@ export function GeneratedPortalPage({
                 "Free preview". Both render, one shows per breakpoint. */}
             <span className="rh rh-desktop">Episodes</span>
             <span className="rh rh-mobile">Free preview</span>
-            <span className="rh-meta">
-              {lessonCount} episode{lessonCount === 1 ? '' : 's'} · {trialShort}
-            </span>
           </div>
           <div className="strip-wrap">
             <button
@@ -1971,6 +2013,23 @@ export function GeneratedPortalPage({
             rgba(0, 0, 0, 0.85) 0%,
             rgba(0, 0, 0, 0.4) 40%,
             rgba(0, 0, 0, 0.1) 100%
+          );
+          /* Frosted blur fading up from the bottom so the episode title/meta
+             read cleanly over the still — the Apple-TV spotlight look. Masked
+             so only the lower portion blurs and the artwork stays crisp above. */
+          -webkit-backdrop-filter: blur(16px);
+          backdrop-filter: blur(16px);
+          -webkit-mask-image: linear-gradient(
+            to top,
+            #000 0%,
+            #000 24%,
+            transparent 54%
+          );
+          mask-image: linear-gradient(
+            to top,
+            #000 0%,
+            #000 24%,
+            transparent 54%
           );
         }
 

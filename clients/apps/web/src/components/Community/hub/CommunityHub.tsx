@@ -252,7 +252,7 @@ export function CommunityHub({
             <b>{memberCount}</b> {memberCount === 1 ? 'member' : 'members'}
             <span style={{ margin: '0 10px', opacity: 0.5 }}>·</span>
             <span className="mh-draft">
-              {published ? 'Live · accepting members' : 'Not published yet'}
+              {published ? 'Live' : 'Not published yet'}
             </span>
           </div>
           <span className="spacer" />
@@ -293,7 +293,11 @@ export function CommunityHub({
             showToast={showToast}
           />
         ) : tab === 'events' ? (
-          <EventsTab courseId={courseId} showToast={showToast} />
+          <EventsTab
+            courseId={courseId}
+            orgSlug={organization.slug}
+            showToast={showToast}
+          />
         ) : tab === 'brief' ? (
           <ActivitiesTab
             courseId={courseId}
@@ -310,7 +314,12 @@ export function CommunityHub({
             courseCoverUrl={course.thumbnail_url ?? null}
             defaultTagline={defaultTagline}
             lessonsCount={lessonsCount}
-            onViewCourse={backToEditor}
+            onViewCourse={() =>
+            window.open(
+              `/${organization.slug}/portal/courses/${courseId}`,
+              '_blank',
+            )
+          }
             showToast={showToast}
           />
         ) : (

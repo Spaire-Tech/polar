@@ -193,6 +193,7 @@ export function CommunityHubStudent({
           ) : tab === 'events' ? (
             <EventsTab
               courseId={courseId}
+              orgSlug={organizationSlug}
               defaultProvider={settings?.default_meeting_provider ?? 'zoom'}
               showToast={showToast}
             />

@@ -60,6 +60,14 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "DEBUG"
     TESTING: bool = False
 
+    # When true, the API runs `alembic upgrade head` at startup, before it
+    # serves traffic or runs any query. Lets deploys that can only migrate
+    # *after* shipping code (no pre-deploy hook) avoid the window where new
+    # code hits an un-migrated schema. Opt-in so tests, CI and other
+    # processes don't migrate implicitly. Set MIGRATE_ON_STARTUP=true on the
+    # web service.
+    MIGRATE_ON_STARTUP: bool = False
+
     WORKER_HEALTH_CHECK_INTERVAL: timedelta = timedelta(seconds=30)
     WORKER_MAX_RETRIES: int = 20
     WORKER_MIN_BACKOFF_MILLISECONDS: int = 2_000

@@ -9,12 +9,17 @@
  * existing backend unchanged we map the design's 3 type labels onto the stored
  * enum and infer the meeting provider from the saved URL.
  */
+import { calendarLinksFor } from '../calendarLinks'
 import {
   type CommunityEventCreateBody,
   type CommunityEventRead,
   type CommunityEventType,
+  type CommunityEventUpdateBody,
   useCreateCommunityEvent,
   useCommunityEvents,
+  useDeleteCommunityEvent,
+  useRsvpCommunityEvent,
+  useUpdateCommunityEvent,
   useUploadPostImage,
 } from '@/hooks/queries/community'
 import * as React from 'react'
@@ -102,24 +107,53 @@ const emptyForm = (provider: ProviderKey): FormState => ({
   coverPos: '50% 50%',
 })
 
+/* Build the editable form state from an existing event (edit mode). */
+const formFromEvent = (
+  ev: CommunityEventRead,
+  fallbackProvider: ProviderKey,
+): FormState => {
+  const d = new Date(ev.start_at)
+  const pad = (n: number) => (n < 10 ? `0${n}` : String(n))
+  return {
+    title: ev.title || '',
+    typeLabel: TYPE_LABEL[ev.type] ?? 'Workshop',
+    date: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`,
+    time: `${pad(d.getHours())}:${pad(d.getMinutes())}`,
+    dur: ev.duration_minutes,
+    provider: ev.meeting_url
+      ? (providerFromUrl(ev.meeting_url) as ProviderKey)
+      : fallbackProvider,
+    link: ev.meeting_url || '',
+    desc: ev.description || '',
+    cover: ev.cover_url || '',
+    coverPos: ev.cover_object_position || '50% 50%',
+  }
+}
+
 function EventForm({
   courseId,
   defaultProvider,
+  editing = null,
   onCancel,
   onCreated,
   showToast,
 }: {
   courseId: string
   defaultProvider: ProviderKey
+  /** When set, the form edits this event instead of creating a new one. */
+  editing?: CommunityEventRead | null
   onCancel: (() => void) | null
   onCreated: () => void
   showToast: (m: string) => void
 }) {
-  const [form, setForm] = useState<FormState>(() => emptyForm(defaultProvider))
+  const [form, setForm] = useState<FormState>(() =>
+    editing ? formFromEvent(editing, defaultProvider) : emptyForm(defaultProvider),
+  )
   const set = (p: Partial<FormState>) => setForm((f) => ({ ...f, ...p }))
   const [busy, setBusy] = useState(false)
   const uploadImg = useUploadPostImage(null, courseId, 'creator')
   const create = useCreateCommunityEvent(null, courseId, 'creator')
+  const update = useUpdateCommunityEvent(null, courseId, 'creator')
 
   const can = form.title.trim() && form.date && !busy
   const onCover = async (file: File, dataUrl: string) => {
@@ -136,23 +170,39 @@ function EventForm({
   const submit = async () => {
     if (!can) return
     setBusy(true)
-    const body: CommunityEventCreateBody = {
-      title: form.title.trim(),
-      type: labelToType(form.typeLabel),
-      description: form.desc.trim() || null,
-      start_at: toStartAtISO(form.date, form.time),
-      timezone: browserTz(),
-      duration_minutes: form.dur,
-      meeting_url: form.link.trim() || null,
-      cover_url: form.cover || null,
-      cover_object_position: form.cover ? form.coverPos : null,
-    }
     try {
-      await create.mutateAsync(body)
-      showToast('Event scheduled')
+      if (editing) {
+        const body: CommunityEventUpdateBody = {
+          title: form.title.trim(),
+          type: labelToType(form.typeLabel),
+          description: form.desc.trim() || null,
+          start_at: toStartAtISO(form.date, form.time),
+          duration_minutes: form.dur,
+          meeting_url: form.link.trim() || null,
+          cover_url: form.cover || null,
+        }
+        await update.mutateAsync({ eventId: editing.id, body })
+        showToast('Event updated')
+      } else {
+        const body: CommunityEventCreateBody = {
+          title: form.title.trim(),
+          type: labelToType(form.typeLabel),
+          description: form.desc.trim() || null,
+          start_at: toStartAtISO(form.date, form.time),
+          timezone: browserTz(),
+          duration_minutes: form.dur,
+          meeting_url: form.link.trim() || null,
+          cover_url: form.cover || null,
+          cover_object_position: form.cover ? form.coverPos : null,
+        }
+        await create.mutateAsync(body)
+        showToast('Event scheduled')
+      }
       onCreated()
     } catch {
-      showToast('Could not schedule that event')
+      showToast(
+        editing ? 'Could not update that event' : 'Could not schedule that event',
+      )
     } finally {
       setBusy(false)
     }
@@ -160,7 +210,9 @@ function EventForm({
 
   return (
     <div className="card form-card">
-      <div className="form-title">Schedule a live moment</div>
+      <div className="form-title">
+        {editing ? 'Edit live moment' : 'Schedule a live moment'}
+      </div>
       <Field label="Cover image">
         <CoverDrop
           src={form.cover}
@@ -240,7 +292,13 @@ function EventForm({
           style={!can ? { opacity: 0.4 } : undefined}
           onClick={submit}
         >
-          {busy ? 'Scheduling…' : 'Schedule'}
+          {busy
+            ? editing
+              ? 'Saving…'
+              : 'Scheduling…'
+            : editing
+              ? 'Save changes'
+              : 'Schedule'}
         </button>
       </div>
     </div>
@@ -279,6 +337,20 @@ function EventCard({
           <Glyph d="calendar" size={14} stroke={1.9} /> {when.short} · {when.time}
         </div>
         <div className="ev-card-title">{ev.title || 'Untitled event'}</div>
+        {(ev.going || ev.rsvp_count > 0) && (
+          <div className="ev-card-rsvp">
+            {ev.going && (
+              <span className="ev-card-going">
+                <Glyph d="check" size={13} stroke={2.4} /> Going
+              </span>
+            )}
+            {ev.rsvp_count > 0 && (
+              <span className="ev-card-count">
+                {ev.rsvp_count} {ev.rsvp_count === 1 ? 'going' : 'going'}
+              </span>
+            )}
+          </div>
+        )}
         <div className="ev-card-join">
           {past ? (
             <>
@@ -299,13 +371,35 @@ function EventCard({
 /* ---------- detail sheet ---------- */
 export function EventSheet({
   ev,
+  courseId,
+  orgSlug,
   onClose,
+  onEdit,
+  onDeleted,
   showToast,
 }: {
   ev: CommunityEventRead
+  courseId?: string
+  /** Org slug — enables the same-origin .ics download (Apple Calendar). */
+  orgSlug?: string
   onClose: () => void
+  /** Host only: open the editor prefilled with this event. */
+  onEdit?: (ev: CommunityEventRead) => void
+  /** Host only: called after a successful delete so the list can refresh. */
+  onDeleted?: () => void
   showToast: (m: string) => void
 }) {
+  const { viewer, mode, token } = useHub()
+  const isHost = viewer === 'host'
+  const isMember = viewer === 'member' && mode === 'customer'
+
+  const rsvp = useRsvpCommunityEvent(token, courseId)
+  const del = useDeleteCommunityEvent(null, courseId, 'creator')
+  // Optimistic RSVP state so the button feels instant.
+  const [going, setGoing] = useState(!!ev.going)
+  const [count, setCount] = useState(ev.rsvp_count)
+  const [calOpen, setCalOpen] = useState(false)
+
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose()
@@ -318,6 +412,7 @@ export function EventSheet({
       document.body.style.overflow = prev
     }
   }, [onClose])
+
   const provider = providerFromUrl(ev.meeting_url)
   const prov = providerOf(provider)
   const when = eventWhen(ev)
@@ -325,6 +420,56 @@ export function EventSheet({
     if (ev.meeting_url) window.open(ev.meeting_url, '_blank')
     else showToast('No meeting link set')
   }
+
+  const toggleRsvp = async () => {
+    if (!courseId || rsvp.isPending) return
+    const next = !going
+    setGoing(next)
+    setCount((c) => Math.max(0, c + (next ? 1 : -1)))
+    try {
+      const res = await rsvp.mutateAsync({ eventId: ev.id, going: next })
+      setGoing(res.going)
+      setCount(res.rsvp_count)
+      // When confirming, the backend emails an .ics + bell + reminder schedule.
+      showToast(res.going ? "You're going — check your email" : 'RSVP removed')
+    } catch {
+      // revert
+      setGoing(!next)
+      setCount((c) => Math.max(0, c + (next ? -1 : 1)))
+      showToast('Could not update your RSVP')
+    }
+  }
+
+  const onDelete = async () => {
+    if (!courseId) return
+    if (
+      !window.confirm(
+        `Delete "${ev.title || 'this event'}"? Members who RSVP'd will lose it. This cannot be undone.`,
+      )
+    )
+      return
+    try {
+      await del.mutateAsync(ev.id)
+      showToast('Event deleted')
+      onDeleted?.()
+      onClose()
+    } catch {
+      showToast('Could not delete that event')
+    }
+  }
+
+  const cal = calendarLinksFor(
+    {
+      title: ev.title || 'Event',
+      startAt: ev.start_at,
+      durationMinutes: ev.duration_minutes,
+      description: ev.description,
+      location: ev.location,
+      meetingUrl: ev.meeting_url,
+    },
+    orgSlug ? `/${orgSlug}/events/${ev.id}/ics` : '',
+  )
+
   // Portal to <body> so the fixed overlay anchors to the viewport. Inside a
   // feed/composer card the surrounding `.crf-post` / `.card` gets a
   // backdrop-filter in dark mode, which would otherwise make this fixed
@@ -338,37 +483,117 @@ export function EventSheet({
     <div className={`spaire-hub${isDark ? ' dark' : ''}`}>
       <div className="ev-overlay" onClick={onClose}>
         <div className="ev-sheet" onClick={(e) => e.stopPropagation()}>
-        <div
-          className="ev-sheet-cover"
-          style={{
-            backgroundImage: ev.cover_url ? `url(${ev.cover_url})` : undefined,
-            backgroundPosition: ev.cover_object_position || 'center',
-          }}
-        >
-          <button className="ev-sheet-x" onClick={onClose} aria-label="Close">
-            <Glyph d="close" size={18} stroke={2.2} />
-          </button>
-          <span className="ev-sheet-type">{TYPE_LABEL[ev.type]}</span>
-        </div>
-        <div className="ev-sheet-body">
-          <div className="ev-sheet-when">
-            <Glyph d="calendar" size={15} stroke={1.9} /> {when.full} · {when.time}
+          <div
+            className="ev-sheet-cover"
+            style={{
+              backgroundImage: ev.cover_url ? `url(${ev.cover_url})` : undefined,
+              backgroundPosition: ev.cover_object_position || 'center',
+            }}
+          >
+            <button className="ev-sheet-x" onClick={onClose} aria-label="Close">
+              <Glyph d="close" size={18} stroke={2.2} />
+            </button>
+            <span className="ev-sheet-type">{TYPE_LABEL[ev.type]}</span>
+            {ev.live && <span className="ev-sheet-live">● Live now</span>}
           </div>
-          <h3 className="ev-sheet-title">{ev.title || 'Untitled event'}</h3>
-          <div className="ev-sheet-prov">
-            <ProviderLogo k={provider} size={22} /> Hosted on {prov.name} ·{' '}
-            {ev.duration_minutes} min
+          <div className="ev-sheet-body">
+            <div className="ev-sheet-when">
+              <Glyph d="calendar" size={15} stroke={1.9} /> {when.full} ·{' '}
+              {when.time}
+            </div>
+            <h3 className="ev-sheet-title">{ev.title || 'Untitled event'}</h3>
+            <div className="ev-sheet-prov">
+              <ProviderLogo k={provider} size={22} /> Hosted on {prov.name} ·{' '}
+              {ev.duration_minutes} min
+            </div>
+            {count > 0 && (
+              <div className="ev-sheet-going">
+                <Glyph d="users" size={14} stroke={1.9} /> {count}{' '}
+                {count === 1 ? 'person going' : 'people going'}
+              </div>
+            )}
+            {ev.description && <p className="ev-sheet-desc">{ev.description}</p>}
+
+            {/* Member RSVP — confirming triggers the backend's confirmation
+                email (with .ics), reminder schedule and bell notifications. */}
+            {isMember && !ev.past && (
+              <button
+                className={`ev-sheet-rsvp${going ? ' going' : ''}`}
+                onClick={toggleRsvp}
+                disabled={rsvp.isPending}
+              >
+                {going ? (
+                  <>
+                    <Glyph d="check" size={17} stroke={2.4} /> You&apos;re going
+                  </>
+                ) : (
+                  <>
+                    <Glyph d="calendar" size={17} stroke={2} /> RSVP — I&apos;ll
+                    be there
+                  </>
+                )}
+              </button>
+            )}
+
+            <button className="ev-sheet-join" onClick={join}>
+              <ProviderLogo k={provider} size={24} /> Join with {prov.name}
+              <Glyph d="chevR" size={16} stroke={2.2} />
+            </button>
+
+            {/* Add to calendar — Google / Outlook deep links + Apple .ics. */}
+            {!ev.past && (
+              <div className="ev-sheet-cal">
+                <button
+                  className="ev-sheet-cal-btn"
+                  onClick={() => setCalOpen((o) => !o)}
+                >
+                  <Glyph d="calendar" size={16} stroke={1.9} /> Add to calendar
+                  <Glyph d="chevD" size={15} stroke={2} />
+                </button>
+                {calOpen && (
+                  <div className="ev-sheet-cal-menu">
+                    <a href={cal.google} target="_blank" rel="noreferrer">
+                      Google Calendar
+                    </a>
+                    <a href={cal.outlook} target="_blank" rel="noreferrer">
+                      Outlook
+                    </a>
+                    {orgSlug && (
+                      <a href={cal.ics} download>
+                        Apple / iCal (.ics)
+                      </a>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {ev.meeting_url && (
+              <div className="ev-sheet-url">{ev.meeting_url}</div>
+            )}
+
+            {/* Host controls. */}
+            {isHost && (onEdit || courseId) && (
+              <div className="ev-sheet-host">
+                {onEdit && (
+                  <button
+                    className="btn btn-quiet btn-sm"
+                    onClick={() => onEdit(ev)}
+                  >
+                    Edit event
+                  </button>
+                )}
+                <button
+                  className="ev-sheet-del"
+                  onClick={onDelete}
+                  disabled={del.isPending}
+                >
+                  <Glyph d="trash" size={15} stroke={2} /> Delete
+                </button>
+              </div>
+            )}
           </div>
-          {ev.description && <p className="ev-sheet-desc">{ev.description}</p>}
-          <button className="ev-sheet-join" onClick={join}>
-            <ProviderLogo k={provider} size={24} /> Join with {prov.name}
-            <Glyph d="chevR" size={16} stroke={2.2} />
-          </button>
-          {ev.meeting_url && (
-            <div className="ev-sheet-url">{ev.meeting_url}</div>
-          )}
         </div>
-      </div>
       </div>
     </div>,
     document.body,
@@ -378,10 +603,12 @@ export function EventSheet({
 /* ---------- tab ---------- */
 export function EventsTab({
   courseId,
+  orgSlug,
   defaultProvider = 'zoom',
   showToast,
 }: {
   courseId: string
+  orgSlug?: string
   defaultProvider?: ProviderKey
   showToast: (m: string) => void
 }) {
@@ -390,7 +617,18 @@ export function EventsTab({
   const eventsQ = useCommunityEvents(token, courseId, mode)
   const events = eventsQ.data ?? []
   const [showForm, setShowForm] = useState(false)
+  const [editing, setEditing] = useState<CommunityEventRead | null>(null)
   const [openEv, setOpenEv] = useState<CommunityEventRead | null>(null)
+
+  const startEdit = (ev: CommunityEventRead) => {
+    setOpenEv(null)
+    setEditing(ev)
+    setShowForm(true)
+  }
+  const closeForm = () => {
+    setShowForm(false)
+    setEditing(null)
+  }
 
   const upcoming = events
     .filter((e) => !e.past)
@@ -415,7 +653,10 @@ export function EventsTab({
         {isHost && !showForm && events.length > 0 && (
           <button
             className="ev-add-btn"
-            onClick={() => setShowForm(true)}
+            onClick={() => {
+              setEditing(null)
+              setShowForm(true)
+            }}
             aria-label="New event"
           >
             <Glyph d="plus" size={20} stroke={2.2} />
@@ -427,8 +668,11 @@ export function EventsTab({
         <EventForm
           courseId={courseId}
           defaultProvider={defaultProvider}
-          onCancel={events.length > 0 ? () => setShowForm(false) : null}
-          onCreated={() => setShowForm(false)}
+          editing={editing}
+          onCancel={
+            editing || events.length > 0 ? () => closeForm() : null
+          }
+          onCreated={closeForm}
           showToast={showToast}
         />
       ) : events.length === 0 ? (
@@ -445,7 +689,10 @@ export function EventsTab({
           {isHost && (
             <button
               className="btn btn-primary"
-              onClick={() => setShowForm(true)}
+              onClick={() => {
+                setEditing(null)
+                setShowForm(true)
+              }}
             >
               Schedule an event
             </button>
@@ -479,7 +726,11 @@ export function EventsTab({
       {openEv && (
         <EventSheet
           ev={openEv}
+          courseId={courseId}
+          orgSlug={orgSlug}
           onClose={() => setOpenEv(null)}
+          onEdit={isHost ? startEdit : undefined}
+          onDeleted={() => setOpenEv(null)}
           showToast={showToast}
         />
       )}

@@ -620,6 +620,24 @@ class CourseService:
             lesson_id=lesson_id,
         )
 
+        # Per-lesson automations use a dedicated "completes this lesson"
+        # trigger: completing the lesson ENTERS the subscriber into any active
+        # sequence scoped to it (whereas fire_event above only resumes
+        # sequences already parked on an until-event wait).
+        if event_name == "course.lesson_completed" and lesson_id is not None:
+            from polar.email_sequence.service import (
+                email_sequence as sequence_service,
+            )
+            from polar.models.email_sequence import EmailSequenceTriggerType
+
+            await sequence_service.enroll_for_trigger(
+                session,
+                course.organization_id,
+                EmailSequenceTriggerType.on_lesson_completed,
+                subscriber.id,
+                lesson_id=lesson_id,
+            )
+
     async def _fire_lesson_completion_events(
         self,
         session: AsyncSession,

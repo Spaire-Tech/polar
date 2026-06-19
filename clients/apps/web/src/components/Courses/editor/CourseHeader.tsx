@@ -13,6 +13,7 @@ export type TabId =
   | 'community'
   | 'automations'
   | 'settings'
+  | 'auth'
   | 'pricing'
   | 'customers'
 
@@ -22,6 +23,7 @@ const TABS: { id: TabId; label: string }[] = [
   { id: 'community', label: 'Community' },
   { id: 'automations', label: 'Automations' },
   { id: 'settings', label: 'Settings' },
+  { id: 'auth', label: 'Auth' },
   { id: 'pricing', label: 'Pricing' },
   { id: 'customers', label: 'Customers' },
 ]

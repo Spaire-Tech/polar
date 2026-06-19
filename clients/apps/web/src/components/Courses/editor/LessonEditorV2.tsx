@@ -74,6 +74,19 @@ export function LessonEditorV2({
   onDelete?: () => void
 }) {
   const router = useRouter()
+  const pageRef = useRef<HTMLElement>(null)
+  // Always open a lesson scrolled to the very top — when you switch lessons the
+  // editor remounts (key=lesson.id) but the surrounding canvas can retain its
+  // previous scroll offset, leaving you halfway down the new lesson.
+  useEffect(() => {
+    if (typeof window !== 'undefined') window.scrollTo(0, 0)
+    pageRef.current?.scrollTo?.(0, 0)
+    let el: HTMLElement | null = pageRef.current?.parentElement ?? null
+    while (el) {
+      if (el.scrollTop > 0) el.scrollTop = 0
+      el = el.parentElement
+    }
+  }, [])
   const updateLesson = useUpdateCourseLesson()
   const createMuxUpload = useCreateMuxUpload()
   const removeVideo = useRemoveLessonVideo()
@@ -384,7 +397,7 @@ export function LessonEditorV2({
         </div>
       </header>
 
-      <main className="page">
+      <main className="page" ref={pageRef}>
         {/* ════════ VIDEO ════════ */}
         <section className="sec">
           <div className="sec-h">Video</div>
@@ -459,12 +472,9 @@ export function LessonEditorV2({
                   ready={!processing && captions}
                   busy={processing}
                 />
-                <AutoRow
-                  label="Transcript & chapters"
-                  sub="Searchable transcript, generated from the video"
-                  ready={!processing && Boolean(lesson.mux_playback_id)}
-                  busy={processing}
-                />
+                {/* "Transcript & chapters" hidden — not implemented (no
+                    generation, storage, or player UI), so the status was
+                    misleading. Re-add once the feature actually exists. */}
               </div>
             )}
             {/* Thumbnail — lesson card cover image, drag to reposition */}
