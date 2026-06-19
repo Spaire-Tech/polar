@@ -78,6 +78,8 @@ const IC = {
   x: 'M5 5l14 14M19 5L5 19',
   plus: 'M12 5v14M5 12h14',
   back: 'M15 5l-7 7 7 7',
+  moon: 'M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z',
+  sun: 'M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zM12 2v2M12 20v2M5 5l1.5 1.5M17.5 17.5 19 19M2 12h2M20 12h2M5 19l1.5-1.5M17.5 6.5 19 5',
 }
 
 let uidCounter = Date.now() % 100000
@@ -198,6 +200,22 @@ export function AutomationSequenceBuilder({
   })
   const [steps, setSteps] = useState<Step[]>(initial?.steps ?? [])
   const [live, setLive] = useState(Boolean(initial?.live))
+
+  // Dark mode. This is a standalone route (outside the course editor's
+  // `.editor-dark` root), so it carries its own theme — read once from the
+  // shared `spaire_theme` key (so it matches whatever the creator last chose in
+  // the course editor) and let the in-bar toggle persist back to the same key.
+  const [dark, setDark] = useState(false)
+  useEffect(() => {
+    setDark(localStorage.getItem('spaire_theme') === 'dark')
+  }, [])
+  const toggleDark = useCallback(() => {
+    setDark((d) => {
+      const next = !d
+      localStorage.setItem('spaire_theme', next ? 'dark' : 'light')
+      return next
+    })
+  }, [])
   const [saveState, setSaveState] = useState<'saved' | 'saving' | 'unsaved'>(
     'saved',
   )
@@ -637,7 +655,7 @@ export function AutomationSequenceBuilder({
   }
 
   return (
-    <div className="asq">
+    <div className={`asq${dark ? ' dark' : ''}`}>
       {/* ════════ TOP BAR ════════ */}
       <header className="topbar">
         <button className="tb-back" type="button" onClick={handleBack}>
@@ -655,6 +673,14 @@ export function AutomationSequenceBuilder({
               : 'Saved'}
         </span>
         <div className="tb-actions">
+          <button
+            className="tb-theme"
+            type="button"
+            onClick={toggleDark}
+            aria-label={dark ? 'Switch to light mode' : 'Switch to dark mode'}
+          >
+            <Svg d={dark ? IC.sun : IC.moon} s={17} w={2} />
+          </button>
           <button
             className="btn-glass"
             type="button"
@@ -1062,6 +1088,14 @@ function AutomationStyles() {
       .asq .tb-name { font-size: 16px; font-weight: 700; letter-spacing: -0.02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
       .asq .tb-status { font-size: 13px; font-weight: 500; color: var(--text-2); white-space: nowrap; }
       .asq .tb-actions { display: flex; align-items: center; gap: 10px; }
+      .asq .tb-theme {
+        width: 38px; height: 38px; border-radius: 50%; flex: none;
+        display: inline-flex; align-items: center; justify-content: center;
+        background: rgba(125, 125, 135, 0.14); color: var(--text-2);
+        transition: background 0.18s, color 0.18s, transform 0.16s;
+      }
+      .asq .tb-theme:hover { background: rgba(125, 125, 135, 0.24); color: var(--text); }
+      .asq .tb-theme:active { transform: scale(0.94); }
       .asq .btn-glass {
         display: inline-flex; align-items: center; gap: 8px; height: 38px; padding: 0 16px; border-radius: 980px;
         background: rgba(125, 125, 135, 0.14); color: var(--text);
@@ -1237,6 +1271,119 @@ function AutomationStyles() {
       .asq .leave-cancel:hover { background: rgba(0, 0, 0, 0.1); }
       .asq .leave-save { color: #fff; background: var(--blue); }
       .asq .leave-save:hover { opacity: 0.92; }
+
+      /* ───────────────────────── dark mode ─────────────────────────
+         The builder is glassmorphism with many hardcoded white frosted
+         surfaces; each is remapped to a dark frosted equivalent so nodes, the
+         tree connectors, icons and text all read correctly. The accent matches
+         the rest of the course editor (community-blue #2997ff on #141416). */
+      .asq.dark {
+        --bg: #141416;
+        --canvas: #161618;
+        --card: #1d1d20;
+        --text: #f5f5f7;
+        --text-2: rgba(245, 245, 247, 0.6);
+        --blue: #2997ff;
+        --hair: rgba(245, 245, 247, 0.12);
+        --ans: rgba(245, 245, 247, 0.82);
+      }
+      .asq.dark .topbar {
+        background: rgba(24, 24, 27, 0.72);
+        box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.04);
+      }
+      .asq.dark .side { background: linear-gradient(180deg, #1a1a1d, #161618); }
+      .asq.dark .card { background: var(--card); }
+      .asq.dark .field + .field,
+      .asq.dark .field + .q-row,
+      .asq.dark .q-row + .field { border-top-color: rgba(255, 255, 255, 0.07); }
+      .asq.dark .chip.done { background: rgba(48, 180, 100, 0.16); color: #4ad991; }
+      .asq.dark .radio-row:hover { background: rgba(255, 255, 255, 0.05); }
+      .asq.dark .rr-dot { box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.28); }
+      .asq.dark .mini-select,
+      .asq.dark .mini-num { background: rgba(255, 255, 255, 0.08); }
+      .asq.dark .seg button.on {
+        background: linear-gradient(180deg, #3a3a40, #313137); color: var(--text);
+        box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.08), 0 1px 4px rgba(0, 0, 0, 0.45);
+      }
+      .asq.dark .canvas {
+        background-image:
+          radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+          radial-gradient(55% 42% at 16% 8%, rgba(80, 100, 230, 0.14), transparent 70%),
+          radial-gradient(48% 40% at 88% 24%, rgba(200, 130, 80, 0.08), transparent 70%),
+          radial-gradient(60% 48% at 50% 100%, rgba(80, 150, 210, 0.1), transparent 72%);
+      }
+      .asq.dark .node {
+        background: rgba(255, 255, 255, 0.045);
+        box-shadow: 0 20px 30px rgba(0, 0, 0, 0.35), 0 2px 6px rgba(0, 0, 0, 0.25),
+          inset 0 1px 1px rgba(255, 255, 255, 0.06), inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+      }
+      .asq.dark .node:hover {
+        background: rgba(255, 255, 255, 0.075);
+        box-shadow: 0 28px 42px rgba(0, 0, 0, 0.45), 0 3px 8px rgba(0, 0, 0, 0.3),
+          inset 0 1px 1px rgba(255, 255, 255, 0.09), inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+      }
+      .asq.dark .node-ico {
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.02));
+        box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.1), 0 4px 8px rgba(0, 0, 0, 0.3);
+        color: rgba(245, 245, 247, 0.85);
+      }
+      .asq.dark .node.is-trigger .node-ico,
+      .asq.dark .node.is-email .node-ico {
+        background: linear-gradient(180deg, rgba(122, 134, 243, 0.4), rgba(60, 74, 201, 0.16));
+        box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.18), 0 4px 10px rgba(20, 30, 90, 0.4);
+        color: #6ea8ff;
+      }
+      .asq.dark .node.is-goal .node-ico {
+        background: linear-gradient(180deg, rgba(70, 200, 130, 0.38), rgba(35, 160, 80, 0.14));
+        box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.16), 0 4px 10px rgba(10, 80, 40, 0.4);
+        color: #4ad991;
+      }
+      .asq.dark .node-btn { background: rgba(41, 151, 255, 0.16); color: #6ea8ff; }
+      .asq.dark .node-btn:hover { background: rgba(41, 151, 255, 0.26); }
+      .asq.dark .conn .line { background: rgba(255, 255, 255, 0.16); }
+      .asq.dark .nt-btn,
+      .asq.dark .conn-add {
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.03));
+        box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.08), 0 4px 10px rgba(0, 0, 0, 0.4);
+      }
+      .asq.dark .conn-add:hover {
+        box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.1), 0 6px 16px rgba(41, 151, 255, 0.3);
+      }
+      .asq.dark .branch-split::before { border-color: rgba(255, 255, 255, 0.2); }
+      .asq.dark .branch-split .stem,
+      .asq.dark .branch-split .armL,
+      .asq.dark .branch-split .armR,
+      .asq.dark .branch-split .bar { background: rgba(255, 255, 255, 0.2); }
+      .asq.dark .leg-label.yes {
+        background: linear-gradient(180deg, rgba(70, 200, 130, 0.3), rgba(35, 160, 80, 0.12));
+        box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.12); color: #4ad991;
+      }
+      .asq.dark .leg-label.no {
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.03));
+        box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.08), 0 2px 6px rgba(0, 0, 0, 0.3);
+        color: var(--text-2);
+      }
+      .asq.dark .exit-pill,
+      .asq.dark .empty-hint {
+        background: rgba(255, 255, 255, 0.05);
+        box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.07), 0 4px 10px rgba(0, 0, 0, 0.3);
+      }
+      .asq.dark .menu {
+        background: rgba(34, 34, 38, 0.82);
+        box-shadow: 0 40px 60px rgba(0, 0, 0, 0.5), 0 4px 16px rgba(0, 0, 0, 0.4),
+          inset 0 1px 1px rgba(255, 255, 255, 0.08), inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+      }
+      .asq.dark .menu button:hover {
+        background: rgba(255, 255, 255, 0.06);
+        box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.06), 0 2px 8px rgba(0, 0, 0, 0.3);
+      }
+      .asq.dark .m-ico {
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.02));
+        box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.1), 0 3px 7px rgba(0, 0, 0, 0.3);
+        color: rgba(245, 245, 247, 0.85);
+      }
+      .asq.dark .leave-cancel { background: rgba(255, 255, 255, 0.1); }
+      .asq.dark .leave-cancel:hover { background: rgba(255, 255, 255, 0.16); }
 
       @media (max-width: 980px) {
         .asq { height: auto; overflow: auto; }
