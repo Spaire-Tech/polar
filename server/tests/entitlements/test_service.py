@@ -191,6 +191,39 @@ class TestGetTier:
 
         assert tier == TierKey.starter
 
+    async def test_past_due_subscription_keeps_tier(
+        self,
+        mocker: MockerFixture,
+        session: AsyncSession,
+        save_fixture: SaveFixture,
+    ) -> None:
+        # While a Spaire charge is being retried (dunning window), the
+        # subscription is past_due but the creator KEEPS their tier — they
+        # only drop to `inactive` once it's fully canceled.
+        platform_org = await create_organization(save_fixture)
+        creator = await create_organization(save_fixture)
+        _patch_platform_org_id(mocker, platform_org.id)
+
+        product = await _seed_tier_product(
+            save_fixture, platform_org=platform_org, tier="studio", monthly_cents=12900
+        )
+        customer = await create_customer(
+            save_fixture,
+            organization=platform_org,
+            email=f"creator-{creator.id}@billing.spaire",
+            user_metadata={"creator_org_id": str(creator.id)},
+        )
+        await create_subscription(
+            save_fixture,
+            product=product,
+            customer=customer,
+            status=SubscriptionStatus.past_due,
+        )
+
+        tier = await entitlements.get_tier(session, creator.id)
+
+        assert tier == TierKey.studio
+
     async def test_unrecognized_tier_metadata_returns_inactive(
         self,
         mocker: MockerFixture,

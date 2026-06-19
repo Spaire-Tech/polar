@@ -105,6 +105,11 @@ export interface CurrentSpaireSubscription {
   current_period_end: string | null
   trial_end: string | null
   cancel_at_period_end: boolean
+  // Set only while status === 'past_due' (a Spaire charge failed). past_due_at
+  // is when it first failed; suspension_at is the deadline to pay before the
+  // subscription is canceled and the org drops to no-plan.
+  past_due_at: string | null
+  suspension_at: string | null
   // True only while the active sub is the auto-created Starter trial
   // (managed_by=trial). Flips False once the creator goes through
   // upgrade-checkout. Onboarding review uses this to verify a Stripe

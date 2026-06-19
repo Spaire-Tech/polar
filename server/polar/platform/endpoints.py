@@ -33,6 +33,7 @@ from polar.kit.utils import utc_now
 from polar.locker import Locker, get_locker
 from polar.models import Product
 from polar.models.product_price import ProductPriceFixed
+from polar.models.subscription import SubscriptionStatus
 from polar.openapi import APITag
 from polar.organization.repository import OrganizationRepository
 from polar.organization.schemas import OrganizationID
@@ -197,6 +198,8 @@ async def get_subscription(
     cancel_at_period_end = False
     billing_interval: str | None = None
     is_default_trial = False
+    past_due_at: datetime | None = None
+    suspension_at: datetime | None = None
 
     if platform_service.is_configured():
         platform_org_id = platform_service.get_id()
@@ -225,6 +228,13 @@ async def get_subscription(
                 current_period_end = subscription.current_period_end
                 trial_end = subscription.trial_end
                 cancel_at_period_end = subscription.cancel_at_period_end
+                # Surface the dunning state so the dashboard can show a
+                # "payment failed, pay by {date}" banner. past_due_deadline
+                # is past_due_at + the dunning retry window; after it, the
+                # sub is canceled and the org drops to `inactive`.
+                if subscription.status == SubscriptionStatus.past_due:
+                    past_due_at = subscription.past_due_at
+                    suspension_at = subscription.past_due_deadline
                 # The org-creation hook stamps managed_by=trial on the
                 # auto-attached Pro trial. After the creator goes
                 # through upgrade-checkout, Polar creates a new
@@ -246,6 +256,8 @@ async def get_subscription(
         current_period_end=current_period_end,
         trial_end=trial_end,
         cancel_at_period_end=cancel_at_period_end,
+        past_due_at=past_due_at,
+        suspension_at=suspension_at,
         is_default_trial=is_default_trial,
         entitlements=Entitlements.from_dataclass(entitlements_dataclass),
     )

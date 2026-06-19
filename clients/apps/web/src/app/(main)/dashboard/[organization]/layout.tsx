@@ -1,4 +1,5 @@
 import { OrganizationContextProvider } from '@/providers/maintainerOrganization'
+import PastDueBanner from '@/components/Settings/SpaireTier/PastDueBanner'
 import TrialBanner from '@/components/Settings/SpaireTier/TrialBanner'
 import { getServerSideAPI } from '@/utils/client/serverside'
 import { getOrganizationBySlugOrNotFound } from '@/utils/organization'
@@ -130,6 +131,7 @@ export default async function Layout(props: {
       organization={organization}
       organizations={userOrganizations}
     >
+      <PastDueBanner organizationId={organization.id} />
       <TrialBanner
         organizationId={organization.id}
         organizationSlug={organization.slug}
