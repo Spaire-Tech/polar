@@ -203,6 +203,10 @@
   --hair: rgba(245, 245, 247, 0.14) !important;
   --ans: rgba(245, 245, 247, 0.78) !important;
   --band: 29, 29, 32 !important;
+  /* Match the rest of the editor's dark accent: the lesson editor's built-in
+     blue is the light-mode #0066cc, which reads darker than the #2997ff the
+     editor uses everywhere else in dark mode. */
+  --blue: #2997ff !important;
 }
 
 /* ---- elevation reads softer on a dark canvas ---- */
