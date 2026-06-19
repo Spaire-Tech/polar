@@ -21,15 +21,11 @@ type Theme = 'light' | 'dark'
 const clamp = (v: number, min: number, max: number) =>
   Math.min(max, Math.max(min, v))
 
-const pointToPosition = (
-  clientX: number,
-  clientY: number,
-  el: HTMLElement,
-): string => {
-  const rect = el.getBoundingClientRect()
-  const x = clamp(((clientX - rect.left) / rect.width) * 100, 0, 100)
-  const y = clamp(((clientY - rect.top) / rect.height) * 100, 0, 100)
-  return `${x.toFixed(1)}% ${y.toFixed(1)}%`
+const parsePosition = (p: string): { x: number; y: number } => {
+  const [a, b] = p.split(/\s+/)
+  const x = parseFloat(a)
+  const y = parseFloat(b)
+  return { x: Number.isNaN(x) ? 50 : x, y: Number.isNaN(y) ? 50 : y }
 }
 
 const MoonIcon = () => (
@@ -96,6 +92,12 @@ export function AuthTab({
 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const visualRef = useRef<HTMLDivElement>(null)
+  const dragStart = useRef<{
+    clientX: number
+    clientY: number
+    posX: number
+    posY: number
+  } | null>(null)
   const positionRef = useRef(position)
   useEffect(() => {
     positionRef.current = position
@@ -203,18 +205,29 @@ export function AuthTab({
     [theme, updateOrg, organization.id],
   )
 
-  // Drag-to-reposition: live-update while dragging, persist on release. Only
-  // active for an uploaded image (the fallback course cover is read-only here).
+  // Drag-to-reposition: grab-and-move (the image follows the cursor), live
+  // while dragging, persisted on release. Only active for an uploaded image
+  // (the fallback course cover is read-only here).
   useEffect(() => {
     if (!dragging) return
     const onMove = (e: MouseEvent) => {
       e.preventDefault()
-      if (visualRef.current) {
-        setPosition(pointToPosition(e.clientX, e.clientY, visualRef.current))
-      }
+      const el = visualRef.current
+      const start = dragStart.current
+      if (!el || !start) return
+      const rect = el.getBoundingClientRect()
+      // % the cursor has travelled across the frame…
+      const dx = ((e.clientX - start.clientX) / rect.width) * 100
+      const dy = ((e.clientY - start.clientY) / rect.height) * 100
+      // …and move the image WITH it: dragging right reveals the left of the
+      // photo, which means object-position decreases.
+      const nx = clamp(start.posX - dx, 0, 100)
+      const ny = clamp(start.posY - dy, 0, 100)
+      setPosition(`${nx.toFixed(1)}% ${ny.toFixed(1)}%`)
     }
     const onUp = () => {
       setDragging(false)
+      dragStart.current = null
       commitPosition()
     }
     window.addEventListener('mousemove', onMove)
@@ -228,7 +241,13 @@ export function AuthTab({
   const onVisualMouseDown = (e: React.MouseEvent) => {
     if (!usingCustom || !visualRef.current) return
     e.preventDefault()
-    setPosition(pointToPosition(e.clientX, e.clientY, visualRef.current))
+    const { x, y } = parsePosition(positionRef.current)
+    dragStart.current = {
+      clientX: e.clientX,
+      clientY: e.clientY,
+      posX: x,
+      posY: y,
+    }
     setDragging(true)
   }
 
@@ -345,9 +364,13 @@ export function AuthTab({
                 </div>
               )}
 
-              {/* floating controls, centered so they're seen */}
+              {/* floating controls, centered so they're seen. Stop mousedown
+                  from starting a reposition drag so clicks register. */}
               {previewUrl && (
-                <div className="spauth-edit-tools">
+                <div
+                  className="spauth-edit-tools"
+                  onMouseDown={(e) => e.stopPropagation()}
+                >
                   <button
                     type="button"
                     className="spauth-edit-btn"
