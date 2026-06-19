@@ -21,16 +21,43 @@ type Theme = 'light' | 'dark'
 const clamp = (v: number, min: number, max: number) =>
   Math.min(max, Math.max(min, v))
 
-const pointToPosition = (
-  clientX: number,
-  clientY: number,
-  el: HTMLElement,
-): string => {
-  const rect = el.getBoundingClientRect()
-  const x = clamp(((clientX - rect.left) / rect.width) * 100, 0, 100)
-  const y = clamp(((clientY - rect.top) / rect.height) * 100, 0, 100)
-  return `${x.toFixed(1)}% ${y.toFixed(1)}%`
+const parsePosition = (p: string): { x: number; y: number } => {
+  const [a, b] = p.split(/\s+/)
+  const x = parseFloat(a)
+  const y = parseFloat(b)
+  return { x: Number.isNaN(x) ? 50 : x, y: Number.isNaN(y) ? 50 : y }
 }
+
+const MoonIcon = () => (
+  <svg
+    width="19"
+    height="19"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.8"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z" />
+  </svg>
+)
+
+const SunIcon = () => (
+  <svg
+    width="19"
+    height="19"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.8"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <circle cx="12" cy="12" r="4.2" />
+    <path d="M12 2v2.6M12 19.4V22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M2 12h2.6M19.4 12H22M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8" />
+  </svg>
+)
 
 /**
  * Course-builder "Auth" tab.
@@ -65,6 +92,12 @@ export function AuthTab({
 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const visualRef = useRef<HTMLDivElement>(null)
+  const dragStart = useRef<{
+    clientX: number
+    clientY: number
+    posX: number
+    posY: number
+  } | null>(null)
   const positionRef = useRef(position)
   useEffect(() => {
     positionRef.current = position
@@ -172,18 +205,29 @@ export function AuthTab({
     [theme, updateOrg, organization.id],
   )
 
-  // Drag-to-reposition: live-update while dragging, persist on release. Only
-  // active for an uploaded image (the fallback course cover is read-only here).
+  // Drag-to-reposition: grab-and-move (the image follows the cursor), live
+  // while dragging, persisted on release. Only active for an uploaded image
+  // (the fallback course cover is read-only here).
   useEffect(() => {
     if (!dragging) return
     const onMove = (e: MouseEvent) => {
       e.preventDefault()
-      if (visualRef.current) {
-        setPosition(pointToPosition(e.clientX, e.clientY, visualRef.current))
-      }
+      const el = visualRef.current
+      const start = dragStart.current
+      if (!el || !start) return
+      const rect = el.getBoundingClientRect()
+      // % the cursor has travelled across the frame…
+      const dx = ((e.clientX - start.clientX) / rect.width) * 100
+      const dy = ((e.clientY - start.clientY) / rect.height) * 100
+      // …and move the image WITH it: dragging right reveals the left of the
+      // photo, which means object-position decreases.
+      const nx = clamp(start.posX - dx, 0, 100)
+      const ny = clamp(start.posY - dy, 0, 100)
+      setPosition(`${nx.toFixed(1)}% ${ny.toFixed(1)}%`)
     }
     const onUp = () => {
       setDragging(false)
+      dragStart.current = null
       commitPosition()
     }
     window.addEventListener('mousemove', onMove)
@@ -197,7 +241,13 @@ export function AuthTab({
   const onVisualMouseDown = (e: React.MouseEvent) => {
     if (!usingCustom || !visualRef.current) return
     e.preventDefault()
-    setPosition(pointToPosition(e.clientX, e.clientY, visualRef.current))
+    const { x, y } = parsePosition(positionRef.current)
+    dragStart.current = {
+      clientX: e.clientX,
+      clientY: e.clientY,
+      posX: x,
+      posY: y,
+    }
     setDragging(true)
   }
 
@@ -216,24 +266,6 @@ export function AuthTab({
           </span>
         </div>
         <div className="flex items-center gap-3">
-          {/* creator-chosen appearance — what the customer sees */}
-          <div className="flex items-center rounded-lg border border-gray-200 p-0.5">
-            {(['light', 'dark'] as Theme[]).map((t) => (
-              <button
-                key={t}
-                type="button"
-                onClick={() => chooseTheme(t)}
-                className={cn(
-                  'rounded-md px-2.5 py-[3px] text-[12px] font-medium capitalize transition-colors',
-                  theme === t
-                    ? 'bg-gray-900 text-white'
-                    : 'text-gray-500 hover:text-gray-900',
-                )}
-              >
-                {t}
-              </button>
-            ))}
-          </div>
           <span
             className="text-[11.5px] text-gray-400"
             role="status"
@@ -332,9 +364,13 @@ export function AuthTab({
                 </div>
               )}
 
-              {/* floating controls, centered so they're seen */}
+              {/* floating controls, centered so they're seen. Stop mousedown
+                  from starting a reposition drag so clicks register. */}
               {previewUrl && (
-                <div className="spauth-edit-tools">
+                <div
+                  className="spauth-edit-tools"
+                  onMouseDown={(e) => e.stopPropagation()}
+                >
                   <button
                     type="button"
                     className="spauth-edit-btn"
@@ -379,8 +415,22 @@ export function AuthTab({
               />
             </div>
 
-            {/* RIGHT — non-interactive preview of the flow */}
+            {/* RIGHT — non-interactive preview of the flow, with the
+                creator's appearance toggle (the icon) top-right */}
             <div className="spauth-panel spauth-panel--preview">
+              <div className="spauth-topbar">
+                <button
+                  type="button"
+                  className="spauth-toggle"
+                  onClick={() => chooseTheme(dark ? 'light' : 'dark')}
+                  aria-label={
+                    dark ? 'Switch to light mode' : 'Switch to dark mode'
+                  }
+                  title={dark ? 'Light mode' : 'Dark mode'}
+                >
+                  {dark ? <SunIcon /> : <MoonIcon />}
+                </button>
+              </div>
               <div className="spauth-stage">
                 <div className="spauth-inner">
                   <h1 className="spauth-title">Sign in</h1>

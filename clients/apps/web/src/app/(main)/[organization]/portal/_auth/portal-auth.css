@@ -667,7 +667,8 @@
   max-width: 260px;
 }
 
-/* the right panel is a non-interactive preview inside the editor */
-.spauth-panel--preview {
+/* in the editor the fake form is non-interactive, but the theme toggle in the
+   top bar stays clickable (it's the creator's appearance control) */
+.spauth-panel--preview .spauth-stage {
   pointer-events: none;
 }
