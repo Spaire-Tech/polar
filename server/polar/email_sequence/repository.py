@@ -72,12 +72,18 @@ class EmailSequenceRepository(
         self,
         organization_id: UUID,
         trigger_type: EmailSequenceTriggerType,
+        *,
+        lesson_id: UUID | None = None,
     ) -> list[EmailSequence]:
         statement = self.get_base_statement().where(
             EmailSequence.organization_id == organization_id,
             EmailSequence.status == EmailSequenceStatus.active,
             EmailSequence.trigger_type == trigger_type,
         )
+        # Lesson-completion triggers only fan out to sequences scoped to the
+        # lesson that was just completed.
+        if lesson_id is not None:
+            statement = statement.where(EmailSequence.lesson_id == lesson_id)
         return list(await self.get_all(statement))
 
     async def get_enrollment(
