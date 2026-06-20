@@ -12,6 +12,10 @@ type Props = {
   file: File
   onCancel: () => void
   onSave: (blob: Blob) => void | Promise<void>
+  // Mirrors the Space's dark theme. The modal portals to <body> (outside the
+  // editor's `.space-dark` root), so it carries its own marker class — its
+  // Tailwind utilities then theme via the shared space-dark remap.
+  dark?: boolean
 }
 
 /**
@@ -24,7 +28,12 @@ type Props = {
  * decode the file we show a recoverable error instead of silently
  * uploading something the public Space can't render.
  */
-export const AvatarCropModal = ({ file, onCancel, onSave }: Props) => {
+export const AvatarCropModal = ({
+  file,
+  onCancel,
+  onSave,
+  dark = false,
+}: Props) => {
   const [imgUrl, setImgUrl] = useState<string | null>(null)
   const [imgEl, setImgEl] = useState<HTMLImageElement | null>(null)
   const [zoom, setZoom] = useState(1)
@@ -163,7 +172,11 @@ export const AvatarCropModal = ({ file, onCancel, onSave }: Props) => {
       aria-modal="true"
       aria-label="Position your avatar"
     >
-      <div className="flex w-[420px] max-w-full flex-col gap-4 rounded-2xl bg-white p-6 shadow-2xl">
+      <div
+        className={`flex w-[420px] max-w-full flex-col gap-4 rounded-2xl bg-white p-6 shadow-2xl${
+          dark ? ' space-dark' : ''
+        }`}
+      >
         <div>
           <h2 className="text-lg font-semibold text-gray-900">
             Position your avatar

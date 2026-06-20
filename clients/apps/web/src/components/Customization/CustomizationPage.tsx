@@ -713,6 +713,7 @@ const Customization = ({
                 }
                 onClose={() => setPickerOpen(false)}
                 callbacks={pickerCallbacks}
+                dark={dark}
               />
             )}
             </>
