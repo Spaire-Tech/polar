@@ -568,8 +568,17 @@ export function CourseDesignEditor({
       sampleImageUrl={sampleLesson?.thumbnail_url ?? null}
       samplePlayable={samplePlayable}
       samplePlaybackId={sampleLesson?.mux_playback_id ?? null}
+      samplePlaybackUrl={
+        (sampleLesson as { mux_playback_url?: string | null } | null)
+          ?.mux_playback_url ?? null
+      }
       sampleStart={sample?.start_seconds ?? 0}
       sampleDuration={sample?.duration_seconds ?? 0}
+      // Preview the public, not-yet-enrolled state: when a clip sample is the
+      // trial, the hero leads with the trailer and the sample takes the
+      // secondary slot — the same swap the live landing does. Without this the
+      // editor never showed that arrangement.
+      playStartsSample={trialMode === 'lesson_sample' && samplePlayable}
       groups={groups}
       lessonCount={flatLessons.length}
       metaDuration={metaDuration}
