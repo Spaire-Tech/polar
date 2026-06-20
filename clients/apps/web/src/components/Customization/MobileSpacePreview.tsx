@@ -5,12 +5,13 @@
 // real responsive breakpoints (Tailwind `md:` etc.) fire at phone width, so
 // this shows the genuine mobile rendering — not a CSS-faked approximation.
 //
-// The iframe loads the live published Space, so it reflects the published
-// theme + layout. Unpublished edits aren't shown here (the desktop canvas is
-// the live WYSIWYG); a hint surfaces that distinction when there are unsaved
-// changes.
+// The iframe loads the storefront at a SAME-ORIGIN path (`/{slug}`). The
+// storefront sends `X-Frame-Options: SAMEORIGIN` + CSP `frame-ancestors 'self'`,
+// so it can only be embedded from its own origin — the public vanity domain
+// (space.spairehq.com) is a different origin and refuses to be framed. The same
+// Next app serves the storefront at `/{slug}` on the editor's origin with no
+// redirect, so the relative URL renders the real page and is allowed to frame.
 
-import { spacePageLink } from '@/utils/nav'
 import { schemas } from '@spaire/client'
 
 export const MobileSpacePreview = ({
@@ -20,7 +21,7 @@ export const MobileSpacePreview = ({
   organization: schemas['Organization']
   enabled: boolean
 }) => {
-  const url = spacePageLink(organization)
+  const url = `/${organization.slug}/`
 
   return (
     <div className="mobile-frame" aria-label="Mobile preview of your Space">
@@ -32,9 +33,6 @@ export const MobileSpacePreview = ({
             src={url}
             title="Mobile preview of your Space"
             className="h-full w-full border-0"
-            // Same-origin where applicable; allow forms so the preview is fully
-            // interactive like the real thing.
-            sandbox="allow-same-origin allow-scripts allow-forms allow-popups"
           />
         ) : (
           <div className="flex h-full flex-col items-center justify-center gap-2 px-8 text-center">
