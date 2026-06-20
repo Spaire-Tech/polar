@@ -24,16 +24,18 @@ import {
   useCreateMuxUpload,
   useDeleteLessonAttachment,
   useRemoveLessonVideo,
+  useUpdateCourse,
   useUpdateCourseLesson,
   useUploadLessonAttachment,
   useUploadLessonThumbnail,
 } from '@/hooks/queries/courses'
 import { schemas } from '@spaire/client'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from '../../Toast/use-toast'
 import { RepositionInPortal } from '../watch/RepositionInPortal'
 import { WatchPlayer } from '../watch/WatchPlayer'
+import { SampleSettingsPopover } from './SeriesSampleBlock'
 
 type SaveState = 'saved' | 'saving'
 
@@ -88,6 +90,7 @@ export function LessonEditorV2({
     }
   }, [])
   const updateLesson = useUpdateCourseLesson()
+  const updateCourse = useUpdateCourse()
   const createMuxUpload = useCreateMuxUpload()
   const removeVideo = useRemoveLessonVideo()
   const uploadAttachment = useUploadLessonAttachment()
@@ -96,6 +99,19 @@ export function LessonEditorV2({
 
   const isEpisodic = course.format === 'series'
   const content = (lesson.content ?? {}) as LessonContent
+
+  // ── Free sample for THIS lesson (course-level, single sample) ──
+  const [sampleOpen, setSampleOpen] = useState(false)
+  const courseSample = course.sample
+  const isSampleLesson = Boolean(
+    courseSample?.enabled && courseSample.lesson_id === lesson.id,
+  )
+  const removeSample = () => {
+    void updateCourse.mutateAsync({
+      courseId: course.id,
+      body: { sample: null },
+    })
+  }
 
   // ── local editable state (seeded from the lesson; autosaves) ──
   const [title, setTitle] = useState(lesson.title ?? '')
@@ -402,7 +418,7 @@ export function LessonEditorV2({
         <section className="sec">
           <div className="sec-h">Video</div>
           <div className="card">
-            <div className={`media-zone${hasVideo ? ' filled' : ''}`}>
+            <div className={`media-zone${hasVideo ? 'filled' : ''}`}>
               <div className="ph-ambient" />
               <div className="glass-tint" />
               <div
@@ -417,7 +433,11 @@ export function LessonEditorV2({
               {!hasVideo && (
                 <div className="ph-cta">
                   <span className="ph-ic" onClick={pickVideo}>
-                    <Ico d="M12 16V4 M7.5 8.5 12 4l4.5 4.5 M5 20h14" w={1.8} s={22} />
+                    <Ico
+                      d="M12 16V4 M7.5 8.5 12 4l4.5 4.5 M5 20h14"
+                      w={1.8}
+                      s={22}
+                    />
                   </span>
                   <span className="ph-k">Add your lesson video</span>
                   <span className="ph-s">
@@ -428,11 +448,7 @@ export function LessonEditorV2({
               {hasVideo && (
                 <>
                   <span className="media-dur">
-                    <Ico
-                      d="M12 12a9 9 0 1 0 0 0 M12 7v5l3 2"
-                      w={1.9}
-                      s={11}
-                    />
+                    <Ico d="M12 12a9 9 0 1 0 0 0 M12 7v5l3 2" w={1.9} s={11} />
                     {processing
                       ? uploadPct != null
                         ? `Uploading ${uploadPct}%`
@@ -485,7 +501,7 @@ export function LessonEditorV2({
                   Shown on the {unitCap.toLowerCase()} card and in the rail.
                 </span>
                 <button
-                  className={`thumb-clear${thumbUrl ? ' show' : ''}`}
+                  className={`thumb-clear${thumbUrl ? 'show' : ''}`}
                   type="button"
                   onClick={clearThumbnail}
                 >
@@ -494,17 +510,23 @@ export function LessonEditorV2({
               </div>
               <div
                 ref={thumbTileRef}
-                className={`thumb-tile${thumbUrl ? ' filled' : ''}`}
+                className={`thumb-tile${thumbUrl ? 'filled' : ''}`}
                 role="button"
-                aria-label={thumbUrl ? 'Reposition thumbnail in portal' : 'Add thumbnail'}
-                onClick={() => (thumbUrl ? setReposOpen(true) : pickThumbnail())}
+                aria-label={
+                  thumbUrl ? 'Reposition thumbnail in portal' : 'Add thumbnail'
+                }
+                onClick={() =>
+                  thumbUrl ? setReposOpen(true) : pickThumbnail()
+                }
               >
                 <div className="ph-ambient" />
                 <div className="glass-tint" />
                 <div
                   className="photo"
                   style={{
-                    backgroundImage: thumbUrl ? `url("${thumbUrl}")` : undefined,
+                    backgroundImage: thumbUrl
+                      ? `url("${thumbUrl}")`
+                      : undefined,
                     backgroundPosition: `${thumbPos.x}% ${thumbPos.y}%`,
                   }}
                 />
@@ -514,11 +536,29 @@ export function LessonEditorV2({
                 <div className="thumb-cta">
                   <span className="thumb-ic">
                     {thumbUrl ? (
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+                      <svg
+                        width="18"
+                        height="18"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.9"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
                         <path d="M12 3v18M3 12h18M12 3l-2.5 2.5M12 3l2.5 2.5M12 21l-2.5-2.5M12 21l2.5-2.5M3 12l2.5-2.5M3 12l2.5 2.5M21 12l-2.5-2.5M21 12l-2.5 2.5" />
                       </svg>
                     ) : (
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+                      <svg
+                        width="18"
+                        height="18"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.9"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
                         <rect x="3" y="3" width="18" height="18" rx="4" />
                         <circle cx="9" cy="9" r="2" />
                         <path d="M21 15l-4.35-4.35a1.4 1.4 0 0 0-2 0L5 20" />
@@ -621,12 +661,18 @@ export function LessonEditorV2({
               {attachments.map((r) => (
                 <div className="res-row" key={r.id}>
                   <span className="ar-ico">
-                    <Ico d="M7 3h7l5 5v13H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z M14 3v5h5" w={1.9} s={16} />
+                    <Ico
+                      d="M7 3h7l5 5v13H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z M14 3v5h5"
+                      w={1.9}
+                      s={16}
+                    />
                   </span>
                   <div className="res-main">
                     <div className="res-n">{r.filename}</div>
                     <div className="res-m">
-                      {(r.content_type?.split('/').pop() ?? 'file').toUpperCase()}{' '}
+                      {(
+                        r.content_type?.split('/').pop() ?? 'file'
+                      ).toUpperCase()}{' '}
                       · {fmtBytes(r.size)}
                     </div>
                   </div>
@@ -647,8 +693,8 @@ export function LessonEditorV2({
             </button>
           </div>
           <p className="sec-sub">
-            Workbooks, drill sheets, templates — shown to students alongside
-            the lesson.
+            Workbooks, drill sheets, templates — shown to students alongside the
+            lesson.
           </p>
         </section>
 
@@ -677,6 +723,84 @@ export function LessonEditorV2({
           </div>
         </section>
 
+        {/* ════════ FREE SAMPLE ════════ */}
+        {(lesson.content_type === 'video' || hasVideo) && (
+          <section className="sec">
+            <div className="sec-h">Free sample</div>
+            <p className="sec-sub">
+              Show a short, free clip from this {unitCap.toLowerCase()} on the
+              course landing — a taste that pulls viewers in. One sample per
+              course.
+            </p>
+            <div className="card">
+              <div className="q-row">
+                <div className="q-main">
+                  {!hasVideo ? (
+                    <>
+                      <div className="q-t">Add a video first</div>
+                      <div className="q-s">
+                        Upload a video to this {unitCap.toLowerCase()} to clip a
+                        free sample from it.
+                      </div>
+                    </>
+                  ) : isSampleLesson && courseSample ? (
+                    <>
+                      <div className="q-t">
+                        This {unitCap.toLowerCase()} is your free sample
+                      </div>
+                      <div className="q-s">
+                        {fmtDur(courseSample.start_seconds)}–
+                        {fmtDur(
+                          courseSample.start_seconds +
+                            courseSample.duration_seconds,
+                        )}{' '}
+                        · {courseSample.duration_seconds}s clip on the landing
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="q-t">Set a free sample</div>
+                      <div className="q-s">
+                        Pick a moment and a length; it plays on the landing.
+                        {courseSample?.enabled
+                          ? ' Replaces the course’s current sample.'
+                          : ''}
+                      </div>
+                    </>
+                  )}
+                </div>
+                {hasVideo &&
+                  (isSampleLesson ? (
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button
+                        className="btn-glass"
+                        type="button"
+                        onClick={() => setSampleOpen(true)}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        className="btn-glass"
+                        type="button"
+                        onClick={removeSample}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      className="btn-main"
+                      type="button"
+                      onClick={() => setSampleOpen(true)}
+                    >
+                      Set sample
+                    </button>
+                  ))}
+              </div>
+            </div>
+          </section>
+        )}
+
         {/* ════════ AUTOMATIONS ════════ */}
         <section className="sec">
           <div className="sec-h">
@@ -691,7 +815,9 @@ export function LessonEditorV2({
               <div className="atc-k">
                 <span className="atc-t">New automation</span>
               </div>
-              <span className="atc-s">Build a sequence from a blank canvas.</span>
+              <span className="atc-s">
+                Build a sequence from a blank canvas.
+              </span>
             </button>
           </div>
         </section>
@@ -725,6 +851,15 @@ export function LessonEditorV2({
           onClose={() => setReposOpen(false)}
         />
       )}
+
+      <SampleSettingsPopover
+        open={sampleOpen}
+        onOpenChange={setSampleOpen}
+        course={course}
+        initial={course.sample}
+        unit={isEpisodic ? 'episode' : 'lesson'}
+        lockedLessonId={lesson.id}
+      />
 
       <LessonEditorStyles />
     </div>
@@ -780,7 +915,7 @@ function QRow({
         <div className="q-s">{s}</div>
       </div>
       <button
-        className={`sw${on ? ' on' : ''}`}
+        className={`sw${on ? 'on' : ''}`}
         type="button"
         aria-label={t}
         onClick={onClick}
@@ -806,7 +941,7 @@ function AutoRow({
         <div className="ar-t">{label}</div>
         <div className="ar-s">{sub}</div>
       </div>
-      <span className={`ar-state${ready ? ' ready' : ''}`}>
+      <span className={`ar-state${ready ? 'ready' : ''}`}>
         {busy ? (
           <>
             <span className="spin" />
@@ -878,10 +1013,11 @@ function LessonEditorStyles() {
         --hair: rgba(0, 0, 0, 0.1);
         --ans: #4a4a4f;
         --band: 255, 255, 255;
-        --sf: -apple-system, BlinkMacSystemFont, 'SF Pro Display',
-          'SF Pro Text', system-ui, sans-serif;
-        --po: 'Poppins', var(--font-poppins), -apple-system, system-ui,
-          sans-serif;
+        --sf:
+          -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text',
+          system-ui, sans-serif;
+        --po:
+          'Poppins', var(--font-poppins), -apple-system, system-ui, sans-serif;
         font-family: var(--sf);
         background: var(--bg);
         color: var(--text);
@@ -994,7 +1130,9 @@ function LessonEditorStyles() {
         font-size: 14px;
         font-weight: 600;
         letter-spacing: -0.01em;
-        transition: background 0.18s, transform 0.16s;
+        transition:
+          background 0.18s,
+          transform 0.16s;
       }
       .led .btn-glass:hover {
         background: rgba(125, 125, 135, 0.26);
@@ -1014,7 +1152,9 @@ function LessonEditorStyles() {
         font-size: 14px;
         font-weight: 600;
         letter-spacing: -0.01em;
-        transition: opacity 0.16s, transform 0.16s;
+        transition:
+          opacity 0.16s,
+          transform 0.16s;
       }
       .led .btn-main:hover {
         opacity: 0.85;
@@ -1099,11 +1239,8 @@ function LessonEditorStyles() {
       .led .ph-ambient {
         position: absolute;
         inset: -15%;
-        background: radial-gradient(
-            42% 52% at 20% 28%,
-            #6e7a5e 0%,
-            transparent 70%
-          ),
+        background:
+          radial-gradient(42% 52% at 20% 28%, #6e7a5e 0%, transparent 70%),
           radial-gradient(46% 56% at 76% 22%, #8a7565 0%, transparent 70%),
           radial-gradient(52% 62% at 62% 82%, #46464c 0%, transparent 72%),
           radial-gradient(36% 46% at 28% 78%, #5d6e6a 0%, transparent 70%),
@@ -1165,7 +1302,9 @@ function LessonEditorStyles() {
         display: grid;
         place-items: center;
         cursor: pointer;
-        transition: background 0.2s, transform 0.18s;
+        transition:
+          background 0.2s,
+          transform 0.18s;
       }
       .led .ph-cta .ph-ic:hover {
         background: rgba(255, 255, 255, 0.28);
@@ -1219,7 +1358,9 @@ function LessonEditorStyles() {
         font-size: 12px;
         font-weight: 600;
         opacity: 0;
-        transition: opacity 0.2s, background 0.18s;
+        transition:
+          opacity 0.2s,
+          background 0.18s;
       }
       .led .media-zone.filled:hover .media-replace {
         opacity: 1;
@@ -1240,7 +1381,9 @@ function LessonEditorStyles() {
         backdrop-filter: blur(30px) saturate(150%);
         place-items: center;
         padding-left: 4px;
-        transition: background 0.2s, transform 0.16s;
+        transition:
+          background 0.2s,
+          transform 0.16s;
       }
       .led .media-playbtn:hover {
         background: rgba(255, 255, 255, 0.3);
@@ -1407,7 +1550,9 @@ function LessonEditorStyles() {
         backdrop-filter: blur(20px) saturate(150%);
         display: grid;
         place-items: center;
-        transition: background 0.2s, transform 0.18s;
+        transition:
+          background 0.2s,
+          transform 0.18s;
       }
       .led .thumb-tile:hover .thumb-ic {
         background: rgba(255, 255, 255, 0.28);
@@ -1436,7 +1581,9 @@ function LessonEditorStyles() {
         font-size: 12px;
         font-weight: 600;
         opacity: 0;
-        transition: opacity 0.2s, background 0.18s;
+        transition:
+          opacity 0.2s,
+          background 0.18s;
       }
       .led .thumb-tile.filled .thumb-replace {
         display: inline-flex;
@@ -1508,7 +1655,9 @@ function LessonEditorStyles() {
         display: grid;
         place-items: center;
         opacity: 0;
-        transition: opacity 0.15s, background 0.15s;
+        transition:
+          opacity 0.15s,
+          background 0.15s;
       }
       .led .learn-row:hover .row-x,
       .led .res-row:hover .row-x {
@@ -1636,7 +1785,8 @@ function LessonEditorStyles() {
         display: flex;
         flex-direction: column;
         gap: 6px;
-        transition: transform 0.2s cubic-bezier(0.34, 1.3, 0.64, 1),
+        transition:
+          transform 0.2s cubic-bezier(0.34, 1.3, 0.64, 1),
           box-shadow 0.2s;
       }
       .led .atc:hover {
