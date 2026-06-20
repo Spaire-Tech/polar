@@ -267,6 +267,9 @@ const Customization = ({
     const handler = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault()
+        // The picker adds to the storefront, so make sure that tab is the one
+        // in view (⌘K from the Settings tab would otherwise open it offscreen).
+        setActiveTab('storefront')
         setPickerOpen(true)
       }
     }
