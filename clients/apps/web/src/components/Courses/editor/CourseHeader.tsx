@@ -21,7 +21,7 @@ const TABS: { id: TabId; label: string }[] = [
   { id: 'outline', label: 'Outline' },
   { id: 'customize', label: 'Landing' },
   { id: 'community', label: 'Community' },
-  { id: 'automations', label: 'Automations' },
+  { id: 'automations', label: 'Marketing' },
   { id: 'settings', label: 'Settings' },
   { id: 'auth', label: 'Auth' },
   { id: 'pricing', label: 'Pricing' },

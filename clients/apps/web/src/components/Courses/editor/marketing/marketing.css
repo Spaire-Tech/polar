@@ -1,0 +1,388 @@
+/* Marketing hub — scoped under .spaire-hub so it reuses the community/editor
+   tokens (light + dark) and the blue accent. No new colours are introduced. */
+
+.spaire-hub .mk-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 22px;
+}
+.spaire-hub .mk-h {
+  font-family: var(--po);
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  color: var(--ink);
+}
+.spaire-hub .mk-sub {
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--t2);
+  margin-top: 6px;
+  max-width: 64ch;
+  text-wrap: pretty;
+}
+.spaire-hub .mk-t3 {
+  color: var(--t3);
+  font-weight: 400;
+}
+
+/* ── metric tiles ── */
+.spaire-hub .mk-tiles {
+  display: grid;
+  gap: 14px;
+  margin-bottom: 22px;
+}
+.spaire-hub .mk-tiles-4 {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+.spaire-hub .mk-tile {
+  padding: 18px 18px 16px;
+}
+.spaire-hub .mk-tile-k {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--t3);
+}
+.spaire-hub .mk-tile-v {
+  font-family: var(--po);
+  font-size: 30px;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  color: var(--ink);
+  margin-top: 10px;
+  line-height: 1.05;
+}
+.spaire-hub .mk-tile-s {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--t3);
+  margin-top: 7px;
+}
+.spaire-hub .mk-delta {
+  font-size: 11.5px;
+  font-weight: 600;
+}
+.spaire-hub .mk-delta.up {
+  color: var(--accent);
+}
+.spaire-hub .mk-delta.down {
+  color: var(--live);
+}
+
+@media (max-width: 880px) {
+  .spaire-hub .mk-tiles-4 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* ── broadcast list ── */
+.spaire-hub .mk-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.spaire-hub .mk-bc {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 16px 18px;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s, transform 0.12s;
+}
+.spaire-hub .mk-bc:hover {
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--hair));
+}
+.spaire-hub .mk-bc:active {
+  transform: scale(0.997);
+}
+.spaire-hub .mk-bc-main {
+  flex: 1;
+  min-width: 0;
+}
+.spaire-hub .mk-bc-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.spaire-hub .mk-bc-subject {
+  font-size: 15.5px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.spaire-hub .mk-bc-meta {
+  font-size: 13px;
+  color: var(--t3);
+  margin-top: 4px;
+}
+.spaire-hub .mk-dot {
+  margin: 0 7px;
+  opacity: 0.6;
+}
+.spaire-hub .mk-bc-stats {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  flex: none;
+}
+.spaire-hub .mk-bc-stat {
+  text-align: right;
+}
+.spaire-hub .mk-bc-stat b {
+  display: block;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.spaire-hub .mk-bc-stat span {
+  font-size: 11px;
+  color: var(--t3);
+}
+
+/* ── status chips ── */
+.spaire-hub .mk-chip {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 10px;
+  border-radius: 980px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  flex: none;
+}
+.spaire-hub .mk-chip-ok {
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+.spaire-hub .mk-chip-live {
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+.spaire-hub .mk-chip-bad {
+  color: var(--live);
+  background: color-mix(in srgb, var(--live) 12%, transparent);
+}
+.spaire-hub .mk-chip-muted {
+  color: var(--t2);
+  background: var(--fill);
+}
+
+/* ── empty / skeleton ── */
+.spaire-hub .mk-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 48px 28px;
+  gap: 6px;
+}
+.spaire-hub .mk-empty-t {
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--ink);
+}
+.spaire-hub .mk-empty-s {
+  font-size: 13.5px;
+  color: var(--t2);
+  margin-bottom: 14px;
+}
+.spaire-hub .mk-skeleton {
+  height: 160px;
+  border-radius: 18px;
+  background: var(--fill);
+  animation: mkPulse 1.4s ease-in-out infinite;
+}
+@keyframes mkPulse {
+  50% {
+    opacity: 0.55;
+  }
+}
+
+/* ── detail ── */
+.spaire-hub .mk-back {
+  display: inline-flex;
+  align-items: center;
+  height: 30px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--t2);
+  margin-bottom: 12px;
+  transition: color 0.15s;
+}
+.spaire-hub .mk-back:hover {
+  color: var(--ink);
+}
+.spaire-hub .mk-preview {
+  padding: 0;
+  overflow: hidden;
+  margin-bottom: 22px;
+}
+.spaire-hub .mk-preview-h {
+  padding: 13px 20px;
+  border-bottom: 1px solid var(--hair);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--t3);
+}
+.spaire-hub .mk-preview-body {
+  padding: 24px;
+  max-height: 420px;
+  overflow-y: auto;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--ink);
+}
+.spaire-hub .mk-preview-body img {
+  max-width: 100%;
+  height: auto;
+}
+.spaire-hub .mk-preview-body a {
+  color: var(--accent);
+}
+
+/* ── recipients table ── */
+.spaire-hub .mk-table-wrap {
+  margin-bottom: 18px;
+}
+.spaire-hub .mk-table-h {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+  margin-bottom: 12px;
+}
+.spaire-hub .mk-table-h .mk-t3 {
+  margin-left: 8px;
+  font-size: 12.5px;
+}
+.spaire-hub .mk-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.spaire-hub .mk-table th {
+  text-align: left;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--t3);
+  padding: 0 16px 10px;
+  border-bottom: 1px solid var(--hair);
+}
+.spaire-hub .mk-table td {
+  padding: 12px 16px;
+  font-size: 13.5px;
+  color: var(--t2);
+  border-bottom: 1px solid var(--hair-2);
+  vertical-align: top;
+}
+.spaire-hub .mk-sub-name {
+  font-weight: 500;
+  color: var(--ink);
+}
+.spaire-hub .mk-sub-email {
+  font-size: 12px;
+  color: var(--t3);
+  margin-top: 2px;
+}
+.spaire-hub .mk-cap {
+  text-transform: capitalize;
+}
+.spaire-hub .mk-pager {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 14px;
+  margin-top: 14px;
+  font-size: 12.5px;
+}
+.spaire-hub .mk-edit-link {
+  display: inline-block;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--accent);
+}
+
+/* ── charts ── */
+.spaire-hub .mk-chart-card {
+  padding: 20px 20px 16px;
+  margin-bottom: 16px;
+}
+.spaire-hub .mk-chart-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+.spaire-hub .mk-chart-k {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--t3);
+}
+.spaire-hub .mk-chart-v {
+  font-family: var(--po);
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  color: var(--ink);
+  margin-top: 8px;
+}
+.spaire-hub .mk-chart-u {
+  font-family: var(--sf);
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--t3);
+  letter-spacing: 0;
+}
+.spaire-hub .mk-chart {
+  position: relative;
+  width: 100%;
+  margin-top: 8px;
+}
+.spaire-hub .mk-chart-last {
+  position: absolute;
+  top: 0;
+  right: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+}
+.spaire-hub .mk-chart-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  font-size: 13px;
+  color: var(--t3);
+}
+.spaire-hub .mk-note {
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--t3);
+  background: var(--fill);
+  border-radius: 12px;
+  padding: 12px 14px;
+  text-wrap: pretty;
+}
+
+/* The reused Tailwind-styled AutomationsPanel sits inside the hub; give it a
+   little breathing room under the section header. */
+.spaire-hub .mk-seq .mk-head {
+  margin-bottom: 18px;
+}

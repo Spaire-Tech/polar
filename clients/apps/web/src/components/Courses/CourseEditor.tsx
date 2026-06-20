@@ -21,8 +21,8 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { toast } from '../Toast/use-toast'
 import './editor-dark.css'
 import { AuthTab } from './editor/AuthTab'
-import { AutomationsPanel } from './editor/AutomationsPanel'
 import { CommunityTab } from './editor/CommunityTab'
+import { MarketingHub } from './editor/marketing/MarketingHub'
 import { CourseHeader, TabId } from './editor/CourseHeader'
 import { CustomersTab } from './editor/CustomersTab'
 import { CustomizeTab } from './editor/CustomizeTab'
@@ -539,20 +539,11 @@ export default function CourseEditor({
     )
   } else if (activeTab === 'automations') {
     mainContent = (
-      <div className="mx-auto w-full max-w-3xl px-8 py-8">
-        <div className="mb-6">
-          <h1 className="text-lg font-medium text-gray-900">Automations</h1>
-          <p className="mt-1 text-gray-500">
-            Email sequences that fire on course enrolment, lesson completion,
-            and other course events. Pick a template or start from scratch.
-          </p>
-        </div>
-        <AutomationsPanel
-          organization={organization}
-          courseId={course.id}
-          scopeLabel="course"
-        />
-      </div>
+      <MarketingHub
+        course={course}
+        organization={organization}
+        dark={dark}
+      />
     )
   } else if (activeTab === 'settings') {
     mainContent = (
