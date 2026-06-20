@@ -708,60 +708,36 @@ export function LessonEditorV2({
               on={freePreview}
               onClick={toggleFree}
             />
-            <QRow
-              t="Captions"
-              s="Show subtitles on this lesson’s video."
-              on={captions}
-              onClick={toggleCaptions}
-            />
-            <QRow
-              t="Discussion"
-              s="A comment thread under the lesson, for enrolled students. You can join in any time."
-              on={discussion}
-              onClick={toggleDiscussion}
-            />
-          </div>
-        </section>
-
-        {/* ════════ FREE SAMPLE ════════ */}
-        {(lesson.content_type === 'video' || hasVideo) && (
-          <section className="sec">
-            <div className="sec-h">Free sample</div>
-            <p className="sec-sub">
-              Show a short, free clip from this {unitCap.toLowerCase()} on the
-              course landing — a taste that pulls viewers in. One sample per
-              course.
-            </p>
-            <div className="card">
+            {(lesson.content_type === 'video' || hasVideo) && (
               <div className="q-row">
                 <div className="q-main">
                   {!hasVideo ? (
                     <>
-                      <div className="q-t">Add a video first</div>
+                      <div className="q-t">Free sample</div>
                       <div className="q-s">
-                        Upload a video to this {unitCap.toLowerCase()} to clip a
-                        free sample from it.
+                        Add a video to this {unitCap.toLowerCase()} to clip a
+                        free sample for the landing.
                       </div>
                     </>
                   ) : isSampleLesson && courseSample ? (
                     <>
-                      <div className="q-t">
-                        This {unitCap.toLowerCase()} is your free sample
-                      </div>
+                      <div className="q-t">Free sample · on the landing</div>
                       <div className="q-s">
                         {fmtDur(courseSample.start_seconds)}–
                         {fmtDur(
                           courseSample.start_seconds +
                             courseSample.duration_seconds,
                         )}{' '}
-                        · {courseSample.duration_seconds}s clip on the landing
+                        · {courseSample.duration_seconds}s clip from this{' '}
+                        {unitCap.toLowerCase()}.
                       </div>
                     </>
                   ) : (
                     <>
-                      <div className="q-t">Set a free sample</div>
+                      <div className="q-t">Free sample</div>
                       <div className="q-s">
-                        Pick a moment and a length; it plays on the landing.
+                        Show a short, free clip from this{' '}
+                        {unitCap.toLowerCase()} on the landing.
                         {courseSample?.enabled
                           ? ' Replaces the course’s current sample.'
                           : ''}
@@ -797,9 +773,21 @@ export function LessonEditorV2({
                     </button>
                   ))}
               </div>
-            </div>
-          </section>
-        )}
+            )}
+            <QRow
+              t="Captions"
+              s="Show subtitles on this lesson’s video."
+              on={captions}
+              onClick={toggleCaptions}
+            />
+            <QRow
+              t="Discussion"
+              s="A comment thread under the lesson, for enrolled students. You can join in any time."
+              on={discussion}
+              onClick={toggleDiscussion}
+            />
+          </div>
+        </section>
 
         {/* ════════ AUTOMATIONS ════════ */}
         <section className="sec">
