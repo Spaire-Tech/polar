@@ -91,7 +91,6 @@ const LockChip = () => (
   </div>
 )
 
-
 // Touch-to-edit text (the design's contenteditable). Module-level so its
 // identity is stable across renders — defined inline it would REMOUNT on
 // every parent re-render (FAQ toggle, trailer peek, strip scroll), killing
@@ -480,7 +479,12 @@ export function GeneratedPortalPage({
   const onDragStart = (e: React.PointerEvent) => {
     if (!repositioning) return
     const [px, py] = parsePos(effectiveCoverPos)
-    dragRef.current = { startX: e.clientX, startY: e.clientY, posX: px, posY: py }
+    dragRef.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      posX: px,
+      posY: py,
+    }
     ;(e.target as HTMLElement).setPointerCapture?.(e.pointerId)
   }
   const onDragMove = (e: React.PointerEvent) => {
@@ -489,8 +493,14 @@ export function GeneratedPortalPage({
     if (!repositioning || !d || !hero) return
     const r = hero.getBoundingClientRect()
     // Dragging right shows more of the image's left side → position decreases.
-    const nx = Math.min(100, Math.max(0, d.posX - ((e.clientX - d.startX) / r.width) * 100))
-    const ny = Math.min(100, Math.max(0, d.posY - ((e.clientY - d.startY) / r.height) * 100))
+    const nx = Math.min(
+      100,
+      Math.max(0, d.posX - ((e.clientX - d.startX) / r.width) * 100),
+    )
+    const ny = Math.min(
+      100,
+      Math.max(0, d.posY - ((e.clientY - d.startY) / r.height) * 100),
+    )
     const next = `${nx.toFixed(1)}% ${ny.toFixed(1)}%`
     setLivePos(next)
     onCoverPosition?.(next)
@@ -560,16 +570,35 @@ export function GeneratedPortalPage({
     },
     [sampleStart],
   )
-  // Clip window: stop once the configured duration has played.
+  // Clip window: the sample is only the chosen slice. Keep playback inside
+  // [start, start+duration] — a viewer can never scrub back into footage
+  // before the sample or run on past its end. Reaching the end stops it.
   useEffect(() => {
-    if (!samplePlaying || sampleDuration <= 0) return
+    if (!samplePlaying) return
     const el = sampleVideoRef.current
     if (!el) return
-    const onTime = () => {
-      if (el.currentTime >= sampleStart + sampleDuration) stopSample()
+    const lo = Math.max(0, sampleStart)
+    const hi = sampleDuration > 0 ? sampleStart + sampleDuration : Infinity
+    const clamp = () => {
+      if (el.currentTime >= hi) {
+        stopSample()
+        return
+      }
+      // Snap any seek that lands before the sample start back to the start.
+      if (el.currentTime < lo - 0.3) {
+        try {
+          el.currentTime = lo
+        } catch {
+          /* noop */
+        }
+      }
     }
-    el.addEventListener('timeupdate', onTime)
-    return () => el.removeEventListener('timeupdate', onTime)
+    el.addEventListener('timeupdate', clamp)
+    el.addEventListener('seeking', clamp)
+    return () => {
+      el.removeEventListener('timeupdate', clamp)
+      el.removeEventListener('seeking', clamp)
+    }
   }, [samplePlaying, sampleStart, sampleDuration, stopSample])
   // Scroll-past: pause the sample when its screen leaves the viewport.
   // The observer only ARMS once the screen has actually been visible —
@@ -674,7 +703,12 @@ export function GeneratedPortalPage({
     </button>
   ) : null
 
+  // free_preview mode marks every locked lesson with a Free / lock chip.
   const showChips = paywallEnabled && trialMode === 'free_preview'
+  // Regardless of trial mode, a lesson that's been set to free preview should
+  // wear a "Free" badge so viewers can see what's actually free to watch —
+  // otherwise (e.g. in lesson_sample mode) nothing signals the free lessons.
+  const markFreeOnly = paywallEnabled && !showChips
 
   const PillImageIcon = (
     <svg
@@ -696,7 +730,7 @@ export function GeneratedPortalPage({
   // The design's creator bar: frosted Add pills + the theme toggle.
   const creatorBarVisible = Boolean(
     (editable && (onAddCover || onAddTrailer || onCoverPosition)) ||
-      onToggleDark,
+    onToggleDark,
   )
   const creatorBar = !creatorBarVisible ? null : (
     <div className="creator-bar">
@@ -715,7 +749,7 @@ export function GeneratedPortalPage({
       )}
       {editable && coverUrl && onCoverPosition && (
         <button
-          className={`add-pill is-reposition${repositioning ? ' active' : ''}`}
+          className={`add-pill is-reposition${repositioning ? 'active' : ''}`}
           type="button"
           onClick={() => {
             setRepositioning((r) => !r)
@@ -762,7 +796,7 @@ export function GeneratedPortalPage({
   const trailerLayer = trailerUrl ? (
     <video
       ref={trailerVideoRef}
-      className={`trailer-layer${trailerPeek ? ' on' : ''}`}
+      className={`trailer-layer${trailerPeek ? 'on' : ''}`}
       src={trailerUrl}
       playsInline
       loop
@@ -807,7 +841,7 @@ export function GeneratedPortalPage({
 
   const spotlightCard = (l: GeneratedLesson) => (
     <div
-      className={`card${l.imageUrl ? ' filled' : ''}`}
+      className={`card${l.imageUrl ? 'filled' : ''}`}
       key={l.flatIdx}
       onClick={lessonClickable(l) ? () => handleLessonClick(l) : undefined}
       role={lessonClickable(l) ? 'button' : undefined}
@@ -826,7 +860,15 @@ export function GeneratedPortalPage({
         }
       />
       <div className="photo-shade" />
-      {showChips && (l.free ? <FreeChip /> : <LockChip />)}
+      {showChips ? (
+        l.free ? (
+          <FreeChip />
+        ) : (
+          <LockChip />
+        )
+      ) : markFreeOnly && l.free ? (
+        <FreeChip />
+      ) : null}
       {editable && onAddLessonImage && (
         <button
           className="card-add"
@@ -906,7 +948,7 @@ export function GeneratedPortalPage({
       role={lessonClickable(l) ? 'button' : undefined}
     >
       <div className="lc-card">
-        <div className={`lc-thumb${l.imageUrl ? '' : ' ph'}`}>
+        <div className={`lc-thumb${l.imageUrl ? '' : 'ph'}`}>
           {l.imageUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -916,14 +958,19 @@ export function GeneratedPortalPage({
             />
           ) : (
             <>
-              <div
-                className="ph-ambient"
-                style={ambientTint(l.flatIdx + 1)}
-              />
+              <div className="ph-ambient" style={ambientTint(l.flatIdx + 1)} />
               <div className="glass-tint" />
             </>
           )}
-          {showChips && (l.free ? <FreeChip /> : <LockChip />)}
+          {showChips ? (
+            l.free ? (
+              <FreeChip />
+            ) : (
+              <LockChip />
+            )
+          ) : markFreeOnly && l.free ? (
+            <FreeChip />
+          ) : null}
           {editable && onAddLessonImage && (
             <button
               className="thumb-add"
@@ -981,8 +1028,8 @@ export function GeneratedPortalPage({
             {unitCap} {l.flatIdx + 1}
           </div>
           <EditText
-          editable={editable}
-          onEditText={onEditText}
+            editable={editable}
+            onEditText={onEditText}
             field="lessonTitle"
             value={l.title}
             className="lc-title"
@@ -990,8 +1037,8 @@ export function GeneratedPortalPage({
             ctx={{ flatIdx: l.flatIdx }}
           />
           <EditText
-          editable={editable}
-          onEditText={onEditText}
+            editable={editable}
+            onEditText={onEditText}
             field="lessonDesc"
             value={l.description}
             className="lc-desc"
@@ -1010,13 +1057,13 @@ export function GeneratedPortalPage({
   const card = cardVariant === 'spotlight' ? spotlightCard : catalogCard
 
   return (
-    <div className={`gpp${dark ? ' dark' : ''}${isEpisodic ? ' epi' : ''}`}>
+    <div className={`gpp${dark ? 'dark' : ''}${isEpisodic ? 'epi' : ''}`}>
       {/* ════════ MARQUEE HERO (Marquee Course Page.html) ════════ */}
       {heroVariant === 'marquee' ? (
         <header
           ref={heroRef as React.RefObject<HTMLElement>}
-          className={`panel${coverUrl ? ' filled' : ''}${
-            repositioning ? ' repositioning' : ''
+          className={`panel${coverUrl ? 'filled' : ''}${
+            repositioning ? 'repositioning' : ''
           }`}
           {...heroHoverProps}
           {...repositionProps}
@@ -1069,14 +1116,21 @@ export function GeneratedPortalPage({
 
           <div className="panel-title">
             <EditText
-          editable={editable}
-          onEditText={onEditText}
+              editable={editable}
+              onEditText={onEditText}
               field="eyebrow"
               value={eyebrow}
               className="pt-eyebrow rise d1"
               tag="div"
             />
-            <EditText editable={editable} onEditText={onEditText} field="title" value={title} className="pt-h rise d1" tag="h1" />
+            <EditText
+              editable={editable}
+              onEditText={onEditText}
+              field="title"
+              value={title}
+              className="pt-h rise d1"
+              tag="h1"
+            />
           </div>
 
           <div className="band rise d2">
@@ -1085,11 +1139,7 @@ export function GeneratedPortalPage({
                 className="abtn play"
                 type="button"
                 onClick={
-                  trailerPrimary
-                    ? onTrailer
-                    : sampleMode
-                      ? startSample
-                      : onPlay
+                  trailerPrimary ? onTrailer : sampleMode ? startSample : onPlay
                 }
               >
                 <svg
@@ -1109,7 +1159,14 @@ export function GeneratedPortalPage({
             </div>
 
             <div className="band-desc">
-              <EditText editable={editable} onEditText={onEditText} field="desc" value={desc} className="bd-text" tag="p" />
+              <EditText
+                editable={editable}
+                onEditText={onEditText}
+                field="desc"
+                value={desc}
+                className="bd-text"
+                tag="p"
+              />
               <div className="bd-meta">
                 <span className="bd-meta-eyebrow">
                   {eyebrow}&nbsp;&nbsp;·&nbsp;&nbsp;
@@ -1172,14 +1229,21 @@ export function GeneratedPortalPage({
             <div className="band-cast">
               <div className="bc-k">Instructor</div>
               <EditText
-          editable={editable}
-          onEditText={onEditText}
+                editable={editable}
+                onEditText={onEditText}
                 field="instructorName"
                 value={instructorName}
                 className="bc-v"
                 tag="div"
               />
-              <EditText editable={editable} onEditText={onEditText} field="byline" value={byline} className="bc-sub" tag="div" />
+              <EditText
+                editable={editable}
+                onEditText={onEditText}
+                field="byline"
+                value={byline}
+                className="bc-sub"
+                tag="div"
+              />
             </div>
           </div>
         </header>
@@ -1187,8 +1251,8 @@ export function GeneratedPortalPage({
         /* ════════ COVER HERO (Course Page Empty State.html) ════════ */
         <section
           ref={heroRef as React.RefObject<HTMLElement>}
-          className={`hero${coverUrl ? ' filled' : ''}${
-            repositioning ? ' repositioning' : ''
+          className={`hero${coverUrl ? 'filled' : ''}${
+            repositioning ? 'repositioning' : ''
           }`}
           {...heroHoverProps}
           {...repositionProps}
@@ -1243,7 +1307,13 @@ export function GeneratedPortalPage({
 
           <div className="hero-content">
             <div className="hero-meta">
-              <EditText editable={editable} onEditText={onEditText} field="badge" value={badge} className="badge" />
+              <EditText
+                editable={editable}
+                onEditText={onEditText}
+                field="badge"
+                value={badge}
+                className="badge"
+              />
               <div className="meta-line">
                 <span>
                   {lessonCount} {unit}
@@ -1257,7 +1327,14 @@ export function GeneratedPortalPage({
             </div>
 
             {editable && onEditText ? (
-              <EditText editable={editable} onEditText={onEditText} field="title" value={title} className="hero-title" tag="h1" />
+              <EditText
+                editable={editable}
+                onEditText={onEditText}
+                field="title"
+                value={title}
+                className="hero-title"
+                tag="h1"
+              />
             ) : (
               <h1 className="hero-title">
                 {titleLines && titleLines.length > 1
@@ -1272,9 +1349,20 @@ export function GeneratedPortalPage({
             )}
 
             <p className="hero-desc">
-              <EditText editable={editable} onEditText={onEditText} field="desc" value={desc} />{' '}
+              <EditText
+                editable={editable}
+                onEditText={onEditText}
+                field="desc"
+                value={desc}
+              />{' '}
               <span className="with">
-                — <EditText editable={editable} onEditText={onEditText} field="byline" value={byline || `with ${instructorName}`} />
+                —{' '}
+                <EditText
+                  editable={editable}
+                  onEditText={onEditText}
+                  field="byline"
+                  value={byline || `with ${instructorName}`}
+                />
               </span>
             </p>
 
@@ -1353,7 +1441,7 @@ export function GeneratedPortalPage({
           <div className="inst-inner">
             <div className="inst-copy">
               <div className="inst-head">
-                <div className={`inst-avatar${avatarUrl ? ' filled' : ''}`}>
+                <div className={`inst-avatar${avatarUrl ? 'filled' : ''}`}>
                   <div className="ph-ambient" />
                   <div className="glass-tint" />
                   <div
@@ -1381,16 +1469,16 @@ export function GeneratedPortalPage({
                 </div>
                 <div className="inst-id">
                   <EditText
-          editable={editable}
-          onEditText={onEditText}
+                    editable={editable}
+                    onEditText={onEditText}
                     field="instructorName"
                     value={instructorName}
                     className="inst-name"
                     tag="h2"
                   />
                   <EditText
-          editable={editable}
-          onEditText={onEditText}
+                    editable={editable}
+                    onEditText={onEditText}
                     field="instructorSub"
                     value={instructorSub}
                     className="inst-sub"
@@ -1400,8 +1488,8 @@ export function GeneratedPortalPage({
               </div>
               {instructorBio.map((p, i) => (
                 <EditText
-          editable={editable}
-          onEditText={onEditText}
+                  editable={editable}
+                  onEditText={onEditText}
                   key={i}
                   field="instructorBioP"
                   value={p}
@@ -1412,7 +1500,7 @@ export function GeneratedPortalPage({
               ))}
             </div>
 
-            <div className={`inst-media${portraitUrl ? ' filled' : ''}`}>
+            <div className={`inst-media${portraitUrl ? 'filled' : ''}`}>
               <div className="ph-ambient" />
               <div className="glass-tint" />
               <div
@@ -1464,8 +1552,8 @@ export function GeneratedPortalPage({
               )}
               {portraitCaption && (
                 <EditText
-          editable={editable}
-          onEditText={onEditText}
+                  editable={editable}
+                  onEditText={onEditText}
                   field="portraitCaption"
                   value={portraitCaption}
                   className="inst-caption"
@@ -1497,9 +1585,9 @@ export function GeneratedPortalPage({
           </p>
           <div
             ref={sampleScreenRef}
-            className={`sample-screen${sampleImageUrl ? ' filled' : ''}${
-              samplePlayable ? ' playable' : ''
-            }${samplePlaying ? ' playing' : ''}`}
+            className={`sample-screen${sampleImageUrl ? 'filled' : ''}${
+              samplePlayable ? 'playable' : ''
+            }${samplePlaying ? 'playing' : ''}`}
             onClick={
               samplePlayable && !samplePlaying
                 ? sampleSrc || samplePlaybackId
@@ -1526,7 +1614,7 @@ export function GeneratedPortalPage({
                   playbackId={samplePlaybackId}
                   playbackUrl={sampleSrc}
                   poster={sampleImageUrl}
-                  controls
+                  controls={false}
                   muted={sampleMuted}
                   className="sample-video"
                   onVideoElement={onSampleVideoEl}
@@ -1537,13 +1625,46 @@ export function GeneratedPortalPage({
                   className="sample-video"
                   src={sampleSrc ?? undefined}
                   poster={sampleImageUrl ?? undefined}
-                  controls
                   muted={sampleMuted}
                   playsInline
                   ref={onSampleVideoEl}
                   onEnded={stopSample}
                 />
               ))}
+            {/* Sound toggle — the sample has no scrub bar (so it can't escape
+                the clip window); this is the one control, so audio is always
+                reachable even though autoplay starts muted. */}
+            {samplePlaying && (
+              <button
+                className="sample-mute"
+                type="button"
+                aria-label={sampleMuted ? 'Unmute sample' : 'Mute sample'}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setSampleMuted((m) => !m)
+                }}
+              >
+                {sampleMuted ? (
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="currentColor"
+                  >
+                    <path d="M5 9v6h4l5 5V4L9 9H5zm12.59 3l2.7-2.7-1.42-1.42-2.7 2.71-2.71-2.71-1.41 1.42 2.7 2.7-2.7 2.7 1.41 1.42 2.71-2.71 2.7 2.71 1.42-1.42-2.7-2.7z" />
+                  </svg>
+                ) : (
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="currentColor"
+                  >
+                    <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3a4.5 4.5 0 0 0-2.5-4.03v8.06A4.5 4.5 0 0 0 16.5 12zM14 3.23v2.06a7 7 0 0 1 0 13.42v2.06a9 9 0 0 0 0-17.54z" />
+                  </svg>
+                )}
+              </button>
+            )}
             {samplePlayable && !samplePlaying ? (
               <div className="ph-cta">
                 <span className="ph-ic">
@@ -1587,19 +1708,22 @@ export function GeneratedPortalPage({
                 <span className="ph-s">A 2–3 minute clip from any {unit}</span>
               </div>
             ) : null}
-            {editable && onConfigureSample && samplePlayable && !samplePlaying && (
-              <button
-                className="change-pill"
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onConfigureSample()
-                }}
-              >
-                {PillImageIcon}
-                Change
-              </button>
-            )}
+            {editable &&
+              onConfigureSample &&
+              samplePlayable &&
+              !samplePlaying && (
+                <button
+                  className="change-pill"
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onConfigureSample()
+                  }}
+                >
+                  {PillImageIcon}
+                  Change
+                </button>
+              )}
           </div>
         </section>
       )}
@@ -1615,7 +1739,7 @@ export function GeneratedPortalPage({
           </div>
           <div className="strip-wrap">
             <button
-              className={`arrow prev${showPrev ? ' show' : ''}`}
+              className={`arrow prev${showPrev ? 'show' : ''}`}
               aria-label="Previous"
               type="button"
               onClick={() => scrollStrip(-1)}
@@ -1634,7 +1758,7 @@ export function GeneratedPortalPage({
               </svg>
             </button>
             <button
-              className={`arrow next${showNext ? ' show' : ''}`}
+              className={`arrow next${showNext ? 'show' : ''}`}
               aria-label="Next"
               type="button"
               onClick={() => scrollStrip(1)}
@@ -1664,8 +1788,8 @@ export function GeneratedPortalPage({
               <div className="row-head">
                 <span className="mod">Module {gi + 1}</span>
                 <EditText
-          editable={editable}
-          onEditText={onEditText}
+                  editable={editable}
+                  onEditText={onEditText}
                   field="moduleTitle"
                   value={g.title ?? ''}
                   ctx={{ groupIdx: gi }}
@@ -1677,7 +1801,6 @@ export function GeneratedPortalPage({
         </div>
       )}
 
-
       {/* ════════ FAQ (Course Page Empty State.html) ════════ */}
       {faq.length > 0 && (
         <section className="faq">
@@ -1685,15 +1808,18 @@ export function GeneratedPortalPage({
             <h2>Questions? Answers.</h2>
             <div className="faq-list">
               {faq.map((item, i) => (
-                <div className={`faq-item${openFaq === i ? ' open' : ''}`} key={i}>
+                <div
+                  className={`faq-item${openFaq === i ? 'open' : ''}`}
+                  key={i}
+                >
                   <button
                     className="faq-q"
                     type="button"
                     onClick={() => setOpenFaq((o) => (o === i ? null : i))}
                   >
                     <EditText
-          editable={editable}
-          onEditText={onEditText}
+                      editable={editable}
+                      onEditText={onEditText}
                       field="faqQ"
                       value={item.q}
                       ctx={{ idx: i }}
@@ -1725,8 +1851,8 @@ export function GeneratedPortalPage({
                       }}
                     >
                       <EditText
-          editable={editable}
-          onEditText={onEditText}
+                        editable={editable}
+                        onEditText={onEditText}
                         field="faqA"
                         value={item.a}
                         className="faq-a"
@@ -1744,7 +1870,7 @@ export function GeneratedPortalPage({
 
       {/* ════════ ENROLL SHEET — a locked lesson was clicked ════════ */}
       <div
-        className={`enroll-overlay${enrollLesson ? ' show' : ''}`}
+        className={`enroll-overlay${enrollLesson ? 'show' : ''}`}
         role="dialog"
         aria-modal="true"
         aria-label="Enroll to watch"
@@ -1754,7 +1880,7 @@ export function GeneratedPortalPage({
       >
         {enrollLesson && (
           <div className="enroll-sheet">
-            <div className={`es-cover${coverUrl ? ' filled' : ''}`}>
+            <div className={`es-cover${coverUrl ? 'filled' : ''}`}>
               <div className="es-grab" />
               <div className="ph-ambient" />
               <div
@@ -1876,9 +2002,7 @@ export function GeneratedPortalPage({
           description={reposLesson.description}
           instructorName={instructorName}
           busy={lessonImageBusy === reposLesson.flatIdx}
-          onReposition={(pos) =>
-            onRepositionLesson?.(reposLesson.flatIdx, pos)
-          }
+          onReposition={(pos) => onRepositionLesson?.(reposLesson.flatIdx, pos)}
           onReplace={(file) =>
             void onReplaceLessonImage?.(reposLesson.flatIdx, file)
           }
@@ -1900,10 +2024,12 @@ export function GeneratedPortalPage({
           --text-2: #86868b;
           --blue: #0071e3;
           --ink: #07080a;
-          --sf: -apple-system, BlinkMacSystemFont, 'SF Pro Display',
-            'SF Pro Text', system-ui, sans-serif;
-          --po: 'Poppins', var(--font-poppins), -apple-system,
-            BlinkMacSystemFont, system-ui, sans-serif;
+          --sf:
+            -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text',
+            system-ui, sans-serif;
+          --po:
+            'Poppins', var(--font-poppins), -apple-system, BlinkMacSystemFont,
+            system-ui, sans-serif;
           --gut: 64px;
           font-family: var(--sf);
           background: var(--bg);
@@ -1940,11 +2066,8 @@ export function GeneratedPortalPage({
         .gpp .ph-ambient {
           position: absolute;
           inset: -15%;
-          background: radial-gradient(
-              42% 52% at 20% 28%,
-              #6e7a5e 0%,
-              transparent 70%
-            ),
+          background:
+            radial-gradient(42% 52% at 20% 28%, #6e7a5e 0%, transparent 70%),
             radial-gradient(46% 56% at 76% 22%, #8a7565 0%, transparent 70%),
             radial-gradient(52% 62% at 62% 82%, #46464c 0%, transparent 72%),
             radial-gradient(36% 46% at 28% 78%, #5d6e6a 0%, transparent 70%),
@@ -2112,7 +2235,9 @@ export function GeneratedPortalPage({
           box-shadow: none;
           display: grid;
           place-items: center;
-          transition: background 0.2s, transform 0.16s;
+          transition:
+            background 0.2s,
+            transform 0.16s;
         }
         .gpp .panel .theme-toggle:hover {
           background: rgba(40, 40, 46, 0.6);
@@ -2194,8 +2319,10 @@ export function GeneratedPortalPage({
           font-size: 15px;
           font-weight: 600;
           letter-spacing: -0.01em;
-          transition: transform 0.16s cubic-bezier(0.2, 1.2, 0.3, 1),
-            background 0.16s, box-shadow 0.16s;
+          transition:
+            transform 0.16s cubic-bezier(0.2, 1.2, 0.3, 1),
+            background 0.16s,
+            box-shadow 0.16s;
         }
         .gpp .abtn:active {
           transform: scale(0.975);
@@ -2436,7 +2563,9 @@ export function GeneratedPortalPage({
           font-size: 14px;
           font-weight: 600;
           letter-spacing: -0.01em;
-          transition: background 0.2s, transform 0.16s;
+          transition:
+            background 0.2s,
+            transform 0.16s;
         }
         .gpp .add-pill:hover {
           background: rgba(255, 255, 255, 0.28);
@@ -2475,7 +2604,9 @@ export function GeneratedPortalPage({
           letter-spacing: -0.005em;
           white-space: nowrap;
           cursor: pointer;
-          transition: background 0.18s, transform 0.18s;
+          transition:
+            background 0.18s,
+            transform 0.18s;
         }
         .gpp .card-add:hover {
           background: rgba(255, 255, 255, 0.28);
@@ -2485,7 +2616,9 @@ export function GeneratedPortalPage({
         .gpp .card.filled .card-add {
           opacity: 0;
           pointer-events: none;
-          transition: opacity 0.2s, background 0.18s;
+          transition:
+            opacity 0.2s,
+            background 0.18s;
         }
         .gpp .card.filled:hover .card-add {
           opacity: 1;
@@ -2512,7 +2645,9 @@ export function GeneratedPortalPage({
           letter-spacing: -0.005em;
           white-space: nowrap;
           cursor: pointer;
-          transition: background 0.18s, transform 0.18s;
+          transition:
+            background 0.18s,
+            transform 0.18s;
         }
         .gpp .thumb-add:hover {
           background: rgba(255, 255, 255, 0.28);
@@ -2557,7 +2692,9 @@ export function GeneratedPortalPage({
           font-weight: 600;
           cursor: pointer;
           opacity: 0;
-          transition: opacity 0.2s, background 0.18s;
+          transition:
+            opacity 0.2s,
+            background 0.18s;
         }
         .gpp .sample-screen:hover .change-pill {
           opacity: 1;
@@ -2636,7 +2773,9 @@ export function GeneratedPortalPage({
           box-shadow: none;
           display: grid;
           place-items: center;
-          transition: background 0.2s, transform 0.16s;
+          transition:
+            background 0.2s,
+            transform 0.16s;
         }
         .gpp .creator-bar .theme-toggle:hover {
           background: rgba(255, 255, 255, 0.28);
@@ -2731,7 +2870,9 @@ export function GeneratedPortalPage({
           font-weight: 600;
           letter-spacing: -0.01em;
           white-space: nowrap;
-          transition: background 0.2s, transform 0.16s;
+          transition:
+            background 0.2s,
+            transform 0.16s;
         }
         .gpp .hero-cta:active {
           background: rgba(255, 255, 255, 0.28);
@@ -2785,7 +2926,9 @@ export function GeneratedPortalPage({
           padding: 15px 26px;
           border-radius: 980px;
           font-family: var(--sf);
-          transition: background 0.18s, transform 0.16s ease;
+          transition:
+            background 0.18s,
+            transform 0.16s ease;
         }
         .gpp .btn-enroll:hover {
           background: rgba(255, 255, 255, 0.28);
@@ -2861,6 +3004,27 @@ export function GeneratedPortalPage({
         .gpp .sample-screen.playing .glass-tint {
           display: none;
         }
+        .gpp .sample-mute {
+          position: absolute;
+          right: 14px;
+          bottom: 14px;
+          z-index: 4;
+          width: 38px;
+          height: 38px;
+          border-radius: 999px;
+          display: grid;
+          place-items: center;
+          color: #fff;
+          background: rgba(0, 0, 0, 0.5);
+          -webkit-backdrop-filter: blur(12px) saturate(180%);
+          backdrop-filter: blur(12px) saturate(180%);
+          border: 1px solid rgba(255, 255, 255, 0.2);
+          cursor: pointer;
+          transition: background 0.15s ease;
+        }
+        .gpp .sample-mute:hover {
+          background: rgba(0, 0, 0, 0.66);
+        }
         .gpp .ph-cta {
           position: relative;
           z-index: 2;
@@ -2881,7 +3045,9 @@ export function GeneratedPortalPage({
           display: grid;
           place-items: center;
           cursor: pointer;
-          transition: background 0.2s, transform 0.18s;
+          transition:
+            background 0.2s,
+            transform 0.18s;
         }
         .gpp .ph-cta .ph-ic:hover {
           background: rgba(255, 255, 255, 0.28);
@@ -3082,7 +3248,9 @@ export function GeneratedPortalPage({
           place-items: center;
           opacity: 0;
           pointer-events: none;
-          transition: opacity 0.2s, color 0.15s;
+          transition:
+            opacity 0.2s,
+            color 0.15s;
         }
         .gpp .arrow:hover {
           color: #000;
@@ -3128,14 +3296,17 @@ export function GeneratedPortalPage({
           border: 1px solid #e6e6e9;
           display: flex;
           flex-direction: column;
-          box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04),
+          box-shadow:
+            0 1px 2px rgba(0, 0, 0, 0.04),
             0 4px 16px rgba(0, 0, 0, 0.05);
-          transition: transform 0.26s cubic-bezier(0.34, 1.3, 0.64, 1),
+          transition:
+            transform 0.26s cubic-bezier(0.34, 1.3, 0.64, 1),
             box-shadow 0.26s;
         }
         .gpp .lc-catalog:hover .lc-card {
           transform: translateY(-5px);
-          box-shadow: 0 16px 48px rgba(0, 0, 0, 0.14),
+          box-shadow:
+            0 16px 48px rgba(0, 0, 0, 0.14),
             0 2px 8px rgba(0, 0, 0, 0.06);
         }
         .gpp .lc-thumb {
@@ -3470,7 +3641,9 @@ export function GeneratedPortalPage({
           font-weight: 600;
           letter-spacing: -0.02em;
           color: var(--text);
-          transition: color 0.2s ease, opacity 0.2s ease;
+          transition:
+            color 0.2s ease,
+            opacity 0.2s ease;
         }
         .gpp .faq-q:hover {
           opacity: 0.62;
@@ -3478,7 +3651,8 @@ export function GeneratedPortalPage({
         .gpp .faq-q .chev {
           flex: none;
           color: var(--faq-chev);
-          transition: transform 0.42s cubic-bezier(0.4, 0, 0.2, 1),
+          transition:
+            transform 0.42s cubic-bezier(0.4, 0, 0.2, 1),
             color 0.2s ease;
         }
         .gpp .faq-item.open .faq-q .chev {
@@ -3505,7 +3679,8 @@ export function GeneratedPortalPage({
           color: var(--faq-ans);
           opacity: 0;
           transform: translateY(-6px);
-          transition: opacity 0.32s ease 0.04s,
+          transition:
+            opacity 0.32s ease 0.04s,
             transform 0.42s cubic-bezier(0.4, 0, 0.2, 1);
         }
         .gpp .faq-item.open .faq-a {
@@ -3542,10 +3717,12 @@ export function GeneratedPortalPage({
           flex-direction: column;
           background: var(--bg);
           color: var(--text);
-          box-shadow: 0 50px 100px rgba(0, 0, 0, 0.4),
+          box-shadow:
+            0 50px 100px rgba(0, 0, 0, 0.4),
             0 8px 28px rgba(0, 0, 0, 0.2);
           transform: translateY(22px) scale(0.96);
-          transition: transform 0.42s cubic-bezier(0.2, 1, 0.3, 1),
+          transition:
+            transform 0.42s cubic-bezier(0.2, 1, 0.3, 1),
             background 0.4s ease;
         }
         .gpp .enroll-overlay.show .enroll-sheet {
@@ -3632,7 +3809,9 @@ export function GeneratedPortalPage({
           backdrop-filter: blur(14px) saturate(150%);
           display: grid;
           place-items: center;
-          transition: background 0.18s, transform 0.16s;
+          transition:
+            background 0.18s,
+            transform 0.16s;
         }
         .gpp .es-close:hover {
           background: rgba(40, 40, 46, 0.7);
@@ -3718,7 +3897,10 @@ export function GeneratedPortalPage({
           font-size: 16px;
           font-weight: 600;
           letter-spacing: -0.01em;
-          transition: transform 0.16s, opacity 0.16s, background 0.4s ease,
+          transition:
+            transform 0.16s,
+            opacity 0.16s,
+            background 0.4s ease,
             color 0.4s ease;
         }
         .gpp .es-enroll:hover {
@@ -4116,7 +4298,11 @@ export function GeneratedPortalPage({
             align-items: stretch;
             gap: 16px;
             padding: 30px var(--gut) 26px;
-            -webkit-mask-image: linear-gradient(0deg, #000 86%, transparent 100%);
+            -webkit-mask-image: linear-gradient(
+              0deg,
+              #000 86%,
+              transparent 100%
+            );
             mask-image: linear-gradient(0deg, #000 86%, transparent 100%);
           }
           .gpp .band-actions {
@@ -4235,7 +4421,8 @@ export function GeneratedPortalPage({
             border-radius: 24px 24px 0 0;
             box-shadow: 0 -20px 60px rgba(0, 0, 0, 0.35);
             transform: translateY(100%);
-            transition: transform 0.46s cubic-bezier(0.2, 1, 0.3, 1),
+            transition:
+              transform 0.46s cubic-bezier(0.2, 1, 0.3, 1),
               background 0.4s ease;
             padding-bottom: env(safe-area-inset-bottom, 0px);
           }
