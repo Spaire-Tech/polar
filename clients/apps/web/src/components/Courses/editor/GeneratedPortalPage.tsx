@@ -749,7 +749,7 @@ export function GeneratedPortalPage({
       )}
       {editable && coverUrl && onCoverPosition && (
         <button
-          className={`add-pill is-reposition${repositioning ? 'active' : ''}`}
+          className={`add-pill is-reposition${repositioning ? ' active' : ''}`}
           type="button"
           onClick={() => {
             setRepositioning((r) => !r)
@@ -796,7 +796,7 @@ export function GeneratedPortalPage({
   const trailerLayer = trailerUrl ? (
     <video
       ref={trailerVideoRef}
-      className={`trailer-layer${trailerPeek ? 'on' : ''}`}
+      className={`trailer-layer${trailerPeek ? ' on' : ''}`}
       src={trailerUrl}
       playsInline
       loop
@@ -841,7 +841,7 @@ export function GeneratedPortalPage({
 
   const spotlightCard = (l: GeneratedLesson) => (
     <div
-      className={`card${l.imageUrl ? 'filled' : ''}`}
+      className={`card${l.imageUrl ? ' filled' : ''}`}
       key={l.flatIdx}
       onClick={lessonClickable(l) ? () => handleLessonClick(l) : undefined}
       role={lessonClickable(l) ? 'button' : undefined}
@@ -948,7 +948,7 @@ export function GeneratedPortalPage({
       role={lessonClickable(l) ? 'button' : undefined}
     >
       <div className="lc-card">
-        <div className={`lc-thumb${l.imageUrl ? '' : 'ph'}`}>
+        <div className={`lc-thumb${l.imageUrl ? '' : ' ph'}`}>
           {l.imageUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -1057,13 +1057,13 @@ export function GeneratedPortalPage({
   const card = cardVariant === 'spotlight' ? spotlightCard : catalogCard
 
   return (
-    <div className={`gpp${dark ? 'dark' : ''}${isEpisodic ? 'epi' : ''}`}>
+    <div className={`gpp${dark ? ' dark' : ''}${isEpisodic ? ' epi' : ''}`}>
       {/* ════════ MARQUEE HERO (Marquee Course Page.html) ════════ */}
       {heroVariant === 'marquee' ? (
         <header
           ref={heroRef as React.RefObject<HTMLElement>}
-          className={`panel${coverUrl ? 'filled' : ''}${
-            repositioning ? 'repositioning' : ''
+          className={`panel${coverUrl ? ' filled' : ''}${
+            repositioning ? ' repositioning' : ''
           }`}
           {...heroHoverProps}
           {...repositionProps}
@@ -1251,8 +1251,8 @@ export function GeneratedPortalPage({
         /* ════════ COVER HERO (Course Page Empty State.html) ════════ */
         <section
           ref={heroRef as React.RefObject<HTMLElement>}
-          className={`hero${coverUrl ? 'filled' : ''}${
-            repositioning ? 'repositioning' : ''
+          className={`hero${coverUrl ? ' filled' : ''}${
+            repositioning ? ' repositioning' : ''
           }`}
           {...heroHoverProps}
           {...repositionProps}
@@ -1441,7 +1441,7 @@ export function GeneratedPortalPage({
           <div className="inst-inner">
             <div className="inst-copy">
               <div className="inst-head">
-                <div className={`inst-avatar${avatarUrl ? 'filled' : ''}`}>
+                <div className={`inst-avatar${avatarUrl ? ' filled' : ''}`}>
                   <div className="ph-ambient" />
                   <div className="glass-tint" />
                   <div
@@ -1500,7 +1500,7 @@ export function GeneratedPortalPage({
               ))}
             </div>
 
-            <div className={`inst-media${portraitUrl ? 'filled' : ''}`}>
+            <div className={`inst-media${portraitUrl ? ' filled' : ''}`}>
               <div className="ph-ambient" />
               <div className="glass-tint" />
               <div
@@ -1585,9 +1585,9 @@ export function GeneratedPortalPage({
           </p>
           <div
             ref={sampleScreenRef}
-            className={`sample-screen${sampleImageUrl ? 'filled' : ''}${
-              samplePlayable ? 'playable' : ''
-            }${samplePlaying ? 'playing' : ''}`}
+            className={`sample-screen${sampleImageUrl ? ' filled' : ''}${
+              samplePlayable ? ' playable' : ''
+            }${samplePlaying ? ' playing' : ''}`}
             onClick={
               samplePlayable && !samplePlaying
                 ? sampleSrc || samplePlaybackId
@@ -1739,7 +1739,7 @@ export function GeneratedPortalPage({
           </div>
           <div className="strip-wrap">
             <button
-              className={`arrow prev${showPrev ? 'show' : ''}`}
+              className={`arrow prev${showPrev ? ' show' : ''}`}
               aria-label="Previous"
               type="button"
               onClick={() => scrollStrip(-1)}
@@ -1758,7 +1758,7 @@ export function GeneratedPortalPage({
               </svg>
             </button>
             <button
-              className={`arrow next${showNext ? 'show' : ''}`}
+              className={`arrow next${showNext ? ' show' : ''}`}
               aria-label="Next"
               type="button"
               onClick={() => scrollStrip(1)}
@@ -1809,7 +1809,7 @@ export function GeneratedPortalPage({
             <div className="faq-list">
               {faq.map((item, i) => (
                 <div
-                  className={`faq-item${openFaq === i ? 'open' : ''}`}
+                  className={`faq-item${openFaq === i ? ' open' : ''}`}
                   key={i}
                 >
                   <button
@@ -1870,7 +1870,7 @@ export function GeneratedPortalPage({
 
       {/* ════════ ENROLL SHEET — a locked lesson was clicked ════════ */}
       <div
-        className={`enroll-overlay${enrollLesson ? 'show' : ''}`}
+        className={`enroll-overlay${enrollLesson ? ' show' : ''}`}
         role="dialog"
         aria-modal="true"
         aria-label="Enroll to watch"
@@ -1880,7 +1880,7 @@ export function GeneratedPortalPage({
       >
         {enrollLesson && (
           <div className="enroll-sheet">
-            <div className={`es-cover${coverUrl ? 'filled' : ''}`}>
+            <div className={`es-cover${coverUrl ? ' filled' : ''}`}>
               <div className="es-grab" />
               <div className="ph-ambient" />
               <div
