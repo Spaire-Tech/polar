@@ -771,7 +771,7 @@ export const EditableProfileCard = ({
                 setContactDraft(contactUrl)
                 setPopover('available')
               }}
-              className="rounded-full border border-green-200 bg-green-50 px-3 py-1 text-[12px] font-medium text-green-600 transition-colors hover:bg-green-100"
+              className="rounded-full border border-blue-200 px-3 py-1 text-[12px] font-medium text-[#0066cc] transition-colors hover:bg-blue-50"
             >
               Work with me
             </button>

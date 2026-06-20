@@ -242,15 +242,10 @@
 .space-dark .text-emerald-600 {
   color: #34d399 !important;
 }
-/* "Work with me" badge is dark purple; lift it for legibility on black. */
-.space-dark .text-purple-800 {
-  color: #c084fc !important;
-}
-.space-dark .border-purple-200 {
-  border-color: rgba(192, 132, 252, 0.32) !important;
-}
-.space-dark .hover\:bg-purple-50:hover {
-  background-color: rgba(192, 132, 252, 0.12) !important;
+/* "Work with me" badge hover tint (badge text/border use the blue accent,
+   already remapped above). */
+.space-dark .hover\:bg-blue-50:hover {
+  background-color: rgba(41, 151, 255, 0.12) !important;
 }
 
 /* ---- form fields (bare inputs default to white UA background) ---- */
