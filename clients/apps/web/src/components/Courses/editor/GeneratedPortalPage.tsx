@@ -364,7 +364,12 @@ export function GeneratedPortalPage({
     /\s/g,
     '',
   )
-  const hasSampleSection = paywallEnabled && trialMode === 'lesson_sample'
+  // The free-sample section only exists when a real, playable sample is
+  // configured. Remove the sample and the whole section disappears from the
+  // landing — no empty screen, no "set up your sample" placeholder. (Creators
+  // add/remove the sample from the lesson editor.)
+  const hasSampleSection =
+    paywallEnabled && trialMode === 'lesson_sample' && samplePlayable
   // The primary CTA should lead with the trailer, not the sample. When a
   // trailer exists the main button plays it and the sample is demoted to the
   // secondary slot (where the trailer button used to sit). With no trailer the
@@ -1576,7 +1581,7 @@ export function GeneratedPortalPage({
       )}
 
       {/* ════════ FREE SAMPLE (Course Page Empty State.html) ════════ */}
-      {paywallEnabled && trialMode === 'lesson_sample' && (
+      {hasSampleSection && (
         <section className="sample">
           <div className="sample-eyebrow">Free Sample</div>
           <h2>Watch a free sample</h2>
