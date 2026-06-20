@@ -327,6 +327,9 @@ export const EditableProfileCard = ({
     async (files: FileObject<schemas['StorefrontHeaderFileRead']>[]) => {
       if (files.length === 0) return
       const last = files[files.length - 1]
+      // Only persist once the upload is fully done — `onFilesUpdated` fires on
+      // every progress tick (see the avatar handler below for the same guard).
+      if (last.isUploading || last.isProcessing || !last.public_url) return
       updateSetting('header_image_url', last.public_url)
       const nextSettings = {
         ...settings,
@@ -400,6 +403,11 @@ export const EditableProfileCard = ({
     async (files: FileObject<schemas['OrganizationAvatarFileRead']>[]) => {
       if (files.length === 0) return
       const last = files[files.length - 1]
+      // `onFilesUpdated` fires on EVERY upload tick (processing, create, each
+      // progress update, done). Only act once the file is fully uploaded —
+      // otherwise we'd PATCH the org + toast on every tick (the bug that made
+      // the "saved" banner stack up endlessly).
+      if (last.isUploading || last.isProcessing || !last.public_url) return
       setValue('avatar_url', last.public_url, { shouldDirty: true })
       try {
         const { error } = await updateOrganization.mutateAsync({
@@ -443,9 +451,24 @@ export const EditableProfileCard = ({
   })
 
   const avatarInputRef = useRef<HTMLInputElement | null>(null)
-  const [pendingAvatarFile, setPendingAvatarFile] = useState<File | null>(null)
+  // What the crop/reposition modal is editing: a freshly-picked File, the
+  // existing avatar URL (click the avatar to reposition), or nothing (closed).
+  const [avatarEditSrc, setAvatarEditSrc] = useState<File | string | null>(null)
+  // Remember the last full-resolution file picked this session so re-opening
+  // the positioner repositions the original, not the downscaled crop.
+  const originalAvatarFileRef = useRef<File | null>(null)
 
   const openAvatarPicker = () => avatarInputRef.current?.click()
+
+  // Click the avatar: reposition the existing one (seeded with the original
+  // file when we still have it, otherwise the saved URL); pick a file if empty.
+  const onAvatarClick = () => {
+    if (avatarUrl) {
+      setAvatarEditSrc(originalAvatarFileRef.current ?? avatarUrl)
+    } else {
+      openAvatarPicker()
+    }
+  }
 
   const onAvatarInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -460,13 +483,35 @@ export const EditableProfileCard = ({
       })
       return
     }
-    setPendingAvatarFile(file)
+    originalAvatarFileRef.current = file
+    setAvatarEditSrc(file)
   }
 
   const onAvatarCropSave = (blob: Blob) => {
     const cropped = new File([blob], 'avatar.jpg', { type: 'image/jpeg' })
     uploadAvatarFile(cropped)
-    setPendingAvatarFile(null)
+    setAvatarEditSrc(null)
+  }
+
+  // Remove the avatar entirely (Delete in the positioner).
+  const onAvatarDelete = async () => {
+    setAvatarEditSrc(null)
+    originalAvatarFileRef.current = null
+    setValue('avatar_url', null, { shouldDirty: true })
+    try {
+      const { error } = await updateOrganization.mutateAsync({
+        id: org.id,
+        body: { avatar_url: null },
+      })
+      if (error) {
+        toast({ title: 'Could not remove avatar', description: 'Try again.' })
+        return
+      }
+      resetField('avatar_url', { defaultValue: null })
+      toast({ title: 'Avatar removed' })
+    } catch {
+      toast({ title: 'Could not remove avatar', description: 'Network error.' })
+    }
   }
 
   // ── Cover drag-to-reposition ───────────────────────────────────
@@ -634,10 +679,10 @@ export const EditableProfileCard = ({
                   src={avatarUrl}
                   alt={name}
                   className="h-20 w-20 cursor-pointer rounded-xl border-4 border-white object-cover shadow-sm"
-                  onClick={openAvatarPicker}
+                  onClick={onAvatarClick}
                 />
               ) : (
-                <button type="button" onClick={openAvatarPicker}>
+                <button type="button" onClick={onAvatarClick}>
                   <Avatar
                     className="h-20 w-20 rounded-xl border-4 border-white text-lg shadow-sm"
                     name={name}
@@ -651,7 +696,7 @@ export const EditableProfileCard = ({
                   className="hc-btn"
                   onClick={(e) => {
                     e.stopPropagation()
-                    openAvatarPicker()
+                    onAvatarClick()
                   }}
                 >
                   <EditOutlined style={{ fontSize: 14 }} />
@@ -1124,11 +1169,13 @@ export const EditableProfileCard = ({
         </div>
       </EditPopover>
 
-      {pendingAvatarFile && (
+      {avatarEditSrc !== null && (
         <AvatarCropModal
-          file={pendingAvatarFile}
-          onCancel={() => setPendingAvatarFile(null)}
+          src={avatarEditSrc}
           onSave={onAvatarCropSave}
+          onCancel={() => setAvatarEditSrc(null)}
+          onReplace={openAvatarPicker}
+          onDelete={avatarUrl ? onAvatarDelete : undefined}
           dark={
             ((settings as { theme?: 'light' | 'dark' }).theme ?? 'light') ===
             'dark'
