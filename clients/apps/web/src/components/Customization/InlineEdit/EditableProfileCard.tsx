@@ -327,6 +327,9 @@ export const EditableProfileCard = ({
     async (files: FileObject<schemas['StorefrontHeaderFileRead']>[]) => {
       if (files.length === 0) return
       const last = files[files.length - 1]
+      // Only persist once the upload is fully done — `onFilesUpdated` fires on
+      // every progress tick (see the avatar handler below for the same guard).
+      if (last.isUploading || last.isProcessing || !last.public_url) return
       updateSetting('header_image_url', last.public_url)
       const nextSettings = {
         ...settings,
@@ -400,6 +403,11 @@ export const EditableProfileCard = ({
     async (files: FileObject<schemas['OrganizationAvatarFileRead']>[]) => {
       if (files.length === 0) return
       const last = files[files.length - 1]
+      // `onFilesUpdated` fires on EVERY upload tick (processing, create, each
+      // progress update, done). Only act once the file is fully uploaded —
+      // otherwise we'd PATCH the org + toast on every tick (the bug that made
+      // the "saved" banner stack up endlessly).
+      if (last.isUploading || last.isProcessing || !last.public_url) return
       setValue('avatar_url', last.public_url, { shouldDirty: true })
       try {
         const { error } = await updateOrganization.mutateAsync({
