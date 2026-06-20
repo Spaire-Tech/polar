@@ -232,6 +232,16 @@
 .space-dark .divide-gray-200 > * + * {
   border-color: rgba(255, 255, 255, 0.1) !important;
 }
+/* "Available for work" badge fill (ProfileCard) — bg-green-100 reads too bright
+   on black; soften to a dark green tint to match the green-50 tints above. */
+.space-dark .bg-green-100,
+.space-dark .bg-emerald-100 {
+  background-color: rgba(40, 160, 90, 0.18) !important;
+}
+/* Accent greens (profile eyebrow, badge text) read dim at -600 on black; lift. */
+.space-dark .text-emerald-600 {
+  color: #34d399 !important;
+}
 
 /* ---- form fields (bare inputs default to white UA background) ---- */
 .space-dark input:not([type='checkbox']):not([type='radio']):not(
