@@ -182,6 +182,33 @@ class OrganizationStorefrontSettings(Schema):
         Field(max_length=160, description="Storefront description"),
         EmptyStrToNoneValidator,
     ] = None
+    # ── Search & sharing (SEO) ──────────────────────────────────────
+    meta_title: Annotated[
+        str | None,
+        Field(
+            max_length=70,
+            description=(
+                "SEO title for the storefront — used as the page <title> and "
+                "social card title. Falls back to the organization name."
+            ),
+        ),
+        EmptyStrToNoneValidator,
+    ] = None
+    meta_description: Annotated[
+        str | None,
+        Field(
+            max_length=200,
+            description=(
+                "SEO meta description / social card summary. Falls back to the "
+                "storefront description."
+            ),
+        ),
+        EmptyStrToNoneValidator,
+    ] = None
+    index: bool = Field(
+        True,
+        description="Allow search engines to index the storefront",
+    )
     thumbnail_size: Literal["small", "medium", "large"] = Field(
         "large", description="Product thumbnail size"
     )
