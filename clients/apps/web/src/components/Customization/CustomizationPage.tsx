@@ -3,6 +3,7 @@
 import { CustomizationProvider } from '@/components/Customization/CustomizationProvider'
 import { ForceLightMode } from '@/components/Profile/ForceLightMode'
 import { detectPlatform } from '@/components/Profile/linkPlatforms'
+import { SpaceDocumentBackground } from '@/components/Profile/SpaceDocumentBackground'
 import { StorefrontLinkItem } from '@/components/Profile/StorefrontLinks'
 import {
   appendSpaceItem,
@@ -430,6 +431,10 @@ const Customization = ({
   return (
     <Form {...form}>
       <ForceLightMode />
+      {/* Paint the dashboard document background to match the editor theme so a
+          dark Space has no white showing through (the (main) layout wraps the
+          app in a bg-white container). */}
+      <SpaceDocumentBackground dark={dark} />
       <div
         className={cn('spaire-editor spaire-editor-root', dark && 'space-dark')}
       >
