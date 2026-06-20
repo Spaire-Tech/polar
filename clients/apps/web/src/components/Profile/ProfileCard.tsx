@@ -204,12 +204,12 @@ export const ProfileCard = ({
                     contactUrl.startsWith('mailto:') ? undefined : '_blank'
                   }
                   rel="noopener noreferrer"
-                  className="rounded-full border border-green-200 bg-green-50 px-3 py-1 text-[12px] font-medium text-green-600 transition-colors hover:bg-green-100"
+                  className="rounded-full border border-purple-200 px-3 py-1 text-[12px] font-medium text-purple-800 transition-colors hover:bg-purple-50"
                 >
                   Work with me →
                 </a>
               ) : (
-                <span className="rounded-full border border-green-200 bg-green-50 px-3 py-1 text-[12px] font-medium text-green-600">
+                <span className="rounded-full border border-purple-200 px-3 py-1 text-[12px] font-medium text-purple-800">
                   Work with me
                 </span>
               ))}

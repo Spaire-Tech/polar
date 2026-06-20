@@ -4,6 +4,7 @@ import {
   forceLightModeBeforeHydration,
 } from '@/components/Profile/ForceLightMode'
 import { ProfileCard } from '@/components/Profile/ProfileCard'
+import { SpaceDocumentBackground } from '@/components/Profile/SpaceDocumentBackground'
 import { getServerSideAPI } from '@/utils/client/serverside'
 import { getStorefrontOrNotFound } from '@/utils/storefront'
 import { cn } from '@spaire/ui/lib/utils'
@@ -45,6 +46,10 @@ export default async function Layout(props: {
         dangerouslySetInnerHTML={{ __html: forceLightModeBeforeHydration }}
       />
       <ForceLightMode />
+      {/* Paint the document background to the Space theme so a dark Space has no
+          white canvas at the bottom / on overscroll (covers product pages too,
+          which share this layout). */}
+      <SpaceDocumentBackground dark={dark} />
       <PublicLayout className="gap-y-0 py-4 md:py-8" wide footer={false}>
         {/* Two-column layout — no topbar, no login, no nav tabs */}
         <div className="flex flex-col gap-8 md:flex-row md:gap-12">
