@@ -16,12 +16,10 @@ export const SpaceEditorCanvas = ({
   organization: org,
   hasSettingsPanel,
   onAddToSpace,
-  device = 'desktop',
 }: {
   organization: schemas['Organization']
   hasSettingsPanel: boolean
   onAddToSpace?: () => void
-  device?: 'desktop' | 'mobile'
 }) => {
   // Bumped limit so the canvas + picker show the full catalog instead
   // of paginating at 10. 100 covers the long tail; users with more
@@ -52,7 +50,7 @@ export const SpaceEditorCanvas = ({
 
   return (
     <div className={`canvas-wrap${hasSettingsPanel ? ' has-panel' : ''}`}>
-      <div className={`canvas${device === 'mobile' ? ' is-mobile' : ''}`}>
+      <div className="canvas">
         <aside className="col-left">
           <div className="canvas-card">
             <EditableProfileCard organization={org} products={products} />

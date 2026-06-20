@@ -26,6 +26,7 @@ import LightModeOutlined from '@mui/icons-material/LightModeOutlined'
 import { cn } from '@spaire/ui/lib/utils'
 import '@/styles/space-dark.css'
 import { ArrangePanel } from './InlineEdit/ArrangePanel'
+import { MobileSpacePreview } from './MobileSpacePreview'
 import { SpaceSettingsTab } from './SpaceSettingsTab'
 import { SpaceEditorCanvas } from './SpaceEditorShell'
 import {
@@ -597,13 +598,26 @@ const Customization = ({
         </div>
 
         {activeTab === 'storefront' ? (
-          <>
-            {/* Canvas — ProfileCard + Storefront content blocks */}
+          previewDevice === 'mobile' ? (
+            <div className="flex min-h-0 flex-1 flex-col items-center overflow-y-auto bg-gray-50 px-4 py-8">
+              {isDirty && (
+                <div className="mb-5 max-w-sm rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-center text-[12px] text-amber-800">
+                  Showing your published Space. Publish to preview your latest
+                  edits on mobile.
+                </div>
+              )}
+              <MobileSpacePreview
+                organization={organization}
+                enabled={isSpaceEnabled}
+              />
+            </div>
+          ) : (
+            <>
+              {/* Canvas — ProfileCard + Storefront content blocks */}
             <SpaceEditorCanvas
               organization={organization}
               hasSettingsPanel={linksMode || arrangeOpen}
               onAddToSpace={() => setPickerOpen(true)}
-              device={previewDevice}
             />
 
             {/* Arrange panel — single source of truth for reordering
@@ -701,7 +715,8 @@ const Customization = ({
                 callbacks={pickerCallbacks}
               />
             )}
-          </>
+            </>
+          )
         ) : (
           <div className="min-h-0 flex-1 overflow-y-auto">
             <SpaceSettingsTab
