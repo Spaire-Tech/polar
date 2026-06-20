@@ -232,6 +232,16 @@
 .space-dark .divide-gray-200 > * + * {
   border-color: rgba(255, 255, 255, 0.1) !important;
 }
+/* "Available for work" badge fill (ProfileCard) — bg-green-100 reads too bright
+   on black; soften to a dark green tint to match the green-50 tints above. */
+.space-dark .bg-green-100,
+.space-dark .bg-emerald-100 {
+  background-color: rgba(40, 160, 90, 0.18) !important;
+}
+/* Accent greens (profile eyebrow, badge text) read dim at -600 on black; lift. */
+.space-dark .text-emerald-600 {
+  color: #34d399 !important;
+}
 
 /* ---- form fields (bare inputs default to white UA background) ---- */
 .space-dark input:not([type='checkbox']):not([type='radio']):not(
@@ -324,4 +334,54 @@
 .space-dark .shadow-xl,
 .space-dark .shadow-2xl {
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4) !important;
+}
+
+/* ---- Add-to-Space picker (⌘K) ----
+   Portaled to <body>, so it sits OUTSIDE the editor's `.space-dark` root. The
+   picker carries its own `space-dark` class (added by the component when the
+   Space theme is dark). It's token-driven (picker.css `.pk-library` vars), so
+   flipping the tokens themes most of it; a few hardcoded glass surfaces are
+   overridden explicitly. */
+.pk-library.space-dark {
+  --accent: #2997ff;
+  --accent-soft: rgba(41, 151, 255, 0.16);
+  --accent-ink: #cfe6ff;
+  --bg: #0c0c10;
+  --canvas: #17171b;
+  --ink: #f5f5f7;
+  --ink-2: #d2d2d7;
+  --muted: rgba(245, 245, 247, 0.6);
+  --muted-2: rgba(245, 245, 247, 0.42);
+  --line: rgba(255, 255, 255, 0.1);
+  --line-2: rgba(255, 255, 255, 0.07);
+  --line-strong: rgba(255, 255, 255, 0.16);
+}
+.pk-library.space-dark.waterglass {
+  background: #141418 !important;
+}
+.pk-library.space-dark .wg-card,
+.pk-library.space-dark .wg-tile {
+  background: rgba(255, 255, 255, 0.04) !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+.pk-library.space-dark .wg-input-pill,
+.pk-library.space-dark input {
+  background: rgba(255, 255, 255, 0.06) !important;
+}
+
+/* ---- Course-product landing page (GeneratedPortalPage `.gpp`) ----
+   Rendered for course products on the public Space, inside the (header) layout
+   that already carries `.space-dark`. It themes via `.gpp` CSS variables (with
+   its own `.gpp.dark` variant for the creator's course theme). When the Space
+   is dark, force the page onto the Space's dark palette regardless of the
+   course's own theme choice, so a clicked product reads black like the rest. */
+.space-dark .gpp,
+.space-dark .gpp.dark {
+  --bg: #0c0c10 !important;
+  --band: 12, 12, 16 !important;
+  --bt: #f5f5f7 !important;
+  --bt2: rgba(245, 245, 247, 0.65) !important;
+  --bt3: rgba(245, 245, 247, 0.45) !important;
+  --text: #f5f5f7 !important;
+  --text-2: rgba(245, 245, 247, 0.6) !important;
 }

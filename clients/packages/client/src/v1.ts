@@ -21440,6 +21440,22 @@ export interface components {
        */
       description?: string | null
       /**
+       * Meta Title
+       * @description SEO title for the storefront — used as the page <title> and social card title. Falls back to the organization name.
+       */
+      meta_title?: string | null
+      /**
+       * Meta Description
+       * @description SEO meta description / social card summary. Falls back to the storefront description.
+       */
+      meta_description?: string | null
+      /**
+       * Index
+       * @description Allow search engines to index the storefront
+       * @default true
+       */
+      index?: boolean
+      /**
        * Thumbnail Size
        * @description Product thumbnail size
        * @enum {string}

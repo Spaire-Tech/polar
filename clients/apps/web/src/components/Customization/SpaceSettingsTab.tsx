@@ -13,12 +13,70 @@
 
 import { spacePageLink } from '@/utils/nav'
 import { schemas } from '@spaire/client'
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useFormContext } from 'react-hook-form'
-import { Seg, Toggle } from '../Community/hub/atoms'
+import { Field, Seg, Toggle } from '../Community/hub/atoms'
 import '../Community/hub/hub.css'
 
 type Settings = NonNullable<schemas['OrganizationStorefrontSettings']>
+
+/** Text input that commits on blur / Enter (matches the Community settings),
+ *  so we don't churn form state on every keystroke. */
+function CommitInput({
+  value,
+  onCommit,
+  placeholder,
+  maxLength,
+}: {
+  value: string
+  onCommit: (v: string) => void
+  placeholder?: string
+  maxLength?: number
+}) {
+  const [v, setV] = useState(value)
+  useEffect(() => setV(value), [value])
+  return (
+    <input
+      className="input"
+      value={v}
+      placeholder={placeholder}
+      maxLength={maxLength}
+      onChange={(e) => setV(e.target.value)}
+      onBlur={() => v !== value && onCommit(v)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') (e.target as HTMLInputElement).blur()
+      }}
+    />
+  )
+}
+
+/** Multi-line variant of CommitInput. */
+function CommitTextarea({
+  value,
+  onCommit,
+  placeholder,
+  maxLength,
+}: {
+  value: string
+  onCommit: (v: string) => void
+  placeholder?: string
+  maxLength?: number
+}) {
+  const [v, setV] = useState(value)
+  useEffect(() => setV(value), [value])
+  return (
+    <textarea
+      className="input"
+      value={v}
+      placeholder={placeholder}
+      maxLength={maxLength}
+      rows={3}
+      style={{ width: '100%', resize: 'vertical', minHeight: 84 }}
+      onChange={(e) => setV(e.target.value)}
+      onBlur={() => v !== value && onCommit(v)}
+    />
+  )
+}
 
 type DisplayToggle = { key: keyof Settings; label: string; hint: string; def: boolean }
 
@@ -185,6 +243,46 @@ export const SpaceSettingsTab = ({
               onChange={(v) =>
                 updateSetting('theme', v === 'Dark' ? 'dark' : 'light')
               }
+            />
+          </Row>
+        </div>
+
+        {/* Search & sharing (SEO) */}
+        <div className="glist-label">Search &amp; sharing</div>
+        <div className="card form-card" style={{ marginBottom: 14 }}>
+          <Field
+            label="SEO title"
+            hint="Shown as the page title in search results and browser tabs. Defaults to your name."
+          >
+            <CommitInput
+              value={settings.meta_title ?? ''}
+              placeholder={`${organization.name} — Spaire Space`}
+              maxLength={70}
+              onCommit={(v) => updateSetting('meta_title', v.trim() || null)}
+            />
+          </Field>
+          <Field
+            label="SEO description"
+            hint="The summary search engines and social cards show. Defaults to your storefront description."
+          >
+            <CommitTextarea
+              value={settings.meta_description ?? ''}
+              placeholder="A short, compelling summary of your Space."
+              maxLength={200}
+              onCommit={(v) =>
+                updateSetting('meta_description', v.trim() || null)
+              }
+            />
+          </Field>
+        </div>
+        <div className="card glist" style={{ marginBottom: 26 }}>
+          <Row
+            label="Search engine indexing"
+            hint="Let search engines list your Space in their results"
+          >
+            <Toggle
+              on={settings.index ?? true}
+              onClick={() => updateSetting('index', !(settings.index ?? true))}
             />
           </Row>
         </div>

@@ -34,6 +34,7 @@ export const AddToSpacePicker = ({
   alreadySelectedProductIds = [],
   onClose,
   callbacks,
+  dark = false,
 }: {
   organization: schemas['Organization']
   initialTab?: Tab
@@ -43,6 +44,9 @@ export const AddToSpacePicker = ({
   alreadySelectedProductIds?: string[]
   onClose: () => void
   callbacks: AddToSpacePickerCallbacks
+  // Mirrors the Space's dark theme. The picker portals to <body> (outside the
+  // editor's `.space-dark` root), so it carries its own marker class.
+  dark?: boolean
 }) => {
   const [tab, setTab] = useState<Tab>(initialTab)
 
@@ -66,7 +70,7 @@ export const AddToSpacePicker = ({
     <Portal>
       <div className="picker-backdrop" onClick={onClose} />
       <div
-        className="pk-library waterglass"
+        className={`pk-library waterglass${dark ? ' space-dark' : ''}`}
         role="dialog"
         aria-label="Add to your Space"
         aria-modal="true"

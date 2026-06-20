@@ -1129,6 +1129,10 @@ export const EditableProfileCard = ({
           file={pendingAvatarFile}
           onCancel={() => setPendingAvatarFile(null)}
           onSave={onAvatarCropSave}
+          dark={
+            ((settings as { theme?: 'light' | 'dark' }).theme ?? 'light') ===
+            'dark'
+          }
         />
       )}
     </div>
