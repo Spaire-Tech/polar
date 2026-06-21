@@ -145,22 +145,11 @@ export type SequenceMode = {
 export function ComposerApp({
   organization,
   sequenceMode,
-  onExit,
 }: {
   organization: schemas['Organization']
   sequenceMode?: SequenceMode
-  /** When hosted in-canvas (e.g. the course editor's Marketing tab), exit
-   *  returns here instead of routing to the dashboard broadcasts list. */
-  onExit?: () => void
 }) {
   const router = useRouter()
-  // Leaving the composer: hand back to the host when embedded, otherwise go to
-  // the dashboard broadcasts list.
-  const exitComposer = () => {
-    if (onExit) onExit()
-    else
-      router.push(`/dashboard/${organization.slug}/email-marketing/broadcasts`)
-  }
   const { currentUser } = useAuth()
 
   // Draft state
@@ -589,7 +578,9 @@ export function ComposerApp({
         setStatus('sent')
         showToast('Broadcast sent to ' + fmt(reach) + ' subscribers')
       }
-      exitComposer()
+      router.push(
+        `/dashboard/${organization.slug}/email-marketing/broadcasts`,
+      )
     } catch (err) {
       showToast(err instanceof Error ? err.message : 'Send failed')
     }
@@ -946,7 +937,9 @@ export function ComposerApp({
               className="m-dark"
               onClick={() => {
                 setModal(null)
-                exitComposer()
+                router.push(
+                  `/dashboard/${organization.slug}/email-marketing/broadcasts`,
+                )
               }}
             >
               Close
