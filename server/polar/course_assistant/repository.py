@@ -31,10 +31,12 @@ class CourseAssistantRepository(
         return await self.get_one_or_none(statement)
 
     async def list_course_ids_needing_build(self, limit: int = 100) -> list[UUID]:
-        """Course ids that have at least one published lesson but no assistant
-        yet (or one still stuck in ``building``). The reconcile cron uses this
-        to pick up courses whose build was never triggered — notably
-        text-only courses, which produce no Mux webhook to kick the build."""
+        """Course ids that have at least one lesson but no assistant yet (or one
+        still stuck in ``building``). The reconcile cron uses this to pick up
+        courses whose build was never triggered — notably text-only courses,
+        which produce no Mux webhook to kick the build. Drafts count: the
+        assistant trains on all uploaded lessons (exposure is gated by the
+        approve/live flow, not by lesson publish state)."""
         statement = (
             select(CourseModule.course_id)
             .join(CourseLesson, CourseLesson.module_id == CourseModule.id)
@@ -45,7 +47,6 @@ class CourseAssistantRepository(
                 isouter=True,
             )
             .where(
-                CourseLesson.published == True,  # noqa: E712
                 CourseLesson.deleted_at.is_(None),
                 CourseModule.deleted_at.is_(None),
                 or_(

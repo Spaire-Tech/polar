@@ -423,6 +423,36 @@ function LessonRow({
         </span>
       </button>
 
+      {/* Transcription status (video lessons) — so the creator can see the
+          Course Assistant pipeline working, not guess. */}
+      {(() => {
+        if (!isVideo) return null
+        const map: Record<string, { text: string; cls: string }> = {
+          ready: { text: 'Transcribed', cls: 'bg-emerald-50 text-emerald-700' },
+          pending: { text: 'Transcribing…', cls: 'bg-amber-50 text-amber-700' },
+          failed: {
+            text: 'Transcript failed',
+            cls: 'bg-red-50 text-red-600',
+          },
+          unavailable: { text: 'No captions', cls: 'bg-gray-100 text-gray-500' },
+        }
+        const badge = lesson.transcript_status
+          ? map[lesson.transcript_status]
+          : undefined
+        if (!badge) return null
+        return (
+          <span
+            className={cn(
+              'inline-flex shrink-0 items-center rounded-full px-1.5 py-0.5 text-[9px] font-semibold tracking-[0.05em] uppercase',
+              badge.cls,
+            )}
+            title="Course Assistant transcription status"
+          >
+            {badge.text}
+          </span>
+        )
+      })()}
+
       {/* Published indicator */}
       {lesson.published ? (
         <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-green-100 px-1.5 py-0.5 text-[9px] font-semibold tracking-[0.05em] text-green-700 uppercase">

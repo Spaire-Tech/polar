@@ -77,6 +77,10 @@ class CourseLessonRead(TimestampedSchema):
     mux_asset_id: str | None = None
     mux_playback_id: str | None = None
     mux_status: str | None = None
+    # Course Assistant transcript pipeline state, surfaced so the editor can
+    # show whether a video lesson has been transcribed yet:
+    # pending | ready | failed | unavailable (null = not started / not a video).
+    transcript_status: str | None = None
     thumbnail_url: str | None = None
     thumbnail_object_position: str | None = None
     description: str | None = None
