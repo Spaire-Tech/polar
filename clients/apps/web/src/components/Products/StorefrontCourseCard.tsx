@@ -98,17 +98,21 @@ const PLAY_PATH =
 
 export function StorefrontCourseCard({
   product,
+  previewStatic = false,
 }: {
   product: schemas['ProductStorefront']
+  /** Editor preview: show the static tile only — no trailer fetch/playback. */
+  previewStatic?: boolean
 }) {
   const [hovered, setHovered] = useState(false)
   // The trailer only fades in once it's actually playing, so we never flash a
   // black video frame over the still while it loads.
   const [playing, setPlaying] = useState(false)
 
-  const landing = useCourseLanding(product.id, hovered)
-  const trailerUrl = landing.data?.trailer_url ?? null
-  const videoRef = useTrailerPeek(trailerUrl, hovered)
+  const wantTrailer = hovered && !previewStatic
+  const landing = useCourseLanding(product.id, wantTrailer)
+  const trailerUrl = previewStatic ? null : (landing.data?.trailer_url ?? null)
+  const videoRef = useTrailerPeek(trailerUrl, wantTrailer)
 
   const cover = product.medias[0]?.public_url
 
@@ -120,8 +124,8 @@ export function StorefrontCourseCard({
   return (
     <div
       className="scc-tile"
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={onLeave}
+      onMouseEnter={previewStatic ? undefined : () => setHovered(true)}
+      onMouseLeave={previewStatic ? undefined : onLeave}
     >
       <div
         className="scc-card"
