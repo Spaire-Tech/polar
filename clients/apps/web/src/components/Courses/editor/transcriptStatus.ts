@@ -30,7 +30,7 @@ export function transcriptBadge(
     case 'failed':
       return { text: 'Transcript failed', color: 'bg-red-50 text-red-600' }
     case 'unavailable':
-      return { text: 'No captions', color: 'bg-gray-100 text-gray-500' }
+      return { text: 'Transcript unavailable', color: 'bg-gray-100 text-gray-500' }
     default:
       // No transcript state yet.
       return lesson.mux_status !== 'ready'

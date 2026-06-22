@@ -237,45 +237,86 @@ async def get_caption_vtt(
             )
             return None
 
-    track = next(
-        (
-            t
-            for t in tracks
-            if t.get("type") == "text"
-            and t.get("language_code") == language_code
-            and t.get("status") == "ready"
-        ),
-        None,
-    )
-    if track is None or not track.get("id"):
-        return None
-
-    track_id = track["id"]
-    url = f"{MUX_STREAM_BASE}/{playback_id}/text/{track_id}.vtt"
-    token = sign_playback_token(playback_id, audience="v")
-    if token:
-        url = f"{url}?token={token}"
-
-    try:
-        async with httpx.AsyncClient(timeout=30) as http_client:
-            resp = await http_client.get(url)
-    except httpx.HTTPError:
-        log.exception(
-            "Failed to download Mux caption VTT",
-            extra={"asset_id": asset_id, "track_id": track_id},
-        )
-        return None
-    if resp.status_code != 200 or not resp.text.strip():
-        log.warning(
-            "Mux caption VTT download returned non-success",
+    # Pick the best ready text track. Prefer the exact requested language,
+    # then any "en*" variant (Mux can return e.g. "en-US"), then the first
+    # ready text track — auto-generated captions are sometimes labelled
+    # differently than what we requested, and a too-strict match was leaving
+    # lessons stuck "pending" until the 2h reconcile timeout.
+    text_tracks = [
+        t
+        for t in tracks
+        if t.get("type") == "text" and t.get("status") == "ready"
+    ]
+    if not text_tracks:
+        log.info(
+            "No ready Mux text track yet for transcript",
             extra={
                 "asset_id": asset_id,
-                "track_id": track_id,
-                "status": resp.status_code,
+                "tracks": [
+                    {
+                        "type": t.get("type"),
+                        "status": t.get("status"),
+                        "language_code": t.get("language_code"),
+                        "text_source": t.get("text_source"),
+                    }
+                    for t in tracks
+                ],
             },
         )
         return None
-    return resp.text
+    track = (
+        next(
+            (t for t in text_tracks if t.get("language_code") == language_code),
+            None,
+        )
+        or next(
+            (
+                t
+                for t in text_tracks
+                if (t.get("language_code") or "").startswith(language_code)
+            ),
+            None,
+        )
+        or text_tracks[0]
+    )
+    track_id = track.get("id")
+    if not track_id:
+        return None
+
+    base_url = f"{MUX_STREAM_BASE}/{playback_id}/text/{track_id}.vtt"
+    # The token must match the asset's *playback policy*, which a global
+    # signing-key config doesn't tell us: a signed token on a public playback
+    # id (or no token on a signed one) is 403'd by Mux. Try both the signed and
+    # unsigned URL so we work regardless of the individual asset's policy.
+    token = sign_playback_token(playback_id, audience="v")
+    candidate_urls = [base_url]
+    if token:
+        candidate_urls.insert(0, f"{base_url}?token={token}")
+
+    last_status: int | None = None
+    for url in candidate_urls:
+        try:
+            async with httpx.AsyncClient(timeout=30) as http_client:
+                resp = await http_client.get(url)
+        except httpx.HTTPError:
+            log.exception(
+                "Failed to download Mux caption VTT",
+                extra={"asset_id": asset_id, "track_id": track_id},
+            )
+            continue
+        if resp.status_code == 200 and resp.text.strip():
+            return resp.text
+        last_status = resp.status_code
+    log.warning(
+        "Mux caption VTT download returned non-success",
+        extra={
+            "asset_id": asset_id,
+            "track_id": track_id,
+            "status": last_status,
+            "signed_attempted": token is not None,
+        },
+    )
+    return None
 
 
 async def request_auto_captions(
