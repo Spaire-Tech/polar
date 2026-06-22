@@ -31,7 +31,6 @@ from polar.kit.utils import utc_now
 from polar.models.course import Course
 from polar.models.course_assistant import CourseAssistant
 from polar.models.course_lesson import CourseLesson
-from polar.models.customer import Customer
 from polar.postgres import AsyncSession
 
 from . import ai
@@ -405,7 +404,7 @@ class CourseAssistantService:
         session: AsyncSession,
         *,
         course_id: UUID,
-        customer: Customer,
+        customer_id: UUID,
     ) -> AnswerSnapshot:
         if not is_configured():
             raise NotConfigured()
@@ -417,7 +416,7 @@ class CourseAssistantService:
 
         enrollment_repo = CourseEnrollmentRepository.from_session(session)
         enrollment = await enrollment_repo.get_active_for_customer_course(
-            customer.id, course_id
+            customer_id, course_id
         )
         if enrollment is None:
             raise NotEnrolled()
