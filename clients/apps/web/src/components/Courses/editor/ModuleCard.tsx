@@ -423,23 +423,35 @@ function LessonRow({
         </span>
       </button>
 
-      {/* Transcription status (video lessons) — so the creator can see the
-          Course Assistant pipeline working, not guess. */}
+      {/* Transcription status (video lessons) — always shown for an uploaded
+          video so the creator can watch the Course Assistant pipeline move
+          instead of guessing whether it's hidden or broken. */}
       {(() => {
         if (!isVideo) return null
-        const map: Record<string, { text: string; cls: string }> = {
-          ready: { text: 'Transcribed', cls: 'bg-emerald-50 text-emerald-700' },
-          pending: { text: 'Transcribing…', cls: 'bg-amber-50 text-amber-700' },
-          failed: {
-            text: 'Transcript failed',
-            cls: 'bg-red-50 text-red-600',
-          },
-          unavailable: { text: 'No captions', cls: 'bg-gray-100 text-gray-500' },
+        // A video lesson with no upload yet has nothing to transcribe.
+        const hasUpload = !!lesson.mux_upload_id || !!lesson.mux_status
+        if (!hasUpload) return null
+        const ts = lesson.transcript_status
+        let badge: { text: string; cls: string }
+        if (ts === 'ready') {
+          badge = { text: 'Transcribed', cls: 'bg-emerald-50 text-emerald-700' }
+        } else if (ts === 'pending') {
+          badge = { text: 'Transcribing…', cls: 'bg-amber-50 text-amber-700' }
+        } else if (ts === 'failed') {
+          badge = { text: 'Transcript failed', cls: 'bg-red-50 text-red-600' }
+        } else if (ts === 'unavailable') {
+          badge = { text: 'No captions', cls: 'bg-gray-100 text-gray-500' }
+        } else if (lesson.mux_status !== 'ready') {
+          badge = { text: 'Processing video…', cls: 'bg-gray-100 text-gray-500' }
+        } else {
+          // Video is ready but no transcript state yet: captions are being
+          // requested. If this never advances, the Mux caption webhook isn't
+          // reaching the backend.
+          badge = {
+            text: 'Preparing transcript…',
+            cls: 'bg-amber-50 text-amber-700',
+          }
         }
-        const badge = lesson.transcript_status
-          ? map[lesson.transcript_status]
-          : undefined
-        if (!badge) return null
         return (
           <span
             className={cn(

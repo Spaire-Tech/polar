@@ -286,7 +286,21 @@ export const useCourseById = (courseId: string | undefined) =>
             l.mux_upload_id && (!l.mux_playback_id || l.mux_status !== 'ready'),
         ),
       )
-      return hasPendingMux ? 5000 : false
+      // Keep polling while a video is still being transcribed for the Course
+      // Assistant, so the outline's transcription chip updates live (Mux
+      // becomes "ready" before captions exist, so the mux check alone stops
+      // too early).
+      const hasPendingTranscript = data.modules.some((m) =>
+        m.lessons.some(
+          (l) =>
+            l.content_type === 'video' &&
+            (!!l.mux_upload_id || !!l.mux_status) &&
+            l.transcript_status !== 'ready' &&
+            l.transcript_status !== 'failed' &&
+            l.transcript_status !== 'unavailable',
+        ),
+      )
+      return hasPendingMux || hasPendingTranscript ? 5000 : false
     },
   })
 
