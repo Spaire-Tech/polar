@@ -1,5 +1,6 @@
 'use client'
 
+import { AskAssistant } from '@/components/Courses/assistant/AskAssistant'
 import { WatchHome } from '@/components/Courses/watch/WatchHome'
 import {
   useCustomerCourse,
@@ -141,6 +142,7 @@ const LessonViewerPage = ({
   // Show lesson viewer if a lesson is selected
   if (currentLesson) {
     return (
+      <>
       <MasterClassLessonViewer
         lesson={{
           id: currentLesson.id,
@@ -192,23 +194,28 @@ const LessonViewerPage = ({
         organizationSlug={organization.slug}
         customerName={data.customer_name ?? null}
       />
+      <AskAssistant courseId={courseId} token={customerSessionToken} />
+      </>
     )
   }
 
   // No lesson selected — render the Spaire Originals v2 watch page
   // (now-playing hero + rail; player, comments, bookmarks, progress).
   return (
-    <WatchHome
-      organization={organization}
-      data={data}
-      lessons={flatLessons}
-      token={customerSessionToken}
-      onOpenTextLesson={handleOpenTextLesson}
-      onMarkComplete={(lessonId) => {
-        const lesson = flatLessons.find((l) => l.id === lessonId)
-        if (lesson && !lesson.completed) markComplete.mutate(lessonId)
-      }}
-    />
+    <>
+      <WatchHome
+        organization={organization}
+        data={data}
+        lessons={flatLessons}
+        token={customerSessionToken}
+        onOpenTextLesson={handleOpenTextLesson}
+        onMarkComplete={(lessonId) => {
+          const lesson = flatLessons.find((l) => l.id === lessonId)
+          if (lesson && !lesson.completed) markComplete.mutate(lessonId)
+        }}
+      />
+      <AskAssistant courseId={courseId} token={customerSessionToken} />
+    </>
   )
 }
 

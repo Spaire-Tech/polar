@@ -153,3 +153,136 @@ export const useUpdateAssistantSample = (courseId: string | undefined) =>
       ),
     onSuccess: (data) => courseId && cacheManage(courseId, data),
   })
+
+// ---------------------------------------------------------------------
+// Student side (Phase 4) — the "Ask {name}" chat in the course player.
+// Authenticated with the customer-session token (Bearer), same as the
+// rest of the portal.
+// ---------------------------------------------------------------------
+
+export interface CourseAssistantStudentStatus {
+  available: boolean
+  display_name: string | null
+  instructor_name: string | null
+  disclaimer: string | null
+  example_question: string | null
+}
+
+export interface AskCitation {
+  cited_text: string | null
+  document_title: string | null
+  start_char_index: number | null
+  end_char_index: number | null
+}
+
+export const useCourseAssistantStatus = (
+  courseId: string | undefined,
+  token: string | null | undefined,
+) =>
+  useQuery<CourseAssistantStudentStatus>({
+    queryKey: ['course-assistant-status', token, courseId],
+    queryFn: async () => {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}${base(courseId!)}`,
+        { headers: { Authorization: `Bearer ${token}` } },
+      )
+      if (!res.ok) return { available: false } as CourseAssistantStudentStatus
+      return res.json()
+    },
+    enabled: !!courseId && !!token,
+    staleTime: 60_000,
+  })
+
+export interface AskHandlers {
+  onText: (chunk: string) => void
+  onCitations: (citations: AskCitation[]) => void
+  onRefusal: (message: string) => void
+  onError: (message: string) => void
+  onDone: () => void
+}
+
+/**
+ * Stream a grounded answer from the assistant over SSE. EventSource can't do
+ * POST + auth header, so we POST and parse the SSE frames off the fetch body.
+ * Returns an AbortController so the caller can cancel an in-flight answer.
+ */
+export function streamAsk(
+  courseId: string,
+  token: string,
+  question: string,
+  handlers: AskHandlers,
+): AbortController {
+  const controller = new AbortController()
+  ;(async () => {
+    let done = false
+    const finish = () => {
+      if (done) return
+      done = true
+      handlers.onDone()
+    }
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}${base(courseId)}/ask`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ question }),
+          signal: controller.signal,
+        },
+      )
+      if (!res.ok || !res.body) {
+        handlers.onError('The assistant is temporarily unavailable.')
+        finish()
+        return
+      }
+      const reader = res.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+      for (;;) {
+        const { done: streamDone, value } = await reader.read()
+        if (streamDone) break
+        buffer += decoder.decode(value, { stream: true })
+        let sep: number
+        while ((sep = buffer.indexOf('\n\n')) >= 0) {
+          const frame = buffer.slice(0, sep)
+          buffer = buffer.slice(sep + 2)
+          let event = 'message'
+          let data = ''
+          for (const line of frame.split('\n')) {
+            if (line.startsWith('event:')) event = line.slice(6).trim()
+            else if (line.startsWith('data:')) data += line.slice(5).trim()
+          }
+          if (!data) continue
+          let payload: {
+            text?: string
+            citations?: AskCitation[]
+            message?: string
+          }
+          try {
+            payload = JSON.parse(data)
+          } catch {
+            continue
+          }
+          if (event === 'text') handlers.onText(payload.text ?? '')
+          else if (event === 'citations')
+            handlers.onCitations(payload.citations ?? [])
+          else if (event === 'refusal')
+            handlers.onRefusal(payload.message ?? '')
+          else if (event === 'error')
+            handlers.onError(payload.message ?? 'Something went wrong.')
+          else if (event === 'done') finish()
+        }
+      }
+      finish()
+    } catch {
+      if (!controller.signal.aborted) {
+        handlers.onError('The assistant is temporarily unavailable.')
+      }
+      finish()
+    }
+  })()
+  return controller
+}
