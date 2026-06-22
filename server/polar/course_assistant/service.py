@@ -668,4 +668,58 @@ class CourseAssistantService:
         return totals, items
 
 
+    async def diagnose_transcripts(
+        self, session: AsyncSession, *, course_id: UUID
+    ) -> list[dict[str, Any]]:
+        """Per video lesson, report the real transcript pipeline state plus a
+        live Mux probe (tracks Mux reports + the .vtt HTTP status). Lets a
+        creator see exactly why transcription is or isn't working in their own
+        deployment, instead of us guessing."""
+        from polar.course import mux as mux_client
+
+        lessons = await self._buildable_lessons(session, course_id)
+        results: list[dict[str, Any]] = []
+        for lesson in lessons:
+            if lesson.content_type != "video":
+                continue
+            entry: dict[str, Any] = {
+                "lesson_id": str(lesson.id),
+                "title": lesson.title,
+                "mux_status": lesson.mux_status,
+                "transcript_status": lesson.transcript_status,
+                "has_transcript": bool(lesson.transcript),
+            }
+            if lesson.mux_asset_id and lesson.mux_playback_id:
+                entry["mux"] = await mux_client.diagnose_caption_fetch(
+                    lesson.mux_asset_id, lesson.mux_playback_id
+                )
+            else:
+                entry["mux"] = {"error": "no_mux_asset_on_lesson"}
+            results.append(entry)
+        return results
+
+    async def retry_transcripts(
+        self, session: AsyncSession, *, course_id: UUID
+    ) -> int:
+        """Re-kick transcription for every video lesson that isn't already
+        transcribed (including ones the cron timed out to 'unavailable'). Resets
+        them to 'pending' and enqueues a fresh fetch. Returns how many."""
+        from polar.worker import enqueue_job
+
+        lessons = await self._buildable_lessons(session, course_id)
+        lesson_repo = CourseLessonRepository.from_session(session)
+        count = 0
+        for lesson in lessons:
+            if lesson.content_type != "video" or not lesson.mux_asset_id:
+                continue
+            if lesson.transcript_status == "ready":
+                continue
+            await lesson_repo.update(
+                lesson, update_dict={"transcript_status": "pending"}
+            )
+            enqueue_job("course_assistant.fetch_transcript", lesson_id=lesson.id)
+            count += 1
+        return count
+
+
 course_assistant_service = CourseAssistantService()

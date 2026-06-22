@@ -319,6 +319,86 @@ async def get_caption_vtt(
     return None
 
 
+async def diagnose_caption_fetch(
+    asset_id: str | None,
+    playback_id: str | None,
+    *,
+    language_code: str = "en",
+) -> dict:
+    """Run the caption-fetch steps and report exactly what happens, for
+    creator-facing debugging. Never raises — returns a structured dict so we
+    can see, from inside the deployment, whether Mux produced a text track and
+    whether the .vtt download is authorized."""
+    out: dict = {"asset_id": asset_id, "playback_id": playback_id}
+    if not asset_id or not playback_id:
+        out["error"] = "missing_mux_ids"
+        return out
+    if not settings.MUX_TOKEN_ID or not settings.MUX_TOKEN_SECRET:
+        out["error"] = "mux_api_token_not_configured"
+        return out
+    async with _client() as client:
+        try:
+            r = await client.get(f"/video/v1/assets/{asset_id}")
+            out["asset_http"] = r.status_code
+            if r.status_code != 200:
+                out["error"] = "asset_fetch_failed"
+                return out
+            tracks = r.json()["data"].get("tracks", [])
+        except (httpx.HTTPError, KeyError, ValueError) as exc:
+            out["error"] = f"asset_fetch_error: {exc}"
+            return out
+
+    out["tracks"] = [
+        {
+            "type": t.get("type"),
+            "status": t.get("status"),
+            "language_code": t.get("language_code"),
+            "text_source": t.get("text_source"),
+        }
+        for t in tracks
+    ]
+    text_tracks = [
+        t for t in tracks if t.get("type") == "text" and t.get("status") == "ready"
+    ]
+    if not text_tracks:
+        out["error"] = "no_ready_text_track"
+        return out
+    track = (
+        next((t for t in text_tracks if t.get("language_code") == language_code), None)
+        or next(
+            (
+                t
+                for t in text_tracks
+                if (t.get("language_code") or "").startswith(language_code)
+            ),
+            None,
+        )
+        or text_tracks[0]
+    )
+    track_id = track.get("id")
+    out["chosen_track_id"] = track_id
+    out["signing_keys_configured"] = signing_keys_configured()
+    if not track_id:
+        out["error"] = "track_missing_id"
+        return out
+
+    base = f"{MUX_STREAM_BASE}/{playback_id}/text/{track_id}.vtt"
+    token = sign_playback_token(playback_id, audience="v")
+    attempts: list[tuple[str, str]] = []
+    if token:
+        attempts.append(("signed", f"{base}?token={token}"))
+    attempts.append(("unsigned", base))
+    for label, url in attempts:
+        try:
+            async with httpx.AsyncClient(timeout=30) as http_client:
+                resp = await http_client.get(url)
+            out[f"vtt_{label}_status"] = resp.status_code
+            out[f"vtt_{label}_len"] = len(resp.text or "")
+        except httpx.HTTPError as exc:
+            out[f"vtt_{label}_error"] = str(exc)
+    return out
+
+
 async def request_auto_captions(
     asset_id: str, *, language_code: str = "en", name: str = "English (auto)"
 ) -> bool:

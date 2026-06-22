@@ -460,6 +460,44 @@ async def preview_ask(
 
 
 @router.get(
+    "/{course_id}/transcripts/diagnose",
+    summary="Diagnose video transcription (creator)",
+)
+async def diagnose_transcripts(
+    course_id: UUID,
+    auth_subject: course_auth.CoursesRead,
+    session: AsyncSession = Depends(get_db_session),
+) -> dict[str, Any]:
+    """Live, read-only probe of the transcription pipeline for each video
+    lesson: our stored state plus what Mux actually reports (text tracks +
+    the .vtt download HTTP status). Used to pinpoint why transcription stalls
+    without needing server logs."""
+    await _readable_course_or_404(session, course_id, auth_subject)
+    lessons = await course_assistant_service.diagnose_transcripts(
+        session, course_id=course_id
+    )
+    return {"configured": is_configured(), "lessons": lessons}
+
+
+@router.post(
+    "/{course_id}/transcripts/retry",
+    summary="Re-run video transcription (creator)",
+)
+async def retry_transcripts(
+    course_id: UUID,
+    auth_subject: course_auth.CoursesWrite,
+    session: AsyncSession = Depends(get_db_session),
+) -> dict[str, int]:
+    """Re-kick transcription for video lessons that aren't transcribed yet —
+    including ones that previously timed out to 'unavailable'."""
+    await _readable_course_or_404(session, course_id, auth_subject)
+    retried = await course_assistant_service.retry_transcripts(
+        session, course_id=course_id
+    )
+    return {"retried": retried}
+
+
+@router.get(
     "/{course_id}/questions",
     response_model=CourseAssistantQuestionsRead,
     summary="What students are asking",
