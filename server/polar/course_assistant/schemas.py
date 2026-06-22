@@ -105,3 +105,32 @@ class CourseAssistantSettingsUpdate(Schema):
 
 class CourseAssistantLiveUpdate(Schema):
     live: bool = Field(description="Turn the live assistant on or off.")
+
+
+# ── Creator-facing (Phase 5 — "What students are asking") ─────────────────── #
+
+
+class CourseAssistantQuestionItem(Schema):
+    """One aggregated question cluster shown to the creator."""
+
+    question: str = Field(description="Representative phrasing (most recent).")
+    count: int = Field(description="Total times this was asked.")
+    asker_count: int = Field(description="Distinct students who asked it.")
+    refused_count: int = Field(
+        description="Times the assistant couldn't answer (out of scope) — a "
+        "content-gap signal."
+    )
+    last_asked_at: datetime = Field(description="When it was most recently asked.")
+
+
+class CourseAssistantQuestionsRead(Schema):
+    """The creator's "What students are asking" panel."""
+
+    total_questions: int = Field(description="All questions asked, all-time.")
+    asker_count: int = Field(description="Distinct students who have asked.")
+    refused_count: int = Field(
+        description="Questions the assistant declined (out of scope)."
+    )
+    items: list[CourseAssistantQuestionItem] = Field(
+        description="Top question clusters, most-asked first."
+    )

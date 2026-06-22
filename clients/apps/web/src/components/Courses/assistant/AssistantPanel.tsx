@@ -18,6 +18,7 @@ import {
   type CourseAssistantSample,
   useApproveAssistant,
   useCourseAssistant,
+  useCourseAssistantQuestions,
   useRegenerateAssistant,
   useSetAssistantLive,
   useUpdateAssistantSample,
@@ -314,6 +315,105 @@ function Review({
   )
 }
 
+/* ============================================================ WHAT STUDENTS ASK */
+function relTime(iso: string): string {
+  const t = new Date(iso).getTime()
+  if (Number.isNaN(t)) return ''
+  const s = Math.round((Date.now() - t) / 1000)
+  if (s < 60) return 'just now'
+  const m = Math.round(s / 60)
+  if (m < 60) return `${m}m ago`
+  const h = Math.round(m / 60)
+  if (h < 24) return `${h}h ago`
+  const d = Math.round(h / 24)
+  if (d < 7) return `${d}d ago`
+  const w = Math.round(d / 7)
+  if (w < 5) return `${w}w ago`
+  return new Date(iso).toLocaleDateString()
+}
+
+function plural(n: number, word: string): string {
+  return `${n} ${word}${n === 1 ? '' : 's'}`
+}
+
+/**
+ * "What students are asking" — real, server-aggregated demand (Phase 5).
+ * Questions are grouped by normalized text; refusals surface content gaps.
+ */
+function AskingPanel({ courseId }: { courseId: string | undefined }) {
+  const { data, isLoading } = useCourseAssistantQuestions(courseId)
+
+  let body: React.ReactNode
+  if (isLoading || !data) {
+    body = (
+      <div className="ask-row" style={{ cursor: 'default' }}>
+        <div className="ask-main">
+          <div className="ask-q" style={{ opacity: 0.6 }}>
+            Loading…
+          </div>
+        </div>
+      </div>
+    )
+  } else if (data.items.length === 0) {
+    body = (
+      <div className="ask-row" style={{ cursor: 'default' }}>
+        <div className="ask-main">
+          <div className="ask-q" style={{ opacity: 0.6 }}>
+            Once students start asking, the most common questions show up here.
+          </div>
+        </div>
+      </div>
+    )
+  } else {
+    body = data.items.map((q) => (
+      <div className="ask-row" key={q.question} style={{ cursor: 'default' }}>
+        <div className="ask-main">
+          <div className="ask-q">{q.question}</div>
+          <div className="ask-meta">
+            <span>{plural(q.asker_count, 'student')}</span>
+            <span className="sep">·</span>
+            <span>{relTime(q.last_asked_at)}</span>
+            {q.refused_count > 0 && (
+              <>
+                <span className="sep">·</span>
+                <span className="ask-gap">
+                  Couldn’t answer {q.refused_count}×
+                </span>
+              </>
+            )}
+          </div>
+        </div>
+        <div className="ask-count">{q.count}×</div>
+      </div>
+    ))
+  }
+
+  const hasData = !!data && data.total_questions > 0
+  return (
+    <>
+      <div className="cr-head" style={{ marginBottom: 16 }}>
+        <div>
+          <div className="h" style={{ fontSize: 19 }}>
+            What students are asking
+          </div>
+          {hasData && (
+            <div className="s">
+              {plural(data.total_questions, 'question')} from{' '}
+              {plural(data.asker_count, 'student')}
+              {data.refused_count > 0
+                ? ` · ${data.refused_count} couldn’t be answered`
+                : ''}
+            </div>
+          )}
+        </div>
+      </div>
+      <div className="card ask-list" style={{ marginBottom: 28 }}>
+        {body}
+      </div>
+    </>
+  )
+}
+
 /* ============================================================ LIVE */
 function Live({
   data,
@@ -444,24 +544,8 @@ function Live({
         )}
       </div>
 
-      {/* what students are asking — Phase 5 surface, placeholder for now */}
-      <div className="cr-head" style={{ marginBottom: 16 }}>
-        <div>
-          <div className="h" style={{ fontSize: 19 }}>
-            What students are asking
-          </div>
-        </div>
-      </div>
-      <div className="card ask-list" style={{ marginBottom: 28 }}>
-        <div className="ask-row" style={{ cursor: 'default' }}>
-          <div className="ask-main">
-            <div className="ask-q" style={{ opacity: 0.6 }}>
-              Once students start asking, the most common questions show up
-              here.
-            </div>
-          </div>
-        </div>
-      </div>
+      {/* what students are asking — real, server-aggregated demand (Phase 5) */}
+      <AskingPanel courseId={courseId} />
 
       {/* improve — quieter, optional (Phase 5 actions are placeholders) */}
       <div className="improve-label">

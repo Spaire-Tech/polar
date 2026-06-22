@@ -400,6 +400,11 @@
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
+/* "Couldn't answer" — a content-gap signal in the ask-meta row. */
+.ask-gap {
+  color: #d6453c;
+  font-weight: 600;
+}
 .ask-go {
   flex: none;
   color: var(--t3);
