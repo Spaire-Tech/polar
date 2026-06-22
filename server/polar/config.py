@@ -7,7 +7,13 @@ from typing import Annotated, Literal
 from uuid import UUID
 
 from annotated_types import Ge
-from pydantic import AfterValidator, DirectoryPath, Field, PostgresDsn
+from pydantic import (
+    AfterValidator,
+    AliasChoices,
+    DirectoryPath,
+    Field,
+    PostgresDsn,
+)
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from polar.enums import TaxProcessor
@@ -229,9 +235,19 @@ class Settings(BaseSettings):
     OPENAI_MODEL: str = "o4-mini-2025-04-16"
 
     # Anthropic / Claude — powers the Course Assistant ("Office Hours") TA.
-    # When ANTHROPIC_API_KEY is empty the feature is treated as not
-    # configured: ingestion no-ops and the answer endpoints return 503.
-    ANTHROPIC_API_KEY: str = ""
+    # When the key is empty the feature is treated as not configured:
+    # ingestion no-ops and the answer endpoints return 503.
+    #
+    # Read from the unprefixed `ANTHROPIC_API_KEY` (the name the Anthropic SDK
+    # itself uses, and what's set in the deployment env), falling back to the
+    # `spaire_`-prefixed `SPAIRE_ANTHROPIC_API_KEY` for consistency with the
+    # rest of the settings. An explicit validation_alias overrides env_prefix.
+    ANTHROPIC_API_KEY: str = Field(
+        default="",
+        validation_alias=AliasChoices(
+            "ANTHROPIC_API_KEY", "SPAIRE_ANTHROPIC_API_KEY"
+        ),
+    )
     # Strong model for student answers; cheap model for the guardrail pass.
     COURSE_ASSISTANT_ANSWER_MODEL: str = "claude-sonnet-4-6"
     COURSE_ASSISTANT_GUARDRAIL_MODEL: str = "claude-haiku-4-5"
