@@ -151,6 +151,40 @@ class CourseAssistantService:
         )
         return await lesson_repo.get_course_id_for_lesson(lesson_id)
 
+    async def fetch_and_store_transcript(
+        self, session: AsyncSession, *, lesson_id: UUID
+    ) -> bool:
+        """Fetch the lesson's Mux caption text and store it — inline, wherever
+        called. The fetch is a plain HTTP GET, so this works on the API request
+        path and does NOT require a healthy background worker (which is the link
+        that was silently failing). Returns True if a transcript was stored."""
+        from polar.course import mux as mux_client
+
+        lesson_repo = CourseLessonRepository.from_session(session)
+        lesson = await lesson_repo.get_by_id(lesson_id)
+        if lesson is None:
+            return False
+        if not lesson.mux_asset_id or not lesson.mux_playback_id:
+            await lesson_repo.update(
+                lesson, update_dict={"transcript_status": "unavailable"}
+            )
+            return False
+        vtt = await mux_client.get_caption_vtt(
+            lesson.mux_asset_id, lesson.mux_playback_id
+        )
+        if vtt is None:
+            # Caption track not ready/fetchable yet — leave status as-is.
+            return False
+        text = ai.parse_vtt(vtt)
+        await lesson_repo.update(
+            lesson,
+            update_dict={
+                "transcript": text or None,
+                "transcript_status": "ready" if text else "failed",
+            },
+        )
+        return bool(text)
+
     async def mark_transcript_status(
         self, session: AsyncSession, *, lesson_id: UUID, status: str
     ) -> UUID | None:
@@ -700,26 +734,27 @@ class CourseAssistantService:
 
     async def retry_transcripts(
         self, session: AsyncSession, *, course_id: UUID
-    ) -> int:
-        """Re-kick transcription for every video lesson that isn't already
-        transcribed (including ones the cron timed out to 'unavailable'). Resets
-        them to 'pending' and enqueues a fresh fetch. Returns how many."""
+    ) -> dict[str, int]:
+        """Fetch + store the transcript for every video lesson that isn't
+        already transcribed — INLINE on the API (not via the worker), since the
+        fetch is just an HTTP GET and the worker path was the broken link. Then
+        kick a build. Returns how many were attempted vs stored."""
         from polar.worker import enqueue_job
 
         lessons = await self._buildable_lessons(session, course_id)
-        lesson_repo = CourseLessonRepository.from_session(session)
-        count = 0
+        attempted = 0
+        stored = 0
         for lesson in lessons:
             if lesson.content_type != "video" or not lesson.mux_asset_id:
                 continue
             if lesson.transcript_status == "ready":
                 continue
-            await lesson_repo.update(
-                lesson, update_dict={"transcript_status": "pending"}
-            )
-            enqueue_job("course_assistant.fetch_transcript", lesson_id=lesson.id)
-            count += 1
-        return count
+            attempted += 1
+            if await self.fetch_and_store_transcript(session, lesson_id=lesson.id):
+                stored += 1
+        # Now that transcripts may have landed, kick the assistant build.
+        enqueue_job("course_assistant.maybe_build", course_id=course_id)
+        return {"attempted": attempted, "stored": stored}
 
 
 course_assistant_service = CourseAssistantService()
