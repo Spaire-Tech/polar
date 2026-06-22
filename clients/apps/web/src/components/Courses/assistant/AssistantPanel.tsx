@@ -1,12 +1,14 @@
 'use client'
 
 /* ============================================================
-   SPAIRE ORIGINALS — Course builder · ASSISTANT tab
-   One tab, three moments, driven by the assistant's status:
+   SPAIRE ORIGINALS — Course builder · ASSISTANT (top-level tab)
+   A standalone editor tab (peer of Outline / Landing / Community).
+   One surface, three moments, driven by the assistant's status:
      building          → calm, nothing to do; it trains itself
      ready_for_review  → the one required step: review + make it live
      live | disabled   → status + (placeholder) what students ask + improve
-   Reuses the hub design system (hub.css) + assistant.css.
+   Self-styling: wraps its body in the `.spaire-hub` design system so it
+   renders identically whether the editor is in light or dark mode.
    ============================================================ */
 
 import { useState } from 'react'
@@ -22,11 +24,16 @@ import {
   useUpdateAssistantSettings,
 } from '@/hooks/queries/courseAssistant'
 
-interface AssistantTabProps {
+import '../../Community/hub/hub.css'
+import '../../Community/hub/hub-extra.css'
+import './assistant.css'
+
+interface AssistantPanelProps {
   courseId: string
   selfName: string
   selfAvatar: string | null
   showToast: (msg: string) => void
+  dark?: boolean
 }
 
 /* ---------- glyphs ---------- */
@@ -508,43 +515,37 @@ function Live({
 }
 
 /* ============================================================ TAB */
-export function AssistantTab({
+export function AssistantPanel({
   courseId,
   selfName,
   selfAvatar,
   showToast,
-}: AssistantTabProps) {
+  dark,
+}: AssistantPanelProps) {
   const { data, isLoading } = useCourseAssistant(courseId)
   const approve = useApproveAssistant(courseId)
   const regenerate = useRegenerateAssistant(courseId)
 
+  let body: React.ReactNode
+
   if (isLoading || !data) {
-    return (
-      <div className="asst-tab">
-        <div className="card asst-build">
-          <h2>Loading…</h2>
-        </div>
+    body = (
+      <div className="card asst-build">
+        <h2>Loading…</h2>
       </div>
     )
-  }
-
-  if (!data.configured) {
-    return (
-      <div className="asst-tab">
-        <div className="cr-head">
-          <div>
-            <div className="h">Assistant</div>
-            <div className="s">
-              The course assistant isn’t enabled on this workspace yet.
-            </div>
+  } else if (!data.configured) {
+    body = (
+      <div className="cr-head">
+        <div>
+          <div className="h">Assistant</div>
+          <div className="s">
+            The course assistant isn’t enabled on this workspace yet.
           </div>
         </div>
       </div>
     )
-  }
-
-  let body: React.ReactNode
-  if (data.status === 'building') {
+  } else if (data.status === 'building') {
     body = (
       <Building
         lessonCount={data.draft_lesson_count}
@@ -588,5 +589,11 @@ export function AssistantTab({
     )
   }
 
-  return <div className="asst-tab">{body}</div>
+  return (
+    <div className={`spaire-hub${dark ? ' dark' : ''}`}>
+      <div className="wrap content">
+        <div className="asst-tab">{body}</div>
+      </div>
+    </div>
+  )
 }
