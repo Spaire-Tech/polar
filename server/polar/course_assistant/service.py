@@ -460,5 +460,80 @@ class CourseAssistantService:
         ):
             yield event
 
+    # ----------------------------------------------------------------- #
+    # Creator preview & settings (Phase 3 review)
+    # ----------------------------------------------------------------- #
+
+    async def get_draft_snapshot(
+        self, session: AsyncSession, *, course_id: UUID
+    ) -> AnswerSnapshot:
+        """Snapshot built from the DRAFT (un-approved) content, for the
+        creator's preview chat in the review screen. The caller is responsible
+        for the org-membership check; no enrollment / live gate applies."""
+        if not is_configured():
+            raise NotConfigured()
+        course = await CourseRepository.from_session(session).get_by_id(course_id)
+        if course is None:
+            raise AssistantNotAvailable()
+
+        from .repository import CourseAssistantRepository
+
+        assistant = await CourseAssistantRepository.from_session(session).get_by_course(
+            course_id
+        )
+        if assistant is None or not assistant.draft_knowledge_base:
+            raise AssistantNotAvailable()
+
+        course_title = course.title or "this course"
+        display_name = assistant.display_name or course.instructor_name or course_title
+        scope = course_title
+        if course.description:
+            scope = f"{course_title}. {course.description[:300]}"
+        return AnswerSnapshot(
+            course_id=course_id,
+            course_title=course_title,
+            instructor_name=course.instructor_name,
+            display_name=display_name,
+            voice_card=assistant.draft_voice_card,
+            disclaimer=assistant.disclaimer or ai.DEFAULT_DISCLAIMER,
+            knowledge_base=assistant.draft_knowledge_base,
+            model=settings.COURSE_ASSISTANT_ANSWER_MODEL,
+            scope=scope,
+        )
+
+    async def update_settings(
+        self,
+        session: AsyncSession,
+        assistant: CourseAssistant,
+        *,
+        display_name: str | None = None,
+        disclaimer: str | None = None,
+    ) -> CourseAssistant:
+        """Edit the creator-facing identity without (re)approving. ``None``
+        means 'leave unchanged'."""
+        from .repository import CourseAssistantRepository
+
+        update_dict: dict[str, Any] = {}
+        if display_name is not None:
+            update_dict["display_name"] = display_name
+        if disclaimer is not None:
+            update_dict["disclaimer"] = disclaimer
+        if not update_dict:
+            return assistant
+        return await CourseAssistantRepository.from_session(session).update(
+            assistant, update_dict=update_dict
+        )
+
+    async def request_rebuild(
+        self, session: AsyncSession, assistant: CourseAssistant
+    ) -> CourseAssistant:
+        """Mark the assistant as rebuilding (the caller enqueues the build
+        job). Clears any prior error so the UI reflects a fresh attempt."""
+        from .repository import CourseAssistantRepository
+
+        return await CourseAssistantRepository.from_session(session).update(
+            assistant, update_dict={"status": "building", "error": None}
+        )
+
 
 course_assistant_service = CourseAssistantService()

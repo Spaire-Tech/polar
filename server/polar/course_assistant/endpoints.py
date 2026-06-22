@@ -14,16 +14,29 @@ from uuid import UUID
 from fastapi import Depends, HTTPException
 from sse_starlette.sse import EventSourceResponse
 
+from polar.auth.models import AuthSubject, Organization, User, is_user
+from polar.course import auth as course_auth
 from polar.course.repository import CourseEnrollmentRepository, CourseRepository
 from polar.customer_portal.auth import CustomerPortalRead
+from polar.models.course import Course
+from polar.models.course_assistant import CourseAssistant
 from polar.openapi import APITag
 from polar.postgres import AsyncSession, get_db_session
 from polar.routing import APIRouter
+from polar.worker import enqueue_job
 
 from . import ai
 from .repository import CourseAssistantRepository
-from .schemas import CourseAssistantAskRequest, CourseAssistantStatusRead
+from .schemas import (
+    CourseAssistantApproveRequest,
+    CourseAssistantAskRequest,
+    CourseAssistantLiveUpdate,
+    CourseAssistantManageRead,
+    CourseAssistantSettingsUpdate,
+    CourseAssistantStatusRead,
+)
 from .service import (
+    AnswerSnapshot,
     AssistantNotAvailable,
     NotConfigured,
     NotEnrolled,
@@ -37,6 +50,75 @@ router = APIRouter(
     prefix="/course-assistant",
     tags=["course_assistant", APITag.private],
 )
+
+
+def _manage_read(
+    assistant: CourseAssistant | None, course: Course
+) -> CourseAssistantManageRead:
+    """Serialize the creator-facing management view, tolerating the
+    not-yet-built case (no assistant row)."""
+    configured = is_configured()
+    if assistant is None:
+        return CourseAssistantManageRead(
+            course_id=str(course.id),
+            status="building" if configured else "disabled",
+            configured=configured,
+            live=False,
+            is_answerable=False,
+            has_pending_review=False,
+            display_name=course.instructor_name,
+        )
+    return CourseAssistantManageRead(
+        course_id=str(course.id),
+        status=assistant.status,
+        configured=configured,
+        live=assistant.live,
+        is_answerable=assistant.is_answerable,
+        has_pending_review=assistant.has_pending_review,
+        display_name=assistant.display_name or course.instructor_name,
+        disclaimer=assistant.disclaimer or ai.DEFAULT_DISCLAIMER,
+        model=assistant.model,
+        error=assistant.error,
+        sample_questions=assistant.draft_sample_questions,
+        draft_lesson_count=assistant.draft_source_lesson_count,
+        draft_tokens=assistant.draft_knowledge_base_tokens,
+        draft_built_at=assistant.draft_built_at,
+        approved_at=assistant.approved_at,
+        approved_lesson_count=assistant.source_lesson_count,
+    )
+
+
+def _sse_answer(
+    snapshot: AnswerSnapshot, question: str, course_id: UUID
+) -> EventSourceResponse:
+    """Wrap the service answer stream as Server-Sent Events. Shared by the
+    student answer endpoint and the creator preview endpoint."""
+
+    async def event_generator() -> AsyncIterator[dict[str, Any]]:
+        try:
+            async for event in course_assistant_service.answer_event_stream(
+                snapshot, question
+            ):
+                yield {
+                    "event": str(event.get("type", "message")),
+                    "data": json.dumps(event),
+                }
+        except Exception:
+            log.exception(
+                "course_assistant.stream_failed",
+                extra={"course_id": str(course_id)},
+            )
+            yield {
+                "event": "error",
+                "data": json.dumps(
+                    {
+                        "type": "error",
+                        "message": "The assistant is temporarily unavailable.",
+                    }
+                ),
+            }
+
+    return EventSourceResponse(event_generator())
 
 
 @router.get(
@@ -120,30 +202,177 @@ async def ask(
             status_code=404, detail="No assistant for this course"
         ) from exc
 
-    question = body.question
+    return _sse_answer(snapshot, body.question, course_id)
 
-    async def event_generator() -> AsyncIterator[dict[str, Any]]:
-        try:
-            async for event in course_assistant_service.answer_event_stream(
-                snapshot, question
-            ):
-                yield {
-                    "event": str(event.get("type", "message")),
-                    "data": json.dumps(event),
-                }
-        except Exception:
-            log.exception(
-                "course_assistant.stream_failed",
-                extra={"course_id": str(course_id)},
-            )
-            yield {
-                "event": "error",
-                "data": json.dumps(
-                    {
-                        "type": "error",
-                        "message": "The assistant is temporarily unavailable.",
-                    }
-                ),
-            }
 
-    return EventSourceResponse(event_generator())
+# ── Creator-facing: review & approve (Phase 3) ────────────────────────────── #
+
+
+async def _readable_course_or_404(
+    session: AsyncSession,
+    course_id: UUID,
+    auth_subject: AuthSubject[User | Organization],
+) -> Course:
+    course = await CourseRepository.from_session(session).get_readable_by_id(
+        course_id, auth_subject
+    )
+    if course is None:
+        raise HTTPException(status_code=404, detail="Course not found")
+    return course
+
+
+@router.get(
+    "/{course_id}/manage",
+    response_model=CourseAssistantManageRead,
+    summary="Course Assistant — Creator Management View",
+)
+async def manage(
+    course_id: UUID,
+    auth_subject: course_auth.CoursesRead,
+    session: AsyncSession = Depends(get_db_session),
+) -> CourseAssistantManageRead:
+    """The Assistant tab: status, draft sample questions awaiting review,
+    identity, and approval state."""
+    course = await _readable_course_or_404(session, course_id, auth_subject)
+    assistant = await CourseAssistantRepository.from_session(session).get_by_course(
+        course_id
+    )
+    return _manage_read(assistant, course)
+
+
+@router.post(
+    "/{course_id}/approve",
+    response_model=CourseAssistantManageRead,
+    summary="Approve the draft and go live",
+)
+async def approve(
+    course_id: UUID,
+    body: CourseAssistantApproveRequest,
+    auth_subject: course_auth.CoursesWrite,
+    session: AsyncSession = Depends(get_db_session),
+) -> CourseAssistantManageRead:
+    course = await _readable_course_or_404(session, course_id, auth_subject)
+    assistant = await CourseAssistantRepository.from_session(session).get_by_course(
+        course_id
+    )
+    if assistant is None or not assistant.draft_knowledge_base:
+        raise HTTPException(
+            status_code=409,
+            detail="Nothing to review yet — the assistant is still building.",
+        )
+    approver = auth_subject.subject.id if is_user(auth_subject) else None
+    assistant = await course_assistant_service.approve(
+        session,
+        assistant,
+        approved_by_user_id=approver,
+        display_name=body.display_name,
+        disclaimer=body.disclaimer,
+    )
+    return _manage_read(assistant, course)
+
+
+@router.post(
+    "/{course_id}/regenerate",
+    response_model=CourseAssistantManageRead,
+    summary="Rebuild the draft assistant from current course content",
+)
+async def regenerate(
+    course_id: UUID,
+    auth_subject: course_auth.CoursesWrite,
+    session: AsyncSession = Depends(get_db_session),
+) -> CourseAssistantManageRead:
+    course = await _readable_course_or_404(session, course_id, auth_subject)
+    if not is_configured():
+        raise HTTPException(
+            status_code=503, detail="Course assistant is not available."
+        )
+    repo = CourseAssistantRepository.from_session(session)
+    assistant = await repo.get_by_course(course_id)
+    if assistant is None:
+        assistant = await course_assistant_service.ensure_assistant(session, course)
+    assistant = await course_assistant_service.request_rebuild(session, assistant)
+    enqueue_job("course_assistant.maybe_build", course_id=course_id)
+    return _manage_read(assistant, course)
+
+
+@router.post(
+    "/{course_id}/live",
+    response_model=CourseAssistantManageRead,
+    summary="Turn the assistant on or off",
+)
+async def set_live(
+    course_id: UUID,
+    body: CourseAssistantLiveUpdate,
+    auth_subject: course_auth.CoursesWrite,
+    session: AsyncSession = Depends(get_db_session),
+) -> CourseAssistantManageRead:
+    course = await _readable_course_or_404(session, course_id, auth_subject)
+    assistant = await CourseAssistantRepository.from_session(session).get_by_course(
+        course_id
+    )
+    if assistant is None:
+        raise HTTPException(status_code=404, detail="No assistant for this course")
+    if body.live and not assistant.knowledge_base:
+        raise HTTPException(
+            status_code=409,
+            detail="Approve the assistant before turning it on.",
+        )
+    assistant = await course_assistant_service.set_live(
+        session, assistant, live=body.live
+    )
+    return _manage_read(assistant, course)
+
+
+@router.patch(
+    "/{course_id}",
+    response_model=CourseAssistantManageRead,
+    summary="Edit the assistant's name / disclaimer",
+)
+async def update_settings(
+    course_id: UUID,
+    body: CourseAssistantSettingsUpdate,
+    auth_subject: course_auth.CoursesWrite,
+    session: AsyncSession = Depends(get_db_session),
+) -> CourseAssistantManageRead:
+    course = await _readable_course_or_404(session, course_id, auth_subject)
+    assistant = await CourseAssistantRepository.from_session(session).get_by_course(
+        course_id
+    )
+    if assistant is None:
+        raise HTTPException(status_code=404, detail="No assistant for this course")
+    assistant = await course_assistant_service.update_settings(
+        session,
+        assistant,
+        display_name=body.display_name,
+        disclaimer=body.disclaimer,
+    )
+    return _manage_read(assistant, course)
+
+
+@router.post(
+    "/{course_id}/preview/ask",
+    summary="Preview-chat the draft assistant (creator only)",
+)
+async def preview_ask(
+    course_id: UUID,
+    body: CourseAssistantAskRequest,
+    auth_subject: course_auth.CoursesWrite,
+    session: AsyncSession = Depends(get_db_session),
+) -> EventSourceResponse:
+    """Stream an answer from the DRAFT (un-approved) snapshot so the creator
+    can test the assistant in the review screen before going live."""
+    await _readable_course_or_404(session, course_id, auth_subject)
+    try:
+        snapshot = await course_assistant_service.get_draft_snapshot(
+            session, course_id=course_id
+        )
+    except NotConfigured as exc:
+        raise HTTPException(
+            status_code=503, detail="Course assistant is not available."
+        ) from exc
+    except AssistantNotAvailable as exc:
+        raise HTTPException(
+            status_code=404, detail="No draft assistant to preview yet"
+        ) from exc
+
+    return _sse_answer(snapshot, body.question, course_id)
