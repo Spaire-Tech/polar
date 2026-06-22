@@ -83,6 +83,29 @@ async def maybe_build(course_id: UUID) -> None:
         await service.maybe_build(session, course_id)
 
 
+@actor(actor_name="course_assistant.log_question", priority=TaskPriority.LOW)
+async def log_question(
+    course_id: UUID,
+    organization_id: UUID,
+    customer_id: UUID | None,
+    question: str,
+    outcome: str,
+) -> None:
+    """Persist one student question (Phase 5 — "What students are asking").
+
+    Enqueued best-effort after the answer has streamed, so it's fully decoupled
+    from — and can never break — the student answer path."""
+    async with AsyncSessionMaker() as session:
+        await service.log_question(
+            session,
+            course_id=course_id,
+            organization_id=organization_id,
+            customer_id=customer_id,
+            question=question,
+            outcome=outcome,
+        )
+
+
 @actor(
     actor_name="course_assistant.reconcile",
     cron_trigger=CronTrigger(minute="*/15"),

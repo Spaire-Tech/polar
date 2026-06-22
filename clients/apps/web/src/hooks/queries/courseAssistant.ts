@@ -155,6 +155,36 @@ export const useUpdateAssistantSample = (courseId: string | undefined) =>
   })
 
 // ---------------------------------------------------------------------
+// Phase 5 — "What students are asking": creator-facing question insights.
+// Aggregated server-side (grouped by normalized text); see the backend
+// CourseAssistantQuestionsRead schema.
+// ---------------------------------------------------------------------
+
+export interface CourseAssistantQuestionItem {
+  question: string
+  count: number
+  asker_count: number
+  refused_count: number
+  last_asked_at: string
+}
+
+export interface CourseAssistantQuestions {
+  total_questions: number
+  asker_count: number
+  refused_count: number
+  items: CourseAssistantQuestionItem[]
+}
+
+export const useCourseAssistantQuestions = (courseId: string | undefined) =>
+  useQuery<CourseAssistantQuestions>({
+    queryKey: ['course-assistant-questions', courseId],
+    queryFn: () =>
+      creatorFetch<CourseAssistantQuestions>(`${base(courseId!)}/questions`),
+    enabled: !!courseId,
+    staleTime: 30_000,
+  })
+
+// ---------------------------------------------------------------------
 // Student side (Phase 4) — the "Ask {name}" chat in the course player.
 // Authenticated with the customer-session token (Bearer), same as the
 // rest of the portal.

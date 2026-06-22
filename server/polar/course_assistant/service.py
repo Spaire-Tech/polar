@@ -14,9 +14,11 @@ ingestion is a no-op and the answer surface reports "not configured".
 from __future__ import annotations
 
 import logging
+import re
+import unicodedata
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 from polar.config import settings
@@ -33,6 +35,9 @@ from polar.models.customer import Customer
 from polar.postgres import AsyncSession
 
 from . import ai
+
+if TYPE_CHECKING:
+    from .repository import QuestionGroup, QuestionTotals
 
 log = logging.getLogger(__name__)
 
@@ -68,6 +73,7 @@ class AnswerSnapshot:
     streamed response doesn't touch the session after it's closed."""
 
     course_id: UUID
+    organization_id: UUID
     course_title: str
     instructor_name: str | None
     display_name: str
@@ -80,6 +86,27 @@ class AnswerSnapshot:
 
 def is_configured() -> bool:
     return bool(settings.ANTHROPIC_API_KEY)
+
+
+# Outcomes recorded for a logged student question.
+QUESTION_OUTCOMES = frozenset({"answered", "refused", "error"})
+
+# Grouping key length must match course_assistant_questions.question_normalized.
+_NORMALIZED_MAX = 500
+_PUNCT_EDGE = re.compile(r"^[^\w]+|[^\w]+$")
+_WHITESPACE = re.compile(r"\s+")
+
+
+def normalize_question(question: str) -> str:
+    """Collapse a question to a grouping key so trivially-different phrasings
+    cluster together: NFKC-folded, lowercased, whitespace-collapsed, with
+    surrounding punctuation stripped. NOT semantic — see Phase 5 notes."""
+    folded = unicodedata.normalize("NFKC", question).casefold()
+    collapsed = _WHITESPACE.sub(" ", folded).strip()
+    stripped = _PUNCT_EDGE.sub("", collapsed)
+    # Fall back to the collapsed form if the question was all punctuation.
+    key = stripped or collapsed
+    return key[:_NORMALIZED_MAX]
 
 
 class CourseAssistantService:
@@ -413,6 +440,7 @@ class CourseAssistantService:
         knowledge_base = assistant.knowledge_base or ""
         return AnswerSnapshot(
             course_id=course_id,
+            organization_id=assistant.organization_id,
             course_title=course_title,
             instructor_name=course.instructor_name,
             display_name=display_name,
@@ -503,6 +531,7 @@ class CourseAssistantService:
             scope = f"{course_title}. {course.description[:300]}"
         return AnswerSnapshot(
             course_id=course_id,
+            organization_id=assistant.organization_id,
             course_title=course_title,
             instructor_name=course.instructor_name,
             display_name=display_name,
@@ -580,6 +609,59 @@ class CourseAssistantService:
         return await CourseAssistantRepository.from_session(session).update(
             assistant, update_dict={"draft_sample_questions": new_samples}
         )
+
+    # ----------------------------------------------------------------- #
+    # Question logging & insights (Phase 5 — "What students are asking")
+    # ----------------------------------------------------------------- #
+
+    async def log_question(
+        self,
+        session: AsyncSession,
+        *,
+        course_id: UUID,
+        organization_id: UUID,
+        customer_id: UUID | None,
+        question: str,
+        outcome: str,
+    ) -> None:
+        """Append one student question to the log. Called from a background
+        task after the answer has streamed, so a failure here never affects the
+        student answer path. Silently no-ops on empty input."""
+        from polar.models.course_assistant_question import CourseAssistantQuestion
+
+        from .repository import CourseAssistantQuestionRepository
+
+        text = (question or "").strip()
+        if not text:
+            return
+        normalized = normalize_question(text)
+        if not normalized:
+            return
+        if outcome not in QUESTION_OUTCOMES:
+            outcome = "answered"
+
+        repo = CourseAssistantQuestionRepository.from_session(session)
+        await repo.create(
+            CourseAssistantQuestion(
+                course_id=course_id,
+                organization_id=organization_id,
+                customer_id=customer_id,
+                question=text[:4000],
+                question_normalized=normalized,
+                outcome=outcome,
+            )
+        )
+
+    async def get_question_insights(
+        self, session: AsyncSession, *, course_id: UUID, limit: int = 50
+    ) -> tuple[QuestionTotals, list[QuestionGroup]]:
+        """Return (totals, top question clusters) for the creator's panel."""
+        from .repository import CourseAssistantQuestionRepository
+
+        repo = CourseAssistantQuestionRepository.from_session(session)
+        totals = await repo.totals(course_id)
+        items = await repo.top_questions(course_id, limit=limit)
+        return totals, items
 
 
 course_assistant_service = CourseAssistantService()

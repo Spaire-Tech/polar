@@ -32,6 +32,8 @@ from .schemas import (
     CourseAssistantAskRequest,
     CourseAssistantLiveUpdate,
     CourseAssistantManageRead,
+    CourseAssistantQuestionItem,
+    CourseAssistantQuestionsRead,
     CourseAssistantSample,
     CourseAssistantSampleUpdate,
     CourseAssistantSettingsUpdate,
@@ -95,21 +97,35 @@ def _manage_read(
 
 
 def _sse_answer(
-    snapshot: AnswerSnapshot, question: str, course_id: UUID
+    snapshot: AnswerSnapshot,
+    question: str,
+    course_id: UUID,
+    *,
+    customer_id: UUID | None = None,
 ) -> EventSourceResponse:
     """Wrap the service answer stream as Server-Sent Events. Shared by the
-    student answer endpoint and the creator preview endpoint."""
+    student answer endpoint and the creator preview endpoint.
+
+    When ``customer_id`` is given (student asks, not creator previews), the
+    question is logged best-effort once the stream finishes — including on
+    client disconnect, since the generator's ``finally`` still runs. Logging is
+    enqueued, never inline, so it can't degrade or break the answer path.
+    """
 
     async def event_generator() -> AsyncIterator[dict[str, Any]]:
+        outcome = "answered"
         try:
             async for event in course_assistant_service.answer_event_stream(
                 snapshot, question
             ):
-                yield {
-                    "event": str(event.get("type", "message")),
-                    "data": json.dumps(event),
-                }
+                event_type = str(event.get("type", "message"))
+                if event_type == "refusal":
+                    outcome = "refused"
+                elif event_type == "error":
+                    outcome = "error"
+                yield {"event": event_type, "data": json.dumps(event)}
         except Exception:
+            outcome = "error"
             log.exception(
                 "course_assistant.stream_failed",
                 extra={"course_id": str(course_id)},
@@ -123,6 +139,26 @@ def _sse_answer(
                     }
                 ),
             }
+        finally:
+            if customer_id is not None:
+                # enqueue_job is synchronous (a Redis push), so it's safe to
+                # call here even while the generator is being closed on a
+                # client disconnect (where awaiting/yielding would not be).
+                try:
+                    enqueue_job(
+                        "course_assistant.log_question",
+                        course_id=course_id,
+                        organization_id=snapshot.organization_id,
+                        customer_id=customer_id,
+                        question=question,
+                        outcome=outcome,
+                    )
+                except Exception:
+                    log.warning(
+                        "course_assistant.log_enqueue_failed",
+                        extra={"course_id": str(course_id)},
+                        exc_info=True,
+                    )
 
     return EventSourceResponse(event_generator())
 
@@ -210,7 +246,9 @@ async def ask(
             status_code=404, detail="No assistant for this course"
         ) from exc
 
-    return _sse_answer(snapshot, body.question, course_id)
+    return _sse_answer(
+        snapshot, body.question, course_id, customer_id=customer.id
+    )
 
 
 # ── Creator-facing: review & approve (Phase 3) ────────────────────────────── #
@@ -412,3 +450,37 @@ async def preview_ask(
         ) from exc
 
     return _sse_answer(snapshot, body.question, course_id)
+
+
+@router.get(
+    "/{course_id}/questions",
+    response_model=CourseAssistantQuestionsRead,
+    summary="What students are asking",
+)
+async def questions(
+    course_id: UUID,
+    auth_subject: course_auth.CoursesRead,
+    session: AsyncSession = Depends(get_db_session),
+) -> CourseAssistantQuestionsRead:
+    """Aggregated insight into the questions students ask the live assistant:
+    totals plus the most-asked clusters, with how many couldn't be answered
+    (a content-gap signal). Org-scoped to the creator via the course."""
+    await _readable_course_or_404(session, course_id, auth_subject)
+    totals, items = await course_assistant_service.get_question_insights(
+        session, course_id=course_id
+    )
+    return CourseAssistantQuestionsRead(
+        total_questions=totals.total,
+        asker_count=totals.asker_count,
+        refused_count=totals.refused_count,
+        items=[
+            CourseAssistantQuestionItem(
+                question=group.question,
+                count=group.count,
+                asker_count=group.asker_count,
+                refused_count=group.refused_count,
+                last_asked_at=group.last_asked_at,
+            )
+            for group in items
+        ],
+    )
