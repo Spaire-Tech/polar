@@ -2,6 +2,7 @@
 
 import { LeadMagnetCard } from '@/components/Forms/LeadMagnetCard'
 import { ProductCard } from '@/components/Products/ProductCard'
+import { StorefrontCourseCard } from '@/components/Products/StorefrontCourseCard'
 import { CATEGORY_LABELS } from '@/components/Profile/categoryLabels'
 import { SectionLabel } from '@/components/Profile/SectionLabel'
 import {
@@ -510,6 +511,7 @@ export const DraggableBlocks = ({
         <div className="flex flex-col gap-12">
           {chunks.map((chunk, idx) => {
             if (chunk.kind === 'product') {
+              const isCourse = chunk.category === 'course'
               return (
                 <section
                   key={`p-${idx}`}
@@ -518,16 +520,29 @@ export const DraggableBlocks = ({
                   <SectionLabel count={chunk.items.length}>
                     {CATEGORY_LABELS[chunk.category] ?? CATEGORY_LABELS.other}
                   </SectionLabel>
-                  <div className="grid w-full grid-cols-1 gap-6 md:grid-cols-2">
+                  <div
+                    className={
+                      isCourse
+                        ? 'flex w-full flex-col gap-6'
+                        : 'grid w-full grid-cols-1 gap-6 md:grid-cols-2'
+                    }
+                  >
                   {chunk.items.map((entry) => (
                     <SortableItem key={itemKey(entry)} id={itemKey(entry)}>
                       {({ listeners, attributes }) => (
                         <div className="item-hover">
-                          <ProductCard
-                            product={entry.product}
-                            showDetails={showDetails}
-                            thumbnailSize={thumbnailSize}
-                          />
+                          {isCourse ? (
+                            <StorefrontCourseCard
+                              product={entry.product}
+                              previewStatic
+                            />
+                          ) : (
+                            <ProductCard
+                              product={entry.product}
+                              showDetails={showDetails}
+                              thumbnailSize={thumbnailSize}
+                            />
+                          )}
                           <div className="item-actions">
                             <ItemDragHandle
                               listeners={listeners}
