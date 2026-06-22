@@ -26,6 +26,7 @@ from .community_reaction import CommunityReaction
 from .community_settings import CommunitySettings
 from .community_tag import CommunityTag
 from .course import Course
+from .course_assistant import CourseAssistant
 from .course_enrollment import CourseEnrollment
 from .course_lesson import CourseLesson
 from .course_lesson_progress import CourseLessonProgress
@@ -158,6 +159,7 @@ __all__ = [
     "CommunitySettings",
     "CommunityTag",
     "Course",
+    "CourseAssistant",
     "CourseEnrollment",
     "CourseLesson",
     "CourseLessonProgress",

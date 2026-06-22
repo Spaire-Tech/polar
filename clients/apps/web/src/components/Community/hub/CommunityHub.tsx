@@ -21,9 +21,11 @@ import { schemas } from '@spaire/client'
 import { useRouter } from 'next/navigation'
 import * as React from 'react'
 import { type CourseChannel, ActivitiesTab } from './Activities'
+import { AssistantTab } from './Assistant'
 import { HeroCover } from './atoms'
 import { EventsTab } from './Events'
 import { FeedTab } from './Feed'
+import './assistant.css'
 import './hub-extra.css'
 import './hub.css'
 import { Glyph } from './icons'
@@ -33,12 +35,19 @@ import { StartTab } from './Start'
 
 const { useState, useEffect, useRef, useCallback } = React
 
-export type HubTab = 'start' | 'feed' | 'brief' | 'events' | 'frame'
+export type HubTab =
+  | 'start'
+  | 'feed'
+  | 'brief'
+  | 'events'
+  | 'assistant'
+  | 'frame'
 const TABS: { k: HubTab; label: string }[] = [
   { k: 'start', label: 'Start' },
   { k: 'feed', label: 'Feed' },
   { k: 'brief', label: 'Activities' },
   { k: 'events', label: 'Events' },
+  { k: 'assistant', label: 'Assistant' },
   { k: 'frame', label: 'Settings' },
 ]
 
@@ -302,6 +311,13 @@ export function CommunityHub({
           <ActivitiesTab
             courseId={courseId}
             channel={channel}
+            selfName={selfName}
+            selfAvatar={selfAvatar}
+            showToast={showToast}
+          />
+        ) : tab === 'assistant' ? (
+          <AssistantTab
+            courseId={courseId}
             selfName={selfName}
             selfAvatar={selfAvatar}
             showToast={showToast}

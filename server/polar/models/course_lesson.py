@@ -65,6 +65,18 @@ class CourseLesson(RecordModel):
         String(20), nullable=True, default=None
     )
 
+    # Plain-text transcript, fetched from the Mux auto-generated caption track
+    # once it is ready. Feeds the Course Assistant knowledge base. For text
+    # lessons this stays null (their text lives in `content`).
+    transcript: Mapped[str | None] = mapped_column(
+        Text, nullable=True, default=None
+    )
+    # pending | ready | failed | unavailable (no audio / captions disabled).
+    # Drives the "is this course ingestable yet?" gate for the assistant build.
+    transcript_status: Mapped[str | None] = mapped_column(
+        String(20), nullable=True, default=None
+    )
+
     thumbnail_url: Mapped[str | None] = mapped_column(
         String(2048), nullable=True, default=None
     )

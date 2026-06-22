@@ -205,6 +205,79 @@ async def delete_asset(asset_id: str) -> bool:
     return False
 
 
+async def get_caption_vtt(
+    asset_id: str,
+    playback_id: str,
+    *,
+    language_code: str = "en",
+) -> str | None:
+    """Fetch the raw WebVTT of a ready auto-generated caption track.
+
+    Looks the ready text track up on the asset, then downloads its sidecar
+    ``.vtt`` from the Mux stream domain (signed when signing keys are
+    configured, since the asset uses signed playback). Returns the raw VTT
+    text, or None when there is no ready text track yet or the download
+    fails (the caller treats None as "not ready, retry later").
+    """
+    if not asset_id or not playback_id:
+        return None
+    if not settings.MUX_TOKEN_ID or not settings.MUX_TOKEN_SECRET:
+        return None
+    async with _client() as client:
+        try:
+            asset_resp = await client.get(f"/video/v1/assets/{asset_id}")
+            if asset_resp.status_code == 404:
+                return None
+            asset_resp.raise_for_status()
+            tracks = asset_resp.json()["data"].get("tracks", [])
+        except (httpx.HTTPError, KeyError, ValueError):
+            log.exception(
+                "Failed to read Mux asset tracks for transcript",
+                extra={"asset_id": asset_id},
+            )
+            return None
+
+    track = next(
+        (
+            t
+            for t in tracks
+            if t.get("type") == "text"
+            and t.get("language_code") == language_code
+            and t.get("status") == "ready"
+        ),
+        None,
+    )
+    if track is None or not track.get("id"):
+        return None
+
+    track_id = track["id"]
+    url = f"{MUX_STREAM_BASE}/{playback_id}/text/{track_id}.vtt"
+    token = sign_playback_token(playback_id, audience="v")
+    if token:
+        url = f"{url}?token={token}"
+
+    try:
+        async with httpx.AsyncClient(timeout=30) as http_client:
+            resp = await http_client.get(url)
+    except httpx.HTTPError:
+        log.exception(
+            "Failed to download Mux caption VTT",
+            extra={"asset_id": asset_id, "track_id": track_id},
+        )
+        return None
+    if resp.status_code != 200 or not resp.text.strip():
+        log.warning(
+            "Mux caption VTT download returned non-success",
+            extra={
+                "asset_id": asset_id,
+                "track_id": track_id,
+                "status": resp.status_code,
+            },
+        )
+        return None
+    return resp.text
+
+
 async def request_auto_captions(
     asset_id: str, *, language_code: str = "en", name: str = "English (auto)"
 ) -> bool:
