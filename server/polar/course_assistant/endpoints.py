@@ -17,7 +17,8 @@ from sse_starlette.sse import EventSourceResponse
 from polar.auth.models import AuthSubject, Organization, User, is_user
 from polar.course import auth as course_auth
 from polar.course.repository import CourseEnrollmentRepository, CourseRepository
-from polar.customer_portal.auth import CustomerPortalRead
+from polar.customer_portal.auth import CustomerPortalUnionRead
+from polar.customer_portal.utils import get_customer_id
 from polar.models.course import Course
 from polar.models.course_assistant import CourseAssistant
 from polar.openapi import APITag
@@ -170,17 +171,21 @@ def _sse_answer(
 )
 async def get_status(
     course_id: UUID,
-    auth_subject: CustomerPortalRead,
+    auth_subject: CustomerPortalUnionRead,
     session: AsyncSession = Depends(get_db_session),
 ) -> CourseAssistantStatusRead:
     """Status for the student chat empty-state. Requires enrollment; reports
     ``available=False`` (rather than erroring) when there's no live assistant
-    so the player can simply hide the chat."""
-    customer = auth_subject.subject
+    so the player can simply hide the chat.
+
+    Accepts both customer- and member-session tokens (``get_customer_id``
+    resolves a member to its backing customer), so everyone with course access
+    sees the assistant — not just legacy customer-session holders."""
+    customer_id = get_customer_id(auth_subject)
 
     enrollment = await CourseEnrollmentRepository.from_session(
         session
-    ).get_active_for_customer_course(customer.id, course_id)
+    ).get_active_for_customer_course(customer_id, course_id)
     if enrollment is None:
         raise HTTPException(status_code=403, detail="Not enrolled")
 
@@ -221,19 +226,21 @@ async def get_status(
 async def ask(
     course_id: UUID,
     body: CourseAssistantAskRequest,
-    auth_subject: CustomerPortalRead,
+    auth_subject: CustomerPortalUnionRead,
     session: AsyncSession = Depends(get_db_session),
 ) -> EventSourceResponse:
     """Stream a grounded answer as Server-Sent Events.
 
     Event names: ``text`` (answer deltas), ``citations`` (lesson grounding),
     ``done`` (final, with usage), ``refusal`` (off-topic), ``error``.
+
+    Accepts both customer- and member-session tokens.
     """
-    customer = auth_subject.subject
+    customer_id = get_customer_id(auth_subject)
 
     try:
         snapshot = await course_assistant_service.get_answerable_snapshot(
-            session, course_id=course_id, customer=customer
+            session, course_id=course_id, customer_id=customer_id
         )
     except NotConfigured as exc:
         raise HTTPException(
@@ -247,7 +254,7 @@ async def ask(
         ) from exc
 
     return _sse_answer(
-        snapshot, body.question, course_id, customer_id=customer.id
+        snapshot, body.question, course_id, customer_id=customer_id
     )
 
 
