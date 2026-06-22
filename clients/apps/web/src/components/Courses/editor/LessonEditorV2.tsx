@@ -488,9 +488,19 @@ export function LessonEditorV2({
                   ready={!processing && captions}
                   busy={processing}
                 />
-                {/* "Transcript & chapters" hidden — not implemented (no
-                    generation, storage, or player UI), so the status was
-                    misleading. Re-add once the feature actually exists. */}
+                {/* Transcript feeds the Course Assistant. Shows live state so
+                    the creator can see it working (or where it's stuck). */}
+                <AutoRow
+                  label="Transcript"
+                  sub="Read by your course assistant"
+                  ready={lesson.transcript_status === 'ready'}
+                  busy={
+                    lesson.transcript_status === 'pending' ||
+                    (lesson.transcript_status == null && processing) ||
+                    (lesson.transcript_status == null &&
+                      lesson.mux_status === 'ready')
+                  }
+                />
               </div>
             )}
             {/* Thumbnail — lesson card cover image, drag to reposition */}
