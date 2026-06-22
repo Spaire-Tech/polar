@@ -81,6 +81,20 @@ class SampleQuestion:
     category: QuestionCategory
 
 
+@dataclass(frozen=True)
+class SampleQA:
+    """A reviewed-on-the-creator-side example: the question, the answer the
+    assistant would give (grounded + in voice), an optional lesson citation,
+    and an optional scope label for off-syllabus questions (e.g. "Out of
+    scope", "Not covered yet", "Off topic", "Personal advice")."""
+
+    id: str
+    question: str
+    answer: str
+    citation: str | None
+    scope: str | None
+
+
 # --------------------------------------------------------------------------- #
 # Transcript parsing
 # --------------------------------------------------------------------------- #
@@ -490,6 +504,106 @@ def parse_sample_questions(text: str) -> list[SampleQuestion]:
     return result
 
 
+_SCOPE_LABELS = (
+    "Out of scope",
+    "Not covered yet",
+    "Off topic",
+    "Personal advice",
+)
+
+
+def build_sample_qa_messages(
+    *,
+    knowledge_base: str,
+    course_title: str,
+    instructor_name: str | None,
+    voice_card: str | None,
+    count: int = 7,
+) -> list[dict[str, Any]]:
+    """Generate the creator's review batch: realistic questions AND the answer
+    the assistant would actually give for each, so the creator reviews real
+    output (not just questions). Deliberately includes off-syllabus questions
+    so the creator sees the assistant decline gracefully."""
+    who = instructor_name or "the instructor"
+    voice = (
+        f"\n\nAnswer in this instructor's voice:\n{voice_card.strip()}"
+        if voice_card and voice_card.strip()
+        else ""
+    )
+    instructions = (
+        f'Here is the full content of the course "{course_title}", taught by '
+        f"{who}.\n\n"
+        f"Generate {count} examples of how the course assistant should answer "
+        "real student questions, for the creator to review. Include a mix:\n"
+        "- most squarely answerable from the course;\n"
+        "- one or two about applying the material to the student's own work;\n"
+        "- two or three that the assistant should decline: off-syllabus, off "
+        "topic, asking for personal/medical advice, or not covered yet.\n\n"
+        "For each example produce an object with:\n"
+        '- "question": the student question;\n'
+        '- "answer": exactly what the assistant should reply — grounded ONLY '
+        "in the course, in the instructor's voice. For questions the course "
+        "doesn't cover, the answer must decline gracefully (say it's not "
+        "covered, don't invent anything) and redirect to what the course does "
+        "teach;\n"
+        '- "citation": a short human-readable lesson reference the answer draws '
+        'on (e.g. "Lesson 6 · Serve Mechanics"), or null if none applies;\n'
+        f'- "scope": null for in-scope questions, otherwise one of '
+        f"{list(_SCOPE_LABELS)} for the ones it declines.\n\n"
+        "Respond with ONLY a JSON array of those objects. No prose.\n\n"
+        f"Course:\n{knowledge_base}"
+    )
+    return [{"role": "user", "content": instructions}]
+
+
+def parse_sample_qa(text: str) -> list[SampleQA]:
+    """Parse the sample-Q&A JSON, tolerating code fences / stray prose, and
+    assign each item a stable id."""
+    if not text:
+        return []
+    candidate = text.strip()
+    fence = re.search(r"```(?:json)?\s*(.+?)```", candidate, re.DOTALL)
+    if fence:
+        candidate = fence.group(1).strip()
+    else:
+        start = candidate.find("[")
+        end = candidate.rfind("]")
+        if start != -1 and end != -1 and end > start:
+            candidate = candidate[start : end + 1]
+    try:
+        data = json.loads(candidate)
+    except (ValueError, TypeError):
+        return []
+    if not isinstance(data, list):
+        return []
+    result: list[SampleQA] = []
+    for index, item in enumerate(data):
+        if not isinstance(item, dict):
+            continue
+        question = item.get("question")
+        answer = item.get("answer")
+        if not isinstance(question, str) or not question.strip():
+            continue
+        if not isinstance(answer, str) or not answer.strip():
+            continue
+        citation = item.get("citation")
+        if not isinstance(citation, str) or not citation.strip():
+            citation = None
+        scope = item.get("scope")
+        if scope not in _SCOPE_LABELS:
+            scope = None
+        result.append(
+            SampleQA(
+                id=f"s{index + 1}",
+                question=question.strip(),
+                answer=answer.strip(),
+                citation=citation,
+                scope=scope,
+            )
+        )
+    return result
+
+
 def extract_citations(message: Any) -> list[dict[str, Any]]:
     """Pull citation metadata out of a finished Anthropic message."""
     citations: list[dict[str, Any]] = []
@@ -676,3 +790,33 @@ async def generate_sample_questions(
         if getattr(block, "type", None) == "text":
             text += getattr(block, "text", "")
     return parse_sample_questions(text)
+
+
+async def generate_sample_qa(
+    *,
+    api_key: str,
+    model: str,
+    knowledge_base: str,
+    course_title: str,
+    instructor_name: str | None,
+    voice_card: str | None,
+    count: int = 7,
+    max_tokens: int = 2048,
+) -> list[SampleQA]:
+    client = _client(api_key)
+    message = await client.messages.create(
+        model=model,
+        max_tokens=max_tokens,
+        messages=build_sample_qa_messages(
+            knowledge_base=knowledge_base,
+            course_title=course_title,
+            instructor_name=instructor_name,
+            voice_card=voice_card,
+            count=count,
+        ),
+    )
+    text = ""
+    for block in getattr(message, "content", None) or []:
+        if getattr(block, "type", None) == "text":
+            text += getattr(block, "text", "")
+    return parse_sample_qa(text)

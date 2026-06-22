@@ -1,5 +1,4 @@
 from datetime import datetime
-from typing import Any
 
 from pydantic import Field
 
@@ -37,6 +36,30 @@ class CourseAssistantStatusRead(Schema):
 # ── Creator-facing (Phase 3 review & approve) ─────────────────────────────── #
 
 
+class CourseAssistantSample(Schema):
+    """One review card: a question and the answer the assistant would give."""
+
+    id: str
+    question: str
+    answer: str
+    citation: str | None = None
+    scope: str | None = Field(
+        default=None,
+        description='Off-syllabus label, e.g. "Out of scope" / "Off topic".',
+    )
+    approved: bool = False
+    edited_answer: str | None = Field(
+        default=None, description="Creator override of the answer, if any."
+    )
+
+
+class CourseAssistantSampleUpdate(Schema):
+    """Edit / approve one review card. None ⇒ leave unchanged."""
+
+    answer: str | None = Field(default=None, max_length=8000)
+    approved: bool | None = None
+
+
 class CourseAssistantManageRead(Schema):
     """Creator-facing management view (the Assistant tab)."""
 
@@ -58,7 +81,7 @@ class CourseAssistantManageRead(Schema):
     model: str | None = None
     error: str | None = None
     # The draft snapshot is what the creator reviews.
-    sample_questions: list[dict[str, Any]] | None = None
+    sample_questions: list[CourseAssistantSample] | None = None
     draft_lesson_count: int | None = None
     draft_tokens: int | None = None
     draft_built_at: datetime | None = None

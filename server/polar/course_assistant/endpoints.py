@@ -32,6 +32,8 @@ from .schemas import (
     CourseAssistantAskRequest,
     CourseAssistantLiveUpdate,
     CourseAssistantManageRead,
+    CourseAssistantSample,
+    CourseAssistantSampleUpdate,
     CourseAssistantSettingsUpdate,
     CourseAssistantStatusRead,
 )
@@ -79,7 +81,11 @@ def _manage_read(
         disclaimer=assistant.disclaimer or ai.DEFAULT_DISCLAIMER,
         model=assistant.model,
         error=assistant.error,
-        sample_questions=assistant.draft_sample_questions,
+        sample_questions=[
+            CourseAssistantSample.model_validate(item)
+            for item in (assistant.draft_sample_questions or [])
+        ]
+        or None,
         draft_lesson_count=assistant.draft_source_lesson_count,
         draft_tokens=assistant.draft_knowledge_base_tokens,
         draft_built_at=assistant.draft_built_at,
@@ -154,7 +160,9 @@ async def get_status(
 
     example_question: str | None = None
     for item in assistant.sample_questions or []:
-        if isinstance(item, dict) and item.get("category") == "core":
+        # An in-scope sample (no off-syllabus scope label) makes the best
+        # blank-page example for students.
+        if isinstance(item, dict) and not item.get("scope"):
             question = item.get("question")
             if isinstance(question, str):
                 example_question = question
@@ -345,6 +353,34 @@ async def update_settings(
         assistant,
         display_name=body.display_name,
         disclaimer=body.disclaimer,
+    )
+    return _manage_read(assistant, course)
+
+
+@router.patch(
+    "/{course_id}/samples/{sample_id}",
+    response_model=CourseAssistantManageRead,
+    summary="Edit / approve one review card",
+)
+async def update_sample(
+    course_id: UUID,
+    sample_id: str,
+    body: CourseAssistantSampleUpdate,
+    auth_subject: course_auth.CoursesWrite,
+    session: AsyncSession = Depends(get_db_session),
+) -> CourseAssistantManageRead:
+    course = await _readable_course_or_404(session, course_id, auth_subject)
+    assistant = await CourseAssistantRepository.from_session(session).get_by_course(
+        course_id
+    )
+    if assistant is None:
+        raise HTTPException(status_code=404, detail="No assistant for this course")
+    assistant = await course_assistant_service.update_sample(
+        session,
+        assistant,
+        sample_id=sample_id,
+        answer=body.answer,
+        approved=body.approved,
     )
     return _manage_read(assistant, course)
 

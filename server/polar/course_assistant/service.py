@@ -259,11 +259,13 @@ class CourseAssistantService:
                 transcript_sample=transcript_sample,
                 instructor_name=course.instructor_name,
             )
-            samples = await ai.generate_sample_questions(
+            samples = await ai.generate_sample_qa(
                 api_key=api_key,
                 model=build_model,
                 knowledge_base=knowledge_base,
                 course_title=course_title,
+                instructor_name=course.instructor_name,
+                voice_card=voice_card,
             )
         except Exception as exc:
             log.exception(
@@ -278,8 +280,18 @@ class CourseAssistantService:
                 },
             )
 
+        # The review batch the creator approves/edits, one card per item.
         sample_payload: list[dict[str, Any]] = [
-            {"question": s.question, "category": s.category} for s in samples
+            {
+                "id": s.id,
+                "question": s.question,
+                "answer": s.answer,
+                "citation": s.citation,
+                "scope": s.scope,
+                "approved": False,
+                "edited_answer": None,
+            }
+            for s in samples
         ]
 
         # A rebuild of an already-approved assistant updates only the draft and
@@ -533,6 +545,40 @@ class CourseAssistantService:
 
         return await CourseAssistantRepository.from_session(session).update(
             assistant, update_dict={"status": "building", "error": None}
+        )
+
+    async def update_sample(
+        self,
+        session: AsyncSession,
+        assistant: CourseAssistant,
+        *,
+        sample_id: str,
+        answer: str | None = None,
+        approved: bool | None = None,
+    ) -> CourseAssistant:
+        """Edit / approve a single review card on the DRAFT batch. ``answer``
+        is stored as an override (``edited_answer``); ``None`` leaves a field
+        unchanged. No-op if the sample id isn't found."""
+        from .repository import CourseAssistantRepository
+
+        samples = assistant.draft_sample_questions or []
+        new_samples: list[dict[str, Any]] = []
+        changed = False
+        for item in samples:
+            if isinstance(item, dict) and item.get("id") == sample_id:
+                updated = dict(item)
+                if answer is not None:
+                    updated["edited_answer"] = answer
+                if approved is not None:
+                    updated["approved"] = approved
+                new_samples.append(updated)
+                changed = True
+            else:
+                new_samples.append(item)
+        if not changed:
+            return assistant
+        return await CourseAssistantRepository.from_session(session).update(
+            assistant, update_dict={"draft_sample_questions": new_samples}
         )
 
 
