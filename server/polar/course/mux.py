@@ -6,6 +6,7 @@ import hmac
 import json
 import logging
 import time
+from typing import Any
 
 import httpx
 
@@ -296,7 +297,14 @@ async def get_caption_vtt(
     last_status: int | None = None
     for url in candidate_urls:
         try:
-            async with httpx.AsyncClient(timeout=30) as http_client:
+            # follow_redirects=True is essential: stream.mux.com answers the
+            # text-track sidecar with a redirect to its CDN. Browsers follow it
+            # (so captions play in the player); httpx does NOT by default, so
+            # without this every fetch returns a 3xx and the transcript silently
+            # never lands — the exact "captions work but transcript doesn't" bug.
+            async with httpx.AsyncClient(
+                timeout=30, follow_redirects=True
+            ) as http_client:
                 resp = await http_client.get(url)
         except httpx.HTTPError:
             log.exception(
@@ -324,12 +332,12 @@ async def diagnose_caption_fetch(
     playback_id: str | None,
     *,
     language_code: str = "en",
-) -> dict:
+) -> dict[str, Any]:
     """Run the caption-fetch steps and report exactly what happens, for
     creator-facing debugging. Never raises — returns a structured dict so we
     can see, from inside the deployment, whether Mux produced a text track and
     whether the .vtt download is authorized."""
-    out: dict = {"asset_id": asset_id, "playback_id": playback_id}
+    out: dict[str, Any] = {"asset_id": asset_id, "playback_id": playback_id}
     if not asset_id or not playback_id:
         out["error"] = "missing_mux_ids"
         return out
@@ -390,10 +398,13 @@ async def diagnose_caption_fetch(
     attempts.append(("unsigned", base))
     for label, url in attempts:
         try:
-            async with httpx.AsyncClient(timeout=30) as http_client:
+            async with httpx.AsyncClient(
+                timeout=30, follow_redirects=True
+            ) as http_client:
                 resp = await http_client.get(url)
             out[f"vtt_{label}_status"] = resp.status_code
             out[f"vtt_{label}_len"] = len(resp.text or "")
+            out[f"vtt_{label}_redirected"] = len(resp.history) > 0
         except httpx.HTTPError as exc:
             out[f"vtt_{label}_error"] = str(exc)
     return out
