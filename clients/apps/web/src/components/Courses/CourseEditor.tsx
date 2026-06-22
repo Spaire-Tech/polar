@@ -20,6 +20,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { toast } from '../Toast/use-toast'
 import '@/styles/editor-dark.css'
+import { AssistantPanel } from './assistant/AssistantPanel'
 import { AuthTab } from './editor/AuthTab'
 import { AutomationsPanel } from './editor/AutomationsPanel'
 import { CommunityTab } from './editor/CommunityTab'
@@ -82,6 +83,7 @@ export default function CourseEditor({
     'outline',
     'customize',
     'community',
+    'assistant',
     'automations',
     'settings',
     'auth',
@@ -536,6 +538,16 @@ export default function CourseEditor({
   } else if (activeTab === 'community') {
     mainContent = (
       <CommunityTab course={course} organization={organization} dark={dark} />
+    )
+  } else if (activeTab === 'assistant') {
+    mainContent = (
+      <AssistantPanel
+        courseId={course.id}
+        selfName={course.instructor_name || organization.name}
+        selfAvatar={organization.avatar_url ?? null}
+        showToast={(m) => toast({ title: m })}
+        dark={dark}
+      />
     )
   } else if (activeTab === 'automations') {
     mainContent = (
