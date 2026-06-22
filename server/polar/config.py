@@ -228,6 +228,23 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: str = ""
     OPENAI_MODEL: str = "o4-mini-2025-04-16"
 
+    # Anthropic / Claude — powers the Course Assistant ("Office Hours") TA.
+    # When ANTHROPIC_API_KEY is empty the feature is treated as not
+    # configured: ingestion no-ops and the answer endpoints return 503.
+    ANTHROPIC_API_KEY: str = ""
+    # Strong model for student answers; cheap model for the guardrail pass.
+    COURSE_ASSISTANT_ANSWER_MODEL: str = "claude-sonnet-4-6"
+    COURSE_ASSISTANT_GUARDRAIL_MODEL: str = "claude-haiku-4-5"
+    # Voice-card extraction / sample-question generation use the answer model
+    # unless overridden here.
+    COURSE_ASSISTANT_BUILD_MODEL: str = "claude-sonnet-4-6"
+    # Whole-course-in-context ceiling. A knowledge base larger than this many
+    # tokens is rejected at build time (status=failed) — that's the point at
+    # which real retrieval/RAG would be needed, which is out of scope for v1.
+    COURSE_ASSISTANT_MAX_CONTEXT_TOKENS: int = 600_000
+    # Max tokens for a single streamed answer.
+    COURSE_ASSISTANT_MAX_ANSWER_TOKENS: int = 1_500
+
     # Stripe
     STRIPE_SECRET_KEY: str = ""
     STRIPE_PUBLISHABLE_KEY: str = ""

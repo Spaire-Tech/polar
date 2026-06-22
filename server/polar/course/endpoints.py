@@ -1175,14 +1175,41 @@ async def mux_webhook(
                     captions_enabled = (lesson.content or {}).get(
                         "captions", True
                     )
+                    # Drive the Course Assistant transcript pipeline: request
+                    # captions and record whether a transcript is coming
+                    # ("pending") or never will ("unavailable"). The
+                    # transcript-track webhook (or the reconcile cron) fetches
+                    # the VTT once Mux finishes generating it.
+                    transcript_status = "unavailable"
                     if captions_enabled:
                         try:
-                            await mux_client.request_auto_captions(asset_id)
+                            ok = await mux_client.request_auto_captions(asset_id)
+                            transcript_status = "pending" if ok else "unavailable"
                         except Exception:
                             log.exception(
                                 "course.captions.request_failed",
                                 lesson_id=str(lesson.id),
                                 asset_id=asset_id,
+                            )
+                            # Optimistic: the track may still arrive; let the
+                            # reconcile cron resolve it rather than giving up.
+                            transcript_status = "pending"
+                    await lesson_repo.update(
+                        lesson,
+                        update_dict={"transcript_status": transcript_status},
+                    )
+                    if transcript_status == "unavailable":
+                        # This lesson will never yield a transcript, so it may
+                        # be the last thing the assistant build was waiting on.
+                        from polar.worker import enqueue_job
+
+                        course_id = await lesson_repo.get_course_id_for_lesson(
+                            lesson.id
+                        )
+                        if course_id is not None:
+                            enqueue_job(
+                                "course_assistant.maybe_build",
+                                course_id=course_id,
                             )
 
                 if (
@@ -1293,4 +1320,41 @@ async def mux_webhook(
                             session,
                             organization_id=organization_id,
                             duration_seconds=-int(previous_duration),
+                        )
+
+    elif event_type == "video.asset.track.ready":
+        # An auto-generated caption track finished. Pull its transcript for the
+        # Course Assistant. Only text tracks matter here.
+        if data.get("type") == "text":
+            asset_id = data.get("asset_id")
+            if asset_id:
+                lesson = await lesson_repo.get_by_mux_asset_id(asset_id)
+                if lesson is not None:
+                    from polar.worker import enqueue_job
+
+                    enqueue_job(
+                        "course_assistant.fetch_transcript",
+                        lesson_id=lesson.id,
+                    )
+
+    elif event_type == "video.asset.track.errored":
+        # Caption generation failed for this asset. Don't let it block the
+        # assistant build forever — mark it unavailable and re-check the course.
+        if data.get("type") == "text":
+            asset_id = data.get("asset_id")
+            if asset_id:
+                lesson = await lesson_repo.get_by_mux_asset_id(asset_id)
+                if lesson is not None:
+                    await lesson_repo.update(
+                        lesson, update_dict={"transcript_status": "unavailable"}
+                    )
+                    from polar.worker import enqueue_job
+
+                    course_id = await lesson_repo.get_course_id_for_lesson(
+                        lesson.id
+                    )
+                    if course_id is not None:
+                        enqueue_job(
+                            "course_assistant.maybe_build",
+                            course_id=course_id,
                         )

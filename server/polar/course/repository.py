@@ -175,6 +175,39 @@ class CourseLessonRepository(
         result = await self.session.execute(statement)
         return result.scalar_one_or_none()
 
+    async def get_course_id_for_lesson(self, lesson_id: UUID) -> UUID | None:
+        """Resolve the owning course of a lesson via its module. Used by the
+        Course Assistant ingestion pipeline (a transcript landing on a lesson
+        triggers a re-check of that lesson's course)."""
+        statement = (
+            select(CourseModule.course_id)
+            .join(CourseLesson, CourseLesson.module_id == CourseModule.id)
+            .where(CourseLesson.id == lesson_id)
+        )
+        result = await self.session.execute(statement)
+        return result.scalar_one_or_none()
+
+    async def get_by_mux_asset_id(self, asset_id: str) -> CourseLesson | None:
+        """Find a (non-soft-deleted) lesson by its Mux asset id. Used by the
+        caption-track webhook, which identifies the asset, not the upload."""
+        statement = self.get_base_statement().where(
+            CourseLesson.mux_asset_id == asset_id
+        )
+        return await self.get_one_or_none(statement)
+
+    async def list_pending_transcripts(
+        self, limit: int = 200
+    ) -> Sequence[CourseLesson]:
+        """Lessons whose caption transcript is still pending. The Course
+        Assistant reconcile cron retries / times these out so a silently
+        stuck caption can't block a course's assistant build forever."""
+        statement = (
+            self.get_base_statement()
+            .where(CourseLesson.transcript_status == "pending")
+            .limit(limit)
+        )
+        return await self.get_all(statement)
+
 
 class CourseEnrollmentRepository(
     RepositorySoftDeletionIDMixin[CourseEnrollment, UUID],
