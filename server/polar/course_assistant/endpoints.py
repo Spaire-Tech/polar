@@ -488,13 +488,13 @@ async def retry_transcripts(
     auth_subject: course_auth.CoursesWrite,
     session: AsyncSession = Depends(get_db_session),
 ) -> dict[str, int]:
-    """Re-kick transcription for video lessons that aren't transcribed yet —
-    including ones that previously timed out to 'unavailable'."""
+    """Fetch + store transcripts for video lessons that aren't transcribed yet
+    (including ones that previously timed out) inline on the API, then kick the
+    assistant build. Returns how many were attempted vs successfully stored."""
     await _readable_course_or_404(session, course_id, auth_subject)
-    retried = await course_assistant_service.retry_transcripts(
+    return await course_assistant_service.retry_transcripts(
         session, course_id=course_id
     )
-    return {"retried": retried}
 
 
 @router.get(

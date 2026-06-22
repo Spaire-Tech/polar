@@ -1331,12 +1331,38 @@ async def mux_webhook(
             if asset_id:
                 lesson = await lesson_repo.get_by_mux_asset_id(asset_id)
                 if lesson is not None:
+                    from polar.course_assistant.service import (
+                        course_assistant_service,
+                    )
                     from polar.worker import enqueue_job
 
-                    enqueue_job(
-                        "course_assistant.fetch_transcript",
-                        lesson_id=lesson.id,
-                    )
+                    # Fetch + store inline (the API path works); fall back to
+                    # the worker only if the fetch isn't ready yet.
+                    stored = False
+                    try:
+                        stored = (
+                            await course_assistant_service.fetch_and_store_transcript(
+                                session, lesson_id=lesson.id
+                            )
+                        )
+                    except Exception:
+                        log.exception(
+                            "course.transcript.inline_fetch_failed",
+                            lesson_id=str(lesson.id),
+                        )
+                    if stored:
+                        course_id = await lesson_repo.get_course_id_for_lesson(
+                            lesson.id
+                        )
+                        if course_id is not None:
+                            enqueue_job(
+                                "course_assistant.maybe_build", course_id=course_id
+                            )
+                    else:
+                        enqueue_job(
+                            "course_assistant.fetch_transcript",
+                            lesson_id=lesson.id,
+                        )
 
     elif event_type == "video.asset.track.errored":
         # Caption generation failed for this asset. Don't let it block the
