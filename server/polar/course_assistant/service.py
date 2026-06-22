@@ -161,13 +161,18 @@ class CourseAssistantService:
         await lesson_repo.update(lesson, update_dict={"transcript_status": status})
         return await lesson_repo.get_course_id_for_lesson(lesson_id)
 
-    async def _published_lessons(
+    async def _buildable_lessons(
         self, session: AsyncSession, course_id: UUID
     ) -> list[CourseLesson]:
+        """Every lesson the assistant should learn from.
+
+        Includes drafts — the creator expects the assistant to train on what
+        they've uploaded while still building the course. Exposure is still
+        gated downstream: a build only produces a *draft* snapshot, and nothing
+        reaches students until the creator approves and the assistant is live.
+        """
         lesson_repo = CourseLessonRepository.from_session(session)
-        statement = lesson_repo.get_by_course_statement(course_id).where(
-            CourseLesson.published == True  # noqa: E712
-        )
+        statement = lesson_repo.get_by_course_statement(course_id)
         return list(await lesson_repo.get_all(statement))
 
     def _lesson_blocks_build(self, lesson: CourseLesson) -> bool:
@@ -217,7 +222,7 @@ class CourseAssistantService:
         if course is None:
             return None
 
-        lessons = await self._published_lessons(session, course_id)
+        lessons = await self._buildable_lessons(session, course_id)
         if not lessons:
             return None
         if not self.is_ingestable(lessons):

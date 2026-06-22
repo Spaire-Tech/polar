@@ -62,6 +62,9 @@ export type CourseLessonRead = {
   mux_asset_id: string | null
   mux_playback_id: string | null
   mux_status: string | null
+  // Course Assistant transcript pipeline state for video lessons:
+  // pending | ready | failed | unavailable (null = not started / not a video).
+  transcript_status?: string | null
   thumbnail_url: string | null
   thumbnail_object_position: string | null
   description?: string | null
