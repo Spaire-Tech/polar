@@ -1,7 +1,7 @@
 """Add Course Assistant (Office Hours TA)
 
 Revision ID: course_assistant_611
-Revises: course_variants_610
+Revises: cpsi_signin_theme_618
 Create Date: 2026-06-11 00:00:00.000000
 
 Adds:
@@ -22,7 +22,7 @@ from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision = "course_assistant_611"
-down_revision = "course_variants_610"
+down_revision = "cpsi_signin_theme_618"
 branch_labels: tuple[str] | None = None
 depends_on: tuple[str] | None = None
 
