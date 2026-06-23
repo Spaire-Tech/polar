@@ -6,6 +6,7 @@ import ChevronLeftOutlined from '@mui/icons-material/ChevronLeftOutlined'
 import DarkModeOutlined from '@mui/icons-material/DarkModeOutlined'
 import LightModeOutlined from '@mui/icons-material/LightModeOutlined'
 import { cn } from '@spaire/ui/lib/utils'
+import { COURSE_ASSISTANT_UI_ENABLED } from '../assistant/flag'
 
 export type TabId =
   | 'outline'
@@ -55,6 +56,11 @@ export function CourseHeader({
   const lessonCount = course.modules.reduce(
     (acc, m) => acc + m.lessons.length,
     0,
+  )
+
+  // The Course Assistant tab is hidden behind a flag while reworked.
+  const visibleTabs = TABS.filter(
+    (tab) => tab.id !== 'assistant' || COURSE_ASSISTANT_UI_ENABLED,
   )
 
   return (
@@ -109,7 +115,7 @@ export function CourseHeader({
 
       {/* Tabs row — centered */}
       <div className="flex flex-shrink-0 items-center justify-center border-b border-gray-200 bg-white">
-        {TABS.map((tab) => {
+        {visibleTabs.map((tab) => {
           const active = tab.id === activeTab
           return (
             <button
