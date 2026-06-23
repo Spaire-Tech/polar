@@ -26,6 +26,8 @@ import DarkModeOutlined from '@mui/icons-material/DarkModeOutlined'
 import LightModeOutlined from '@mui/icons-material/LightModeOutlined'
 import { cn } from '@spaire/ui/lib/utils'
 import '@/styles/space-dark.css'
+import { AudienceTab } from './Audience/AudienceTab'
+import { BroadcastTab } from './Audience/BroadcastTab'
 import { ArrangePanel } from './InlineEdit/ArrangePanel'
 import { MobileSpacePreview } from './MobileSpacePreview'
 import { SpaceSettingsTab } from './SpaceSettingsTab'
@@ -60,9 +62,9 @@ const Customization = ({
   const [linksMode, setLinksMode] = useState(false)
   const [pickerOpen, setPickerOpen] = useState(false)
   const [arrangeOpen, setArrangeOpen] = useState(false)
-  const [activeTab, setActiveTab] = useState<'storefront' | 'settings'>(
-    'storefront',
-  )
+  const [activeTab, setActiveTab] = useState<
+    'storefront' | 'audience' | 'broadcast' | 'settings'
+  >('storefront')
   const [previewDevice, setPreviewDevice] = useState<'desktop' | 'mobile'>(
     'desktop',
   )
@@ -393,6 +395,17 @@ const Customization = ({
       'You have unpublished changes. Leave without publishing?',
     )
   }, [isDirty])
+
+  // Navigating out of the editor to the existing broadcast composer /
+  // detail. Runs the same dirty-check as the back button so unpublished
+  // Space edits aren't silently dropped when the creator jumps to email.
+  const onLeaveEditor = useCallback(
+    (path: string) => {
+      if (!confirmIfDirty()) return
+      router.push(path)
+    },
+    [confirmIfDirty, router],
+  )
   // ── Editor — the single, always-on surface for a Space ──────────
   // Opening a Space from the dashboard lands straight here (no separate
   // preview mode). The top bar carries a desktop/mobile toggle and a
@@ -535,7 +548,9 @@ const Customization = ({
 
           {/* Tabs — Storefront · Settings (device toggle pinned right) */}
           <div className="relative flex flex-shrink-0 items-center justify-center border-b border-gray-200 bg-white">
-            {(['storefront', 'settings'] as const).map((tab) => {
+            {(
+              ['storefront', 'audience', 'broadcast', 'settings'] as const
+            ).map((tab) => {
               const active = tab === activeTab
               return (
                 <button
@@ -726,6 +741,18 @@ const Customization = ({
             )}
             </>
           )
+        ) : activeTab === 'audience' ? (
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            <AudienceTab organization={organization} dark={dark} />
+          </div>
+        ) : activeTab === 'broadcast' ? (
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            <BroadcastTab
+              organization={organization}
+              dark={dark}
+              onLeave={onLeaveEditor}
+            />
+          </div>
         ) : (
           <div className="min-h-0 flex-1 overflow-y-auto">
             <SpaceSettingsTab
