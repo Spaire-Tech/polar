@@ -38,6 +38,7 @@ import {
 } from './LessonOptionsMenu'
 import { LessonContentType } from './ModuleCard'
 import { PaywallRow } from './PaywallRow'
+import { COURSE_ASSISTANT_UI_ENABLED } from '../assistant/flag'
 import { transcriptBadge } from './transcriptStatus'
 
 const THUMB_GRADIENTS: [string, string][] = [
@@ -202,6 +203,7 @@ function LessonCard({
           {lesson.title}
         </div>
         {(() => {
+          if (!COURSE_ASSISTANT_UI_ENABLED) return null
           const b = transcriptBadge(lesson)
           return b ? (
             <div className="mb-[5px]">

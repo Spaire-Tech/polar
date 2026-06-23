@@ -21,6 +21,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { toast } from '../Toast/use-toast'
 import '@/styles/editor-dark.css'
 import { AssistantPanel } from './assistant/AssistantPanel'
+import { COURSE_ASSISTANT_UI_ENABLED } from './assistant/flag'
 import { AuthTab } from './editor/AuthTab'
 import { AutomationsPanel } from './editor/AutomationsPanel'
 import { CommunityTab } from './editor/CommunityTab'
@@ -83,7 +84,7 @@ export default function CourseEditor({
     'outline',
     'customize',
     'community',
-    'assistant',
+    ...((COURSE_ASSISTANT_UI_ENABLED ? ['assistant'] : []) as TabId[]),
     'automations',
     'settings',
     'auth',

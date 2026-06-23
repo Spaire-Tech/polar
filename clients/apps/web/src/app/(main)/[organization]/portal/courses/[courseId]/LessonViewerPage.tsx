@@ -1,6 +1,7 @@
 'use client'
 
 import { AskAssistant } from '@/components/Courses/assistant/AskAssistant'
+import { COURSE_ASSISTANT_UI_ENABLED } from '@/components/Courses/assistant/flag'
 import { WatchHome } from '@/components/Courses/watch/WatchHome'
 import {
   useCustomerCourse,
@@ -194,7 +195,9 @@ const LessonViewerPage = ({
         organizationSlug={organization.slug}
         customerName={data.customer_name ?? null}
       />
-      <AskAssistant courseId={courseId} token={customerSessionToken} />
+      {COURSE_ASSISTANT_UI_ENABLED && (
+        <AskAssistant courseId={courseId} token={customerSessionToken} />
+      )}
       </>
     )
   }
@@ -214,7 +217,9 @@ const LessonViewerPage = ({
           if (lesson && !lesson.completed) markComplete.mutate(lessonId)
         }}
       />
-      <AskAssistant courseId={courseId} token={customerSessionToken} />
+      {COURSE_ASSISTANT_UI_ENABLED && (
+        <AskAssistant courseId={courseId} token={customerSessionToken} />
+      )}
     </>
   )
 }
