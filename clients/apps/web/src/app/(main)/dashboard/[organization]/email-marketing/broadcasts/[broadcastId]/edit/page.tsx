@@ -1,7 +1,7 @@
 import { getServerSideAPI } from '@/utils/client/serverside'
 import { getOrganizationBySlugOrNotFound } from '@/utils/organization'
 import { Metadata } from 'next'
-import { NewBroadcastRoute } from '../../../_components/screens/NewBroadcastScreen'
+import { BroadcastComposer } from '../../../_components/composer/BroadcastComposer'
 
 export async function generateMetadata(): Promise<Metadata> {
   return { title: 'Edit broadcast · Email Marketing' }
@@ -17,7 +17,7 @@ export default async function Page(props: {
     params.organization,
   )
   return (
-    <NewBroadcastRoute
+    <BroadcastComposer
       organization={organization}
       broadcastId={params.broadcastId}
     />

@@ -48,7 +48,7 @@
     "@radix-ui/react-dropdown-menu": "^2.1.16",
     "@radix-ui/react-toast": "^1.2.15",
     "@react-email/components": "^1.0.1",
-    "@react-email/editor": "^1.5.3",
+    "@react-email/editor": "^1.5.8",
     "@sentry/nextjs": "^10.37.0",
     "@shikijs/rehype": "^3.21.0",
     "@spaire/checkout": "workspace:^",
