@@ -9,6 +9,7 @@
 
 import { useAuth } from '@/hooks/auth'
 import {
+  useArchiveEmailBroadcast,
   useCreateEmailBroadcast,
   useEmailBroadcast,
   useScheduleEmailBroadcast,
@@ -19,6 +20,8 @@ import {
   type BroadcastWritePayload,
 } from '@/hooks/queries/emailMarketing'
 import { EmailEditor, type EmailEditorRef } from '@react-email/editor'
+// Insert (slash) + formatting (bubble) UI — composed as editor children.
+import { BubbleMenu, SlashCommand, defaultSlashCommands } from '@react-email/editor/ui'
 import { schemas } from '@spaire/client'
 import { useRouter, useSearchParams } from 'next/navigation'
 import {
@@ -201,9 +204,13 @@ function ComposerInner({
   const [mode, setMode] = useState<'edit' | 'preview'>('edit')
   const [device, setDevice] = useState<'desktop' | 'mobile'>('desktop')
   const [previewHtml, setPreviewHtml] = useState('')
+  // Real autosave state — drives the honest "Draft saved" label.
+  const [hasSaved, setHasSaved] = useState(!!initialBroadcastId)
 
   const editorRef = useRef<EmailEditorRef | null>(null)
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const autosaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const persistingRef = useRef(false)
   // Initial editor content — existing HTML when editing, empty otherwise.
   // `existing` is stable for this mount (the parent keys ComposerInner by id),
   // so a plain derived const is correct here (no ref needed).
@@ -225,6 +232,7 @@ function ComposerInner({
   const scheduleBroadcast = useScheduleEmailBroadcast()
   const sendTest = useSendTestEmailBroadcast()
   const uploadImage = useUploadEmailImage(organization.id)
+  const archiveBroadcast = useArchiveEmailBroadcast()
 
   const segments = useSegments(organization.id)
   const audSeg = segments.find((s) => s.id === audience) ?? segments[0]
@@ -274,7 +282,12 @@ function ComposerInner({
     preview_text: null,
     sender_name: organization.name,
     sender_email: null,
-    reply_to_email: so.replyTo === 'noreply' ? null : currentUserEmail || null,
+    reply_to_email:
+      so.replyTo === 'noreply'
+        ? null
+        : so.replyTo === 'support'
+          ? `support@${organization.slug}.com`
+          : currentUserEmail || null,
     content_html: html,
     content_json: json,
     segment_id: audience === 'all' ? null : audience,
@@ -285,6 +298,7 @@ function ComposerInner({
     const { html, json } = await getContent()
     const payload = buildPayload(html, json)
     setSave('saving')
+    persistingRef.current = true
     try {
       let id = broadcastId
       if (id) {
@@ -295,12 +309,29 @@ function ComposerInner({
         setBroadcastId(id)
       }
       setSave('saved')
+      setHasSaved(true)
       return id
     } catch (err) {
       setSave('saved')
       showToast(err instanceof Error ? err.message : 'Save failed')
       return null
+    } finally {
+      persistingRef.current = false
     }
+  }
+
+  // Debounced autosave on edits. Skips while a save is in flight and never
+  // creates a blank draft (requires a subject or some body content).
+  const autosave = async () => {
+    if (persistingRef.current) return
+    const { html } = await getContent()
+    const bodyText = html.replace(/<[^>]*>/g, '').trim()
+    if (!subject.trim() && !bodyText) return
+    await persist()
+  }
+  const scheduleAutosave = () => {
+    if (autosaveTimer.current) clearTimeout(autosaveTimer.current)
+    autosaveTimer.current = setTimeout(() => void autosave(), 1500)
   }
 
   const doSendTest = async () => {
@@ -370,7 +401,9 @@ function ComposerInner({
         ? 'Sent'
         : status === 'scheduled'
           ? 'Scheduled'
-          : 'Draft saved'
+          : hasSaved
+            ? 'Draft saved'
+            : 'Draft'
 
   const senderEmailDisplay = currentUserEmail
   const senderNameDisplay = organization.name
@@ -508,7 +541,8 @@ function ComposerInner({
               subject={subject}
               setSubject={setSubject}
               reach={reach}
-              onTouch={() => {}}
+              onTouch={scheduleAutosave}
+              allowExclude={false}
             />
             <div className="re-editor">
               <EmailEditor
@@ -518,9 +552,16 @@ function ComposerInner({
                     typeof EmailEditor
                   >['content']
                 }
-                placeholder="Write your message…"
+                placeholder="Write your message, or press “/” to insert an image, button, columns…"
                 onUploadImage={onUploadImage}
-              />
+                onUpdate={scheduleAutosave}
+              >
+                {/* Selection formatting (bold/italic/underline/strike/link)
+                    and the “/” insert menu (image, button, columns, lists,
+                    quote, divider…). */}
+                <BubbleMenu />
+                <SlashCommand items={defaultSlashCommands} />
+              </EmailEditor>
             </div>
           </div>
 
@@ -555,9 +596,21 @@ function ComposerInner({
                       </div>
                     </div>
                   </div>
-                  <div
-                    className="pv-mailbody"
-                    dangerouslySetInnerHTML={{ __html: previewHtml }}
+                  {/* Isolated in an iframe so the email's own styles can't
+                      leak into the dashboard; auto-sized to its content. */}
+                  <iframe
+                    className="pv-frame"
+                    title="Email preview"
+                    srcDoc={previewHtml}
+                    onLoad={(e) => {
+                      const f = e.currentTarget
+                      try {
+                        const h = f.contentWindow?.document.body?.scrollHeight
+                        if (h) f.style.height = h + 'px'
+                      } catch {
+                        /* same-origin srcDoc — guard just in case */
+                      }
+                    }}
                   />
                 </div>
               </div>
@@ -573,7 +626,7 @@ function ComposerInner({
             senderAvatarUrl={senderAvatarUrl}
             so={so}
             setSo={setSo}
-            onTouch={() => {}}
+            onTouch={scheduleAutosave}
             onTest={doSendTest}
             sequence={false}
           />
@@ -648,15 +701,28 @@ function ComposerInner({
       {modal === 'discard' && (
         <Modal onClose={() => setModal(null)}>
           <h3>Discard this draft?</h3>
-          <p>This can&apos;t be undone.</p>
+          <p>
+            {broadcastId
+              ? 'This removes the saved draft. It can’t be undone.'
+              : 'This clears everything you’ve written.'}
+          </p>
           <div className="modal-actions">
             <button className="m-ghost" onClick={() => setModal(null)}>
               Cancel
             </button>
             <button
               className="m-danger"
-              onClick={() => {
+              onClick={async () => {
                 setModal(null)
+                if (autosaveTimer.current) clearTimeout(autosaveTimer.current)
+                // Actually delete the persisted draft (not just navigate away).
+                if (broadcastId) {
+                  try {
+                    await archiveBroadcast.mutateAsync(broadcastId)
+                  } catch {
+                    /* best-effort; navigate regardless */
+                  }
+                }
                 router.push(exitTo)
               }}
             >
