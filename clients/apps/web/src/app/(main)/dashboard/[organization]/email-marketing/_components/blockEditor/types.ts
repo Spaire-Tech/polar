@@ -4,8 +4,6 @@
 // content_html from this JSON on save, but the editor renders it locally too
 // so the live preview stays current without round-tripping the API.
 
-import { RichText } from '../richText/types'
-
 export type BlockId = string
 
 export type EyebrowBlock = {
@@ -20,23 +18,18 @@ export type HeadingBlock = {
   level: 1 | 2 | 3
   text: string
   huge?: boolean
-  // Optional inline rich text (per-selection marks). When present the
-  // canonical renderer uses it; `text` is kept in sync as a plain fallback.
-  rich?: RichText
 }
 
 export type SubheadingBlock = {
   id: BlockId
   type: 'subheading'
   text: string
-  rich?: RichText
 }
 
 export type ParagraphBlock = {
   id: BlockId
   type: 'paragraph'
   text: string
-  rich?: RichText
 }
 
 export type BadgeBlock = {
@@ -82,7 +75,6 @@ export type VideoBlock = {
 export type ListItem = {
   id: string
   text: string
-  rich?: RichText
 }
 
 export type ListBlock = {
@@ -97,7 +89,6 @@ export type QuoteBlock = {
   type: 'quote'
   text: string
   cite?: string
-  rich?: RichText
 }
 
 // Compact stat / feature columns. Each column is freeform: it can carry an
