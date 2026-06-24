@@ -16,6 +16,24 @@ import type { Block, BlockType } from './types'
 beforeAll(() => {
   ;(globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT =
     true
+  // Each text block now mounts a real TipTap editor; these are the jsdom gaps
+  // ProseMirror touches when mounting an EditorView.
+  if (!('ResizeObserver' in globalThis)) {
+    ;(globalThis as unknown as { ResizeObserver: unknown }).ResizeObserver =
+      class {
+        observe() {}
+        unobserve() {}
+        disconnect() {}
+      }
+  }
+  if (!document.elementFromPoint) {
+    ;(Document.prototype as unknown as { elementFromPoint: unknown }).elementFromPoint =
+      () => null
+  }
+  if (!Range.prototype.getClientRects) {
+    ;(Range.prototype as unknown as { getClientRects: unknown }).getClientRects =
+      () => [] as unknown as DOMRectList
+  }
   // jsdom has no layout engine, so Range.getBoundingClientRect is absent.
   // The composer reads it to position the "+" then falls back to the block
   // rect on a zero rect — give it a zero rect so that fallback path runs.

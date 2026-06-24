@@ -1,12 +1,15 @@
 'use client'
 
-// Compose-time block engine: contentEditable wrapper, block body, bubble
-// menu, +Insert popover, and the document container that hosts them.
-// Ported 1:1 from the design's email-blocks.jsx with React/TS idioms.
+// Compose-time block engine: block body (text via the TipTap-backed
+// RichText), the selection bubble menu, the +Insert popover, and the document
+// container that hosts them. The design/layout is the original handoff; the
+// text editing underneath is ProseMirror (see RichText.tsx) rather than
+// contentEditable + execCommand, which fixes selection-scoped formatting and
+// paste normalization.
 
-import React, {
+import type { Editor } from '@tiptap/react'
+import {
   Fragment,
-  useCallback,
   useEffect,
   useRef,
   useState,
@@ -17,6 +20,7 @@ import React, {
 
 import { ColorPicker } from './ColorPicker'
 import { Icon, type IconName } from './Icon'
+import { RichText } from './RichText'
 import {
   CROP_AR,
   TEXTLIKE,
@@ -26,70 +30,6 @@ import {
   type Block,
   type BlockType,
 } from './types'
-
-// ---------------------------------------------------------------------------
-// Editable (contentEditable wrapper)
-// ---------------------------------------------------------------------------
-
-function Editable({
-  tag = 'div',
-  html,
-  onChange,
-  onFocus,
-  className,
-  style,
-  placeholder,
-  readOnly,
-}: {
-  tag?: string
-  html: string
-  onChange?: (next: string) => void
-  onFocus?: () => void
-  className?: string
-  style?: CSSProperties
-  placeholder?: string
-  readOnly?: boolean
-}) {
-  const ref = useRef<HTMLElement>(null)
-
-  // Sync html → DOM after every render (not just when `html` changes).
-  // When the block type changes, React swaps the DOM element (tag p →
-  // h1) but the `html` prop hasn't changed — so a useEffect with
-  // [html] deps wouldn't re-fire and the new element would mount empty,
-  // wiping the user's text. Running every render with a guard (skip
-  // when the element is focused or already matches) keeps the caret
-  // stable during typing and forces a resync on tag swap.
-  useEffect(() => {
-    const el = ref.current
-    if (!el) return
-    if (document.activeElement === el) return
-    const next = html || ''
-    if (el.innerHTML !== next) el.innerHTML = next
-  })
-
-  if (readOnly) {
-    return React.createElement(tag, {
-      className,
-      style,
-      dangerouslySetInnerHTML: { __html: html || '' },
-    })
-  }
-
-  // React doesn't type contentEditable on every element; using
-  // createElement to stay loose like the source does.
-  return React.createElement(tag, {
-    ref,
-    className,
-    style,
-    contentEditable: true,
-    suppressContentEditableWarning: true,
-    spellCheck: false,
-    'data-ph': placeholder,
-    onFocus,
-    onInput: (e: React.FormEvent<HTMLElement>) =>
-      onChange?.(e.currentTarget.innerHTML),
-  })
-}
 
 // ---------------------------------------------------------------------------
 // Block body — renders one block type
@@ -108,11 +48,14 @@ export function BlockBody({
   update,
   readOnly,
   pickImage,
+  onActive,
 }: {
   b: Block
   update?: (patch: Partial<Block>) => void
   readOnly?: boolean
   pickImage?: () => void
+  /** Register the focused text editor so the bubble menu can drive it. */
+  onActive?: (editor: Editor | null) => void
 }) {
   switch (b.type) {
     case 'text':
@@ -120,25 +63,28 @@ export function BlockBody({
     case 'h2':
     case 'h3':
     case 'quote': {
-      const tag =
-        b.type === 'text'
-          ? 'p'
-          : b.type === 'quote'
-            ? 'blockquote'
-            : b.type
+      // The block's CSS class (b-text/b-h1/…) gives the heading/quote
+      // appearance; the editor only owns the inline marks.
       const cls = 'b-' + b.type
       const ta: CSSProperties = { textAlign: b.talign || 'left' }
+      // Preview renders static HTML — no editor instances mounted.
+      if (readOnly) {
+        return (
+          <div
+            className={cls}
+            style={ta}
+            dangerouslySetInnerHTML={{ __html: b.html || '' }}
+          />
+        )
+      }
       return (
-        <Editable
-          tag={tag}
+        <RichText
           className={cls}
           style={ta}
           html={b.html}
           placeholder={PH[b.type]}
-          readOnly={readOnly}
-          onChange={(html) =>
-            update?.({ html } as Partial<Block>)
-          }
+          onActive={onActive}
+          onChange={(html) => update?.({ html } as Partial<Block>)}
         />
       )
     }
@@ -148,19 +94,23 @@ export function BlockBody({
       const ta: CSSProperties = { textAlign: b.talign || 'left' }
       return (
         <Tag className="b-list" style={ta}>
-          {(b.items || []).map((t, i) => (
-            <Editable
-              key={i}
-              tag="li"
-              html={t}
-              readOnly={readOnly}
-              onChange={(h) =>
-                update?.({
-                  items: b.items.map((it, j) => (j === i ? h : it)),
-                } as Partial<Block>)
-              }
-            />
-          ))}
+          {(b.items || []).map((t, i) =>
+            readOnly ? (
+              <li key={i} dangerouslySetInnerHTML={{ __html: t || '' }} />
+            ) : (
+              <li key={i}>
+                <RichText
+                  html={t}
+                  onActive={onActive}
+                  onChange={(h) =>
+                    update?.({
+                      items: b.items.map((it, j) => (j === i ? h : it)),
+                    } as Partial<Block>)
+                  }
+                />
+              </li>
+            ),
+          )}
         </Tag>
       )
     }
@@ -270,12 +220,15 @@ const NODES: { t: BlockType; label: string }[] = [
 
 function Bubble({
   b,
+  editor,
   update,
   changeType,
   onDuplicate,
   onDelete,
 }: {
   b: TextBlock
+  /** The focused block's TipTap editor — marks apply to ITS selection. */
+  editor: Editor | null
   update: (patch: Partial<Block>) => void
   changeType: (next: BlockType) => void
   onDuplicate?: () => void
@@ -283,40 +236,45 @@ function Bubble({
 }) {
   const [pop, setPop] = useState<'n' | 'l' | 'c' | null>(null)
   const [linkValue, setLinkValue] = useState('')
-  const [textColor, setTextColor] = useState('#000000')
-  const [active, setActive] = useState<Record<string, boolean>>({})
-
-  const recompute = useCallback(() => {
-    try {
-      setActive({
-        bold: document.queryCommandState('bold'),
-        italic: document.queryCommandState('italic'),
-        underline: document.queryCommandState('underline'),
-        strike: document.queryCommandState('strikeThrough'),
-      })
-    } catch {
-      // ignore
-    }
-  }, [])
-
+  // Re-render the toolbar's active states (bold on/off, current colour) as the
+  // editor selection moves — TipTap is the source of truth, not execCommand.
+  const [, force] = useState(0)
   useEffect(() => {
-    document.addEventListener('selectionchange', recompute)
-    recompute()
-    return () => document.removeEventListener('selectionchange', recompute)
-  }, [recompute])
+    if (!editor) return
+    const onTx = () => force((n) => n + 1)
+    editor.on('transaction', onTx)
+    editor.on('selectionUpdate', onTx)
+    return () => {
+      editor.off('transaction', onTx)
+      editor.off('selectionUpdate', onTx)
+    }
+  }, [editor])
 
-  const exec = (cmd: string, val?: string) => {
-    document.execCommand(cmd, false, val)
-    recompute()
-  }
+  const isOn = (mark: string) => !!editor?.isActive(mark)
+  const textColor =
+    (editor?.getAttributes('textStyle').color as string | undefined) ||
+    '#000000'
+
+  // Apply a mark to the editor's OWN selection. .focus() restores that
+  // selection even when a popover (colour picker, link field) stole DOM focus
+  // — the bug the old execCommand path couldn't avoid.
+  const applyColor = (c: string) => editor?.chain().focus().setColor(c).run()
+  const applyLink = (href: string) =>
+    editor
+      ?.chain()
+      .focus()
+      .extendMarkRange('link')
+      .setLink({ href })
+      .run()
+  const clearLink = () => editor?.chain().focus().unsetLink().run()
 
   const ta = b.talign || 'left'
 
-  const F = (k: string, cmd: string, node: ReactNode) => (
+  const F = (k: string, toggle: () => void, node: ReactNode) => (
     <button
-      className={'bm' + (active[k] ? ' on' : '')}
+      className={'bm' + (isOn(k) ? ' on' : '')}
       onMouseDown={(e) => e.preventDefault()}
-      onClick={() => exec(cmd)}
+      onClick={toggle}
     >
       {node}
     </button>
@@ -370,10 +328,22 @@ function Bubble({
         )}
       </div>
       <span className="bm-sep"></span>
-      {F('bold', 'bold', <b>B</b>)}
-      {F('italic', 'italic', <span className="it">I</span>)}
-      {F('underline', 'underline', <span className="un">U</span>)}
-      {F('strike', 'strikeThrough', <span className="st">S</span>)}
+      {F('bold', () => editor?.chain().focus().toggleBold().run(), <b>B</b>)}
+      {F(
+        'italic',
+        () => editor?.chain().focus().toggleItalic().run(),
+        <span className="it">I</span>,
+      )}
+      {F(
+        'underline',
+        () => editor?.chain().focus().toggleUnderline().run(),
+        <span className="un">U</span>,
+      )}
+      {F(
+        'strike',
+        () => editor?.chain().focus().toggleStrike().run(),
+        <span className="st">S</span>,
+      )}
       <span className="bm-sep"></span>
       <button
         className={'bm' + (b.type === 'bullet' ? ' on' : '')}
@@ -410,8 +380,9 @@ function Bubble({
                 value={linkValue}
                 onChange={(e) => setLinkValue(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter' && linkValue) {
-                    exec('createLink', linkValue)
+                  if (e.key === 'Enter') {
+                    if (linkValue) applyLink(linkValue)
+                    else clearLink()
                     setPop(null)
                     setLinkValue('')
                   }
@@ -420,7 +391,8 @@ function Bubble({
               <button
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => {
-                  if (linkValue) exec('createLink', linkValue)
+                  if (linkValue) applyLink(linkValue)
+                  else clearLink()
                   setPop(null)
                   setLinkValue('')
                 }}
@@ -455,10 +427,7 @@ function Bubble({
           <div className="bm-color-pop">
             <ColorPicker
               value={textColor}
-              onChange={(c) => {
-                setTextColor(c)
-                exec('foreColor', c)
-              }}
+              onChange={(c) => applyColor(c)}
               label="Text colour"
             />
           </div>
@@ -635,6 +604,10 @@ function BlockShell({
 }) {
   const isText = TEXTLIKE.includes(b.type)
 
+  // The block's focused text editor (a text block has one; a list has one per
+  // item — whichever last gained focus drives the bubble menu).
+  const [editor, setEditor] = useState<Editor | null>(null)
+
   // The bubble is a *selection* toolbar — it shows only while there's a
   // non-collapsed text selection anchored inside this block, never just
   // because the block was clicked.
@@ -695,16 +668,22 @@ function BlockShell({
         </svg>
       </span>
       <div className="blk-inner" ref={innerRef}>
-        {isText && hasSelection && (
+        {isText && hasSelection && editor && (
           <Bubble
             b={b as TextBlock}
+            editor={editor}
             update={update}
             changeType={changeType}
             onDuplicate={onDuplicate}
             onDelete={onDelete}
           />
         )}
-        <BlockBody b={b} update={update} pickImage={pickImage} />
+        <BlockBody
+          b={b}
+          update={update}
+          pickImage={pickImage}
+          onActive={setEditor}
+        />
       </div>
     </div>
   )

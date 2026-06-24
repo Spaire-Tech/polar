@@ -262,6 +262,22 @@
 .composer-shell .b-list li { font-size: 16px; line-height: 1.6; color: var(--c-body); padding: 3px 0 3px 4px; display: list-item; }
 .composer-shell .b-list li::marker { color: var(--c-body); }
 
+/* TipTap content. The editor's contentEditable (.ProseMirror) carries the
+   block class (b-text/b-h1/…) so its inner paragraph inherits the type's
+   font; reset the paragraph's own margins so spacing comes from the block. */
+.composer-shell .ProseMirror { outline: none; white-space: pre-wrap; word-wrap: break-word; }
+.composer-shell .ProseMirror:focus { outline: none; }
+.composer-shell .ProseMirror p { margin: 0; }
+.composer-shell .b-list li .ProseMirror { display: inline; }
+/* Placeholder for an empty editor (TipTap's Placeholder extension). */
+.composer-shell .ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  color: var(--c-gray-2);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+
 /* image */
 .composer-shell .b-img { padding: 10px 0; }
 .composer-shell .b-img-ph {

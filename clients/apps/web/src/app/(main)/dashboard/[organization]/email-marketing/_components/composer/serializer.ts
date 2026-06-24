@@ -4,6 +4,7 @@
 // looks like the in-editor preview. Styles are inlined since real mail
 // clients ignore <style> blocks in most configurations.
 
+import { sanitizeInlineHtml } from './sanitize'
 import { CROP_AR, type Block } from './types'
 
 const escapeAttr = (s: string) =>
@@ -42,27 +43,30 @@ const STYLES = {
 
 function renderBlock(b: Block): string {
   switch (b.type) {
+    // Text/heading/quote bodies and list items carry user inline HTML. The
+    // editor already emits clean marks; sanitize again here so no foreign
+    // font-size/family (legacy drafts, odd paste paths) can reach the email.
     case 'text':
-      return wrap('p', `${STYLES.text}text-align:${b.talign || 'left'};`, b.html || '&nbsp;')
+      return wrap('p', `${STYLES.text}text-align:${b.talign || 'left'};`, sanitizeInlineHtml(b.html) || '&nbsp;')
     case 'h1':
-      return wrap('h1', `${STYLES.h1}text-align:${b.talign || 'left'};`, b.html || '')
+      return wrap('h1', `${STYLES.h1}text-align:${b.talign || 'left'};`, sanitizeInlineHtml(b.html))
     case 'h2':
-      return wrap('h2', `${STYLES.h2}text-align:${b.talign || 'left'};`, b.html || '')
+      return wrap('h2', `${STYLES.h2}text-align:${b.talign || 'left'};`, sanitizeInlineHtml(b.html))
     case 'h3':
-      return wrap('h3', `${STYLES.h3}text-align:${b.talign || 'left'};`, b.html || '')
+      return wrap('h3', `${STYLES.h3}text-align:${b.talign || 'left'};`, sanitizeInlineHtml(b.html))
     case 'quote':
-      return wrap('blockquote', `${STYLES.quote}text-align:${b.talign || 'left'};`, b.html || '')
+      return wrap('blockquote', `${STYLES.quote}text-align:${b.talign || 'left'};`, sanitizeInlineHtml(b.html))
     case 'bullet':
       return wrap(
         'ul',
         STYLES.ul,
-        b.items.map((it) => wrap('li', STYLES.li, it || '&nbsp;')).join(''),
+        b.items.map((it) => wrap('li', STYLES.li, sanitizeInlineHtml(it) || '&nbsp;')).join(''),
       )
     case 'numbered':
       return wrap(
         'ol',
         STYLES.ol,
-        b.items.map((it) => wrap('li', STYLES.li, it || '&nbsp;')).join(''),
+        b.items.map((it) => wrap('li', STYLES.li, sanitizeInlineHtml(it) || '&nbsp;')).join(''),
       )
     case 'divider':
       return `<hr style="${STYLES.divider}" />`
