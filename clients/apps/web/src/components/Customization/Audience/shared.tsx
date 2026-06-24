@@ -146,7 +146,9 @@ export type KebabItem = {
 
 export function KebabMenu({ items }: { items: KebabItem[] }) {
   const [open, setOpen] = useState(false)
+  const [up, setUp] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
+  const btnRef = useRef<HTMLButtonElement>(null)
   useEffect(() => {
     if (!open) return
     const onDoc = (e: MouseEvent) => {
@@ -155,6 +157,13 @@ export function KebabMenu({ items }: { items: KebabItem[] }) {
     document.addEventListener('mousedown', onDoc)
     return () => document.removeEventListener('mousedown', onDoc)
   }, [open])
+  const toggle = () => {
+    // Flip the menu upward when the button sits low in the viewport so it
+    // opens into the card rather than off the bottom edge.
+    const r = btnRef.current?.getBoundingClientRect()
+    if (r) setUp(window.innerHeight - r.bottom < 220)
+    setOpen((o) => !o)
+  }
   if (items.length === 0) {
     return (
       <button className="a-kebab" disabled>
@@ -164,16 +173,15 @@ export function KebabMenu({ items }: { items: KebabItem[] }) {
   }
   return (
     <div ref={ref} style={{ position: 'relative' }} onClick={(e) => e.stopPropagation()}>
-      <button className="a-kebab" onClick={() => setOpen((o) => !o)} aria-label="More actions">
+      <button ref={btnRef} className="a-kebab" onClick={toggle} aria-label="More actions">
         <Icon n="dots" w={16} />
       </button>
       {open && (
         <div
           style={{
             position: 'absolute',
-            top: '100%',
+            ...(up ? { bottom: '100%', marginBottom: 6 } : { top: '100%', marginTop: 6 }),
             right: 0,
-            marginTop: 6,
             minWidth: 168,
             zIndex: 50,
             padding: 6,

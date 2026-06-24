@@ -18,7 +18,7 @@ import { spacePageLink } from '@/utils/nav'
 import { isValidationError, schemas } from '@spaire/client'
 import { Form } from '@spaire/ui/components/ui/form'
 import { useQueryClient } from '@tanstack/react-query'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useCallback, useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import ChevronLeftOutlined from '@mui/icons-material/ChevronLeftOutlined'
@@ -62,9 +62,19 @@ const Customization = ({
   const [linksMode, setLinksMode] = useState(false)
   const [pickerOpen, setPickerOpen] = useState(false)
   const [arrangeOpen, setArrangeOpen] = useState(false)
+  // Honour ?tab= so returning from the broadcast composer (which navigates
+  // to /storefront?tab=broadcast) lands back on the Broadcast tab.
+  const searchParams = useSearchParams()
+  const tabParam = searchParams.get('tab')
   const [activeTab, setActiveTab] = useState<
     'storefront' | 'audience' | 'broadcast' | 'settings'
-  >('storefront')
+  >(
+    tabParam === 'audience' ||
+      tabParam === 'broadcast' ||
+      tabParam === 'settings'
+      ? tabParam
+      : 'storefront',
+  )
   const [previewDevice, setPreviewDevice] = useState<'desktop' | 'mobile'>(
     'desktop',
   )

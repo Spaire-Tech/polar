@@ -441,3 +441,83 @@
   animation: aToast .35s cubic-bezier(.2,1,.3,1);
 }
 .a-toast svg { width: 17px; height: 17px; color: var(--ok); }
+
+/* ============================================================
+   SPACE EDITOR OVERRIDES — feedback pass.
+   Kept separate from the imported design so the base stays a
+   faithful copy; these tune it to the dashboard's conventions.
+   ============================================================ */
+
+/* 1 — Dark mode: no blue accent. Mono "liquid glass": the accent
+       reads as light ink, not blue. Light mode keeps its blue. */
+.aud.dark { --accent: #f5f5f7; }
+.aud.dark .a-btn-accent { background: #f5f5f7; color: #0d0d11; }
+.aud.dark .a-btn-accent:hover { opacity: .9; }
+
+/* 2 — No bold. The dashboard tops out at medium (500); cap every
+       heavier weight (and <b>) so nothing reads as bold. */
+.aud b,
+.aud strong,
+.aud h1, .aud h2, .aud h3,
+.aud .a-h1,
+.aud .mv, .aud .ml,
+.aud .sv, .aud .sl,
+.aud .th,
+.aud .nm b,
+.aud .a-subcell .nm b,
+.aud .a-bc-subject,
+.aud .a-bc-stat .v,
+.aud .a-bc-dtitle,
+.aud .a-email-h,
+.aud .a-sheet-t,
+.aud .a-form-ava,
+.aud .a-field label,
+.aud .a-status,
+.aud .a-srcpill,
+.aud .lseg-btn.on,
+.aud .a-seg button.on,
+.aud .md b,
+.aud .a-up b,
+.aud .a-bc-dstrip .cv,
+.aud .a-scell .sv,
+.aud .a-crumb { font-weight: 500; }
+
+/* 3 — Writing boxes: kill the native bezel/underline. The design
+       boxes are rounded fills with a soft focus ring — never a
+       square outline. */
+.aud input,
+.aud textarea {
+  -webkit-appearance: none;
+  appearance: none;
+  border: none;
+  outline: none;
+  box-shadow: none;
+}
+.aud .a-input:focus {
+  outline: none;
+  box-shadow: inset 0 0 0 1.5px var(--accent);
+}
+.aud .a-search input:focus { box-shadow: none; }
+
+/* 4 — More room. Wider gutters, taller rows, looser lines. */
+.aud .a-content { max-width: 1100px; padding: 52px 48px 100px; }
+.aud .a-head { margin-bottom: 46px; }
+.aud .a-sub { line-height: 1.6; margin-top: 10px; }
+.aud .a-metrics { gap: 22px; margin-bottom: 42px; }
+.aud .a-metric { padding: 26px 28px; }
+.aud .a-tools { gap: 16px; margin-bottom: 28px; }
+.aud .a-thead,
+.aud .a-tr { padding: 0 32px; gap: 24px; }
+.aud .a-tr { min-height: 96px; }
+.aud .a-bc-row { padding: 26px 32px; }
+.aud .a-bc-dhead { margin-bottom: 24px; }
+
+/* 5 — The "…" menu lives inside the card. Don't clip it; round the
+       first row so an un-clipped card keeps its soft top corners. */
+.aud .a-table,
+.aud .a-bc,
+.aud .a-glist { overflow: visible; }
+.aud .a-table .a-tr:first-of-type {
+  border-top-left-radius: 22px;
+  border-top-right-radius: 22px;
+}
