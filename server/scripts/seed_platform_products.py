@@ -185,29 +185,33 @@ class ProductSpec:
 
 _STARTER_DESCRIPTION = (
     "For solo creators starting out. 7% + $0.30 per transaction. "
-    "5 published courses, 5,000 email subscribers, 25,000 monthly email "
-    "sends, 3 active email sequences, 25 hours of hosted video, sandbox "
-    "environment. 14-day free trial."
+    "5 published courses, 10,000 email subscribers, unlimited email sends "
+    "and sequences, 25 hours of hosted video, sandbox environment. "
+    "14-day free trial."
 )
 _STUDIO_DESCRIPTION = (
     "For small teams scaling up. 5% + $0.30 per transaction. "
-    "Everything in Starter plus 25 published courses, 25,000 subscribers, "
-    "100k monthly sends, 15 active sequences, custom email sender domain, "
+    "Everything in Starter plus 25 published courses, 50,000 subscribers, "
+    "unlimited email sends and sequences, custom email sender domain, "
     "A/B testing, white-label course player, customer wallet, 5 team "
     "seats. 14-day free trial."
 )
 _SCALE_DESCRIPTION = (
     "For established businesses. 3% + $0.30 per transaction, with "
     "custom pricing available above $50,000/month GMV. 100 published "
-    "courses, 50,000 subscribers, 500k monthly sends, unlimited "
-    "sequences, 250 GB storage, 20 team seats. Audit logs and dedicated "
-    "support with a 4-hour SLA. 14-day free trial."
+    "courses, 150,000 subscribers, unlimited email sends and sequences, "
+    "250 GB storage, 20 team seats. Audit logs and dedicated support "
+    "with a 4-hour SLA. 14-day free trial."
 )
 
-# 20% annual discount = pay for ~10 months, get 12. Stripe-standard.
-_ANNUAL_STARTER_CENTS = 4900 * 12 * 80 // 100  # 47,040
-_ANNUAL_STUDIO_CENTS = 12900 * 12 * 80 // 100  # 123,840
-_ANNUAL_SCALE_CENTS = 29900 * 12 * 80 // 100  # 287,040
+# Annual = ~20% off the monthly run-rate, rounded to a whole dollar so the
+# published yearly price is clean (and matches PRICING.md exactly):
+#   $49/mo  -> $470/yr    ($39/mo effective)
+#   $129/mo -> $1,238/yr  ($103/mo effective)
+#   $299/mo -> $2,870/yr  ($239/mo effective)
+_ANNUAL_STARTER_CENTS = 47000
+_ANNUAL_STUDIO_CENTS = 123800
+_ANNUAL_SCALE_CENTS = 287000
 
 
 PRODUCT_SPECS: list[ProductSpec] = [

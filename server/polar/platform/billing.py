@@ -144,21 +144,19 @@ class PlatformBillingService:
         session: AsyncSession,
         organization: Organization,
     ) -> Subscription | None:
-        """Convenience wrapper called from the org-creation hook.
+        """Start a local 14-day Starter trial subscription for an org.
 
-        Starts a 14-day Starter trial. The Starter product carries the
-        trial configuration (trial_interval=day, count=14) and
-        `_create_subscription` promotes that to a `trialing` status with
-        `trial_end` set 14 days from now. After the trial expires the
-        platform.expire_trials cron lapses the sub and the org drops to
-        `inactive` (no plan) — unless the creator converted via
-        upgrade-checkout, which captures a payment method and supersedes
-        this auto-trial with a subscription on the chosen tier.
+        NOTE: this is NOT the live trial path. Org creation only provisions
+        the platform Customer (``ensure_platform_customer``); the real,
+        card-required 14-day trial is created through the upgrade-checkout
+        flow, which captures a payment method and opens a Stripe-backed
+        subscription so Stripe bills the card automatically at trial_end.
 
-        Pre-attaching this trial is what gives a freshly created org a
-        real Starter tier from the first dashboard hit — without it,
-        EntitlementsService.get_tier resolves them to `inactive` (no
-        access) until they pick a plan.
+        This helper creates a LOCAL trialing subscription with no captured
+        payment method — it does not bill, and nothing in production calls
+        it. It's retained only for the platform-billing tests. Do NOT wire
+        it back into org creation: such a trial would never charge and never
+        lapse (there is no longer an expire-trials cron).
         """
         return await self.ensure_subscription(
             session, organization, tier=TierKey.starter, managed_by="trial"

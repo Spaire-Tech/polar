@@ -1,10 +1,12 @@
-"""Send creator-facing reminders before a Pro/Studio/Scale trial expires.
+"""Send creator-facing reminders before a Starter/Studio/Scale trial ends.
 
 Three reminders per trial — at T-7, T-2, and T-0 days before
 `trial_end`. Each one is sent at most once per (subscription, marker)
 pair; we record the marker in the subscription's `user_metadata` to
-keep the implementation table-less. After expiry, `platform.expire_trials`
-takes over (revoke; the org then has no plan and resolves to `inactive`).
+keep the implementation table-less. The trial is card-required, so at
+`trial_end` Stripe charges the card on file and the subscription
+converts to `active` automatically (or to `past_due` -> dunning if the
+charge fails). These reminders just warn the creator before that charge.
 
 Runs as a daily cron actor (`platform.notify_trial_reminders`).
 """
@@ -241,7 +243,8 @@ async def check_pending_trial_reminders(
     for subscription in candidates:
         counters["checked"] += 1
         if subscription.trial_end is None or subscription.trial_end < current:
-            # Already expired — platform.expire_trials handles those.
+            # Already past trial_end — Stripe handles the charge/conversion;
+            # there's nothing left to remind about.
             continue
 
         marker = _due_marker(_days_remaining(subscription.trial_end, current))

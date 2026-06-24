@@ -319,9 +319,8 @@ const featuresForTier = (plan: TierPlan): string[] => {
       `${formatTransactionFee(plan.transaction_fee)} per transaction`,
       `${plan.limits.published_courses} published courses`,
       `${formatCount(plan.limits.email_subscribers ?? 0)} email subscribers`,
-      `${plan.limits.active_email_sequences} active email ${
-        plan.limits.active_email_sequences === 1 ? 'sequence' : 'sequences'
-      }`,
+      'Unlimited email sends',
+      'Unlimited email sequences',
       `${plan.limits.video_hours_hosted} hours of hosted video`,
       'Sandbox / test environment',
     ]
@@ -331,7 +330,6 @@ const featuresForTier = (plan: TierPlan): string[] => {
       `${formatTransactionFee(plan.transaction_fee)} per transaction (saves 2% vs Starter)`,
       `${plan.limits.published_courses} published courses`,
       `${formatCount(plan.limits.email_subscribers ?? 0)} email subscribers`,
-      `${plan.limits.active_email_sequences} active email sequences`,
       'Custom email sender domain',
       'White-label course player',
       'Customer wallet',

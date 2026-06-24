@@ -180,7 +180,8 @@ class TestSeedPlatformProducts:
         ).scalar_one()
         assert legacy_count == 0
 
-        # Starter — monthly $49 + annual $470.40 (20% off 12 × $49 = $588).
+        # Starter — monthly $49 + annual $470 (~20% off 12 × $49 = $588,
+        # rounded to a whole dollar).
         starter_monthly = await _find("starter", "month")
         assert starter_monthly.name == "Spaire Starter"
         assert starter_monthly.trial_interval_count == 14
@@ -193,9 +194,9 @@ class TestSeedPlatformProducts:
         assert starter_annual.trial_interval_count == 14
         starter_annual_price = await _price_for(starter_annual)
         assert isinstance(starter_annual_price, ProductPriceFixed)
-        assert starter_annual_price.price_amount == 4900 * 12 * 80 // 100  # 47,040
+        assert starter_annual_price.price_amount == 47000  # $470.00
 
-        # Studio — monthly $129 + annual $1,238.40.
+        # Studio — monthly $129 + annual $1,238.
         studio_monthly = await _find("studio", "month")
         assert studio_monthly.name == "Spaire Studio"
         assert studio_monthly.trial_interval_count == 14
@@ -207,9 +208,9 @@ class TestSeedPlatformProducts:
         assert studio_annual.name == "Spaire Studio (Annual)"
         studio_annual_price = await _price_for(studio_annual)
         assert isinstance(studio_annual_price, ProductPriceFixed)
-        assert studio_annual_price.price_amount == 12900 * 12 * 80 // 100
+        assert studio_annual_price.price_amount == 123800  # $1,238.00
 
-        # Scale — monthly $299 + annual $2,870.40.
+        # Scale — monthly $299 + annual $2,870.
         scale_monthly = await _find("scale", "month")
         assert scale_monthly.name == "Spaire Scale"
         assert scale_monthly.trial_interval_count == 14
@@ -221,7 +222,7 @@ class TestSeedPlatformProducts:
         assert scale_annual.name == "Spaire Scale (Annual)"
         scale_annual_price = await _price_for(scale_annual)
         assert isinstance(scale_annual_price, ProductPriceFixed)
-        assert scale_annual_price.price_amount == 29900 * 12 * 80 // 100
+        assert scale_annual_price.price_amount == 287000  # $2,870.00
 
     async def test_archives_stale_price_when_amount_changes(
         self,

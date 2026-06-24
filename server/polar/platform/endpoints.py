@@ -275,10 +275,10 @@ async def get_usage(
 ) -> OrganizationUsage:
     """Current usage and tier-defined limit for every gated quota.
 
-    Returns one entry per QuotaKey (video hours, video views, storage,
-    email sends). Unlimited quotas surface as ``limit: null`` and
-    ``remaining: null``. Used by the dashboard's "Usage" widget and
-    helpful for backoffice debugging.
+    Returns one entry per QuotaKey (video hours, video views, storage).
+    Unlimited quotas surface as ``limit: null`` and ``remaining: null``.
+    Used by the dashboard's "Usage" widget and helpful for backoffice
+    debugging.
     """
     org_repository = OrganizationRepository.from_session(session)
     readable = org_repository.get_readable_statement(auth_subject).where(
