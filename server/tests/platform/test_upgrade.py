@@ -27,7 +27,11 @@ from polar.platform.fee_sync import (
     maybe_mark_platform_trial_consumed,
     maybe_supersede_platform_trial,
 )
-from polar.platform.upgrade import AlreadyOnPaidTier, platform_upgrade
+from polar.platform.upgrade import (
+    AlreadyOnPaidTier,
+    _plus_tagged_email,
+    platform_upgrade,
+)
 from polar.postgres import AsyncSession
 from tests.fixtures.database import SaveFixture
 from tests.fixtures.random_objects import (
@@ -523,3 +527,59 @@ class TestCreateCheckout:
 
         await session.refresh(customer)
         assert customer.email == "real-creator@gmail.com"
+
+    async def test_collision_falls_back_to_plus_addressed_email(
+        self,
+        mocker: MockerFixture,
+        session: AsyncSession,
+        save_fixture: SaveFixture,
+    ) -> None:
+        # One person owns two orgs and uses the same real email for both.
+        # The platform customers table is unique on (org, lower(email)), so
+        # only the first org can hold the email verbatim — the second must
+        # still end up with a DELIVERABLE address, not the dead placeholder.
+        platform_org = await create_organization(save_fixture)
+        _patch_platform_org_id(mocker, platform_org.id)
+        await _tier_product(
+            save_fixture, platform_org=platform_org, tier="starter"
+        )
+        self._mock_checkout_create(mocker)
+        real_email = "niki@gmail.com"
+
+        # Org A converts first and adopts the real email verbatim.
+        org_a = await create_organization(save_fixture)
+        customer_a = await _platform_customer(
+            save_fixture, platform_org=platform_org, creator=org_a
+        )
+        await platform_upgrade.create_checkout(
+            session,
+            organization=org_a,
+            tier=TierKey.starter,
+            billing_interval="month",
+            billing_email=real_email,
+        )
+        await session.refresh(customer_a)
+        assert customer_a.email == real_email
+
+        # Org B (same person, same email) collides. It must NOT keep the
+        # @billing.spairehq.internal placeholder — it adopts a plus-addressed
+        # variant that routes to the same inbox and stays unique.
+        org_b = await create_organization(save_fixture)
+        customer_b = await _platform_customer(
+            save_fixture, platform_org=platform_org, creator=org_b
+        )
+        await platform_upgrade.create_checkout(
+            session,
+            organization=org_b,
+            tier=TierKey.starter,
+            billing_interval="month",
+            billing_email=real_email,
+        )
+        await session.refresh(customer_b)
+        expected = _plus_tagged_email(real_email, org_b.slug)
+        assert customer_b.email == expected
+        assert customer_b.email != real_email
+        assert "@billing.spairehq.internal" not in customer_b.email
+        # Same real mailbox: base local part + real domain.
+        assert customer_b.email.split("+", 1)[0] == "niki"
+        assert customer_b.email.endswith("@gmail.com")

@@ -7,6 +7,7 @@ existing checkout creation path's auth validation passes — the platform
 org owns the product, so it's authorized to sell it.
 """
 
+import re
 from datetime import datetime, timedelta
 from math import ceil
 from typing import Literal
@@ -85,11 +86,41 @@ class MissingPlatformCustomer(PlatformUpgradeError):
         )
 
 
+def _plus_tagged_email(email: str, tag: str) -> str | None:
+    """Build a sub-addressed variant of `email`: ``name@domain`` + tag ->
+    ``name+tag@domain``.
+
+    Sub-addressing (RFC 5233) routes to the same mailbox at Gmail, Outlook,
+    Yahoo, iCloud, Fastmail, Proton and most other providers, while staying
+    a distinct address — so two orgs owned by one person can each carry a
+    deliverable billing email under the platform org's
+    unique-(org, email) constraint. We route to the BASE mailbox by
+    dropping any existing ``+tag`` rather than stacking tags.
+
+    Returns None when `email` isn't a parseable address or `tag` yields no
+    usable characters.
+    """
+    local, sep, domain = email.partition("@")
+    if not sep or not local or not domain:
+        return None
+    base_local = local.split("+", 1)[0]
+    if not base_local:
+        return None
+    safe_tag = re.sub(r"[^a-z0-9]+", "-", tag.lower()).strip("-")
+    if not safe_tag:
+        return None
+    # Local-part max is 64 chars (RFC 5321); keep room for base + "+".
+    max_tag = max(1, 64 - len(base_local) - 1)
+    safe_tag = safe_tag[:max_tag].strip("-") or safe_tag[:max_tag]
+    return f"{base_local}+{safe_tag}@{domain}"
+
+
 class PlatformUpgradeService:
     async def _apply_real_billing_email(
         self,
         session: AsyncSession,
         customer: Customer,
+        organization: Organization,
         real_email: str | None,
     ) -> None:
         """Set the platform Customer's email to the creator's real address
@@ -98,23 +129,54 @@ class PlatformUpgradeService:
         The platform `customers` table is unique on (organization_id,
         lower(email)). A single person who owns several Spaire orgs has one
         platform Customer per org; if they all share one real email, only
-        the first can hold it. So we only adopt the real email when no other
-        platform Customer in the org already has it — otherwise we keep the
-        synthetic placeholder (the real email is still prefilled on the
-        checkout form via customer_email).
+        the first can hold it verbatim. On that collision we do NOT fall
+        back to the undeliverable `@billing.spairehq.internal` placeholder —
+        we adopt a plus-addressed variant (`name+{slug}@domain`) that routes
+        to the same inbox at every major provider (RFC 5233 sub-addressing)
+        but stays unique, so receipts still reach the creator for every org
+        they own.
         """
         if real_email is None:
             return
         if customer.email.lower() == real_email.lower():
             return
+
         customer_repository = CustomerRepository.from_session(session)
-        existing = await customer_repository.get_by_email_and_organization(
-            real_email, customer.organization_id
-        )
-        if existing is not None and existing.id != customer.id:
+
+        # Preferred: the real email verbatim (the common single-org case).
+        if not await self._billing_email_taken(
+            customer_repository, customer, real_email
+        ):
+            customer.email = real_email
+            await session.flush()
             return
-        customer.email = real_email
-        await session.flush()
+
+        # Collision: another of this person's orgs already holds the real
+        # email. Adopt a deliverable plus-addressed variant rather than
+        # leaving the dead placeholder. The org slug is globally unique, so
+        # the tagged address can't collide in turn.
+        tagged = _plus_tagged_email(real_email, organization.slug)
+        if tagged is None or tagged.lower() == customer.email.lower():
+            return
+        if not await self._billing_email_taken(
+            customer_repository, customer, tagged
+        ):
+            customer.email = tagged
+            await session.flush()
+
+    async def _billing_email_taken(
+        self,
+        customer_repository: CustomerRepository,
+        customer: Customer,
+        email: str,
+    ) -> bool:
+        """True when another platform Customer in the same org already holds
+        `email` (case-insensitive). The active customer holding it is not a
+        collision."""
+        existing = await customer_repository.get_by_email_and_organization(
+            email, customer.organization_id
+        )
+        return existing is not None and existing.id != customer.id
 
     async def create_checkout(
         self,
@@ -166,7 +228,9 @@ class PlatformUpgradeService:
         # doesn't collide with another of their orgs) so Stripe receipts
         # and tax invoices reach a real inbox instead of the synthetic
         # `creator-{slug}@billing.spairehq.internal` placeholder.
-        await self._apply_real_billing_email(session, customer, billing_email)
+        await self._apply_real_billing_email(
+            session, customer, organization, billing_email
+        )
 
         # Resolve the creator's current active platform subscription to
         # decide how the checkout should treat it.
