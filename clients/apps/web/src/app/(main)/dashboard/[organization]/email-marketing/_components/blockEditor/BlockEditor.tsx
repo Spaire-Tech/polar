@@ -976,14 +976,14 @@ const VideoBody = ({
       setError('Not a recognised video format')
       return
     }
-    if (file.size > 50 * 1024 * 1024) {
-      setError('Video is over 50MB — embed instead, or compress.')
-      return
-    }
-    if (blobUrlRef.current) URL.revokeObjectURL(blobUrlRef.current)
-    const u = URL.createObjectURL(file)
-    blobUrlRef.current = u
-    patch<VideoBlock>(block.id, { src: u, embed_url: undefined })
+    // Direct video-file hosting isn't wired up, and email clients can't play
+    // an attached/blob video anyway. The old code stored a blob: URL that was
+    // silently dropped at send time (the video just vanished). Guide the
+    // creator to a hosted link instead of losing their content.
+    setError(
+      'Uploading video files isn’t supported yet. Host it on YouTube, Vimeo, or Loom and paste the link in the Embed tab.',
+    )
+    setTab('embed')
   }
   const submitEmbed = () => {
     const trimmed = url.trim()
