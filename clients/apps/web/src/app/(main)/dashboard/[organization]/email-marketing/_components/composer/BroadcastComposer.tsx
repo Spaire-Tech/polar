@@ -21,7 +21,14 @@ import {
 import { EmailEditor, type EmailEditorRef } from '@react-email/editor'
 import { schemas } from '@spaire/client'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react'
+import {
+  Fragment,
+  useEffect,
+  useRef,
+  useState,
+  type ComponentProps,
+  type ReactNode,
+} from 'react'
 import { createPortal } from 'react-dom'
 
 import { AudienceFields, fmt, useSegments } from './fields'
@@ -200,7 +207,17 @@ function ComposerInner({
   // Initial editor content — existing HTML when editing, empty otherwise.
   // `existing` is stable for this mount (the parent keys ComposerInner by id),
   // so a plain derived const is correct here (no ref needed).
-  const initialContent = existing?.content_html ?? ''
+  // Seed the editor from its OWN saved JSON (lossless round-trip), not the
+  // rendered email HTML. Guard the JSON so a legacy/non-editor content_json
+  // can't be handed to the editor; fall back to HTML, then empty.
+  const savedJson = (existing as { content_json?: unknown } | null)
+    ?.content_json
+  const initialContent: string | object =
+    savedJson &&
+    typeof savedJson === 'object' &&
+    (savedJson as { type?: string }).type === 'doc'
+      ? (savedJson as object)
+      : (existing?.content_html ?? '')
 
   const createBroadcast = useCreateEmailBroadcast(organization.id)
   const updateBroadcast = useUpdateEmailBroadcast()
@@ -496,7 +513,11 @@ function ComposerInner({
             <div className="re-editor">
               <EmailEditor
                 ref={editorRef}
-                content={initialContent || undefined}
+                content={
+                  (initialContent || undefined) as ComponentProps<
+                    typeof EmailEditor
+                  >['content']
+                }
                 placeholder="Write your message…"
                 onUploadImage={onUploadImage}
               />
