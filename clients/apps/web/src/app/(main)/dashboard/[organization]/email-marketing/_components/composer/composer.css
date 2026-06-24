@@ -804,3 +804,6 @@
   --re-danger-hover: rgba(216, 71, 43, 0.1);
   color: #1d1d1f;
 }
+
+/* Isolated, auto-sized preview iframe */
+.composer-shell .pv-frame { width: 100%; border: none; display: block; min-height: 320px; background: #fff; }
