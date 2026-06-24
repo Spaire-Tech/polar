@@ -330,6 +330,33 @@ export const formatTransactionFee = (fee: TransactionFee): string => {
 }
 
 /**
+ * Monthly sales (GMV) at which `higher` becomes cheaper overall than
+ * `lower`. Moving up a tier trades a bigger monthly fee for a lower
+ * transaction rate, so it pays off once volume is high enough:
+ *
+ *   breakeven = (monthlyHigher − monthlyLower) / (rateLower − rateHigher)
+ *
+ * The fixed per-transaction cents are identical across tiers, so they
+ * cancel and don't enter the formula. Returns the dollar figure rounded
+ * to the nearest $100 for display, or null when `higher` isn't actually
+ * a step up (price not higher, or rate not lower) — in which case there's
+ * no honest breakeven to show.
+ */
+export const breakevenGmvDollars = (
+  lower: TierPlan,
+  higher: TierPlan,
+): number | null => {
+  const monthlyDiffCents = higher.monthly_price_cents - lower.monthly_price_cents
+  const rateDiffBps =
+    lower.transaction_fee.percent_basis_points -
+    higher.transaction_fee.percent_basis_points
+  if (monthlyDiffCents <= 0 || rateDiffBps <= 0) return null
+  // cents / (bps/10000) = cents * 10000 / bps -> /100 for dollars.
+  const dollars = (monthlyDiffCents * 100) / rateDiffBps
+  return Math.round(dollars / 100) * 100
+}
+
+/**
  * Match the screenshot's renewal copy:
  *   "This site is charged on a monthly basis and renews on Jun 12th, 2026."
  * Returns null if there's no active subscription yet (no plan / pre-trial).

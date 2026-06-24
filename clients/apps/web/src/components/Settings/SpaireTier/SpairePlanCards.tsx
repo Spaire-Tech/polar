@@ -3,6 +3,7 @@
 import { toast } from '@/components/Toast/use-toast'
 import {
   BillingInterval,
+  breakevenGmvDollars,
   CurrentSpaireSubscription,
   formatTransactionFee,
   headlinePriceForPlan,
@@ -177,7 +178,7 @@ const SpairePlanCards = ({ organization }: SpairePlanCardsProps) => {
             <PlanCard
               key={plan.tier}
               plan={plan}
-              previousPlanName={idx === 0 ? null : ordered[idx - 1].name}
+              previousPlan={idx === 0 ? null : ordered[idx - 1]}
               interval={interval}
               currentTier={currentTier}
               currentInterval={currentInterval ?? null}
@@ -304,7 +305,7 @@ const IntervalToggle = ({
 
 interface PlanCardProps {
   plan: TierPlan
-  previousPlanName: string | null
+  previousPlan: TierPlan | null
   interval: BillingInterval
   currentTier: CurrentSpaireSubscription['tier'] | undefined
   currentInterval: BillingInterval | null
@@ -319,7 +320,7 @@ interface PlanCardProps {
 
 const PlanCard = ({
   plan,
-  previousPlanName,
+  previousPlan,
   interval,
   currentTier,
   currentInterval,
@@ -332,6 +333,12 @@ const PlanCard = ({
   onCancel,
 }: PlanCardProps) => {
   const isCurrentTier = plan.tier === currentTier
+  const previousPlanName = previousPlan?.name ?? null
+  // Volume at which this tier's lower rate outweighs its higher monthly
+  // fee vs the next-cheaper tier — the "upgrade pays for itself here" line.
+  const breakeven = previousPlan
+    ? breakevenGmvDollars(previousPlan, plan)
+    : null
   const annualAvailable = plan.annual_price_cents != null
   const effectiveInterval: BillingInterval =
     interval === 'year' && !annualAvailable ? 'month' : interval
@@ -389,6 +396,15 @@ const PlanCard = ({
         {plan.trial_days && !isCurrentTier && (
           <span className="mt-1 text-xs text-gray-500">
             {plan.trial_days}-day free trial included
+          </span>
+        )}
+        {breakeven !== null && previousPlanName && (
+          <span className="mt-2 text-xs text-gray-500">
+            Cheaper than {previousPlanName} above{' '}
+            <span className="font-medium text-gray-700">
+              ~${breakeven.toLocaleString('en-US')}/mo
+            </span>{' '}
+            in sales
           </span>
         )}
       </div>
