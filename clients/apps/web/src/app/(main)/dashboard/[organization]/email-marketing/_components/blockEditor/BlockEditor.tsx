@@ -1,6 +1,8 @@
 import { CSSProperties, useEffect, useRef, useState } from 'react'
 import { Icon } from '../Icon'
 import { EditableText } from './EditableText'
+import { RichTextField } from '../richText/RichTextField'
+import { textToRuns } from '../richText/types'
 import {
   BadgeBlock,
   Block,
@@ -622,13 +624,12 @@ const HeadingBody = ({
       : block.level === 2
         ? 22
         : 17
-  const Tag =
-    block.level === 1 ? 'h1' : block.level === 2 ? 'h2' : 'h3'
   return (
-    <EditableText
-      as={Tag}
-      value={block.text}
-      onChange={(text) => patch<HeadingBlock>(block.id, { text })}
+    <RichTextField
+      value={block.rich ?? textToRuns(block.text)}
+      onChange={({ rich, text }) =>
+        patch<HeadingBlock>(block.id, { rich, text })
+      }
       placeholder="Heading"
       style={{
         fontSize,
@@ -649,10 +650,11 @@ const SubheadingBody = ({
   block: SubheadingBlock
   patch: BlockPatcher
 }) => (
-  <EditableText
-    as="h3"
-    value={block.text}
-    onChange={(text) => patch<SubheadingBlock>(block.id, { text })}
+  <RichTextField
+    value={block.rich ?? textToRuns(block.text)}
+    onChange={({ rich, text }) =>
+      patch<SubheadingBlock>(block.id, { rich, text })
+    }
     placeholder="Subheading"
     style={{
       fontSize: 17,
@@ -672,11 +674,11 @@ const ParagraphBody = ({
   block: ParagraphBlock
   patch: BlockPatcher
 }) => (
-  <EditableText
-    as="p"
-    multiline
-    value={block.text}
-    onChange={(text) => patch<ParagraphBlock>(block.id, { text })}
+  <RichTextField
+    value={block.rich ?? textToRuns(block.text)}
+    onChange={({ rich, text }) =>
+      patch<ParagraphBlock>(block.id, { rich, text })
+    }
     placeholder="Write your paragraph here…"
     style={{
       fontSize: 14,
@@ -1234,10 +1236,11 @@ const QuoteBody = ({
       borderRadius: '0 8px 8px 0',
     }}
   >
-    <EditableText
-      multiline
-      value={block.text}
-      onChange={(text) => patch<QuoteBlock>(block.id, { text })}
+    <RichTextField
+      value={block.rich ?? textToRuns(block.text)}
+      onChange={({ rich, text }) =>
+        patch<QuoteBlock>(block.id, { rich, text })
+      }
       placeholder="A short, punchy testimonial"
       style={{
         fontSize: 15,
