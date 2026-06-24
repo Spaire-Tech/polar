@@ -2,12 +2,13 @@
 
 import { schemas } from '@spaire/client'
 
-import { ComposerApp } from '../composer/ComposerApp'
+import { BroadcastComposer } from '../composer/BroadcastComposer'
 
+// "New broadcast" — your composer design, now powered by @react-email/editor.
 export function NewBroadcastV2Screen({
   organization,
 }: {
   organization: schemas['Organization']
 }) {
-  return <ComposerApp organization={organization} />
+  return <BroadcastComposer organization={organization} broadcastId={null} />
 }

@@ -771,3 +771,9 @@
   border-radius: 12px; box-shadow: var(--c-sh-pop);
   padding: 12px; min-width: 240px; z-index: 50;
 }
+
+/* React Email editor body — fills the document column under the To/Subject
+   fields, matching the old canvas spacing. */
+.re-editor { padding: 8px 0 80px; min-height: 320px; }
+.re-editor .ProseMirror { outline: none; min-height: 280px; font-size: 16px; line-height: 1.6; color: #1d1d1f; }
+.re-editor .ProseMirror:focus { outline: none; }
