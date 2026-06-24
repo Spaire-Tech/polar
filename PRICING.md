@@ -51,7 +51,7 @@ The following are part of the product on every tier. Gating any of these would b
 | **Annual** (save 20%) | $39/mo · $470/yr | $103/mo · $1,238/yr | $239/mo · $2,870/yr |
 | **Transaction fee** | 7% + $0.30 | 5% + $0.30 | 3% + $0.30 |
 | **Custom pricing at scale** | — | — | available above $50k/mo GMV |
-| **Published courses** | 5 | 25 | 100 |
+| **Published courses** § | 5 | 25 | 100 |
 | **Lessons per course** | 50 | unlimited | unlimited |
 | **Active email sequences** | unlimited | unlimited | unlimited |
 | **Email subscribers** † | 10,000 | 50,000 | 150,000 |
@@ -82,7 +82,8 @@ The following are part of the product on every tier. Gating any of these would b
 | Support | email, 1 business day | priority email, same day | Slack + dedicated AM, 4-hour SLA |
 
 ‡ = quota enforcement enforced via metered events.
-† = Email is metered on **list size (subscribers) only** — checked directly against the cap whenever a contact is added, not via metered usage events. Sends and active sequences are unlimited on every tier, with the ESP cost absorbed into the transaction-fee spine. Scale's 150k contact cap is a published ceiling, not a hard wall — larger lists are a negotiated bump under custom pricing.
+† = Email is metered on **marketing list size only** — checked directly against the cap whenever a contact is added, not via metered usage events. **Buyers don't count:** a contact acquired through a purchase or linked to a paying customer is uncapped (they're already monetized by the transaction fee), so a creator is never pushed to upgrade by their own sales. Only marketing contacts — signups, lead-magnet opt-ins, manual adds, and imports — count toward the cap. Sends and active sequences are unlimited on every tier, with the ESP cost absorbed into the transaction-fee spine. Scale's 150k contact cap is a published ceiling, not a hard wall — larger lists are a negotiated bump under custom pricing.
+§ = Counts **published** courses only — a course occupies a slot once it has a published lesson. Draft courses (no published lesson) are free and unlimited; the cap is enforced at the publish transition, never at course creation. Counting drafts toward the cap was a documented Kajabi surprise we deliberately avoid.
 ★ = feature itself must be built or completed before this row is shippable.
 
 ---
@@ -174,7 +175,8 @@ Custom pricing for the Scale tier kicks in above $50k/month GMV. The negotiated 
 - Basic revenue / MRR / churn-rate analytics
 - 14-day trial machinery on Product (`trial_interval`, `trial_interval_count`)
 - Quota enforcement (metered usage events): video hours hosted, video views/month, storage bytes
-- Email list-size cap enforced directly against the tier limit at subscriber-add time (`email_subscribers`); email sends are uncapped
+- Email list-size cap (`email_subscribers`) enforced at subscriber-add time, counting **marketing contacts only** — buyers (purchase-sourced or customer-linked) are excluded; email sends are uncapped
+- Published-courses cap enforced at the **publish** transition, counting only courses with a published lesson — draft courses are free
 
 ### Built infrastructure, needs surfacing or completion
 

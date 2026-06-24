@@ -11,7 +11,11 @@ from polar.kit.repository import (
 from polar.kit.utils import utc_now
 from polar.models import UserOrganization
 from polar.models.email_broadcast_send import EmailBroadcastSend
-from polar.models.email_subscriber import EmailSubscriber, EmailSubscriberStatus
+from polar.models.email_subscriber import (
+    EmailSubscriber,
+    EmailSubscriberSource,
+    EmailSubscriberStatus,
+)
 
 
 # JSON shape that the audience builder serializes:
@@ -184,10 +188,34 @@ class EmailSubscriberRepository(
         return await self.get_all(statement)
 
     async def count_by_organization(self, organization_id: UUID) -> int:
+        """All active subscribers, buyers included. Used for dashboard
+        totals — NOT for the cap (see count_marketing_subscribers)."""
         statement = select(func.count(EmailSubscriber.id)).where(
             EmailSubscriber.organization_id == organization_id,
             EmailSubscriber.deleted_at.is_(None),
             EmailSubscriber.status == "active",
+        )
+        result = await self.session.execute(statement)
+        return result.scalar_one()
+
+    async def count_marketing_subscribers(self, organization_id: UUID) -> int:
+        """Active subscribers that count toward the email_subscribers cap.
+
+        Buyers are deliberately uncapped: a contact linked to a paying
+        customer (``customer_id`` set) or acquired through a purchase
+        does NOT count, because they're already monetized by the
+        transaction fee. Only marketing contacts — space signups,
+        lead-magnet opt-ins, manual adds, and imports — count, so a
+        creator is never pushed to upgrade by their own sales (the
+        "success tax" that drove the Kajabi backlash). This mirrors the
+        buyer-exclusion in EmailSubscriberService.create()'s cap gate.
+        """
+        statement = select(func.count(EmailSubscriber.id)).where(
+            EmailSubscriber.organization_id == organization_id,
+            EmailSubscriber.deleted_at.is_(None),
+            EmailSubscriber.status == EmailSubscriberStatus.active,
+            EmailSubscriber.customer_id.is_(None),
+            EmailSubscriber.source != EmailSubscriberSource.purchase,
         )
         result = await self.session.execute(statement)
         return result.scalar_one()

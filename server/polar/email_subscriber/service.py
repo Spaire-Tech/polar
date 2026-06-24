@@ -105,19 +105,30 @@ class EmailSubscriberService:
             email, organization_id
         )
 
-        # Gate against the tier's email_subscribers cap on any path
-        # that would result in a NEW active subscriber. That includes:
+        # Is this add a *buyer* rather than a marketing contact? Buyers —
+        # acquired through a purchase or linked to a paying customer — are
+        # uncapped: they're already monetized by the transaction fee, so a
+        # creator is never pushed to upgrade by their own sales. Only
+        # marketing contacts count toward the email_subscribers cap.
+        is_buyer = (
+            source == EmailSubscriberSource.purchase or customer_id is not None
+        )
+
+        # Gate against the tier's email_subscribers cap on any path that
+        # would result in a NEW active *marketing* subscriber:
         #   - net-new inserts (existing is None), and
         #   - reactivations: existing row currently unsubscribed or
-        #     archived (these don't count toward count_by_organization,
+        #     archived (these don't count toward count_marketing_subscribers,
         #     which filters status == "active") becoming active.
-        # Active-row no-op writes don't trip the gate.
+        # Buyer adds and active-row no-op writes never trip the gate.
         is_reactivation = existing is not None and existing.status in (
             EmailSubscriberStatus.unsubscribed,
             EmailSubscriberStatus.archived,
         )
-        if existing is None or is_reactivation:
-            current = await repository.count_by_organization(organization_id)
+        if not is_buyer and (existing is None or is_reactivation):
+            current = await repository.count_marketing_subscribers(
+                organization_id
+            )
             await entitlements_service.require_under_limit(
                 session, organization_id, "email_subscribers", current=current
             )
@@ -135,12 +146,23 @@ class EmailSubscriberService:
                 if verified_now and existing.email_verified_at is None:
                     existing.email_verified_at = verified_now
                 await repository.update(existing)
-            elif verified_now and existing.email_verified_at is None:
-                # Active row, never verified, now we have a signal — record
-                # it so the dashboard can distinguish form opt-ins from
-                # confirmed addresses.
-                existing.email_verified_at = verified_now
-                await repository.update(existing)
+            else:
+                # Active row. Backfill the customer link when a purchase
+                # arrives for an existing marketing contact, so a lead who
+                # later buys converts to an (uncapped) buyer and stops
+                # counting against the cap — matching "buyers are uncapped".
+                changed = False
+                if customer_id and not existing.customer_id:
+                    existing.customer_id = customer_id
+                    changed = True
+                if verified_now and existing.email_verified_at is None:
+                    # Never verified, now we have a signal — record it so the
+                    # dashboard can distinguish form opt-ins from confirmed
+                    # addresses.
+                    existing.email_verified_at = verified_now
+                    changed = True
+                if changed:
+                    await repository.update(existing)
             return existing
 
         subscriber = EmailSubscriber(
@@ -371,11 +393,11 @@ class EmailSubscriberService:
         # 50,000"). Counting up-front lets us refuse the entire import
         # with one clear error.
         #
-        # Quota-affecting rows are inserts AND reactivations: rows in
-        # existing_by_email whose status is unsubscribed/archived will
-        # flip to active in the loop below and start counting against
-        # count_by_organization. Active-row name-backfills don't add a
-        # new active subscriber.
+        # Cap-affecting rows are NEW marketing inserts AND reactivations of
+        # marketing rows. Imports are always marketing contacts (no
+        # customer link), so new rows count. Reactivating a *buyer* row
+        # (linked to a customer) does NOT count — buyers are uncapped —
+        # so we skip those, mirroring create()'s buyer-aware gate.
         becoming_active = 0
         for email_norm, _ in cleaned:
             existing = existing_by_email.get(email_norm)
@@ -385,9 +407,14 @@ class EmailSubscriberService:
                 EmailSubscriberStatus.unsubscribed,
                 EmailSubscriberStatus.archived,
             ):
-                becoming_active += 1
+                existing_is_buyer = (
+                    existing.customer_id is not None
+                    or existing.source == EmailSubscriberSource.purchase
+                )
+                if not existing_is_buyer:
+                    becoming_active += 1
         if becoming_active > 0:
-            current_active = await repository.count_by_organization(
+            current_active = await repository.count_marketing_subscribers(
                 organization_id
             )
             # require_under_limit raises when current >= limit. We want
