@@ -17,18 +17,9 @@ import { useCallback, useEffect, useState } from 'react'
 import { useFormContext } from 'react-hook-form'
 import { Field, Seg, Toggle } from '../Community/hub/atoms'
 import '../Community/hub/hub.css'
+import './SpaceSettingsTab.css'
 
 type Settings = NonNullable<schemas['OrganizationStorefrontSettings']>
-
-/** A solid, clearly-bordered writing box — mirrors the Course editor's title /
- *  description fields so the SEO inputs read as real writing surfaces (not the
- *  transparent grey fill) in both light and dark mode. `--surface` is pure white
- *  in light and a defined panel in dark; `--hair` draws the visible border. The
- *  blue focus ring still comes for free from `.input:focus` in hub.css. */
-const WRITING_BOX_STYLE: React.CSSProperties = {
-  background: 'var(--surface)',
-  boxShadow: 'inset 0 0 0 1px var(--hair)',
-}
 
 /** Text input that commits on blur / Enter (matches the Community settings),
  *  so we don't churn form state on every keystroke. */
@@ -47,11 +38,10 @@ function CommitInput({
   useEffect(() => setV(value), [value])
   return (
     <input
-      className="input"
+      className="input seo-box"
       value={v}
       placeholder={placeholder}
       maxLength={maxLength}
-      style={WRITING_BOX_STYLE}
       onChange={(e) => setV(e.target.value)}
       onBlur={() => v !== value && onCommit(v)}
       onKeyDown={(e) => {
@@ -77,12 +67,12 @@ function CommitTextarea({
   useEffect(() => setV(value), [value])
   return (
     <textarea
-      className="input"
+      className="input seo-box"
       value={v}
       placeholder={placeholder}
       maxLength={maxLength}
       rows={3}
-      style={{ ...WRITING_BOX_STYLE, width: '100%', resize: 'vertical', minHeight: 84 }}
+      style={{ width: '100%', resize: 'vertical', minHeight: 84 }}
       onChange={(e) => setV(e.target.value)}
       onBlur={() => v !== value && onCommit(v)}
     />
