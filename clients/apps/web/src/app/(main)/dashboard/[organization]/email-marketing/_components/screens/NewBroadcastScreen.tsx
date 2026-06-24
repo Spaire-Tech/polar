@@ -24,7 +24,7 @@ import {
 } from '@/hooks/queries/emailMarketing'
 import { schemas } from '@spaire/client'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { memo, useEffect, useMemo, useRef, useState } from 'react'
+import { memo, useMemo, useRef, useState } from 'react'
 import { BroadcastEditor } from '../blockEditor/BroadcastEditor'
 import { renderBlocksToHtml } from '../blockEditor/render'
 import {
@@ -34,7 +34,6 @@ import {
   newId,
   normalizeContentDoc,
 } from '../blockEditor/types'
-import { isComposerV3, migrateComposerV3 } from '../richText/migrate'
 import { useDialogs } from '../dialogs'
 import { Icon } from '../Icon'
 import { sanitizeEmailHtml } from '../sanitize'
@@ -97,12 +96,6 @@ const adoptContentJson = (raw: unknown): ContentDoc => {
     }
     return normalizeContentDoc(withIds)
   }
-  // Legacy composer.v3 doc → convert it so the body is editable here (the
-  // inline font/size styling that caused the size drift is intentionally
-  // dropped to clean text). Only fall back to a starter doc when the content
-  // is genuinely unrecognized.
-  const migrated = migrateComposerV3(raw)
-  if (migrated) return migrated
   return STARTER_DOC
 }
 
@@ -216,37 +209,6 @@ const toLocalDateTimeInputValue = (d: Date) => {
 
 type ExistingBroadcast = ReturnType<typeof useEmailBroadcast>['data']
 
-// DATA-LOSS GUARDRAIL. Returns true when an existing broadcast carries body
-// content we do NOT recognize as a ContentDoc — e.g. a draft authored in the
-// other (composer.v3) editor. `adoptContentJson` falls back to STARTER_DOC for
-// these, so without this guard the next save would overwrite the original body
-// with the starter doc and the user's content would be gone. When this is true
-// the editor preserves the stored body: it never writes content_json/
-// content_html, only metadata, and shows a banner explaining why.
-const hasUnknownLegacyBody = (
-  existing: NonNullable<ExistingBroadcast> | null,
-): boolean => {
-  if (!existing) return false
-  const raw = (existing as { content_json?: unknown }).content_json
-  const hasJson =
-    raw != null &&
-    typeof raw === 'object' &&
-    Object.keys(raw as object).length > 0
-  // Genuinely unrecognized (not a ContentDoc and not a migratable composer.v3).
-  return hasJson && !isContentDoc(raw) && !isComposerV3(raw)
-}
-
-// True when the existing body was a composer.v3 doc that adoptContentJson
-// converted — used to show a one-time "upgraded" note (the conversion is
-// lossy: inline font/size styling is simplified to clean text).
-const wasMigratedFromV3 = (
-  existing: NonNullable<ExistingBroadcast> | null,
-): boolean => {
-  if (!existing) return false
-  const raw = (existing as { content_json?: unknown }).content_json
-  return raw != null && typeof raw === 'object' && !isContentDoc(raw) && isComposerV3(raw)
-}
-
 const draftFromExisting = (
   existing: NonNullable<ExistingBroadcast>,
   organization: schemas['Organization'],
@@ -262,31 +224,6 @@ const draftFromExisting = (
   filter_rules:
     (existing as { filter_rules?: FilterRules | null }).filter_rules ?? null,
 })
-
-// Canonical content_html, rendered by React Email on the server route so that
-// what we store/send is byte-identical to what the preview shows. Returns null
-// on any failure so callers can fall back to the local renderer.
-const renderEmailViaApi = async (
-  slug: string,
-  doc: ContentDoc,
-): Promise<string | null> => {
-  try {
-    const res = await fetch(
-      `/dashboard/${slug}/email-marketing/render`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ doc }),
-        credentials: 'include',
-      },
-    )
-    if (!res.ok) return null
-    const data = (await res.json()) as { html?: string }
-    return typeof data.html === 'string' ? data.html : null
-  } catch {
-    return null
-  }
-}
 
 export const NewBroadcastScreen = (props: {
   organization: schemas['Organization']
@@ -342,9 +279,6 @@ const ComposerInner = ({
   } | null
 }) => {
   const isNew = !broadcastId
-  // See hasUnknownLegacyBody: when set, we must not overwrite the stored body.
-  const legacyBody = hasUnknownLegacyBody(existing)
-  const migratedBody = wasMigratedFromV3(existing)
 
   const [draft, setDraft] = useState<Draft>(() =>
     existing
@@ -397,28 +331,19 @@ const ComposerInner = ({
     draft.content_doc.blocks.length > 0 &&
     renderedHtml.trim().length > 0
 
-  const persistableUpdate = (): BroadcastWritePayload => {
-    const payload: BroadcastWritePayload = {
-      subject: draft.subject,
-      preview_text: draft.preview_text || null,
-      sender_name: draft.sender_name,
-      // Empty string → null so the server keeps its column-level default
-      // instead of overwriting it with an invalid empty address.
-      sender_email: draft.sender_email.trim() || null,
-      reply_to_email: draft.reply_to_email || null,
-      segment_id: draft.segment_id,
-      filter_rules: draft.filter_rules,
-    }
-    // Guardrail: only write the body when we actually loaded an editable one.
-    // For unrecognized legacy bodies, omit content_json/content_html entirely
-    // so the server keeps the original — preventing the starter-doc overwrite.
-    if (!legacyBody) {
-      payload.content_html = renderedHtml
-      payload.content_json =
-        draft.content_doc as unknown as Record<string, unknown>
-    }
-    return payload
-  }
+  const persistableUpdate = (): BroadcastWritePayload => ({
+    subject: draft.subject,
+    preview_text: draft.preview_text || null,
+    sender_name: draft.sender_name,
+    // Empty string → null so the server keeps its column-level default
+    // instead of overwriting it with an invalid empty address.
+    sender_email: draft.sender_email.trim() || null,
+    reply_to_email: draft.reply_to_email || null,
+    content_html: renderedHtml,
+    content_json: draft.content_doc as unknown as Record<string, unknown>,
+    segment_id: draft.segment_id,
+    filter_rules: draft.filter_rules,
+  })
 
   // Skip the round-trip when neither the draft nor the A/B config has
   // changed since the last persist (audit issue #38 / fix-list #38). Each
@@ -454,20 +379,11 @@ const ComposerInner = ({
     ) {
       return broadcastId
     }
-    // Render the canonical content_html via the server route (React Email).
-    // Falls back to the local renderer if the request fails, so a save never
-    // silently drops the body. Skipped for unrecognized legacy bodies.
-    const contentHtml = legacyBody
-      ? null
-      : ((await renderEmailViaApi(organization.slug, draft.content_doc)) ??
-        renderedHtml)
     let id = broadcastId
     if (id) {
-      const body = persistableUpdate()
-      if (!legacyBody && contentHtml) body.content_html = contentHtml
       await updateMutation.mutateAsync({
         broadcastId: id,
-        body,
+        body: persistableUpdate(),
       })
     } else {
       if (!draft.subject.trim() || !draft.sender_name.trim()) return null
@@ -477,7 +393,7 @@ const ComposerInner = ({
         sender_email: draft.sender_email.trim() || null,
         preview_text: draft.preview_text || null,
         reply_to_email: draft.reply_to_email || null,
-        content_html: contentHtml ?? renderedHtml,
+        content_html: renderedHtml,
         content_json: draft.content_doc as unknown as Record<string, unknown>,
         segment_id: draft.segment_id,
         filter_rules: draft.filter_rules,
@@ -543,43 +459,6 @@ const ComposerInner = ({
 
   return (
     <div className="fade-up" style={{ paddingBottom: 80 }}>
-      {legacyBody && (
-        <div
-          style={{
-            margin: '0 0 20px',
-            padding: '12px 16px',
-            borderRadius: 12,
-            background: '#fff8e6',
-            border: '1px solid #f3e2b3',
-            color: '#7a5b00',
-            fontSize: 13,
-            lineHeight: 1.5,
-          }}
-        >
-          This broadcast was created in an earlier editor. Its content is
-          preserved and will send exactly as before — but the body can&rsquo;t
-          be edited here yet. Editing subject, sender, or audience is safe;
-          re-create the email to change its content.
-        </div>
-      )}
-      {migratedBody && (
-        <div
-          style={{
-            margin: '0 0 20px',
-            padding: '12px 16px',
-            borderRadius: 12,
-            background: '#eef5ff',
-            border: '1px solid #cfe0fb',
-            color: '#234a87',
-            fontSize: 13,
-            lineHeight: 1.5,
-          }}
-        >
-          This broadcast was upgraded to the new editor. Its text and layout
-          were preserved, but some older inline styling was simplified — give
-          it a quick look before sending.
-        </div>
-      )}
       <div
         style={{
           display: 'flex',
@@ -680,7 +559,6 @@ const ComposerInner = ({
           {step === 'preview' && (
             <PreviewSection
               draft={draft}
-              orgSlug={organization.slug}
               broadcastId={broadcastId}
               persist={persist}
               sendTest={async (email) => {
@@ -1489,14 +1367,12 @@ const FilterRowEditor = ({
 
 const PreviewSection = ({
   draft,
-  orgSlug,
   broadcastId,
   persist,
   sendTest,
   sending,
 }: {
   draft: Draft
-  orgSlug: string
   broadcastId: string | null
   persist: () => Promise<string | null>
   sendTest: (email: string) => Promise<void>
@@ -1509,24 +1385,6 @@ const PreviewSection = ({
   const [testEmail, setTestEmail] = useState(currentUser?.email ?? '')
   const [testSent, setTestSent] = useState<string | null>(null)
   const validEmail = /[^@\s]+@[^@\s]+\.[^@\s]+/.test(testEmail.trim())
-
-  // Render the preview through the SAME server route the save path uses, so
-  // preview === sent. Debounced; the local renderer is the instant fallback
-  // (visually identical) shown until the route responds / if it fails.
-  const [previewHtml, setPreviewHtml] = useState<string | null>(null)
-  useEffect(() => {
-    let cancelled = false
-    const t = window.setTimeout(() => {
-      renderEmailViaApi(orgSlug, draft.content_doc).then((h) => {
-        if (!cancelled && h != null) setPreviewHtml(h)
-      })
-    }, 350)
-    return () => {
-      cancelled = true
-      window.clearTimeout(t)
-    }
-  }, [orgSlug, draft.content_doc])
-  const html = previewHtml ?? renderBlocksToHtml(draft.content_doc)
 
   const submit = async () => {
     if (!validEmail) return
@@ -1619,8 +1477,8 @@ const PreviewSection = ({
             minHeight: 420,
           }}
         >
-          {device === 'desktop' && <DesktopPreview draft={draft} html={html} />}
-          {device === 'mobile' && <MobilePreview draft={draft} html={html} />}
+          {device === 'desktop' && <DesktopPreview draft={draft} />}
+          {device === 'mobile' && <MobilePreview draft={draft} />}
           {device === 'inbox' && <InboxPreview draft={draft} />}
         </div>
       </div>
@@ -1645,13 +1503,8 @@ const SF_FONT =
 // actually reads, so typing anywhere outside the email body (audience
 // rules, segment id, filter rules, etc.) doesn't repaint the 200-line
 // MacBook chrome.
-const DesktopPreviewBase = ({
-  draft,
-  html,
-}: {
-  draft: Draft
-  html: string
-}) => {
+const DesktopPreviewBase = ({ draft }: { draft: Draft }) => {
+  const html = renderBlocksToHtml(draft.content_doc)
   const initials = draft.sender_name
     .split(' ')
     .map((p) => p[0])
@@ -1887,10 +1740,9 @@ const DesktopPreviewBase = ({
 }
 
 const draftPreviewFieldsEqual = (
-  a: { draft: Draft; html: string },
-  b: { draft: Draft; html: string },
+  a: { draft: Draft },
+  b: { draft: Draft },
 ): boolean =>
-  a.html === b.html &&
   a.draft.subject === b.draft.subject &&
   a.draft.preview_text === b.draft.preview_text &&
   a.draft.sender_name === b.draft.sender_name &&
@@ -1902,13 +1754,8 @@ const DesktopPreview = memo(DesktopPreviewBase, draftPreviewFieldsEqual)
 
 // iPhone-style preview — Dynamic Island + status bar + Mail app chrome.
 // Same memoization story as DesktopPreview above.
-const MobilePreviewBase = ({
-  draft,
-  html,
-}: {
-  draft: Draft
-  html: string
-}) => {
+const MobilePreviewBase = ({ draft }: { draft: Draft }) => {
+  const html = renderBlocksToHtml(draft.content_doc)
   const initials = draft.sender_name
     .split(' ')
     .map((p) => p[0])
@@ -2449,12 +2296,7 @@ export const NewBroadcastRoute = ({
       // share work afterwards.
       onOpened={(id) => {
         if (broadcastId !== id) {
-          // Preserve ?returnTo (Space Broadcast tab) across the URL swap so
-          // closing after the first save still returns to where we came from.
-          const rt = searchParams.get('returnTo')
-          router.replace(
-            `${base}/${id}/edit${rt ? `?returnTo=${encodeURIComponent(rt)}` : ''}`,
-          )
+          router.replace(`${base}/${id}/edit`)
         }
       }}
     />

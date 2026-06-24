@@ -1,8 +1,6 @@
 import { CSSProperties, useEffect, useRef, useState } from 'react'
 import { Icon } from '../Icon'
 import { EditableText } from './EditableText'
-import { RichTextField } from '../richText/RichTextField'
-import { textToRuns } from '../richText/types'
 import {
   BadgeBlock,
   Block,
@@ -624,12 +622,13 @@ const HeadingBody = ({
       : block.level === 2
         ? 22
         : 17
+  const Tag =
+    block.level === 1 ? 'h1' : block.level === 2 ? 'h2' : 'h3'
   return (
-    <RichTextField
-      value={block.rich ?? textToRuns(block.text)}
-      onChange={({ rich, text }) =>
-        patch<HeadingBlock>(block.id, { rich, text })
-      }
+    <EditableText
+      as={Tag}
+      value={block.text}
+      onChange={(text) => patch<HeadingBlock>(block.id, { text })}
       placeholder="Heading"
       style={{
         fontSize,
@@ -650,11 +649,10 @@ const SubheadingBody = ({
   block: SubheadingBlock
   patch: BlockPatcher
 }) => (
-  <RichTextField
-    value={block.rich ?? textToRuns(block.text)}
-    onChange={({ rich, text }) =>
-      patch<SubheadingBlock>(block.id, { rich, text })
-    }
+  <EditableText
+    as="h3"
+    value={block.text}
+    onChange={(text) => patch<SubheadingBlock>(block.id, { text })}
     placeholder="Subheading"
     style={{
       fontSize: 17,
@@ -674,11 +672,11 @@ const ParagraphBody = ({
   block: ParagraphBlock
   patch: BlockPatcher
 }) => (
-  <RichTextField
-    value={block.rich ?? textToRuns(block.text)}
-    onChange={({ rich, text }) =>
-      patch<ParagraphBlock>(block.id, { rich, text })
-    }
+  <EditableText
+    as="p"
+    multiline
+    value={block.text}
+    onChange={(text) => patch<ParagraphBlock>(block.id, { text })}
     placeholder="Write your paragraph here…"
     style={{
       fontSize: 14,
@@ -976,14 +974,14 @@ const VideoBody = ({
       setError('Not a recognised video format')
       return
     }
-    // Direct video-file hosting isn't wired up, and email clients can't play
-    // an attached/blob video anyway. The old code stored a blob: URL that was
-    // silently dropped at send time (the video just vanished). Guide the
-    // creator to a hosted link instead of losing their content.
-    setError(
-      'Uploading video files isn’t supported yet. Host it on YouTube, Vimeo, or Loom and paste the link in the Embed tab.',
-    )
-    setTab('embed')
+    if (file.size > 50 * 1024 * 1024) {
+      setError('Video is over 50MB — embed instead, or compress.')
+      return
+    }
+    if (blobUrlRef.current) URL.revokeObjectURL(blobUrlRef.current)
+    const u = URL.createObjectURL(file)
+    blobUrlRef.current = u
+    patch<VideoBlock>(block.id, { src: u, embed_url: undefined })
   }
   const submitEmbed = () => {
     const trimmed = url.trim()
@@ -1236,11 +1234,10 @@ const QuoteBody = ({
       borderRadius: '0 8px 8px 0',
     }}
   >
-    <RichTextField
-      value={block.rich ?? textToRuns(block.text)}
-      onChange={({ rich, text }) =>
-        patch<QuoteBlock>(block.id, { rich, text })
-      }
+    <EditableText
+      multiline
+      value={block.text}
+      onChange={(text) => patch<QuoteBlock>(block.id, { text })}
       placeholder="A short, punchy testimonial"
       style={{
         fontSize: 15,
