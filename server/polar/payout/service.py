@@ -23,6 +23,7 @@ from polar.logging import Logger
 from polar.models import Account, Payout
 from polar.models.payout import PayoutStatus
 from polar.organization.repository import OrganizationRepository
+from polar.platform.service import platform as platform_service
 from polar.postgres import AsyncSession
 from polar.transaction.repository import (
     PayoutTransactionRepository,
@@ -68,6 +69,20 @@ class NotReadyAccount(PayoutError):
         self.account = account
         message = "Your payout account is not ready yet. Complete the setup to receive payouts."
         super().__init__(message, 403)
+
+
+class AccountDelinquent(PayoutError):
+    """Payouts are held because a creator org on this account has a past_due
+    Spaire subscription. The merchant balance is held as leverage until the
+    creator settles their Spaire plan (Settings -> Plan -> Pay balance)."""
+
+    def __init__(self, account: Account) -> None:
+        self.account = account
+        message = (
+            "Payouts are paused because your Spaire plan payment failed. "
+            "Settle your plan balance from Settings → Plan to resume payouts."
+        )
+        super().__init__(message, 402)
 
 
 class PendingPayoutCreation(PayoutError):
@@ -171,6 +186,28 @@ class PayoutService:
         )
         return await repository.get_one_or_none(statement)
 
+    async def _assert_not_delinquent(
+        self, session: AsyncSession, account: Account
+    ) -> None:
+        """Hold payouts while any creator org on this account owes Spaire.
+
+        Spaire is the merchant of record, so the balance we're about to pay
+        out is leverage: if a creator's own Spaire subscription is past_due
+        (a charge failed and dunning is running), we refuse the withdrawal
+        until they settle, rather than handing over money we're using to get
+        them current. Any one delinquent org on the account holds the lot —
+        they share a payout account, so whoever controls it controls the
+        billing on every org under it.
+        """
+        organization_repository = OrganizationRepository.from_session(session)
+        organizations = await organization_repository.get_all_by_account(account.id)
+        for organization in organizations:
+            delinquent = await platform_service.get_delinquent_subscription(
+                session, organization.id
+            )
+            if delinquent is not None:
+                raise AccountDelinquent(account)
+
     async def estimate(
         self, session: AsyncSession, *, account: Account
     ) -> PayoutEstimate:
@@ -178,6 +215,7 @@ class PayoutService:
             raise UnderReviewAccount(account)
         if not account.is_payout_ready():
             raise NotReadyAccount(account)
+        await self._assert_not_delinquent(session, account)
 
         balance_amount = await transaction_service.get_transactions_sum(
             session, account.id
@@ -211,6 +249,7 @@ class PayoutService:
                 raise UnderReviewAccount(account)
             if not account.is_payout_ready():
                 raise NotReadyAccount(account)
+            await self._assert_not_delinquent(session, account)
 
             balance_amount = await transaction_service.get_transactions_sum(
                 session, account.id
