@@ -20,8 +20,6 @@ import {
   type BroadcastWritePayload,
 } from '@/hooks/queries/emailMarketing'
 import { EmailEditor, type EmailEditorRef } from '@react-email/editor'
-// Insert (slash) + formatting (bubble) UI — composed as editor children.
-import { BubbleMenu, SlashCommand, defaultSlashCommands } from '@react-email/editor/ui'
 import { schemas } from '@spaire/client'
 import { useRouter, useSearchParams } from 'next/navigation'
 import {
@@ -545,6 +543,10 @@ function ComposerInner({
               allowExclude={false}
             />
             <div className="re-editor">
+              {/* EmailEditor mounts its own bubble menu (select text to
+                  format) and slash command (type "/" to insert image, button,
+                  columns, lists, quote, divider…). Do NOT add them as children
+                  — that double-registers the keyed plugins and crashes. */}
               <EmailEditor
                 ref={editorRef}
                 content={
@@ -555,13 +557,7 @@ function ComposerInner({
                 placeholder="Write your message, or press “/” to insert an image, button, columns…"
                 onUploadImage={onUploadImage}
                 onUpdate={scheduleAutosave}
-              >
-                {/* Selection formatting (bold/italic/underline/strike/link)
-                    and the “/” insert menu (image, button, columns, lists,
-                    quote, divider…). */}
-                <BubbleMenu />
-                <SlashCommand items={defaultSlashCommands} />
-              </EmailEditor>
+              />
             </div>
           </div>
 
