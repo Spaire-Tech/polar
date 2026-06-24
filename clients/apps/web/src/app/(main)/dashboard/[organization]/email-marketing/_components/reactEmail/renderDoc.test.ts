@@ -126,6 +126,43 @@ describe('renderDocToHtml (canonical React Email renderer)', () => {
     expect(html.toLowerCase()).toContain('#0066cc')
   })
 
+  it('renders inline marks (bold/italic/link) from rich runs', async () => {
+    const html = await renderDocToHtml(
+      doc([
+        {
+          id: 'p',
+          type: 'paragraph',
+          text: 'Hello bold and link',
+          rich: [
+            { t: 'Hello ' },
+            { t: 'bold', b: true },
+            { t: ' and ' },
+            { t: 'link', href: 'https://x.test' },
+          ],
+        },
+      ]),
+    )
+    expect(html).toContain('<strong')
+    expect(html).toContain('bold')
+    expect(html).toMatch(/<a[^>]+href="https:\/\/x\.test"/)
+    expect(html).toContain('>link</a>')
+  })
+
+  it('drops a javascript: link mark but keeps the text', async () => {
+    const html = await renderDocToHtml(
+      doc([
+        {
+          id: 'p',
+          type: 'paragraph',
+          text: 'click me',
+          rich: [{ t: 'click me', href: 'javascript:alert(1)' }],
+        },
+      ]),
+    )
+    expect(html).not.toContain('javascript:')
+    expect(html).toContain('click me')
+  })
+
   it('exercises every block type without throwing', async () => {
     const html = await renderDocToHtml(
       doc([

@@ -12,6 +12,7 @@ import {
 import * as React from 'react'
 import { Fragment } from 'react'
 import { Block, ContentDoc } from '../blockEditor/types'
+import { hasRich, renderInline } from '../richText/inline'
 import { lines, resolveVideo, safeColor, safeUrl } from './util'
 
 // Canonical email renderer, built on React Email components. ONE renderer for
@@ -74,7 +75,9 @@ export function BlockView({
         : HEADING[level]
       return (
         <Heading as={`h${level}`} style={style}>
-          {block.text || ''}
+          {hasRich(block.rich)
+            ? renderInline(block.rich, accent)
+            : block.text || ''}
         </Heading>
       )
     }
@@ -85,12 +88,20 @@ export function BlockView({
           as="h3"
           style={{ fontSize: '17px', fontWeight: 600, letterSpacing: '-0.01em', lineHeight: 1.3, color: '#1d1d1f', margin: '20px 0 8px' }}
         >
-          {block.text || ''}
+          {hasRich(block.rich)
+            ? renderInline(block.rich, accent)
+            : block.text || ''}
         </Heading>
       )
 
     case 'paragraph':
-      return <Text style={PARAGRAPH}>{multiline(block.text || '')}</Text>
+      return (
+        <Text style={PARAGRAPH}>
+          {hasRich(block.rich)
+            ? renderInline(block.rich, accent)
+            : multiline(block.text || '')}
+        </Text>
+      )
 
     case 'badge':
       return (
@@ -214,10 +225,18 @@ export function BlockView({
       return (
         <Tag style={{ margin: '0 0 14px', paddingLeft: '20px', color: '#3a3a3c', fontSize: '14px', lineHeight: 1.7 }}>
           {(block.items ?? []).map((it, i) => {
-            const text = typeof it === 'string' ? it : (it?.text ?? '')
+            if (typeof it === 'string') {
+              return (
+                <li key={i} style={{ marginBottom: '4px' }}>
+                  {it}
+                </li>
+              )
+            }
             return (
-              <li key={typeof it === 'string' ? i : (it?.id ?? i)} style={{ marginBottom: '4px' }}>
-                {text}
+              <li key={it?.id ?? i} style={{ marginBottom: '4px' }}>
+                {hasRich(it?.rich)
+                  ? renderInline(it.rich, accent)
+                  : (it?.text ?? '')}
               </li>
             )
           })}
@@ -230,7 +249,7 @@ export function BlockView({
       return (
         <Section style={{ margin: '20px 0', padding: '18px 22px', background: '#fafafa', borderLeft: `3px solid ${barColor}`, borderRadius: '0 8px 8px 0' }}>
           <Text style={{ fontSize: '15px', color: '#1d1d1f', lineHeight: 1.55, fontStyle: 'italic', letterSpacing: '-0.01em', margin: 0 }}>
-            “{block.text || ''}”
+            “{hasRich(block.rich) ? renderInline(block.rich, accent) : block.text || ''}”
           </Text>
           {block.cite ? (
             <Text style={{ fontSize: '11.5px', color: '#86868b', marginTop: '8px', marginBottom: 0 }}>
