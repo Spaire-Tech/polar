@@ -263,6 +263,31 @@ const draftFromExisting = (
     (existing as { filter_rules?: FilterRules | null }).filter_rules ?? null,
 })
 
+// Canonical content_html, rendered by React Email on the server route so that
+// what we store/send is byte-identical to what the preview shows. Returns null
+// on any failure so callers can fall back to the local renderer.
+const renderEmailViaApi = async (
+  slug: string,
+  doc: ContentDoc,
+): Promise<string | null> => {
+  try {
+    const res = await fetch(
+      `/dashboard/${slug}/email-marketing/render`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ doc }),
+        credentials: 'include',
+      },
+    )
+    if (!res.ok) return null
+    const data = (await res.json()) as { html?: string }
+    return typeof data.html === 'string' ? data.html : null
+  } catch {
+    return null
+  }
+}
+
 export const NewBroadcastScreen = (props: {
   organization: schemas['Organization']
   broadcastId: string | null
@@ -429,11 +454,20 @@ const ComposerInner = ({
     ) {
       return broadcastId
     }
+    // Render the canonical content_html via the server route (React Email).
+    // Falls back to the local renderer if the request fails, so a save never
+    // silently drops the body. Skipped for unrecognized legacy bodies.
+    const contentHtml = legacyBody
+      ? null
+      : ((await renderEmailViaApi(organization.slug, draft.content_doc)) ??
+        renderedHtml)
     let id = broadcastId
     if (id) {
+      const body = persistableUpdate()
+      if (!legacyBody && contentHtml) body.content_html = contentHtml
       await updateMutation.mutateAsync({
         broadcastId: id,
-        body: persistableUpdate(),
+        body,
       })
     } else {
       if (!draft.subject.trim() || !draft.sender_name.trim()) return null
@@ -443,7 +477,7 @@ const ComposerInner = ({
         sender_email: draft.sender_email.trim() || null,
         preview_text: draft.preview_text || null,
         reply_to_email: draft.reply_to_email || null,
-        content_html: renderedHtml,
+        content_html: contentHtml ?? renderedHtml,
         content_json: draft.content_doc as unknown as Record<string, unknown>,
         segment_id: draft.segment_id,
         filter_rules: draft.filter_rules,
