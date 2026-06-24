@@ -209,6 +209,25 @@ const toLocalDateTimeInputValue = (d: Date) => {
 
 type ExistingBroadcast = ReturnType<typeof useEmailBroadcast>['data']
 
+// DATA-LOSS GUARDRAIL. Returns true when an existing broadcast carries body
+// content we do NOT recognize as a ContentDoc — e.g. a draft authored in the
+// other (composer.v3) editor. `adoptContentJson` falls back to STARTER_DOC for
+// these, so without this guard the next save would overwrite the original body
+// with the starter doc and the user's content would be gone. When this is true
+// the editor preserves the stored body: it never writes content_json/
+// content_html, only metadata, and shows a banner explaining why.
+const hasUnknownLegacyBody = (
+  existing: NonNullable<ExistingBroadcast> | null,
+): boolean => {
+  if (!existing) return false
+  const raw = (existing as { content_json?: unknown }).content_json
+  const hasJson =
+    raw != null &&
+    typeof raw === 'object' &&
+    Object.keys(raw as object).length > 0
+  return hasJson && !isContentDoc(raw)
+}
+
 const draftFromExisting = (
   existing: NonNullable<ExistingBroadcast>,
   organization: schemas['Organization'],
@@ -279,6 +298,8 @@ const ComposerInner = ({
   } | null
 }) => {
   const isNew = !broadcastId
+  // See hasUnknownLegacyBody: when set, we must not overwrite the stored body.
+  const legacyBody = hasUnknownLegacyBody(existing)
 
   const [draft, setDraft] = useState<Draft>(() =>
     existing
@@ -331,19 +352,28 @@ const ComposerInner = ({
     draft.content_doc.blocks.length > 0 &&
     renderedHtml.trim().length > 0
 
-  const persistableUpdate = (): BroadcastWritePayload => ({
-    subject: draft.subject,
-    preview_text: draft.preview_text || null,
-    sender_name: draft.sender_name,
-    // Empty string → null so the server keeps its column-level default
-    // instead of overwriting it with an invalid empty address.
-    sender_email: draft.sender_email.trim() || null,
-    reply_to_email: draft.reply_to_email || null,
-    content_html: renderedHtml,
-    content_json: draft.content_doc as unknown as Record<string, unknown>,
-    segment_id: draft.segment_id,
-    filter_rules: draft.filter_rules,
-  })
+  const persistableUpdate = (): BroadcastWritePayload => {
+    const payload: BroadcastWritePayload = {
+      subject: draft.subject,
+      preview_text: draft.preview_text || null,
+      sender_name: draft.sender_name,
+      // Empty string → null so the server keeps its column-level default
+      // instead of overwriting it with an invalid empty address.
+      sender_email: draft.sender_email.trim() || null,
+      reply_to_email: draft.reply_to_email || null,
+      segment_id: draft.segment_id,
+      filter_rules: draft.filter_rules,
+    }
+    // Guardrail: only write the body when we actually loaded an editable one.
+    // For unrecognized legacy bodies, omit content_json/content_html entirely
+    // so the server keeps the original — preventing the starter-doc overwrite.
+    if (!legacyBody) {
+      payload.content_html = renderedHtml
+      payload.content_json =
+        draft.content_doc as unknown as Record<string, unknown>
+    }
+    return payload
+  }
 
   // Skip the round-trip when neither the draft nor the A/B config has
   // changed since the last persist (audit issue #38 / fix-list #38). Each
@@ -459,6 +489,25 @@ const ComposerInner = ({
 
   return (
     <div className="fade-up" style={{ paddingBottom: 80 }}>
+      {legacyBody && (
+        <div
+          style={{
+            margin: '0 0 20px',
+            padding: '12px 16px',
+            borderRadius: 12,
+            background: '#fff8e6',
+            border: '1px solid #f3e2b3',
+            color: '#7a5b00',
+            fontSize: 13,
+            lineHeight: 1.5,
+          }}
+        >
+          This broadcast was created in an earlier editor. Its content is
+          preserved and will send exactly as before — but the body can&rsquo;t
+          be edited here yet. Editing subject, sender, or audience is safe;
+          re-create the email to change its content.
+        </div>
+      )}
       <div
         style={{
           display: 'flex',
