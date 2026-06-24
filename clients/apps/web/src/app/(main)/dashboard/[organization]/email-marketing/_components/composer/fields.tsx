@@ -126,6 +126,7 @@ export function AudienceFields({
   reach,
   onTouch,
   lockedAudienceLabel,
+  allowExclude = true,
 }: {
   organization: schemas['Organization']
   audience: string
@@ -141,6 +142,9 @@ export function AudienceFields({
   /** When set, the audience picker is replaced by this static label
       (e.g. automation sequences define their own audience). */
   lockedAudienceLabel?: string
+  /** Show the "Exclude a segment" affordance. Off where the send pipeline
+      can't actually apply segment exclusions (broadcast composer). */
+  allowExclude?: boolean
 }) {
   const segments = useSegments(organization.id)
   const [open, setOpen] = useState<'aud' | 'exc' | null>(null)
@@ -197,14 +201,14 @@ export function AudienceFields({
             </div>
           )}
         </div>
-        {!lockedAudienceLabel && !showExclude && (
+        {allowExclude && !lockedAudienceLabel && !showExclude && (
           <div className="recip-toggle">
             <button onClick={() => setShowExclude(true)}>Exclude</button>
           </div>
         )}
       </div>
 
-      {!lockedAudienceLabel && showExclude && (
+      {allowExclude && !lockedAudienceLabel && showExclude && (
         <div className="recip-row">
           <span className="recip-lbl" style={{ width: 56 }}>
             Skip
