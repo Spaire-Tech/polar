@@ -13,7 +13,6 @@ from polar.entitlements.schemas import (
 from polar.entitlements.tiers import TierKey
 from polar.kit.schemas import Schema
 
-
 BillingInterval = Literal["month", "year"]
 
 

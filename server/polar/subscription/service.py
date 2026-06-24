@@ -87,6 +87,7 @@ from polar.notifications.service import notifications as notifications_service
 from polar.organization.repository import OrganizationRepository
 from polar.platform.fee_sync import (
     maybe_enqueue_sync_from_subscription,
+    maybe_mark_platform_trial_consumed,
     maybe_supersede_platform_trial,
 )
 from polar.product.guard import (
@@ -816,10 +817,15 @@ class SubscriptionService:
         # Account.platform_fee aligned with the tier's list rate.
         await maybe_enqueue_sync_from_subscription(session, subscription)
 
-        # If this is a creator's new *paid* Spaire subscription (the
-        # outcome of the upgrade checkout), cancel the leftover auto-trial /
-        # Legacy subs now that payment has succeeded.
+        # If this is a creator's new paid Spaire subscription (the outcome
+        # of the upgrade checkout), cancel any other active platform sub
+        # (e.g. the prior trial on a mid-trial switch).
         await maybe_supersede_platform_trial(session, subscription)
+
+        # If it was created in `trialing`, record that this creator has used
+        # their one card-required trial so a later re-subscribe bills
+        # immediately instead of granting a second free trial.
+        await maybe_mark_platform_trial_consumed(session, subscription)
 
         assert subscription.started_at is not None
         await event_service.create_event(

@@ -42,14 +42,15 @@ const TrialBanner = ({ organizationId, organizationSlug }: TrialBannerProps) => 
   return (
     <div className="flex flex-col items-start gap-2 border-b border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 sm:flex-row sm:items-center sm:justify-between sm:px-8">
       <span>
-        <span className="font-medium">{countdown}.</span> Add a payment method
-        to keep your plan — you won&apos;t be charged until the trial ends.
+        <span className="font-medium">{countdown}.</span> Your card on file is
+        charged when it ends and your plan continues — cancel any time before
+        then if you don&apos;t want to keep going.
       </span>
       <Link
         href={`/dashboard/${organizationSlug}/settings/plan`}
         className="shrink-0 rounded-lg bg-amber-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-amber-800"
       >
-        Add payment method
+        Manage plan
       </Link>
     </div>
   )

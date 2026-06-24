@@ -188,16 +188,27 @@ class PlatformUpgradeService:
         existing_sub = await subscription_repo.get_active_for_customer(customer.id)
 
         carryover_trial_end: datetime | None = None
+        grant_fresh_trial = False
         if existing_sub is not None:
             if existing_sub.trialing:
+                # Mid-trial tier switch: carry the remaining days, don't
+                # restart the clock.
                 carryover_trial_end = existing_sub.trial_end
             else:
                 # Active (non-trialing) on a paid tier — same tier or a
                 # different one both route through switch-plan, not here.
-                # (An org with no active plan resolves to `inactive`, so
-                # get_active_for_customer returns None and we fall through
-                # to a fresh, immediate-charge checkout below.)
                 raise AlreadyOnPaidTier()
+        else:
+            # No active plan. A FIRST-TIME creator (never trialed) gets the
+            # card-required 14-day trial: the checkout captures their card
+            # via a setup intent and billing starts at day 14. A creator who
+            # has ALREADY used their trial (churned / lapsed) is charged
+            # immediately — no second free trial, which closes the
+            # cancel-then-re-subscribe-for-a-fresh-trial abuse loop.
+            trial_consumed = bool(
+                (customer.user_metadata or {}).get("trial_consumed_at")
+            )
+            grant_fresh_trial = not trial_consumed
 
         # Use model_validate so pydantic coerces success_url (a plain str)
         # into the HttpUrl-shaped SuccessUrl type the schema requires.
@@ -215,11 +226,14 @@ class PlatformUpgradeService:
             remaining_days = max(1, min(remaining_days, 1000))
             checkout_payload["trial_interval"] = TrialInterval.day
             checkout_payload["trial_interval_count"] = remaining_days
+        elif grant_fresh_trial:
+            # First-time: leave the trial config to the product (its 14-day
+            # trial). allow_trial defaults True and we don't override the
+            # interval, so the checkout does a card-capturing setup intent
+            # (no immediate charge) and starts the 14-day trial.
+            pass
         else:
-            # No active trial to carry (inactive / churned / expired): the
-            # conversion bills immediately. This also closes the
-            # "cancel trial, re-upgrade for a fresh 14 days" abuse loop —
-            # once an org has no plan, an upgrade carries no trial.
+            # Churned / already trialed: no trial, bill immediately.
             checkout_payload["allow_trial"] = False
 
         if billing_email is not None:

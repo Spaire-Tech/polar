@@ -23,7 +23,10 @@ from polar.kit.trial import TrialInterval
 from polar.kit.utils import utc_now
 from polar.models import Customer, Organization, Product
 from polar.models.subscription import SubscriptionStatus
-from polar.platform.fee_sync import maybe_supersede_platform_trial
+from polar.platform.fee_sync import (
+    maybe_mark_platform_trial_consumed,
+    maybe_supersede_platform_trial,
+)
 from polar.platform.upgrade import AlreadyOnPaidTier, platform_upgrade
 from polar.postgres import AsyncSession
 from tests.fixtures.database import SaveFixture
@@ -125,50 +128,51 @@ class TestMaybeSupersedePlatformTrial:
         assert trial.ended_at is not None
         assert paid.status == SubscriptionStatus.active
 
-    async def test_creating_the_trial_itself_is_noop(
+    async def test_new_trial_supersedes_prior_trial_on_switch(
         self,
         mocker: MockerFixture,
         session: AsyncSession,
         save_fixture: SaveFixture,
     ) -> None:
+        # Mid-trial tier switch: the new (Studio) trial supersedes the prior
+        # (Starter) trial so the creator holds exactly one.
         platform_org = await create_organization(save_fixture)
         _patch_platform_org_id(mocker, platform_org.id)
         creator = await create_organization(save_fixture)
         customer = await _platform_customer(
             save_fixture, platform_org=platform_org, creator=creator
         )
-        # A bystander active sub that must not be touched when supersede is
-        # (incorrectly) invoked on the trial itself.
-        bystander_product = await _tier_product(
+        starter_product = await _tier_product(
+            save_fixture, platform_org=platform_org, tier="starter"
+        )
+        prior_trial = await create_subscription(
+            save_fixture,
+            product=starter_product,
+            customer=customer,
+            status=SubscriptionStatus.trialing,
+            trial_end=utc_now() + timedelta(days=9),
+        )
+
+        studio_product = await _tier_product(
             save_fixture,
             platform_org=platform_org,
             tier="studio",
             monthly_cents=12900,
         )
-        bystander = await create_subscription(
+        new_trial = await create_subscription(
             save_fixture,
-            product=bystander_product,
-            customer=customer,
-            status=SubscriptionStatus.active,
-        )
-
-        trial_product = await _tier_product(
-            save_fixture, platform_org=platform_org, tier="starter"
-        )
-        trial = await create_subscription(
-            save_fixture,
-            product=trial_product,
+            product=studio_product,
             customer=customer,
             status=SubscriptionStatus.trialing,
-            trial_end=utc_now() + timedelta(days=14),
-            user_metadata={"managed_by": "trial"},
+            trial_end=utc_now() + timedelta(days=9),
         )
 
-        # Superseding *on the trial itself* (managed_by=trial) returns early.
-        await maybe_supersede_platform_trial(session, trial)
+        await maybe_supersede_platform_trial(session, new_trial)
 
-        await session.refresh(bystander)
-        assert bystander.status == SubscriptionStatus.active
+        await session.refresh(prior_trial)
+        await session.refresh(new_trial)
+        assert prior_trial.status == SubscriptionStatus.canceled
+        assert new_trial.status == SubscriptionStatus.trialing
 
     async def test_non_paid_sub_does_not_supersede(
         self,
@@ -249,6 +253,66 @@ class TestMaybeSupersedePlatformTrial:
 
 
 @pytest.mark.asyncio
+class TestMaybeMarkPlatformTrialConsumed:
+    async def test_trialing_sub_stamps_consumed(
+        self,
+        mocker: MockerFixture,
+        session: AsyncSession,
+        save_fixture: SaveFixture,
+    ) -> None:
+        platform_org = await create_organization(save_fixture)
+        _patch_platform_org_id(mocker, platform_org.id)
+        creator = await create_organization(save_fixture)
+        customer = await _platform_customer(
+            save_fixture, platform_org=platform_org, creator=creator
+        )
+        assert "trial_consumed_at" not in (customer.user_metadata or {})
+
+        product = await _tier_product(
+            save_fixture, platform_org=platform_org, tier="starter"
+        )
+        trial = await create_subscription(
+            save_fixture,
+            product=product,
+            customer=customer,
+            status=SubscriptionStatus.trialing,
+            trial_end=utc_now() + timedelta(days=14),
+        )
+
+        await maybe_mark_platform_trial_consumed(session, trial)
+
+        await session.refresh(customer)
+        assert customer.user_metadata.get("trial_consumed_at") is not None
+
+    async def test_active_sub_does_not_stamp(
+        self,
+        mocker: MockerFixture,
+        session: AsyncSession,
+        save_fixture: SaveFixture,
+    ) -> None:
+        platform_org = await create_organization(save_fixture)
+        _patch_platform_org_id(mocker, platform_org.id)
+        creator = await create_organization(save_fixture)
+        customer = await _platform_customer(
+            save_fixture, platform_org=platform_org, creator=creator
+        )
+        product = await _tier_product(
+            save_fixture, platform_org=platform_org, tier="starter"
+        )
+        active = await create_subscription(
+            save_fixture,
+            product=product,
+            customer=customer,
+            status=SubscriptionStatus.active,
+        )
+
+        await maybe_mark_platform_trial_consumed(session, active)
+
+        await session.refresh(customer)
+        assert "trial_consumed_at" not in (customer.user_metadata or {})
+
+
+@pytest.mark.asyncio
 class TestCreateCheckout:
     """Exercise the upgrade decision logic with checkout creation mocked."""
 
@@ -319,22 +383,62 @@ class TestCreateCheckout:
         assert checkout_create.trial_interval_count == 10  # ceil(9d1h)
         assert checkout_create.subscription_id is None
 
-    async def test_inactive_creator_upgrade_bills_immediately(
+    async def test_first_time_creator_gets_trial(
         self,
         mocker: MockerFixture,
         session: AsyncSession,
         save_fixture: SaveFixture,
     ) -> None:
-        # A creator with a platform customer but NO active subscription
-        # (inactive — never converted / churned) upgrading bills immediately:
-        # no carried trial (closes the re-trial abuse loop), no convert-from
-        # subscription_id.
+        # A first-time creator (customer exists, never trialed, no active
+        # sub) picking a plan gets the card-required 14-day trial: the
+        # checkout uses the product's trial config (no allow_trial=False, no
+        # interval override) so it captures the card and starts the trial.
         platform_org = await create_organization(save_fixture)
         _patch_platform_org_id(mocker, platform_org.id)
         creator = await create_organization(save_fixture)
         await _platform_customer(
             save_fixture, platform_org=platform_org, creator=creator
         )
+        await _tier_product(
+            save_fixture, platform_org=platform_org, tier="starter"
+        )
+
+        create_mock = self._mock_checkout_create(mocker)
+
+        await platform_upgrade.create_checkout(
+            session,
+            organization=creator,
+            tier=TierKey.starter,
+            billing_interval="month",
+        )
+
+        checkout_create = create_mock.call_args.args[1]
+        # Product's trial applies: allow_trial defaults True, no override.
+        assert checkout_create.allow_trial is True
+        assert checkout_create.trial_interval is None
+        assert checkout_create.subscription_id is None
+
+    async def test_churned_creator_bills_immediately(
+        self,
+        mocker: MockerFixture,
+        session: AsyncSession,
+        save_fixture: SaveFixture,
+    ) -> None:
+        # A creator who already used their trial (trial_consumed_at stamped)
+        # and has no active sub re-subscribes with NO trial — bills
+        # immediately. Closes the cancel-then-re-subscribe-for-a-fresh-trial
+        # abuse loop.
+        platform_org = await create_organization(save_fixture)
+        _patch_platform_org_id(mocker, platform_org.id)
+        creator = await create_organization(save_fixture)
+        customer = await _platform_customer(
+            save_fixture, platform_org=platform_org, creator=creator
+        )
+        customer.user_metadata = {
+            **(customer.user_metadata or {}),
+            "trial_consumed_at": utc_now().isoformat(),
+        }
+        await save_fixture(customer)
         await _tier_product(
             save_fixture, platform_org=platform_org, tier="starter"
         )

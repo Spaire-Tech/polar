@@ -238,27 +238,17 @@ async def maybe_enqueue_sync_from_subscription(
 async def maybe_supersede_platform_trial(
     session: AsyncSession, subscription: Subscription
 ) -> None:
-    """When a creator's NEW *paid* Spaire subscription is created (via the
-    upgrade checkout), cancel their other active platform subscriptions —
-    the auto-attached Starter trial they're converting from, or a Legacy
-    fallback — so they end up holding exactly the one paid subscription.
-
-    This is the counterpart to NOT pre-revoking the trial before checkout:
-    the trial stays live (and the creator keeps their entitlements + the
-    remaining trial days) until payment actually succeeds and this runs.
-    If the creator abandons checkout, no new sub is created, this never
-    fires, and the trial is untouched.
+    """When a creator's NEW paid-tier Spaire subscription is created (via
+    the upgrade checkout — a first plan pick, a mid-trial tier switch, or a
+    re-subscribe after churn), cancel their OTHER active platform
+    subscriptions so they end up holding exactly one. On a mid-trial switch
+    this cancels the prior trial subscription once the new one is created;
+    the old one stays live until then, so an abandoned checkout leaves the
+    trial untouched.
 
     No-op unless `subscription` is a creator's platform sub on a paid tier.
-    The auto-trial itself (managed_by=trial) and Legacy resubscribes are
-    skipped so they never cancel anything.
     """
     if not platform_service.is_configured():
-        return
-
-    managed_by = (subscription.user_metadata or {}).get("managed_by")
-    if managed_by == "trial":
-        # We're creating the auto-trial itself — nothing to supersede.
         return
 
     customer_repository = CustomerRepository.from_session(session)
@@ -298,6 +288,36 @@ async def maybe_supersede_platform_trial(
             new_tier=tier.value,
             superseded_subscription_ids=superseded,
         )
+
+
+async def maybe_mark_platform_trial_consumed(
+    session: AsyncSession, subscription: Subscription
+) -> None:
+    """When a creator's platform subscription is created in `trialing`
+    status, stamp `trial_consumed_at` on their platform customer.
+
+    The trial is card-required and granted once: a later re-subscribe after
+    churn reads this stamp and bills immediately instead of handing out a
+    second free trial. Idempotent — only stamps the first time.
+    """
+    if not platform_service.is_configured():
+        return
+    if subscription.status != SubscriptionStatus.trialing:
+        return
+
+    customer_repository = CustomerRepository.from_session(session)
+    customer = await customer_repository.get_by_id(subscription.customer_id)
+    if customer is None:
+        return
+    if not platform_service.is_platform_organization(customer.organization_id):
+        return
+
+    metadata = dict(customer.user_metadata or {})
+    if metadata.get("trial_consumed_at"):
+        return
+    metadata["trial_consumed_at"] = utc_now().isoformat()
+    customer.user_metadata = metadata
+    await session.flush()
 
 
 async def _platform_creator_org_id(

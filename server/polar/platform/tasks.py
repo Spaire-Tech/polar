@@ -7,9 +7,6 @@ from polar.exceptions import PolarTaskError
 from polar.integrations.resend import domains as resend_domains
 from polar.kit.utils import utc_now
 from polar.models import Organization
-from polar.models.subscription import SubscriptionStatus
-from polar.platform.repository import platform_subscription_repository
-from polar.platform.service import platform as platform_service
 from polar.worker import (
     AsyncSessionMaker,
     CronTrigger,
@@ -51,64 +48,14 @@ async def platform_fee_sync_task(organization_id: uuid.UUID) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Trial expiry: lapse trialing platform-org subscriptions whose trial_end
-# has already passed so the creator drops to the `inactive` (no-plan) state.
-# ---------------------------------------------------------------------------
-
-
-@actor(
-    actor_name="platform.expire_trials",
-    cron_trigger=CronTrigger(minute=5),
-    priority=TaskPriority.LOW,
-    max_retries=0,
-)
-async def platform_expire_trials() -> None:
-    """Hourly sweep: any platform-org subscription still in `trialing`
-    after `trial_end` is canceled in-place. The creator org then has no
-    active plan and resolves to `inactive` (no free fallback). The
-    dashboard plan-gate routes them to plan selection.
-
-    No Stripe round-trip — these subscriptions are platform-internal.
-    Conversion (capturing a payment method during the trial) goes
-    through the upgrade-checkout endpoint, which supersedes the trialing
-    sub on success; that path won't leave a sub in trialing past its end.
-    So anything we find here really did expire without converting.
-    """
-    if not platform_service.is_configured():
-        return
-
-    platform_org_id = platform_service.get_id()
-    now = utc_now()
-
-    async with AsyncSessionMaker() as session:
-        subscription_repo = platform_subscription_repository(session)
-        expired = await subscription_repo.list_expired_trials(
-            platform_org_id, before=now
-        )
-        if not expired:
-            log.info("platform.expire_trials.none_found")
-            return
-
-        for subscription in expired:
-            subscription.status = SubscriptionStatus.canceled
-            subscription.ended_at = now
-            subscription.canceled_at = now
-
-            log.info(
-                "platform.expire_trials.expired",
-                subscription_id=str(subscription.id),
-                creator_org_id=(subscription.customer.user_metadata or {}).get(
-                    "creator_org_id"
-                ),
-                tier=(subscription.product.user_metadata or {}).get("tier"),
-                trial_end=subscription.trial_end.isoformat()
-                if subscription.trial_end
-                else None,
-            )
-
-
-# ---------------------------------------------------------------------------
 # Trial reminder emails (T-7, T-2, T-0 days before trial_end)
+# ---------------------------------------------------------------------------
+#
+# Note: there is no trial-expiry cron. The 14-day trial is card-required, so
+# at trial_end the generic subscription-cycle scheduler charges the card on
+# file (trial -> active) or, on failure, hands off to Polar's dunning
+# (past_due -> retry -> revoke -> inactive). Nothing needs to "lapse" a
+# card-less trial because card-less trials no longer exist.
 # ---------------------------------------------------------------------------
 
 

@@ -18,7 +18,7 @@ The following are part of the product on every tier. Gating any of these would b
 
 | Item | Policy |
 |---|---|
-| Free trial on every paid tier | 14 days, no card required up front |
+| Free trial on every paid tier | 14 days, card required up front (charged at day 14 unless canceled) |
 | Sandbox / test environment (sandbox.spairehq.com) | every creator, no charge |
 | Merchant of Record (tax/VAT handled) | ✓ |
 | Customer portal (login, manage subs, access purchases) | ✓ |
@@ -144,10 +144,11 @@ Custom pricing for the Scale tier kicks in above $50k/month GMV. The negotiated 
 
 ## Trial & onboarding flow
 
-1. Creator signs up → backend auto-starts a **14-day Starter trial** subscription on the platform org. No card required at signup.
-2. During the trial the creator has Starter entitlements (limits + features) and can build courses, send emails, etc.
-3. At any point the creator can switch the target tier (Starter / Studio / Scale) via the upgrade modal in `Settings → Plan`. The upgrade-checkout endpoint converts the trialing subscription in-place — they enter a payment method, the remaining trial days carry over to the paid subscription, then it bills at the picked tier.
-4. If the trial expires without conversion, the subscription lapses and the org has **no active plan** — it resolves to the restrictive `inactive` state (everything gated off). There is no free fallback. The dashboard routes the creator to plan selection, and the delinquency lifecycle (retry → payout-hold/fee-netting → suspension → stop-selling) governs storefront/admin access for a creator who was paying and then lapsed.
+1. Creator signs up → the org is provisioned with a platform-org billing Customer row, but **no subscription**. Until they pick a plan the org has no plan (resolves to `inactive`) and the dashboard plan-gate routes them to `/onboarding/plan`.
+2. Creator picks a plan (Starter / Studio / Scale) → upgrade-checkout. The trial is **card-required**: the checkout captures their card via a setup intent (no immediate charge) and starts the **14-day trial**. They now have the chosen tier's entitlements and a card on file.
+3. At day 14 the generic subscription-cycle scheduler **charges the card on file** and the subscription becomes active. There is no separate "convert" step — the trial flows straight into a paid plan. (If the charge fails, Polar's dunning takes over: past_due → retry → revoke.) A creator can cancel any time before day 14 from `Settings → Plan`.
+4. The trial is granted **once per creator** (`trial_consumed_at` is stamped on the platform customer): a creator who cancels and later re-subscribes is billed immediately — no second free trial. Mid-trial, switching tiers carries the remaining days onto the new tier.
+5. If a creator with no active plan lapses (cancel, or a paid charge that fails through the whole dunning window), the org resolves to the restrictive `inactive` state (everything gated off). There is no free fallback. The delinquency lifecycle (retry → payout-hold) governs access for a creator who was paying and then lapsed.
 
 ---
 
