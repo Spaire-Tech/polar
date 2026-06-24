@@ -24,7 +24,7 @@ import {
 } from '@/hooks/queries/emailMarketing'
 import { schemas } from '@spaire/client'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { memo, useMemo, useRef, useState } from 'react'
+import { memo, useEffect, useMemo, useRef, useState } from 'react'
 import { BroadcastEditor } from '../blockEditor/BroadcastEditor'
 import { renderBlocksToHtml } from '../blockEditor/render'
 import {
@@ -680,6 +680,7 @@ const ComposerInner = ({
           {step === 'preview' && (
             <PreviewSection
               draft={draft}
+              orgSlug={organization.slug}
               broadcastId={broadcastId}
               persist={persist}
               sendTest={async (email) => {
@@ -1488,12 +1489,14 @@ const FilterRowEditor = ({
 
 const PreviewSection = ({
   draft,
+  orgSlug,
   broadcastId,
   persist,
   sendTest,
   sending,
 }: {
   draft: Draft
+  orgSlug: string
   broadcastId: string | null
   persist: () => Promise<string | null>
   sendTest: (email: string) => Promise<void>
@@ -1506,6 +1509,24 @@ const PreviewSection = ({
   const [testEmail, setTestEmail] = useState(currentUser?.email ?? '')
   const [testSent, setTestSent] = useState<string | null>(null)
   const validEmail = /[^@\s]+@[^@\s]+\.[^@\s]+/.test(testEmail.trim())
+
+  // Render the preview through the SAME server route the save path uses, so
+  // preview === sent. Debounced; the local renderer is the instant fallback
+  // (visually identical) shown until the route responds / if it fails.
+  const [previewHtml, setPreviewHtml] = useState<string | null>(null)
+  useEffect(() => {
+    let cancelled = false
+    const t = window.setTimeout(() => {
+      renderEmailViaApi(orgSlug, draft.content_doc).then((h) => {
+        if (!cancelled && h != null) setPreviewHtml(h)
+      })
+    }, 350)
+    return () => {
+      cancelled = true
+      window.clearTimeout(t)
+    }
+  }, [orgSlug, draft.content_doc])
+  const html = previewHtml ?? renderBlocksToHtml(draft.content_doc)
 
   const submit = async () => {
     if (!validEmail) return
@@ -1598,8 +1619,8 @@ const PreviewSection = ({
             minHeight: 420,
           }}
         >
-          {device === 'desktop' && <DesktopPreview draft={draft} />}
-          {device === 'mobile' && <MobilePreview draft={draft} />}
+          {device === 'desktop' && <DesktopPreview draft={draft} html={html} />}
+          {device === 'mobile' && <MobilePreview draft={draft} html={html} />}
           {device === 'inbox' && <InboxPreview draft={draft} />}
         </div>
       </div>
@@ -1624,8 +1645,13 @@ const SF_FONT =
 // actually reads, so typing anywhere outside the email body (audience
 // rules, segment id, filter rules, etc.) doesn't repaint the 200-line
 // MacBook chrome.
-const DesktopPreviewBase = ({ draft }: { draft: Draft }) => {
-  const html = renderBlocksToHtml(draft.content_doc)
+const DesktopPreviewBase = ({
+  draft,
+  html,
+}: {
+  draft: Draft
+  html: string
+}) => {
   const initials = draft.sender_name
     .split(' ')
     .map((p) => p[0])
@@ -1861,9 +1887,10 @@ const DesktopPreviewBase = ({ draft }: { draft: Draft }) => {
 }
 
 const draftPreviewFieldsEqual = (
-  a: { draft: Draft },
-  b: { draft: Draft },
+  a: { draft: Draft; html: string },
+  b: { draft: Draft; html: string },
 ): boolean =>
+  a.html === b.html &&
   a.draft.subject === b.draft.subject &&
   a.draft.preview_text === b.draft.preview_text &&
   a.draft.sender_name === b.draft.sender_name &&
@@ -1875,8 +1902,13 @@ const DesktopPreview = memo(DesktopPreviewBase, draftPreviewFieldsEqual)
 
 // iPhone-style preview — Dynamic Island + status bar + Mail app chrome.
 // Same memoization story as DesktopPreview above.
-const MobilePreviewBase = ({ draft }: { draft: Draft }) => {
-  const html = renderBlocksToHtml(draft.content_doc)
+const MobilePreviewBase = ({
+  draft,
+  html,
+}: {
+  draft: Draft
+  html: string
+}) => {
   const initials = draft.sender_name
     .split(' ')
     .map((p) => p[0])
