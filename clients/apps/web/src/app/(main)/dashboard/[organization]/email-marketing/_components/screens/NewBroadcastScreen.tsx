@@ -34,6 +34,7 @@ import {
   newId,
   normalizeContentDoc,
 } from '../blockEditor/types'
+import { isComposerV3, migrateComposerV3 } from '../richText/migrate'
 import { useDialogs } from '../dialogs'
 import { Icon } from '../Icon'
 import { sanitizeEmailHtml } from '../sanitize'
@@ -96,6 +97,12 @@ const adoptContentJson = (raw: unknown): ContentDoc => {
     }
     return normalizeContentDoc(withIds)
   }
+  // Legacy composer.v3 doc → convert it so the body is editable here (the
+  // inline font/size styling that caused the size drift is intentionally
+  // dropped to clean text). Only fall back to a starter doc when the content
+  // is genuinely unrecognized.
+  const migrated = migrateComposerV3(raw)
+  if (migrated) return migrated
   return STARTER_DOC
 }
 
@@ -225,7 +232,19 @@ const hasUnknownLegacyBody = (
     raw != null &&
     typeof raw === 'object' &&
     Object.keys(raw as object).length > 0
-  return hasJson && !isContentDoc(raw)
+  // Genuinely unrecognized (not a ContentDoc and not a migratable composer.v3).
+  return hasJson && !isContentDoc(raw) && !isComposerV3(raw)
+}
+
+// True when the existing body was a composer.v3 doc that adoptContentJson
+// converted — used to show a one-time "upgraded" note (the conversion is
+// lossy: inline font/size styling is simplified to clean text).
+const wasMigratedFromV3 = (
+  existing: NonNullable<ExistingBroadcast> | null,
+): boolean => {
+  if (!existing) return false
+  const raw = (existing as { content_json?: unknown }).content_json
+  return raw != null && typeof raw === 'object' && !isContentDoc(raw) && isComposerV3(raw)
 }
 
 const draftFromExisting = (
@@ -300,6 +319,7 @@ const ComposerInner = ({
   const isNew = !broadcastId
   // See hasUnknownLegacyBody: when set, we must not overwrite the stored body.
   const legacyBody = hasUnknownLegacyBody(existing)
+  const migratedBody = wasMigratedFromV3(existing)
 
   const [draft, setDraft] = useState<Draft>(() =>
     existing
@@ -506,6 +526,24 @@ const ComposerInner = ({
           preserved and will send exactly as before — but the body can&rsquo;t
           be edited here yet. Editing subject, sender, or audience is safe;
           re-create the email to change its content.
+        </div>
+      )}
+      {migratedBody && (
+        <div
+          style={{
+            margin: '0 0 20px',
+            padding: '12px 16px',
+            borderRadius: 12,
+            background: '#eef5ff',
+            border: '1px solid #cfe0fb',
+            color: '#234a87',
+            fontSize: 13,
+            lineHeight: 1.5,
+          }}
+        >
+          This broadcast was upgraded to the new editor. Its text and layout
+          were preserved, but some older inline styling was simplified — give
+          it a quick look before sending.
         </div>
       )}
       <div
