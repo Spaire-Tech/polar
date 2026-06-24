@@ -25,7 +25,7 @@ import {
   type FilterRules,
 } from '@/hooks/queries/emailMarketing'
 import { schemas } from '@spaire/client'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import {
   Fragment,
   useEffect,
@@ -150,6 +150,13 @@ export function ComposerApp({
   sequenceMode?: SequenceMode
 }) {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  // When launched from the Space (Broadcast tab) the caller passes a
+  // ?returnTo= so closing/sending returns there instead of the marketing
+  // nav. Falls back to the marketing broadcasts list for the standalone route.
+  const exitTo =
+    searchParams.get('returnTo') ||
+    `/dashboard/${organization.slug}/email-marketing/broadcasts`
   const { currentUser } = useAuth()
 
   // Draft state
@@ -578,9 +585,7 @@ export function ComposerApp({
         setStatus('sent')
         showToast('Broadcast sent to ' + fmt(reach) + ' subscribers')
       }
-      router.push(
-        `/dashboard/${organization.slug}/email-marketing/broadcasts`,
-      )
+      router.push(exitTo)
     } catch (err) {
       showToast(err instanceof Error ? err.message : 'Send failed')
     }
@@ -937,9 +942,7 @@ export function ComposerApp({
               className="m-dark"
               onClick={() => {
                 setModal(null)
-                router.push(
-                  `/dashboard/${organization.slug}/email-marketing/broadcasts`,
-                )
+                router.push(exitTo)
               }}
             >
               Close

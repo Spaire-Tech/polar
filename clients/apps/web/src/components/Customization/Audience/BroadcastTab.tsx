@@ -7,6 +7,8 @@ import {
   useBroadcastAggregateAnalytics,
   useCancelScheduledEmailBroadcast,
   useDuplicateEmailBroadcast,
+  useEmailBroadcast,
+  useEmailBroadcastAnalytics,
   useEmailBroadcasts,
   useEmailSubscriberStats,
 } from '@/hooks/queries/emailMarketing'
@@ -34,16 +36,17 @@ const SEG_STATUS: Record<Seg, string | undefined> = {
   draft: 'draft',
 }
 
+const DT: Intl.DateTimeFormatOptions = {
+  month: 'short',
+  day: 'numeric',
+  hour: '2-digit',
+  minute: '2-digit',
+}
+
 const formatSentAt = (b: BroadcastRow): string => {
-  const opts: Intl.DateTimeFormatOptions = {
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  }
   if (b.status === 'scheduled' && b.scheduled_at)
-    return `Scheduled for ${new Date(b.scheduled_at).toLocaleString(undefined, opts)}`
-  if (b.sent_at) return new Date(b.sent_at).toLocaleString(undefined, opts)
+    return `Scheduled for ${new Date(b.scheduled_at).toLocaleString(undefined, DT)}`
+  if (b.sent_at) return new Date(b.sent_at).toLocaleString(undefined, DT)
   if (b.status === 'draft') return 'Draft'
   return '—'
 }
@@ -61,6 +64,15 @@ const statusLabel = (s: BroadcastRow['status']): string =>
             ? 'Failed'
             : 'Pending'
 
+// Minimal self-contained sanitizer for the creator's own email HTML shown
+// back to them — strips scripts and inline event handlers.
+const sanitize = (html: string): string =>
+  html
+    .replace(/<script[\s\S]*?<\/script>/gi, '')
+    .replace(/\son\w+\s*=\s*"[^"]*"/gi, '')
+    .replace(/\son\w+\s*=\s*'[^']*'/gi, '')
+    .replace(/javascript:/gi, '')
+
 export function BroadcastTab({
   organization,
   dark,
@@ -68,16 +80,20 @@ export function BroadcastTab({
 }: {
   organization: schemas['Organization']
   dark: boolean
-  // Guarded navigation out of the editor — confirms unpublished Space
-  // edits before routing to the existing broadcast composer / detail.
+  // Guarded navigation out of the editor — used only for the compose /
+  // edit flow, which hands off to the existing composer and returns here.
   onLeave: (path: string) => void
 }) {
   const orgId = organization.id
   const base = `/dashboard/${organization.slug}/email-marketing/broadcasts`
+  // Where the composer comes back to: this Space tab, not the marketing nav.
+  const returnTo = `/dashboard/${organization.slug}/storefront?tab=broadcast`
 
   const [query, setQuery] = useState('')
   const [seg, setSeg] = useState<Seg>('all')
   const [page, setPage] = useState(1)
+  // When set, the designed inline detail replaces the list (no redirect).
+  const [detailId, setDetailId] = useState<string | null>(null)
 
   const debouncedQuery = useDebouncedValue(query, 300)
 
@@ -128,13 +144,6 @@ export function BroadcastTab({
     }
   }
 
-  const openRow = (b: BroadcastRow) => {
-    // Drafts + scheduled open in the existing composer; sent broadcasts
-    // open in the existing analytics detail.
-    const editable = b.status === 'draft' || b.status === 'scheduled'
-    onLeave(editable ? `${base}/${b.id}/edit` : `${base}/${b.id}`)
-  }
-
   const pctOrDash = (v: number | null | undefined, digits = 1) =>
     v == null ? null : v.toFixed(digits)
 
@@ -142,6 +151,20 @@ export function BroadcastTab({
   const clickRate = pctOrDash(aggregate?.click_rate)
   const unsubRate = pctOrDash(aggregate?.unsub_rate, 2)
   const sentCount = aggregate?.total_sent ?? 0
+
+  // ── Designed inline detail (the click-through) ─────────────────────
+  if (detailId) {
+    return (
+      <div className={'aud' + (dark ? ' dark' : '')}>
+        <div className="a-content">
+          <BroadcastDetail
+            broadcastId={detailId}
+            onBack={() => setDetailId(null)}
+          />
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className={'aud' + (dark ? ' dark' : '')}>
@@ -154,7 +177,9 @@ export function BroadcastTab({
           <div className="a-acts">
             <button
               className="a-btn a-btn-accent"
-              onClick={() => onLeave(`${base}/new`)}
+              onClick={() =>
+                onLeave(`${base}/new?returnTo=${encodeURIComponent(returnTo)}`)
+              }
             >
               <Icon n="plus" w={15} />
               New broadcast
@@ -254,12 +279,17 @@ export function BroadcastTab({
             const recipients = a?.recipients ?? b.total_recipients
             const menu: KebabItem[] = []
             if (editable)
-              menu.push({ label: 'Edit', onClick: () => onLeave(`${base}/${b.id}/edit`) })
-            if (b.status === 'sent')
-              menu.push({ label: 'View report', onClick: () => onLeave(`${base}/${b.id}`) })
+              menu.push({
+                label: 'Edit',
+                onClick: () =>
+                  onLeave(
+                    `${base}/${b.id}/edit?returnTo=${encodeURIComponent(returnTo)}`,
+                  ),
+              })
             menu.push({
               label: 'Duplicate',
-              onClick: () => runMutation(duplicateMutation, b.id, 'Could not duplicate'),
+              onClick: () =>
+                runMutation(duplicateMutation, b.id, 'Could not duplicate'),
             })
             if (b.status === 'scheduled')
               menu.push({
@@ -279,13 +309,13 @@ export function BroadcastTab({
               <div
                 className="a-bc-row"
                 key={b.id}
-                onClick={() => openRow(b)}
+                onClick={() => setDetailId(b.id)}
                 role="button"
                 tabIndex={0}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault()
-                    openRow(b)
+                    setDetailId(b.id)
                   }
                 }}
               >
@@ -356,5 +386,104 @@ export function BroadcastTab({
         </div>
       </div>
     </div>
+  )
+}
+
+// The designed broadcast detail: back link, a divided receipt strip, and
+// the email rendered as a letter — all inside the Space, no redirect.
+function BroadcastDetail({
+  broadcastId,
+  onBack,
+}: {
+  broadcastId: string
+  onBack: () => void
+}) {
+  const broadcastQuery = useEmailBroadcast(broadcastId)
+  const analyticsQuery = useEmailBroadcastAnalytics(broadcastId)
+  const b = broadcastQuery.data
+  const a = analyticsQuery.data
+
+  const sentAt = b?.sent_at
+    ? new Date(b.sent_at).toLocaleString(undefined, DT)
+    : b?.scheduled_at
+      ? `Scheduled · ${new Date(b.scheduled_at).toLocaleString(undefined, DT)}`
+      : '—'
+  const recipients = a?.total_recipients ?? b?.total_recipients ?? 0
+  const status = (b?.status ?? 'draft') as BroadcastRow['status']
+  const html = b?.content_html ? sanitize(b.content_html) : null
+  // preview_text isn't on the generated GET type yet (it is on the list row);
+  // read it defensively like the composer does.
+  const previewText = (b as { preview_text?: string | null } | undefined)
+    ?.preview_text
+
+  return (
+    <>
+      <button className="a-bc-back" onClick={onBack}>
+        <Icon n="chevBack" w={17} />
+        Broadcasts
+      </button>
+
+      <div className="a-bc-dhead">
+        <h1 className="a-bc-dtitle">{b?.subject || 'Broadcast'}</h1>
+        <div className="a-bc-dstrip">
+          <div className="cell status">
+            <span className="cl">Status</span>
+            <span className="cv">
+              <span className={'a-status' + (status === 'sent' ? '' : ' off')}>
+                <span className="sd" />
+                {statusLabel(status)}
+              </span>
+            </span>
+          </div>
+          <div className="cell">
+            <span className="cl">Sent</span>
+            <span className="cv">{sentAt}</span>
+          </div>
+          <div className="cell">
+            <span className="cl">Recipients</span>
+            <span className="cv">{recipients.toLocaleString()}</span>
+          </div>
+          <div className="cell">
+            <span className="cl">Opens</span>
+            <span className="cv">{a ? `${a.open_rate.toFixed(1)}%` : '—'}</span>
+          </div>
+          <div className="cell">
+            <span className="cl">Clicks</span>
+            <span className="cv">{a ? `${a.click_rate.toFixed(1)}%` : '—'}</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="a-email-stage">
+        <div className="a-email">
+          {html ? (
+            <div
+              className="a-email-body"
+              dangerouslySetInnerHTML={{ __html: html }}
+            />
+          ) : (
+            <div className="a-email-body">
+              <h1 className="a-email-h">{b?.subject || 'Broadcast'}</h1>
+              {previewText && <p className="a-email-p">{previewText}</p>}
+            </div>
+          )}
+          <div className="a-email-foot">
+            <p>
+              You&apos;re receiving this because you subscribed to{' '}
+              {b?.sender_name || 'this list'}.
+              <br />
+              <a href="#" onClick={(e) => e.preventDefault()}>
+                Unsubscribe
+              </a>{' '}
+              ·{' '}
+              <a href="#" onClick={(e) => e.preventDefault()}>
+                Update preferences
+              </a>
+            </p>
+            <p className="small">Sent with Spaire</p>
+          </div>
+        </div>
+      </div>
+    </>
   )
 }

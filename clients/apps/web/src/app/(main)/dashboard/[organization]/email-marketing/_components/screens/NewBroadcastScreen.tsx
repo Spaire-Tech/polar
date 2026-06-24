@@ -23,7 +23,7 @@ import {
   useUpsertEmailBroadcastABTest,
 } from '@/hooks/queries/emailMarketing'
 import { schemas } from '@spaire/client'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { memo, useMemo, useRef, useState } from 'react'
 import { BroadcastEditor } from '../blockEditor/BroadcastEditor'
 import { renderBlocksToHtml } from '../blockEditor/render'
@@ -2281,12 +2281,16 @@ export const NewBroadcastRoute = ({
   broadcastId: string | null
 }) => {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const base = `/dashboard/${organization.slug}/email-marketing/broadcasts`
+  // Return to the Space Broadcast tab when launched from there (?returnTo=),
+  // otherwise back to the marketing broadcasts list.
+  const exitTo = searchParams.get('returnTo') || base
   return (
     <NewBroadcastScreen
       organization={organization}
       broadcastId={broadcastId}
-      onBack={() => router.push(base)}
+      onBack={() => router.push(exitTo)}
       // When the user starts a fresh draft and the API hands back the new
       // broadcast id, swap the URL to /broadcasts/<id>/edit so refresh and
       // share work afterwards.
