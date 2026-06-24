@@ -14,16 +14,10 @@ const QUOTA_LABELS: Record<string, { label: string; unit: string }> = {
   video_hours_hosted: { label: 'Video hours hosted', unit: 'hours' },
   video_views_monthly: { label: 'Video views (this month)', unit: 'views' },
   storage_gb: { label: 'File storage', unit: 'GB' },
-  email_sends_monthly: { label: 'Email sends (this month)', unit: 'emails' },
 }
 
 // Order the rows in a UX-friendly sequence rather than enum order.
-const ORDER = [
-  'storage_gb',
-  'email_sends_monthly',
-  'video_hours_hosted',
-  'video_views_monthly',
-]
+const ORDER = ['storage_gb', 'video_hours_hosted', 'video_views_monthly']
 
 const QuotaUsageCard = ({ organization }: QuotaUsageCardProps) => {
   const usage = useSpaireUsage(organization.id)

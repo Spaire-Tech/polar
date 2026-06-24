@@ -231,24 +231,26 @@ _STARTER = TierEntitlements(
     # floor so low-ticket sales aren't loss-making.
     transaction_fee=TransactionFee(percent_basis_points=700, fixed_cents=30),
     limits=TierLimits(
-        # Starter is a real entry plan, not a punishing trial tier: it can
-        # serve a creator with a small-but-real audience. Studio still has
-        # clear reasons to upgrade (bigger list, more Originals/sequences,
-        # custom sender domain, A/B testing, wallet, team seats).
+        # Email is metered on ONE dimension only — list size (email_subscribers).
+        # Sends and active sequences are unlimited so we never recreate the
+        # "10 emails and you're capped" failure; the ESP cost is absorbed into
+        # the fee spine. Studio still has clear reasons to upgrade (bigger
+        # list, custom sender domain, A/B testing, wallet, team seats).
         published_courses=5,
         lessons_per_course=50,
-        active_email_sequences=3,
+        active_email_sequences=None,
         video_hours_hosted=25,
         video_views_monthly=5_000,
         storage_gb=5,
-        email_subscribers=5_000,
-        email_sends_monthly=25_000,
+        email_subscribers=10_000,
+        email_sends_monthly=None,
         dashboard_team_seats=1,
     ),
     features=TierFeatures(
         drip_scheduling=True,
-        # email_sequences gate exists; the limit on the count lives in
-        # TierLimits.active_email_sequences. Starter gets 3; Studio gets 15.
+        # email_sequences gate (feature on/off). The active-sequence count
+        # is no longer capped on any tier — active_email_sequences is None
+        # everywhere now that email is metered on list size only.
         email_sequences_and_segments=True,
         # Pulled up to Studio+. Starter doesn't get A/B testing — most
         # Starter customers have lists where A/B testing has little
@@ -291,18 +293,18 @@ _STUDIO = TierEntitlements(
     transaction_fee=TransactionFee(percent_basis_points=500, fixed_cents=30),
     limits=TierLimits(
         # Studio is the "real business" tier — generous on courses /
-        # lessons / sequences (no working creator hits these caps often)
-        # but bounded on contacts / sends / video so Scale stays
-        # meaningful. Limits scale ~5x off Starter so the jump feels
-        # proportional.
+        # lessons but bounded on contacts (list size) and video so Scale
+        # stays meaningful. Email is metered on list size only: sends and
+        # active sequences are unlimited (ESP cost absorbed in the fee
+        # spine), so the only email lever between tiers is the contact cap.
         published_courses=25,
         lessons_per_course=None,
-        active_email_sequences=15,
+        active_email_sequences=None,
         video_hours_hosted=50,
         video_views_monthly=50_000,
         storage_gb=50,
-        email_subscribers=25_000,
-        email_sends_monthly=100_000,
+        email_subscribers=50_000,
+        email_sends_monthly=None,
         dashboard_team_seats=5,
     ),
     features=TierFeatures(
@@ -340,17 +342,19 @@ _SCALE = TierEntitlements(
     transaction_fee=TransactionFee(percent_basis_points=300, fixed_cents=30),
     limits=TierLimits(
         # Scale caps are the ceiling above which custom pricing kicks
-        # in. Anything bigger → talk-to-sales. Email sequences are
-        # genuinely unlimited because a Scale customer running enough
-        # parallel funnels to abuse this is already paying $299/mo.
+        # in. Anything bigger → talk-to-sales. The 150k contact cap is set
+        # deliberately high so a published Scale plan can hold a whale on
+        # day one; bigger lists are a negotiated bump, not a hard wall.
+        # Sends and active sequences are unlimited like every tier — email
+        # is metered on list size alone.
         published_courses=100,
         lessons_per_course=None,
         active_email_sequences=None,
         video_hours_hosted=200,
         video_views_monthly=250_000,
         storage_gb=250,
-        email_subscribers=50_000,
-        email_sends_monthly=500_000,
+        email_subscribers=150_000,
+        email_sends_monthly=None,
         dashboard_team_seats=20,
     ),
     features=TierFeatures(

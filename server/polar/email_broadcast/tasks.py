@@ -18,9 +18,6 @@ from polar.models.email_broadcast_send import (
 )
 from polar.models.email_subscriber import EmailSubscriber
 from polar.models.organization import Organization
-from polar.quotas.definitions import QuotaKey
-from polar.quotas.exceptions import QuotaExceededError
-from polar.quotas.producers import emit_email_sent, enforce
 from polar.worker import (
     AsyncSessionMaker,
     CronTrigger,
@@ -190,36 +187,10 @@ async def send_emails(
         result = await session.execute(statement)
         sends = result.scalars().all()
 
-        quota_blocked = False
         for send in sends:
             subscriber = await session.get(EmailSubscriber, send.subscriber_id)
             if subscriber is None:
                 send.status = EmailBroadcastSendStatus.failed
-                continue
-
-            # Skip the rest of the batch once we hit the quota — no point
-            # paying Resend to mark sends as failed afterward.
-            if quota_blocked:
-                send.status = EmailBroadcastSendStatus.failed
-                continue
-
-            # Per-recipient quota check. Skips the send (marks failed) if
-            # this would push the org past its monthly email cap.
-            try:
-                await enforce(
-                    session,
-                    organization,
-                    QuotaKey.email_sends_monthly,
-                    requested_storage_units=1,
-                )
-            except QuotaExceededError:
-                log.info(
-                    "email_broadcast.send_quota_exceeded",
-                    broadcast_id=str(broadcast_id),
-                    organization_id=str(organization.id),
-                )
-                send.status = EmailBroadcastSendStatus.failed
-                quota_blocked = True
                 continue
 
             subject_override: str | None = None
@@ -259,9 +230,6 @@ async def send_emails(
                 # the remaining race when a sub-second Resend event
                 # lands before the batch commits.
                 await session.flush()
-                emit_email_sent(
-                    session, organization_id=organization.id, count=1
-                )
             except Exception:
                 log.exception(
                     "email_broadcast.send_failed",

@@ -53,9 +53,9 @@ The following are part of the product on every tier. Gating any of these would b
 | **Custom pricing at scale** | — | — | available above $50k/mo GMV |
 | **Published courses** | 5 | 25 | 100 |
 | **Lessons per course** | 50 | unlimited | unlimited |
-| **Active email sequences** | 3 | 15 | unlimited |
-| **Email subscribers** | 5,000 | 25,000 | 50,000 |
-| **Email sends / month** ‡ | 25,000 | 100,000 | 500,000 |
+| **Active email sequences** | unlimited | unlimited | unlimited |
+| **Email subscribers** † | 10,000 | 50,000 | 150,000 |
+| **Email sends / month** | unlimited | unlimited | unlimited |
 | **Course video hours hosted** ‡ | 25 | 50 | 200 |
 | **Course video views / month** ‡ | 5,000 | 50,000 | 250,000 |
 | **Downloadables storage** ‡ | 5 GB | 50 GB | 250 GB |
@@ -82,6 +82,7 @@ The following are part of the product on every tier. Gating any of these would b
 | Support | email, 1 business day | priority email, same day | Slack + dedicated AM, 4-hour SLA |
 
 ‡ = quota enforcement enforced via metered events.
+† = Email is metered on **list size (subscribers) only** — checked directly against the cap whenever a contact is added, not via metered usage events. Sends and active sequences are unlimited on every tier, with the ESP cost absorbed into the transaction-fee spine. Scale's 150k contact cap is a published ceiling, not a hard wall — larger lists are a negotiated bump under custom pricing.
 ★ = feature itself must be built or completed before this row is shippable.
 
 ---
@@ -172,7 +173,8 @@ Custom pricing for the Scale tier kicks in above $50k/month GMV. The negotiated 
 - Team members with roles (`member/` module)
 - Basic revenue / MRR / churn-rate analytics
 - 14-day trial machinery on Product (`trial_interval`, `trial_interval_count`)
-- Quota enforcement: video hours hosted, video views/month, storage bytes, email sends/month
+- Quota enforcement (metered usage events): video hours hosted, video views/month, storage bytes
+- Email list-size cap enforced directly against the tier limit at subscriber-add time (`email_subscribers`); email sends are uncapped
 
 ### Built infrastructure, needs surfacing or completion
 

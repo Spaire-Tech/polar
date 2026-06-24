@@ -68,34 +68,6 @@ def emit_storage_delta(
 
 
 # ---------------------------------------------------------------------------
-# Email sends — reserved for PR 9.
-# ---------------------------------------------------------------------------
-
-
-def emit_email_sent(
-    session: AsyncSession,
-    *,
-    organization_id: UUID,
-    count: int = 1,
-) -> list[Event]:
-    """Record one outbound email send per `count`. The email-sends quota
-    is a count aggregation, so we emit one event per recipient rather
-    than a single event with a sum.
-    """
-    definition = get_definition(QuotaKey.email_sends_monthly)
-    events: list[Event] = []
-    for _ in range(count):
-        events.append(
-            _add_quota_event(
-                session,
-                organization_id=organization_id,
-                name=definition.event_name,
-            )
-        )
-    return events
-
-
-# ---------------------------------------------------------------------------
 # Video uploads & views — reserved for PR 10 / PR 11.
 # ---------------------------------------------------------------------------
 

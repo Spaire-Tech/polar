@@ -14,7 +14,6 @@ from polar.postgres import AsyncSession
 from polar.quotas.definitions import QuotaKey
 from polar.quotas.exceptions import QuotaExceededError
 from polar.quotas.producers import (
-    emit_email_sent,
     emit_storage_delta,
     emit_video_uploaded,
     emit_video_viewed,
@@ -143,29 +142,6 @@ class TestEmitStorageDelta:
 
 
 @pytest.mark.asyncio
-class TestEmitEmailSent:
-    async def test_emits_one_event_per_recipient(
-        self,
-        session: AsyncSession,
-        save_fixture: SaveFixture,
-    ) -> None:
-        creator = await create_organization(save_fixture)
-
-        emit_email_sent(session, organization_id=creator.id, count=5)
-        await session.flush()
-
-        count = (
-            await session.execute(
-                select(func.count(Event.id)).where(
-                    Event.organization_id == creator.id,
-                    Event.name == "spaire.email.sent",
-                )
-            )
-        ).scalar_one()
-        assert count == 5
-
-
-@pytest.mark.asyncio
 class TestEmitVideoEvents:
     async def test_video_uploaded_carries_duration(
         self,
@@ -223,7 +199,7 @@ class TestEnforce:
         _patch_platform_org_id(mocker, platform_org.id)
         # Patch Pro down to 5000/mo so we can fill near-cap with 4999
         # events. Pro's real limit is 250k.
-        _patch_starter_limits(mocker, email_sends_monthly=5000)
+        _patch_starter_limits(mocker, video_views_monthly=5000)
         creator = await create_organization(save_fixture)
         await _subscribe(
             save_fixture,
@@ -240,14 +216,14 @@ class TestEnforce:
                 save_fixture,
                 organization=creator,
                 source=EventSource.system,
-                name="spaire.email.sent",
+                name="spaire.video.viewed",
             )
 
         with pytest.raises(QuotaExceededError) as excinfo:
             await enforce(
                 session,
                 creator,
-                QuotaKey.email_sends_monthly,
+                QuotaKey.video_views_monthly,
                 requested_storage_units=600,
             )
         result = excinfo.value.result

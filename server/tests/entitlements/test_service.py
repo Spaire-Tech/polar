@@ -309,8 +309,11 @@ class TestGetForOrganization:
         assert result.features.white_label_course_player is False
         assert result.features.customer_wallet is False
         assert result.limits.published_courses == 5
-        assert result.limits.active_email_sequences == 3
-        assert result.limits.email_sends_monthly == 25_000
+        # Email is metered on list size only — sends and active sequences
+        # are uncapped on every tier.
+        assert result.limits.active_email_sequences is None
+        assert result.limits.email_sends_monthly is None
+        assert result.limits.email_subscribers == 10_000
 
     async def test_unmanaged_has_unlimited_limits(
         self,
@@ -341,10 +344,10 @@ class TestTierDefinitions:
         assert studio.transaction_fee.percent_basis_points == 500
         assert studio.transaction_fee.fixed_cents == 30
         assert studio.limits.published_courses == 25
-        assert studio.limits.active_email_sequences == 15
+        assert studio.limits.active_email_sequences is None
         assert studio.limits.video_hours_hosted == 50
-        assert studio.limits.email_subscribers == 25_000
-        assert studio.limits.email_sends_monthly == 100_000
+        assert studio.limits.email_subscribers == 50_000
+        assert studio.limits.email_sends_monthly is None
         assert studio.limits.dashboard_team_seats == 5
         assert studio.features.white_label_course_player is True
         assert studio.features.customer_wallet is True
@@ -358,10 +361,10 @@ class TestTierDefinitions:
         assert starter.transaction_fee.percent_basis_points == 700
         assert starter.transaction_fee.fixed_cents == 30
         assert starter.limits.published_courses == 5
-        assert starter.limits.active_email_sequences == 3
+        assert starter.limits.active_email_sequences is None
         assert starter.limits.video_hours_hosted == 25
-        assert starter.limits.email_subscribers == 5_000
-        assert starter.limits.email_sends_monthly == 25_000
+        assert starter.limits.email_subscribers == 10_000
+        assert starter.limits.email_sends_monthly is None
         assert starter.features.email_sequences_and_segments is True
         # email_ab_testing was pulled up to Studio+ so Starter doesn't have it.
         assert starter.features.email_ab_testing is False
@@ -399,9 +402,12 @@ class TestTierDefinitions:
         # Scale caps video at 200 hours; only Legacy is fully unlimited.
         assert scale.limits.video_hours_hosted == 200
         assert scale.limits.dashboard_team_seats == 20
-        # Email sequences are the one Scale limit the user explicitly
-        # wanted to remain unlimited (parallel funnel use case).
+        # Email is metered on list size only; sends and sequences are
+        # uncapped, and the published contact ceiling is set high (150k)
+        # so a Scale plan can hold a whale before custom pricing kicks in.
         assert scale.limits.active_email_sequences is None
+        assert scale.limits.email_sends_monthly is None
+        assert scale.limits.email_subscribers == 150_000
         assert scale.features.custom_pricing_negotiation is True
         assert scale.features.customer_wallet is True
         assert scale.features.white_label_course_player is True

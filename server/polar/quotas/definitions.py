@@ -16,10 +16,15 @@ Examples:
     unit_divisor = 3600 (seconds -> hours)
     scope = lifetime
 
-  email_sends_monthly:
-    event_name = "spaire.email.sent"
+  video_views_monthly:
+    event_name = "spaire.video.viewed"
     aggregation = count
     scope = monthly (only events in current UTC calendar month count)
+
+Email is NOT metered here. List size (email_subscribers) is enforced
+directly against the tier limit at subscriber-add time
+(polar/email_subscriber/service.py); email *sends* are uncapped on every
+tier, so there is no email quota key.
 """
 
 from dataclasses import dataclass
@@ -31,7 +36,6 @@ class QuotaKey(StrEnum):
     video_hours_hosted = "video_hours_hosted"
     video_views_monthly = "video_views_monthly"
     storage_gb = "storage_gb"
-    email_sends_monthly = "email_sends_monthly"
 
 
 QuotaAggregation = Literal["count", "sum"]
@@ -82,13 +86,6 @@ _DEFINITIONS: dict[QuotaKey, QuotaDefinition] = {
         aggregation_property="bytes_delta",
         scope="lifetime",
         storage_units_per_display_unit=_BYTES_IN_GB,
-    ),
-    QuotaKey.email_sends_monthly: QuotaDefinition(
-        key=QuotaKey.email_sends_monthly,
-        event_name="spaire.email.sent",
-        aggregation="count",
-        aggregation_property=None,
-        scope="monthly",
     ),
 }
 

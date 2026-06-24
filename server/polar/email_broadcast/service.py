@@ -395,37 +395,6 @@ class EmailBroadcastService:
             )
         )
 
-    async def _enforce_send_quota(
-        self,
-        session: AsyncSession,
-        broadcast: EmailBroadcast,
-        recipient_count: int,
-    ) -> None:
-        """Reject up-front (402) if sending to `recipient_count` recipients
-        would push the org past its monthly email-send quota.
-
-        This runs at schedule/send time so a creator finds out immediately —
-        instead of the broadcast silently failing per-recipient in the worker
-        once the cap is hit. The worker keeps its own per-send check as a
-        backstop. Honors the tier's overage grace via quotas.enforce.
-        """
-        if recipient_count <= 0:
-            return
-        from polar.organization.repository import OrganizationRepository
-        from polar.quotas.definitions import QuotaKey
-        from polar.quotas.producers import enforce as enforce_quota
-
-        org_repo = OrganizationRepository.from_session(session)
-        organization = await org_repo.get_by_id(broadcast.organization_id)
-        if organization is None:
-            return
-        await enforce_quota(
-            session,
-            organization,
-            QuotaKey.email_sends_monthly,
-            requested_storage_units=recipient_count,
-        )
-
     async def send(
         self,
         session: AsyncSession,
@@ -441,10 +410,6 @@ class EmailBroadcastService:
             broadcast.sent_at = utc_now()
             broadcast.total_recipients = 0
             return await repository.update(broadcast)
-
-        # Enforce the monthly email-send quota before creating any send
-        # records, so an over-cap broadcast fails fast with a 402.
-        await self._enforce_send_quota(session, broadcast, len(subscribers))
 
         # Did the user configure an A/B test? If so, only the test slice gets
         # variant labels right now; the remainder stays variant=null and is
@@ -521,13 +486,6 @@ class EmailBroadcastService:
             EmailBroadcastStatus.sent,
         ):
             raise BroadcastAlreadySent()
-
-        # Reject at schedule time if the broadcast's current audience already
-        # exceeds the monthly send quota, so the creator isn't surprised by a
-        # silent failure when the schedule fires. The audience may grow before
-        # then; send() re-checks at fire time.
-        audience = await self._resolve_audience(session, broadcast)
-        await self._enforce_send_quota(session, broadcast, len(audience))
 
         repository = EmailBroadcastRepository.from_session(session)
         broadcast.status = EmailBroadcastStatus.scheduled

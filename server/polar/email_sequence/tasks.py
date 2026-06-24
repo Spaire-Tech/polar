@@ -20,9 +20,6 @@ from polar.models.email_sequence_step_send import (
 from polar.models.email_subscriber import EmailSubscriber, EmailSubscriberStatus
 from polar.models.organization import Organization
 from polar.postgres import AsyncSession
-from polar.quotas.definitions import QuotaKey
-from polar.quotas.exceptions import QuotaExceededError
-from polar.quotas.producers import emit_email_sent, enforce
 from polar.worker import (
     AsyncSessionMaker,
     CronTrigger,
@@ -414,36 +411,9 @@ async def _send_email_step(
 
     unsubscribe_url = build_unsubscribe_url(enrollment.subscriber_id)
 
-    # Block this step send if the org is out of monthly email quota.
-    # organization can be None for very old sequences with no org link;
-    # in that case we skip enforcement gracefully.
-    if organization is not None:
-        try:
-            await enforce(
-                session,
-                organization,
-                QuotaKey.email_sends_monthly,
-                requested_storage_units=1,
-            )
-        except QuotaExceededError:
-            log.info(
-                "email_sequence.send_quota_exceeded",
-                enrollment_id=str(enrollment.id),
-                step_id=str(step.id),
-                organization_id=str(organization.id),
-            )
-            session.add(
-                EmailSequenceStepSend(
-                    enrollment_id=enrollment.id,
-                    step_id=step.id,
-                    subscriber_id=enrollment.subscriber_id,
-                    status=EmailSequenceStepSendStatus.failed,
-                )
-            )
-            # Quota will be replenished next month — don't advance the
-            # enrollment, retry on the next tick.
-            return False
-
+    # Email sends are uncapped on every tier — the only email lever is
+    # list size (email_subscribers), enforced at subscriber-add time. No
+    # per-send quota check here.
     try:
         # Per-recipient placeholder substitution (``{{first_name}}`` etc.)
         # before we hand the body to the outer marketing template wrapper.
@@ -530,10 +500,6 @@ async def _send_email_step(
         # webhook handler covers the remaining cross-process race when a
         # sub-second Resend event lands before this actor commits.
         await session.flush()
-        if organization is not None:
-            emit_email_sent(
-                session, organization_id=organization.id, count=1
-            )
         return True
     except Exception:
         log.exception(
