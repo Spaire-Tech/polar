@@ -191,6 +191,9 @@ function ComposerInner({
     initialBroadcastId,
   )
   const [mounted, setMounted] = useState(false)
+  const [mode, setMode] = useState<'edit' | 'preview'>('edit')
+  const [device, setDevice] = useState<'desktop' | 'mobile'>('desktop')
+  const [previewHtml, setPreviewHtml] = useState('')
 
   const editorRef = useRef<EmailEditorRef | null>(null)
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -231,6 +234,19 @@ function ComposerInner({
     if (!ref) return { html: '', json: null }
     const { html } = await ref.getEmail()
     return { html, json: ref.getJSON() as unknown as Record<string, unknown> }
+  }
+
+  // Enter preview: render the email exactly as it will send (getEmail HTML)
+  // into the device-framed preview. Toggling back to Edit keeps the editor
+  // mounted (its content is never unmounted, only hidden).
+  const togglePreview = async () => {
+    if (mode === 'preview') {
+      setMode('edit')
+      return
+    }
+    const { html } = await getContent()
+    setPreviewHtml(html)
+    setMode('preview')
   }
 
   const buildPayload = (
@@ -408,6 +424,12 @@ function ComposerInner({
           </button>
           {menu && <Menu items={menuItems} onClose={() => setMenu(false)} />}
         </div>
+        <button
+          className={'pill pill-soft' + (mode === 'preview' ? ' on' : '')}
+          onClick={() => void togglePreview()}
+        >
+          <Icon name="eye" size={19} /> Preview
+        </button>
         <div className="split-pill" style={{ position: 'relative' }}>
           <button className="pill pill-dark pill-main" onClick={trySend}>
             <Icon name="send" size={18} /> {so.schedule ? 'Schedule' : 'Send'}
@@ -425,27 +447,101 @@ function ComposerInner({
       {/* ── Workspace ─────────────────────────────────────────────── */}
       <div className="work">
         <div className="doc-col">
-          <AudienceFields
-            organization={organization}
-            audience={audience}
-            setAudience={setAudience}
-            excludes={excludes}
-            setExcludes={setExcludes}
-            showExclude={showExclude}
-            setShowExclude={setShowExclude}
-            subject={subject}
-            setSubject={setSubject}
-            reach={reach}
-            onTouch={() => {}}
-          />
-          <div className="re-editor">
-            <EmailEditor
-              ref={editorRef}
-              content={initialContent || undefined}
-              placeholder="Write your message…"
-              onUploadImage={onUploadImage}
+          {mode === 'preview' && (
+            <div className="mid-bar">
+              <div className="mid-seg">
+                <button onClick={() => setMode('edit')}>
+                  <Icon name="type" size={15} /> Edit
+                </button>
+                <button className="on">
+                  <Icon name="eye" size={15} /> Preview
+                </button>
+              </div>
+              <div className="mid-dev">
+                <button
+                  className={device === 'desktop' ? 'on' : ''}
+                  onClick={() => setDevice('desktop')}
+                >
+                  <Icon name="monitor" size={18} />
+                </button>
+                <button
+                  className={device === 'mobile' ? 'on' : ''}
+                  onClick={() => setDevice('mobile')}
+                >
+                  <Icon name="smartphone" size={18} />
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Edit surface — kept mounted (only hidden) so the editor content
+              survives preview toggles. */}
+          <div
+            className="compose"
+            style={{ display: mode === 'edit' ? undefined : 'none' }}
+          >
+            <AudienceFields
+              organization={organization}
+              audience={audience}
+              setAudience={setAudience}
+              excludes={excludes}
+              setExcludes={setExcludes}
+              showExclude={showExclude}
+              setShowExclude={setShowExclude}
+              subject={subject}
+              setSubject={setSubject}
+              reach={reach}
+              onTouch={() => {}}
             />
+            <div className="re-editor">
+              <EmailEditor
+                ref={editorRef}
+                content={initialContent || undefined}
+                placeholder="Write your message…"
+                onUploadImage={onUploadImage}
+              />
+            </div>
           </div>
+
+          {mode === 'preview' && (
+            <div className="preview-stage">
+              <div className={'screen ' + device}>
+                <div className="screen-inner">
+                  <div className="pv-mailhead">
+                    <h1 className="pv-subject">
+                      {subject || 'Untitled broadcast'}
+                    </h1>
+                    <div className="pv-sender">
+                      <div className="av">
+                        {senderAvatarUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={senderAvatarUrl} alt="" />
+                        ) : (
+                          senderNameDisplay
+                            .split(' ')
+                            .map((p) => p[0])
+                            .join('')
+                            .slice(0, 2)
+                            .toUpperCase()
+                        )}
+                      </div>
+                      <div className="sm">
+                        <div className="l1">
+                          <b>{senderNameDisplay}</b>
+                          <span className="em">{senderEmailDisplay}</span>
+                        </div>
+                        <div className="to">to subscribers</div>
+                      </div>
+                    </div>
+                  </div>
+                  <div
+                    className="pv-mailbody"
+                    dangerouslySetInnerHTML={{ __html: previewHtml }}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="panel-col">
