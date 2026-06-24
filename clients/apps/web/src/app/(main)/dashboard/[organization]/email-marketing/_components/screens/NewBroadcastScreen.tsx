@@ -2449,7 +2449,12 @@ export const NewBroadcastRoute = ({
       // share work afterwards.
       onOpened={(id) => {
         if (broadcastId !== id) {
-          router.replace(`${base}/${id}/edit`)
+          // Preserve ?returnTo (Space Broadcast tab) across the URL swap so
+          // closing after the first save still returns to where we came from.
+          const rt = searchParams.get('returnTo')
+          router.replace(
+            `${base}/${id}/edit${rt ? `?returnTo=${encodeURIComponent(rt)}` : ''}`,
+          )
         }
       }}
     />
