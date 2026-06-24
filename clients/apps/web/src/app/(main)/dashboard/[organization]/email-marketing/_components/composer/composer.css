@@ -771,39 +771,3 @@
   border-radius: 12px; box-shadow: var(--c-sh-pop);
   padding: 12px; min-width: 240px; z-index: 50;
 }
-
-/* React Email editor body — fills the document column under the To/Subject
-   fields, matching the old canvas spacing. */
-.re-editor { padding: 8px 0 80px; min-height: 320px; }
-.re-editor .ProseMirror { outline: none; min-height: 280px; font-size: 16px; line-height: 1.6; color: #1d1d1f; }
-.re-editor .ProseMirror:focus { outline: none; }
-
-/* React Email editor floating UI (bubble menu, slash command, link/image/
-   button popovers) portals to <body> — OUTSIDE .composer-shell — and the
-   package theme flips dark via prefers-color-scheme. Pin the light palette on
-   each floating container so the bubble is always readable in our light
-   composer (setting the vars on the container beats the theme's :root rule
-   regardless of the OS colour scheme). */
-[data-re-bubble-menu],
-[data-re-slash-command],
-[data-re-node-selector-content],
-[data-re-link-selector-form],
-[data-re-link-bm-form],
-[data-re-btn-bm-form],
-[data-re-img-bm-form] {
-  --re-bg: #ffffff;
-  --re-bg-active: #f0f0f0;
-  --re-border: #e6e6e9;
-  --re-text: #1d1d1f;
-  --re-text-muted: #6e6e73;
-  --re-hover: rgba(0, 0, 0, 0.05);
-  --re-active: rgba(0, 0, 0, 0.08);
-  --re-pressed: rgba(0, 0, 0, 0.08);
-  --re-separator: #e6e6e9;
-  --re-danger: #d8472b;
-  --re-danger-hover: rgba(216, 71, 43, 0.1);
-  color: #1d1d1f;
-}
-
-/* Isolated, auto-sized preview iframe */
-.composer-shell .pv-frame { width: 100%; border: none; display: block; min-height: 320px; background: #fff; }
