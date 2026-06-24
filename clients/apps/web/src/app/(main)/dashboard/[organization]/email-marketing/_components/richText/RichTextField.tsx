@@ -51,6 +51,9 @@ export function RichTextField({
         code: false,
         horizontalRule: false,
         strike: false,
+        // StarterKit v3 bundles its own Link; disable it so our configured
+        // Link below is the only one (avoids a duplicate-extension clash).
+        link: false,
       }),
       Link.configure({
         openOnClick: false,
