@@ -20,6 +20,16 @@ import '../Community/hub/hub.css'
 
 type Settings = NonNullable<schemas['OrganizationStorefrontSettings']>
 
+/** A solid, clearly-bordered writing box — mirrors the Course editor's title /
+ *  description fields so the SEO inputs read as real writing surfaces (not the
+ *  transparent grey fill) in both light and dark mode. `--surface` is pure white
+ *  in light and a defined panel in dark; `--hair` draws the visible border. The
+ *  blue focus ring still comes for free from `.input:focus` in hub.css. */
+const WRITING_BOX_STYLE: React.CSSProperties = {
+  background: 'var(--surface)',
+  boxShadow: 'inset 0 0 0 1px var(--hair)',
+}
+
 /** Text input that commits on blur / Enter (matches the Community settings),
  *  so we don't churn form state on every keystroke. */
 function CommitInput({
@@ -41,6 +51,7 @@ function CommitInput({
       value={v}
       placeholder={placeholder}
       maxLength={maxLength}
+      style={WRITING_BOX_STYLE}
       onChange={(e) => setV(e.target.value)}
       onBlur={() => v !== value && onCommit(v)}
       onKeyDown={(e) => {
@@ -71,7 +82,7 @@ function CommitTextarea({
       placeholder={placeholder}
       maxLength={maxLength}
       rows={3}
-      style={{ width: '100%', resize: 'vertical', minHeight: 84 }}
+      style={{ ...WRITING_BOX_STYLE, width: '100%', resize: 'vertical', minHeight: 84 }}
       onChange={(e) => setV(e.target.value)}
       onBlur={() => v !== value && onCommit(v)}
     />
@@ -121,14 +132,14 @@ function Row({
   children,
 }: {
   label: string
-  hint: string
+  hint?: string
   children: React.ReactNode
 }) {
   return (
     <div className="grow">
       <div className="grow-main">
         <div className="gl">{label}</div>
-        <div className="gs">{hint}</div>
+        {hint && <div className="gs">{hint}</div>}
       </div>
       <div className="grow-ctl">{children}</div>
     </div>
@@ -233,10 +244,7 @@ export const SpaceSettingsTab = ({
         {/* Appearance */}
         <div className="glist-label">Appearance</div>
         <div className="card glist" style={{ marginBottom: 26 }}>
-          <Row
-            label="Theme"
-            hint="Light or dark — applies to your public Space and this editor"
-          >
+          <Row label="Theme">
             <Seg
               value={theme === 'dark' ? 'Dark' : 'Light'}
               options={['Light', 'Dark']}
@@ -250,10 +258,7 @@ export const SpaceSettingsTab = ({
         {/* Search & sharing (SEO) */}
         <div className="glist-label">Search &amp; sharing</div>
         <div className="card form-card" style={{ marginBottom: 14 }}>
-          <Field
-            label="SEO title"
-            hint="Shown as the page title in search results and browser tabs. Defaults to your name."
-          >
+          <Field label="SEO title">
             <CommitInput
               value={settings.meta_title ?? ''}
               placeholder={`${organization.name} — Spaire Space`}
@@ -261,10 +266,7 @@ export const SpaceSettingsTab = ({
               onCommit={(v) => updateSetting('meta_title', v.trim() || null)}
             />
           </Field>
-          <Field
-            label="SEO description"
-            hint="The summary search engines and social cards show. Defaults to your storefront description."
-          >
+          <Field label="SEO description">
             <CommitTextarea
               value={settings.meta_description ?? ''}
               placeholder="A short, compelling summary of your Space."
