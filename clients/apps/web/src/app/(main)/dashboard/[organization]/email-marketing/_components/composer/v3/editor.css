@@ -339,3 +339,27 @@
 
 /* Anchor the block-chrome overlay to the email surface. */
 .bem .email { position: relative; }
+
+/* ── Inline formatting bubble (brick 4) ───────────────────────────────── */
+.bem .fmt-bubble {
+  display: flex; align-items: center; gap: 1px;
+  background: var(--card); border: 1px solid var(--hair); border-radius: 10px;
+  padding: 4px;
+  box-shadow: rgba(20,23,30,.2) 0 12px 32px, rgba(20,23,30,.1) 0 2px 8px;
+}
+.bem.dark .fmt-bubble { box-shadow: rgba(0,0,0,.5) 0 12px 32px; }
+.bem .fmt-btn {
+  width: 30px; height: 30px; border-radius: 7px; display: grid; place-items: center;
+  color: var(--text); font-size: 14px; font-weight: 600;
+  transition: background .12s, color .12s;
+}
+.bem .fmt-btn:hover { background: var(--fill); }
+.bem .fmt-btn.on { background: var(--accent-soft); color: var(--accent); }
+.bem .fmt-sep { width: 1px; height: 18px; background: var(--hair); margin: 0 3px; }
+.bem .fmt-link { display: flex; align-items: center; gap: 6px; padding: 2px 2px 2px 8px; }
+.bem .fmt-link input { width: 180px; height: 28px; font-size: 13px; color: var(--text); }
+.bem .fmt-link-go {
+  height: 28px; padding: 0 12px; border-radius: 7px;
+  background: var(--accent-grad); color: #fff; font-size: 12.5px; font-weight: 600;
+}
+.bem .fmt-link-go:hover { background: var(--accent-grad-hover); }

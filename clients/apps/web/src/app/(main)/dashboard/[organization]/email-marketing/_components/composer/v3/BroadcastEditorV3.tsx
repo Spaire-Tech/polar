@@ -15,6 +15,7 @@ import { EditorContent } from '@tiptap/react'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 
 import { BlockChrome, type BlockSel } from './BlockChrome'
+import { FormatBubble } from './FormatBubble'
 import { insertBlock, setBlockAttr, useEmailEditor } from './engine'
 
 import './editor.css'
@@ -386,6 +387,8 @@ export function BroadcastEditorV3({
           </div>
         </aside>
       </div>
+
+      <FormatBubble editor={editor} />
 
       <div className={'toast' + (toast ? ' show' : '')}>
         <span className="tk">

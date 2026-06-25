@@ -79,6 +79,27 @@ describe('v3 engine: insert + email output', () => {
     expect(editor.getHTML()).toMatch(/<strong>/)
     editor.destroy()
   })
+
+  it('italic / underline / strike / link marks round-trip', async () => {
+    const editor = makeEditor()
+    editor.commands.setContent('<p>format me</p>')
+    editor.commands.selectAll()
+    editor.chain().focus().toggleItalic().run()
+    editor.chain().focus().toggleStrike().run()
+    editor
+      .chain()
+      .focus()
+      .extendMarkRange('link')
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .setLink({ href: 'https://spaire.test/m' } as any)
+      .run()
+    const doc = editor.getHTML()
+    expect(doc).toMatch(/<em>|<i>/)
+    expect(doc).toMatch(/<s>|<strike>/)
+    const html = await emailHtml(editor)
+    expect(html).toMatch(/href="https:\/\/spaire\.test\/m"/)
+    editor.destroy()
+  })
 })
 
 describe('v3 engine: block move / duplicate / delete', () => {
