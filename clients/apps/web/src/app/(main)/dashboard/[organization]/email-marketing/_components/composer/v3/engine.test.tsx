@@ -8,7 +8,9 @@ import {
   emailExtensions,
   emailHtml,
   insertBlock,
+  insertBlockAt,
   moveBlock,
+  moveBlockTo,
   setBlockAttr,
   setTextColor,
   toggleBold,
@@ -208,6 +210,40 @@ describe('v3 engine: block move / duplicate / delete', () => {
 
     expect(moveBlock(editor, idxOf(editor, 'ALPHA'), 'up')).toBe(true)
     expect(order(editor, ['ALPHA', 'BRAVO'])).toEqual(['ALPHA', 'BRAVO'])
+    editor.destroy()
+  })
+
+  it('insertBlockAt places a block at the requested index', () => {
+    const editor = makeEditor()
+    editor.commands.setContent('<h2>ALPHA</h2><p>BRAVO</p>')
+    // insert a heading at the very top
+    expect(insertBlockAt(editor, 'heading', 0)).toBe(true)
+    expect(topBlocks(editor)[0].node.type.name).toBe('heading')
+    // …and a divider between the heading and ALPHA (index 1)
+    expect(insertBlockAt(editor, 'divider', 1)).toBe(true)
+    expect(topBlocks(editor)[1].node.type.name).toBe('horizontalRule')
+    // ALPHA is now pushed to index 2
+    expect(topBlocks(editor)[2].node.textContent).toContain('ALPHA')
+    editor.destroy()
+  })
+
+  it('moveBlockTo reorders to an arbitrary drop index (design splice maths)', () => {
+    const editor = makeEditor()
+    editor.commands.setContent('<h2>ALPHA</h2><p>BRAVO</p><p>CHARLIE</p>')
+    const ord = () => order(editor, ['ALPHA', 'BRAVO', 'CHARLIE'])
+    expect(ord()).toEqual(['ALPHA', 'BRAVO', 'CHARLIE'])
+
+    // drag ALPHA (0) to the end (drop index 3)
+    expect(moveBlockTo(editor, 0, 3)).toBe(true)
+    expect(ord()).toEqual(['BRAVO', 'CHARLIE', 'ALPHA'])
+
+    // drag ALPHA (now index 2) to the top (drop index 0)
+    expect(moveBlockTo(editor, idxOf(editor, 'ALPHA'), 0)).toBe(true)
+    expect(ord()).toEqual(['ALPHA', 'BRAVO', 'CHARLIE'])
+
+    // dropping into the same slot is a no-op
+    expect(moveBlockTo(editor, 1, 1)).toBe(false)
+    expect(moveBlockTo(editor, 1, 2)).toBe(false)
     editor.destroy()
   })
 

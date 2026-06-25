@@ -18,6 +18,7 @@ import {
   useRef,
   useState,
   type ChangeEvent,
+  type DragEvent as ReactDragEvent,
   type MouseEvent as ReactMouseEvent,
   type ReactNode,
 } from 'react'
@@ -26,7 +27,11 @@ import { BlockChrome, type BlockSel } from './BlockChrome'
 import { ColorPicker } from './colorPicker'
 import { FormatBubble } from './FormatBubble'
 import {
+  dropIndexForY,
+  dropLineY,
   insertBlock,
+  insertBlockAt,
+  moveBlockTo,
   setBlockAttr,
   topBlocks,
   useEmailEditor,
@@ -161,6 +166,14 @@ export function BroadcastEditorV3({
   const [picker, setPicker] = useState<
     { which: 'bg' | 'fg'; top: number; left: number } | null
   >(null)
+  // Drag-to-insert (palette) / drag-to-reorder (block grip) state.
+  const [drag, setDrag] = useState<
+    | { kind: 'insert'; type: InsertableBlock; label: string }
+    | { kind: 'move'; index: number }
+    | null
+  >(null)
+  const [dropY, setDropY] = useState<number | null>(null)
+  const dropIndexRef = useRef<number | null>(null)
 
   // Re-render the chrome (inspector live values, empty-state) on editor edits.
   const [, forceTick] = useReducer((n: number) => n + 1, 0)
@@ -283,6 +296,33 @@ export function BroadcastEditorV3({
     }
     editor.chain().focus().insertContent(`{{${tag}}}`).run()
   }
+  // ── Drag & drop: palette → insert, block grip → reorder ──
+  const onCanvasDragOver = (e: ReactDragEvent) => {
+    if (!drag || !editor) return
+    e.preventDefault()
+    e.dataTransfer.dropEffect = drag.kind === 'insert' ? 'copy' : 'move'
+    const idx = dropIndexForY(editor, e.clientY)
+    dropIndexRef.current = idx
+    if (emailRef.current) setDropY(dropLineY(editor, idx, emailRef.current))
+  }
+  const endDrag = () => {
+    setDrag(null)
+    setDropY(null)
+    dropIndexRef.current = null
+  }
+  const onCanvasDrop = (e: ReactDragEvent) => {
+    if (!drag || !editor) return endDrag()
+    e.preventDefault()
+    const idx = dropIndexRef.current ?? topBlocks(editor).length
+    if (drag.kind === 'insert') {
+      insertBlockAt(editor, drag.type, idx)
+      showToast(`${drag.label} added`)
+    } else {
+      moveBlockTo(editor, drag.index, idx)
+    }
+    endDrag()
+  }
+
   // Open the HSV picker beside the clicked trigger (toggle if same one).
   const openPicker = (which: 'bg' | 'fg', e: ReactMouseEvent) => {
     if (picker?.which === which) return setPicker(null)
@@ -351,19 +391,39 @@ export function BroadcastEditorV3({
             <div className="pal-group" key={g.group}>
               <div className="pal-label">{g.group}</div>
               <div className="pal-grid">
-                {g.items.map((it) => (
-                  <button
-                    className="pal-item"
-                    key={it.key}
-                    data-block={it.key}
-                    onClick={() => onPalette(it.key, it.label)}
-                  >
-                    <span className="pal-droplet">
-                      <I d={it.d} size={15} />
-                    </span>
-                    <span className="pal-t">{it.label}</span>
-                  </button>
-                ))}
+                {g.items.map((it) => {
+                  const wired = WIRED.has(it.key as InsertableBlock)
+                  return (
+                    <button
+                      className={
+                        'pal-item' +
+                        (drag?.kind === 'insert' && drag.type === it.key
+                          ? ' dragging'
+                          : '')
+                      }
+                      key={it.key}
+                      data-block={it.key}
+                      draggable={wired}
+                      onClick={() => onPalette(it.key, it.label)}
+                      onDragStart={(e) => {
+                        if (!wired) return e.preventDefault()
+                        e.dataTransfer.effectAllowed = 'copy'
+                        e.dataTransfer.setData('text/plain', it.key)
+                        setDrag({
+                          kind: 'insert',
+                          type: it.key as InsertableBlock,
+                          label: it.label,
+                        })
+                      }}
+                      onDragEnd={endDrag}
+                    >
+                      <span className="pal-droplet">
+                        <I d={it.d} size={15} />
+                      </span>
+                      <span className="pal-t">{it.label}</span>
+                    </button>
+                  )
+                })}
               </div>
             </div>
           ))}
@@ -413,12 +473,33 @@ export function BroadcastEditorV3({
             </span>
           </div>
 
-          <main className="canvas">
+          <main
+            className="canvas"
+            onDragOver={onCanvasDragOver}
+            onDrop={onCanvasDrop}
+          >
             <div className={'stage' + (device === 'mobile' ? ' mobile' : '')}>
               <div
                 ref={emailRef}
                 className={'email' + (editor?.isEmpty ? ' empty-hint' : '')}
               >
+                {drag && dropY !== null && (
+                  <div
+                    className="drop-line show"
+                    data-testid="drop-line"
+                    style={{
+                      position: 'absolute',
+                      left: 0,
+                      right: 0,
+                      top: dropY,
+                      height: 2,
+                      background: 'var(--accent)',
+                      borderRadius: 2,
+                      zIndex: 9,
+                      pointerEvents: 'none',
+                    }}
+                  />
+                )}
                 {editor?.isEmpty && (
                   <div className="email-empty">
                     <div className="ee-ic">
@@ -432,6 +513,10 @@ export function BroadcastEditorV3({
                 <BlockChrome
                   editor={editor}
                   emailRef={emailRef}
+                  onGripDragStart={(index) =>
+                    setDrag({ kind: 'move', index })
+                  }
+                  onGripDragEnd={endDrag}
                   onSelect={(s) => {
                     // Keep the inspector sticky while the user is in its own
                     // controls. Focusing a field (the HSV hex input, a text

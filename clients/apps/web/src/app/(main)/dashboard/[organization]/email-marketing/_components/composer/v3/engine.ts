@@ -100,6 +100,97 @@ export function insertBlock(
   return true
 }
 
+/**
+ * Insert a new block at a specific top-level index (drag-to-insert). index >=
+ * count appends at the container end. Same reliable tr.insert as insertBlock.
+ */
+export function insertBlockAt(
+  editor: Editor | null,
+  type: InsertableBlock,
+  index: number,
+): boolean {
+  if (!editor) return false
+  const c = findContainer(editor)
+  if (!c) return false
+  const blocks = topBlocks(editor)
+  const node = editor.schema.nodeFromJSON(BLOCK_NODE[type])
+  const at =
+    index >= blocks.length ? c.pos + c.node.nodeSize - 1 : blocks[index].pos
+  editor.view.dispatch(editor.state.tr.insert(at, node).scrollIntoView())
+  editor.commands.focus()
+  return true
+}
+
+/**
+ * Move the block at `from` so it lands at drop-index `to` (drag-to-reorder).
+ * `to` is the index in the FULL list where the block should sit; we mirror the
+ * design's splice maths (target-- when moving downward) and map positions
+ * through the deletion so the insert lands correctly.
+ */
+export function moveBlockTo(
+  editor: Editor | null,
+  from: number,
+  to: number,
+): boolean {
+  if (!editor) return false
+  const blocks = topBlocks(editor)
+  const src = blocks[from]
+  if (!src) return false
+  // Dropping back into the same slot is a no-op.
+  if (to === from || to === from + 1) return false
+
+  let target = to
+  if (from < to) target -= 1
+  const remaining = blocks.filter((_, i) => i !== from)
+  const ref = remaining[target] // insert before this block (undefined → append)
+
+  const tr = editor.state.tr
+  tr.delete(src.pos, src.pos + src.node.nodeSize)
+  let insertPos: number
+  if (ref) {
+    insertPos = tr.mapping.map(ref.pos)
+  } else {
+    const c = findContainer(editor)
+    if (!c) return false
+    insertPos = tr.mapping.map(c.pos + c.node.nodeSize - 1)
+  }
+  tr.insert(insertPos, src.node)
+  editor.view.dispatch(tr.scrollIntoView())
+  return true
+}
+
+/** Drop index for a pointer Y, by each top block's vertical midpoint (design). */
+export function dropIndexForY(editor: Editor | null, clientY: number): number {
+  if (!editor) return 0
+  const blocks = topBlocks(editor)
+  for (let k = 0; k < blocks.length; k++) {
+    const dom = editor.view.nodeDOM(blocks[k].pos) as HTMLElement | null
+    if (!dom || typeof dom.getBoundingClientRect !== 'function') continue
+    const r = dom.getBoundingClientRect()
+    if (clientY < r.top + r.height / 2) return k
+  }
+  return blocks.length
+}
+
+/** Y (relative to `surface`) of the drop-line for a given drop index. */
+export function dropLineY(
+  editor: Editor | null,
+  index: number,
+  surface: HTMLElement,
+): number {
+  if (!editor) return 0
+  const blocks = topBlocks(editor)
+  const er = surface.getBoundingClientRect()
+  if (index < blocks.length) {
+    const dom = editor.view.nodeDOM(blocks[index].pos) as HTMLElement | null
+    if (dom?.getBoundingClientRect) return dom.getBoundingClientRect().top - er.top
+  }
+  const last = blocks[blocks.length - 1]
+  const dom = last ? (editor.view.nodeDOM(last.pos) as HTMLElement | null) : null
+  if (dom?.getBoundingClientRect) return dom.getBoundingClientRect().bottom - er.top
+  return 0
+}
+
 export const toggleBold = (e: Editor | null) =>
   e?.chain().focus().toggleBold().run() ?? false
 export const toggleItalic = (e: Editor | null) =>

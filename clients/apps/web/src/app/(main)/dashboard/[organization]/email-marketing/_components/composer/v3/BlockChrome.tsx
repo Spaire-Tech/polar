@@ -7,7 +7,12 @@
 // views.
 
 import type { Editor } from '@tiptap/react'
-import { useEffect, useReducer, type RefObject } from 'react'
+import {
+  useEffect,
+  useReducer,
+  type DragEvent as ReactDragEvent,
+  type RefObject,
+} from 'react'
 
 import {
   deleteBlock,
@@ -47,10 +52,14 @@ export function BlockChrome({
   editor,
   emailRef,
   onSelect,
+  onGripDragStart,
+  onGripDragEnd,
 }: {
   editor: Editor | null
   emailRef: RefObject<HTMLDivElement | null>
   onSelect: (sel: BlockSel) => void
+  onGripDragStart?: (index: number, e: ReactDragEvent) => void
+  onGripDragEnd?: () => void
 }) {
   const [, force] = useReducer((n: number) => n + 1, 0)
 
@@ -162,7 +171,18 @@ export function BlockChrome({
           zIndex: 8,
         }}
       >
-        <span className="bt-btn bt-drag" title="Drag to reorder">
+        <span
+          className="bt-btn bt-drag"
+          title="Drag to reorder"
+          draggable
+          data-grip={idx}
+          onDragStart={(e) => {
+            e.dataTransfer.effectAllowed = 'move'
+            e.dataTransfer.setData('text/plain', String(idx))
+            onGripDragStart?.(idx, e)
+          }}
+          onDragEnd={() => onGripDragEnd?.()}
+        >
           <Ico d={D.drag} />
         </span>
         {tool('Move up', D.up, () => moveBlock(editor, idx, 'up'))}
