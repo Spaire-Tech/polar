@@ -312,3 +312,27 @@
   .bem .inspector { width: 270px; }
   .bem .side { width: 240px; }
 }
+
+/* ── Live editor content (brick 2): the design's eb-* type applied to the
+   ProseMirror nodes our React Email schema renders. ────────────────────── */
+.bem .email .ProseMirror { outline: none; padding: 36px 44px; min-height: 160px; }
+.bem .email .ProseMirror:focus { outline: none; }
+.bem .email .ProseMirror > * + * { margin-top: 14px; }
+.bem .email .ProseMirror p { font-family: var(--inter); font-size: 15px; line-height: 1.6; color: rgb(67, 69, 75); margin: 0; }
+.bem .email .ProseMirror h1 { font-family: var(--inter); font-size: 30px; font-weight: 700; line-height: 1.2; letter-spacing: -0.02em; color: rgb(20,23,30); margin: 0; }
+.bem .email .ProseMirror h2 { font-family: var(--inter); font-size: 23px; font-weight: 700; line-height: 1.25; letter-spacing: -0.015em; color: rgb(20,23,30); margin: 0; }
+.bem .email .ProseMirror h3 { font-family: var(--inter); font-size: 19px; font-weight: 600; line-height: 1.3; color: rgb(20,23,30); margin: 0; }
+.bem .email .ProseMirror a { color: rgb(25, 74, 7); }
+/* The React Email button node renders as <a class="node-button button">;
+   show it as the design's pill in the editor. */
+.bem .email .ProseMirror a.node-button,
+.bem .email .ProseMirror a.button,
+.bem .email .ProseMirror .eb-btn {
+  display: inline-block; text-decoration: none; font-family: var(--inter);
+  font-weight: 500; font-size: 15px; letter-spacing: -0.005em; line-height: 1;
+  background: #141518; color: #fff; border-radius: 999px; padding: 13px 24px;
+}
+.bem .email .ProseMirror.em-doc.is-editor-empty:first-child::before,
+.bem .email .ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder); color: rgb(174,174,178); float: left; height: 0; pointer-events: none;
+}

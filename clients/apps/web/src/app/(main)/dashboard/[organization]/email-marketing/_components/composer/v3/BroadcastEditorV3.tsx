@@ -11,9 +11,14 @@
 // palette inserts, per-block editing and inspector controls are the next
 // bricks — each added and verified on top of this frame.
 
-import { useState, type ReactNode } from 'react'
+import { EditorContent } from '@tiptap/react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
+
+import { insertBlock, useEmailEditor } from './engine'
 
 import './editor.css'
+
+const WIRED = new Set(['text', 'heading', 'button'])
 
 // ── tiny inline icon set (stroke-based, matches the design's line icons) ──
 function I({ d, size = 16, fill }: { d: string; size?: number; fill?: boolean }) {
@@ -104,6 +109,30 @@ export function BroadcastEditorV3({
 }) {
   const [dark, setDark] = useState(false)
   const [device, setDevice] = useState<'desktop' | 'mobile'>('desktop')
+  const [toast, setToast] = useState('')
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const editor = useEmailEditor()
+
+  const showToast = (m: string) => {
+    setToast(m)
+    if (toastTimer.current) clearTimeout(toastTimer.current)
+    toastTimer.current = setTimeout(() => setToast(''), 2200)
+  }
+
+  const onPalette = (key: string, label: string) => {
+    if (WIRED.has(key)) {
+      insertBlock(editor, key as 'text' | 'heading' | 'button')
+    } else {
+      showToast(`“${label}” block is coming next`)
+    }
+  }
+
+  useEffect(
+    () => () => {
+      if (toastTimer.current) clearTimeout(toastTimer.current)
+    },
+    [],
+  )
 
   return (
     <div className={'bem' + (dark ? ' dark' : '')}>
@@ -152,7 +181,12 @@ export function BroadcastEditorV3({
               <div className="pal-label">{g.group}</div>
               <div className="pal-grid">
                 {g.items.map((it) => (
-                  <button className="pal-item" key={it.key} data-block={it.key}>
+                  <button
+                    className="pal-item"
+                    key={it.key}
+                    data-block={it.key}
+                    onClick={() => onPalette(it.key, it.label)}
+                  >
                     <span className="pal-droplet">
                       <I d={it.d} size={15} />
                     </span>
@@ -203,91 +237,17 @@ export function BroadcastEditorV3({
 
           <main className="canvas">
             <div className={'stage' + (device === 'mobile' ? ' mobile' : '')}>
-              <div className="email">
-                {/* Example content (static in brick 1) so fidelity can be
-                    judged against the design; replaced by the live editor next. */}
-                <div className="blk" data-label="Cover">
-                  <div
-                    className="eb-hero"
-                    style={{
-                      padding: '54px 44px 46px',
-                      background:
-                        'linear-gradient(180deg, rgba(20,21,24,.18), rgba(20,21,24,.82)), linear-gradient(120deg,#6b5743,#2a2118)',
-                      color: '#fff',
-                    }}
-                  >
-                    <div
-                      style={{
-                        fontSize: 11,
-                        letterSpacing: '.22em',
-                        textTransform: 'uppercase',
-                        opacity: 0.66,
-                        marginBottom: 90,
-                      }}
-                    >
-                      Spaire Originals
+              <div className={'email' + (editor?.isEmpty ? ' empty-hint' : '')}>
+                {editor?.isEmpty && (
+                  <div className="email-empty">
+                    <div className="ee-ic">
+                      <I d="M12 5v14M5 12h14" size={20} />
                     </div>
-                    <h1
-                      style={{
-                        fontFamily: '"Instrument Serif", Georgia, serif',
-                        fontSize: 62,
-                        lineHeight: 1.02,
-                        letterSpacing: '-1px',
-                        fontWeight: 400,
-                      }}
-                    >
-                      {courseName}
-                    </h1>
-                    <div style={{ opacity: 0.82, fontSize: 14, margin: '12px 0 18px' }}>
-                      Taught by Adaeze Bello
-                    </div>
-                    <div
-                      style={{
-                        opacity: 0.72,
-                        fontSize: 14.5,
-                        lineHeight: 1.5,
-                        maxWidth: 340,
-                      }}
-                    >
-                      Heritage technique, soul food, and the stories behind every
-                      dish.
-                    </div>
-                    <span
-                      className="eb-btn"
-                      style={{
-                        marginTop: 26,
-                        background: '#fff',
-                        color: '#141518',
-                        borderRadius: 999,
-                        padding: '13px 24px',
-                      }}
-                    >
-                      Start the class
-                    </span>
+                    Add a block from the left to start your email — Text,
+                    Heading or Button.
                   </div>
-                </div>
-                <div className="blk" data-label="Section" style={{ background: '#141518' }}>
-                  <div className="eb-sec" style={{ padding: '40px 44px', color: '#fff' }}>
-                    <h2
-                      className="eb-h"
-                      style={{ fontFamily: '"Instrument Serif", Georgia, serif', fontSize: 30, fontWeight: 400, marginBottom: 14 }}
-                    >
-                      Welcome to the table.
-                    </h2>
-                    <p className="eb-text" style={{ color: 'rgba(245,245,247,.66)', fontSize: 15.5, lineHeight: 1.62 }}>
-                      I&apos;m glad you&apos;re here. This is everything my
-                      grandmother taught me, and everything I&apos;ve learned in
-                      the twenty years since. There&apos;s no rush. Take it one
-                      lesson at a time.
-                    </p>
-                    <div style={{ marginTop: 26, fontFamily: '"Instrument Serif", Georgia, serif', fontStyle: 'italic', fontSize: 19, color: '#fff' }}>
-                      Adaeze Bello
-                    </div>
-                    <div style={{ fontSize: 11, letterSpacing: '.06em', textTransform: 'uppercase', color: 'rgba(245,245,247,.4)', marginTop: 4 }}>
-                      Chef &amp; Instructor
-                    </div>
-                  </div>
-                </div>
+                )}
+                <EditorContent editor={editor} />
               </div>
             </div>
           </main>
@@ -345,6 +305,13 @@ export function BroadcastEditorV3({
             </div>
           </div>
         </aside>
+      </div>
+
+      <div className={'toast' + (toast ? ' show' : '')}>
+        <span className="tk">
+          <I d={IC.check} size={15} />
+        </span>
+        <span>{toast}</span>
       </div>
     </div>
   )
