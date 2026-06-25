@@ -140,6 +140,26 @@ describe('v3 engine: insert + email output', () => {
     editor.destroy()
   })
 
+  it('alignment + button colours survive to email HTML', async () => {
+    const editor = makeEditor()
+    editor.commands.setContent('<p>centre me</p>')
+    const pIdx = topBlocks(editor).findIndex((b) =>
+      (b.node.textContent as string)?.includes('centre'),
+    )
+    setBlockAttr(editor, pIdx, { alignment: 'center' })
+
+    insertBlock(editor, 'button')
+    const bIdx = topBlocks(editor).findIndex((b) => b.node.type.name === 'button')
+    setBlockAttr(editor, bIdx, {
+      style: 'background-color:#127c2b;color:#ffffff',
+    })
+
+    const html = await emailHtml(editor)
+    expect(html).toMatch(/text-align:\s*center/i)
+    expect(html).toMatch(/(#127c2b|rgb\(18,\s*124,\s*43\))/i)
+    editor.destroy()
+  })
+
   it('text colour (custom EmailMark) survives to email HTML', async () => {
     const editor = makeEditor()
     editor.commands.setContent('<p>colour me</p>')

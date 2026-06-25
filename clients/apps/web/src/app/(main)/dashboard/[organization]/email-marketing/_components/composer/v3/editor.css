@@ -411,3 +411,11 @@
 .bem .email .ProseMirror .eb-imgph.ProseMirror-selectednode {
   outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 8px;
 }
+
+/* ── Block alignment (brick 8) — the alignment attr + button align wrapper ── */
+.bem .email .ProseMirror [alignment="center"] { text-align: center; }
+.bem .email .ProseMirror [alignment="right"] { text-align: right; }
+.bem .email .ProseMirror [alignment="left"] { text-align: left; }
+.bem .email .ProseMirror .align-center { text-align: center; }
+.bem .email .ProseMirror .align-right { text-align: right; }
+.bem .email .ProseMirror .align-left { text-align: left; }

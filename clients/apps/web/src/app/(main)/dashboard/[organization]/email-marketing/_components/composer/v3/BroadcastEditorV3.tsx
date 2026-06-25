@@ -22,6 +22,7 @@ import {
 } from 'react'
 
 import { BlockChrome, type BlockSel } from './BlockChrome'
+import { COLOR_PRESETS } from './colorMark'
 import { FormatBubble } from './FormatBubble'
 import {
   insertBlock,
@@ -227,6 +228,38 @@ export function BroadcastEditorV3({
         }) ?? null)
       : null
 
+  // ── Alignment + button colours ──
+  const blockAttrs = (i: number) =>
+    (topBlocks(editor)[i]?.node.attrs ?? {}) as Record<string, string>
+  const ALIGNABLE = new Set(['paragraph', 'heading', 'blockquote', 'button'])
+  const curAlign = sel ? blockAttrs(sel.index).alignment || 'left' : 'left'
+  const setAlign = (a: string) => {
+    if (sel) setBlockAttr(editor, sel.index, { alignment: a })
+  }
+  const parseStyle = (s?: string): Record<string, string> =>
+    Object.fromEntries(
+      (s || '')
+        .split(';')
+        .map((x) => x.trim())
+        .filter(Boolean)
+        .map((x) => {
+          const i = x.indexOf(':')
+          return [x.slice(0, i).trim(), x.slice(i + 1).trim()]
+        }),
+    )
+  const btnStyle = sel?.type === 'button' ? parseStyle(blockAttrs(sel.index).style) : {}
+  const setBtnColor = (patch: { bg?: string; color?: string }) => {
+    if (!sel) return
+    const st = parseStyle(blockAttrs(sel.index).style)
+    if (patch.bg !== undefined) st['background-color'] = patch.bg
+    if (patch.color !== undefined) st['color'] = patch.color
+    setBlockAttr(editor, sel.index, {
+      style: Object.entries(st)
+        .map(([k, v]) => `${k}:${v}`)
+        .join(';'),
+    })
+  }
+
   useEffect(
     () => () => {
       if (toastTimer.current) clearTimeout(toastTimer.current)
@@ -401,15 +434,50 @@ export function BroadcastEditorV3({
                   </Ctl>
                 )}
                 {sel.type === 'button' && (
-                  <Ctl label="Link">
-                    <input
-                      className="fld"
-                      placeholder="https://…"
-                      data-testid="btn-link"
-                      defaultValue="https://example.com"
-                      onChange={(e) => setButtonLink(e.target.value)}
-                    />
-                  </Ctl>
+                  <>
+                    <Ctl label="Link">
+                      <input
+                        className="fld"
+                        placeholder="https://…"
+                        data-testid="btn-link"
+                        defaultValue="https://example.com"
+                        onChange={(e) => setButtonLink(e.target.value)}
+                      />
+                    </Ctl>
+                    <Ctl label="Background">
+                      <div className="swatches" data-testid="btn-bg">
+                        {COLOR_PRESETS.map((c) => (
+                          <button
+                            key={c}
+                            className={
+                              'sw-chip' +
+                              (btnStyle['background-color'] === c ? ' on' : '')
+                            }
+                            style={{ background: c }}
+                            data-swatch={c}
+                            onMouseDown={(e) => e.preventDefault()}
+                            onClick={() => setBtnColor({ bg: c })}
+                          />
+                        ))}
+                      </div>
+                    </Ctl>
+                    <Ctl label="Text colour">
+                      <div className="swatches" data-testid="btn-fg">
+                        {['#ffffff', ...COLOR_PRESETS].map((c) => (
+                          <button
+                            key={c}
+                            className={
+                              'sw-chip' + (btnStyle['color'] === c ? ' on' : '')
+                            }
+                            style={{ background: c }}
+                            data-swatch={c}
+                            onMouseDown={(e) => e.preventDefault()}
+                            onClick={() => setBtnColor({ color: c })}
+                          />
+                        ))}
+                      </div>
+                    </Ctl>
+                  </>
                 )}
                 {sel.type === 'image' && imgAttrs && (
                   <>
@@ -484,8 +552,24 @@ export function BroadcastEditorV3({
                     </div>
                   </Ctl>
                 )}
-                {sel.type !== 'heading' &&
-                  sel.type !== 'button' &&
+                {ALIGNABLE.has(sel.type) && (
+                  <Ctl label="Alignment">
+                    <div className="iseg">
+                      {(['left', 'center', 'right'] as const).map((a) => (
+                        <button
+                          key={a}
+                          className={curAlign === a ? 'on' : ''}
+                          data-textalign={a}
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => setAlign(a)}
+                        >
+                          {a[0].toUpperCase() + a.slice(1)}
+                        </button>
+                      ))}
+                    </div>
+                  </Ctl>
+                )}
+                {!ALIGNABLE.has(sel.type) &&
                   sel.type !== 'spacer' &&
                   sel.type !== 'image' && (
                     <div className="insp-empty-note">
