@@ -160,6 +160,20 @@ describe('v3 engine: insert + email output', () => {
     editor.destroy()
   })
 
+  it('merge token {{first_name}} survives intact to email HTML', async () => {
+    const editor = makeEditor()
+    editor.commands.setContent('<p>Hi there</p>')
+    // place the cursor and insert the token (what a merge chip does) — the
+    // braces must reach the email unescaped so the backend can swap them per
+    // subscriber at send.
+    editor.commands.selectAll()
+    editor.chain().focus().insertContent('{{first_name}}').run()
+    expect(editor.getHTML()).toContain('{{first_name}}')
+    const html = await emailHtml(editor)
+    expect(html).toContain('{{first_name}}')
+    editor.destroy()
+  })
+
   it('text colour (custom EmailMark) survives to email HTML', async () => {
     const editor = makeEditor()
     editor.commands.setContent('<p>colour me</p>')

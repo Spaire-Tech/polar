@@ -117,7 +117,14 @@ const PALETTE: { group: string; items: PalItem[] }[] = [
   },
   { group: 'Footer', items: [{ key: 'footer', label: 'Footer', d: 'M4 4h16v16H4zM4 15h16' }] },
 ]
-const MERGE = ['First name', 'Last name', 'Email', 'Company']
+// [label, tag] — tag becomes a {{token}} the backend swaps per-subscriber at
+// send (matches the design's MERGE list exactly).
+const MERGE: [string, string][] = [
+  ['First name', 'first_name'],
+  ['Last name', 'last_name'],
+  ['Email', 'email'],
+  ['Company', 'company'],
+]
 
 function Ctl({ label, children }: { label: ReactNode; children: ReactNode }) {
   return (
@@ -264,6 +271,18 @@ export function BroadcastEditorV3({
         .join(';'),
     })
   }
+  // Insert a {{token}} at the cursor — only into editable text (matches the
+  // design's "Click into a text block first" guard). The backend swaps the
+  // real value per subscriber at send.
+  const insertMerge = (tag: string) => {
+    if (!editor) return
+    const { $from } = editor.state.selection
+    if (!$from.parent.isTextblock) {
+      showToast('Click into a text block first')
+      return
+    }
+    editor.chain().focus().insertContent(`{{${tag}}}`).run()
+  }
   // Open the HSV picker beside the clicked trigger (toggle if same one).
   const openPicker = (which: 'bg' | 'fg', e: ReactMouseEvent) => {
     if (picker?.which === which) return setPicker(null)
@@ -351,9 +370,16 @@ export function BroadcastEditorV3({
           <div className="pal-group">
             <div className="pal-label">Personalize</div>
             <div className="merge-wrap">
-              {MERGE.map((m) => (
-                <button className="merge-chip" key={m}>
-                  {'{ }'} {m}
+              {MERGE.map(([label, tag]) => (
+                <button
+                  className="merge-chip"
+                  key={tag}
+                  data-merge={tag}
+                  // keep the editor selection so the token lands at the cursor
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => insertMerge(tag)}
+                >
+                  <I d="M12 5v14M5 12h14" size={11} /> {label}
                 </button>
               ))}
             </div>
