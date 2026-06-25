@@ -12,22 +12,35 @@ import { StarterKit } from '@react-email/editor/extensions'
 import { EmailTheming } from '@react-email/editor/plugins'
 import { useEditor, type Editor } from '@tiptap/react'
 
+import { TextColor } from './colorMark'
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyExt = any
+
+/** The full extension set — shared by the live editor and the tests. */
+export const emailExtensions = (): AnyExt[] => [
+  (StarterKit as AnyExt).configure(),
+  (EmailTheming as AnyExt).configure({ theme: 'basic' }),
+  TextColor,
+]
 
 export function useEmailEditor(initialContent?: string) {
   return useEditor({
     immediatelyRender: false,
-    extensions: [
-      (StarterKit as AnyExt).configure(),
-      (EmailTheming as AnyExt).configure({ theme: 'basic' }),
-    ],
+    extensions: emailExtensions(),
     content: initialContent ?? '',
     editorProps: {
       attributes: { class: 'em-doc', 'data-testid': 'email-doc' },
     },
   })
 }
+
+export const setTextColor = (editor: Editor | null, color: string) =>
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (editor?.chain().focus() as any)?.setTextColor(color).run() ?? false
+export const unsetTextColor = (editor: Editor | null) =>
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (editor?.chain().focus() as any)?.unsetTextColor().run() ?? false
 
 // ── insert commands for the wired content blocks ──────────────────────────
 const BLOCK_NODE: Record<'text' | 'heading' | 'button', Record<string, unknown>> = {

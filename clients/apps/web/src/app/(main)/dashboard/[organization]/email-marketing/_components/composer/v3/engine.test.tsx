@@ -1,15 +1,15 @@
 // @vitest-environment jsdom
-import { StarterKit } from '@react-email/editor/extensions'
-import { EmailTheming } from '@react-email/editor/plugins'
 import { Editor } from '@tiptap/react'
 import { beforeAll, describe, expect, it } from 'vitest'
 
 import {
   deleteBlock,
   duplicateBlock,
+  emailExtensions,
   emailHtml,
   insertBlock,
   moveBlock,
+  setTextColor,
   toggleBold,
   topBlocks,
 } from './engine'
@@ -40,8 +40,8 @@ beforeAll(() => {
 function makeEditor() {
   return new Editor({
     element: document.createElement('div'),
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    extensions: [(StarterKit as any).configure(), (EmailTheming as any).configure({ theme: 'basic' })],
+    // Same extension set the live editor uses (incl. the custom colour mark).
+    extensions: emailExtensions(),
     content: '',
   })
 }
@@ -98,6 +98,17 @@ describe('v3 engine: insert + email output', () => {
     expect(doc).toMatch(/<s>|<strike>/)
     const html = await emailHtml(editor)
     expect(html).toMatch(/href="https:\/\/spaire\.test\/m"/)
+    editor.destroy()
+  })
+
+  it('text colour (custom EmailMark) survives to email HTML', async () => {
+    const editor = makeEditor()
+    editor.commands.setContent('<p>colour me</p>')
+    editor.commands.selectAll()
+    expect(setTextColor(editor, '#0066cc')).toBe(true)
+    const html = await emailHtml(editor)
+    expect(html).toContain('colour me')
+    expect(html).toMatch(/color:\s*(#0066cc|rgb\(0,\s*102,\s*204\))/i)
     editor.destroy()
   })
 })

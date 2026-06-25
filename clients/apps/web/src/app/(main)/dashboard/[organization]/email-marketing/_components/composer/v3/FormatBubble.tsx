@@ -1,12 +1,16 @@
 'use client'
 
-// Inline formatting bubble (brick 4): appears over a non-empty text selection
-// inside a text/heading block. Bold / Italic / Underline / Strike / Link, all
-// driven by our own TipTap editor (React Email marks). Positioned from the
-// selection's viewport coords; styled on-brand with the design's float-pop.
+// Inline formatting bubble (bricks 4–5): over a non-empty text selection in a
+// text/heading block — Bold / Italic / Underline / Strike / Link / Colour, all
+// driven by our own TipTap editor (React Email marks + the custom colour
+// EmailMark). Link & colour open a popover pinned to the captured selection
+// range, so clicking the control / typing can't dismiss or misapply it.
 
 import type { Editor } from '@tiptap/react'
 import { useEffect, useReducer, useState } from 'react'
+
+import { COLOR_PRESETS } from './colorMark'
+import { setTextColor, unsetTextColor } from './engine'
 
 function Ico({ d }: { d: string }) {
   return (
@@ -25,16 +29,12 @@ function Ico({ d }: { d: string }) {
   )
 }
 
+type Pop = { kind: 'link' | 'color'; from: number; to: number } | null
+
 export function FormatBubble({ editor }: { editor: Editor | null }) {
   const [, force] = useReducer((n: number) => n + 1, 0)
-  // When the link form is open we pin to the range it was opened on, so a
-  // momentary selection change (clicking the link button / typing in the
-  // field) can't dismiss the bubble or misapply the link.
-  const [linkRange, setLinkRange] = useState<{ from: number; to: number } | null>(
-    null,
-  )
+  const [pop, setPop] = useState<Pop>(null)
   const [linkVal, setLinkVal] = useState('')
-  const linkOpen = linkRange !== null
 
   useEffect(() => {
     if (!editor) return
@@ -58,16 +58,14 @@ export function FormatBubble({ editor }: { editor: Editor | null }) {
   if (!editor) return null
   const { selection } = editor.state
   const { from, to, empty } = selection
-  // Show for a real text range in a text block — or whenever the link form is
-  // open (pinned to its captured range).
-  if (!linkOpen) {
+  if (!pop) {
     if (empty || from === to) return null
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     if (!(selection as any).$from?.parent?.isTextblock) return null
   }
 
-  const pFrom = linkRange ? linkRange.from : from
-  const pTo = linkRange ? linkRange.to : to
+  const pFrom = pop ? pop.from : from
+  const pTo = pop ? pop.to : to
   let start
   try {
     start = editor.view.coordsAtPos(pFrom)
@@ -85,9 +83,17 @@ export function FormatBubble({ editor }: { editor: Editor | null }) {
   const left = (start.left + end.left) / 2
 
   const on = (m: string) => editor.isActive(m)
-  const btn = (key: string, label: string, node: React.ReactNode, run: () => void) => (
+  const curColor = (editor.getAttributes('textColor').color as string) || null
+
+  const btn = (
+    key: string,
+    label: string,
+    node: React.ReactNode,
+    run: () => void,
+    active?: boolean,
+  ) => (
     <button
-      className={'fmt-btn' + (on(key) ? ' on' : '')}
+      className={'fmt-btn' + (active ?? on(key) ? ' on' : '')}
       title={label}
       data-fmt={key}
       onMouseDown={(e) => e.preventDefault()}
@@ -97,18 +103,28 @@ export function FormatBubble({ editor }: { editor: Editor | null }) {
     </button>
   )
 
+  const closePop = () => {
+    setPop(null)
+    setLinkVal('')
+  }
   const applyLink = () => {
-    if (!linkRange) return
+    if (!pop) return
     const href = linkVal.trim()
     const chain = editor
       .chain()
       .focus()
-      .setTextSelection(linkRange)
+      .setTextSelection({ from: pop.from, to: pop.to })
       .extendMarkRange('link')
     if (href) chain.setLink({ href }).run()
     else chain.unsetLink().run()
-    setLinkRange(null)
-    setLinkVal('')
+    closePop()
+  }
+  const applyColor = (color: string | null) => {
+    if (!pop) return
+    editor.chain().focus().setTextSelection({ from: pop.from, to: pop.to }).run()
+    if (color) setTextColor(editor, color)
+    else unsetTextColor(editor)
+    closePop()
   }
 
   return (
@@ -123,7 +139,45 @@ export function FormatBubble({ editor }: { editor: Editor | null }) {
       }}
       onMouseDown={(e) => e.preventDefault()}
     >
-      {!linkOpen ? (
+      {pop?.kind === 'link' ? (
+        <div className="fmt-link">
+          <input
+            autoFocus
+            data-testid="fmt-link-input"
+            placeholder="Paste a link…"
+            value={linkVal}
+            onChange={(e) => setLinkVal(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') applyLink()
+              if (e.key === 'Escape') closePop()
+            }}
+          />
+          <button className="fmt-link-go" onClick={applyLink} data-fmt="link-apply">
+            Done
+          </button>
+        </div>
+      ) : pop?.kind === 'color' ? (
+        <div className="fmt-swatches" data-testid="fmt-swatches">
+          {COLOR_PRESETS.map((c) => (
+            <button
+              key={c}
+              className={'sw-chip' + (curColor === c ? ' on' : '')}
+              style={{ background: c }}
+              title={c}
+              data-swatch={c}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => applyColor(c)}
+            />
+          ))}
+          <button
+            className="sw-chip none"
+            title="No colour"
+            data-swatch="none"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => applyColor(null)}
+          />
+        </div>
+      ) : (
         <>
           {btn('bold', 'Bold', <b>B</b>, () =>
             editor.chain().focus().toggleBold().run(),
@@ -145,35 +199,25 @@ export function FormatBubble({ editor }: { editor: Editor | null }) {
           )}
           <span className="fmt-sep" />
           {btn(
+            'color',
+            'Text colour',
+            <span
+              className="fmt-color-dot"
+              style={{ background: curColor || 'currentColor' }}
+            />,
+            () => setPop({ kind: 'color', from, to }),
+            !!curColor,
+          )}
+          {btn(
             'link',
             'Link',
             <Ico d="M10 13a5 5 0 007 0l2-2a5 5 0 00-7-7l-1 1M14 11a5 5 0 00-7 0l-2 2a5 5 0 007 7l1-1" />,
             () => {
               setLinkVal((editor.getAttributes('link').href as string) ?? '')
-              setLinkRange({ from, to })
+              setPop({ kind: 'link', from, to })
             },
           )}
         </>
-      ) : (
-        <div className="fmt-link">
-          <input
-            autoFocus
-            data-testid="fmt-link-input"
-            placeholder="Paste a link…"
-            value={linkVal}
-            onChange={(e) => setLinkVal(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') applyLink()
-              if (e.key === 'Escape') {
-                setLinkRange(null)
-                setLinkVal('')
-              }
-            }}
-          />
-          <button className="fmt-link-go" onClick={applyLink} data-fmt="link-apply">
-            Done
-          </button>
-        </div>
       )}
     </div>
   )
