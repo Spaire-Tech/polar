@@ -18,11 +18,12 @@ import {
   useRef,
   useState,
   type ChangeEvent,
+  type MouseEvent as ReactMouseEvent,
   type ReactNode,
 } from 'react'
 
 import { BlockChrome, type BlockSel } from './BlockChrome'
-import { COLOR_PRESETS } from './colorMark'
+import { ColorPicker } from './colorPicker'
 import { FormatBubble } from './FormatBubble'
 import {
   insertBlock,
@@ -149,6 +150,10 @@ export function BroadcastEditorV3({
   const editor = useEmailEditor()
   const emailRef = useRef<HTMLDivElement>(null)
   const [sel, setSel] = useState<BlockSel>(null)
+  // Which inspector colour the HSV picker is editing, + where it opens.
+  const [picker, setPicker] = useState<
+    { which: 'bg' | 'fg'; top: number; left: number } | null
+  >(null)
 
   // Re-render the chrome (inspector live values, empty-state) on editor edits.
   const [, forceTick] = useReducer((n: number) => n + 1, 0)
@@ -258,6 +263,12 @@ export function BroadcastEditorV3({
         .map(([k, v]) => `${k}:${v}`)
         .join(';'),
     })
+  }
+  // Open the HSV picker beside the clicked trigger (toggle if same one).
+  const openPicker = (which: 'bg' | 'fg', e: ReactMouseEvent) => {
+    if (picker?.which === which) return setPicker(null)
+    const r = (e.currentTarget as HTMLElement).getBoundingClientRect()
+    setPicker({ which, top: r.bottom + 6, left: r.left - 232 + r.width })
   }
 
   useEffect(
@@ -395,7 +406,22 @@ export function BroadcastEditorV3({
                 <BlockChrome
                   editor={editor}
                   emailRef={emailRef}
-                  onSelect={setSel}
+                  onSelect={(s) => {
+                    // Keep the inspector sticky while the user is in its own
+                    // controls. Focusing a field (the HSV hex input, a text
+                    // box) blurs the editor; the blurred selection collapses to
+                    // the doc start and BlockChrome then reports null — or a
+                    // spurious first-block selection on the next edit-dispatch.
+                    // Either would yank the panel out from under the user, so
+                    // ignore editor selection entirely while focus is in our UI.
+                    if (document.activeElement?.closest('.inspector, .color-pop'))
+                      return
+                    // Otherwise close the picker only when the block actually
+                    // changes (BlockChrome re-emits onSelect every transaction).
+                    if (s?.index !== sel?.index || s?.type !== sel?.type)
+                      setPicker(null)
+                    setSel(s)
+                  }}
                 />
               </div>
             </div>
@@ -445,37 +471,34 @@ export function BroadcastEditorV3({
                       />
                     </Ctl>
                     <Ctl label="Background">
-                      <div className="swatches" data-testid="btn-bg">
-                        {COLOR_PRESETS.map((c) => (
-                          <button
-                            key={c}
-                            className={
-                              'sw-chip' +
-                              (btnStyle['background-color'] === c ? ' on' : '')
-                            }
-                            style={{ background: c }}
-                            data-swatch={c}
-                            onMouseDown={(e) => e.preventDefault()}
-                            onClick={() => setBtnColor({ bg: c })}
-                          />
-                        ))}
-                      </div>
+                      <button
+                        className="cp-trigger"
+                        data-testid="btn-bg"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={(e) => openPicker('bg', e)}
+                      >
+                        <span
+                          className="cp-tsw"
+                          style={{
+                            background: btnStyle['background-color'] || '#127c2b',
+                          }}
+                        />
+                        {(btnStyle['background-color'] || '#127c2b').toUpperCase()}
+                      </button>
                     </Ctl>
                     <Ctl label="Text colour">
-                      <div className="swatches" data-testid="btn-fg">
-                        {['#ffffff', ...COLOR_PRESETS].map((c) => (
-                          <button
-                            key={c}
-                            className={
-                              'sw-chip' + (btnStyle['color'] === c ? ' on' : '')
-                            }
-                            style={{ background: c }}
-                            data-swatch={c}
-                            onMouseDown={(e) => e.preventDefault()}
-                            onClick={() => setBtnColor({ color: c })}
-                          />
-                        ))}
-                      </div>
+                      <button
+                        className="cp-trigger"
+                        data-testid="btn-fg"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={(e) => openPicker('fg', e)}
+                      >
+                        <span
+                          className="cp-tsw"
+                          style={{ background: btnStyle['color'] || '#ffffff' }}
+                        />
+                        {(btnStyle['color'] || '#ffffff').toUpperCase()}
+                      </button>
                     </Ctl>
                   </>
                 )}
@@ -640,6 +663,22 @@ export function BroadcastEditorV3({
       </div>
 
       <FormatBubble editor={editor} />
+
+      {/* Inspector HSV picker for button background / text colour. */}
+      {picker && sel?.type === 'button' && (
+        <ColorPicker
+          value={
+            picker.which === 'bg'
+              ? btnStyle['background-color'] || '#127c2b'
+              : btnStyle['color'] || '#ffffff'
+          }
+          anchor={{ top: picker.top, left: picker.left }}
+          onChange={(c) =>
+            setBtnColor(picker.which === 'bg' ? { bg: c } : { color: c })
+          }
+          onClose={() => setPicker(null)}
+        />
+      )}
 
       <div className={'toast' + (toast ? ' show' : '')}>
         <span className="tk">

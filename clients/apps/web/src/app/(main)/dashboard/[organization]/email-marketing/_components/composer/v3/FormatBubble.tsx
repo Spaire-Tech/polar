@@ -9,7 +9,7 @@
 import type { Editor } from '@tiptap/react'
 import { useEffect, useReducer, useState } from 'react'
 
-import { COLOR_PRESETS } from './colorMark'
+import { ColorPicker } from './colorPicker'
 import { setTextColor, unsetTextColor } from './engine'
 
 function Ico({ d }: { d: string }) {
@@ -124,7 +124,24 @@ export function FormatBubble({ editor }: { editor: Editor | null }) {
     editor.chain().focus().setTextSelection({ from: pop.from, to: pop.to }).run()
     if (color) setTextColor(editor, color)
     else unsetTextColor(editor)
-    closePop()
+  }
+
+  // The colour pop is the full HSV picker, rendered standalone (NOT inside the
+  // preventDefault bubble) so its hex field can take focus. Anchored under the
+  // captured selection; applies live without dismissing.
+  if (pop?.kind === 'color') {
+    return (
+      <ColorPicker
+        value={curColor}
+        anchor={{ top: top + 6, left: left - 116 }}
+        onChange={(c) => applyColor(c)}
+        onClear={() => {
+          applyColor(null)
+          closePop()
+        }}
+        onClose={closePop}
+      />
+    )
   }
 
   return (
@@ -155,27 +172,6 @@ export function FormatBubble({ editor }: { editor: Editor | null }) {
           <button className="fmt-link-go" onClick={applyLink} data-fmt="link-apply">
             Done
           </button>
-        </div>
-      ) : pop?.kind === 'color' ? (
-        <div className="fmt-swatches" data-testid="fmt-swatches">
-          {COLOR_PRESETS.map((c) => (
-            <button
-              key={c}
-              className={'sw-chip' + (curColor === c ? ' on' : '')}
-              style={{ background: c }}
-              title={c}
-              data-swatch={c}
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={() => applyColor(c)}
-            />
-          ))}
-          <button
-            className="sw-chip none"
-            title="No colour"
-            data-swatch="none"
-            onMouseDown={(e) => e.preventDefault()}
-            onClick={() => applyColor(null)}
-          />
         </div>
       ) : (
         <>
