@@ -13,6 +13,7 @@ import { EmailTheming } from '@react-email/editor/plugins'
 import { useEditor, type Editor } from '@tiptap/react'
 
 import { TextColor } from './colorMark'
+import { Image } from './imageNode'
 import { Spacer } from './spacerNode'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -24,6 +25,7 @@ export const emailExtensions = (): AnyExt[] => [
   (EmailTheming as AnyExt).configure({ theme: 'basic' }),
   TextColor,
   Spacer,
+  Image,
 ]
 
 export function useEmailEditor(initialContent?: string) {
@@ -52,6 +54,7 @@ export type InsertableBlock =
   | 'quote'
   | 'divider'
   | 'spacer'
+  | 'image'
 
 const BLOCK_NODE: Record<InsertableBlock, Record<string, unknown>> = {
   text: { type: 'paragraph', content: [{ type: 'text', text: 'Write something…' }] },
@@ -76,6 +79,7 @@ const BLOCK_NODE: Record<InsertableBlock, Record<string, unknown>> = {
   },
   divider: { type: 'horizontalRule' },
   spacer: { type: 'spacer', attrs: { height: 24 } },
+  image: { type: 'image', attrs: { src: null, alt: '', href: '', align: 'center' } },
 }
 
 export function insertBlock(

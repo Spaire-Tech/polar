@@ -17,6 +17,7 @@ import {
   useReducer,
   useRef,
   useState,
+  type ChangeEvent,
   type ReactNode,
 } from 'react'
 
@@ -39,7 +40,15 @@ const WIRED = new Set<InsertableBlock>([
   'quote',
   'divider',
   'spacer',
+  'image',
 ])
+
+const readAsDataURL = (file: File) =>
+  new Promise<string>((resolve) => {
+    const r = new FileReader()
+    r.onload = () => resolve(r.result as string)
+    r.readAsDataURL(file)
+  })
 
 // ── tiny inline icon set (stroke-based, matches the design's line icons) ──
 function I({ d, size = 16, fill }: { d: string; size?: number; fill?: boolean }) {
@@ -122,11 +131,15 @@ export function BroadcastEditorV3({
   momentName = 'Enrolment',
   audienceLabel = 'New enrollments',
   audienceCount = 1204,
+  onUploadImage,
 }: {
   courseName?: string
   momentName?: string
   audienceLabel?: string
   audienceCount?: number
+  /** Upload a picked file and return its hosted URL. Defaults to an inline
+      data URL (used by the harness); the app wires S3 upload here. */
+  onUploadImage?: (file: File) => Promise<{ url: string }>
 }) {
   const [dark, setDark] = useState(false)
   const [device, setDevice] = useState<'desktop' | 'mobile'>('desktop')
@@ -185,6 +198,35 @@ export function BroadcastEditorV3({
     if (sel) setBlockAttr(editor, sel.index, { height: Math.max(4, h) })
   }
 
+  // ── Image upload + attrs ──
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const uploadIndexRef = useRef<number | null>(null)
+  const uploadImage = onUploadImage ?? (async (f: File) => ({ url: await readAsDataURL(f) }))
+  const triggerUpload = (index: number) => {
+    uploadIndexRef.current = index
+    fileInputRef.current?.click()
+  }
+  const onFilePicked = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    const idx = uploadIndexRef.current
+    e.target.value = ''
+    if (!file || idx == null) return
+    const { url } = await uploadImage(file)
+    setBlockAttr(editor, idx, { src: url })
+    // Keep the image selected so the inspector stays on it after upload.
+    const pos = topBlocks(editor)[idx]?.pos
+    if (pos != null) editor?.commands.setNodeSelection(pos)
+  }
+  const imgAttrs =
+    sel?.type === 'image'
+      ? ((topBlocks(editor)[sel.index]?.node.attrs as {
+          src: string | null
+          alt: string
+          href: string
+          align: string
+        }) ?? null)
+      : null
+
   useEffect(
     () => () => {
       if (toastTimer.current) clearTimeout(toastTimer.current)
@@ -194,6 +236,14 @@ export function BroadcastEditorV3({
 
   return (
     <div className={'bem' + (dark ? ' dark' : '')}>
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        style={{ display: 'none' }}
+        data-testid="image-file-input"
+        onChange={onFilePicked}
+      />
       {/* ── Top bar ─────────────────────────────────────────── */}
       <header className="topbar">
         <button className="tb-back">
@@ -361,6 +411,58 @@ export function BroadcastEditorV3({
                     />
                   </Ctl>
                 )}
+                {sel.type === 'image' && imgAttrs && (
+                  <>
+                    <Ctl label={imgAttrs.src ? 'Replace image' : 'Image'}>
+                      <button
+                        className="upload-btn"
+                        data-testid="img-upload"
+                        onClick={() => triggerUpload(sel.index)}
+                      >
+                        <I d="M12 5v14M5 12h14" size={15} />{' '}
+                        {imgAttrs.src ? 'Replace image' : 'Upload image'}
+                      </button>
+                    </Ctl>
+                    <Ctl label="Alt text">
+                      <input
+                        className="fld"
+                        data-testid="img-alt"
+                        placeholder="Describe the image"
+                        value={imgAttrs.alt}
+                        onChange={(e) =>
+                          setBlockAttr(editor, sel.index, { alt: e.target.value })
+                        }
+                      />
+                    </Ctl>
+                    <Ctl label="Link">
+                      <input
+                        className="fld"
+                        placeholder="https://…"
+                        value={imgAttrs.href}
+                        onChange={(e) =>
+                          setBlockAttr(editor, sel.index, { href: e.target.value })
+                        }
+                      />
+                    </Ctl>
+                    <Ctl label="Alignment">
+                      <div className="iseg">
+                        {(['left', 'center', 'full'] as const).map((a) => (
+                          <button
+                            key={a}
+                            className={imgAttrs.align === a ? 'on' : ''}
+                            data-align={a}
+                            onMouseDown={(e) => e.preventDefault()}
+                            onClick={() =>
+                              setBlockAttr(editor, sel.index, { align: a })
+                            }
+                          >
+                            {a[0].toUpperCase() + a.slice(1)}
+                          </button>
+                        ))}
+                      </div>
+                    </Ctl>
+                  </>
+                )}
                 {sel.type === 'spacer' && (
                   <Ctl label={<span>Height<span className="val">{spacerHeight}px</span></span>}>
                     <div className="stepper">
@@ -384,7 +486,8 @@ export function BroadcastEditorV3({
                 )}
                 {sel.type !== 'heading' &&
                   sel.type !== 'button' &&
-                  sel.type !== 'spacer' && (
+                  sel.type !== 'spacer' &&
+                  sel.type !== 'image' && (
                     <div className="insp-empty-note">
                       <span className="n-ic">
                         <I d={IC.info} size={15} />

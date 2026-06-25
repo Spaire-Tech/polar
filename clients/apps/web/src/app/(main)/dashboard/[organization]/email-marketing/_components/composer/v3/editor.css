@@ -401,3 +401,13 @@
   font-family: var(--sf); font-size: 11px; font-weight: 500; letter-spacing: .04em; text-transform: uppercase; color: var(--text-3);
 }
 .bem .email .ProseMirror .eb-spacer.ProseMirror-selectednode { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ── Image block (brick 7) ────────────────────────────────────────────── */
+.bem .email .ProseMirror .eb-img,
+.bem .email .ProseMirror .eb-imgph { margin: 4px 0; }
+.bem .email .ProseMirror .eb-img.a-center { text-align: center; }
+.bem .email .ProseMirror .eb-img.a-full .b-img-real { width: 100% !important; }
+.bem .email .ProseMirror .eb-img.ProseMirror-selectednode,
+.bem .email .ProseMirror .eb-imgph.ProseMirror-selectednode {
+  outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 8px;
+}

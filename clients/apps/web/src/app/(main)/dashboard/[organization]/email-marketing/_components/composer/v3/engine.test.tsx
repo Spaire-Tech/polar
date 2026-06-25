@@ -9,6 +9,7 @@ import {
   emailHtml,
   insertBlock,
   moveBlock,
+  setBlockAttr,
   setTextColor,
   toggleBold,
   topBlocks,
@@ -115,6 +116,27 @@ describe('v3 engine: insert + email output', () => {
     const html = await emailHtml(editor)
     expect(html).toMatch(/A line worth remembering/)
     expect(html).toMatch(/<blockquote|<hr/i)
+    editor.destroy()
+  })
+
+  it('Image block: src/alt/link survive to email HTML as <img>', async () => {
+    const editor = makeEditor()
+    expect(insertBlock(editor, 'image')).toBe(true)
+    const idx = topBlocks(editor).findIndex((b) => b.node.type.name === 'image')
+    expect(idx).toBeGreaterThanOrEqual(0)
+
+    // empty image → no <img> yet (placeholder only)
+    expect(await emailHtml(editor)).not.toMatch(/<img/i)
+
+    setBlockAttr(editor, idx, {
+      src: 'https://cdn.test/p.png',
+      alt: 'A pie',
+      href: 'https://spaire.test/shop',
+    })
+    const html = await emailHtml(editor)
+    expect(html).toMatch(/<img[^>]+src="https:\/\/cdn\.test\/p\.png"/i)
+    expect(html).toMatch(/alt="A pie"/i)
+    expect(html).toMatch(/href="https:\/\/spaire\.test\/shop"/i)
     editor.destroy()
   })
 
