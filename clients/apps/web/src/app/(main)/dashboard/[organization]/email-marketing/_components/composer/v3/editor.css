@@ -336,3 +336,6 @@
 .bem .email .ProseMirror p.is-editor-empty:first-child::before {
   content: attr(data-placeholder); color: rgb(174,174,178); float: left; height: 0; pointer-events: none;
 }
+
+/* Anchor the block-chrome overlay to the email surface. */
+.bem .email { position: relative; }

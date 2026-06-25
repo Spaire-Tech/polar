@@ -4,7 +4,15 @@ import { EmailTheming } from '@react-email/editor/plugins'
 import { Editor } from '@tiptap/react'
 import { beforeAll, describe, expect, it } from 'vitest'
 
-import { emailHtml, insertBlock, toggleBold } from './engine'
+import {
+  deleteBlock,
+  duplicateBlock,
+  emailHtml,
+  insertBlock,
+  moveBlock,
+  toggleBold,
+  topBlocks,
+} from './engine'
 
 beforeAll(() => {
   if (!('ResizeObserver' in globalThis)) {
@@ -69,6 +77,45 @@ describe('v3 engine: insert + email output', () => {
     editor.commands.selectAll()
     expect(toggleBold(editor)).toBe(true)
     expect(editor.getHTML()).toMatch(/<strong>/)
+    editor.destroy()
+  })
+})
+
+describe('v3 engine: block move / duplicate / delete', () => {
+  // Order in the email doc by first-occurrence of marker text.
+  const order = (editor: Editor, marks: string[]) =>
+    marks
+      .map((m) => ({ m, i: editor.getHTML().indexOf(m) }))
+      .filter((x) => x.i >= 0)
+      .sort((a, b) => a.i - b.i)
+      .map((x) => x.m)
+  const idxOf = (editor: Editor, text: string) =>
+    topBlocks(editor).find((b) => (b.node.textContent as string)?.includes(text))
+      ?.index ?? -1
+
+  it('moves a block up/down, swapping order', () => {
+    const editor = makeEditor()
+    editor.commands.setContent('<h2>ALPHA</h2><p>BRAVO</p>')
+    expect(order(editor, ['ALPHA', 'BRAVO'])).toEqual(['ALPHA', 'BRAVO'])
+
+    expect(moveBlock(editor, idxOf(editor, 'ALPHA'), 'down')).toBe(true)
+    expect(order(editor, ['ALPHA', 'BRAVO'])).toEqual(['BRAVO', 'ALPHA'])
+
+    expect(moveBlock(editor, idxOf(editor, 'ALPHA'), 'up')).toBe(true)
+    expect(order(editor, ['ALPHA', 'BRAVO'])).toEqual(['ALPHA', 'BRAVO'])
+    editor.destroy()
+  })
+
+  it('duplicates a block, then delete removes one copy', () => {
+    const editor = makeEditor()
+    editor.commands.setContent('<h2>ALPHA</h2><p>BRAVO</p>')
+    const count = (m: string) => editor.getHTML().split(m).length - 1
+
+    expect(count('ALPHA')).toBe(1)
+    expect(duplicateBlock(editor, idxOf(editor, 'ALPHA'))).toBe(true)
+    expect(count('ALPHA')).toBe(2)
+    expect(deleteBlock(editor, idxOf(editor, 'ALPHA'))).toBe(true)
+    expect(count('ALPHA')).toBe(1)
     editor.destroy()
   })
 })

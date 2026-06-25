@@ -14,7 +14,8 @@
 import { EditorContent } from '@tiptap/react'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 
-import { insertBlock, useEmailEditor } from './engine'
+import { BlockChrome, type BlockSel } from './BlockChrome'
+import { insertBlock, setBlockAttr, useEmailEditor } from './engine'
 
 import './editor.css'
 
@@ -112,6 +113,21 @@ export function BroadcastEditorV3({
   const [toast, setToast] = useState('')
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const editor = useEmailEditor()
+  const emailRef = useRef<HTMLDivElement>(null)
+  const [sel, setSel] = useState<BlockSel>(null)
+
+  const setHeadingLevel = (level: number) =>
+    // React Email's heading ships a custom setHeading command (updateAttributes
+    // doesn't re-render its node view).
+    editor
+      ?.chain()
+      .focus()
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .setHeading({ level } as any)
+      .run()
+  const setButtonLink = (href: string) => {
+    if (sel) setBlockAttr(editor, sel.index, { href })
+  }
 
   const showToast = (m: string) => {
     setToast(m)
@@ -237,7 +253,10 @@ export function BroadcastEditorV3({
 
           <main className="canvas">
             <div className={'stage' + (device === 'mobile' ? ' mobile' : '')}>
-              <div className={'email' + (editor?.isEmpty ? ' empty-hint' : '')}>
+              <div
+                ref={emailRef}
+                className={'email' + (editor?.isEmpty ? ' empty-hint' : '')}
+              >
                 {editor?.isEmpty && (
                   <div className="email-empty">
                     <div className="ee-ic">
@@ -248,6 +267,11 @@ export function BroadcastEditorV3({
                   </div>
                 )}
                 <EditorContent editor={editor} />
+                <BlockChrome
+                  editor={editor}
+                  emailRef={emailRef}
+                  onSelect={setSel}
+                />
               </div>
             </div>
           </main>
@@ -257,52 +281,108 @@ export function BroadcastEditorV3({
         <aside className="inspector">
           <div className="insp-head">
             <div className="ih-main">
-              <span className="ih-k" />
-              <span className="ih-t">Email settings</span>
+              <span className="ih-k">{sel ? 'Block' : ''}</span>
+              <span className="ih-t">{sel ? sel.label : 'Email settings'}</span>
             </div>
           </div>
-          <div className="insp-body">
-            <div className="ig">
-              <div className="ig-h">Details</div>
-              <Ctl label="Subject">
-                <input className="fld" defaultValue={`Welcome to ${courseName}`} />
-              </Ctl>
-              <Ctl label="Preview text">
-                <input className="fld" defaultValue="Your class is ready. Here's your first lesson." />
-              </Ctl>
-              <Ctl label="From name">
-                <input className="fld" defaultValue="Adaeze Bello" />
-              </Ctl>
-              <Ctl label="Audience">
-                <button className="aud-pill">
-                  <span className="aud-dot" />
-                  <span className="aud-name">{audienceLabel}</span>
-                  <span className="aud-cnt">{audienceCount.toLocaleString('en-US')}</span>
-                </button>
-              </Ctl>
-            </div>
-            <div className="ig">
-              <div className="ig-h">Canvas</div>
-              <Ctl label="Email background">
-                <button className="color-trigger">
-                  <span className="ct-sw" style={{ background: '#141518' }} />
-                  <span className="ct-hex">#141518</span>
-                </button>
-              </Ctl>
-              <Ctl label="Backdrop">
-                <button className="color-trigger">
-                  <span className="ct-sw" style={{ background: '#0B0C0E' }} />
-                  <span className="ct-hex">#0B0C0E</span>
-                </button>
-              </Ctl>
-            </div>
-            <div className="insp-empty-note">
-              <span className="n-ic">
-                <I d={IC.info} size={15} />
-              </span>
-              Select any block to edit it. Every colour control draws from the
-              template&apos;s presets.
-            </div>
+          <div className="insp-body" data-testid="inspector-body">
+            {sel ? (
+              // ── Selected-block settings ──
+              <div className="ig">
+                <div className="ig-h">{sel.label}</div>
+                {sel.type === 'heading' && (
+                  <Ctl label="Level">
+                    <div className="iseg">
+                      {[1, 2, 3].map((lv) => (
+                        <button
+                          key={lv}
+                          // Keep the editor's selection while clicking (toolbar
+                          // pattern) so the command targets the right block.
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => setHeadingLevel(lv)}
+                          data-level={lv}
+                        >
+                          H{lv}
+                        </button>
+                      ))}
+                    </div>
+                  </Ctl>
+                )}
+                {sel.type === 'button' && (
+                  <Ctl label="Link">
+                    <input
+                      className="fld"
+                      placeholder="https://…"
+                      data-testid="btn-link"
+                      defaultValue="https://example.com"
+                      onChange={(e) => setButtonLink(e.target.value)}
+                    />
+                  </Ctl>
+                )}
+                {sel.type !== 'heading' && sel.type !== 'button' && (
+                  <div className="insp-empty-note">
+                    <span className="n-ic">
+                      <I d={IC.info} size={15} />
+                    </span>
+                    Formatting is on the toolbar. More settings for this block
+                    are coming.
+                  </div>
+                )}
+              </div>
+            ) : (
+              // ── Email-level settings ──
+              <>
+                <div className="ig">
+                  <div className="ig-h">Details</div>
+                  <Ctl label="Subject">
+                    <input
+                      className="fld"
+                      defaultValue={`Welcome to ${courseName}`}
+                    />
+                  </Ctl>
+                  <Ctl label="Preview text">
+                    <input
+                      className="fld"
+                      defaultValue="Your class is ready. Here's your first lesson."
+                    />
+                  </Ctl>
+                  <Ctl label="From name">
+                    <input className="fld" defaultValue="Adaeze Bello" />
+                  </Ctl>
+                  <Ctl label="Audience">
+                    <button className="aud-pill">
+                      <span className="aud-dot" />
+                      <span className="aud-name">{audienceLabel}</span>
+                      <span className="aud-cnt">
+                        {audienceCount.toLocaleString('en-US')}
+                      </span>
+                    </button>
+                  </Ctl>
+                </div>
+                <div className="ig">
+                  <div className="ig-h">Canvas</div>
+                  <Ctl label="Email background">
+                    <button className="color-trigger">
+                      <span className="ct-sw" style={{ background: '#141518' }} />
+                      <span className="ct-hex">#141518</span>
+                    </button>
+                  </Ctl>
+                  <Ctl label="Backdrop">
+                    <button className="color-trigger">
+                      <span className="ct-sw" style={{ background: '#0B0C0E' }} />
+                      <span className="ct-hex">#0B0C0E</span>
+                    </button>
+                  </Ctl>
+                </div>
+                <div className="insp-empty-note">
+                  <span className="n-ic">
+                    <I d={IC.info} size={15} />
+                  </span>
+                  Select any block to edit it. Every colour control draws from
+                  the template&apos;s presets.
+                </div>
+              </>
+            )}
           </div>
         </aside>
       </div>
