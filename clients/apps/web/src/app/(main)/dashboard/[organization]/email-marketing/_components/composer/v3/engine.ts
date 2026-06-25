@@ -13,6 +13,7 @@ import { EmailTheming } from '@react-email/editor/plugins'
 import { useEditor, type Editor } from '@tiptap/react'
 
 import { TextColor } from './colorMark'
+import { Spacer } from './spacerNode'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyExt = any
@@ -22,6 +23,7 @@ export const emailExtensions = (): AnyExt[] => [
   (StarterKit as AnyExt).configure(),
   (EmailTheming as AnyExt).configure({ theme: 'basic' }),
   TextColor,
+  Spacer,
 ]
 
 export function useEmailEditor(initialContent?: string) {
@@ -43,7 +45,15 @@ export const unsetTextColor = (editor: Editor | null) =>
   (editor?.chain().focus() as any)?.unsetTextColor().run() ?? false
 
 // ── insert commands for the wired content blocks ──────────────────────────
-const BLOCK_NODE: Record<'text' | 'heading' | 'button', Record<string, unknown>> = {
+export type InsertableBlock =
+  | 'text'
+  | 'heading'
+  | 'button'
+  | 'quote'
+  | 'divider'
+  | 'spacer'
+
+const BLOCK_NODE: Record<InsertableBlock, Record<string, unknown>> = {
   text: { type: 'paragraph', content: [{ type: 'text', text: 'Write something…' }] },
   heading: {
     type: 'heading',
@@ -55,21 +65,35 @@ const BLOCK_NODE: Record<'text' | 'heading' | 'button', Record<string, unknown>>
     attrs: { href: 'https://example.com' },
     content: [{ type: 'text', text: 'Button' }],
   },
+  quote: {
+    type: 'blockquote',
+    content: [
+      {
+        type: 'paragraph',
+        content: [{ type: 'text', text: 'A line worth remembering.' }],
+      },
+    ],
+  },
+  divider: { type: 'horizontalRule' },
+  spacer: { type: 'spacer', attrs: { height: 24 } },
 }
 
 export function insertBlock(
   editor: Editor | null,
-  type: 'text' | 'heading' | 'button',
+  type: InsertableBlock,
 ): boolean {
   if (!editor) return false
-  // Append at the end of the document, in click order — insertContent at the
-  // current selection put blocks in the wrong place / nesting in an empty doc.
-  const endPos = Math.max(0, editor.state.doc.content.size - 1)
-  return editor
-    .chain()
-    .focus('end')
-    .insertContentAt(endPos, BLOCK_NODE[type])
-    .run()
+  const c = findContainer(editor)
+  if (!c) return false
+  // Build a concrete node and tr.insert it at the container's end. The
+  // slice-based insertContentAt silently dropped blocks placed right after an
+  // atom (divider/spacer); a direct insert (the pattern the block-ops use) is
+  // reliable regardless of the preceding node.
+  const node = editor.schema.nodeFromJSON(BLOCK_NODE[type])
+  const at = c.pos + c.node.nodeSize - 1
+  editor.view.dispatch(editor.state.tr.insert(at, node).scrollIntoView())
+  editor.commands.focus()
+  return true
 }
 
 export const toggleBold = (e: Editor | null) =>
@@ -98,6 +122,7 @@ const LABELS: Record<string, string> = {
   blockquote: 'Quote',
   image: 'Image',
   section: 'Section',
+  spacer: 'Spacer',
 }
 const labelFor = (node: PMNode): string =>
   LABELS[node.type.name as string] ?? (node.type.name as string)
@@ -137,7 +162,9 @@ export function selectedBlockIndex(editor: Editor | null): number {
   if (!editor) return -1
   const from = editor.state.selection.from
   for (const b of topBlocks(editor)) {
-    if (from >= b.pos && from <= b.pos + b.node.nodeSize) return b.index
+    // Strict upper bound: a position at exactly b.pos+nodeSize is the START of
+    // the NEXT block, not this one (matters for an atom right after a block).
+    if (from >= b.pos && from < b.pos + b.node.nodeSize) return b.index
   }
   return -1
 }

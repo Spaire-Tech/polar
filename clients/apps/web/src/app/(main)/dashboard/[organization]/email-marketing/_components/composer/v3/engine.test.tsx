@@ -101,6 +101,23 @@ describe('v3 engine: insert + email output', () => {
     editor.destroy()
   })
 
+  it('Quote / Divider / Spacer insert and survive to email HTML', async () => {
+    const editor = makeEditor()
+    expect(insertBlock(editor, 'quote')).toBe(true)
+    expect(insertBlock(editor, 'divider')).toBe(true)
+    expect(insertBlock(editor, 'spacer')).toBe(true)
+
+    const doc = editor.getHTML()
+    expect(doc).toMatch(/<blockquote/i)
+    expect(doc).toMatch(/<hr/i)
+    expect(doc).toMatch(/data-spacer/i)
+
+    const html = await emailHtml(editor)
+    expect(html).toMatch(/A line worth remembering/)
+    expect(html).toMatch(/<blockquote|<hr/i)
+    editor.destroy()
+  })
+
   it('text colour (custom EmailMark) survives to email HTML', async () => {
     const editor = makeEditor()
     editor.commands.setContent('<p>colour me</p>')

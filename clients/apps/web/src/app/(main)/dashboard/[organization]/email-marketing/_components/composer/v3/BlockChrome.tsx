@@ -65,6 +65,28 @@ export function BlockChrome({
     window.addEventListener('resize', f)
     const scroller = emailRef.current?.closest('.canvas') ?? null
     scroller?.addEventListener('scroll', f, { passive: true })
+
+    // Clicking an atom block (spacer / divider / image) node-selects it —
+    // otherwise ProseMirror drops the cursor in an adjacent paragraph and the
+    // block can't be edited from the inspector.
+    const el = emailRef.current
+    const onClick = (ev: MouseEvent) => {
+      // Prefer the clicked DOM node's position (posAtCoords snaps a short atom
+      // to the neighbouring paragraph); fall back to coords.
+      let pos: number | null = null
+      try {
+        pos = editor.view.posAtDOM(ev.target as Node, 0)
+      } catch {
+        pos = editor.view.posAtCoords({ left: ev.clientX, top: ev.clientY })?.pos ?? null
+      }
+      if (pos == null) return
+      const b = topBlocks(editor).find(
+        (x) => pos! >= x.pos && pos! < x.pos + x.node.nodeSize,
+      )
+      if (b && b.node.isAtom) editor.commands.setNodeSelection(b.pos)
+    }
+    el?.addEventListener('click', onClick)
+
     return () => {
       editor.off('transaction', f)
       editor.off('selectionUpdate', f)
@@ -72,6 +94,7 @@ export function BlockChrome({
       editor.off('blur', f)
       window.removeEventListener('resize', f)
       scroller?.removeEventListener('scroll', f)
+      el?.removeEventListener('click', onClick)
     }
   }, [editor, emailRef])
 

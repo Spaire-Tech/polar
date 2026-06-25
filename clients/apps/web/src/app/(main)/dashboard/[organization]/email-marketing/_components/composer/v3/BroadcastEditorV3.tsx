@@ -12,15 +12,34 @@
 // bricks — each added and verified on top of this frame.
 
 import { EditorContent } from '@tiptap/react'
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import {
+  useEffect,
+  useReducer,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react'
 
 import { BlockChrome, type BlockSel } from './BlockChrome'
 import { FormatBubble } from './FormatBubble'
-import { insertBlock, setBlockAttr, useEmailEditor } from './engine'
+import {
+  insertBlock,
+  setBlockAttr,
+  topBlocks,
+  useEmailEditor,
+  type InsertableBlock,
+} from './engine'
 
 import './editor.css'
 
-const WIRED = new Set(['text', 'heading', 'button'])
+const WIRED = new Set<InsertableBlock>([
+  'text',
+  'heading',
+  'button',
+  'quote',
+  'divider',
+  'spacer',
+])
 
 // ── tiny inline icon set (stroke-based, matches the design's line icons) ──
 function I({ d, size = 16, fill }: { d: string; size?: number; fill?: boolean }) {
@@ -117,6 +136,19 @@ export function BroadcastEditorV3({
   const emailRef = useRef<HTMLDivElement>(null)
   const [sel, setSel] = useState<BlockSel>(null)
 
+  // Re-render the chrome (inspector live values, empty-state) on editor edits.
+  const [, forceTick] = useReducer((n: number) => n + 1, 0)
+  useEffect(() => {
+    if (!editor) return
+    const f = () => forceTick()
+    editor.on('transaction', f)
+    editor.on('selectionUpdate', f)
+    return () => {
+      editor.off('transaction', f)
+      editor.off('selectionUpdate', f)
+    }
+  }, [editor])
+
   const setHeadingLevel = (level: number) =>
     // React Email's heading ships a custom setHeading command (updateAttributes
     // doesn't re-render its node view).
@@ -137,11 +169,20 @@ export function BroadcastEditorV3({
   }
 
   const onPalette = (key: string, label: string) => {
-    if (WIRED.has(key)) {
-      insertBlock(editor, key as 'text' | 'heading' | 'button')
+    if (WIRED.has(key as InsertableBlock)) {
+      insertBlock(editor, key as InsertableBlock)
     } else {
       showToast(`“${label}” block is coming next`)
     }
+  }
+
+  // Current spacer height for the inspector stepper.
+  const spacerHeight =
+    sel?.type === 'spacer'
+      ? ((topBlocks(editor)[sel.index]?.node.attrs.height as number) ?? 24)
+      : 24
+  const setSpacerHeight = (h: number) => {
+    if (sel) setBlockAttr(editor, sel.index, { height: Math.max(4, h) })
   }
 
   useEffect(
@@ -320,15 +361,38 @@ export function BroadcastEditorV3({
                     />
                   </Ctl>
                 )}
-                {sel.type !== 'heading' && sel.type !== 'button' && (
-                  <div className="insp-empty-note">
-                    <span className="n-ic">
-                      <I d={IC.info} size={15} />
-                    </span>
-                    Formatting is on the toolbar. More settings for this block
-                    are coming.
-                  </div>
+                {sel.type === 'spacer' && (
+                  <Ctl label={<span>Height<span className="val">{spacerHeight}px</span></span>}>
+                    <div className="stepper">
+                      <button
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => setSpacerHeight(spacerHeight - 4)}
+                        data-step="down"
+                      >
+                        −
+                      </button>
+                      <span className="num">{spacerHeight}</span>
+                      <button
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => setSpacerHeight(spacerHeight + 4)}
+                        data-step="up"
+                      >
+                        +
+                      </button>
+                    </div>
+                  </Ctl>
                 )}
+                {sel.type !== 'heading' &&
+                  sel.type !== 'button' &&
+                  sel.type !== 'spacer' && (
+                    <div className="insp-empty-note">
+                      <span className="n-ic">
+                        <I d={IC.info} size={15} />
+                      </span>
+                      Formatting is on the toolbar. More settings for this block
+                      are coming.
+                    </div>
+                  )}
               </div>
             ) : (
               // ── Email-level settings ──
