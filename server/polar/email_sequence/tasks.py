@@ -146,6 +146,79 @@ async def process_due_enrollments() -> None:
         )
 
 
+@actor(
+    actor_name="email_sequence.enrol_inactive",
+    cron_trigger=CronTrigger(hour="3", minute="0"),
+    priority=TaskPriority.LOW,
+)
+async def enrol_inactive_students() -> None:
+    """Daily scan: enter students with no recent course activity into any active
+    `on_inactivity` sequence for their course.
+
+    "Activity" is the student's latest lesson completion, falling back to their
+    enrolment time when they've completed nothing. A student whose last activity
+    is older than the sequence's configured `inactive_days` is enqueued for
+    enrolment. Re-enqueuing a still-inactive (already-enrolled) student is a
+    no-op — `enroll_subscriber` dedups — so they're never entered twice.
+    """
+    from sqlalchemy import func, select
+
+    from polar.email_subscriber.repository import EmailSubscriberRepository
+    from polar.models.course_enrollment import CourseEnrollment
+    from polar.models.course_lesson_progress import CourseLessonProgress
+    from polar.models.email_sequence import EmailSequenceTriggerType
+
+    from .repository import EmailSequenceRepository
+
+    async with AsyncSessionMaker() as session:
+        repository = EmailSequenceRepository.from_session(session)
+        sequences = await repository.list_active_by_trigger(
+            EmailSequenceTriggerType.on_inactivity
+        )
+        subscriber_repo = EmailSubscriberRepository.from_session(session)
+        now = utc_now()
+
+        for sequence in sequences:
+            if sequence.course_id is None:
+                continue
+            cfg = sequence.trigger_config or {}
+            try:
+                days = int(cfg.get("inactive_days", 7))
+            except (TypeError, ValueError):
+                days = 7
+            if days < 1:
+                days = 7
+            cutoff = now - timedelta(days=days)
+
+            # last activity = latest lesson completion, else when they enrolled
+            last_activity = func.coalesce(
+                select(func.max(CourseLessonProgress.completed_at))
+                .where(CourseLessonProgress.enrollment_id == CourseEnrollment.id)
+                .correlate(CourseEnrollment)
+                .scalar_subquery(),
+                CourseEnrollment.enrolled_at,
+            )
+            statement = select(CourseEnrollment.customer_id).where(
+                CourseEnrollment.course_id == sequence.course_id,
+                CourseEnrollment.deleted_at.is_(None),
+                last_activity < cutoff,
+            )
+            result = await session.execute(statement)
+            customer_ids = [row[0] for row in result.all()]
+
+            for customer_id in customer_ids:
+                subscriber = await subscriber_repo.get_by_customer_and_organization(
+                    customer_id, sequence.organization_id
+                )
+                if subscriber is None:
+                    continue
+                enqueue_job(
+                    "email_sequence.enroll_subscriber",
+                    sequence_id=sequence.id,
+                    subscriber_id=subscriber.id,
+                )
+
+
 @actor(actor_name="email_sequence.send_step", priority=TaskPriority.MEDIUM)
 async def send_sequence_step(enrollment_id: UUID) -> None:
     """Advance an enrolment by one node.

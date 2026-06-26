@@ -24,6 +24,14 @@ class EmailSequenceTriggerType(StrEnum):
     # to (lesson_id). Used by the per-lesson automations built from the lesson
     # editor — their trigger is always "completes this lesson".
     on_lesson_completed = "on_lesson_completed"
+    # Course-lifecycle entry triggers. Scoped to the sequence's course_id; the
+    # course module fires enrolment when the student crosses each milestone.
+    on_first_lesson_completed = "on_first_lesson_completed"
+    on_course_progress_halfway = "on_course_progress_halfway"
+    on_course_completed = "on_course_completed"
+    # Enters a student who has had no course activity for trigger_config's
+    # `inactive_days`; a daily scan enqueues the enrolment.
+    on_inactivity = "on_inactivity"
     manual = "manual"
 
 
