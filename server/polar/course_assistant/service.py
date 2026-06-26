@@ -84,6 +84,9 @@ class AnswerSnapshot:
     # v2: "course_only" | "course_plus_general". Defaults to the latter so v1
     # constructors (which don't set it) remain valid.
     strictness: str = "course_plus_general"
+    # v2: per-lesson char ranges in the knowledge base, for mapping document
+    # citations back to clickable lessons. Empty for v1 snapshots.
+    citation_refs: tuple[ai.LessonCitationRef, ...] = ()
 
 
 def is_configured() -> bool:
@@ -574,7 +577,11 @@ class CourseAssistantService:
             raise NotEnrolled()
 
         lessons = await self._buildable_lessons(session, course_id)
-        knowledge_base = ai.assemble_knowledge_base(self._collect_sources(lessons))
+        sources = self._collect_sources(lessons)
+        thumbnails = {str(lesson.id): lesson.thumbnail_url for lesson in lessons}
+        knowledge_base, citation_refs = ai.assemble_knowledge_base_with_refs(
+            sources, thumbnails
+        )
 
         course_title = course.title or "this course"
         scope = course_title
@@ -593,6 +600,7 @@ class CourseAssistantService:
             model=settings.COURSE_ASSISTANT_ANSWER_MODEL,
             scope=scope,
             strictness=course.assistant_strictness,
+            citation_refs=tuple(citation_refs),
         )
 
     async def live_answer_event_stream(
@@ -642,6 +650,7 @@ class CourseAssistantService:
         )
 
         had_citations = False
+        answer_parts: list[str] = []
         async for event in ai.stream_answer(
             api_key=api_key,
             model=snapshot.model,
@@ -649,18 +658,50 @@ class CourseAssistantService:
             user_blocks=user_blocks,
             max_tokens=settings.COURSE_ASSISTANT_MAX_ANSWER_TOKENS,
         ):
-            if event.get("type") == "citations" and event.get("citations"):
-                had_citations = True
-            # An answer that cited nothing, when general knowledge is allowed,
-            # is treated as a general-knowledge answer — flag it just before the
-            # stream closes so the UI shows the labeled note.
-            if (
-                event.get("type") == "done"
-                and not had_citations
-                and snapshot.strictness == "course_plus_general"
-            ):
-                yield {"type": "general"}
+            event_type = event.get("type")
+            if event_type == "text":
+                answer_parts.append(str(event.get("text", "")))
+                yield event
+                continue
+            if event_type == "citations":
+                # Map raw document citations to clickable lessons.
+                citations = ai.map_citations_to_lessons(
+                    list(event.get("citations") or []), list(snapshot.citation_refs)
+                )
+                had_citations = bool(citations)
+                yield {"type": "citations", "citations": citations}
+                continue
+            if event_type == "done":
+                # No citations + general allowed ⇒ a general-knowledge answer:
+                # flag it so the UI shows the labeled note.
+                if not had_citations and snapshot.strictness == "course_plus_general":
+                    yield {"type": "general"}
+                followups = await self._safe_followups(
+                    course_title=snapshot.course_title,
+                    question=question,
+                    answer="".join(answer_parts),
+                )
+                if followups:
+                    yield {"type": "follow", "suggestions": followups}
+                yield event
+                continue
             yield event
+
+    async def _safe_followups(
+        self, *, course_title: str, question: str, answer: str
+    ) -> list[str]:
+        """Best-effort follow-up suggestions; never raises into the stream."""
+        try:
+            return await ai.generate_followups(
+                api_key=settings.ANTHROPIC_API_KEY,
+                model=settings.COURSE_ASSISTANT_GUARDRAIL_MODEL,
+                course_title=course_title,
+                question=question,
+                answer=answer,
+            )
+        except Exception:
+            log.warning("course_assistant.followups_failed", exc_info=True)
+            return []
 
     # ----------------------------------------------------------------- #
     # Creator preview & settings (Phase 3 review)

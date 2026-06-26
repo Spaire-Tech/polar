@@ -42,18 +42,23 @@ These were locked in with the user and are now partially implemented:
 - **Status** simplified to "available = configured + enabled + enrolled", with
   Course TA labels + starters + suggestions + strictness. ✅
 
+- **Lesson-mapped citations**: ✅ the assembler records per-lesson char ranges
+  (`assemble_knowledge_base_with_refs`); `map_citations_to_lessons` turns each
+  Anthropic document citation into a clickable "Lesson N · Title" card with the
+  lesson thumbnail and a jump target. (Per-second deep-link timestamps would
+  need timestamped transcript storage — a later refinement; cards open the
+  lesson today.)
+- **Follow-up generation**: ✅ `generate_followups` (cheap guardrail model) runs
+  after each answer and emits the `follow` event; the UI renders the chips.
+
 ### Still to build
 
-- **Lesson-mapped citations**: today citations carry the course-document title +
-  snippet; mapping a citation's char range → concrete lesson (number, title,
-  thumbnail, timestamp) for the clickable "Lesson N · 2:40" cards needs a
-  knowledge-base assembler that records per-lesson char offsets. The UI already
-  renders this when the fields are present and degrades to title+snippet.
-- **Follow-up generation** (the `follow` event / chips) — UI renders them when
-  sent; backend doesn't generate them yet.
+- **Per-second citation timestamps** (store VTT cue times, deep-link to the
+  second) — cards currently open the lesson, not a timestamp.
 - **Delete v1** (approval/snapshot/voice/state-machine, sample-QA, preview) once
   v2 is confirmed in production — currently retained, just unsurfaced.
-- **Flip `COURSE_ASSISTANT_UI_ENABLED`** to surface the chat once smoke-tested.
+- **Flip `COURSE_ASSISTANT_UI_ENABLED`** to surface the chat once smoke-tested
+  (holding per the latest decision).
 
 > Note: the backend changes are static-checked (ruff/mypy clean on the touched
 > files) but NOT runtime-verified — the Py3.14 pydantic-settings crash blocks

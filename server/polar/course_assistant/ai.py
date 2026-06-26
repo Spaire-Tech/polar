@@ -244,20 +244,94 @@ def build_lesson_source(
     )
 
 
-def assemble_knowledge_base(sources: list[LessonSource]) -> str:
-    """Concatenate lesson sources into one labelled document.
+@dataclass(frozen=True)
+class LessonCitationRef:
+    """Maps a character range in the assembled knowledge base back to the lesson
+    it came from, so an Anthropic citation (which reports char offsets into the
+    document) can be rendered as a clickable "Lesson N · Title" card."""
 
-    Each lesson becomes a ``[Lesson N: Title]`` section so citations and the
-    model's own references can point a student back to a specific lesson.
-    Lessons with no usable text are still listed (so the model knows they
-    exist) but flagged as having no transcript yet.
+    lesson_id: str
+    number: int
+    title: str
+    thumbnail_url: str | None
+    start: int
+    end: int
+
+
+_KB_SECTION_SEP = "\n\n"
+
+
+def assemble_knowledge_base_with_refs(
+    sources: list[LessonSource],
+    thumbnails: dict[str, str | None] | None = None,
+) -> tuple[str, list[LessonCitationRef]]:
+    """Concatenate lesson sources into one labelled document AND return, for
+    each lesson, the char range it occupies in that document.
+
+    Each lesson becomes a ``[Lesson N: Title]`` section. The returned text is
+    byte-identical to :func:`assemble_knowledge_base` so prompt caching is
+    unaffected; the refs let the answer path turn document citations into
+    lesson-level grounding.
     """
+    thumbs = thumbnails or {}
     sections: list[str] = []
+    refs: list[LessonCitationRef] = []
+    cursor = 0
     for index, source in enumerate(sources, start=1):
         header = f"[Lesson {index}: {source.title}]"
         body = source.text if source.text else "(no transcript or text available yet)"
-        sections.append(f"{header}\n{body}")
-    return "\n\n".join(sections)
+        section = f"{header}\n{body}"
+        start = cursor
+        end = start + len(section)
+        refs.append(
+            LessonCitationRef(
+                lesson_id=source.lesson_id,
+                number=index,
+                title=source.title,
+                thumbnail_url=thumbs.get(source.lesson_id),
+                start=start,
+                end=end,
+            )
+        )
+        sections.append(section)
+        cursor = end + len(_KB_SECTION_SEP)
+    return _KB_SECTION_SEP.join(sections), refs
+
+
+def assemble_knowledge_base(sources: list[LessonSource]) -> str:
+    """Concatenate lesson sources into one labelled document. See
+    :func:`assemble_knowledge_base_with_refs` for the offset-tracking variant."""
+    text, _ = assemble_knowledge_base_with_refs(sources)
+    return text
+
+
+def map_citations_to_lessons(
+    citations: list[dict[str, Any]], refs: list[LessonCitationRef]
+) -> list[dict[str, Any]]:
+    """Enrich raw document citations with the lesson each one falls in, so the
+    UI can render "Lesson N · Title" and link to the lesson. Citations that
+    don't resolve to a lesson are passed through unchanged."""
+    if not refs:
+        return citations
+    enriched: list[dict[str, Any]] = []
+    for citation in citations:
+        index = citation.get("start_char_index")
+        ref = None
+        if isinstance(index, int):
+            ref = next((r for r in refs if r.start <= index < r.end), None)
+        if ref is not None:
+            enriched.append(
+                {
+                    **citation,
+                    "lesson_id": ref.lesson_id,
+                    "lesson_number": ref.number,
+                    "lesson_title": ref.title,
+                    "thumbnail_url": ref.thumbnail_url,
+                }
+            )
+        else:
+            enriched.append(citation)
+    return enriched
 
 
 def estimate_tokens(text: str) -> int:
@@ -834,6 +908,82 @@ async def run_guardrail(
         if getattr(block, "type", None) == "text":
             text += getattr(block, "text", "")
     return parse_guardrail_text(text)
+
+
+def parse_followups(text: str, *, limit: int = 3) -> list[str]:
+    """Tolerantly pull a short list of follow-up questions from the model's
+    reply (JSON array preferred, newline list as fallback)."""
+    if not text:
+        return []
+    candidate = text.strip()
+    fence = re.search(r"```(?:json)?\s*(.+?)```", candidate, re.DOTALL)
+    if fence:
+        candidate = fence.group(1).strip()
+    items: list[str] = []
+    start, end = candidate.find("["), candidate.rfind("]")
+    if start != -1 and end != -1 and end > start:
+        try:
+            data = json.loads(candidate[start : end + 1])
+            if isinstance(data, list):
+                items = [str(x).strip() for x in data if str(x).strip()]
+        except (ValueError, TypeError):
+            items = []
+    if not items:
+        # Fallback: one question per line, stripped of list/bullet markers.
+        for line in candidate.splitlines():
+            cleaned = re.sub(r"^[\s\-*\d.)]+", "", line).strip().strip('"')
+            if cleaned and "?" in cleaned:
+                items.append(cleaned)
+    # De-dupe, keep order, cap length and count.
+    seen: set[str] = set()
+    out: list[str] = []
+    for item in items:
+        key = item.casefold()
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(item[:120])
+        if len(out) >= limit:
+            break
+    return out
+
+
+async def generate_followups(
+    *,
+    api_key: str,
+    model: str,
+    course_title: str,
+    question: str,
+    answer: str,
+    limit: int = 3,
+) -> list[str]:
+    """Suggest a few natural follow-up questions given the exchange. Cheap, and
+    best-effort — returns [] on any error so it never breaks the answer path."""
+    if not answer.strip():
+        return []
+    instructions = (
+        f'A student is chatting with the AI teaching assistant for "{course_title}".\n'
+        f"Student asked:\n{question.strip()}\n\n"
+        f"The assistant answered:\n{answer.strip()[:2000]}\n\n"
+        f"Suggest up to {limit} short, natural follow-up questions the student "
+        "might ask next — each from the student's point of view, under 8 words "
+        "where possible, specific to this exchange. Respond with ONLY a JSON "
+        "array of strings, no prose."
+    )
+    client = _client(api_key)
+    try:
+        message = await client.messages.create(
+            model=model,
+            max_tokens=200,
+            messages=[{"role": "user", "content": instructions}],
+        )
+    except Exception:
+        return []
+    text = ""
+    for block in getattr(message, "content", None) or []:
+        if getattr(block, "type", None) == "text":
+            text += getattr(block, "text", "")
+    return parse_followups(text, limit=limit)
 
 
 async def generate_voice_card(
