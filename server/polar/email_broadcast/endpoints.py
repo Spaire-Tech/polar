@@ -19,8 +19,15 @@ from polar.postgres import (
 )
 from polar.routing import APIRouter
 
+from polar.course.repository import CourseRepository
+from polar.email_copy import ai as email_copy_ai
+
 from .schemas import (
     EmailBroadcast as EmailBroadcastSchema,
+)
+from .schemas import (
+    EmailCopyRequest,
+    EmailCopyResponse,
 )
 from .schemas import (
     EmailBroadcastABTest as EmailBroadcastABTestSchema,
@@ -266,6 +273,49 @@ async def create_email_broadcast(
         filter_rules=broadcast_create.filter_rules,
     )
     return EmailBroadcastSchema.model_validate(broadcast, from_attributes=True)
+
+
+@router.post("/generate-copy", response_model=EmailCopyResponse)
+async def generate_email_copy(
+    auth_subject: EmailSubscribersWrite,
+    body: EmailCopyRequest,
+    session: AsyncReadSession = Depends(get_db_read_session),
+) -> EmailCopyResponse:
+    """Generate lifecycle email recap copy from a course (the Welcome note)."""
+    if not settings.ANTHROPIC_API_KEY:
+        raise HTTPException(
+            status_code=503, detail="AI copy generation is not configured."
+        )
+    course_repo = CourseRepository.from_session(session)
+    course = await course_repo.get_readable_by_id(body.course_id, auth_subject)
+    if course is None:
+        raise ResourceNotFound()
+
+    lessons = [
+        {"title": lesson.title}
+        for module in course.modules
+        for lesson in module.lessons
+    ]
+    brief = email_copy_ai.build_course_brief(
+        {
+            "title": course.title,
+            "description": course.description,
+            "instructor_name": course.instructor_name,
+            "lessons": lessons,
+        }
+    )
+    copy = await email_copy_ai.generate_email_copy(
+        api_key=settings.ANTHROPIC_API_KEY,
+        model=settings.EMAIL_COPY_MODEL,
+        brief=brief,
+        moment=body.moment,
+    )
+    return EmailCopyResponse(
+        subject=copy.subject,
+        preview=copy.preview,
+        heading=copy.heading,
+        body=copy.body,
+    )
 
 
 @router.get("/{broadcast_id}", response_model=EmailBroadcastSchema)

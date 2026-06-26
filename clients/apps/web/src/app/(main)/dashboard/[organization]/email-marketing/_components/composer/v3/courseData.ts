@@ -27,6 +27,7 @@ export interface CourseData {
   level: string
   totalDuration: string // e.g. "3h 40m"
   progress: { completed: number; total: number }
+  welcomeHeading?: string // welcome-note headline (AI may override)
   welcome: string[] // welcome-note paragraphs
   ctaText: string
   ctaHref: string

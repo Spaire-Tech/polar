@@ -67,6 +67,27 @@ class EmailBroadcast(TimestampedSchema, IDSchema):
     total_recipients: int = 0
 
 
+class EmailCopyRequest(Schema):
+    course_id: UUID4 = Field(description="Course to generate the recap copy from.")
+    moment: str = Field(
+        default="enrolment",
+        description=(
+            "Lifecycle moment: enrolment, firstLesson, specificLesson, halfway, "
+            "courseComplete, or inactive."
+        ),
+        max_length=40,
+    )
+
+
+class EmailCopyResponse(Schema):
+    subject: str = Field(description="Generated subject line.")
+    preview: str = Field(description="Generated inbox preview text.")
+    heading: str = Field(description="Generated welcome-note heading.")
+    body: list[str] = Field(
+        default_factory=list, description="Generated welcome-note paragraphs."
+    )
+
+
 class EmailBroadcastTestSend(Schema):
     email: str = Field(description="Inbox to send the test email to.", max_length=320)
 

@@ -1,26 +1,37 @@
 'use client'
 
-// SequenceEmailModal — hosts the REAL broadcast email editor (ComposerApp)
-// as an automation step's email editor, full-screen and styled exactly like
-// the broadcast composer, but in "sequence mode": no audience picker (the
-// sequence defines who receives it), no Schedule / Save draft / Duplicate,
-// and the primary action is "Done", which hands the authored subject +
-// rendered HTML + block doc back to the sequence builder and returns to it.
+// SequenceEmailModal — hosts the v3 broadcast editor (BroadcastEditorV3) as an
+// automation step's email editor, full-screen. The sequence defines the
+// audience and trigger, so the editor is used purely to author the email: the
+// "Back" button returns to the builder, and saving hands the authored subject +
+// inbox-correct HTML + TipTap JSON back to the sequence builder.
+//
+// The editor binds to the automation's course (data-bound blocks + AI recap
+// copy) and uploads images to S3 — exactly like the standalone studio route.
 
-import { ComposerApp } from '@/app/(main)/dashboard/[organization]/email-marketing/_components/composer/ComposerApp'
-import type { Block } from '@/app/(main)/dashboard/[organization]/email-marketing/_components/composer/types'
 import type { schemas } from '@spaire/client'
 import { useEffect } from 'react'
 
+import { BroadcastEditorV3 } from '@/app/(main)/dashboard/[organization]/email-marketing/_components/composer/v3/BroadcastEditorV3'
+import { mapCourse } from '@/app/(main)/dashboard/[organization]/email-marketing/_components/composer/v3/courseMap'
+import { useCourseById } from '@/hooks/queries/courses'
+import {
+  useGenerateEmailCopy,
+  useUploadEmailImage,
+} from '@/hooks/queries/emailMarketing'
+
 export function SequenceEmailModal({
   organization,
-  sequenceName,
+  courseId,
+  moment,
   initialSubject,
   initialContentJson,
   onSave,
   onClose,
 }: {
   organization: schemas['Organization']
+  courseId?: string
+  moment?: string
   sequenceName?: string
   initialSubject?: string
   initialContentJson?: Record<string, unknown> | null
@@ -40,27 +51,43 @@ export function SequenceEmailModal({
     }
   }, [])
 
-  // Re-hydrate the ComposerApp blocks from a previously-authored email.
-  const cj = initialContentJson as
-    | { v?: string; blocks?: Block[] }
-    | null
-    | undefined
-  const initialBlocks =
-    cj?.v === 'composer.v3' && Array.isArray(cj.blocks) ? cj.blocks : undefined
+  const upload = useUploadEmailImage(organization.id)
+  const generateCopy = useGenerateEmailCopy()
+  const { data: courseRead } = useCourseById(courseId)
+  const course = courseRead ? mapCourse(courseRead) : undefined
 
-  // ComposerApp portals its own full-screen shell into document.body, so it
-  // must NOT be wrapped in a covering element (that would sit on top of it).
+  // Only restore a document the v3 editor itself wrote (a TipTap `doc`); emails
+  // authored in the previous composer use a different shape and start fresh.
+  const initialDocument =
+    initialContentJson && initialContentJson.type === 'doc'
+      ? (initialContentJson as Record<string, unknown>)
+      : undefined
+
   return (
-    <ComposerApp
-      organization={organization}
-      sequenceMode={{
-        sequenceName,
-        initialSubject,
-        initialBlocks,
-        onSave,
-        onClose,
-      }}
-    />
+    <div className="fixed inset-0 z-50 bg-white dark:bg-black">
+      <BroadcastEditorV3
+        courseName={courseRead?.title ?? 'Course automation'}
+        course={course}
+        initialSubject={initialSubject}
+        initialDocument={initialDocument}
+        onUploadImage={(file) => upload.mutateAsync(file)}
+        onGenerateCopy={
+          courseId
+            ? (m) =>
+                generateCopy.mutateAsync({ courseId, moment: moment ?? m })
+            : undefined
+        }
+        onSave={(p) => {
+          onSave({
+            subject: p.subject,
+            content_html: p.html,
+            content_json: p.json,
+          })
+          onClose()
+        }}
+        onClose={onClose}
+      />
+    </div>
   )
 }
 

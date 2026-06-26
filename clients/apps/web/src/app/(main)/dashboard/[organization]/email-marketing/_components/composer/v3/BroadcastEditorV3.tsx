@@ -14,6 +14,7 @@
 import { EditorContent } from '@tiptap/react'
 import {
   useEffect,
+  useMemo,
   useReducer,
   useRef,
   useState,
@@ -32,8 +33,10 @@ import { TRIGGERS, triggerByKey, type TriggerKey } from './triggers'
 import { COURSE_VARIANTS, type CourseVariant } from './courseBlock'
 import { SAMPLE_COURSE, type CourseData } from './courseData'
 import {
+  documentJSON,
   dropIndexForY,
   dropLineY,
+  emailHtml,
   insertBlock,
   insertBlockAt,
   insertCourseBlock,
@@ -147,9 +150,23 @@ function Ctl({ label, children }: { label: ReactNode; children: ReactNode }) {
   )
 }
 
+export type SavePayload = {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  json: Record<string, any>
+  html: string
+  subject: string
+  preview: string
+  from: string
+}
+
 export function BroadcastEditorV3({
   courseName = 'Southern Cooking',
-  course = SAMPLE_COURSE,
+  course: courseProp = SAMPLE_COURSE,
+  initialDocument,
+  initialSubject,
+  onSave,
+  onClose,
+  onGenerateCopy,
   onUploadImage,
 }: {
   courseName?: string
@@ -157,6 +174,26 @@ export function BroadcastEditorV3({
       change. Defaults to the sample course (harness); the app passes a real
       course here (brick 15). */
   course?: CourseData
+  /** Restore a previously saved document (TipTap JSON from content_json). */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  initialDocument?: Record<string, any>
+  /** Seed the subject (e.g. an existing sequence step's subject). */
+  initialSubject?: string
+  /** Close / exit the editor — wired to the top-bar back button. */
+  onClose?: () => void
+  /** Persist the email. Receives the TipTap JSON, the inbox-correct HTML, and
+      the broadcast meta. The route wires this to create/patch the broadcast. */
+  onSave?: (payload: SavePayload) => Promise<void> | void
+  /** Generate recap copy from the course for the current lifecycle moment.
+      The route wires this to POST /email-broadcasts/generate-copy (Claude). */
+  onGenerateCopy?: (
+    moment: string,
+  ) => Promise<{
+    subject: string
+    preview: string
+    heading: string
+    body: string[]
+  } | null>
   /** Upload a picked file and return its hosted URL. Defaults to an inline
       data URL (used by the harness); the app wires S3 upload here. */
   onUploadImage?: (file: File) => Promise<{ url: string }>
@@ -165,7 +202,7 @@ export function BroadcastEditorV3({
   const [device, setDevice] = useState<'desktop' | 'mobile'>('desktop')
   const [toast, setToast] = useState('')
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const editor = useEmailEditor()
+  const editor = useEmailEditor(initialDocument)
   const emailRef = useRef<HTMLDivElement>(null)
   const [sel, setSel] = useState<BlockSel>(null)
   // Which inspector colour the HSV picker is editing, + where it opens.
@@ -189,10 +226,28 @@ export function BroadcastEditorV3({
   const [triggerKey, setTriggerKey] = useState<TriggerKey>('enrolment')
   const trigger = triggerByKey(triggerKey)
   const [broadcast, setBroadcast] = useState({
-    subject: trigger.subject,
+    subject: initialSubject || trigger.subject,
     preview: trigger.preview,
     from: 'Adaeze Bello',
   })
+  // AI recap copy overrides the bound course's welcome note (brick 16). The
+  // course blocks live-sync from this merged `course`.
+  const [aiCopy, setAiCopy] = useState<{
+    welcomeHeading?: string
+    welcome?: string[]
+  } | null>(null)
+  const [generating, setGenerating] = useState(false)
+  const course = useMemo(
+    () =>
+      aiCopy
+        ? {
+            ...courseProp,
+            welcomeHeading: aiCopy.welcomeHeading ?? courseProp.welcomeHeading,
+            welcome: aiCopy.welcome ?? courseProp.welcome,
+          }
+        : courseProp,
+    [courseProp, aiCopy],
+  )
   // Anchored popovers (trigger switcher / send menu) + the save sheet.
   const [menu, setMenu] = useState<
     { kind: 'trigger' | 'send'; top: number; left: number } | null
@@ -396,9 +451,53 @@ export function BroadcastEditorV3({
     setMenu(null)
     showToast(`Test of “${broadcast.subject || 'Untitled'}” sent to you`)
   }
-  const commitSave = () => {
+  // Generate the welcome-note recap copy from the course for this moment.
+  const runGenerate = async () => {
+    if (!onGenerateCopy || generating) return
+    setGenerating(true)
+    try {
+      const c = await onGenerateCopy(triggerKey)
+      if (c) {
+        setBroadcast((b) => ({
+          ...b,
+          subject: c.subject || b.subject,
+          preview: c.preview || b.preview,
+        }))
+        setAiCopy({
+          welcomeHeading: c.heading || undefined,
+          welcome: c.body?.length ? c.body : undefined,
+        })
+        showToast('Copy generated from the course')
+      }
+    } catch {
+      showToast('Couldn’t generate copy')
+    } finally {
+      setGenerating(false)
+    }
+  }
+  const [saving, setSaving] = useState(false)
+  const commitSave = async () => {
+    const json = documentJSON(editor)
+    if (onSave && json) {
+      try {
+        setSaving(true)
+        const html = await emailHtml(editor)
+        await onSave({
+          json,
+          html,
+          subject: broadcast.subject,
+          preview: broadcast.preview,
+          from: broadcast.from,
+        })
+      } catch {
+        setSaving(false)
+        showToast('Couldn’t save — please try again')
+        return
+      }
+      setSaving(false)
+    }
     setSaveOpen(false)
-    showToast('Saved to the sequence')
+    showToast(onSave ? 'Saved' : 'Saved to the sequence')
   }
 
   useEffect(
@@ -435,8 +534,8 @@ export function BroadcastEditorV3({
       />
       {/* ── Top bar ─────────────────────────────────────────── */}
       <header className="topbar">
-        <button className="tb-back">
-          <I d={IC.back} size={16} /> Broadcasts
+        <button className="tb-back" data-testid="tb-back" onClick={onClose}>
+          <I d={IC.back} size={16} /> {onClose ? 'Back' : 'Broadcasts'}
         </button>
         <span className="tb-divide" />
         <button
@@ -841,6 +940,20 @@ export function BroadcastEditorV3({
               <>
                 <div className="ig">
                   <div className="ig-h">Details</div>
+                  {onGenerateCopy && (
+                    <button
+                      className={'ai-generate' + (generating ? ' busy' : '')}
+                      data-testid="ai-generate"
+                      // don't use `disabled` — it blurs the button and the
+                      // sticky-inspector guard (which keys on focus staying in
+                      // .inspector) would drop email settings on the sync tick.
+                      aria-disabled={generating}
+                      onClick={runGenerate}
+                    >
+                      <I d="M5 3v4M3 5h4M6 17v4M4 19h4M13 3l3 7 7 3-7 3-3 7-3-7-7-3 7-3 3-7z" size={15} />
+                      {generating ? 'Generating…' : 'Generate copy from course'}
+                    </button>
+                  )}
                   <Ctl label="Subject">
                     <input
                       className="fld"
@@ -1104,9 +1217,10 @@ export function BroadcastEditorV3({
               <button
                 className="ss-save"
                 data-testid="ss-save"
+                disabled={saving}
                 onClick={commitSave}
               >
-                Save
+                {saving ? 'Saving…' : 'Save'}
               </button>
             </div>
           </div>

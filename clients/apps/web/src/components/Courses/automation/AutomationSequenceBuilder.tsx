@@ -1047,6 +1047,7 @@ export function AutomationSequenceBuilder({
           return (
             <SequenceEmailModal
               organization={organization}
+              courseId={courseId}
               sequenceName={name}
               initialSubject={st.subject}
               initialContentJson={st.content_json}

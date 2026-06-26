@@ -567,6 +567,24 @@ export const useDeleteEmailBroadcastABTest = () =>
     },
   })
 
+export type GeneratedEmailCopy = {
+  subject: string
+  preview: string
+  heading: string
+  body: string[]
+}
+
+/** Generate lifecycle recap copy from a course (Claude) — brick 16. */
+export const useGenerateEmailCopy = () =>
+  useMutation({
+    mutationFn: ({ courseId, moment }: { courseId: string; moment: string }) =>
+      fetchApiWrite<GeneratedEmailCopy>(
+        `/v1/email-broadcasts/generate-copy`,
+        'POST',
+        { course_id: courseId, moment },
+      ),
+  })
+
 export const useUploadEmailImage = (organizationId: string) =>
   useMutation({
     mutationFn: async (file: File) => {

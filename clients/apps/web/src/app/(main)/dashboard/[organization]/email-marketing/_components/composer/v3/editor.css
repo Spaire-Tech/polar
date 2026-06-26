@@ -121,6 +121,10 @@
 .bem .merge-chip { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 500; color: var(--accent); background: var(--accent-soft); border-radius: 7px; padding: 5px 10px; transition: background 0.14s; }
 .bem .merge-chip:hover { background: var(--fill-2); }
 .bem .merge-hint { font-size: 11.5px; color: var(--text-2); margin: 9px 4px 0px; line-height: 1.45; }
+/* AI "Generate copy from course" button (brick 16). */
+.bem .ai-generate { display: inline-flex; align-items: center; gap: 8px; width: 100%; justify-content: center; height: 38px; margin-bottom: 14px; border-radius: 10px; background: var(--accent-soft); color: var(--accent); font-size: 13px; font-weight: 600; letter-spacing: -0.01em; transition: background 0.16s, opacity 0.16s; }
+.bem .ai-generate:hover { background: var(--fill-2); }
+.bem .ai-generate.busy { opacity: 0.6; cursor: default; }
 .bem .canvas-col { flex: 1 1 0%; min-width: 0px; display: flex; flex-direction: column; }
 .bem .canvas-head { flex: 0 0 auto; display: flex; align-items: center; gap: 14px; padding: 10px 22px; border-bottom: 1px solid var(--hair); background: var(--bg); z-index: 20; transition: background 0.35s; }
 .bem .seg { display: inline-flex; gap: 2px; background: var(--fill-2); border-radius: 9px; padding: 2px; }
