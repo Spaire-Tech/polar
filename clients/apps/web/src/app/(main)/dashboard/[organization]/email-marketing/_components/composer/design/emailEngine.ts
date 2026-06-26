@@ -27,6 +27,7 @@ import {
   type Props,
   type Theme,
 } from './emailData'
+import { buildEmailHTML } from './emailRender'
 
 export interface Block {
   id: string
@@ -202,17 +203,12 @@ export function createEditor(root: HTMLElement, opts: CreateEditorOpts = {}): Ed
 
   /* ---------- save flow ---------- */
   function buildHTML(): string {
-    const t = theme()
-    const inner = blocks.map((b) => REG[b.type].render(b.props, t)).join('\n')
-    return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:${t.outerBg}">
-  <div style="display:none;max-height:0;overflow:hidden;opacity:0">${escAttr(broadcast.preview)}</div>
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${t.outerBg}"><tr><td align="center" style="padding:24px 12px">
-    <table role="presentation" width="640" cellpadding="0" cellspacing="0" style="width:640px;max-width:100%;background:${t.emailBg};border-radius:12px;overflow:hidden"><tr><td style="font-size:0">${inner}</td></tr></table>
-  </td></tr></table>
-</body></html>`
+    // The editor canvas renders blocks with flex/gradient/absolute for a pretty
+    // browser preview, but real inboxes strip all of that. buildEmailHTML
+    // reproduces the SAME design with table layout + inline styles + bgcolor
+    // attrs + mobile media queries so the inbox shows what the editor shows.
+    return buildEmailHTML(blocks, theme(), broadcast, opts.resolveAsset || ((p) => p))
   }
-  function escAttr(s: string) { return String(s == null ? '' : s).replace(/"/g, '&quot;').replace(/</g, '&lt;') }
 
   function getState(): EditorState {
     return {
