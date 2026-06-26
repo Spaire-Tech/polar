@@ -1,0 +1,1496 @@
+/* ============================================================
+   EMAIL BLOCKS — course-welcome emails, restrained & editorial.
+   Faithful TypeScript port of the creator's design data module.
+   Premium neutral palettes, high-contrast typography, generous
+   whitespace. The render() functions emit inline-styled, inbox-
+   correct HTML (no client framework needed for correctness).
+   ============================================================ */
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
+export type Props = Record<string, any>
+
+export interface Theme {
+  name: string
+  emailBg: string
+  outerBg: string
+  font: string
+  headingFont: string
+  heading: string
+  text: string
+  muted: string
+  link: string
+  accent: string
+  button: string
+  buttonText: string
+  border: string
+  panel: string
+  heroText: string
+}
+
+export interface CtlDescriptor {
+  kind: string
+  [key: string]: any
+}
+export interface GroupDescriptor {
+  kind: 'group'
+  title: string
+  ctls: CtlDescriptor[]
+}
+export interface PartDef {
+  label: string
+  icon: string
+  groups: (p: Props, t: Theme) => GroupDescriptor[]
+}
+export interface BlockDef {
+  label: string
+  icon: string
+  group: string
+  defaults: (t: Theme) => Props
+  render: (p: Props, t: Theme) => string
+  inspect: (p: Props, t?: Theme) => GroupDescriptor[]
+  parts?: Record<string, PartDef>
+  noLabel?: boolean
+}
+
+export interface TemplateDef {
+  theme: string
+  name: string
+  subtitle: string
+  blocks: { type: string; props: Props }[]
+}
+
+const esc = (s: any): string => String(s == null ? '' : s)
+
+/* Asset resolution is injected by the host (engine maps design asset keys
+   such as 'assets/southern-cooking.jpg' to real course media or a neutral
+   placeholder). Defaults to identity so the module stays pure. */
+let assetResolver: (p: string) => string = (p) => p
+export function setAssetResolver(fn: (p: string) => string) {
+  assetResolver = fn
+}
+const ASSET = (p: string): string => assetResolver(p)
+
+export const FONTS: Record<string, string> = {
+  Geist: "'Geist', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
+  'Instrument Serif': "'Instrument Serif', Georgia, 'Times New Roman', serif",
+  Inter: "'Inter', -apple-system, BlinkMacSystemFont, Arial, sans-serif",
+  'IBM Plex Sans Condensed':
+    "'IBM Plex Sans Condensed', 'Arial Narrow', Arial, sans-serif",
+}
+
+/* full palette across the themes (+ neutrals) for the colour picker presets */
+export const PALETTE: string[] = [
+  'none',
+  '#ffffff',
+  '#f2eadf',
+  '#f4f1ea',
+  '#ece8dd',
+  '#e4dfd3',
+  '#17120f',
+  '#1f1813',
+  '#b8ae9f',
+  '#847a6d',
+  '#c98a5e',
+  '#1f241c',
+  '#5a6052',
+  '#9a9e90',
+  '#5e7355',
+  '#111315',
+  '#181b1c',
+  '#aeb3b1',
+  '#6b6f6d',
+  '#8fa89a',
+  '#141518',
+  '#1b1c20',
+  '#adafb5',
+  '#6e7077',
+  '#9aa0a8',
+  '#000000',
+]
+
+/* ---------- THEMES — restrained, premium, one quiet accent each ----------
+   Buttons are high-contrast NEUTRAL (cream on dark / ink on light), not coloured.
+   accent is desaturated and used only for tiny details. */
+export const THEMES: Record<string, Theme> = {
+  chef: {
+    name: 'Kitchen',
+    emailBg: '#17120f',
+    outerBg: '#0e0a08',
+    font: 'Geist',
+    headingFont: 'Instrument Serif',
+    heading: '#f2eadf',
+    text: '#b8ae9f',
+    muted: '#847a6d',
+    link: '#f2eadf',
+    accent: '#c98a5e',
+    button: '#f2eadf',
+    buttonText: '#17120f',
+    border: 'rgba(242,234,223,.13)',
+    panel: '#1f1813',
+    heroText: '#f2eadf',
+  },
+  yoga: {
+    name: 'Daylight',
+    emailBg: '#f4f1ea',
+    outerBg: '#e6e1d6',
+    font: 'Geist',
+    headingFont: 'Instrument Serif',
+    heading: '#1f241c',
+    text: '#5a6052',
+    muted: '#9a9e90',
+    link: '#1f241c',
+    accent: '#5e7355',
+    button: '#1f241c',
+    buttonText: '#f4f1ea',
+    border: '#e1dccf',
+    panel: '#ece8dd',
+    heroText: '#f4f1ea',
+  },
+  serve: {
+    name: 'Graphite',
+    emailBg: '#111315',
+    outerBg: '#08090a',
+    font: 'Geist',
+    headingFont: 'Geist',
+    heading: '#f4f5f4',
+    text: '#aeb3b1',
+    muted: '#6b6f6d',
+    link: '#f4f5f4',
+    accent: '#8fa89a',
+    button: '#f4f5f4',
+    buttonText: '#111315',
+    border: 'rgba(244,245,244,.12)',
+    panel: '#181b1c',
+    heroText: '#f4f5f4',
+  },
+  studio: {
+    name: 'Midnight',
+    emailBg: '#141518',
+    outerBg: '#0b0c0e',
+    font: 'Geist',
+    headingFont: 'Instrument Serif',
+    heading: '#efeff1',
+    text: '#adafb5',
+    muted: '#6e7077',
+    link: '#efeff1',
+    accent: '#9aa0a8',
+    button: '#efeff1',
+    buttonText: '#141518',
+    border: 'rgba(239,239,241,.12)',
+    panel: '#1b1c20',
+    heroText: '#efeff1',
+  },
+}
+
+export const ICO: Record<string, string> = {
+  cover:
+    '<rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M3 15l5-4 4 3 3-2 6 4"/><circle cx="9" cy="9" r="1.6"/>',
+  note: '<path d="M5 4h11l3 3v13H5z"/><path d="M16 4v3h3"/><path d="M8 12h8M8 16h5"/>',
+  lessons:
+    '<path d="M8 6h12M8 12h12M8 18h12"/><circle cx="4" cy="6" r="1.4"/><circle cx="4" cy="12" r="1.4"/><circle cx="4" cy="18" r="1.4"/>',
+  instructor:
+    '<circle cx="9" cy="8" r="3.2"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0"/><path d="M16 8h5M16 12h5M16 16h3"/>',
+  trailer:
+    '<rect x="2.5" y="4.5" width="19" height="15" rx="3"/><path d="M10 9.2v5.6l5-2.8z" fill="currentColor" stroke="none"/>',
+  meta: '<path d="M4 12h4M10 12h4M16 12h4"/><circle cx="6" cy="12" r="0" /><path d="M5 8v8M11 8v8M17 8v8" opacity=".0"/>',
+  heading: '<path d="M6 4v16M18 4v16M6 12h12"/>',
+  text: '<path d="M4 6h16M4 12h16M4 18h11"/>',
+  image:
+    '<rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="9" cy="9" r="2"/><path d="M21 15l-5-5L4 21"/>',
+  button: '<rect x="2.5" y="8" width="19" height="8" rx="4"/><path d="M8 12h8"/>',
+  cta: '<rect x="3" y="5" width="18" height="14" rx="3"/><path d="M8 10h8M8 14h5"/>',
+  progress:
+    '<rect x="3" y="10" width="18" height="4" rx="2"/><rect x="3" y="10" width="8" height="4" rx="2" fill="currentColor" stroke="none"/>',
+  check: '<circle cx="12" cy="12" r="9"/><path d="m8.5 12 2.5 2.5 4.5-5"/>',
+  quote:
+    '<path d="M9 7H5a2 2 0 0 0-2 2v3a2 2 0 0 0 2 2h2v3H4M20 7h-4a2 2 0 0 0-2 2v3a2 2 0 0 0 2 2h2v3h-3"/>',
+  divider: '<path d="M3 12h18"/>',
+  spacer:
+    '<path d="M8 5h8M8 19h8M12 9v6"/><path d="m9 9 3-3 3 3M9 15l3 3 3-3"/>',
+  footer:
+    '<rect x="3" y="14" width="18" height="6" rx="2"/><path d="M6 17h5"/><circle cx="15.5" cy="17" r="1"/><circle cx="18.5" cy="17" r="1"/>',
+  play: '<path d="M8 5.5v13a1 1 0 0 0 1.5.87l11-6.5a1 1 0 0 0 0-1.74l-11-6.5A1 1 0 0 0 8 5.5Z" fill="currentColor" stroke="none"/>',
+  pic: '<rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="9" cy="9" r="2"/><path d="M21 15l-5-5L4 21"/>',
+  social: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/>',
+}
+
+export const svg = (p: string, sz?: number, sw?: number): string =>
+  `<svg width="${sz || 18}" height="${sz || 18}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${sw || 1.7}" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`
+
+const ff = (f: string): string => FONTS[f] || FONTS.Geist
+const padBox = (p: Props): string =>
+  `padding:${p.pt || 0}px ${p.px == null ? 44 : p.px}px ${p.pb || 0}px`
+
+export function hexA(hex: string, a: number): string {
+  if (!hex || hex === 'none') return `rgba(0,0,0,${a})`
+  if (hex[0] !== '#') return hex
+  let h = hex.replace('#', '')
+  if (h.length === 3)
+    h = h
+      .split('')
+      .map((c) => c + c)
+      .join('')
+  const n = parseInt(h, 16)
+  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`
+}
+
+function btnHTML(b: Props, t: Theme, editPath?: string): string {
+  const ep = editPath || 'text'
+  const style = b.style || 'solid'
+  const font = ff(b.font || t.font)
+  const align = b.align || 'left'
+  const label = esc(b.text) + (b.arrow ? '&nbsp;&nbsp;→' : '')
+  if (style === 'link') {
+    return `<div style="text-align:${align}"><a class="eb-btn-link" data-edit="${ep}" contenteditable="true" href="#" onclick="return false" style="color:${b.color || t.link};font-family:${font};font-size:${b.size || 14}px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;text-decoration:none;border-bottom:1px solid currentColor;padding-bottom:3px">${label}</a></div>`
+  }
+  const radius = b.radius == null ? 999 : b.radius
+  const bg = style === 'outline' ? 'transparent' : b.bg || t.button
+  const border =
+    style === 'outline' ? `border:1px solid ${b.border || t.border};` : ''
+  const color = b.color || (style === 'outline' ? t.heading : t.buttonText)
+  return `<div style="text-align:${align}"><a class="eb-btn" data-edit="${ep}" contenteditable="true" href="#" onclick="return false" style="background:${bg};color:${color};${border}border-radius:${radius}px;padding:15px 30px;font-family:${font};font-size:${b.size || 14.5}px;font-weight:600;letter-spacing:.005em;text-decoration:none;display:inline-block">${label}</a></div>`
+}
+
+/* button controls, reused by any block with an embedded button (key prefix e.g. 'btn') */
+function btnGroups(prefix: string): GroupDescriptor[] {
+  return [
+    {
+      kind: 'group',
+      title: 'Button',
+      ctls: [
+        { kind: 'field', label: 'Label', key: prefix + '.text' },
+        { kind: 'field', label: 'Link URL', key: prefix + '.href', ph: 'https://…' },
+        {
+          kind: 'seg',
+          key: prefix + '.style',
+          opts: [
+            ['solid', 'Solid'],
+            ['outline', 'Outline'],
+            ['link', 'Link'],
+          ],
+        },
+      ],
+    },
+    {
+      kind: 'group',
+      title: 'Button colours',
+      ctls: [
+        { kind: 'color', label: 'Button fill', key: prefix + '.bg' },
+        { kind: 'color', label: 'Button label', key: prefix + '.color' },
+      ],
+    },
+    {
+      kind: 'group',
+      title: 'Shape',
+      ctls: [
+        {
+          kind: 'range',
+          label: 'Corner radius',
+          key: prefix + '.radius',
+          min: 0,
+          max: 999,
+          step: 1,
+          fmt: (v: number) => (v >= 999 ? 'Pill' : v + 'px'),
+        },
+        { kind: 'switch', label: 'Arrow', key: prefix + '.arrow', sub: 'Append → to the label' },
+      ],
+    },
+  ]
+}
+
+/* ============================================================ CONTROL DESCRIPTORS */
+function grpColors(pairs: [string, string][]): GroupDescriptor {
+  return {
+    kind: 'group',
+    title: 'Colours',
+    ctls: pairs.map((p) => ({ kind: 'color', label: p[0], key: p[1] })),
+  }
+}
+function grpField(label: string, key: string, ph?: string): GroupDescriptor {
+  return { kind: 'group', title: label, ctls: [{ kind: 'field', label: null, key, ph }] }
+}
+function grpImage(label: string, key: string): GroupDescriptor {
+  return {
+    kind: 'group',
+    title: label,
+    ctls: [
+      { kind: 'upload', key },
+      { kind: 'field', label: null, key, ph: 'or paste image URL' },
+    ],
+  }
+}
+function grpNum(label: string, key: string, min: number, max: number): GroupDescriptor {
+  return { kind: 'group', title: label, ctls: [{ kind: 'num', label, key, min, max }] }
+}
+function grpRange(
+  label: string,
+  key: string,
+  min: number,
+  max: number,
+  step?: number,
+  fmt?: (v: number) => string,
+): GroupDescriptor {
+  return {
+    kind: 'group',
+    title: label,
+    ctls: [{ kind: 'range', label, key, min, max, step: step || 1, fmt }],
+  }
+}
+function grpAlign(opts?: string[]): GroupDescriptor {
+  return {
+    kind: 'group',
+    title: 'Alignment',
+    ctls: [{ kind: 'align', key: 'align', opts: opts || ['left', 'center', 'right'] }],
+  }
+}
+function grpSeg(label: string, key: string, opts: [string, string][]): GroupDescriptor {
+  return { kind: 'group', title: label, ctls: [{ kind: 'seg', key, opts }] }
+}
+function grpSelect(label: string, key: string, opts: string[]): GroupDescriptor {
+  return { kind: 'group', title: label, ctls: [{ kind: 'select', key, opts }] }
+}
+function grpSwitch(label: string, key: string, sub?: string): GroupDescriptor {
+  return { kind: 'group', title: 'Options', ctls: [{ kind: 'switch', label, key, sub }] }
+}
+function grpPad(): GroupDescriptor {
+  return {
+    kind: 'group',
+    title: 'Spacing',
+    ctls: [
+      { kind: 'range', label: 'Padding top', key: 'pt', min: 0, max: 140, step: 2 },
+      { kind: 'range', label: 'Padding bottom', key: 'pb', min: 0, max: 140, step: 2 },
+      { kind: 'range', label: 'Side padding', key: 'px', min: 0, max: 72, step: 2 },
+    ],
+  }
+}
+function grpType(title: string, prefix: string, isCover: boolean): GroupDescriptor {
+  const ctls: CtlDescriptor[] = [
+    { kind: 'select', key: prefix + 'Font', opts: Object.keys(FONTS), label: 'Font' },
+    { kind: 'num', label: 'Size', key: prefix + 'Size', min: 16, max: 96 },
+  ]
+  if (!isCover)
+    ctls.push({ kind: 'color', label: (title || 'Heading') + ' colour', key: prefix + 'Color' })
+  return { kind: 'group', title: title || 'Heading', ctls }
+}
+function grpType2(): GroupDescriptor {
+  return {
+    kind: 'group',
+    title: 'Heading',
+    ctls: [
+      { kind: 'select', key: 'hFont', opts: Object.keys(FONTS), label: 'Font' },
+      { kind: 'num', label: 'Size', key: 'hSize', min: 14, max: 88 },
+      { kind: 'num', label: 'Weight', key: 'hWeight', min: 300, max: 800 },
+      { kind: 'color', label: 'Heading colour', key: 'hColor' },
+      {
+        kind: 'seg',
+        key: 'hTransform',
+        opts: [
+          ['none', 'Aa'],
+          ['uppercase', 'AA'],
+          ['capitalize', 'Ab'],
+        ],
+        label: 'Case',
+      },
+    ],
+  }
+}
+
+/* ============================================================ BLOCK REGISTRY */
+export const REG: Record<string, BlockDef> = {
+  /* ---- CINEMATIC COVER HERO ---- */
+  coverHero: {
+    label: 'Cover',
+    icon: ICO.cover,
+    group: 'Course',
+    defaults: (t) => ({
+      img: 'assets/southern-cooking.jpg',
+      height: 560,
+      overlay: 58,
+      overlayColor: '#0c0a08',
+      eyebrow: 'The Kitchen Series',
+      title: 'Southern Cooking',
+      titleFont: t.headingFont,
+      titleSize: 66,
+      instructor: 'with Adaeze Bello',
+      tagline: 'Heritage technique, soul food, and the stories behind every dish.',
+      textColor: t.heroText,
+      accent: t.accent,
+      align: 'left',
+      btn: { text: 'Begin the first lesson', style: 'solid', align: 'left', radius: 999 },
+    }),
+    render(p, t) {
+      const grad =
+        p.align === 'center'
+          ? `linear-gradient(180deg, ${hexA(p.overlayColor, p.overlay / 240)} 0%, ${hexA(p.overlayColor, Math.min(0.9, p.overlay / 110))} 100%)`
+          : `linear-gradient(180deg, ${hexA(p.overlayColor, p.overlay / 300)} 0%, rgba(0,0,0,0) 42%, ${hexA(p.overlayColor, Math.min(0.94, p.overlay / 82))} 100%)`
+      const bg = p.img
+        ? `${hexA(p.overlayColor, 0.25)} url('${ASSET(p.img)}') center/cover no-repeat`
+        : '#26211c'
+      const ta = p.align
+      const top = p.eyebrow
+        ? `<span data-edit="eyebrow" contenteditable="true" style="font-family:${ff(t.font)};font-size:11px;font-weight:600;letter-spacing:.26em;text-transform:uppercase;color:${p.textColor};opacity:.8">${esc(p.eyebrow)}</span>`
+        : '<span></span>'
+      const bottom = `<div style="text-align:${ta}">
+            <h1 data-part="title" data-edit="title" contenteditable="true" style="margin:0;font-family:${ff(p.titleFont)};font-size:${p.titleSize}px;font-weight:${p.titleFont === 'Geist' ? 700 : 400};line-height:1.0;letter-spacing:${p.titleFont === 'Geist' ? '-2px' : '-.5px'};color:${p.textColor};${p.titleFont === 'Geist' ? 'text-transform:uppercase;' : ''}">${esc(p.title)}</h1>
+            <p data-edit="instructor" contenteditable="true" style="margin:18px 0 0;font-family:${ff(t.font)};font-size:14.5px;font-weight:500;letter-spacing:.01em;color:${p.textColor};opacity:.78">${esc(p.instructor)}</p>
+            <p data-edit="tagline" contenteditable="true" style="margin:14px ${ta === 'center' ? 'auto' : '0'} 0;max-width:400px;font-family:${ff(t.font)};font-size:15px;line-height:1.5;color:${p.textColor};opacity:.7">${esc(p.tagline)}</p>
+            <div data-part="button" style="margin-top:32px">${btnHTML(Object.assign({ align: ta }, p.btn), t, 'btn.text')}</div>
+          </div>`
+      return `<div style="position:relative;min-height:${p.height}px;background:${bg};overflow:hidden">
+            <div style="position:absolute;inset:0;background:${grad}"></div>
+            <div class="eb-hero" style="position:relative;min-height:${p.height}px;display:flex;flex-direction:column;justify-content:space-between;padding:34px 44px 52px">${top}${bottom}</div>
+          </div>`
+    },
+    inspect: (p) => [
+      grpImage('Background image', 'img'),
+      grpType('Title', 'title', true),
+      grpRange('Height', 'height', 360, 720, 10),
+      grpRange('Overlay', 'overlay', 0, 100, 2, (v) => v + '%'),
+      grpColors([
+        ['Overlay tint', 'overlayColor'],
+        ['Hero text', 'textColor'],
+        ['Accent', 'accent'],
+      ]),
+      grpAlign(['left', 'center']),
+    ],
+    parts: {
+      title: {
+        label: 'Title',
+        icon: ICO.heading,
+        groups: () => [
+          {
+            kind: 'group',
+            title: 'Title',
+            ctls: [
+              { kind: 'select', key: 'titleFont', opts: Object.keys(FONTS), label: 'Font' },
+              { kind: 'num', label: 'Size', key: 'titleSize', min: 24, max: 96 },
+            ],
+          },
+          {
+            kind: 'group',
+            title: 'Colour',
+            ctls: [
+              { kind: 'color', label: 'Hero text', key: 'textColor' },
+              { kind: 'color', label: 'Accent', key: 'accent' },
+            ],
+          },
+        ],
+      },
+      button: { label: 'Button', icon: ICO.button, groups: () => btnGroups('btn') },
+    },
+  },
+
+  /* ---- A NOTE FROM YOUR INSTRUCTOR ---- */
+  note: {
+    label: 'Welcome note',
+    icon: ICO.note,
+    group: 'Course',
+    defaults: (t) => ({
+      eyebrow: '',
+      eyebrowColor: t.accent,
+      heading: 'Welcome to the table.',
+      hFont: t.headingFont,
+      hSize: 38,
+      hColor: t.heading,
+      body: [
+        'I’m glad you’re here. This is everything my grandmother taught me, and everything I’ve learned in the twenty years since. Take it one lesson at a time.',
+      ],
+      bodyColor: t.text,
+      bodySize: 17,
+      sign: 'Adaeze Bello',
+      signRole: 'Chef & Instructor',
+      signColor: t.muted,
+      align: 'left',
+      bg: 'none',
+      px: 44,
+      pt: 72,
+      pb: 56,
+    }),
+    render(p, t) {
+      let h = ''
+      if (p.eyebrow)
+        h += `<p data-edit="eyebrow" contenteditable="true" style="margin:0 0 18px;font-family:${ff(t.font)};font-size:11px;font-weight:600;letter-spacing:.2em;text-transform:uppercase;color:${p.eyebrowColor}">${esc(p.eyebrow)}</p>`
+      h += `<h2 data-part="heading" data-edit="heading" contenteditable="true" style="margin:0 0 26px;font-family:${ff(p.hFont)};font-size:${p.hSize}px;font-weight:${p.hFont === 'Geist' ? 600 : 400};line-height:1.1;letter-spacing:${p.hFont === 'Geist' ? '-.8px' : '-.3px'};color:${p.hColor}">${esc(p.heading)}</h2>`
+      h += '<div data-part="body">'
+      ;(p.body || []).forEach((para: string, i: number) => {
+        h += `<p data-edit="body.${i}" contenteditable="true" style="margin:${i ? 16 : 0}px 0 0;font-family:${ff(t.font)};font-size:${p.bodySize}px;line-height:1.65;color:${p.bodyColor}">${esc(para)}</p>`
+      })
+      h += '</div>'
+      if (p.sign)
+        h += `<div data-part="signature" style="margin-top:30px"><p data-edit="sign" contenteditable="true" style="margin:0;font-family:${ff(p.hFont)};font-size:24px;${p.hFont === 'Geist' ? '' : 'font-style:italic;'}color:${p.hColor}">${esc(p.sign)}</p><p data-edit="signRole" contenteditable="true" style="margin:4px 0 0;font-family:${ff(t.font)};font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:${p.signColor}">${esc(p.signRole)}</p></div>`
+      return `<div class="eb-sec" style="${padBox(p)};text-align:${p.align};${p.bg !== 'none' ? 'background:' + p.bg : ''}">${h}</div>`
+    },
+    inspect: (p) => [
+      grpType('Heading', 'h', false),
+      grpColors([
+        ['Eyebrow', 'eyebrowColor'],
+        ['Body text', 'bodyColor'],
+        ['Signature meta', 'signColor'],
+      ]),
+      grpNum('Body size', 'bodySize', 12, 24),
+      grpAlign(['left', 'center']),
+      grpColors([['Background', 'bg']]),
+      grpPad(),
+    ],
+    parts: {
+      heading: {
+        label: 'Heading',
+        icon: ICO.heading,
+        groups: () => [
+          {
+            kind: 'group',
+            title: 'Heading',
+            ctls: [
+              { kind: 'select', key: 'hFont', opts: Object.keys(FONTS), label: 'Font' },
+              { kind: 'num', label: 'Size', key: 'hSize', min: 18, max: 72 },
+              { kind: 'color', label: 'Heading colour', key: 'hColor' },
+            ],
+          },
+        ],
+      },
+      body: {
+        label: 'Body',
+        icon: ICO.text,
+        groups: () => [
+          {
+            kind: 'group',
+            title: 'Body',
+            ctls: [
+              { kind: 'num', label: 'Size', key: 'bodySize', min: 12, max: 24 },
+              { kind: 'color', label: 'Body colour', key: 'bodyColor' },
+            ],
+          },
+        ],
+      },
+      signature: {
+        label: 'Signature',
+        icon: ICO.instructor,
+        groups: () => [
+          {
+            kind: 'group',
+            title: 'Signature',
+            ctls: [{ kind: 'color', label: 'Signature meta', key: 'signColor' }],
+          },
+        ],
+      },
+    },
+  },
+
+  /* ---- COURSE STATS (minimal hairline row) ---- */
+  meta: {
+    label: 'Course facts',
+    icon: ICO.meta,
+    group: 'Course',
+    defaults: (t) => ({
+      items: [
+        { v: '12 lessons', l: '' },
+        { v: '3h 40m', l: '' },
+        { v: 'All levels', l: '' },
+      ],
+      valFont: t.font,
+      valColor: t.heading,
+      divider: t.border,
+      font: t.font,
+      align: 'left',
+      bg: 'none',
+      px: 44,
+      pt: 0,
+      pb: 8,
+    }),
+    render(p, t) {
+      const cells = (p.items || [])
+        .map(
+          (it: Props, i: number) =>
+            `<span data-edit="items.${i}.v" contenteditable="true" style="font-family:${ff(p.valFont)};font-size:13px;font-weight:500;letter-spacing:.02em;color:${p.valColor}">${esc(it.v)}</span>`,
+        )
+        .join(`<span style="color:${p.divider};opacity:.7">·</span>`)
+      return `<div class="eb-sec" style="${padBox(p)};${p.bg !== 'none' ? 'background:' + p.bg : ''}"><div style="display:flex;gap:14px;align-items:center;justify-content:${p.align === 'center' ? 'center' : 'flex-start'};border-top:1px solid ${p.divider};border-bottom:1px solid ${p.divider};padding:16px 0">${cells}</div></div>`
+    },
+    inspect: (p) => [
+      grpColors([
+        ['Text', 'valColor'],
+        ['Divider', 'divider'],
+        ['Background', 'bg'],
+      ]),
+      grpAlign(['left', 'center']),
+      grpPad(),
+    ],
+  },
+
+  /* ---- CURRICULUM ---- */
+  lessons: {
+    label: 'Curriculum',
+    icon: ICO.lessons,
+    group: 'Course',
+    defaults: (t) => ({
+      heading: 'What you will learn',
+      hFont: t.headingFont,
+      hSize: 32,
+      hColor: t.heading,
+      intro: '',
+      introColor: t.text,
+      items: [
+        { title: 'The Southern Pantry', meta: '14 min' },
+        { title: 'Cornbread, Three Ways', meta: '22 min' },
+        { title: 'Low & Slow Braises', meta: '31 min' },
+        { title: 'Sunday Greens & Gravy', meta: '26 min' },
+        { title: 'Plating with Intention', meta: '18 min' },
+      ],
+      numColor: t.muted,
+      titleColor: t.heading,
+      metaColor: t.muted,
+      divider: t.border,
+      font: t.font,
+      bg: 'none',
+      px: 44,
+      pt: 56,
+      pb: 56,
+    }),
+    render(p, t) {
+      let h = `<h2 data-part="heading" data-edit="heading" contenteditable="true" style="margin:0 0 ${p.intro ? 14 : 34}px;font-family:${ff(p.hFont)};font-size:${p.hSize}px;font-weight:${p.hFont === 'Geist' ? 600 : 400};line-height:1.1;letter-spacing:${p.hFont === 'Geist' ? '-.6px' : '-.3px'};color:${p.hColor}">${esc(p.heading)}</h2>`
+      if (p.intro)
+        h += `<p data-edit="intro" contenteditable="true" style="margin:0 0 34px;font-family:${ff(t.font)};font-size:15px;line-height:1.6;color:${p.introColor};max-width:430px">${esc(p.intro)}</p>`
+      const rows = (p.items || [])
+        .map(
+          (it: Props, i: number) => `<div style="display:flex;align-items:baseline;gap:20px;padding:20px 0;border-top:1px solid ${p.divider}">
+            <span style="flex:none;width:22px;font-family:${ff(t.font)};font-size:13px;font-weight:500;color:${p.numColor};font-variant-numeric:tabular-nums">${String(i + 1).padStart(2, '0')}</span>
+            <span data-edit="items.${i}.title" contenteditable="true" style="flex:1;min-width:0;font-family:${ff(t.font)};font-size:16px;font-weight:500;letter-spacing:-.1px;color:${p.titleColor}">${esc(it.title)}</span>
+            <span data-edit="items.${i}.meta" contenteditable="true" style="flex:none;font-family:${ff(t.font)};font-size:13px;font-weight:400;color:${p.metaColor};font-variant-numeric:tabular-nums">${esc(it.meta)}</span>
+          </div>`,
+        )
+        .join('')
+      return `<div class="eb-sec" style="${padBox(p)};${p.bg !== 'none' ? 'background:' + p.bg : ''}">${h}<div style="border-bottom:1px solid ${p.divider}">${rows}</div></div>`
+    },
+    inspect: (p) => [
+      grpType('Heading', 'h', false),
+      grpColors([
+        ['Number', 'numColor'],
+        ['Lesson title', 'titleColor'],
+        ['Duration', 'metaColor'],
+        ['Divider', 'divider'],
+        ['Background', 'bg'],
+      ]),
+      grpPad(),
+    ],
+    parts: {
+      heading: {
+        label: 'Heading',
+        icon: ICO.heading,
+        groups: () => [
+          {
+            kind: 'group',
+            title: 'Heading',
+            ctls: [
+              { kind: 'select', key: 'hFont', opts: Object.keys(FONTS), label: 'Font' },
+              { kind: 'num', label: 'Size', key: 'hSize', min: 18, max: 64 },
+              { kind: 'color', label: 'Heading colour', key: 'hColor' },
+            ],
+          },
+        ],
+      },
+    },
+  },
+
+  /* ---- PROGRESS BAR ---- */
+  progress: {
+    label: 'Progress bar',
+    icon: ICO.progress,
+    group: 'Course',
+    defaults: (t) => ({
+      label: 'Your progress',
+      value: 3,
+      total: 12,
+      fill: t.heading,
+      track: t.border,
+      labelColor: t.muted,
+      countColor: t.heading,
+      font: t.font,
+      bg: 'none',
+      px: 44,
+      pt: 40,
+      pb: 40,
+    }),
+    render(p, t) {
+      const total = Math.max(1, p.total || 1)
+      const pct = Math.max(0, Math.min(100, Math.round(((p.value || 0) / total) * 100)))
+      return `<div class="eb-sec" style="${padBox(p)};${p.bg !== 'none' ? 'background:' + p.bg : ''}">
+            <div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:13px">
+              <span data-edit="label" contenteditable="true" style="font-family:${ff(p.font)};font-size:11px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:${p.labelColor}">${esc(p.label)}</span>
+              <span style="font-family:${ff(p.font)};font-size:12.5px;font-weight:500;color:${p.countColor};font-variant-numeric:tabular-nums">${p.value} of ${total} &nbsp;·&nbsp; ${pct}%</span>
+            </div>
+            <div style="height:4px;border-radius:999px;background:${p.track};overflow:hidden"><div style="height:100%;width:${pct}%;background:${p.fill};border-radius:999px"></div></div>
+          </div>`
+    },
+    inspect: (p) => [
+      grpNum('Completed', 'value', 0, 99),
+      grpNum('Total', 'total', 1, 99),
+      grpColors([
+        ['Fill', 'fill'],
+        ['Track', 'track'],
+        ['Label', 'labelColor'],
+        ['Count', 'countColor'],
+        ['Background', 'bg'],
+      ]),
+      grpPad(),
+    ],
+  },
+
+  /* ---- TRAILER ---- */
+  trailer: {
+    label: 'Trailer',
+    icon: ICO.trailer,
+    group: 'Course',
+    defaults: (t) => ({
+      img: 'assets/southern-cooking.jpg',
+      label: 'Watch the trailer',
+      sub: '2 min',
+      href: '#',
+      radius: 4,
+      playColor: '#ffffff',
+      labelColor: t.heading,
+      subColor: t.muted,
+      bg: 'none',
+      px: 44,
+      pt: 24,
+      pb: 24,
+    }),
+    render(p, t) {
+      const img = p.img
+        ? `background:#000 url('${ASSET(p.img)}') center/cover no-repeat`
+        : 'background:#26211c'
+      return `<div class="eb-sec" style="${padBox(p)};${p.bg !== 'none' ? 'background:' + p.bg : ''}">
+            <div style="position:relative;border-radius:${p.radius}px;overflow:hidden;${img};aspect-ratio:16/9">
+              <div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.04),rgba(0,0,0,.28))"></div>
+              <div style="position:absolute;inset:0;margin:auto;width:56px;height:56px;border-radius:50%;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.35);display:flex;align-items:center;justify-content:center;color:${p.playColor}">${svg(ICO.play, 20)}</div>
+            </div>
+            <div style="margin-top:16px;display:flex;align-items:baseline;justify-content:space-between;gap:12px">
+              <span data-edit="label" contenteditable="true" style="font-family:${ff(t.font)};font-size:14px;font-weight:600;color:${p.labelColor}">${esc(p.label)}</span>
+              <span data-edit="sub" contenteditable="true" style="font-family:${ff(t.font)};font-size:13px;font-weight:400;color:${p.subColor}">${esc(p.sub)}</span>
+            </div>
+          </div>`
+    },
+    inspect: (p) => [
+      grpImage('Thumbnail', 'img'),
+      grpColors([
+        ['Label', 'labelColor'],
+        ['Sub label', 'subColor'],
+        ['Play button', 'playColor'],
+        ['Background', 'bg'],
+      ]),
+      grpRange('Corner radius', 'radius', 0, 24, 2),
+      grpPad(),
+    ],
+  },
+
+  /* ---- INSTRUCTOR ---- */
+  instructor: {
+    label: 'Instructor',
+    icon: ICO.instructor,
+    group: 'Course',
+    defaults: (t) => ({
+      img: 'assets/southern-cooking.jpg',
+      name: 'Adaeze Bello',
+      role: 'Chef & Instructor',
+      bio: 'Adaeze runs a Charleston kitchen rooted in Gullah Geechee tradition, where the recipes carry as much history as flavour.',
+      nameFont: t.headingFont,
+      nameColor: t.heading,
+      roleColor: t.muted,
+      bioColor: t.text,
+      imgRadius: 4,
+      divider: t.border,
+      bg: 'none',
+      px: 44,
+      pt: 56,
+      pb: 56,
+    }),
+    render(p, t) {
+      const img = p.img
+        ? `<img src="${ASSET(p.img)}" alt="${esc(p.name)}" style="display:block;width:100%;height:100%;object-fit:cover;border-radius:${p.imgRadius}px"/>`
+        : `<div class="eb-imgph" style="height:100%;border-radius:${p.imgRadius}px"></div>`
+      const text = `<div style="flex:1;min-width:0">
+            <div data-part="identity">
+            <p data-edit="role" contenteditable="true" style="margin:0 0 10px;font-family:${ff(t.font)};font-size:11px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:${p.roleColor}">${esc(p.role)}</p>
+            <p data-edit="name" contenteditable="true" style="margin:0;font-family:${ff(p.nameFont)};font-size:30px;font-weight:${p.nameFont === 'Geist' ? 600 : 400};letter-spacing:-.4px;line-height:1.05;color:${p.nameColor}">${esc(p.name)}</p>
+            </div>
+            <p data-part="bio" data-edit="bio" contenteditable="true" style="margin:16px 0 0;font-family:${ff(t.font)};font-size:15px;line-height:1.6;color:${p.bioColor}">${esc(p.bio)}</p>
+          </div>`
+      const portrait = `<div data-part="portrait" style="flex:none;width:132px;height:160px">${img}</div>`
+      return `<div class="eb-sec" style="${padBox(p)};${p.bg !== 'none' ? 'background:' + p.bg : ''}"><div style="border-top:1px solid ${p.divider};padding-top:36px"><div class="eb-insrow" style="display:flex;gap:26px;align-items:flex-start">${portrait}${text}</div></div></div>`
+    },
+    inspect: (p) => [
+      grpImage('Portrait', 'img'),
+      grpColors([
+        ['Name', 'nameColor'],
+        ['Role', 'roleColor'],
+        ['Bio', 'bioColor'],
+        ['Divider', 'divider'],
+        ['Background', 'bg'],
+      ]),
+      grpPad(),
+    ],
+    parts: {
+      portrait: {
+        label: 'Portrait',
+        icon: ICO.image,
+        groups: () => [
+          grpImage('Portrait', 'img'),
+          {
+            kind: 'group',
+            title: 'Shape',
+            ctls: [{ kind: 'range', label: 'Corner radius', key: 'imgRadius', min: 0, max: 24, step: 2 }],
+          },
+        ],
+      },
+      identity: {
+        label: 'Name & role',
+        icon: ICO.instructor,
+        groups: () => [
+          {
+            kind: 'group',
+            title: 'Name',
+            ctls: [
+              { kind: 'select', key: 'nameFont', opts: Object.keys(FONTS), label: 'Font' },
+              { kind: 'color', label: 'Name colour', key: 'nameColor' },
+              { kind: 'color', label: 'Role colour', key: 'roleColor' },
+            ],
+          },
+        ],
+      },
+      bio: {
+        label: 'Bio',
+        icon: ICO.text,
+        groups: () => [
+          { kind: 'group', title: 'Bio', ctls: [{ kind: 'color', label: 'Bio colour', key: 'bioColor' }] },
+        ],
+      },
+    },
+  },
+
+  /* ---- IMAGE ---- */
+  image: {
+    label: 'Image',
+    icon: ICO.image,
+    group: 'Content',
+    defaults: () => ({
+      src: 'assets/vision-room.jpg',
+      alt: '',
+      href: '',
+      radius: 0,
+      maxw: 640,
+      align: 'center',
+      bg: 'none',
+      px: 0,
+      pt: 0,
+      pb: 0,
+    }),
+    render(p) {
+      const inner = p.src
+        ? `<img src="${ASSET(p.src)}" alt="${esc(p.alt)}" style="display:block;width:100%;max-width:${p.maxw}px;${p.align === 'center' ? 'margin:0 auto;' : ''}border-radius:${p.radius}px;border:0"/>`
+        : `<div class="eb-imgph" style="border-radius:${p.radius}px"><span class="pic-ic">${svg(ICO.pic, 22, 1.5)}</span>Add an image</div>`
+      return `<div class="eb-sec" style="${padBox(p)};${p.bg !== 'none' ? 'background:' + p.bg : ''};text-align:${p.align}">${inner}</div>`
+    },
+    inspect: (p) => [
+      grpImage('Image', 'src'),
+      grpField('Alt text', 'alt'),
+      grpField('Links to', 'href', 'https://…'),
+      grpRange('Corner radius', 'radius', 0, 28, 2),
+      grpNum('Max width', 'maxw', 120, 640),
+      grpColors([['Background', 'bg']]),
+      grpPad(),
+    ],
+  },
+
+  /* ---- HEADING ---- */
+  heading: {
+    label: 'Heading',
+    icon: ICO.heading,
+    group: 'Content',
+    defaults: (t) => ({
+      text: 'Heading',
+      hFont: t.headingFont,
+      hSize: 32,
+      hWeight: t.headingFont === 'Geist' ? 600 : 400,
+      hColor: t.heading,
+      hLs: -0.3,
+      hLh: 1.15,
+      hTransform: 'none',
+      align: 'left',
+      px: 44,
+      pt: 16,
+      pb: 8,
+      bg: 'none',
+    }),
+    render(p) {
+      return `<div class="eb-sec" style="${padBox(p)};${p.bg !== 'none' ? 'background:' + p.bg : ''}"><h2 data-edit="text" contenteditable="true" style="margin:0;font-family:${ff(p.hFont)};font-size:${p.hSize}px;font-weight:${p.hWeight};color:${p.hColor};letter-spacing:${p.hLs}px;line-height:${p.hLh};text-transform:${p.hTransform};text-align:${p.align}">${esc(p.text)}</h2></div>`
+    },
+    inspect: () => [grpType2(), grpAlign(['left', 'center', 'right']), grpColors([['Background', 'bg']]), grpPad()],
+  },
+
+  /* ---- TEXT ---- */
+  text: {
+    label: 'Text',
+    icon: ICO.text,
+    group: 'Content',
+    defaults: (t) => ({
+      text: 'Body copy goes here. Edit it inline, or restyle it from the inspector.',
+      font: t.font,
+      size: 16,
+      color: t.text,
+      lh: 1.65,
+      align: 'left',
+      maxw: 0,
+      px: 44,
+      pt: 6,
+      pb: 14,
+      bg: 'none',
+    }),
+    render(p) {
+      const mw = p.maxw
+        ? `max-width:${p.maxw}px;${p.align === 'center' ? 'margin-left:auto;margin-right:auto;' : ''}`
+        : ''
+      return `<div class="eb-sec" style="${padBox(p)};${p.bg !== 'none' ? 'background:' + p.bg : ''}"><p data-edit="text" contenteditable="true" style="margin:0;font-family:${ff(p.font)};font-size:${p.size}px;line-height:${p.lh};color:${p.color};text-align:${p.align};${mw}">${esc(p.text)}</p></div>`
+    },
+    inspect: () => [
+      grpSelect('Font', 'font', Object.keys(FONTS)),
+      grpNum('Size', 'size', 10, 40),
+      grpRange('Line height', 'lh', 1.1, 2.2, 0.05),
+      grpAlign(['left', 'center', 'right']),
+      grpColors([
+        ['Text', 'color'],
+        ['Background', 'bg'],
+      ]),
+      grpPad(),
+    ],
+  },
+
+  /* ---- BUTTON ---- */
+  button: {
+    label: 'Button',
+    icon: ICO.button,
+    group: 'Content',
+    defaults: (t) => ({
+      text: 'Enter the class',
+      href: '#',
+      style: 'solid',
+      bg: t.button,
+      color: t.buttonText,
+      border: t.border,
+      radius: 999,
+      size: 14.5,
+      align: 'left',
+      arrow: false,
+      font: t.font,
+      pt: 8,
+      pb: 20,
+      px: 44,
+      blockBg: 'none',
+    }),
+    render(p, t) {
+      return `<div class="eb-sec" style="${padBox(p)};${p.blockBg !== 'none' ? 'background:' + p.blockBg : ''}">${btnHTML(p, t)}</div>`
+    },
+    inspect: () => [
+      grpSeg('Style', 'style', [
+        ['solid', 'Solid'],
+        ['outline', 'Outline'],
+        ['link', 'Link'],
+      ]),
+      grpField('Link URL', 'href'),
+      grpColors([
+        ['Background', 'bg'],
+        ['Label', 'color'],
+        ['Border', 'border'],
+      ]),
+      grpRange('Corner radius', 'radius', 0, 999, 1, (v) => (v >= 999 ? 'Pill' : v + 'px')),
+      grpAlign(['left', 'center', 'right']),
+      grpSwitch('Arrow', 'arrow', 'Append → to the label'),
+      grpPad(),
+    ],
+  },
+
+  /* ---- CTA ---- */
+  cta: {
+    label: 'Call to action',
+    icon: ICO.cta,
+    group: 'Course',
+    defaults: (t) => ({
+      heading: 'Your first lesson is waiting.',
+      hFont: t.headingFont,
+      hSize: 32,
+      hColor: t.heading,
+      body: 'Begin whenever you’re ready.',
+      bodyColor: t.text,
+      bodySize: 16,
+      btn: { text: 'Start watching', style: 'solid', size: 14.5, align: 'center' },
+      align: 'center',
+      divider: t.border,
+      px: 44,
+      pt: 64,
+      pb: 72,
+    }),
+    render(p, t) {
+      let inner = `<p data-part="heading" data-edit="heading" contenteditable="true" style="margin:0 0 14px;font-family:${ff(p.hFont)};font-size:${p.hSize}px;font-weight:${p.hFont === 'Geist' ? 600 : 400};line-height:1.15;letter-spacing:${p.hFont === 'Geist' ? '-.6px' : '-.3px'};color:${p.hColor};text-align:${p.align}">${esc(p.heading)}</p>`
+      if (p.body)
+        inner += `<p data-part="body" data-edit="body" contenteditable="true" style="margin:0 0 30px;font-family:${ff(t.font)};font-size:${p.bodySize}px;line-height:1.55;color:${p.bodyColor};text-align:${p.align}">${esc(p.body)}</p>`
+      if (p.btn)
+        inner += `<div data-part="button">${btnHTML(Object.assign({ align: p.align }, p.btn), t, 'btn.text')}</div>`
+      return `<div class="eb-sec" style="${padBox(p)}"><div style="border-top:1px solid ${p.divider};padding-top:56px;text-align:${p.align}">${inner}</div></div>`
+    },
+    inspect: (p) => [
+      grpType('Heading', 'h', false),
+      grpColors([
+        ['Body text', 'bodyColor'],
+        ['Divider', 'divider'],
+      ]),
+      grpNum('Body size', 'bodySize', 12, 24),
+      grpAlign(['left', 'center']),
+      grpPad(),
+    ],
+    parts: {
+      heading: {
+        label: 'Heading',
+        icon: ICO.heading,
+        groups: () => [
+          {
+            kind: 'group',
+            title: 'Heading',
+            ctls: [
+              { kind: 'select', key: 'hFont', opts: Object.keys(FONTS), label: 'Font' },
+              { kind: 'num', label: 'Size', key: 'hSize', min: 18, max: 64 },
+              { kind: 'color', label: 'Heading colour', key: 'hColor' },
+            ],
+          },
+        ],
+      },
+      body: {
+        label: 'Body',
+        icon: ICO.text,
+        groups: () => [
+          {
+            kind: 'group',
+            title: 'Body',
+            ctls: [
+              { kind: 'num', label: 'Size', key: 'bodySize', min: 12, max: 24 },
+              { kind: 'color', label: 'Body colour', key: 'bodyColor' },
+            ],
+          },
+        ],
+      },
+      button: { label: 'Button', icon: ICO.button, groups: () => btnGroups('btn') },
+    },
+  },
+
+  /* ---- QUOTE ---- */
+  quote: {
+    label: 'Quote',
+    icon: ICO.quote,
+    group: 'Content',
+    defaults: (t) => ({
+      text: 'Cooking is the one language everyone at the table understands.',
+      by: 'Adaeze Bello',
+      color: t.heading,
+      byColor: t.muted,
+      font: t.headingFont,
+      align: 'center',
+      px: 44,
+      pt: 56,
+      pb: 56,
+      bg: 'none',
+    }),
+    render(p, t) {
+      return `<div class="eb-sec" style="${padBox(p)};${p.bg !== 'none' ? 'background:' + p.bg : ''}"><blockquote style="margin:0;text-align:${p.align}"><p data-edit="text" contenteditable="true" style="margin:0;font-family:${ff(p.font)};font-size:28px;line-height:1.3;letter-spacing:-.4px;${p.font !== 'Geist' ? 'font-style:italic;' : ''}color:${p.color};max-width:460px;${p.align === 'center' ? 'margin-left:auto;margin-right:auto;' : ''}">${esc(p.text)}</p><p data-edit="by" contenteditable="true" style="margin:18px 0 0;font-family:${ff(t.font)};font-size:11px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:${p.byColor}">${esc(p.by)}</p></blockquote></div>`
+    },
+    inspect: (p) => [
+      grpColors([
+        ['Text', 'color'],
+        ['Attribution', 'byColor'],
+        ['Background', 'bg'],
+      ]),
+      grpAlign(['left', 'center']),
+      grpPad(),
+    ],
+  },
+
+  /* ---- DIVIDER ---- */
+  divider: {
+    label: 'Divider',
+    icon: ICO.divider,
+    group: 'Content',
+    defaults: (t) => ({ color: t.border, thick: 1, style: 'solid', width: 100, px: 44, pt: 8, pb: 8, bg: 'none' }),
+    render(p) {
+      return `<div class="eb-sec" style="${padBox(p)};${p.bg !== 'none' ? 'background:' + p.bg : ''};text-align:center"><hr style="border:0;border-top:${p.thick}px ${p.style} ${p.color};width:${p.width}%;display:inline-block;margin:0"/></div>`
+    },
+    inspect: (p) => [
+      grpColors([
+        ['Colour', 'color'],
+        ['Background', 'bg'],
+      ]),
+      grpSelect('Style', 'style', ['solid', 'dashed', 'dotted']),
+      grpNum('Thickness', 'thick', 1, 6),
+      grpRange('Width', 'width', 20, 100, 5),
+      grpPad(),
+    ],
+  },
+
+  /* ---- SPACER ---- */
+  spacer: {
+    label: 'Spacer',
+    icon: ICO.spacer,
+    group: 'Content',
+    defaults: () => ({ h: 40, bg: 'none' }),
+    render(p) {
+      return `<div style="height:${p.h}px;${p.bg !== 'none' ? 'background:' + p.bg : ''}"></div>`
+    },
+    inspect: () => [grpRange('Height', 'h', 8, 160, 4), grpColors([['Background', 'bg']])],
+    noLabel: true,
+  },
+
+  /* ---- FOOTER ---- */
+  footer: {
+    label: 'Footer',
+    icon: ICO.footer,
+    group: 'Footer',
+    defaults: (t) => ({
+      tagline: 'You are receiving this because you enrolled in this class.',
+      taglineColor: t.muted,
+      links: 'My courses    ·    Help',
+      linksColor: t.muted,
+      address: '410 Townsend Street · San Francisco, CA 94107',
+      addressColor: t.muted,
+      unsub: 'Unsubscribe',
+      unsubColor: t.muted,
+      font: t.font,
+      align: 'center',
+      bg: 'none',
+      borderTop: true,
+      borderColor: t.border,
+      px: 44,
+      pt: 48,
+      pb: 56,
+    }),
+    render(p) {
+      const border = p.borderTop ? `border-top:1px solid ${p.borderColor};` : ''
+      return `<div class="eb-sec" style="${padBox(p)};${p.bg !== 'none' ? 'background:' + p.bg : ''};${border}text-align:${p.align}">
+          <p data-part="links" data-edit="links" contenteditable="true" style="margin:0 0 24px;font-family:${ff(p.font)};font-size:12.5px;font-weight:500;letter-spacing:.02em;color:${p.linksColor}">${esc(p.links)}</p>
+          <div data-part="fineprint">
+          <p data-edit="tagline" contenteditable="true" style="margin:0 ${p.align === 'center' ? 'auto' : '0'} 8px;max-width:340px;font-family:${ff(p.font)};font-size:12px;line-height:1.6;color:${p.taglineColor}">${esc(p.tagline)}</p>
+          <p data-edit="address" contenteditable="true" style="margin:0 0 14px;font-family:${ff(p.font)};font-size:11px;line-height:1.5;color:${p.addressColor}">${esc(p.address)}</p>
+          <p style="margin:0;font-family:${ff(p.font)};font-size:11px;color:${p.unsubColor}"><a data-edit="unsub" contenteditable="true" href="#" onclick="return false" style="color:${p.unsubColor};text-decoration:underline;text-underline-offset:2px">${esc(p.unsub)}</a></p>
+          </div>
+        </div>`
+    },
+    inspect: (p) => [
+      grpColors([
+        ['Links', 'linksColor'],
+        ['Tagline', 'taglineColor'],
+        ['Address', 'addressColor'],
+        ['Unsubscribe', 'unsubColor'],
+      ]),
+      grpAlign(['left', 'center']),
+      grpSwitch('Top border', 'borderTop', 'Hairline above the footer'),
+      grpColors([
+        ['Border', 'borderColor'],
+        ['Background', 'bg'],
+      ]),
+      grpPad(),
+    ],
+    parts: {
+      links: {
+        label: 'Links',
+        icon: ICO.social,
+        groups: () => [
+          { kind: 'group', title: 'Links', ctls: [{ kind: 'color', label: 'Links colour', key: 'linksColor' }] },
+        ],
+      },
+      fineprint: {
+        label: 'Fine print',
+        icon: ICO.text,
+        groups: () => [
+          {
+            kind: 'group',
+            title: 'Fine print',
+            ctls: [
+              { kind: 'color', label: 'Tagline', key: 'taglineColor' },
+              { kind: 'color', label: 'Address', key: 'addressColor' },
+              { kind: 'color', label: 'Unsubscribe', key: 'unsubColor' },
+            ],
+          },
+        ],
+      },
+    },
+  },
+}
+
+export const GROUPS = ['Course', 'Content', 'Footer']
+
+/* ============================================================ TEMPLATES
+   The six behavioural lifecycle emails for one Original — Southern Cooking.
+   Each fires on a student behaviour, not a schedule. Concierge voice. */
+export const TEMPLATES: Record<string, TemplateDef> = {
+  enrolment: {
+    theme: 'studio',
+    name: 'Enrolment',
+    subtitle: 'Sent the moment access is granted',
+    blocks: [
+      {
+        type: 'coverHero',
+        props: {
+          img: 'assets/southern-cooking.jpg',
+          eyebrow: 'Spaire Originals',
+          title: 'Southern Cooking',
+          titleSize: 64,
+          instructor: 'Taught by Adaeze Bello',
+          tagline: 'Heritage technique, soul food, and the stories behind every dish.',
+          btn: { text: 'Start the class', style: 'solid', align: 'left', radius: 999 },
+        },
+      },
+      {
+        type: 'note',
+        props: {
+          heading: 'Welcome to the table.',
+          sign: 'Adaeze Bello',
+          signRole: 'Chef & Instructor',
+          body: [
+            'I’m glad you’re here. This is everything my grandmother taught me, and everything I’ve learned in the twenty years since. There’s no rush. Take it one lesson at a time.',
+          ],
+        },
+      },
+      { type: 'meta', props: { items: [{ v: '12 lessons' }, { v: '3h 40m' }, { v: 'All levels' }] } },
+      { type: 'lessons', props: {} },
+      { type: 'trailer', props: { img: 'assets/chef-marco.jpg', label: 'Watch the trailer', sub: '2 min' } },
+      { type: 'instructor', props: { img: 'assets/southern-cooking.jpg', name: 'Adaeze Bello', role: 'Chef & Instructor' } },
+      { type: 'cta', props: {} },
+      { type: 'footer', props: {} },
+    ],
+  },
+  firstLesson: {
+    theme: 'studio',
+    name: 'First lesson completed',
+    subtitle: 'Fires on their first finish',
+    blocks: [
+      {
+        type: 'coverHero',
+        props: {
+          img: 'assets/southern-cooking.jpg',
+          height: 460,
+          overlay: 62,
+          eyebrow: 'Lesson 1 of 12',
+          title: 'A good start.',
+          titleSize: 60,
+          instructor: 'The Southern Pantry',
+          tagline: 'The hardest part of any class is starting. You’ve done that.',
+          btn: { text: 'Continue to lesson 2', style: 'solid', align: 'left', radius: 999 },
+        },
+      },
+      { type: 'progress', props: { label: 'Your progress', value: 1, total: 12 } },
+      {
+        type: 'note',
+        props: {
+          heading: 'Keep that going.',
+          sign: 'Adaeze Bello',
+          signRole: 'Chef & Instructor',
+          body: [
+            'The first lesson is the one that decides the rest. Most people never finish it. You did. Everything from here builds on what you just learned.',
+          ],
+        },
+      },
+      {
+        type: 'cta',
+        props: {
+          heading: 'Lesson two is ready.',
+          body: 'Pick up where you left off.',
+          btn: { text: 'Continue the class', style: 'solid', size: 14.5, align: 'center' },
+        },
+      },
+      { type: 'footer', props: {} },
+    ],
+  },
+  specificLesson: {
+    theme: 'studio',
+    name: 'Specific lesson completed',
+    subtitle: 'Fires when they clear a chosen lesson',
+    blocks: [
+      {
+        type: 'coverHero',
+        props: {
+          img: 'assets/southern-cooking.jpg',
+          height: 460,
+          overlay: 64,
+          eyebrow: 'A pivotal lesson',
+          title: 'The turning point.',
+          titleSize: 58,
+          instructor: 'Low & Slow Braises',
+          tagline: 'This is the lesson the rest of the class is built on.',
+          btn: { text: 'Continue to lesson 5', style: 'solid', align: 'left', radius: 999 },
+        },
+      },
+      { type: 'progress', props: { label: 'Your progress', value: 4, total: 12 } },
+      {
+        type: 'note',
+        props: {
+          heading: 'You turned the corner.',
+          sign: 'Adaeze Bello',
+          signRole: 'Chef & Instructor',
+          body: [
+            'Braising is where Southern cooking stops being a recipe and starts being instinct. It rewards patience, and you gave it the time it needs. You’ll taste the difference in everything that follows.',
+          ],
+        },
+      },
+      {
+        type: 'cta',
+        props: {
+          heading: 'There’s more where that came from.',
+          body: 'Lesson five is ready when you are.',
+          btn: { text: 'Resume the class', style: 'solid', size: 14.5, align: 'center' },
+        },
+      },
+      { type: 'footer', props: {} },
+    ],
+  },
+  halfway: {
+    theme: 'studio',
+    name: 'Halfway',
+    subtitle: 'Fires at 50% — the retention email',
+    blocks: [
+      {
+        type: 'coverHero',
+        props: {
+          img: 'assets/southern-cooking.jpg',
+          height: 460,
+          overlay: 64,
+          eyebrow: 'Lesson 6 of 12',
+          title: 'You’re halfway.',
+          titleSize: 56,
+          instructor: 'Southern Cooking',
+          tagline: 'This is the middle, where most people drift. You’re still here.',
+          btn: { text: 'Continue to lesson 7', style: 'solid', align: 'left', radius: 999 },
+        },
+      },
+      { type: 'progress', props: { label: 'Your progress', value: 6, total: 12 } },
+      {
+        type: 'note',
+        props: {
+          heading: 'Stay with it.',
+          sign: 'Adaeze Bello',
+          signRole: 'Chef & Instructor',
+          body: [
+            'Halfway in is when the kitchen starts to feel like yours. The knife sits better in your hand. The heat makes sense. The second half is where it comes together on the plate.',
+          ],
+        },
+      },
+      {
+        type: 'lessons',
+        props: {
+          heading: 'Still to come',
+          intro: '',
+          items: [
+            { title: 'Sunday Greens & Gravy', meta: '26 min' },
+            { title: 'The Cast-Iron Cornbread', meta: '20 min' },
+            { title: 'Plating with Intention', meta: '18 min' },
+            { title: 'Feeding a Crowd', meta: '23 min' },
+          ],
+        },
+      },
+      {
+        type: 'cta',
+        props: {
+          heading: 'Lesson seven is ready.',
+          body: 'Begin whenever you’re ready.',
+          btn: { text: 'Resume the class', style: 'solid', size: 14.5, align: 'center' },
+        },
+      },
+      { type: 'footer', props: {} },
+    ],
+  },
+  courseComplete: {
+    theme: 'studio',
+    name: 'Course completed',
+    subtitle: 'Fires when every lesson is done',
+    blocks: [
+      {
+        type: 'coverHero',
+        props: {
+          img: 'assets/southern-cooking.jpg',
+          height: 500,
+          overlay: 58,
+          eyebrow: 'Course complete',
+          title: 'You did it.',
+          titleSize: 64,
+          instructor: 'Southern Cooking, all twelve lessons',
+          tagline: 'Twelve lessons. A kitchen that’s yours now.',
+          btn: { text: 'Get your certificate', style: 'solid', align: 'left', radius: 999 },
+        },
+      },
+      { type: 'progress', props: { label: 'Course progress', value: 12, total: 12 } },
+      {
+        type: 'note',
+        props: {
+          heading: 'This is the beginning.',
+          sign: 'Adaeze Bello',
+          signRole: 'Chef & Instructor',
+          body: [
+            'Finishing the whole class puts you in rare company. But the recipes only matter if you cook them. Make this for someone you love this week. That’s where it becomes yours.',
+          ],
+        },
+      },
+      {
+        type: 'quote',
+        props: { text: 'Cooking is the one language everyone at the table understands.', by: 'Adaeze Bello' },
+      },
+      {
+        type: 'cta',
+        props: {
+          heading: 'What to cook next.',
+          body: 'Your next class is waiting.',
+          btn: { text: 'Explore more classes', style: 'solid', size: 14.5, align: 'center' },
+        },
+      },
+      { type: 'footer', props: {} },
+    ],
+  },
+  inactive: {
+    theme: 'studio',
+    name: 'Inactive for N days',
+    subtitle: 'Win-back after a quiet stretch',
+    blocks: [
+      {
+        type: 'coverHero',
+        props: {
+          img: 'assets/southern-cooking.jpg',
+          height: 460,
+          overlay: 62,
+          eyebrow: 'Your place is saved',
+          title: 'Where you left off.',
+          titleSize: 54,
+          instructor: 'Lesson 5 of 12',
+          tagline: 'It’s been a little while. Nothing has moved.',
+          btn: { text: 'Pick up where you left off', style: 'solid', align: 'left', radius: 999 },
+        },
+      },
+      { type: 'progress', props: { label: 'Where you left off', value: 5, total: 12 } },
+      {
+        type: 'note',
+        props: {
+          heading: 'Five minutes is enough.',
+          sign: 'Adaeze Bello',
+          signRole: 'Chef & Instructor',
+          body: [
+            'You don’t have to finish today. Press play on one lesson. The next one is short, and it starts exactly where you stopped.',
+          ],
+        },
+      },
+      {
+        type: 'cta',
+        props: {
+          heading: 'Whenever you’re ready.',
+          body: 'Lesson five is cued up.',
+          btn: { text: 'Resume the class', style: 'solid', size: 14.5, align: 'center' },
+        },
+      },
+      { type: 'footer', props: {} },
+    ],
+  },
+}
+
+export const EMAIL = { THEMES, TEMPLATES, REG, PALETTE, FONTS, GROUPS, svg, ICO, hexA }
+export type EmailModule = typeof EMAIL
