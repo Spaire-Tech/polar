@@ -28,6 +28,7 @@ import { BlockChrome, type BlockSel } from './BlockChrome'
 import { ColorPicker } from './colorPicker'
 import { FormatBubble } from './FormatBubble'
 import { THEMES, themeByKey, themeVars, type ThemeKey } from './themes'
+import { TRIGGERS, triggerByKey, type TriggerKey } from './triggers'
 import {
   dropIndexForY,
   dropLineY,
@@ -144,15 +145,9 @@ function Ctl({ label, children }: { label: ReactNode; children: ReactNode }) {
 
 export function BroadcastEditorV3({
   courseName = 'Southern Cooking',
-  momentName = 'Enrolment',
-  audienceLabel = 'New enrollments',
-  audienceCount = 1204,
   onUploadImage,
 }: {
   courseName?: string
-  momentName?: string
-  audienceLabel?: string
-  audienceCount?: number
   /** Upload a picked file and return its hosted URL. Defaults to an inline
       data URL (used by the harness); the app wires S3 upload here. */
   onUploadImage?: (file: File) => Promise<{ url: string }>
@@ -181,6 +176,19 @@ export function BroadcastEditorV3({
   >(null)
   const [dropY, setDropY] = useState<number | null>(null)
   const dropIndexRef = useRef<number | null>(null)
+  // ── Top-bar: lifecycle trigger + broadcast meta + menus/modal ──
+  const [triggerKey, setTriggerKey] = useState<TriggerKey>('enrolment')
+  const trigger = triggerByKey(triggerKey)
+  const [broadcast, setBroadcast] = useState({
+    subject: trigger.subject,
+    preview: trigger.preview,
+    from: 'Adaeze Bello',
+  })
+  // Anchored popovers (trigger switcher / send menu) + the save sheet.
+  const [menu, setMenu] = useState<
+    { kind: 'trigger' | 'send'; top: number; left: number } | null
+  >(null)
+  const [saveOpen, setSaveOpen] = useState(false)
 
   // Re-render the chrome (inspector live values, empty-state) on editor edits.
   const [, forceTick] = useReducer((n: number) => n + 1, 0)
@@ -355,12 +363,46 @@ export function BroadcastEditorV3({
     setPicker(null)
   }
 
+  // ── Top-bar handlers ──
+  const openMenu = (kind: 'trigger' | 'send', e: ReactMouseEvent) => {
+    if (menu?.kind === kind) return setMenu(null)
+    const r = (e.currentTarget as HTMLElement).getBoundingClientRect()
+    setMenu({ kind, top: r.bottom + 6, left: r.left })
+  }
+  const selectTrigger = (key: TriggerKey) => {
+    setMenu(null)
+    if (key === triggerKey) return
+    setTriggerKey(key)
+    // switching the trigger re-seeds the broadcast defaults (design behaviour)
+    const t = triggerByKey(key)
+    setBroadcast((b) => ({ ...b, subject: t.subject, preview: t.preview }))
+  }
+  const doTest = () => {
+    setMenu(null)
+    showToast(`Test of “${broadcast.subject || 'Untitled'}” sent to you`)
+  }
+  const commitSave = () => {
+    setSaveOpen(false)
+    showToast('Saved to the sequence')
+  }
+
   useEffect(
     () => () => {
       if (toastTimer.current) clearTimeout(toastTimer.current)
     },
     [],
   )
+  // Escape closes the top-bar menus / save sheet (design parity).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setMenu(null)
+        setSaveOpen(false)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
 
   return (
     <div className={'bem' + (dark ? ' dark' : '')}>
@@ -378,10 +420,14 @@ export function BroadcastEditorV3({
           <I d={IC.back} size={16} /> Broadcasts
         </button>
         <span className="tb-divide" />
-        <button className="tb-crumb">
+        <button
+          className="tb-crumb"
+          data-testid="crumb"
+          onClick={(e) => openMenu('trigger', e)}
+        >
           <span className="tb-course">{courseName}</span>
           <span className="tb-sep">/</span>
-          <span className="tb-name">{momentName}</span>
+          <span className="tb-name">{trigger.name}</span>
           <span className="tb-caret">
             <I d={IC.caret} size={14} />
           </span>
@@ -398,10 +444,18 @@ export function BroadcastEditorV3({
             <I d={dark ? IC.sun : IC.moon} size={18} />
           </button>
           <div className="btn-split">
-            <button className="bs-main">
+            <button
+              className="bs-main"
+              data-testid="save-btn"
+              onClick={() => setSaveOpen(true)}
+            >
               <I d={IC.check} size={15} /> Save
             </button>
-            <button className="bs-caret">
+            <button
+              className="bs-caret"
+              data-testid="send-caret"
+              onClick={(e) => openMenu('send', e)}
+            >
               <I d={IC.caret} size={14} />
             </button>
           </div>
@@ -493,8 +547,8 @@ export function BroadcastEditorV3({
               </button>
             </div>
             <div className="ch-spacer" />
-            <span className="ch-meta">
-              {audienceCount.toLocaleString('en-US')} enrolled
+            <span className="ch-meta" data-testid="audience-count">
+              {trigger.count.toLocaleString('en-US')} enrolled
             </span>
           </div>
 
@@ -759,24 +813,37 @@ export function BroadcastEditorV3({
                   <Ctl label="Subject">
                     <input
                       className="fld"
-                      defaultValue={`Welcome to ${courseName}`}
+                      data-testid="set-subject"
+                      value={broadcast.subject}
+                      onChange={(e) =>
+                        setBroadcast((b) => ({ ...b, subject: e.target.value }))
+                      }
                     />
                   </Ctl>
                   <Ctl label="Preview text">
                     <input
                       className="fld"
-                      defaultValue="Your class is ready. Here's your first lesson."
+                      value={broadcast.preview}
+                      onChange={(e) =>
+                        setBroadcast((b) => ({ ...b, preview: e.target.value }))
+                      }
                     />
                   </Ctl>
                   <Ctl label="From name">
-                    <input className="fld" defaultValue="Adaeze Bello" />
+                    <input
+                      className="fld"
+                      value={broadcast.from}
+                      onChange={(e) =>
+                        setBroadcast((b) => ({ ...b, from: e.target.value }))
+                      }
+                    />
                   </Ctl>
                   <Ctl label="Audience">
                     <button className="aud-pill">
                       <span className="aud-dot" />
-                      <span className="aud-name">{audienceLabel}</span>
+                      <span className="aud-name">{trigger.audience}</span>
                       <span className="aud-cnt">
-                        {audienceCount.toLocaleString('en-US')}
+                        {trigger.count.toLocaleString('en-US')}
                       </span>
                     </button>
                   </Ctl>
@@ -896,6 +963,123 @@ export function BroadcastEditorV3({
           }
           onClose={() => setPicker(null)}
         />
+      )}
+
+      {/* ── Top-bar popovers (trigger switcher / send menu) ── */}
+      {menu && (
+        <>
+          <div className="float-backdrop" onMouseDown={() => setMenu(null)} />
+          {menu.kind === 'trigger' ? (
+            <div
+              className="float-pop trig-menu"
+              data-testid="trigger-menu"
+              style={{ position: 'fixed', top: menu.top, left: menu.left, zIndex: 500 }}
+            >
+              {TRIGGERS.map((t) => (
+                <button
+                  key={t.key}
+                  className={'trig-item' + (t.key === triggerKey ? ' on' : '')}
+                  data-trigger={t.key}
+                  onClick={() => selectTrigger(t.key)}
+                >
+                  <span className="ti-tick">
+                    {t.key === triggerKey && <I d="M20 6 9 17l-5-5" size={14} />}
+                  </span>
+                  <span className="ti-text">
+                    <span className="ti-name">{t.name}</span>
+                    <span className="ti-desc">{t.desc}</span>
+                  </span>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div
+              className="float-pop send-menu"
+              data-testid="send-menu"
+              style={{ position: 'fixed', top: menu.top, left: menu.left, zIndex: 500 }}
+            >
+              <button className="fp-item" data-testid="send-test" onClick={doTest}>
+                <I d="M3 7l9 6 9-6M3 5h18v14H3z" size={15} />
+                <span>Send test to me</span>
+              </button>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* ── Save sheet ── */}
+      {saveOpen && (
+        <div
+          className="save-ov show"
+          data-testid="save-sheet"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) setSaveOpen(false)
+          }}
+        >
+          <div className="save-sheet">
+            <div className="ss-t">Save to sequence</div>
+            <div className="ss-s">
+              Confirm the details before saving the {trigger.name} email.
+            </div>
+            <div className="ss-rows">
+              <div className="ss-field">
+                <div className="ss-l">Subject</div>
+                <input
+                  className="ss-in"
+                  data-testid="ss-subject"
+                  autoFocus
+                  value={broadcast.subject}
+                  onChange={(e) =>
+                    setBroadcast((b) => ({ ...b, subject: e.target.value }))
+                  }
+                />
+              </div>
+              <div className="ss-field">
+                <div className="ss-l">Preview text</div>
+                <textarea
+                  className="ss-in"
+                  rows={2}
+                  value={broadcast.preview}
+                  onChange={(e) =>
+                    setBroadcast((b) => ({ ...b, preview: e.target.value }))
+                  }
+                />
+              </div>
+              <div className="ss-field">
+                <div className="ss-l">From name</div>
+                <input
+                  className="ss-in"
+                  value={broadcast.from}
+                  onChange={(e) =>
+                    setBroadcast((b) => ({ ...b, from: e.target.value }))
+                  }
+                />
+              </div>
+              <div className="ss-field">
+                <div className="ss-l">Audience</div>
+                <div className="ss-readonly">
+                  <span className="ss-dot" />
+                  <span>
+                    {trigger.audience} · {trigger.count.toLocaleString('en-US')}
+                  </span>
+                  <span className="ss-lock">Set by trigger</span>
+                </div>
+              </div>
+            </div>
+            <div className="ss-foot">
+              <button className="ss-cancel" onClick={() => setSaveOpen(false)}>
+                Cancel
+              </button>
+              <button
+                className="ss-save"
+                data-testid="ss-save"
+                onClick={commitSave}
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       <div className={'toast' + (toast ? ' show' : '')}>

@@ -34,6 +34,8 @@
 .bem .btn-ghost.on { color: var(--accent); }
 .bem .btn-ghost.on svg { color: var(--accent); }
 .bem .float-pop { position: fixed; z-index: 500; background: var(--card); border: 1px solid var(--hair); border-radius: 13px; box-shadow: rgba(20, 23, 30, 0.2) 0px 16px 44px, rgba(20, 23, 30, 0.1) 0px 2px 8px; padding: 7px; animation: 0.14s ease 0s 1 normal none running fpIn; }
+/* Invisible click-away layer behind an open top-bar popover (brick 13). */
+.bem .float-backdrop { position: fixed; inset: 0; z-index: 499; }
 .bem.dark .float-pop { box-shadow: rgba(0, 0, 0, 0.5) 0px 16px 44px; }
 
 @keyframes fpIn { 
