@@ -18,6 +18,7 @@ import {
   useRef,
   useState,
   type ChangeEvent,
+  type CSSProperties,
   type DragEvent as ReactDragEvent,
   type MouseEvent as ReactMouseEvent,
   type ReactNode,
@@ -26,6 +27,7 @@ import {
 import { BlockChrome, type BlockSel } from './BlockChrome'
 import { ColorPicker } from './colorPicker'
 import { FormatBubble } from './FormatBubble'
+import { THEMES, themeByKey, themeVars, type ThemeKey } from './themes'
 import {
   dropIndexForY,
   dropLineY,
@@ -164,8 +166,13 @@ export function BroadcastEditorV3({
   const [sel, setSel] = useState<BlockSel>(null)
   // Which inspector colour the HSV picker is editing, + where it opens.
   const [picker, setPicker] = useState<
-    { which: 'bg' | 'fg'; top: number; left: number } | null
+    { which: 'bg' | 'fg' | 'email-bg' | 'backdrop'; top: number; left: number } | null
   >(null)
+  // Canvas theming: a preset theme (null = the default light surface) plus
+  // optional manual background / backdrop overrides.
+  const [themeKey, setThemeKey] = useState<ThemeKey | null>(null)
+  const [bgOverride, setBgOverride] = useState<string | null>(null)
+  const [backdropOverride, setBackdropOverride] = useState<string | null>(null)
   // Drag-to-insert (palette) / drag-to-reorder (block grip) state.
   const [drag, setDrag] = useState<
     | { kind: 'insert'; type: InsertableBlock; label: string }
@@ -324,10 +331,28 @@ export function BroadcastEditorV3({
   }
 
   // Open the HSV picker beside the clicked trigger (toggle if same one).
-  const openPicker = (which: 'bg' | 'fg', e: ReactMouseEvent) => {
+  const openPicker = (
+    which: 'bg' | 'fg' | 'email-bg' | 'backdrop',
+    e: ReactMouseEvent,
+  ) => {
     if (picker?.which === which) return setPicker(null)
     const r = (e.currentTarget as HTMLElement).getBoundingClientRect()
     setPicker({ which, top: r.bottom + 6, left: r.left - 232 + r.width })
+  }
+
+  // ── Resolved canvas theme ──
+  const theme = themeByKey(themeKey)
+  const emailBg = bgOverride ?? theme?.emailBg ?? null
+  const backdrop = backdropOverride ?? theme?.outerBg ?? null
+  const emailStyle = {
+    ...(theme ? themeVars(theme) : {}),
+    ...(emailBg ? { background: emailBg } : {}),
+  } as CSSProperties
+  const pickTheme = (k: ThemeKey | null) => {
+    setThemeKey(k)
+    setBgOverride(null)
+    setBackdropOverride(null)
+    setPicker(null)
   }
 
   useEffect(
@@ -475,13 +500,24 @@ export function BroadcastEditorV3({
 
           <main
             className="canvas"
+            style={backdrop ? { background: backdrop } : undefined}
             onDragOver={onCanvasDragOver}
             onDrop={onCanvasDrop}
+            onMouseDown={(e) => {
+              // Clicking the backdrop (not a block) deselects → email settings.
+              const t = e.target as HTMLElement
+              if (t.classList.contains('canvas') || t.classList.contains('stage')) {
+                editor?.commands.blur()
+                setSel(null)
+                setPicker(null)
+              }
+            }}
           >
             <div className={'stage' + (device === 'mobile' ? ' mobile' : '')}>
               <div
                 ref={emailRef}
                 className={'email' + (editor?.isEmpty ? ' empty-hint' : '')}
+                style={emailStyle}
               >
                 {drag && dropY !== null && (
                   <div
@@ -746,17 +782,70 @@ export function BroadcastEditorV3({
                   </Ctl>
                 </div>
                 <div className="ig">
+                  <div className="ig-h">Theme</div>
+                  <div className="theme-grid" data-testid="theme-grid">
+                    <button
+                      className={'theme-chip' + (themeKey === null ? ' on' : '')}
+                      data-theme="default"
+                      onClick={() => pickTheme(null)}
+                    >
+                      <span className="tc-sw" style={{ background: '#ffffff' }}>
+                        <span className="tc-bar" style={{ background: '#1d1d1f' }} />
+                        <span
+                          className="tc-pill"
+                          style={{ background: 'var(--accent)' }}
+                        />
+                      </span>
+                      <span className="tc-name">Default</span>
+                    </button>
+                    {THEMES.map((t) => (
+                      <button
+                        key={t.key}
+                        className={'theme-chip' + (themeKey === t.key ? ' on' : '')}
+                        data-theme={t.key}
+                        onClick={() => pickTheme(t.key)}
+                      >
+                        <span className="tc-sw" style={{ background: t.emailBg }}>
+                          <span
+                            className="tc-bar"
+                            style={{ background: t.heading }}
+                          />
+                          <span
+                            className="tc-pill"
+                            style={{ background: t.accent }}
+                          />
+                        </span>
+                        <span className="tc-name">{t.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="ig">
                   <div className="ig-h">Canvas</div>
                   <Ctl label="Email background">
-                    <button className="color-trigger">
-                      <span className="ct-sw" style={{ background: '#141518' }} />
-                      <span className="ct-hex">#141518</span>
+                    <button
+                      className="cp-trigger"
+                      data-testid="email-bg"
+                      onClick={(e) => openPicker('email-bg', e)}
+                    >
+                      <span
+                        className="cp-tsw"
+                        style={{ background: emailBg ?? '#ffffff' }}
+                      />
+                      {(emailBg ?? '#ffffff').toUpperCase()}
                     </button>
                   </Ctl>
                   <Ctl label="Backdrop">
-                    <button className="color-trigger">
-                      <span className="ct-sw" style={{ background: '#0B0C0E' }} />
-                      <span className="ct-hex">#0B0C0E</span>
+                    <button
+                      className="cp-trigger"
+                      data-testid="backdrop"
+                      onClick={(e) => openPicker('backdrop', e)}
+                    >
+                      <span
+                        className="cp-tsw"
+                        style={{ background: backdrop ?? '#eeeef0' }}
+                      />
+                      {(backdrop ?? '#EEEEF0').toUpperCase()}
                     </button>
                   </Ctl>
                 </div>
@@ -786,6 +875,24 @@ export function BroadcastEditorV3({
           anchor={{ top: picker.top, left: picker.left }}
           onChange={(c) =>
             setBtnColor(picker.which === 'bg' ? { bg: c } : { color: c })
+          }
+          onClose={() => setPicker(null)}
+        />
+      )}
+
+      {/* Canvas pickers (email background / backdrop) — email-level settings. */}
+      {picker && !sel && (picker.which === 'email-bg' || picker.which === 'backdrop') && (
+        <ColorPicker
+          value={
+            picker.which === 'email-bg'
+              ? emailBg ?? '#ffffff'
+              : backdrop ?? '#eeeef0'
+          }
+          anchor={{ top: picker.top, left: picker.left }}
+          onChange={(c) =>
+            picker.which === 'email-bg'
+              ? setBgOverride(c)
+              : setBackdropOverride(c)
           }
           onClose={() => setPicker(null)}
         />

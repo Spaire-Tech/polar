@@ -318,11 +318,12 @@
 .bem .email .ProseMirror { outline: none; padding: 36px 44px; min-height: 160px; }
 .bem .email .ProseMirror:focus { outline: none; }
 .bem .email .ProseMirror > * + * { margin-top: 14px; }
-.bem .email .ProseMirror p { font-family: var(--inter); font-size: 15px; line-height: 1.6; color: rgb(67, 69, 75); margin: 0; }
-.bem .email .ProseMirror h1 { font-family: var(--inter); font-size: 30px; font-weight: 700; line-height: 1.2; letter-spacing: -0.02em; color: rgb(20,23,30); margin: 0; }
-.bem .email .ProseMirror h2 { font-family: var(--inter); font-size: 23px; font-weight: 700; line-height: 1.25; letter-spacing: -0.015em; color: rgb(20,23,30); margin: 0; }
-.bem .email .ProseMirror h3 { font-family: var(--inter); font-size: 19px; font-weight: 600; line-height: 1.3; color: rgb(20,23,30); margin: 0; }
-.bem .email .ProseMirror a { color: rgb(25, 74, 7); }
+.bem .email .ProseMirror p { font-family: var(--inter); font-size: 15px; line-height: 1.6; color: var(--em-text, rgb(67, 69, 75)); margin: 0; }
+.bem .email .ProseMirror h1 { font-family: var(--inter); font-size: 30px; font-weight: 700; line-height: 1.2; letter-spacing: -0.02em; color: var(--em-heading, rgb(20,23,30)); margin: 0; }
+.bem .email .ProseMirror h2 { font-family: var(--inter); font-size: 23px; font-weight: 700; line-height: 1.25; letter-spacing: -0.015em; color: var(--em-heading, rgb(20,23,30)); margin: 0; }
+.bem .email .ProseMirror h3 { font-family: var(--inter); font-size: 19px; font-weight: 600; line-height: 1.3; color: var(--em-heading, rgb(20,23,30)); margin: 0; }
+.bem .email .ProseMirror a { color: var(--em-link, rgb(25, 74, 7)); }
+.bem .email .ProseMirror blockquote { border-left: 3px solid var(--em-accent, var(--accent)); }
 /* The React Email button node renders as <a class="node-button button">;
    show it as the design's pill in the editor. */
 .bem .email .ProseMirror a.node-button,
@@ -330,7 +331,8 @@
 .bem .email .ProseMirror .eb-btn {
   display: inline-block; text-decoration: none; font-family: var(--inter);
   font-weight: 500; font-size: 15px; letter-spacing: -0.005em; line-height: 1;
-  background: #141518; color: #fff; border-radius: 999px; padding: 13px 24px;
+  background: var(--em-button, #141518); color: var(--em-button-text, #fff);
+  border-radius: 999px; padding: 13px 24px;
 }
 .bem .email .ProseMirror.em-doc.is-editor-empty:first-child::before,
 .bem .email .ProseMirror p.is-editor-empty:first-child::before {
@@ -380,6 +382,13 @@
 }
 .bem .email .ProseMirror :is(.node-container, [data-type='container']) > * + * {
   margin-top: 18px;
+}
+/* Canvas theming (brick 12): the visible email body is the React Email
+   container; drive its background from the active theme (--em-bg), falling
+   back to white. !important beats React Email's runtime-injected white. */
+.bem .email .ProseMirror,
+.bem .email .ProseMirror :is(.node-container, [data-type='container']) {
+  background: var(--em-bg, #ffffff) !important;
 }
 
 /* ── Quote / Divider / Spacer blocks (brick 6) ────────────────────────── */
