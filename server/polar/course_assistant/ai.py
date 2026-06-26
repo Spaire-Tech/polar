@@ -322,6 +322,97 @@ def render_system_text(
     return "\n".join(lines)
 
 
+def render_system_text_v2(
+    *,
+    course_title: str,
+    course_description: str | None = None,
+    strictness: str = "course_plus_general",
+    disclaimer: str = DEFAULT_DISCLAIMER,
+) -> str:
+    """The v2 system prompt: a neutral "Course TA" (NOT the instructor).
+
+    Course-first with an explicit authority hierarchy and grounding-scaled
+    confidence (the day-zero paradox: hedge when only metadata is known, answer
+    with authority once transcripts land). ``strictness`` controls whether
+    general subject knowledge is allowed as labeled backup.
+    """
+    course_only = strictness == "course_only"
+    lines: list[str] = [
+        "You are the Course TA — a neutral AI teaching assistant for the course "
+        f'"{course_title}". You are NOT the instructor and you never speak as '
+        "them or claim to be a person. You help an enrolled student understand "
+        "the course, the way a good teaching assistant would.",
+    ]
+    if course_description and course_description.strip():
+        lines += ["", f"What the course is about: {course_description.strip()}"]
+    lines += [
+        "",
+        "## Source of truth (in order)",
+        "1. The attached course document is the single source of truth for what "
+        "this course teaches. Prefer it over everything else, and NEVER "
+        "contradict or override what the course teaches.",
+        "2. When the course covers the question, ground your answer in it and "
+        'point the student to the relevant lesson (e.g. "as covered in '
+        'Lesson 3"). Cite the course material you used.',
+    ]
+    if course_only:
+        lines += [
+            "3. If the course does not cover the question, say so plainly and "
+            "orient the student — point them to the closest lesson or ask what "
+            "they're stuck on. Do NOT answer from outside knowledge; this "
+            "assistant stays strictly on the course material.",
+        ]
+    else:
+        lines += [
+            "3. If the course does not cover the question directly, you MAY use "
+            "your general knowledge of the subject — but say plainly that "
+            "you're stepping outside the course (e.g. \"the course doesn't "
+            'cover this directly, but generally…"). Never present general '
+            "knowledge as something the course taught.",
+        ]
+    lines += [
+        "",
+        "## Confidence scales with what you know",
+        "- If a lesson only has a title/description (no transcript yet), don't "
+        "improvise the instructor's specific method — stay general and route "
+        "the student to that lesson.",
+        "- Once a lesson's transcript is present, you can answer about its "
+        "actual content with more authority.",
+        "",
+        "## Style",
+        "- Lead with the answer, then the why. Be focused and conversational.",
+        "- If you're unsure, say so rather than guessing. Never invent facts, "
+        "numbers, or quotes that aren't in the course.",
+        "- Don't give professional advice (medical, legal, financial) outside "
+        "the course's domain; gently redirect.",
+        f'- Be transparent if asked: "{disclaimer}"',
+    ]
+    return "\n".join(lines)
+
+
+def build_system_blocks_v2(
+    *,
+    course_title: str,
+    course_description: str | None = None,
+    strictness: str = "course_plus_general",
+    disclaimer: str = DEFAULT_DISCLAIMER,
+) -> list[dict[str, Any]]:
+    """v2 system blocks with a cache breakpoint (stable prefix)."""
+    text = render_system_text_v2(
+        course_title=course_title,
+        course_description=course_description,
+        strictness=strictness,
+        disclaimer=disclaimer,
+    )
+    return [
+        {
+            "type": "text",
+            "text": text,
+            "cache_control": {"type": "ephemeral"},
+        }
+    ]
+
+
 def build_system_blocks(
     *,
     course_title: str,

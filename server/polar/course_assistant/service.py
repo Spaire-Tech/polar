@@ -81,6 +81,9 @@ class AnswerSnapshot:
     knowledge_base: str
     model: str
     scope: str
+    # v2: "course_only" | "course_plus_general". Defaults to the latter so v1
+    # constructors (which don't set it) remain valid.
+    strictness: str = "course_plus_general"
 
 
 def is_configured() -> bool:
@@ -536,6 +539,127 @@ class CourseAssistantService:
             user_blocks=user_blocks,
             max_tokens=settings.COURSE_ASSISTANT_MAX_ANSWER_TOKENS,
         ):
+            yield event
+
+    # ----------------------------------------------------------------- #
+    # v2 — stateless live answering (no snapshot / approval gate)
+    # ----------------------------------------------------------------- #
+
+    async def get_live_snapshot(
+        self,
+        session: AsyncSession,
+        *,
+        course_id: UUID,
+        customer_id: UUID,
+    ) -> AnswerSnapshot:
+        """Build an answer snapshot directly from the LIVE course — no approval,
+        no stored snapshot. Gated only on: feature configured, the creator's
+        per-course ``assistant_enabled`` toggle, and active enrollment.
+
+        The knowledge base is assembled on every ask from current lesson text +
+        transcripts. Cost is controlled by prompt caching on the course block
+        (see ai.build_user_blocks), not by snapshotting.
+        """
+        if not is_configured():
+            raise NotConfigured()
+
+        course = await CourseRepository.from_session(session).get_by_id(course_id)
+        if course is None or not course.assistant_enabled:
+            raise AssistantNotAvailable()
+
+        enrollment = await CourseEnrollmentRepository.from_session(
+            session
+        ).get_active_for_customer_course(customer_id, course_id)
+        if enrollment is None:
+            raise NotEnrolled()
+
+        lessons = await self._buildable_lessons(session, course_id)
+        knowledge_base = ai.assemble_knowledge_base(self._collect_sources(lessons))
+
+        course_title = course.title or "this course"
+        scope = course_title
+        if course.description:
+            scope = f"{course_title}. {course.description[:300]}"
+
+        return AnswerSnapshot(
+            course_id=course_id,
+            organization_id=course.organization_id,
+            course_title=course_title,
+            instructor_name=course.instructor_name,
+            display_name="Course TA",
+            voice_card=None,
+            disclaimer=ai.DEFAULT_DISCLAIMER,
+            knowledge_base=knowledge_base,
+            model=settings.COURSE_ASSISTANT_ANSWER_MODEL,
+            scope=scope,
+            strictness=course.assistant_strictness,
+        )
+
+    async def live_answer_event_stream(
+        self,
+        snapshot: AnswerSnapshot,
+        question: str,
+        *,
+        course_description: str | None = None,
+    ) -> AsyncIterator[dict[str, Any]]:
+        """Yield v2 answer events (no DB access — safe after the session closes).
+
+        Runs the permissive guardrail, then streams a course-first answer using
+        the neutral "Course TA" system prompt. When strictness allows general
+        knowledge and the model produced no course citations, a ``general``
+        event is emitted so the UI can show the labeled note.
+        """
+        api_key = settings.ANTHROPIC_API_KEY
+
+        decision = await ai.run_guardrail(
+            api_key=api_key,
+            model=settings.COURSE_ASSISTANT_GUARDRAIL_MODEL,
+            course_title=snapshot.course_title,
+            scope=snapshot.scope,
+            question=question,
+        )
+        if not decision.allowed:
+            yield {
+                "type": "refusal",
+                "message": (
+                    "That's outside what I can help with here — ask me anything "
+                    "about the course and I'll dig in."
+                ),
+            }
+            yield {"type": "done", "stop_reason": "guardrail"}
+            return
+
+        system_blocks = ai.build_system_blocks_v2(
+            course_title=snapshot.course_title,
+            course_description=course_description,
+            strictness=snapshot.strictness,
+            disclaimer=snapshot.disclaimer or ai.DEFAULT_DISCLAIMER,
+        )
+        user_blocks = ai.build_user_blocks(
+            knowledge_base=snapshot.knowledge_base,
+            question=question,
+            course_title=snapshot.course_title,
+        )
+
+        had_citations = False
+        async for event in ai.stream_answer(
+            api_key=api_key,
+            model=snapshot.model,
+            system_blocks=system_blocks,
+            user_blocks=user_blocks,
+            max_tokens=settings.COURSE_ASSISTANT_MAX_ANSWER_TOKENS,
+        ):
+            if event.get("type") == "citations" and event.get("citations"):
+                had_citations = True
+            # An answer that cited nothing, when general knowledge is allowed,
+            # is treated as a general-knowledge answer — flag it just before the
+            # stream closes so the UI shows the labeled note.
+            if (
+                event.get("type") == "done"
+                and not had_citations
+                and snapshot.strictness == "course_plus_general"
+            ):
+                yield {"type": "general"}
             yield event
 
     # ----------------------------------------------------------------- #

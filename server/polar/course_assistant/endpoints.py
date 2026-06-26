@@ -1,8 +1,11 @@
-"""Student-facing Course Assistant endpoints (Phase 2).
+"""Student-facing Course Assistant endpoints.
 
-A live, approved assistant answers questions from enrolled students, grounded
-in the course and matched to the creator's voice. Access is gated three ways:
-not configured → 503, not enrolled → 403, no live assistant → 404.
+v2 is a stateless "Course TA": a neutral assistant that answers enrolled
+students from the live course (metadata + transcripts) plus, when the creator
+allows it, labeled general subject knowledge. Availability is just "feature
+configured + the creator's per-course toggle on + the student enrolled" — no
+approval/snapshot gate. The creator-facing v1 endpoints below are retained but
+no longer surfaced in the UI.
 """
 
 import json
@@ -103,6 +106,7 @@ def _sse_answer(
     course_id: UUID,
     *,
     customer_id: UUID | None = None,
+    live: bool = False,
 ) -> EventSourceResponse:
     """Wrap the service answer stream as Server-Sent Events. Shared by the
     student answer endpoint and the creator preview endpoint.
@@ -115,10 +119,13 @@ def _sse_answer(
 
     async def event_generator() -> AsyncIterator[dict[str, Any]]:
         outcome = "answered"
+        stream = (
+            course_assistant_service.live_answer_event_stream(snapshot, question)
+            if live
+            else course_assistant_service.answer_event_stream(snapshot, question)
+        )
         try:
-            async for event in course_assistant_service.answer_event_stream(
-                snapshot, question
-            ):
+            async for event in stream:
                 event_type = str(event.get("type", "message"))
                 if event_type == "refusal":
                     outcome = "refused"
@@ -174,13 +181,16 @@ async def get_status(
     auth_subject: CustomerPortalUnionRead,
     session: AsyncSession = Depends(get_db_session),
 ) -> CourseAssistantStatusRead:
-    """Status for the student chat empty-state. Requires enrollment; reports
-    ``available=False`` (rather than erroring) when there's no live assistant
-    so the player can simply hide the chat.
+    """Status for the student "Course TA" chat. Requires enrollment; reports
+    ``available=False`` (rather than erroring) when the assistant is off or the
+    feature isn't configured, so the player can simply hide the chat.
+
+    v2 is stateless: availability is just "feature configured + the creator's
+    per-course toggle on + the student enrolled" — no approval/snapshot gate.
 
     Accepts both customer- and member-session tokens (``get_customer_id``
     resolves a member to its backing customer), so everyone with course access
-    sees the assistant — not just legacy customer-session holders."""
+    sees the assistant."""
     customer_id = get_customer_id(auth_subject)
 
     enrollment = await CourseEnrollmentRepository.from_session(
@@ -192,30 +202,26 @@ async def get_status(
     if not is_configured():
         return CourseAssistantStatusRead(available=False)
 
-    assistant = await CourseAssistantRepository.from_session(session).get_by_course(
-        course_id
-    )
     course = await CourseRepository.from_session(session).get_by_id(course_id)
-    if assistant is None or course is None or not assistant.is_answerable:
+    if course is None or not course.assistant_enabled:
         return CourseAssistantStatusRead(available=False)
 
-    example_question: str | None = None
-    for item in assistant.sample_questions or []:
-        # An in-scope sample (no off-syllabus scope label) makes the best
-        # blank-page example for students.
-        if isinstance(item, dict) and not item.get("scope"):
-            question = item.get("question")
-            if isinstance(question, str):
-                example_question = question
-                break
-
-    display_name = assistant.display_name or course.instructor_name or course.title
     return CourseAssistantStatusRead(
         available=True,
-        display_name=display_name,
-        instructor_name=course.instructor_name,
-        disclaimer=assistant.disclaimer or ai.DEFAULT_DISCLAIMER,
-        example_question=example_question,
+        display_name="Course TA",
+        course_title=course.title,
+        disclaimer=ai.DEFAULT_DISCLAIMER,
+        strictness=course.assistant_strictness,
+        starters=[
+            "What should I focus on first?",
+            "Summarize the key ideas of this course",
+            "Explain a concept I'm stuck on",
+        ],
+        suggestions=[
+            "Give me an example",
+            "Explain that more simply",
+            "Which lesson covers this?",
+        ],
     )
 
 
@@ -231,15 +237,16 @@ async def ask(
 ) -> EventSourceResponse:
     """Stream a grounded answer as Server-Sent Events.
 
-    Event names: ``text`` (answer deltas), ``citations`` (lesson grounding),
-    ``done`` (final, with usage), ``refusal`` (off-topic), ``error``.
+    Event names: ``text`` (answer deltas), ``citations`` (course grounding),
+    ``general`` (the answer used labeled general knowledge, not the course),
+    ``done`` (final, with usage), ``refusal``, ``error``.
 
     Accepts both customer- and member-session tokens.
     """
     customer_id = get_customer_id(auth_subject)
 
     try:
-        snapshot = await course_assistant_service.get_answerable_snapshot(
+        snapshot = await course_assistant_service.get_live_snapshot(
             session, course_id=course_id, customer_id=customer_id
         )
     except NotConfigured as exc:
@@ -250,11 +257,11 @@ async def ask(
         raise HTTPException(status_code=403, detail="Not enrolled") from exc
     except AssistantNotAvailable as exc:
         raise HTTPException(
-            status_code=404, detail="No assistant for this course"
+            status_code=404, detail="The assistant is off for this course"
         ) from exc
 
     return _sse_answer(
-        snapshot, body.question, course_id, customer_id=customer_id
+        snapshot, body.question, course_id, customer_id=customer_id, live=True
     )
 
 

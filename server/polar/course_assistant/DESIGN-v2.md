@@ -28,13 +28,36 @@ These were locked in with the user and are now partially implemented:
    from `OutlineTab`, `LessonEditorV2`, dead `ModuleCard`; `transcriptStatus.ts`
    deleted; the `transcript_status` field + refetch polling stay).
 
-### Still to build (depends on the user's incoming portal chat design)
+### Landed (stateless v2 engine)
 
-- The stateless `ask` service rewrite (system prompt + live course block +
-  prompt caching), deleting v1 approval/snapshot/voice/state-machine.
-- The reworked in-portal chat widget; then flip `COURSE_ASSISTANT_UI_ENABLED`.
-- The `ask` endpoint contract simplifies to "available = enabled + enrolled"
-  (read `assistant_enabled` / `assistant_strictness` off the course).
+- **Portal chat** rebuilt to the supplied design as the neutral "Course TA"
+  (sparkle mark, course-first citations, labeled general knowledge, trust card,
+  dark mode). ✅
+- **Stateless `ask`**: `get_live_snapshot` assembles the knowledge base from the
+  live course on every ask (no approval/snapshot), gated on `assistant_enabled`
+  + enrollment. `live_answer_event_stream` uses a new neutral system prompt
+  (`build_system_blocks_v2`) with the authority hierarchy, grounding-scaled
+  confidence, and strictness; prompt caching on the course block is kept.
+  Emits a `general` event when general knowledge was used. ✅
+- **Status** simplified to "available = configured + enabled + enrolled", with
+  Course TA labels + starters + suggestions + strictness. ✅
+
+### Still to build
+
+- **Lesson-mapped citations**: today citations carry the course-document title +
+  snippet; mapping a citation's char range → concrete lesson (number, title,
+  thumbnail, timestamp) for the clickable "Lesson N · 2:40" cards needs a
+  knowledge-base assembler that records per-lesson char offsets. The UI already
+  renders this when the fields are present and degrades to title+snippet.
+- **Follow-up generation** (the `follow` event / chips) — UI renders them when
+  sent; backend doesn't generate them yet.
+- **Delete v1** (approval/snapshot/voice/state-machine, sample-QA, preview) once
+  v2 is confirmed in production — currently retained, just unsurfaced.
+- **Flip `COURSE_ASSISTANT_UI_ENABLED`** to surface the chat once smoke-tested.
+
+> Note: the backend changes are static-checked (ruff/mypy clean on the touched
+> files) but NOT runtime-verified — the Py3.14 pydantic-settings crash blocks
+> pytest/alembic locally. Smoke-test the `ask`/status endpoints after deploy.
 
 ## What v2 is
 
