@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { mapCourse } from './courseMap'
+import { deriveTrailerPoster, mapCourse, muxPoster } from './courseMap'
 
 // Minimal CourseRead-shaped fixture (only the fields mapCourse reads).
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -58,5 +58,36 @@ describe('mapCourse', () => {
     expect(c.lessons).toEqual([])
     expect(c.welcome).toEqual([])
     expect(c.totalDuration).toBe('0m')
+  })
+})
+
+describe('deriveTrailerPoster (Mux, not S3)', () => {
+  it('builds a Mux poster from the first video lesson when no trailer_url', () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const c: any = {
+      trailer_url: null,
+      thumbnail_url: 'https://s3/cover.jpg',
+      modules: [
+        { lessons: [{ title: 'Intro', mux_playback_id: null }] },
+        { lessons: [{ title: 'Lesson', mux_playback_id: 'pLAYbAck123' }] },
+      ],
+    }
+    expect(deriveTrailerPoster(c)).toBe(muxPoster('pLAYbAck123'))
+    expect(muxPoster('pLAYbAck123')).toContain('image.mux.com/pLAYbAck123/thumbnail.jpg')
+  })
+  it('treats a bare trailer_url as a Mux playback id', () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const c: any = { trailer_url: 'abc123PLAY', thumbnail_url: null, modules: [] }
+    expect(deriveTrailerPoster(c)).toBe(muxPoster('abc123PLAY'))
+  })
+  it('passes a full http trailer_url through unchanged', () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const c: any = { trailer_url: 'https://cdn/poster.png', thumbnail_url: null, modules: [] }
+    expect(deriveTrailerPoster(c)).toBe('https://cdn/poster.png')
+  })
+  it('falls back to the S3 cover only when there is no Mux source', () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const c: any = { trailer_url: null, thumbnail_url: 'https://s3/cover.jpg', modules: [] }
+    expect(deriveTrailerPoster(c)).toBe('https://s3/cover.jpg')
   })
 })

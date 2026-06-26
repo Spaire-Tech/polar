@@ -252,26 +252,29 @@ function btnHTML(b: Props, t: Theme, editPath?: string): string {
   return `<div style="text-align:${align}"><a class="eb-btn" data-edit="${ep}" contenteditable="true" href="#" onclick="return false" style="background:${bg};color:${color};${border}border-radius:${radius}px;padding:15px 30px;font-family:${font};font-size:${b.size || 14.5}px;font-weight:600;letter-spacing:.005em;text-decoration:none;display:inline-block">${label}</a></div>`
 }
 
-/* button controls, reused by any block with an embedded button (key prefix e.g. 'btn') */
-function btnGroups(prefix: string): GroupDescriptor[] {
-  return [
+/* button controls, reused by any block with an embedded button (key prefix e.g. 'btn').
+   `removable` adds a Show-button toggle at the top so an embedded button can be
+   dropped or restored, matching the standalone Button block's flexibility. */
+function btnGroups(prefix: string, removable?: boolean): GroupDescriptor[] {
+  const first: GroupDescriptor = { kind: 'group', title: 'Button', ctls: [] }
+  if (removable)
+    first.ctls.push({ kind: 'switch', label: 'Show button', key: 'showBtn', sub: 'Include the call-to-action button' })
+  first.ctls.push(
+    { kind: 'field', label: 'Label', key: prefix + '.text' },
+    { kind: 'field', label: 'Link URL', key: prefix + '.href', ph: 'https://…' },
     {
-      kind: 'group',
-      title: 'Button',
-      ctls: [
-        { kind: 'field', label: 'Label', key: prefix + '.text' },
-        { kind: 'field', label: 'Link URL', key: prefix + '.href', ph: 'https://…' },
-        {
-          kind: 'seg',
-          key: prefix + '.style',
-          opts: [
-            ['solid', 'Solid'],
-            ['outline', 'Outline'],
-            ['link', 'Link'],
-          ],
-        },
+      kind: 'seg',
+      key: prefix + '.style',
+      opts: [
+        ['solid', 'Solid'],
+        ['outline', 'Outline'],
+        ['link', 'Link'],
       ],
     },
+  )
+  return [
+    first,
+    { kind: 'group', title: 'Alignment', ctls: [{ kind: 'align', key: prefix + '.align', opts: ['left', 'center', 'right'] }] },
     {
       kind: 'group',
       title: 'Button colours',
@@ -284,19 +287,52 @@ function btnGroups(prefix: string): GroupDescriptor[] {
       kind: 'group',
       title: 'Shape',
       ctls: [
-        {
-          kind: 'range',
-          label: 'Corner radius',
-          key: prefix + '.radius',
-          min: 0,
-          max: 999,
-          step: 1,
-          fmt: (v: number) => (v >= 999 ? 'Pill' : v + 'px'),
-        },
+        { kind: 'radius', key: prefix + '.radius' },
         { kind: 'switch', label: 'Arrow', key: prefix + '.arrow', sub: 'Append → to the label' },
       ],
     },
   ]
+}
+
+/* ---- universal text-part controls: Font · Size · Colour · Alignment ----
+   Every editable text across the templates routes through these so each one
+   behaves identically to the cover's Title / Description parts. */
+function txtTypo(
+  title: string,
+  fontKey: string | null,
+  sizeKey: string | null,
+  colorKey: string | null,
+  min?: number,
+  max?: number,
+): GroupDescriptor {
+  const ctls: CtlDescriptor[] = []
+  if (fontKey) ctls.push({ kind: 'select', key: fontKey, opts: Object.keys(FONTS), label: 'Font' })
+  if (sizeKey) ctls.push({ kind: 'num', label: 'Size', key: sizeKey, min: min || 11, max: max || 96 })
+  if (colorKey) ctls.push({ kind: 'color', label: 'Colour', key: colorKey })
+  return { kind: 'group', title: title || 'Text', ctls }
+}
+function txtAlign(key: string): GroupDescriptor {
+  return { kind: 'group', title: 'Alignment', ctls: [{ kind: 'align', key, opts: ['left', 'center', 'right'] }] }
+}
+function txtPart(
+  label: string,
+  icon: string,
+  fontKey: string | null,
+  sizeKey: string | null,
+  colorKey: string | null,
+  alignKey: string | null,
+  min?: number,
+  max?: number,
+): PartDef {
+  return {
+    label,
+    icon: icon || ICO.text,
+    groups: () => {
+      const g = [txtTypo(label, fontKey, sizeKey, colorKey, min, max)]
+      if (alignKey) g.push(txtAlign(alignKey))
+      return g
+    },
+  }
 }
 
 /* ============================================================ CONTROL DESCRIPTORS */
@@ -409,75 +445,62 @@ export const REG: Record<string, BlockDef> = {
       overlay: 58,
       overlayColor: '#0c0a08',
       eyebrow: 'The Kitchen Series',
+      eyebrowFont: t.font,
+      eyebrowSize: 11,
+      eyebrowColor: t.heroText,
+      eyebrowAlign: 'left',
       title: 'Southern Cooking',
       titleFont: t.headingFont,
       titleSize: 66,
+      titleColor: t.heroText,
+      titleAlign: 'left',
       instructor: 'with Adaeze Bello',
+      instructorFont: t.font,
+      instructorSize: 14.5,
+      instructorColor: t.heroText,
+      instructorAlign: 'left',
       tagline: 'Heritage technique, soul food, and the stories behind every dish.',
-      textColor: t.heroText,
-      accent: t.accent,
-      align: 'left',
-      btn: { text: 'Begin the first lesson', style: 'solid', align: 'left', radius: 999 },
+      taglineFont: t.font,
+      taglineSize: 15,
+      taglineColor: t.heroText,
+      taglineAlign: 'left',
+      showBtn: true,
+      btn: { text: 'Begin the first lesson', style: 'solid', radius: 999, align: 'left' },
     }),
     render(p, t) {
-      const grad =
-        p.align === 'center'
-          ? `linear-gradient(180deg, ${hexA(p.overlayColor, p.overlay / 240)} 0%, ${hexA(p.overlayColor, Math.min(0.9, p.overlay / 110))} 100%)`
-          : `linear-gradient(180deg, ${hexA(p.overlayColor, p.overlay / 300)} 0%, rgba(0,0,0,0) 42%, ${hexA(p.overlayColor, Math.min(0.94, p.overlay / 82))} 100%)`
+      const grad = `linear-gradient(180deg, ${hexA(p.overlayColor, p.overlay / 240)} 0%, ${hexA(p.overlayColor, Math.min(0.92, p.overlay / 95))} 100%)`
       const bg = p.img
         ? `${hexA(p.overlayColor, 0.25)} url('${ASSET(p.img)}') center/cover no-repeat`
         : '#26211c'
-      const ta = p.align
-      const top = p.eyebrow
-        ? `<span data-edit="eyebrow" contenteditable="true" style="font-family:${ff(t.font)};font-size:11px;font-weight:600;letter-spacing:.26em;text-transform:uppercase;color:${p.textColor};opacity:.8">${esc(p.eyebrow)}</span>`
+      const mw = (a: string) =>
+        a === 'center' ? 'margin-left:auto;margin-right:auto;' : a === 'right' ? 'margin-left:auto;margin-right:0;' : ''
+      const eyebrow = p.eyebrow
+        ? `<span data-part="eyebrow" data-edit="eyebrow" contenteditable="true" style="display:block;text-align:${p.eyebrowAlign};font-family:${ff(p.eyebrowFont)};font-size:${p.eyebrowSize}px;font-weight:600;letter-spacing:.26em;text-transform:uppercase;color:${p.eyebrowColor};opacity:.85">${esc(p.eyebrow)}</span>`
         : '<span></span>'
-      const bottom = `<div style="text-align:${ta}">
-            <h1 data-part="title" data-edit="title" contenteditable="true" style="margin:0;font-family:${ff(p.titleFont)};font-size:${p.titleSize}px;font-weight:${p.titleFont === 'Geist' ? 700 : 400};line-height:1.0;letter-spacing:${p.titleFont === 'Geist' ? '-2px' : '-.5px'};color:${p.textColor};${p.titleFont === 'Geist' ? 'text-transform:uppercase;' : ''}">${esc(p.title)}</h1>
-            <p data-edit="instructor" contenteditable="true" style="margin:18px 0 0;font-family:${ff(t.font)};font-size:14.5px;font-weight:500;letter-spacing:.01em;color:${p.textColor};opacity:.78">${esc(p.instructor)}</p>
-            <p data-edit="tagline" contenteditable="true" style="margin:14px ${ta === 'center' ? 'auto' : '0'} 0;max-width:400px;font-family:${ff(t.font)};font-size:15px;line-height:1.5;color:${p.textColor};opacity:.7">${esc(p.tagline)}</p>
-            <div data-part="button" style="margin-top:32px">${btnHTML(Object.assign({ align: ta }, p.btn), t, 'btn.text')}</div>
-          </div>`
+      let bottom = `<h1 data-part="title" data-edit="title" contenteditable="true" style="margin:0;text-align:${p.titleAlign};font-family:${ff(p.titleFont)};font-size:${p.titleSize}px;font-weight:${p.titleFont === 'Geist' ? 700 : 400};line-height:1.0;letter-spacing:${p.titleFont === 'Geist' ? '-2px' : '-.5px'};color:${p.titleColor};${p.titleFont === 'Geist' ? 'text-transform:uppercase;' : ''}">${esc(p.title)}</h1>`
+      if (p.instructor)
+        bottom += `<p data-part="byline" data-edit="instructor" contenteditable="true" style="margin:18px 0 0;text-align:${p.instructorAlign};font-family:${ff(p.instructorFont)};font-size:${p.instructorSize}px;font-weight:500;letter-spacing:.01em;color:${p.instructorColor};opacity:.82">${esc(p.instructor)}</p>`
+      if (p.tagline)
+        bottom += `<p data-part="description" data-edit="tagline" contenteditable="true" style="margin:14px 0 0;max-width:400px;${mw(p.taglineAlign)}text-align:${p.taglineAlign};font-family:${ff(p.taglineFont)};font-size:${p.taglineSize}px;line-height:1.5;color:${p.taglineColor};opacity:.78">${esc(p.tagline)}</p>`
+      if (p.showBtn !== false)
+        bottom += `<div data-part="button" style="margin-top:32px">${btnHTML(p.btn, t, 'btn.text')}</div>`
       return `<div style="position:relative;min-height:${p.height}px;background:${bg};overflow:hidden">
             <div style="position:absolute;inset:0;background:${grad}"></div>
-            <div class="eb-hero" style="position:relative;min-height:${p.height}px;display:flex;flex-direction:column;justify-content:space-between;padding:34px 44px 52px">${top}${bottom}</div>
+            <div class="eb-hero" style="position:relative;min-height:${p.height}px;display:flex;flex-direction:column;justify-content:space-between;padding:34px 44px 52px">${eyebrow}<div>${bottom}</div></div>
           </div>`
     },
-    inspect: (p) => [
+    inspect: () => [
       grpImage('Background image', 'img'),
-      grpType('Title', 'title', true),
       grpRange('Height', 'height', 360, 720, 10),
       grpRange('Overlay', 'overlay', 0, 100, 2, (v) => v + '%'),
-      grpColors([
-        ['Overlay tint', 'overlayColor'],
-        ['Hero text', 'textColor'],
-        ['Accent', 'accent'],
-      ]),
-      grpAlign(['left', 'center']),
+      grpColors([['Overlay tint', 'overlayColor']]),
     ],
     parts: {
-      title: {
-        label: 'Title',
-        icon: ICO.heading,
-        groups: () => [
-          {
-            kind: 'group',
-            title: 'Title',
-            ctls: [
-              { kind: 'select', key: 'titleFont', opts: Object.keys(FONTS), label: 'Font' },
-              { kind: 'num', label: 'Size', key: 'titleSize', min: 24, max: 96 },
-            ],
-          },
-          {
-            kind: 'group',
-            title: 'Colour',
-            ctls: [
-              { kind: 'color', label: 'Hero text', key: 'textColor' },
-              { kind: 'color', label: 'Accent', key: 'accent' },
-            ],
-          },
-        ],
-      },
-      button: { label: 'Button', icon: ICO.button, groups: () => btnGroups('btn') },
+      eyebrow: txtPart('Eyebrow', ICO.text, 'eyebrowFont', 'eyebrowSize', 'eyebrowColor', 'eyebrowAlign', 9, 24),
+      title: txtPart('Title', ICO.heading, 'titleFont', 'titleSize', 'titleColor', 'titleAlign', 24, 96),
+      byline: txtPart('Byline', ICO.instructor, 'instructorFont', 'instructorSize', 'instructorColor', 'instructorAlign', 11, 28),
+      description: txtPart('Description', ICO.text, 'taglineFont', 'taglineSize', 'taglineColor', 'taglineAlign', 12, 30),
+      button: { label: 'Button', icon: ICO.button, groups: () => btnGroups('btn', true) },
     },
   },
 
@@ -493,15 +516,20 @@ export const REG: Record<string, BlockDef> = {
       hFont: t.headingFont,
       hSize: 38,
       hColor: t.heading,
+      headingAlign: 'left',
       body: [
         'I’m glad you’re here. This is everything my grandmother taught me, and everything I’ve learned in the twenty years since. Take it one lesson at a time.',
       ],
+      bodyFont: t.font,
       bodyColor: t.text,
       bodySize: 17,
+      bodyAlign: 'left',
       sign: 'Adaeze Bello',
+      signFont: t.headingFont,
+      signSize: 24,
       signRole: 'Chef & Instructor',
       signColor: t.muted,
-      align: 'left',
+      signAlign: 'left',
       bg: 'none',
       px: 44,
       pt: 72,
@@ -510,18 +538,18 @@ export const REG: Record<string, BlockDef> = {
     render(p, t) {
       let h = ''
       if (p.eyebrow)
-        h += `<p data-edit="eyebrow" contenteditable="true" style="margin:0 0 18px;font-family:${ff(t.font)};font-size:11px;font-weight:600;letter-spacing:.2em;text-transform:uppercase;color:${p.eyebrowColor}">${esc(p.eyebrow)}</p>`
-      h += `<h2 data-part="heading" data-edit="heading" contenteditable="true" style="margin:0 0 26px;font-family:${ff(p.hFont)};font-size:${p.hSize}px;font-weight:${p.hFont === 'Geist' ? 600 : 400};line-height:1.1;letter-spacing:${p.hFont === 'Geist' ? '-.8px' : '-.3px'};color:${p.hColor}">${esc(p.heading)}</h2>`
-      h += '<div data-part="body">'
+        h += `<p data-edit="eyebrow" contenteditable="true" style="margin:0 0 18px;text-align:${p.headingAlign};font-family:${ff(t.font)};font-size:11px;font-weight:600;letter-spacing:.2em;text-transform:uppercase;color:${p.eyebrowColor}">${esc(p.eyebrow)}</p>`
+      h += `<h2 data-part="heading" data-edit="heading" contenteditable="true" style="margin:0 0 26px;text-align:${p.headingAlign};font-family:${ff(p.hFont)};font-size:${p.hSize}px;font-weight:${p.hFont === 'Geist' ? 600 : 400};line-height:1.1;letter-spacing:${p.hFont === 'Geist' ? '-.8px' : '-.3px'};color:${p.hColor}">${esc(p.heading)}</h2>`
+      h += `<div data-part="body" style="text-align:${p.bodyAlign}">`
       ;(p.body || []).forEach((para: string, i: number) => {
-        h += `<p data-edit="body.${i}" contenteditable="true" style="margin:${i ? 16 : 0}px 0 0;font-family:${ff(t.font)};font-size:${p.bodySize}px;line-height:1.65;color:${p.bodyColor}">${esc(para)}</p>`
+        h += `<p data-edit="body.${i}" contenteditable="true" style="margin:${i ? 16 : 0}px 0 0;font-family:${ff(p.bodyFont)};font-size:${p.bodySize}px;line-height:1.65;color:${p.bodyColor}">${esc(para)}</p>`
       })
       h += '</div>'
       if (p.sign)
-        h += `<div data-part="signature" style="margin-top:30px"><p data-edit="sign" contenteditable="true" style="margin:0;font-family:${ff(p.hFont)};font-size:24px;${p.hFont === 'Geist' ? '' : 'font-style:italic;'}color:${p.hColor}">${esc(p.sign)}</p><p data-edit="signRole" contenteditable="true" style="margin:4px 0 0;font-family:${ff(t.font)};font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:${p.signColor}">${esc(p.signRole)}</p></div>`
-      return `<div class="eb-sec" style="${padBox(p)};text-align:${p.align};${p.bg !== 'none' ? 'background:' + p.bg : ''}">${h}</div>`
+        h += `<div data-part="signature" style="margin-top:30px;text-align:${p.signAlign}"><p data-edit="sign" contenteditable="true" style="margin:0;font-family:${ff(p.signFont)};font-size:${p.signSize}px;${p.signFont === 'Geist' ? '' : 'font-style:italic;'}color:${p.hColor}">${esc(p.sign)}</p><p data-edit="signRole" contenteditable="true" style="margin:4px 0 0;font-family:${ff(t.font)};font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:${p.signColor}">${esc(p.signRole)}</p></div>`
+      return `<div class="eb-sec" style="${padBox(p)};${p.bg !== 'none' ? 'background:' + p.bg : ''}">${h}</div>`
     },
-    inspect: (p) => [
+    inspect: () => [
       grpType('Heading', 'h', false),
       grpColors([
         ['Eyebrow', 'eyebrowColor'],
@@ -529,49 +557,18 @@ export const REG: Record<string, BlockDef> = {
         ['Signature meta', 'signColor'],
       ]),
       grpNum('Body size', 'bodySize', 12, 24),
-      grpAlign(['left', 'center']),
       grpColors([['Background', 'bg']]),
       grpPad(),
     ],
     parts: {
-      heading: {
-        label: 'Heading',
-        icon: ICO.heading,
-        groups: () => [
-          {
-            kind: 'group',
-            title: 'Heading',
-            ctls: [
-              { kind: 'select', key: 'hFont', opts: Object.keys(FONTS), label: 'Font' },
-              { kind: 'num', label: 'Size', key: 'hSize', min: 18, max: 72 },
-              { kind: 'color', label: 'Heading colour', key: 'hColor' },
-            ],
-          },
-        ],
-      },
-      body: {
-        label: 'Body',
-        icon: ICO.text,
-        groups: () => [
-          {
-            kind: 'group',
-            title: 'Body',
-            ctls: [
-              { kind: 'num', label: 'Size', key: 'bodySize', min: 12, max: 24 },
-              { kind: 'color', label: 'Body colour', key: 'bodyColor' },
-            ],
-          },
-        ],
-      },
+      heading: txtPart('Heading', ICO.heading, 'hFont', 'hSize', 'hColor', 'headingAlign', 18, 72),
+      body: txtPart('Body', ICO.text, 'bodyFont', 'bodySize', 'bodyColor', 'bodyAlign', 12, 24),
       signature: {
         label: 'Signature',
         icon: ICO.instructor,
         groups: () => [
-          {
-            kind: 'group',
-            title: 'Signature',
-            ctls: [{ kind: 'color', label: 'Signature meta', key: 'signColor' }],
-          },
+          txtTypo('Signature', 'signFont', 'signSize', 'signColor', 16, 40),
+          txtAlign('signAlign'),
         ],
       },
     },
@@ -589,6 +586,7 @@ export const REG: Record<string, BlockDef> = {
         { v: 'All levels', l: '' },
       ],
       valFont: t.font,
+      valSize: 13,
       valColor: t.heading,
       divider: t.border,
       font: t.font,
@@ -598,22 +596,25 @@ export const REG: Record<string, BlockDef> = {
       pt: 0,
       pb: 8,
     }),
-    render(p, t) {
+    render(p) {
+      const justify = p.align === 'center' ? 'center' : p.align === 'right' ? 'flex-end' : 'flex-start'
       const cells = (p.items || [])
         .map(
           (it: Props, i: number) =>
-            `<span data-edit="items.${i}.v" contenteditable="true" style="font-family:${ff(p.valFont)};font-size:13px;font-weight:500;letter-spacing:.02em;color:${p.valColor}">${esc(it.v)}</span>`,
+            `<span data-edit="items.${i}.v" contenteditable="true" style="font-family:${ff(p.valFont)};font-size:${p.valSize}px;font-weight:500;letter-spacing:.02em;color:${p.valColor}">${esc(it.v)}</span>`,
         )
         .join(`<span style="color:${p.divider};opacity:.7">·</span>`)
-      return `<div class="eb-sec" style="${padBox(p)};${p.bg !== 'none' ? 'background:' + p.bg : ''}"><div style="display:flex;gap:14px;align-items:center;justify-content:${p.align === 'center' ? 'center' : 'flex-start'};border-top:1px solid ${p.divider};border-bottom:1px solid ${p.divider};padding:16px 0">${cells}</div></div>`
+      return `<div class="eb-sec" style="${padBox(p)};${p.bg !== 'none' ? 'background:' + p.bg : ''}"><div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;justify-content:${justify};border-top:1px solid ${p.divider};border-bottom:1px solid ${p.divider};padding:16px 0">${cells}</div></div>`
     },
-    inspect: (p) => [
+    inspect: () => [
+      grpSelect('Font', 'valFont', Object.keys(FONTS)),
+      grpNum('Size', 'valSize', 10, 22),
       grpColors([
         ['Text', 'valColor'],
         ['Divider', 'divider'],
         ['Background', 'bg'],
       ]),
-      grpAlign(['left', 'center']),
+      grpAlign(['left', 'center', 'right']),
       grpPad(),
     ],
   },
@@ -628,6 +629,7 @@ export const REG: Record<string, BlockDef> = {
       hFont: t.headingFont,
       hSize: 32,
       hColor: t.heading,
+      hAlign: 'left',
       intro: '',
       introColor: t.text,
       items: [
@@ -637,6 +639,8 @@ export const REG: Record<string, BlockDef> = {
         { title: 'Sunday Greens & Gravy', meta: '26 min' },
         { title: 'Plating with Intention', meta: '18 min' },
       ],
+      listFont: t.font,
+      titleSize: 16,
       numColor: t.muted,
       titleColor: t.heading,
       metaColor: t.muted,
@@ -648,43 +652,35 @@ export const REG: Record<string, BlockDef> = {
       pb: 56,
     }),
     render(p, t) {
-      let h = `<h2 data-part="heading" data-edit="heading" contenteditable="true" style="margin:0 0 ${p.intro ? 14 : 34}px;font-family:${ff(p.hFont)};font-size:${p.hSize}px;font-weight:${p.hFont === 'Geist' ? 600 : 400};line-height:1.1;letter-spacing:${p.hFont === 'Geist' ? '-.6px' : '-.3px'};color:${p.hColor}">${esc(p.heading)}</h2>`
+      let h = `<h2 data-part="heading" data-edit="heading" contenteditable="true" style="margin:0 0 ${p.intro ? 14 : 34}px;text-align:${p.hAlign};font-family:${ff(p.hFont)};font-size:${p.hSize}px;font-weight:${p.hFont === 'Geist' ? 600 : 400};line-height:1.1;letter-spacing:${p.hFont === 'Geist' ? '-.6px' : '-.3px'};color:${p.hColor}">${esc(p.heading)}</h2>`
       if (p.intro)
         h += `<p data-edit="intro" contenteditable="true" style="margin:0 0 34px;font-family:${ff(t.font)};font-size:15px;line-height:1.6;color:${p.introColor};max-width:430px">${esc(p.intro)}</p>`
       const rows = (p.items || [])
         .map(
           (it: Props, i: number) => `<div style="display:flex;align-items:baseline;gap:20px;padding:20px 0;border-top:1px solid ${p.divider}">
-            <span style="flex:none;width:22px;font-family:${ff(t.font)};font-size:13px;font-weight:500;color:${p.numColor};font-variant-numeric:tabular-nums">${String(i + 1).padStart(2, '0')}</span>
-            <span data-edit="items.${i}.title" contenteditable="true" style="flex:1;min-width:0;font-family:${ff(t.font)};font-size:16px;font-weight:500;letter-spacing:-.1px;color:${p.titleColor}">${esc(it.title)}</span>
-            <span data-edit="items.${i}.meta" contenteditable="true" style="flex:none;font-family:${ff(t.font)};font-size:13px;font-weight:400;color:${p.metaColor};font-variant-numeric:tabular-nums">${esc(it.meta)}</span>
+            <span style="flex:none;width:22px;font-family:${ff(p.listFont)};font-size:13px;font-weight:500;color:${p.numColor};font-variant-numeric:tabular-nums">${String(i + 1).padStart(2, '0')}</span>
+            <span data-edit="items.${i}.title" contenteditable="true" style="flex:1;min-width:0;font-family:${ff(p.listFont)};font-size:${p.titleSize}px;font-weight:500;letter-spacing:-.1px;color:${p.titleColor}">${esc(it.title)}</span>
+            <span data-edit="items.${i}.meta" contenteditable="true" style="flex:none;font-family:${ff(p.listFont)};font-size:13px;font-weight:400;color:${p.metaColor};font-variant-numeric:tabular-nums">${esc(it.meta)}</span>
           </div>`,
         )
         .join('')
-      return `<div class="eb-sec" style="${padBox(p)};${p.bg !== 'none' ? 'background:' + p.bg : ''}">${h}<div style="border-bottom:1px solid ${p.divider}">${rows}</div></div>`
+      return `<div class="eb-sec" style="${padBox(p)};${p.bg !== 'none' ? 'background:' + p.bg : ''}">${h}<div data-part="list" style="border-bottom:1px solid ${p.divider}">${rows}</div></div>`
     },
-    inspect: (p) => [
-      grpType('Heading', 'h', false),
-      grpColors([
-        ['Number', 'numColor'],
-        ['Lesson title', 'titleColor'],
-        ['Duration', 'metaColor'],
-        ['Divider', 'divider'],
-        ['Background', 'bg'],
-      ]),
-      grpPad(),
-    ],
+    inspect: () => [grpColors([['Background', 'bg']]), grpPad()],
     parts: {
-      heading: {
-        label: 'Heading',
-        icon: ICO.heading,
+      heading: txtPart('Heading', ICO.heading, 'hFont', 'hSize', 'hColor', 'hAlign', 18, 64),
+      list: {
+        label: 'Lessons',
+        icon: ICO.lessons,
         groups: () => [
+          txtTypo('Lesson text', 'listFont', 'titleSize', 'titleColor', 12, 24),
           {
             kind: 'group',
-            title: 'Heading',
+            title: 'Colours',
             ctls: [
-              { kind: 'select', key: 'hFont', opts: Object.keys(FONTS), label: 'Font' },
-              { kind: 'num', label: 'Size', key: 'hSize', min: 18, max: 64 },
-              { kind: 'color', label: 'Heading colour', key: 'hColor' },
+              { kind: 'color', label: 'Number', key: 'numColor' },
+              { kind: 'color', label: 'Duration', key: 'metaColor' },
+              { kind: 'color', label: 'Divider', key: 'divider' },
             ],
           },
         ],
@@ -705,26 +701,30 @@ export const REG: Record<string, BlockDef> = {
       track: t.border,
       labelColor: t.muted,
       countColor: t.heading,
+      labelFont: t.font,
+      labelSize: 11,
       font: t.font,
       bg: 'none',
       px: 44,
       pt: 40,
       pb: 40,
     }),
-    render(p, t) {
+    render(p) {
       const total = Math.max(1, p.total || 1)
       const pct = Math.max(0, Math.min(100, Math.round(((p.value || 0) / total) * 100)))
       return `<div class="eb-sec" style="${padBox(p)};${p.bg !== 'none' ? 'background:' + p.bg : ''}">
             <div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:13px">
-              <span data-edit="label" contenteditable="true" style="font-family:${ff(p.font)};font-size:11px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:${p.labelColor}">${esc(p.label)}</span>
+              <span data-edit="label" contenteditable="true" style="font-family:${ff(p.labelFont)};font-size:${p.labelSize}px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:${p.labelColor}">${esc(p.label)}</span>
               <span style="font-family:${ff(p.font)};font-size:12.5px;font-weight:500;color:${p.countColor};font-variant-numeric:tabular-nums">${p.value} of ${total} &nbsp;·&nbsp; ${pct}%</span>
             </div>
             <div style="height:4px;border-radius:999px;background:${p.track};overflow:hidden"><div style="height:100%;width:${pct}%;background:${p.fill};border-radius:999px"></div></div>
           </div>`
     },
-    inspect: (p) => [
+    inspect: () => [
       grpNum('Completed', 'value', 0, 99),
       grpNum('Total', 'total', 1, 99),
+      grpSelect('Label font', 'labelFont', Object.keys(FONTS)),
+      grpNum('Label size', 'labelSize', 9, 18),
       grpColors([
         ['Fill', 'fill'],
         ['Track', 'track'],
@@ -748,6 +748,8 @@ export const REG: Record<string, BlockDef> = {
       href: '#',
       radius: 4,
       playColor: '#ffffff',
+      labelFont: t.font,
+      labelSize: 14,
       labelColor: t.heading,
       subColor: t.muted,
       bg: 'none',
@@ -765,13 +767,15 @@ export const REG: Record<string, BlockDef> = {
               <div style="position:absolute;inset:0;margin:auto;width:56px;height:56px;border-radius:50%;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.35);display:flex;align-items:center;justify-content:center;color:${p.playColor}">${svg(ICO.play, 20)}</div>
             </div>
             <div style="margin-top:16px;display:flex;align-items:baseline;justify-content:space-between;gap:12px">
-              <span data-edit="label" contenteditable="true" style="font-family:${ff(t.font)};font-size:14px;font-weight:600;color:${p.labelColor}">${esc(p.label)}</span>
+              <span data-edit="label" contenteditable="true" style="font-family:${ff(p.labelFont)};font-size:${p.labelSize}px;font-weight:600;color:${p.labelColor}">${esc(p.label)}</span>
               <span data-edit="sub" contenteditable="true" style="font-family:${ff(t.font)};font-size:13px;font-weight:400;color:${p.subColor}">${esc(p.sub)}</span>
             </div>
           </div>`
     },
-    inspect: (p) => [
+    inspect: () => [
       grpImage('Thumbnail', 'img'),
+      grpSelect('Caption font', 'labelFont', Object.keys(FONTS)),
+      grpNum('Caption size', 'labelSize', 11, 24),
       grpColors([
         ['Label', 'labelColor'],
         ['Sub label', 'subColor'],
@@ -794,8 +798,13 @@ export const REG: Record<string, BlockDef> = {
       role: 'Chef & Instructor',
       bio: 'Adaeze runs a Charleston kitchen rooted in Gullah Geechee tradition, where the recipes carry as much history as flavour.',
       nameFont: t.headingFont,
+      nameSize: 30,
+      nameAlign: 'left',
       nameColor: t.heading,
       roleColor: t.muted,
+      bioFont: t.font,
+      bioSize: 15,
+      bioAlign: 'left',
       bioColor: t.text,
       imgRadius: 4,
       divider: t.border,
@@ -809,16 +818,16 @@ export const REG: Record<string, BlockDef> = {
         ? `<img src="${ASSET(p.img)}" alt="${esc(p.name)}" style="display:block;width:100%;height:100%;object-fit:cover;border-radius:${p.imgRadius}px"/>`
         : `<div class="eb-imgph" style="height:100%;border-radius:${p.imgRadius}px"></div>`
       const text = `<div style="flex:1;min-width:0">
-            <div data-part="identity">
+            <div data-part="identity" style="text-align:${p.nameAlign}">
             <p data-edit="role" contenteditable="true" style="margin:0 0 10px;font-family:${ff(t.font)};font-size:11px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:${p.roleColor}">${esc(p.role)}</p>
-            <p data-edit="name" contenteditable="true" style="margin:0;font-family:${ff(p.nameFont)};font-size:30px;font-weight:${p.nameFont === 'Geist' ? 600 : 400};letter-spacing:-.4px;line-height:1.05;color:${p.nameColor}">${esc(p.name)}</p>
+            <p data-edit="name" contenteditable="true" style="margin:0;font-family:${ff(p.nameFont)};font-size:${p.nameSize}px;font-weight:${p.nameFont === 'Geist' ? 600 : 400};letter-spacing:-.4px;line-height:1.05;color:${p.nameColor}">${esc(p.name)}</p>
             </div>
-            <p data-part="bio" data-edit="bio" contenteditable="true" style="margin:16px 0 0;font-family:${ff(t.font)};font-size:15px;line-height:1.6;color:${p.bioColor}">${esc(p.bio)}</p>
+            <p data-part="bio" data-edit="bio" contenteditable="true" style="margin:16px 0 0;text-align:${p.bioAlign};font-family:${ff(p.bioFont)};font-size:${p.bioSize}px;line-height:1.6;color:${p.bioColor}">${esc(p.bio)}</p>
           </div>`
       const portrait = `<div data-part="portrait" style="flex:none;width:132px;height:160px">${img}</div>`
       return `<div class="eb-sec" style="${padBox(p)};${p.bg !== 'none' ? 'background:' + p.bg : ''}"><div style="border-top:1px solid ${p.divider};padding-top:36px"><div class="eb-insrow" style="display:flex;gap:26px;align-items:flex-start">${portrait}${text}</div></div></div>`
     },
-    inspect: (p) => [
+    inspect: () => [
       grpImage('Portrait', 'img'),
       grpColors([
         ['Name', 'nameColor'],
@@ -851,19 +860,15 @@ export const REG: Record<string, BlockDef> = {
             title: 'Name',
             ctls: [
               { kind: 'select', key: 'nameFont', opts: Object.keys(FONTS), label: 'Font' },
+              { kind: 'num', label: 'Size', key: 'nameSize', min: 16, max: 56 },
               { kind: 'color', label: 'Name colour', key: 'nameColor' },
               { kind: 'color', label: 'Role colour', key: 'roleColor' },
             ],
           },
+          txtAlign('nameAlign'),
         ],
       },
-      bio: {
-        label: 'Bio',
-        icon: ICO.text,
-        groups: () => [
-          { kind: 'group', title: 'Bio', ctls: [{ kind: 'color', label: 'Bio colour', key: 'bioColor' }] },
-        ],
-      },
+      bio: txtPart('Bio', ICO.text, 'bioFont', 'bioSize', 'bioColor', 'bioAlign', 12, 24),
     },
   },
 
@@ -1001,7 +1006,7 @@ export const REG: Record<string, BlockDef> = {
         ['Label', 'color'],
         ['Border', 'border'],
       ]),
-      grpRange('Corner radius', 'radius', 0, 999, 1, (v) => (v >= 999 ? 'Pill' : v + 'px')),
+      { kind: 'group', title: 'Corners', ctls: [{ kind: 'radius', key: 'radius' }] },
       grpAlign(['left', 'center', 'right']),
       grpSwitch('Arrow', 'arrow', 'Append → to the label'),
       grpPad(),
@@ -1018,9 +1023,13 @@ export const REG: Record<string, BlockDef> = {
       hFont: t.headingFont,
       hSize: 32,
       hColor: t.heading,
+      hAlign: 'center',
       body: 'Begin whenever you’re ready.',
+      bodyFont: t.font,
       bodyColor: t.text,
       bodySize: 16,
+      bAlign: 'center',
+      showBtn: true,
       btn: { text: 'Start watching', style: 'solid', size: 14.5, align: 'center' },
       align: 'center',
       divider: t.border,
@@ -1029,54 +1038,18 @@ export const REG: Record<string, BlockDef> = {
       pb: 72,
     }),
     render(p, t) {
-      let inner = `<p data-part="heading" data-edit="heading" contenteditable="true" style="margin:0 0 14px;font-family:${ff(p.hFont)};font-size:${p.hSize}px;font-weight:${p.hFont === 'Geist' ? 600 : 400};line-height:1.15;letter-spacing:${p.hFont === 'Geist' ? '-.6px' : '-.3px'};color:${p.hColor};text-align:${p.align}">${esc(p.heading)}</p>`
+      let inner = `<p data-part="heading" data-edit="heading" contenteditable="true" style="margin:0 0 14px;font-family:${ff(p.hFont)};font-size:${p.hSize}px;font-weight:${p.hFont === 'Geist' ? 600 : 400};line-height:1.15;letter-spacing:${p.hFont === 'Geist' ? '-.6px' : '-.3px'};color:${p.hColor};text-align:${p.hAlign}">${esc(p.heading)}</p>`
       if (p.body)
-        inner += `<p data-part="body" data-edit="body" contenteditable="true" style="margin:0 0 30px;font-family:${ff(t.font)};font-size:${p.bodySize}px;line-height:1.55;color:${p.bodyColor};text-align:${p.align}">${esc(p.body)}</p>`
-      if (p.btn)
-        inner += `<div data-part="button">${btnHTML(Object.assign({ align: p.align }, p.btn), t, 'btn.text')}</div>`
-      return `<div class="eb-sec" style="${padBox(p)}"><div style="border-top:1px solid ${p.divider};padding-top:56px;text-align:${p.align}">${inner}</div></div>`
+        inner += `<p data-part="body" data-edit="body" contenteditable="true" style="margin:0 0 30px;font-family:${ff(p.bodyFont)};font-size:${p.bodySize}px;line-height:1.55;color:${p.bodyColor};text-align:${p.bAlign}">${esc(p.body)}</p>`
+      if (p.btn && p.showBtn !== false)
+        inner += `<div data-part="button">${btnHTML(p.btn, t, 'btn.text')}</div>`
+      return `<div class="eb-sec" style="${padBox(p)}"><div style="border-top:1px solid ${p.divider};padding-top:56px">${inner}</div></div>`
     },
-    inspect: (p) => [
-      grpType('Heading', 'h', false),
-      grpColors([
-        ['Body text', 'bodyColor'],
-        ['Divider', 'divider'],
-      ]),
-      grpNum('Body size', 'bodySize', 12, 24),
-      grpAlign(['left', 'center']),
-      grpPad(),
-    ],
+    inspect: () => [grpColors([['Divider', 'divider']]), grpPad()],
     parts: {
-      heading: {
-        label: 'Heading',
-        icon: ICO.heading,
-        groups: () => [
-          {
-            kind: 'group',
-            title: 'Heading',
-            ctls: [
-              { kind: 'select', key: 'hFont', opts: Object.keys(FONTS), label: 'Font' },
-              { kind: 'num', label: 'Size', key: 'hSize', min: 18, max: 64 },
-              { kind: 'color', label: 'Heading colour', key: 'hColor' },
-            ],
-          },
-        ],
-      },
-      body: {
-        label: 'Body',
-        icon: ICO.text,
-        groups: () => [
-          {
-            kind: 'group',
-            title: 'Body',
-            ctls: [
-              { kind: 'num', label: 'Size', key: 'bodySize', min: 12, max: 24 },
-              { kind: 'color', label: 'Body colour', key: 'bodyColor' },
-            ],
-          },
-        ],
-      },
-      button: { label: 'Button', icon: ICO.button, groups: () => btnGroups('btn') },
+      heading: txtPart('Heading', ICO.heading, 'hFont', 'hSize', 'hColor', 'hAlign', 18, 64),
+      body: txtPart('Body', ICO.text, 'bodyFont', 'bodySize', 'bodyColor', 'bAlign', 12, 24),
+      button: { label: 'Button', icon: ICO.button, groups: () => btnGroups('btn', true) },
     },
   },
 
@@ -1091,24 +1064,24 @@ export const REG: Record<string, BlockDef> = {
       color: t.heading,
       byColor: t.muted,
       font: t.headingFont,
+      size: 28,
       align: 'center',
+      byFont: t.font,
+      bySize: 11,
+      byAlign: 'center',
       px: 44,
       pt: 56,
       pb: 56,
       bg: 'none',
     }),
-    render(p, t) {
-      return `<div class="eb-sec" style="${padBox(p)};${p.bg !== 'none' ? 'background:' + p.bg : ''}"><blockquote style="margin:0;text-align:${p.align}"><p data-edit="text" contenteditable="true" style="margin:0;font-family:${ff(p.font)};font-size:28px;line-height:1.3;letter-spacing:-.4px;${p.font !== 'Geist' ? 'font-style:italic;' : ''}color:${p.color};max-width:460px;${p.align === 'center' ? 'margin-left:auto;margin-right:auto;' : ''}">${esc(p.text)}</p><p data-edit="by" contenteditable="true" style="margin:18px 0 0;font-family:${ff(t.font)};font-size:11px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:${p.byColor}">${esc(p.by)}</p></blockquote></div>`
+    render(p) {
+      return `<div class="eb-sec" style="${padBox(p)};${p.bg !== 'none' ? 'background:' + p.bg : ''}"><blockquote style="margin:0"><p data-part="quote" data-edit="text" contenteditable="true" style="margin:0;text-align:${p.align};font-family:${ff(p.font)};font-size:${p.size}px;line-height:1.3;letter-spacing:-.4px;${p.font !== 'Geist' ? 'font-style:italic;' : ''}color:${p.color};max-width:460px;${p.align === 'center' ? 'margin-left:auto;margin-right:auto;' : ''}">${esc(p.text)}</p><p data-part="attribution" data-edit="by" contenteditable="true" style="margin:18px 0 0;text-align:${p.byAlign};font-family:${ff(p.byFont)};font-size:${p.bySize}px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:${p.byColor}">${esc(p.by)}</p></blockquote></div>`
     },
-    inspect: (p) => [
-      grpColors([
-        ['Text', 'color'],
-        ['Attribution', 'byColor'],
-        ['Background', 'bg'],
-      ]),
-      grpAlign(['left', 'center']),
-      grpPad(),
-    ],
+    inspect: () => [grpColors([['Background', 'bg']]), grpPad()],
+    parts: {
+      quote: txtPart('Quote', ICO.quote, 'font', 'size', 'color', 'align', 16, 48),
+      attribution: txtPart('Attribution', ICO.text, 'byFont', 'bySize', 'byColor', 'byAlign', 9, 20),
+    },
   },
 
   /* ---- DIVIDER ---- */
@@ -1164,29 +1137,34 @@ export const REG: Record<string, BlockDef> = {
       bg: 'none',
       borderTop: true,
       borderColor: t.border,
+      linksFont: t.font,
+      linksSize: 12.5,
+      linksAlign: 'center',
+      fpFont: t.font,
+      fpSize: 12,
+      fpAlign: 'center',
       px: 44,
       pt: 48,
       pb: 56,
     }),
     render(p) {
       const border = p.borderTop ? `border-top:1px solid ${p.borderColor};` : ''
-      return `<div class="eb-sec" style="${padBox(p)};${p.bg !== 'none' ? 'background:' + p.bg : ''};${border}text-align:${p.align}">
-          <p data-part="links" data-edit="links" contenteditable="true" style="margin:0 0 24px;font-family:${ff(p.font)};font-size:12.5px;font-weight:500;letter-spacing:.02em;color:${p.linksColor}">${esc(p.links)}</p>
-          <div data-part="fineprint">
-          <p data-edit="tagline" contenteditable="true" style="margin:0 ${p.align === 'center' ? 'auto' : '0'} 8px;max-width:340px;font-family:${ff(p.font)};font-size:12px;line-height:1.6;color:${p.taglineColor}">${esc(p.tagline)}</p>
-          <p data-edit="address" contenteditable="true" style="margin:0 0 14px;font-family:${ff(p.font)};font-size:11px;line-height:1.5;color:${p.addressColor}">${esc(p.address)}</p>
-          <p style="margin:0;font-family:${ff(p.font)};font-size:11px;color:${p.unsubColor}"><a data-edit="unsub" contenteditable="true" href="#" onclick="return false" style="color:${p.unsubColor};text-decoration:underline;text-underline-offset:2px">${esc(p.unsub)}</a></p>
+      return `<div class="eb-sec" style="${padBox(p)};${p.bg !== 'none' ? 'background:' + p.bg : ''};${border}">
+          <p data-part="links" data-edit="links" contenteditable="true" style="margin:0 0 24px;text-align:${p.linksAlign};font-family:${ff(p.linksFont)};font-size:${p.linksSize}px;font-weight:500;letter-spacing:.02em;color:${p.linksColor}">${esc(p.links)}</p>
+          <div data-part="fineprint" style="text-align:${p.fpAlign}">
+          <p data-edit="tagline" contenteditable="true" style="margin:0 ${p.fpAlign === 'center' ? 'auto' : '0'} 8px;max-width:340px;font-family:${ff(p.fpFont)};font-size:${p.fpSize}px;line-height:1.6;color:${p.taglineColor}">${esc(p.tagline)}</p>
+          <p data-edit="address" contenteditable="true" style="margin:0 0 14px;font-family:${ff(p.fpFont)};font-size:11px;line-height:1.5;color:${p.addressColor}">${esc(p.address)}</p>
+          <p style="margin:0;font-family:${ff(p.fpFont)};font-size:11px;color:${p.unsubColor}"><a data-edit="unsub" contenteditable="true" href="#" onclick="return false" style="color:${p.unsubColor};text-decoration:underline;text-underline-offset:2px">${esc(p.unsub)}</a></p>
           </div>
         </div>`
     },
-    inspect: (p) => [
+    inspect: () => [
       grpColors([
         ['Links', 'linksColor'],
         ['Tagline', 'taglineColor'],
         ['Address', 'addressColor'],
         ['Unsubscribe', 'unsubColor'],
       ]),
-      grpAlign(['left', 'center']),
       grpSwitch('Top border', 'borderTop', 'Hairline above the footer'),
       grpColors([
         ['Border', 'borderColor'],
@@ -1197,10 +1175,8 @@ export const REG: Record<string, BlockDef> = {
     parts: {
       links: {
         label: 'Links',
-        icon: ICO.social,
-        groups: () => [
-          { kind: 'group', title: 'Links', ctls: [{ kind: 'color', label: 'Links colour', key: 'linksColor' }] },
-        ],
+        icon: ICO.text,
+        groups: () => [txtTypo('Links', 'linksFont', 'linksSize', 'linksColor', 10, 20), txtAlign('linksAlign')],
       },
       fineprint: {
         label: 'Fine print',
@@ -1210,11 +1186,14 @@ export const REG: Record<string, BlockDef> = {
             kind: 'group',
             title: 'Fine print',
             ctls: [
+              { kind: 'select', key: 'fpFont', opts: Object.keys(FONTS), label: 'Font' },
+              { kind: 'num', label: 'Size', key: 'fpSize', min: 10, max: 18 },
               { kind: 'color', label: 'Tagline', key: 'taglineColor' },
               { kind: 'color', label: 'Address', key: 'addressColor' },
               { kind: 'color', label: 'Unsubscribe', key: 'unsubColor' },
             ],
           },
+          txtAlign('fpAlign'),
         ],
       },
     },
