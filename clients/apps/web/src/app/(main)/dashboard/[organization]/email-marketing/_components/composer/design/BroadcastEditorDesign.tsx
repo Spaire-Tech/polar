@@ -21,6 +21,11 @@ export interface BroadcastEditorDesignProps {
   course?: CourseData
   /** Lifecycle trigger to open on (enrolment, firstLesson, halfway, …). */
   initialTrigger?: string
+  /** Real number of students enrolled (replaces the placeholder count). */
+  enrolledCount?: number
+  /** Creator/organization name — the fallback instructor + default "from" name
+   *  when the course itself has no instructor set. */
+  creatorName?: string
   /** Subject seed (overrides the template default when restoring an old email). */
   initialSubject?: string
   /** Previously-saved editor state to restore instead of a fresh template. */
@@ -37,6 +42,8 @@ export function BroadcastEditorDesign({
   courseName,
   course,
   initialTrigger,
+  enrolledCount,
+  creatorName,
   initialSubject,
   initialState,
   onUploadImage,
@@ -47,8 +54,8 @@ export function BroadcastEditorDesign({
   const handleRef = useRef<EditorHandle | null>(null)
 
   // Keep the latest callbacks/data without re-mounting the imperative engine.
-  const cbRef = useRef({ onUploadImage, onSave, onClose, course })
-  cbRef.current = { onUploadImage, onSave, onClose, course }
+  const cbRef = useRef({ onUploadImage, onSave, onClose, course, creatorName })
+  cbRef.current = { onUploadImage, onSave, onClose, course, creatorName }
 
   // Re-mount the engine only when the bound course identity changes (e.g. the
   // async course query resolves once). Edits haven't begun at that point.
@@ -69,9 +76,11 @@ export function BroadcastEditorDesign({
     const handle = createEditor(rootEl, {
       courseName,
       initialTrigger,
+      enrolledCount,
+      fromName: creatorName,
       initialState: seededState,
       resolveAsset: makeAssetResolver(cbRef.current.course),
-      applyCourse: (blocks) => bindCourse(blocks, cbRef.current.course),
+      applyCourse: (blocks) => bindCourse(blocks, cbRef.current.course, cbRef.current.creatorName),
       onUploadImage: (file) => cbRef.current.onUploadImage!(file),
       onSave: (v) =>
         cbRef.current.onSave &&
@@ -84,7 +93,7 @@ export function BroadcastEditorDesign({
       handleRef.current = null
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [courseKey, courseName, initialTrigger])
+  }, [courseKey, courseName, initialTrigger, enrolledCount, creatorName])
 
   return <div className="bedesign" ref={ref} />
 }

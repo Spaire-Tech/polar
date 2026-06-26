@@ -745,7 +745,8 @@ export const REG: Record<string, BlockDef> = {
       img: 'assets/southern-cooking.jpg',
       label: 'Watch the trailer',
       sub: '2 min',
-      href: '#',
+      href: '',
+      playbackId: '',
       radius: 4,
       playColor: '#ffffff',
       labelFont: t.font,
@@ -761,11 +762,18 @@ export const REG: Record<string, BlockDef> = {
       const img = p.img
         ? `background:#000 url('${ASSET(p.img)}') center/cover no-repeat`
         : 'background:#26211c'
-      return `<div class="eb-sec" style="${padBox(p)};${p.bg !== 'none' ? 'background:' + p.bg : ''}">
-            <div style="position:relative;border-radius:${p.radius}px;overflow:hidden;${img};aspect-ratio:16/9">
+      // The poster is a real link so the SENT email clicks through to the video
+      // (emails can't embed a player). In the editor the engine intercepts the
+      // click on [data-trailer-play] and streams the Mux video inline instead.
+      const inner = `<div class="eb-trailer" data-trailer-play${p.playbackId ? ` data-playback="${esc(p.playbackId)}"` : ''} style="position:relative;border-radius:${p.radius}px;overflow:hidden;${img};aspect-ratio:16/9;display:block;cursor:pointer">
               <div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.04),rgba(0,0,0,.28))"></div>
               <div style="position:absolute;inset:0;margin:auto;width:56px;height:56px;border-radius:50%;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.35);display:flex;align-items:center;justify-content:center;color:${p.playColor}">${svg(ICO.play, 20)}</div>
-            </div>
+            </div>`
+      const poster = p.href
+        ? `<a href="${esc(p.href)}" target="_blank" rel="noopener" style="text-decoration:none;display:block">${inner}</a>`
+        : inner
+      return `<div class="eb-sec" style="${padBox(p)};${p.bg !== 'none' ? 'background:' + p.bg : ''}">
+            ${poster}
             <div style="margin-top:16px;display:flex;align-items:baseline;justify-content:space-between;gap:12px">
               <span data-edit="label" contenteditable="true" style="font-family:${ff(p.labelFont)};font-size:${p.labelSize}px;font-weight:600;color:${p.labelColor}">${esc(p.label)}</span>
               <span data-edit="sub" contenteditable="true" style="font-family:${ff(t.font)};font-size:13px;font-weight:400;color:${p.subColor}">${esc(p.sub)}</span>
@@ -774,6 +782,14 @@ export const REG: Record<string, BlockDef> = {
     },
     inspect: () => [
       grpImage('Thumbnail', 'img'),
+      {
+        kind: 'group',
+        title: 'Video',
+        ctls: [
+          { kind: 'field', label: 'Mux playback ID', key: 'playbackId', ph: 'plays in the editor' },
+          { kind: 'field', label: 'Watch link', key: 'href', ph: 'opens in the sent email' },
+        ],
+      },
       grpSelect('Caption font', 'labelFont', Object.keys(FONTS)),
       grpNum('Caption size', 'labelSize', 11, 24),
       grpColors([

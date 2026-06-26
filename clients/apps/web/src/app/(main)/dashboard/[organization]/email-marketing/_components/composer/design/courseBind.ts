@@ -16,11 +16,26 @@ const PLACEHOLDER_INSTRUCTOR = 'Adaeze Bello'
 const swapCourseName = (s: string, title: string): string =>
   String(s ?? '').split(PLACEHOLDER_TITLE).join(title)
 
-export function bindCourse(blocks: Block[], course: CourseData | undefined): Block[] {
+export function bindCourse(
+  blocks: Block[],
+  course: CourseData | undefined,
+  creatorName?: string,
+): Block[] {
   if (!course) return blocks
   const hasLessons = course.lessons.length > 0
   const lessonCount = course.lessons.length
   const inst = course.instructor
+  // The name every block signs with: the course's instructor if set, otherwise
+  // the creator/organization. NEVER the design's placeholder ("Adaeze Bello").
+  const instructorName = (inst.name || creatorName || '').trim()
+  const instructorRole = (inst.role || 'Instructor').trim()
+  const instructorBio = (inst.bio || '').trim()
+  // Replace the placeholder name wherever it signs a block.
+  const swapInstructor = (s: string): string => {
+    const v = String(s ?? '')
+    if (!instructorName) return v
+    return v.split(PLACEHOLDER_INSTRUCTOR).join(instructorName)
+  }
 
   for (const b of blocks) {
     const p = b.props
@@ -33,10 +48,10 @@ export function bindCourse(blocks: Block[], course: CourseData | undefined): Blo
         // Hero subtitle: "Taught by X" / "with X" → real instructor; a bare
         // course-name subtitle → the real course name.
         if (/^(taught by|with)\b/i.test(String(p.instructor || ''))) {
-          if (inst.name)
-            p.instructor = (String(p.instructor).match(/^taught by/i) ? 'Taught by ' : 'with ') + inst.name
+          if (instructorName)
+            p.instructor = (String(p.instructor).match(/^taught by/i) ? 'Taught by ' : 'with ') + instructorName
         } else if (p.instructor) {
-          p.instructor = swapCourseName(p.instructor, course.title)
+          p.instructor = swapCourseName(swapInstructor(p.instructor), course.title)
         }
         break
       }
@@ -70,9 +85,15 @@ export function bindCourse(blocks: Block[], course: CourseData | undefined): Blo
         break
       }
       case 'instructor': {
-        if (course.instructor.name) p.name = course.instructor.name
-        if (course.instructor.role) p.role = course.instructor.role
-        if (course.instructor.bio) p.bio = course.instructor.bio
+        if (instructorName) p.name = instructorName
+        p.role = instructorRole
+        // Real bio if the course has one; otherwise a neutral factual line —
+        // never the placeholder's fabricated "Adaeze runs a Charleston kitchen".
+        p.bio =
+          instructorBio ||
+          (instructorName
+            ? `Meet ${instructorName}, your instructor for ${course.title}.`
+            : `Your instructor for ${course.title}.`)
         if (course.instructor.avatar) p.img = course.instructor.avatar
         else if (course.heroImage) p.img = course.heroImage
         break
@@ -80,16 +101,19 @@ export function bindCourse(blocks: Block[], course: CourseData | undefined): Blo
       case 'trailer': {
         if (course.trailerImage) p.img = course.trailerImage
         else if (course.heroImage) p.img = course.heroImage
+        // Mux playback id → the editor can stream the real trailer inline.
+        if (course.trailerPlaybackId) p.playbackId = course.trailerPlaybackId
         break
       }
       case 'note': {
-        // The instructor signs every lifecycle note — bind it to the real one.
-        if (inst.name && p.sign === PLACEHOLDER_INSTRUCTOR) p.sign = inst.name
-        if (inst.role && p.signRole) p.signRole = inst.role
+        // The instructor signs every lifecycle note — bind it to the real one
+        // (or the creator), never the placeholder.
+        if (instructorName) p.sign = swapInstructor(p.sign)
+        p.signRole = instructorRole
         break
       }
       case 'quote': {
-        if (inst.name && p.by === PLACEHOLDER_INSTRUCTOR) p.by = inst.name
+        if (instructorName) p.by = swapInstructor(p.by)
         break
       }
     }

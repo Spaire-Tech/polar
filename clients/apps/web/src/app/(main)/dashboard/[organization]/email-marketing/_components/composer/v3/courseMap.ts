@@ -32,6 +32,16 @@ export function deriveTrailerPoster(c: CourseRead): string | null {
   return c.thumbnail_url ?? null
 }
 
+// The Mux playback id behind the trailer, for inline playback in the editor.
+// A bare `trailer_url` is itself a playback id; otherwise fall back to the
+// first video lesson's. A full http trailer_url isn't a Mux id, so skip it.
+export function deriveTrailerPlaybackId(c: CourseRead): string | null {
+  const t = c.trailer_url
+  if (t && !/^https?:\/\//i.test(t)) return t
+  const lessons = c.modules.flatMap((m) => m.lessons)
+  return lessons.find((l) => l.mux_playback_id)?.mux_playback_id ?? null
+}
+
 export function mapCourse(c: CourseRead): CourseData {
   const lessons = c.modules.flatMap((m) => m.lessons)
   const seconds = lessons.map((l) => l.duration_seconds ?? 0)
@@ -41,6 +51,7 @@ export function mapCourse(c: CourseRead): CourseData {
     tagline: c.description ?? '',
     heroImage: c.thumbnail_url,
     trailerImage: deriveTrailerPoster(c),
+    trailerPlaybackId: deriveTrailerPlaybackId(c),
     instructor: {
       name: c.instructor_name ?? '',
       role: 'Instructor',

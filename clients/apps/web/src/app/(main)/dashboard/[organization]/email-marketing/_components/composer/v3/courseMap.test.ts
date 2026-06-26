@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
 
-import { deriveTrailerPoster, mapCourse, muxPoster } from './courseMap'
+import {
+  deriveTrailerPlaybackId,
+  deriveTrailerPoster,
+  mapCourse,
+  muxPoster,
+} from './courseMap'
 
 // Minimal CourseRead-shaped fixture (only the fields mapCourse reads).
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -89,5 +94,24 @@ describe('deriveTrailerPoster (Mux, not S3)', () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const c: any = { trailer_url: null, thumbnail_url: 'https://s3/cover.jpg', modules: [] }
     expect(deriveTrailerPoster(c)).toBe('https://s3/cover.jpg')
+  })
+})
+
+describe('deriveTrailerPlaybackId', () => {
+  it('uses a bare trailer_url as the playback id', () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    expect(deriveTrailerPlaybackId({ trailer_url: 'play123', modules: [] } as any)).toBe('play123')
+  })
+  it('ignores a full-url trailer and uses the first video lesson', () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const c: any = {
+      trailer_url: 'https://cdn/x.mp4',
+      modules: [{ lessons: [{ mux_playback_id: null }, { mux_playback_id: 'lessonPB' }] }],
+    }
+    expect(deriveTrailerPlaybackId(c)).toBe('lessonPB')
+  })
+  it('is null when there is no Mux source', () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    expect(deriveTrailerPlaybackId({ trailer_url: null, modules: [] } as any)).toBeNull()
   })
 })

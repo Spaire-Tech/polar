@@ -55,6 +55,10 @@ export interface CreateEditorOpts {
   courseName?: string
   /** Lifecycle trigger to open on (enrolment, firstLesson, …). */
   initialTrigger?: string
+  /** Real number of students enrolled in the course (replaces the placeholder). */
+  enrolledCount?: number
+  /** Default "from" name — the course instructor or the creator/organization. */
+  fromName?: string
   /** Previously-saved editor state to restore instead of a fresh template. */
   initialState?: EditorState | null
   /** Resolve a design asset key (e.g. 'assets/southern-cooking.jpg') to a URL. */
@@ -141,7 +145,7 @@ export function createEditor(root: HTMLElement, opts: CreateEditorOpts = {}): Ed
   let themeKey = 'studio'
   const theme = (): Theme => THEMES[themeKey]
   const broadcast: BroadcastMeta = {
-    from: 'Adaeze Bello',
+    from: opts.fromName || 'Spaire',
     audience: 'New enrollments',
     count: '1,204',
     subject: 'Welcome to Southern Cooking',
@@ -150,7 +154,11 @@ export function createEditor(root: HTMLElement, opts: CreateEditorOpts = {}): Ed
   let currentTrigger = 'enrolment'
 
   const courseName = opts.courseName || 'Southern Cooking'
+  // Real enrolled count (commas) when known, else the design's placeholder.
+  const fmtCount = (n: number) => n.toLocaleString()
+  const realCount = () => (opts.enrolledCount != null ? fmtCount(opts.enrolledCount) : null)
   const cleanups: Array<() => void> = []
+  const trailerHls: Array<{ destroy: () => void }> = []
   const on = (target: any, ev: string, fn: any, capture?: boolean) => {
     target.addEventListener(ev, fn, capture)
     cleanups.push(() => target.removeEventListener(ev, fn, capture))
@@ -277,7 +285,8 @@ export function createEditor(root: HTMLElement, opts: CreateEditorOpts = {}): Ed
     // Subjects/previews mention the placeholder course name — swap in the real
     // one so the lifecycle copy matches the course it's bound to.
     const swap = (s: string) => s.split('Southern Cooking').join(courseName)
-    broadcast.subject = swap(m.subject); broadcast.preview = swap(m.preview); broadcast.audience = m.audience; broadcast.count = m.count
+    broadcast.subject = swap(m.subject); broadcast.preview = swap(m.preview); broadcast.audience = m.audience
+    broadcast.count = realCount() ?? m.count
     themeKey = tpl.theme
     blocks = tpl.blocks.map((s) => makeBlock(s.type, s.props))
     if (opts.applyCourse) blocks = opts.applyCourse(blocks, key)
@@ -347,6 +356,7 @@ export function createEditor(root: HTMLElement, opts: CreateEditorOpts = {}): Ed
         select(b.id, pe && wrap.contains(pe) ? pe.dataset.part || null : null)
       })
       bindEdits(wrap, b)
+      wireTrailer(wrap, b)
       rootE.appendChild(wrap)
     })
   }
@@ -362,7 +372,42 @@ export function createEditor(root: HTMLElement, opts: CreateEditorOpts = {}): Ed
     const inner = wrap.querySelector('.eb') as HTMLElement
     inner.innerHTML = REG[b.type].render(b.props, theme())
     bindEdits(wrap, b)
+    wireTrailer(wrap, b)
     markPart()
+  }
+
+  /* Editor-only: a trailer's poster streams its Mux video inline on click.
+     (The sent email keeps the poster + watch link — emails can't embed video.) */
+  function wireTrailer(wrap: HTMLElement, b: Block) {
+    if (b.type !== 'trailer') return
+    const el = wrap.querySelector('[data-trailer-play]') as HTMLElement | null
+    if (!el) return
+    on(el, 'click', (e: MouseEvent) => {
+      e.preventDefault(); e.stopPropagation()
+      const pid = b.props.playbackId
+      if (!pid) { toast('Add a Mux playback ID to play the trailer'); return }
+      playTrailer(el, String(pid))
+    })
+  }
+  function playTrailer(container: HTMLElement, playbackId: string) {
+    const src = `https://stream.mux.com/${playbackId}.m3u8`
+    const video = document.createElement('video')
+    video.controls = true; video.autoplay = true
+    video.setAttribute('playsinline', ''); video.setAttribute('data-mux-src', src)
+    video.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;display:block;background:#000;border:0'
+    container.style.cursor = 'default'
+    container.innerHTML = ''
+    container.appendChild(video)
+    if (video.canPlayType('application/vnd.apple.mpegurl')) { video.src = src; return }
+    import('hls.js')
+      .then(({ default: Hls }) => {
+        if (!container.isConnected) return
+        const H = Hls as unknown as { isSupported: () => boolean; new (): { destroy: () => void; loadSource: (s: string) => void; attachMedia: (v: HTMLVideoElement) => void } }
+        if (!H.isSupported()) { video.src = src; return }
+        const inst = new H()
+        inst.loadSource(src); inst.attachMedia(video); trailerHls.push(inst)
+      })
+      .catch(() => { video.src = src })
   }
 
   /* ============================================================ SELECTION + INSPECTOR */
@@ -905,6 +950,7 @@ export function createEditor(root: HTMLElement, opts: CreateEditorOpts = {}): Ed
     currentTrigger = state.trigger || 'enrolment'
     themeKey = state.themeKey || TEMPLATES[currentTrigger]?.theme || 'studio'
     Object.assign(broadcast, state.broadcast || {})
+    const rc = realCount(); if (rc) broadcast.count = rc
     blocks = (state.blocks || []).map((s) => ({ id: uid(), type: s.type, props: s.props }))
     applyTheme(); updateCrumb(); renderCanvas(); deselect()
   }
@@ -936,7 +982,10 @@ export function createEditor(root: HTMLElement, opts: CreateEditorOpts = {}): Ed
   })
 
   const appThemeToggle = q('#appThemeToggle')
-  if (appThemeToggle) on(appThemeToggle, 'click', () => { root.classList.toggle('dark') })
+  if (appThemeToggle) on(appThemeToggle, 'click', () => {
+    root.classList.toggle('dark')
+    try { localStorage.setItem('be_theme', root.classList.contains('dark') ? 'dark' : 'light') } catch { /* ignore */ }
+  })
 
   const sendBtn = q('#sendBtn'); if (sendBtn) on(sendBtn, 'click', openSaveConfirm)
   const sendCaret = q('#sendCaret'); if (sendCaret) on(sendCaret, 'click', openSendMenu)
@@ -950,8 +999,9 @@ export function createEditor(root: HTMLElement, opts: CreateEditorOpts = {}): Ed
   })
   on(root, 'focusin', (e: FocusEvent) => { const t = e.target as HTMLElement; if (t.matches && t.matches('[contenteditable][data-edit]')) lastEditEl = t })
 
-  /* default the app chrome to dark — the email canvas is the bright surface */
-  root.classList.add('dark')
+  /* Match the design: chrome defaults to LIGHT (the dark email sits in the
+     middle), and the only persisted override is an explicit dark choice. */
+  try { if (localStorage.getItem('be_theme') === 'dark') root.classList.add('dark') } catch { /* ignore */ }
 
   return {
     getState,
@@ -959,6 +1009,7 @@ export function createEditor(root: HTMLElement, opts: CreateEditorOpts = {}): Ed
     destroy() {
       closeFloat(); closeSave(); closePicker()
       if (fmtBubble) { fmtBubble.remove(); fmtBubble = null }
+      trailerHls.forEach((h) => { try { h.destroy() } catch { /* ignore */ } })
       clearTimeout(saveTimer); clearTimeout(toastTimer); clearTimeout(fmtTimer)
       cleanups.forEach((fn) => fn())
     },
