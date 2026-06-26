@@ -13,6 +13,8 @@ import { EmailTheming } from '@react-email/editor/plugins'
 import { useEditor, type Editor } from '@tiptap/react'
 
 import { TextColor } from './colorMark'
+import { CourseBlock, type CourseVariant } from './courseBlock'
+import type { CourseData } from './courseData'
 import { Image } from './imageNode'
 import { Spacer } from './spacerNode'
 
@@ -26,6 +28,7 @@ export const emailExtensions = (): AnyExt[] => [
   TextColor,
   Spacer,
   Image,
+  CourseBlock,
 ]
 
 export function useEmailEditor(initialContent?: string) {
@@ -119,6 +122,54 @@ export function insertBlockAt(
   editor.view.dispatch(editor.state.tr.insert(at, node).scrollIntoView())
   editor.commands.focus()
   return true
+}
+
+/**
+ * Insert a course block (atom) carrying a snapshot of the bound course. Optional
+ * `index` for drag-to-insert; otherwise appends at the container end.
+ */
+export function insertCourseBlock(
+  editor: Editor | null,
+  variant: CourseVariant,
+  course: CourseData,
+  index?: number,
+): boolean {
+  if (!editor) return false
+  const c = findContainer(editor)
+  if (!c) return false
+  const node = editor.schema.nodeFromJSON({
+    type: 'courseBlock',
+    attrs: { variant, data: course },
+  })
+  const blocks = topBlocks(editor)
+  const at =
+    index == null || index >= blocks.length
+      ? c.pos + c.node.nodeSize - 1
+      : blocks[index].pos
+  editor.view.dispatch(editor.state.tr.insert(at, node).scrollIntoView())
+  editor.commands.focus()
+  return true
+}
+
+/**
+ * Live-sync: re-stamp every course block's `data` with the current course so
+ * the bound blocks update when the course changes. Returns how many updated.
+ */
+export function syncCourseBlocks(
+  editor: Editor | null,
+  course: CourseData,
+): number {
+  if (!editor) return 0
+  let count = 0
+  const tr = editor.state.tr
+  editor.state.doc.descendants((node: PMNode, pos: number) => {
+    if (node.type.name === 'courseBlock') {
+      tr.setNodeMarkup(pos, undefined, { ...node.attrs, data: course })
+      count++
+    }
+  })
+  if (count) editor.view.dispatch(tr)
+  return count
 }
 
 /**
@@ -218,6 +269,7 @@ const LABELS: Record<string, string> = {
   image: 'Image',
   section: 'Section',
   spacer: 'Spacer',
+  courseBlock: 'Course block',
 }
 const labelFor = (node: PMNode): string =>
   LABELS[node.type.name as string] ?? (node.type.name as string)

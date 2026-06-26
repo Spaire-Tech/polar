@@ -12,6 +12,7 @@ export interface EmailTheme {
   outerBg: string
   heading: string
   text: string
+  muted: string
   link: string
   accent: string
   button: string
@@ -27,6 +28,7 @@ export const THEMES: EmailTheme[] = [
     outerBg: '#e6e1d6',
     heading: '#1f241c',
     text: '#5a6052',
+    muted: '#9a9e90',
     link: '#1f241c',
     accent: '#5e7355',
     button: '#1f241c',
@@ -40,6 +42,7 @@ export const THEMES: EmailTheme[] = [
     outerBg: '#0e0a08',
     heading: '#f2eadf',
     text: '#b8ae9f',
+    muted: '#847a6d',
     link: '#f2eadf',
     accent: '#c98a5e',
     button: '#f2eadf',
@@ -53,6 +56,7 @@ export const THEMES: EmailTheme[] = [
     outerBg: '#08090a',
     heading: '#f4f5f4',
     text: '#aeb3b1',
+    muted: '#6b6f6d',
     link: '#f4f5f4',
     accent: '#8fa89a',
     button: '#f4f5f4',
@@ -66,6 +70,7 @@ export const THEMES: EmailTheme[] = [
     outerBg: '#0b0c0e',
     heading: '#efeff1',
     text: '#adafb5',
+    muted: '#6e7077',
     link: '#efeff1',
     accent: '#9aa0a8',
     button: '#efeff1',
@@ -81,6 +86,7 @@ export const themeByKey = (key: ThemeKey | null): EmailTheme | null =>
 export const themeVars = (t: EmailTheme): Record<string, string> => ({
   '--em-bg': t.emailBg,
   '--em-text': t.text,
+  '--em-muted': t.muted,
   '--em-heading': t.heading,
   '--em-link': t.link,
   '--em-accent': t.accent,

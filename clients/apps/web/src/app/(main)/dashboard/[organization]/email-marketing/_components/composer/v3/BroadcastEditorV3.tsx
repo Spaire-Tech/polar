@@ -29,13 +29,17 @@ import { ColorPicker } from './colorPicker'
 import { FormatBubble } from './FormatBubble'
 import { THEMES, themeByKey, themeVars, type ThemeKey } from './themes'
 import { TRIGGERS, triggerByKey, type TriggerKey } from './triggers'
+import { COURSE_VARIANTS, type CourseVariant } from './courseBlock'
+import { SAMPLE_COURSE, type CourseData } from './courseData'
 import {
   dropIndexForY,
   dropLineY,
   insertBlock,
   insertBlockAt,
+  insertCourseBlock,
   moveBlockTo,
   setBlockAttr,
+  syncCourseBlocks,
   topBlocks,
   useEmailEditor,
   type InsertableBlock,
@@ -145,9 +149,14 @@ function Ctl({ label, children }: { label: ReactNode; children: ReactNode }) {
 
 export function BroadcastEditorV3({
   courseName = 'Southern Cooking',
+  course = SAMPLE_COURSE,
   onUploadImage,
 }: {
   courseName?: string
+  /** The bound course — Course blocks auto-fill from it and live-sync on
+      change. Defaults to the sample course (harness); the app passes a real
+      course here (brick 15). */
+  course?: CourseData
   /** Upload a picked file and return its hosted URL. Defaults to an inline
       data URL (used by the harness); the app wires S3 upload here. */
   onUploadImage?: (file: File) => Promise<{ url: string }>
@@ -170,7 +179,7 @@ export function BroadcastEditorV3({
   const [backdropOverride, setBackdropOverride] = useState<string | null>(null)
   // Drag-to-insert (palette) / drag-to-reorder (block grip) state.
   const [drag, setDrag] = useState<
-    | { kind: 'insert'; type: InsertableBlock; label: string }
+    | { kind: 'insert'; type: string; label: string }
     | { kind: 'move'; index: number }
     | null
   >(null)
@@ -222,8 +231,13 @@ export function BroadcastEditorV3({
     toastTimer.current = setTimeout(() => setToast(''), 2200)
   }
 
+  const isCourse = (key: string): key is CourseVariant =>
+    (COURSE_VARIANTS as readonly string[]).includes(key)
   const onPalette = (key: string, label: string) => {
-    if (WIRED.has(key as InsertableBlock)) {
+    if (isCourse(key)) {
+      insertCourseBlock(editor, key, course)
+      showToast(`${label} added`)
+    } else if (WIRED.has(key as InsertableBlock)) {
       insertBlock(editor, key as InsertableBlock)
     } else {
       showToast(`“${label}” block is coming next`)
@@ -330,7 +344,8 @@ export function BroadcastEditorV3({
     e.preventDefault()
     const idx = dropIndexRef.current ?? topBlocks(editor).length
     if (drag.kind === 'insert') {
-      insertBlockAt(editor, drag.type, idx)
+      if (isCourse(drag.type)) insertCourseBlock(editor, drag.type, course, idx)
+      else insertBlockAt(editor, drag.type as InsertableBlock, idx)
       showToast(`${drag.label} added`)
     } else {
       moveBlockTo(editor, drag.index, idx)
@@ -392,6 +407,10 @@ export function BroadcastEditorV3({
     },
     [],
   )
+  // Live-sync: whenever the bound course changes, re-stamp every course block.
+  useEffect(() => {
+    syncCourseBlocks(editor, course)
+  }, [editor, course])
   // Escape closes the top-bar menus / save sheet (design parity).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -471,7 +490,8 @@ export function BroadcastEditorV3({
               <div className="pal-label">{g.group}</div>
               <div className="pal-grid">
                 {g.items.map((it) => {
-                  const wired = WIRED.has(it.key as InsertableBlock)
+                  const wired =
+                    WIRED.has(it.key as InsertableBlock) || isCourse(it.key)
                   return (
                     <button
                       className={
@@ -490,7 +510,7 @@ export function BroadcastEditorV3({
                         e.dataTransfer.setData('text/plain', it.key)
                         setDrag({
                           kind: 'insert',
-                          type: it.key as InsertableBlock,
+                          type: it.key,
                           label: it.label,
                         })
                       }}
@@ -793,9 +813,20 @@ export function BroadcastEditorV3({
                     </div>
                   </Ctl>
                 )}
+                {sel.type === 'courseBlock' && (
+                  <div className="insp-empty-note" data-testid="course-note">
+                    <span className="n-ic">
+                      <I d={IC.info} size={15} />
+                    </span>
+                    This block fills automatically from{' '}
+                    <strong>{course.title}</strong> and updates whenever the
+                    course changes.
+                  </div>
+                )}
                 {!ALIGNABLE.has(sel.type) &&
                   sel.type !== 'spacer' &&
-                  sel.type !== 'image' && (
+                  sel.type !== 'image' &&
+                  sel.type !== 'courseBlock' && (
                     <div className="insp-empty-note">
                       <span className="n-ic">
                         <I d={IC.info} size={15} />

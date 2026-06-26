@@ -2,6 +2,7 @@
 import { Editor } from '@tiptap/react'
 import { beforeAll, describe, expect, it } from 'vitest'
 
+import { SAMPLE_COURSE, type CourseData } from './courseData'
 import {
   deleteBlock,
   duplicateBlock,
@@ -9,10 +10,12 @@ import {
   emailHtml,
   insertBlock,
   insertBlockAt,
+  insertCourseBlock,
   moveBlock,
   moveBlockTo,
   setBlockAttr,
   setTextColor,
+  syncCourseBlocks,
   toggleBold,
   topBlocks,
 } from './engine'
@@ -173,6 +176,42 @@ describe('v3 engine: insert + email output', () => {
     expect(editor.getHTML()).toContain('{{first_name}}')
     const html = await emailHtml(editor)
     expect(html).toContain('{{first_name}}')
+    editor.destroy()
+  })
+
+  it('course blocks auto-fill from the bound course in email HTML', async () => {
+    const editor = makeEditor()
+    expect(insertCourseBlock(editor, 'cover', SAMPLE_COURSE)).toBe(true)
+    expect(insertCourseBlock(editor, 'curriculum', SAMPLE_COURSE)).toBe(true)
+    expect(insertCourseBlock(editor, 'instructor', SAMPLE_COURSE)).toBe(true)
+
+    const html = await emailHtml(editor)
+    // bound course data reaches the inbox-correct output, no manual entry
+    expect(html).toContain('Southern Cooking') // cover title
+    expect(html).toContain('The Kitchen Series') // eyebrow
+    expect(html).toContain('Low &amp; Slow Braises') // a curriculum lesson
+    expect(html).toContain('Adaeze Bello') // instructor name
+    editor.destroy()
+  })
+
+  it('syncCourseBlocks live-updates every course block to the new course', async () => {
+    const editor = makeEditor()
+    insertCourseBlock(editor, 'cover', SAMPLE_COURSE)
+    insertCourseBlock(editor, 'curriculum', SAMPLE_COURSE)
+    expect(await emailHtml(editor)).toContain('Southern Cooking')
+
+    const next: CourseData = {
+      ...SAMPLE_COURSE,
+      title: 'Knife Skills 101',
+      lessons: [{ title: 'The Rock Chop', duration: '11 min' }],
+    }
+    expect(syncCourseBlocks(editor, next)).toBe(2) // both blocks updated
+
+    const html = await emailHtml(editor)
+    expect(html).toContain('Knife Skills 101')
+    expect(html).toContain('The Rock Chop')
+    expect(html).not.toContain('Southern Cooking')
+    expect(html).not.toContain('Low &amp; Slow Braises')
     editor.destroy()
   })
 

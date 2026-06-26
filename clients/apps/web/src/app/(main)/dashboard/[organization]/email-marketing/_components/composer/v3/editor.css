@@ -393,6 +393,16 @@
   background: var(--em-bg, #ffffff) !important;
 }
 
+/* ── Course data-bound blocks (brick 14) ──────────────────────────────────
+   The blocks bring their own padding and run full-bleed, so cancel the
+   container's 44px horizontal padding with negative margins. */
+.bem .email .ProseMirror .eb-course {
+  margin-left: -44px;
+  margin-right: -44px;
+}
+.bem .email .ProseMirror .eb-course * { box-sizing: border-box; }
+.bem .email .ProseMirror .eb-course img { max-width: 100%; }
+
 /* ── Quote / Divider / Spacer blocks (brick 6) ────────────────────────── */
 .bem .email .ProseMirror blockquote {
   margin: 0; font-family: var(--inter);
