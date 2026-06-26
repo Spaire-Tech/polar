@@ -278,6 +278,14 @@ export function createEditor(root: HTMLElement, opts: CreateEditorOpts = {}): Ed
     const d = REG[type].defaults(theme())
     return { id: uid(), type, props: Object.assign({}, d, props || {}) }
   }
+  /* A brand-new block from the palette/drag still carries the design's
+     placeholder defaults ("Adaeze Bello", "12 lessons", "Southern Cooking").
+     Bind it to the live course on creation so it matches the rest of the email. */
+  function makeBoundBlock(type: string): Block {
+    const b = makeBlock(type)
+    if (opts.applyCourse) opts.applyCourse([b], currentTrigger)
+    return b
+  }
   function loadTemplate(key: string) {
     const tpl = TEMPLATES[key]
     currentTrigger = key
@@ -729,7 +737,7 @@ export function createEditor(root: HTMLElement, opts: CreateEditorOpts = {}): Ed
   function dupBlock(i: number) { const copy = makeBlock(blocks[i].type, JSON.parse(JSON.stringify(blocks[i].props))); blocks.splice(i + 1, 0, copy); renderCanvas(); select(copy.id); toast('Block duplicated') }
   function delBlock(i: number) { const wasSel = blocks[i].id === selId; blocks.splice(i, 1); renderCanvas(); if (wasSel) deselect(); flagSaving() }
   function addBlock(type: string, atIndex?: number) {
-    const b = makeBlock(type)
+    const b = makeBoundBlock(type)
     const idx = atIndex != null ? atIndex : selId ? blocks.findIndex((x) => x.id === selId) + 1 : blocks.length
     blocks.splice(idx, 0, b); renderCanvas(); select(b.id)
     const node = q(`.blk[data-id="${b.id}"]`)
@@ -763,7 +771,7 @@ export function createEditor(root: HTMLElement, opts: CreateEditorOpts = {}): Ed
     if (dragType == null && dragId == null) return
     e.preventDefault()
     const idx = dropIndex != null ? dropIndex : blocks.length
-    if (dragType) { const b = makeBlock(dragType); blocks.splice(idx, 0, b); renderCanvas(); select(b.id); toast(REG[dragType].label + ' added') }
+    if (dragType) { const b = makeBoundBlock(dragType); blocks.splice(idx, 0, b); renderCanvas(); select(b.id); toast(REG[dragType].label + ' added') }
     else if (dragId) { const from = blocks.findIndex((x) => x.id === dragId); if (from > -1) { const [m] = blocks.splice(from, 1); let target = idx; if (from < idx) target--; blocks.splice(target, 0, m); renderCanvas(); select(m.id) } }
     endDrag(); flagSaving()
   }
@@ -986,11 +994,14 @@ export function createEditor(root: HTMLElement, opts: CreateEditorOpts = {}): Ed
     const stage = q('#stage'); if (stage) stage.classList.toggle('mobile', b.dataset.d === 'mobile')
   })
 
-  const appThemeToggle = q('#appThemeToggle')
-  if (appThemeToggle) on(appThemeToggle, 'click', () => {
-    root.classList.toggle('dark')
-    try { localStorage.setItem('be_theme', root.classList.contains('dark') ? 'dark' : 'light') } catch { /* ignore */ }
-  })
+  // The email editor has no theme toggle of its own — it follows the Polar
+  // app's theme (next-themes sets `.dark` on <html>). Mirror it onto .bedesign
+  // and keep it in sync if the app theme changes while the editor is open.
+  const syncAppTheme = () => root.classList.toggle('dark', document.documentElement.classList.contains('dark'))
+  syncAppTheme()
+  const themeObserver = new MutationObserver(syncAppTheme)
+  themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] })
+  cleanups.push(() => themeObserver.disconnect())
 
   const sendBtn = q('#sendBtn'); if (sendBtn) on(sendBtn, 'click', openSaveConfirm)
   const sendCaret = q('#sendCaret'); if (sendCaret) on(sendCaret, 'click', openSendMenu)
@@ -1004,9 +1015,6 @@ export function createEditor(root: HTMLElement, opts: CreateEditorOpts = {}): Ed
   })
   on(root, 'focusin', (e: FocusEvent) => { const t = e.target as HTMLElement; if (t.matches && t.matches('[contenteditable][data-edit]')) lastEditEl = t })
 
-  /* Match the design: chrome defaults to LIGHT (the dark email sits in the
-     middle), and the only persisted override is an explicit dark choice. */
-  try { if (localStorage.getItem('be_theme') === 'dark') root.classList.add('dark') } catch { /* ignore */ }
 
   return {
     getState,
