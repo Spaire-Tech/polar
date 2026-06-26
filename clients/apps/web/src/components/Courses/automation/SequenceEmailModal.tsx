@@ -1,24 +1,35 @@
 'use client'
 
-// SequenceEmailModal — hosts the v3 broadcast editor (BroadcastEditorV3) as an
-// automation step's email editor, full-screen. The sequence defines the
-// audience and trigger, so the editor is used purely to author the email: the
-// "Back" button returns to the builder, and saving hands the authored subject +
-// inbox-correct HTML + TipTap JSON back to the sequence builder.
-//
-// The editor binds to the automation's course (data-bound blocks + AI recap
-// copy) and uploads images to S3 — exactly like the standalone studio route.
+// SequenceEmailModal — hosts the creator's faithfully-rebuilt broadcast editor
+// (BroadcastEditorDesign) as an automation step's email editor, full-screen.
+// The sequence defines the audience and trigger, so the editor opens on the
+// matching lifecycle template (enrolment, first lesson, halfway, …), bound to
+// the automation's course. "Back" returns to the builder; saving hands the
+// authored subject + inbox-correct HTML + editor JSON back to the sequence.
 
 import type { schemas } from '@spaire/client'
 import { useEffect } from 'react'
 
-import { BroadcastEditorV3 } from '@/app/(main)/dashboard/[organization]/email-marketing/_components/composer/v3/BroadcastEditorV3'
+import { BroadcastEditorDesign } from '@/app/(main)/dashboard/[organization]/email-marketing/_components/composer/design/BroadcastEditorDesign'
+import type { EditorState } from '@/app/(main)/dashboard/[organization]/email-marketing/_components/composer/design/emailEngine'
 import { mapCourse } from '@/app/(main)/dashboard/[organization]/email-marketing/_components/composer/v3/courseMap'
 import { useCourseById } from '@/hooks/queries/courses'
-import {
-  useGenerateEmailCopy,
-  useUploadEmailImage,
-} from '@/hooks/queries/emailMarketing'
+import { useUploadEmailImage } from '@/hooks/queries/emailMarketing'
+
+// The sequence's trigger type → the editor's lifecycle template key.
+const MOMENT_TO_TRIGGER: Record<string, string> = {
+  enrol: 'enrolment',
+  enrolment: 'enrolment',
+  lesson: 'specificLesson',
+  specificLesson: 'specificLesson',
+  first: 'firstLesson',
+  firstLesson: 'firstLesson',
+  half: 'halfway',
+  halfway: 'halfway',
+  complete: 'courseComplete',
+  courseComplete: 'courseComplete',
+  inactive: 'inactive',
+}
 
 export function SequenceEmailModal({
   organization,
@@ -52,36 +63,33 @@ export function SequenceEmailModal({
   }, [])
 
   const upload = useUploadEmailImage(organization.id)
-  const generateCopy = useGenerateEmailCopy()
   const { data: courseRead } = useCourseById(courseId)
   const course = courseRead ? mapCourse(courseRead) : undefined
 
-  // Only restore a document the v3 editor itself wrote (a TipTap `doc`); emails
-  // authored in the previous composer use a different shape and start fresh.
-  const initialDocument =
-    initialContentJson && initialContentJson.type === 'doc'
-      ? (initialContentJson as Record<string, unknown>)
-      : undefined
+  const initialTrigger = moment ? MOMENT_TO_TRIGGER[moment] ?? 'enrolment' : 'enrolment'
+
+  // Only restore state the design editor itself wrote (version 3). Emails
+  // authored in earlier composers use a different shape and start fresh from
+  // the lifecycle template instead.
+  const initialState =
+    initialContentJson && (initialContentJson as { version?: number }).version === 3
+      ? (initialContentJson as unknown as EditorState)
+      : null
 
   return (
-    <div className="fixed inset-0 z-50 bg-white dark:bg-black">
-      <BroadcastEditorV3
-        courseName={courseRead?.title ?? 'Course automation'}
+    <div className="fixed inset-0 z-50 bg-black">
+      <BroadcastEditorDesign
+        courseName={courseRead?.title ?? course?.title ?? 'Course'}
         course={course}
+        initialTrigger={initialTrigger}
         initialSubject={initialSubject}
-        initialDocument={initialDocument}
-        onUploadImage={(file) => upload.mutateAsync(file)}
-        onGenerateCopy={
-          courseId
-            ? (m) =>
-                generateCopy.mutateAsync({ courseId, moment: moment ?? m })
-            : undefined
-        }
+        initialState={initialState}
+        onUploadImage={async (file) => (await upload.mutateAsync(file)).url}
         onSave={(p) => {
           onSave({
             subject: p.subject,
             content_html: p.html,
-            content_json: p.json,
+            content_json: p.json as unknown as Record<string, unknown>,
           })
           onClose()
         }}
