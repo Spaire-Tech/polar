@@ -31,7 +31,9 @@ export const emailExtensions = (): AnyExt[] => [
   CourseBlock,
 ]
 
-export function useEmailEditor(initialContent?: string) {
+// Content may be an HTML string or a TipTap JSON document (for restore).
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function useEmailEditor(initialContent?: string | Record<string, any>) {
   return useEditor({
     immediatelyRender: false,
     extensions: emailExtensions(),
@@ -41,6 +43,11 @@ export function useEmailEditor(initialContent?: string) {
     },
   })
 }
+
+/** The current document as a serialisable TipTap JSON object (for save). */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const documentJSON = (editor: Editor | null): Record<string, any> | null =>
+  editor ? editor.getJSON() : null
 
 export const setTextColor = (editor: Editor | null, color: string) =>
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

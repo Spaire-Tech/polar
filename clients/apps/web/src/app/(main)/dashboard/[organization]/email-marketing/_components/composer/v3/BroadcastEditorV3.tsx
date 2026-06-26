@@ -32,8 +32,10 @@ import { TRIGGERS, triggerByKey, type TriggerKey } from './triggers'
 import { COURSE_VARIANTS, type CourseVariant } from './courseBlock'
 import { SAMPLE_COURSE, type CourseData } from './courseData'
 import {
+  documentJSON,
   dropIndexForY,
   dropLineY,
+  emailHtml,
   insertBlock,
   insertBlockAt,
   insertCourseBlock,
@@ -147,9 +149,20 @@ function Ctl({ label, children }: { label: ReactNode; children: ReactNode }) {
   )
 }
 
+export type SavePayload = {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  json: Record<string, any>
+  html: string
+  subject: string
+  preview: string
+  from: string
+}
+
 export function BroadcastEditorV3({
   courseName = 'Southern Cooking',
   course = SAMPLE_COURSE,
+  initialDocument,
+  onSave,
   onUploadImage,
 }: {
   courseName?: string
@@ -157,6 +170,12 @@ export function BroadcastEditorV3({
       change. Defaults to the sample course (harness); the app passes a real
       course here (brick 15). */
   course?: CourseData
+  /** Restore a previously saved document (TipTap JSON from content_json). */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  initialDocument?: Record<string, any>
+  /** Persist the email. Receives the TipTap JSON, the inbox-correct HTML, and
+      the broadcast meta. The route wires this to create/patch the broadcast. */
+  onSave?: (payload: SavePayload) => Promise<void> | void
   /** Upload a picked file and return its hosted URL. Defaults to an inline
       data URL (used by the harness); the app wires S3 upload here. */
   onUploadImage?: (file: File) => Promise<{ url: string }>
@@ -165,7 +184,7 @@ export function BroadcastEditorV3({
   const [device, setDevice] = useState<'desktop' | 'mobile'>('desktop')
   const [toast, setToast] = useState('')
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const editor = useEmailEditor()
+  const editor = useEmailEditor(initialDocument)
   const emailRef = useRef<HTMLDivElement>(null)
   const [sel, setSel] = useState<BlockSel>(null)
   // Which inspector colour the HSV picker is editing, + where it opens.
@@ -396,9 +415,29 @@ export function BroadcastEditorV3({
     setMenu(null)
     showToast(`Test of “${broadcast.subject || 'Untitled'}” sent to you`)
   }
-  const commitSave = () => {
+  const [saving, setSaving] = useState(false)
+  const commitSave = async () => {
+    const json = documentJSON(editor)
+    if (onSave && json) {
+      try {
+        setSaving(true)
+        const html = await emailHtml(editor)
+        await onSave({
+          json,
+          html,
+          subject: broadcast.subject,
+          preview: broadcast.preview,
+          from: broadcast.from,
+        })
+      } catch {
+        setSaving(false)
+        showToast('Couldn’t save — please try again')
+        return
+      }
+      setSaving(false)
+    }
     setSaveOpen(false)
-    showToast('Saved to the sequence')
+    showToast(onSave ? 'Saved' : 'Saved to the sequence')
   }
 
   useEffect(
@@ -1104,9 +1143,10 @@ export function BroadcastEditorV3({
               <button
                 className="ss-save"
                 data-testid="ss-save"
+                disabled={saving}
                 onClick={commitSave}
               >
-                Save
+                {saving ? 'Saving…' : 'Save'}
               </button>
             </div>
           </div>
