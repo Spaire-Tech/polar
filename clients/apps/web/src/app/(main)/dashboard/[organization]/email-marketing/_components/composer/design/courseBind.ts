@@ -80,6 +80,8 @@ export function bindCourse(blocks: Block[], course: CourseData | undefined): Blo
       case 'trailer': {
         if (course.trailerImage) p.img = course.trailerImage
         else if (course.heroImage) p.img = course.heroImage
+        // Mux playback id → the editor can stream the real trailer inline.
+        if (course.trailerPlaybackId) p.playbackId = course.trailerPlaybackId
         break
       }
       case 'note': {

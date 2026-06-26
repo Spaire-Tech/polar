@@ -156,6 +156,7 @@ export function createEditor(root: HTMLElement, opts: CreateEditorOpts = {}): Ed
   const fmtCount = (n: number) => n.toLocaleString()
   const realCount = () => (opts.enrolledCount != null ? fmtCount(opts.enrolledCount) : null)
   const cleanups: Array<() => void> = []
+  const trailerHls: Array<{ destroy: () => void }> = []
   const on = (target: any, ev: string, fn: any, capture?: boolean) => {
     target.addEventListener(ev, fn, capture)
     cleanups.push(() => target.removeEventListener(ev, fn, capture))
@@ -353,6 +354,7 @@ export function createEditor(root: HTMLElement, opts: CreateEditorOpts = {}): Ed
         select(b.id, pe && wrap.contains(pe) ? pe.dataset.part || null : null)
       })
       bindEdits(wrap, b)
+      wireTrailer(wrap, b)
       rootE.appendChild(wrap)
     })
   }
@@ -368,7 +370,42 @@ export function createEditor(root: HTMLElement, opts: CreateEditorOpts = {}): Ed
     const inner = wrap.querySelector('.eb') as HTMLElement
     inner.innerHTML = REG[b.type].render(b.props, theme())
     bindEdits(wrap, b)
+    wireTrailer(wrap, b)
     markPart()
+  }
+
+  /* Editor-only: a trailer's poster streams its Mux video inline on click.
+     (The sent email keeps the poster + watch link — emails can't embed video.) */
+  function wireTrailer(wrap: HTMLElement, b: Block) {
+    if (b.type !== 'trailer') return
+    const el = wrap.querySelector('[data-trailer-play]') as HTMLElement | null
+    if (!el) return
+    on(el, 'click', (e: MouseEvent) => {
+      e.preventDefault(); e.stopPropagation()
+      const pid = b.props.playbackId
+      if (!pid) { toast('Add a Mux playback ID to play the trailer'); return }
+      playTrailer(el, String(pid))
+    })
+  }
+  function playTrailer(container: HTMLElement, playbackId: string) {
+    const src = `https://stream.mux.com/${playbackId}.m3u8`
+    const video = document.createElement('video')
+    video.controls = true; video.autoplay = true
+    video.setAttribute('playsinline', ''); video.setAttribute('data-mux-src', src)
+    video.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;display:block;background:#000;border:0'
+    container.style.cursor = 'default'
+    container.innerHTML = ''
+    container.appendChild(video)
+    if (video.canPlayType('application/vnd.apple.mpegurl')) { video.src = src; return }
+    import('hls.js')
+      .then(({ default: Hls }) => {
+        if (!container.isConnected) return
+        const H = Hls as unknown as { isSupported: () => boolean; new (): { destroy: () => void; loadSource: (s: string) => void; attachMedia: (v: HTMLVideoElement) => void } }
+        if (!H.isSupported()) { video.src = src; return }
+        const inst = new H()
+        inst.loadSource(src); inst.attachMedia(video); trailerHls.push(inst)
+      })
+      .catch(() => { video.src = src })
   }
 
   /* ============================================================ SELECTION + INSPECTOR */
@@ -970,6 +1007,7 @@ export function createEditor(root: HTMLElement, opts: CreateEditorOpts = {}): Ed
     destroy() {
       closeFloat(); closeSave(); closePicker()
       if (fmtBubble) { fmtBubble.remove(); fmtBubble = null }
+      trailerHls.forEach((h) => { try { h.destroy() } catch { /* ignore */ } })
       clearTimeout(saveTimer); clearTimeout(toastTimer); clearTimeout(fmtTimer)
       cleanups.forEach((fn) => fn())
     },

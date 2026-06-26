@@ -22,6 +22,9 @@ export interface CourseData {
   tagline: string // short description
   heroImage: string | null
   trailerImage: string | null
+  // Mux playback id for the trailer video — the editor plays it inline; the
+  // sent email shows the poster (trailerImage) linking out to watch it.
+  trailerPlaybackId: string | null
   instructor: CourseInstructor
   lessons: CourseLessonData[]
   level: string
@@ -60,6 +63,7 @@ export const SAMPLE_COURSE: CourseData = {
     'Heritage technique, soul food, and the stories behind every dish.',
   heroImage: null,
   trailerImage: null,
+  trailerPlaybackId: null,
   instructor: {
     name: 'Adaeze Bello',
     role: 'Chef & Instructor',

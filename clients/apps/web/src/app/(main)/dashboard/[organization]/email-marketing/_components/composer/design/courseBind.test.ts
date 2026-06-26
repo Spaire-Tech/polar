@@ -21,6 +21,7 @@ const course: CourseData = {
   tagline: 'Pasta from scratch.',
   heroImage: 'https://cdn/hero.jpg',
   trailerImage: 'https://cdn/trailer.jpg',
+  trailerPlaybackId: 'muxPB123',
   instructor: { name: 'Marco Rossi', role: 'Head Chef', bio: 'Bologna-trained.', avatar: null },
   lessons: [
     { title: 'Fresh Pasta', duration: '18 min' },
@@ -61,6 +62,9 @@ describe('bindCourse', () => {
     const note = blocks.find((b) => b.type === 'note')!
     expect(note.props.sign).toBe('Marco Rossi')
     expect(note.props.signRole).toBe('Head Chef')
+
+    const trailer = blocks.find((b) => b.type === 'trailer')!
+    expect(trailer.props.playbackId).toBe('muxPB123')
   })
 
   it('re-bases the halfway progress ratio onto the real lesson count', () => {
