@@ -78,6 +78,23 @@ describe('bindCourse', () => {
     expect(cover.props.instructor).toBe('Italian Home Cooking')
   })
 
+  it('falls back to the creator name when the course has no instructor (never the placeholder)', () => {
+    const noInstructor: CourseData = {
+      ...course,
+      instructor: { name: '', role: '', bio: '', avatar: null },
+    }
+    const blocks = bindCourse(blocksFor('enrolment'), noInstructor, 'Acme Cooking School')
+    const cover = blocks.find((b) => b.type === 'coverHero')!
+    expect(cover.props.instructor).toBe('Taught by Acme Cooking School')
+    const note = blocks.find((b) => b.type === 'note')!
+    expect(note.props.sign).toBe('Acme Cooking School')
+    const instructor = blocks.find((b) => b.type === 'instructor')!
+    expect(instructor.props.name).toBe('Acme Cooking School')
+    // No template still carries the design's placeholder instructor.
+    const json = JSON.stringify(blocks)
+    expect(json).not.toContain('Adaeze Bello')
+  })
+
   it('leaves blocks untouched when no course is provided', () => {
     const before = blocksFor('enrolment')
     const after = bindCourse(blocksFor('enrolment'), undefined)

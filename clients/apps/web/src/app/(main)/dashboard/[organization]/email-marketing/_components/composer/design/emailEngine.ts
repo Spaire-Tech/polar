@@ -57,6 +57,8 @@ export interface CreateEditorOpts {
   initialTrigger?: string
   /** Real number of students enrolled in the course (replaces the placeholder). */
   enrolledCount?: number
+  /** Default "from" name — the course instructor or the creator/organization. */
+  fromName?: string
   /** Previously-saved editor state to restore instead of a fresh template. */
   initialState?: EditorState | null
   /** Resolve a design asset key (e.g. 'assets/southern-cooking.jpg') to a URL. */
@@ -143,7 +145,7 @@ export function createEditor(root: HTMLElement, opts: CreateEditorOpts = {}): Ed
   let themeKey = 'studio'
   const theme = (): Theme => THEMES[themeKey]
   const broadcast: BroadcastMeta = {
-    from: 'Adaeze Bello',
+    from: opts.fromName || 'Spaire',
     audience: 'New enrollments',
     count: '1,204',
     subject: 'Welcome to Southern Cooking',

@@ -86,6 +86,9 @@ export function SequenceEmailModal({
         course={course}
         initialTrigger={initialTrigger}
         enrolledCount={enrolledCount}
+        creatorName={
+          courseRead?.instructor_name || organization.name || organization.slug
+        }
         initialSubject={initialSubject}
         initialState={initialState}
         onUploadImage={async (file) => (await upload.mutateAsync(file)).url}
