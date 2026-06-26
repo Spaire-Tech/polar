@@ -254,6 +254,9 @@ class Settings(BaseSettings):
     # Voice-card extraction / sample-question generation use the answer model
     # unless overridden here.
     COURSE_ASSISTANT_BUILD_MODEL: str = "claude-sonnet-4-6"
+    # Lifecycle email recap copy ("Welcome note" generation) — a short, creative
+    # generation that benefits from the strongest model + adaptive thinking.
+    EMAIL_COPY_MODEL: str = "claude-opus-4-8"
     # Whole-course-in-context ceiling. A knowledge base larger than this many
     # tokens is rejected at build time (status=failed) — that's the point at
     # which real retrieval/RAG would be needed, which is out of scope for v1.

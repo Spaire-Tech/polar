@@ -15,6 +15,7 @@ import { useMemo, useState } from 'react'
 import {
   useCreateEmailBroadcast,
   useEmailBroadcast,
+  useGenerateEmailCopy,
   useUpdateEmailBroadcast,
   useUploadEmailImage,
 } from '@/hooks/queries/emailMarketing'
@@ -38,6 +39,7 @@ export function BroadcastStudioV3({
 }) {
   const router = useRouter()
   const upload = useUploadEmailImage(organization.id)
+  const generateCopy = useGenerateEmailCopy()
   const create = useCreateEmailBroadcast(organization.id)
   const update = useUpdateEmailBroadcast()
   const { data: courseRead } = useCourseById(courseId)
@@ -87,6 +89,11 @@ export function BroadcastStudioV3({
       }
       onSave={onSave}
       onUploadImage={(file) => upload.mutateAsync(file)}
+      onGenerateCopy={
+        courseId
+          ? (moment) => generateCopy.mutateAsync({ courseId, moment })
+          : undefined
+      }
     />
   )
 }

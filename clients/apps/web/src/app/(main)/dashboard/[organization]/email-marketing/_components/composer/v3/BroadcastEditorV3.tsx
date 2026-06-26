@@ -14,6 +14,7 @@
 import { EditorContent } from '@tiptap/react'
 import {
   useEffect,
+  useMemo,
   useReducer,
   useRef,
   useState,
@@ -160,9 +161,10 @@ export type SavePayload = {
 
 export function BroadcastEditorV3({
   courseName = 'Southern Cooking',
-  course = SAMPLE_COURSE,
+  course: courseProp = SAMPLE_COURSE,
   initialDocument,
   onSave,
+  onGenerateCopy,
   onUploadImage,
 }: {
   courseName?: string
@@ -176,6 +178,16 @@ export function BroadcastEditorV3({
   /** Persist the email. Receives the TipTap JSON, the inbox-correct HTML, and
       the broadcast meta. The route wires this to create/patch the broadcast. */
   onSave?: (payload: SavePayload) => Promise<void> | void
+  /** Generate recap copy from the course for the current lifecycle moment.
+      The route wires this to POST /email-broadcasts/generate-copy (Claude). */
+  onGenerateCopy?: (
+    moment: string,
+  ) => Promise<{
+    subject: string
+    preview: string
+    heading: string
+    body: string[]
+  } | null>
   /** Upload a picked file and return its hosted URL. Defaults to an inline
       data URL (used by the harness); the app wires S3 upload here. */
   onUploadImage?: (file: File) => Promise<{ url: string }>
@@ -212,6 +224,24 @@ export function BroadcastEditorV3({
     preview: trigger.preview,
     from: 'Adaeze Bello',
   })
+  // AI recap copy overrides the bound course's welcome note (brick 16). The
+  // course blocks live-sync from this merged `course`.
+  const [aiCopy, setAiCopy] = useState<{
+    welcomeHeading?: string
+    welcome?: string[]
+  } | null>(null)
+  const [generating, setGenerating] = useState(false)
+  const course = useMemo(
+    () =>
+      aiCopy
+        ? {
+            ...courseProp,
+            welcomeHeading: aiCopy.welcomeHeading ?? courseProp.welcomeHeading,
+            welcome: aiCopy.welcome ?? courseProp.welcome,
+          }
+        : courseProp,
+    [courseProp, aiCopy],
+  )
   // Anchored popovers (trigger switcher / send menu) + the save sheet.
   const [menu, setMenu] = useState<
     { kind: 'trigger' | 'send'; top: number; left: number } | null
@@ -414,6 +444,30 @@ export function BroadcastEditorV3({
   const doTest = () => {
     setMenu(null)
     showToast(`Test of “${broadcast.subject || 'Untitled'}” sent to you`)
+  }
+  // Generate the welcome-note recap copy from the course for this moment.
+  const runGenerate = async () => {
+    if (!onGenerateCopy || generating) return
+    setGenerating(true)
+    try {
+      const c = await onGenerateCopy(triggerKey)
+      if (c) {
+        setBroadcast((b) => ({
+          ...b,
+          subject: c.subject || b.subject,
+          preview: c.preview || b.preview,
+        }))
+        setAiCopy({
+          welcomeHeading: c.heading || undefined,
+          welcome: c.body?.length ? c.body : undefined,
+        })
+        showToast('Copy generated from the course')
+      }
+    } catch {
+      showToast('Couldn’t generate copy')
+    } finally {
+      setGenerating(false)
+    }
   }
   const [saving, setSaving] = useState(false)
   const commitSave = async () => {
@@ -880,6 +934,20 @@ export function BroadcastEditorV3({
               <>
                 <div className="ig">
                   <div className="ig-h">Details</div>
+                  {onGenerateCopy && (
+                    <button
+                      className={'ai-generate' + (generating ? ' busy' : '')}
+                      data-testid="ai-generate"
+                      // don't use `disabled` — it blurs the button and the
+                      // sticky-inspector guard (which keys on focus staying in
+                      // .inspector) would drop email settings on the sync tick.
+                      aria-disabled={generating}
+                      onClick={runGenerate}
+                    >
+                      <I d="M5 3v4M3 5h4M6 17v4M4 19h4M13 3l3 7 7 3-7 3-3 7-3-7-7-3 7-3 3-7z" size={15} />
+                      {generating ? 'Generating…' : 'Generate copy from course'}
+                    </button>
+                  )}
                   <Ctl label="Subject">
                     <input
                       className="fld"
