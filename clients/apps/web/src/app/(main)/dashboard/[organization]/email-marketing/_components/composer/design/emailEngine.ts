@@ -55,6 +55,8 @@ export interface CreateEditorOpts {
   courseName?: string
   /** Lifecycle trigger to open on (enrolment, firstLesson, …). */
   initialTrigger?: string
+  /** Real number of students enrolled in the course (replaces the placeholder). */
+  enrolledCount?: number
   /** Previously-saved editor state to restore instead of a fresh template. */
   initialState?: EditorState | null
   /** Resolve a design asset key (e.g. 'assets/southern-cooking.jpg') to a URL. */
@@ -150,6 +152,9 @@ export function createEditor(root: HTMLElement, opts: CreateEditorOpts = {}): Ed
   let currentTrigger = 'enrolment'
 
   const courseName = opts.courseName || 'Southern Cooking'
+  // Real enrolled count (commas) when known, else the design's placeholder.
+  const fmtCount = (n: number) => n.toLocaleString()
+  const realCount = () => (opts.enrolledCount != null ? fmtCount(opts.enrolledCount) : null)
   const cleanups: Array<() => void> = []
   const on = (target: any, ev: string, fn: any, capture?: boolean) => {
     target.addEventListener(ev, fn, capture)
@@ -277,7 +282,8 @@ export function createEditor(root: HTMLElement, opts: CreateEditorOpts = {}): Ed
     // Subjects/previews mention the placeholder course name — swap in the real
     // one so the lifecycle copy matches the course it's bound to.
     const swap = (s: string) => s.split('Southern Cooking').join(courseName)
-    broadcast.subject = swap(m.subject); broadcast.preview = swap(m.preview); broadcast.audience = m.audience; broadcast.count = m.count
+    broadcast.subject = swap(m.subject); broadcast.preview = swap(m.preview); broadcast.audience = m.audience
+    broadcast.count = realCount() ?? m.count
     themeKey = tpl.theme
     blocks = tpl.blocks.map((s) => makeBlock(s.type, s.props))
     if (opts.applyCourse) blocks = opts.applyCourse(blocks, key)
@@ -905,6 +911,7 @@ export function createEditor(root: HTMLElement, opts: CreateEditorOpts = {}): Ed
     currentTrigger = state.trigger || 'enrolment'
     themeKey = state.themeKey || TEMPLATES[currentTrigger]?.theme || 'studio'
     Object.assign(broadcast, state.broadcast || {})
+    const rc = realCount(); if (rc) broadcast.count = rc
     blocks = (state.blocks || []).map((s) => ({ id: uid(), type: s.type, props: s.props }))
     applyTheme(); updateCrumb(); renderCanvas(); deselect()
   }
@@ -936,7 +943,10 @@ export function createEditor(root: HTMLElement, opts: CreateEditorOpts = {}): Ed
   })
 
   const appThemeToggle = q('#appThemeToggle')
-  if (appThemeToggle) on(appThemeToggle, 'click', () => { root.classList.toggle('dark') })
+  if (appThemeToggle) on(appThemeToggle, 'click', () => {
+    root.classList.toggle('dark')
+    try { localStorage.setItem('be_theme', root.classList.contains('dark') ? 'dark' : 'light') } catch { /* ignore */ }
+  })
 
   const sendBtn = q('#sendBtn'); if (sendBtn) on(sendBtn, 'click', openSaveConfirm)
   const sendCaret = q('#sendCaret'); if (sendCaret) on(sendCaret, 'click', openSendMenu)
@@ -950,8 +960,9 @@ export function createEditor(root: HTMLElement, opts: CreateEditorOpts = {}): Ed
   })
   on(root, 'focusin', (e: FocusEvent) => { const t = e.target as HTMLElement; if (t.matches && t.matches('[contenteditable][data-edit]')) lastEditEl = t })
 
-  /* default the app chrome to dark — the email canvas is the bright surface */
-  root.classList.add('dark')
+  /* Match the design: chrome defaults to LIGHT (the dark email sits in the
+     middle), and the only persisted override is an explicit dark choice. */
+  try { if (localStorage.getItem('be_theme') === 'dark') root.classList.add('dark') } catch { /* ignore */ }
 
   return {
     getState,

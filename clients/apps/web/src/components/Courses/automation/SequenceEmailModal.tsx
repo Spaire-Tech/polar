@@ -13,7 +13,7 @@ import { useEffect } from 'react'
 import { BroadcastEditorDesign } from '@/app/(main)/dashboard/[organization]/email-marketing/_components/composer/design/BroadcastEditorDesign'
 import type { EditorState } from '@/app/(main)/dashboard/[organization]/email-marketing/_components/composer/design/emailEngine'
 import { mapCourse } from '@/app/(main)/dashboard/[organization]/email-marketing/_components/composer/v3/courseMap'
-import { useCourseById } from '@/hooks/queries/courses'
+import { useCourseById, useCourseEnrollments } from '@/hooks/queries/courses'
 import { useUploadEmailImage } from '@/hooks/queries/emailMarketing'
 
 // The sequence's trigger type → the editor's lifecycle template key.
@@ -65,6 +65,9 @@ export function SequenceEmailModal({
   const upload = useUploadEmailImage(organization.id)
   const { data: courseRead } = useCourseById(courseId)
   const course = courseRead ? mapCourse(courseRead) : undefined
+  // Real enrolled count — one row is enough; we only read pagination.total_count.
+  const { data: enrollments } = useCourseEnrollments(courseId, { page: 1, limit: 1 })
+  const enrolledCount = enrollments?.pagination.total_count
 
   const initialTrigger = moment ? MOMENT_TO_TRIGGER[moment] ?? 'enrolment' : 'enrolment'
 
@@ -82,6 +85,7 @@ export function SequenceEmailModal({
         courseName={courseRead?.title ?? course?.title ?? 'Course'}
         course={course}
         initialTrigger={initialTrigger}
+        enrolledCount={enrolledCount}
         initialSubject={initialSubject}
         initialState={initialState}
         onUploadImage={async (file) => (await upload.mutateAsync(file)).url}

@@ -21,6 +21,8 @@ export interface BroadcastEditorDesignProps {
   course?: CourseData
   /** Lifecycle trigger to open on (enrolment, firstLesson, halfway, …). */
   initialTrigger?: string
+  /** Real number of students enrolled (replaces the placeholder count). */
+  enrolledCount?: number
   /** Subject seed (overrides the template default when restoring an old email). */
   initialSubject?: string
   /** Previously-saved editor state to restore instead of a fresh template. */
@@ -37,6 +39,7 @@ export function BroadcastEditorDesign({
   courseName,
   course,
   initialTrigger,
+  enrolledCount,
   initialSubject,
   initialState,
   onUploadImage,
@@ -69,6 +72,7 @@ export function BroadcastEditorDesign({
     const handle = createEditor(rootEl, {
       courseName,
       initialTrigger,
+      enrolledCount,
       initialState: seededState,
       resolveAsset: makeAssetResolver(cbRef.current.course),
       applyCourse: (blocks) => bindCourse(blocks, cbRef.current.course),
@@ -84,7 +88,7 @@ export function BroadcastEditorDesign({
       handleRef.current = null
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [courseKey, courseName, initialTrigger])
+  }, [courseKey, courseName, initialTrigger, enrolledCount])
 
   return <div className="bedesign" ref={ref} />
 }
