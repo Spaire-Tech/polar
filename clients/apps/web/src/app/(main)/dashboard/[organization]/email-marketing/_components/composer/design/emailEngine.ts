@@ -490,6 +490,7 @@ export function createEditor(root: HTMLElement, opts: CreateEditorOpts = {}): Ed
       case 'select': return ctlSelect(c.label, c.key, val, c.opts)
       case 'seg': return ctlSeg(c.label, c.key, val, c.opts)
       case 'align': return ctlAlign(c.key, val, c.opts)
+      case 'radius': return ctlRadius(c.key, val)
       case 'color': return ctlColor(c.label, c.key, val)
       case 'switch': return ctlSwitch(c.label, c.key, val, c.sub)
       case 'colorGlobal': return ctlColorGlobal(c.label, c.prop)
@@ -532,10 +533,24 @@ export function createEditor(root: HTMLElement, opts: CreateEditorOpts = {}): Ed
       center: '<path d="M4 6h16M6.5 12h11M5 18h14"/>',
       right: '<path d="M4 6h16M9 12h11M6 18h14"/>',
     }
-    const c = row('Alignment'); const seg = el('div', 'iseg')
+    const c = row(null); const seg = el('div', 'iseg')
     optsList.forEach((o) => {
       const btn = el('button', o === val ? 'on' : '', svg(icons[o], 15, 1.9)) as HTMLButtonElement; btn.type = 'button'
       on(btn, 'click', () => { setProp(key, o); seg.querySelectorAll('button').forEach((x) => x.classList.remove('on')); btn.classList.add('on') })
+      seg.appendChild(btn)
+    })
+    c.appendChild(seg); return c
+  }
+  /* corner radius as Square / Rounded / Pill — a 0–999 slider is useless on a button
+     (everything past ~25px is identical), so this is a clean 3-way choice. */
+  function ctlRadius(key: string, val: any) {
+    const optsList: [string, number][] = [['Square', 0], ['Rounded', 12], ['Pill', 999]]
+    const cur = Number(val) || 0
+    const which = cur <= 3 ? 0 : cur >= 900 ? 999 : 12
+    const c = row(null); const seg = el('div', 'iseg')
+    optsList.forEach((o) => {
+      const btn = el('button', o[1] === which ? 'on' : '', o[0]) as HTMLButtonElement; btn.type = 'button'
+      on(btn, 'click', () => { setProp(key, o[1]); seg.querySelectorAll('button').forEach((x) => x.classList.remove('on')); btn.classList.add('on') })
       seg.appendChild(btn)
     })
     c.appendChild(seg); return c
@@ -750,6 +765,141 @@ export function createEditor(root: HTMLElement, opts: CreateEditorOpts = {}): Ed
     } else toast('Click into a text block first')
   }
 
+  /* ============================================================ FLOATING FORMAT BUBBLE
+     One bubble for every editable text. Shows on a non-empty selection inside the
+     email, applies inline formatting to ONLY the selected characters, and reflects
+     the selection's current state (reactive B/I/U). */
+  let fmtBubble: HTMLElement | null = null
+  let fmtTarget: HTMLElement | null = null
+  let fmtRange: Range | null = null
+  let fmtRect: DOMRect | null = null
+  let fmtLinkMode = false
+  let fmtTimer: any = null
+  const FMT_STATEFUL = ['bold', 'italic', 'underline']
+  const fmtSafeState = (c: string) => { try { return document.queryCommandState(c) } catch { return false } }
+
+  function buildFmtBubble() {
+    const b = el('div', 'fmt-bubble'); b.id = 'fmtBubble'
+    const linkIco = '<path d="M9 13a5 5 0 0 0 7 0l2-2a5 5 0 0 0-7-7l-1 1"/><path d="M15 11a5 5 0 0 0-7 0l-2 2a5 5 0 0 0 7 7l1-1"/>'
+    const clearIco = '<path d="M5 7h13M9 7l-1 12M14 7l-.5 6M4 4l16 16"/>'
+    b.innerHTML =
+      '<button class="fmt-b" type="button" data-cmd="bold" title="Bold"><span class="gi">B</span></button>' +
+      '<button class="fmt-b" type="button" data-cmd="italic" title="Italic"><span class="gi it">I</span></button>' +
+      '<button class="fmt-b" type="button" data-cmd="underline" title="Underline"><span class="gi un">U</span></button>' +
+      '<span class="fmt-divide"></span>' +
+      '<button class="fmt-b" type="button" data-cmd="link" title="Add link">' + svg(linkIco, 16, 1.8) + '</button>' +
+      '<button class="fmt-b" type="button" data-cmd="clear" title="Clear formatting">' + svg(clearIco, 16, 1.8) + '</button>' +
+      '<div class="fmt-link"><input type="text" spellcheck="false" placeholder="Paste a link, press Enter"/>' +
+      '<button class="fmt-b" type="button" data-cmd="applyLink" title="Apply">' + svg('<path d="M20 6 9 17l-5-5"/>', 16, 2.2) + '</button></div>'
+    root.appendChild(b)
+    // keep the text selection alive when pressing a button (but allow the input to focus)
+    b.addEventListener('mousedown', (e) => { if (!(e.target as HTMLElement).closest('.fmt-link input')) e.preventDefault() })
+    b.addEventListener('click', onFmtClick)
+    const inp = b.querySelector('.fmt-link input') as HTMLInputElement
+    inp.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); applyFmtLink(inp.value.trim()) }
+      else if (e.key === 'Escape') { e.preventDefault(); exitLinkMode() }
+    })
+    fmtBubble = b; return b
+  }
+
+  function fmtSelectionInfo() {
+    const sel = window.getSelection()
+    if (!sel || sel.rangeCount === 0 || sel.isCollapsed) return null
+    const range = sel.getRangeAt(0)
+    let node: Node | null = range.commonAncestorContainer
+    if (node.nodeType === 3) node = (node as Text).parentElement
+    const editable = node && (node as HTMLElement).closest && (node as HTMLElement).closest('[contenteditable][data-edit]')
+    const emailRoot = q('#email')
+    if (!editable || !emailRoot || !emailRoot.contains(editable)) return null
+    if (!String(sel).trim()) return null
+    const rect = range.getBoundingClientRect()
+    if (!rect || (rect.width === 0 && rect.height === 0)) return null
+    return { range, editable: editable as HTMLElement, rect }
+  }
+
+  function updateFmtBubble() {
+    if (fmtLinkMode) return
+    const info = fmtSelectionInfo()
+    if (!info) { hideFmtBubble(); return }
+    if (!fmtBubble) buildFmtBubble()
+    fmtTarget = info.editable
+    fmtRange = info.range.cloneRange()
+    fmtRect = info.rect
+    positionFmtBubble(info.rect)
+    updateFmtState()
+    fmtBubble!.classList.add('show')
+  }
+
+  function positionFmtBubble(rect: DOMRect) {
+    const b = fmtBubble!; b.classList.remove('below')
+    const prevVis = b.style.visibility; b.style.visibility = 'hidden'; b.style.left = '0px'; b.style.top = '0px'
+    const bw = b.offsetWidth, bh = b.offsetHeight; b.style.visibility = prevVis || ''
+    let left = rect.left + rect.width / 2 - bw / 2
+    let top = rect.top - bh - 10
+    if (top < 8) { top = rect.bottom + 10; b.classList.add('below') }
+    left = Math.max(8, Math.min(window.innerWidth - bw - 8, left))
+    const arrowX = rect.left + rect.width / 2 - left
+    b.style.setProperty('--arrow', Math.max(14, Math.min(bw - 14, arrowX)) + 'px')
+    b.style.left = left + 'px'; b.style.top = top + 'px'
+  }
+
+  function updateFmtState() {
+    if (!fmtBubble) return
+    FMT_STATEFUL.forEach((c) => { const btn = fmtBubble!.querySelector('.fmt-b[data-cmd="' + c + '"]'); if (btn) btn.classList.toggle('on', fmtSafeState(c)) })
+  }
+
+  function hideFmtBubble() { if (fmtBubble) fmtBubble.classList.remove('show'); fmtTarget = null; fmtRange = null; if (fmtLinkMode) exitLinkMode(true) }
+
+  function restoreFmtRange() {
+    if (!fmtTarget || !fmtRange) return false
+    fmtTarget.focus({ preventScroll: true })
+    const sel = window.getSelection(); if (!sel) return false
+    sel.removeAllRanges(); sel.addRange(fmtRange)
+    return true
+  }
+  function persistFmtTarget() {
+    if (!fmtTarget) return
+    const wrap = fmtTarget.closest('.blk') as HTMLElement | null; if (!wrap) return
+    const b = blocks.find((x) => x.id === wrap.dataset.id); if (!b) return
+    if (fmtTarget.dataset.edit) setPath(b.props, fmtTarget.dataset.edit, fmtTarget.innerHTML)
+    flagSaving()
+  }
+
+  function onFmtClick(e: MouseEvent) {
+    const btn = (e.target as HTMLElement).closest('.fmt-b') as HTMLElement | null; if (!btn) return
+    const cmd = btn.dataset.cmd!
+    if (cmd === 'link') { enterLinkMode(); return }
+    if (cmd === 'applyLink') { applyFmtLink((fmtBubble!.querySelector('.fmt-link input') as HTMLInputElement).value.trim()); return }
+    if (!restoreFmtRange()) return
+    if (cmd === 'clear') { document.execCommand('removeFormat'); document.execCommand('unlink') }
+    else document.execCommand(cmd, false)
+    const sel = window.getSelection(); if (sel && sel.rangeCount) fmtRange = sel.getRangeAt(0).cloneRange()
+    persistFmtTarget()
+    updateFmtState()
+  }
+
+  function enterLinkMode() {
+    if (!fmtBubble) return
+    fmtLinkMode = true
+    fmtBubble.querySelector('.fmt-link')!.classList.add('show')
+    if (fmtRect) positionFmtBubble(fmtRect)
+    const inp = fmtBubble.querySelector('.fmt-link input') as HTMLInputElement
+    inp.value = ''; setTimeout(() => inp.focus(), 0)
+  }
+  function exitLinkMode(silent?: boolean) {
+    fmtLinkMode = false
+    if (fmtBubble) { fmtBubble.querySelector('.fmt-link')!.classList.remove('show'); (fmtBubble.querySelector('.fmt-link input') as HTMLInputElement).value = '' }
+    if (!silent && fmtRect) positionFmtBubble(fmtRect)
+  }
+  function applyFmtLink(url: string) {
+    if (!url) { exitLinkMode(); return }
+    if (!/^(https?:|mailto:|tel:|#)/i.test(url)) url = 'https://' + url
+    if (restoreFmtRange()) { document.execCommand('createLink', false, url); persistFmtTarget() }
+    exitLinkMode(true)
+    if (fmtBubble) fmtBubble.classList.remove('show'); fmtTarget = null
+  }
+
   /* ============================================================ INIT */
   function restore(state: EditorState) {
     currentTrigger = state.trigger || 'enrolment'
@@ -765,12 +915,17 @@ export function createEditor(root: HTMLElement, opts: CreateEditorOpts = {}): Ed
 
   const crumbBtn = q('#crumbBtn'); if (crumbBtn) on(crumbBtn, 'click', openTriggerMenu)
 
+  // Format bubble: reactive on selection within the email, reposition on scroll.
+  on(document, 'selectionchange', () => { if (fmtLinkMode) return; clearTimeout(fmtTimer); fmtTimer = setTimeout(updateFmtBubble, 14) })
+  on(window, 'resize', hideFmtBubble)
+
   const canvas = q('#canvas')
   if (canvas) {
     on(canvas, 'dragover', canvasDragOver)
     on(canvas, 'drop', canvasDrop)
     on(canvas, 'dragleave', (e: DragEvent) => { if (e.target === canvas) clearDrop() })
     on(canvas, 'mousedown', (e: MouseEvent) => { const t = e.target as HTMLElement; if (t === canvas || t.id === 'stage' || t.id === 'email') deselect() })
+    on(canvas, 'scroll', () => { if (fmtBubble && fmtBubble.classList.contains('show')) updateFmtBubble() }, true)
   }
 
   const deviceSeg = q('#deviceSeg')
@@ -788,7 +943,7 @@ export function createEditor(root: HTMLElement, opts: CreateEditorOpts = {}): Ed
   const backBtn = q('.tb-back'); if (backBtn) on(backBtn, 'click', () => opts.onClose && opts.onClose())
 
   on(root, 'keydown', (e: KeyboardEvent) => {
-    if (e.key === 'Escape') { closeFloat(); closeSave(); closePicker(); deselect() }
+    if (e.key === 'Escape') { closeFloat(); closeSave(); closePicker(); hideFmtBubble(); deselect() }
     if ((e.key === 'Backspace' || e.key === 'Delete') && selId && !(e.target as HTMLElement).closest('[contenteditable]') && !/INPUT|TEXTAREA|SELECT/.test((e.target as HTMLElement).tagName)) {
       e.preventDefault(); const i = blocks.findIndex((x) => x.id === selId); if (i > -1) delBlock(i)
     }
@@ -803,7 +958,8 @@ export function createEditor(root: HTMLElement, opts: CreateEditorOpts = {}): Ed
     getHTML: buildHTML,
     destroy() {
       closeFloat(); closeSave(); closePicker()
-      clearTimeout(saveTimer); clearTimeout(toastTimer)
+      if (fmtBubble) { fmtBubble.remove(); fmtBubble = null }
+      clearTimeout(saveTimer); clearTimeout(toastTimer); clearTimeout(fmtTimer)
       cleanups.forEach((fn) => fn())
     },
   }

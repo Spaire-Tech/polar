@@ -9,6 +9,29 @@ import {
   type CourseData,
 } from './courseData'
 
+// A poster frame for a Mux video. The course's video (trailer / lessons) lives
+// in Mux, not S3, so its still image is rendered by Mux's image service from a
+// playback id — there is no S3 object to point at.
+export function muxPoster(playbackId: string): string {
+  return `https://image.mux.com/${playbackId}/thumbnail.jpg?width=1280&fit_mode=preserve`
+}
+
+// The trailer's still: prefer a real Mux poster. `trailer_url` may already be a
+// full image URL (use it), or a bare Mux playback id (build the poster). Failing
+// that, the first video lesson's Mux playback id gives us a representative frame.
+// Only as a last resort do we reuse the S3 cover thumbnail.
+export function deriveTrailerPoster(c: CourseRead): string | null {
+  const t = c.trailer_url
+  if (t) {
+    if (/^https?:\/\//i.test(t)) return t
+    return muxPoster(t)
+  }
+  const lessons = c.modules.flatMap((m) => m.lessons)
+  const firstVideo = lessons.find((l) => l.mux_playback_id)
+  if (firstVideo?.mux_playback_id) return muxPoster(firstVideo.mux_playback_id)
+  return c.thumbnail_url ?? null
+}
+
 export function mapCourse(c: CourseRead): CourseData {
   const lessons = c.modules.flatMap((m) => m.lessons)
   const seconds = lessons.map((l) => l.duration_seconds ?? 0)
@@ -17,7 +40,7 @@ export function mapCourse(c: CourseRead): CourseData {
     eyebrow: c.format === 'series' ? 'A Spaire Series' : 'A Spaire Course',
     tagline: c.description ?? '',
     heroImage: c.thumbnail_url,
-    trailerImage: c.trailer_url,
+    trailerImage: deriveTrailerPoster(c),
     instructor: {
       name: c.instructor_name ?? '',
       role: 'Instructor',
