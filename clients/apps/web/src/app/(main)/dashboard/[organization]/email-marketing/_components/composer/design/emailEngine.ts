@@ -73,6 +73,8 @@ export interface CreateEditorOpts {
   onClose?: () => void
   /** Fired on every content/structure change (autosave hint). */
   onChange?: () => void
+  /** Send a test of the current authored email to the creator's inbox. */
+  onSendTest?: (v: { subject: string; preview: string; html: string }) => Promise<void>
 }
 
 export interface EditorHandle {
@@ -270,7 +272,16 @@ export function createEditor(root: HTMLElement, opts: CreateEditorOpts = {}): Ed
     const ic = { test: '<path d="M3 7l9 6 9-6"/><rect x="3" y="5" width="18" height="14" rx="2"/>' }
     m.innerHTML = `<button class="fp-item" data-a="test">${svg(ic.test, 15)}<span>Send test to me</span></button>`
     const caret = q('#sendCaret'); if (caret) openFloat(caret, m, 196)
-    on(m, 'click', (e: MouseEvent) => { const it = (e.target as HTMLElement).closest('.fp-item'); if (!it) return; closeFloat(); toast('Test of “' + (broadcast.subject || 'Untitled') + '” sent to you') })
+    on(m, 'click', (e: MouseEvent) => {
+      const it = (e.target as HTMLElement).closest('.fp-item'); if (!it) return
+      closeFloat()
+      if (!opts.onSendTest) { toast('Test sending is unavailable here'); return }
+      toast('Sending test…')
+      opts
+        .onSendTest({ subject: broadcast.subject, preview: broadcast.preview, html: buildHTML() })
+        .then(() => toast('Test sent to your inbox'))
+        .catch(() => toast('Couldn’t send the test'))
+    })
   }
 
   /* ---------- blocks ---------- */
@@ -994,14 +1005,9 @@ export function createEditor(root: HTMLElement, opts: CreateEditorOpts = {}): Ed
     const stage = q('#stage'); if (stage) stage.classList.toggle('mobile', b.dataset.d === 'mobile')
   })
 
-  // The email editor has no theme toggle of its own — it follows the Polar
-  // app's theme (next-themes sets `.dark` on <html>). Mirror it onto .bedesign
-  // and keep it in sync if the app theme changes while the editor is open.
-  const syncAppTheme = () => root.classList.toggle('dark', document.documentElement.classList.contains('dark'))
-  syncAppTheme()
-  const themeObserver = new MutationObserver(syncAppTheme)
-  themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] })
-  cleanups.push(() => themeObserver.disconnect())
+  // The editor has no theme toggle of its own and needs no JS theme handling:
+  // design.css keys dark mode off the app's `html.dark` ancestor (next-themes),
+  // so the chrome flips with the dashboard theme via CSS alone.
 
   const sendBtn = q('#sendBtn'); if (sendBtn) on(sendBtn, 'click', openSaveConfirm)
   const sendCaret = q('#sendCaret'); if (sendCaret) on(sendCaret, 'click', openSendMenu)

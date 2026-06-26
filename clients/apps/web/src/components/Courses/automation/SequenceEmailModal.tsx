@@ -14,7 +14,10 @@ import { BroadcastEditorDesign } from '@/app/(main)/dashboard/[organization]/ema
 import type { EditorState } from '@/app/(main)/dashboard/[organization]/email-marketing/_components/composer/design/emailEngine'
 import { mapCourse } from '@/app/(main)/dashboard/[organization]/email-marketing/_components/composer/v3/courseMap'
 import { useCourseById, useCourseEnrollments } from '@/hooks/queries/courses'
-import { useUploadEmailImage } from '@/hooks/queries/emailMarketing'
+import {
+  useSendTestEmail,
+  useUploadEmailImage,
+} from '@/hooks/queries/emailMarketing'
 
 // The sequence's trigger type → the editor's lifecycle template key.
 const MOMENT_TO_TRIGGER: Record<string, string> = {
@@ -63,6 +66,7 @@ export function SequenceEmailModal({
   }, [])
 
   const upload = useUploadEmailImage(organization.id)
+  const sendTest = useSendTestEmail(organization.id)
   const { data: courseRead } = useCourseById(courseId)
   const course = courseRead ? mapCourse(courseRead) : undefined
   // Real enrolled count — one row is enough; we only read pagination.total_count.
@@ -92,6 +96,13 @@ export function SequenceEmailModal({
         initialSubject={initialSubject}
         initialState={initialState}
         onUploadImage={async (file) => (await upload.mutateAsync(file)).url}
+        onSendTest={async (v) => {
+          await sendTest.mutateAsync({
+            subject: v.subject,
+            content_html: v.html,
+            preview_text: v.preview,
+          })
+        }}
         onSave={(p) => {
           onSave({
             subject: p.subject,

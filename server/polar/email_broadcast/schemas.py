@@ -92,6 +92,21 @@ class EmailBroadcastTestSend(Schema):
     email: str = Field(description="Inbox to send the test email to.", max_length=320)
 
 
+class EmailBroadcastTestInline(Schema):
+    """Send a test of in-progress authored content (not a saved broadcast) —
+    used by the sequence email editor's "Send test to me"."""
+
+    subject: str = Field(default="", max_length=998)
+    content_html: str = Field(description="The authored, inbox-ready HTML.")
+    preview_text: str | None = Field(default=None, max_length=512)
+    sender_name: str | None = Field(default=None, max_length=255)
+    to_email: str | None = Field(
+        default=None,
+        max_length=320,
+        description="Recipient; defaults to the authenticated user's email.",
+    )
+
+
 class EmailBroadcastTopLink(Schema):
     url: str
     clicks: int

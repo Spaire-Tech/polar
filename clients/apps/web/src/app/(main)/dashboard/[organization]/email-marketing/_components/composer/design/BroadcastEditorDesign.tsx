@@ -32,6 +32,8 @@ export interface BroadcastEditorDesignProps {
   initialState?: EditorState | null
   /** Upload a chosen image → hosted URL (S3). */
   onUploadImage?: (file: File) => Promise<string>
+  /** Send a test of the current email to the creator's inbox. */
+  onSendTest?: (v: { subject: string; preview: string; html: string }) => Promise<void>
   /** Persist the authored email. */
   onSave?: (v: { subject: string; preview: string; html: string; json: EditorState }) => void
   /** Back / close. */
@@ -47,6 +49,7 @@ export function BroadcastEditorDesign({
   initialSubject,
   initialState,
   onUploadImage,
+  onSendTest,
   onSave,
   onClose,
 }: BroadcastEditorDesignProps) {
@@ -54,8 +57,8 @@ export function BroadcastEditorDesign({
   const handleRef = useRef<EditorHandle | null>(null)
 
   // Keep the latest callbacks/data without re-mounting the imperative engine.
-  const cbRef = useRef({ onUploadImage, onSave, onClose, course, creatorName })
-  cbRef.current = { onUploadImage, onSave, onClose, course, creatorName }
+  const cbRef = useRef({ onUploadImage, onSendTest, onSave, onClose, course, creatorName })
+  cbRef.current = { onUploadImage, onSendTest, onSave, onClose, course, creatorName }
 
   // Re-mount the engine only when the bound course identity changes (e.g. the
   // async course query resolves once). Edits haven't begun at that point.
@@ -82,6 +85,9 @@ export function BroadcastEditorDesign({
       resolveAsset: makeAssetResolver(cbRef.current.course),
       applyCourse: (blocks) => bindCourse(blocks, cbRef.current.course, cbRef.current.creatorName),
       onUploadImage: (file) => cbRef.current.onUploadImage!(file),
+      onSendTest: cbRef.current.onSendTest
+        ? (v) => cbRef.current.onSendTest!(v)
+        : undefined,
       onSave: (v) =>
         cbRef.current.onSave &&
         cbRef.current.onSave({ subject: v.subject, preview: v.preview, html: v.html, json: v.json }),
