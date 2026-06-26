@@ -952,6 +952,11 @@ export function createEditor(root: HTMLElement, opts: CreateEditorOpts = {}): Ed
     Object.assign(broadcast, state.broadcast || {})
     const rc = realCount(); if (rc) broadcast.count = rc
     blocks = (state.blocks || []).map((s) => ({ id: uid(), type: s.type, props: s.props }))
+    // Re-bind the live course onto the saved blocks so course-derived fields
+    // (instructor, lessons, cover, facts) refresh to the real course instead of
+    // showing whatever was saved earlier — e.g. a stale "Adaeze Bello". Authored
+    // copy (note bodies, headings, CTA text) isn't touched by the binding.
+    if (opts.applyCourse) blocks = opts.applyCourse(blocks, currentTrigger)
     applyTheme(); updateCrumb(); renderCanvas(); deselect()
   }
 
