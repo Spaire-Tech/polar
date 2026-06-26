@@ -605,16 +605,18 @@ class EmailSequenceService:
         *,
         trigger_filter: dict | None = None,
         lesson_id: UUID | None = None,
+        course_id: UUID | None = None,
     ) -> None:
         """Find all active sequences matching this trigger and enqueue enrollment.
 
         `lesson_id` narrows the match to sequences scoped to that lesson — used
         by the per-lesson "completes this lesson" trigger so only that lesson's
-        automations enrol the subscriber.
+        automations enrol the subscriber. `course_id` narrows course-lifecycle
+        triggers (first lesson / halfway / completed) to that course's sequences.
         """
         repository = EmailSequenceRepository.from_session(session)
         sequences = await repository.get_active_for_org_by_trigger(
-            organization_id, trigger_type, lesson_id=lesson_id
+            organization_id, trigger_type, lesson_id=lesson_id, course_id=course_id
         )
         from .audience import evaluate_audience
         from .tags import has_any_tag

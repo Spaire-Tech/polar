@@ -19,6 +19,7 @@ import {
 } from '@/hooks/queries/emailMarketing'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { schemas } from '@spaire/client'
+import { resolveSequenceTrigger } from './automationTrigger'
 import { SequenceEmailModal } from './SequenceEmailModal'
 
 /* ── step model ── */
@@ -293,22 +294,30 @@ export function AutomationSequenceBuilder({
         send_settings: next.send,
         steps: next.steps,
       }
+
+      // Map the builder's lifecycle trigger onto the backend entry trigger that
+      // actually enrols students (see automationTrigger.ts).
+      const wire = resolveSequenceTrigger(next.trigger, { lessonId, lessons })
+      const trigger_type = wire.trigger_type
+      const resolved_lesson_id = wire.lesson_id
+      const trigger_config_extra = {
+        course_trigger: next.trigger,
+        send_settings: next.send,
+        ...(wire.inactive_days != null
+          ? { inactive_days: wire.inactive_days }
+          : {}),
+      }
+
       try {
         if (!seqIdRef.current) {
           const created = await createSeq.mutateAsync({
             name: next.name.trim() || 'Untitled sequence',
             description: next.desc,
-            // A lesson-scoped automation enters subscribers when they complete
-            // that one lesson; the course-level builder still enrols on
-            // purchase and gates with the chosen course_trigger.
-            trigger_type: lessonId ? 'on_lesson_completed' : 'on_purchase',
-            trigger_config: {
-              course_trigger: next.trigger,
-              send_settings: next.send,
-            },
+            trigger_type,
+            trigger_config: trigger_config_extra,
             flow_doc,
             course_id: courseId,
-            lesson_id: lessonId,
+            lesson_id: resolved_lesson_id,
           })
           seqIdRef.current = created?.id ?? null
           // The backend always creates as a draft. If the creator turned it
@@ -324,12 +333,12 @@ export function AutomationSequenceBuilder({
             sequenceId: seqIdRef.current,
             name: next.name.trim() || 'Untitled sequence',
             description: next.desc,
-            // Re-assert the lesson-completion trigger so sequences created
-            // before this trigger existed self-heal on the next save.
-            ...(lessonId ? { trigger_type: 'on_lesson_completed' } : {}),
+            // Re-assert the lifecycle trigger (+ lesson scope) so changing the
+            // trigger after creation persists, and older sequences self-heal.
+            trigger_type,
+            lesson_id: resolved_lesson_id,
             trigger_config: {
-              course_trigger: next.trigger,
-              send_settings: next.send,
+              ...trigger_config_extra,
               flow_doc,
             },
             status: next.live ? 'active' : 'draft',
@@ -344,7 +353,7 @@ export function AutomationSequenceBuilder({
         return false
       }
     },
-    [courseId, lessonId, createSeq, updateSeq, showToast],
+    [courseId, lessonId, lessons, createSeq, updateSeq, showToast],
   )
 
   // Debounced autosave — but ONLY for sequences that already exist. A new

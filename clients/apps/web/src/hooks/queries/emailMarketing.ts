@@ -953,6 +953,7 @@ export const useUpdateEmailSequence = () =>
       description?: string
       trigger_type?: string
       trigger_config?: Record<string, unknown>
+      lesson_id?: string | null
       status?: string
     }) => seqMutate<any>(`/v1/email-sequences/${sequenceId}`, 'PATCH', body),
     onSuccess: (_data, vars) => {

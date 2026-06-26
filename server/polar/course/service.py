@@ -638,6 +638,34 @@ class CourseService:
                 lesson_id=lesson_id,
             )
 
+        # Course-lifecycle automations enter the subscriber when they cross a
+        # milestone. Scoped to this course so a milestone here never enrols into
+        # another course's sequence. fire_event above already resumes any
+        # sequence parked on an until-event wait for these same events.
+        from polar.models.email_sequence import EmailSequenceTriggerType
+
+        milestone_trigger = {
+            "course.first_lesson_completed": (
+                EmailSequenceTriggerType.on_first_lesson_completed
+            ),
+            "course.mid_checkpoint": (
+                EmailSequenceTriggerType.on_course_progress_halfway
+            ),
+            "course.completed": EmailSequenceTriggerType.on_course_completed,
+        }.get(event_name)
+        if milestone_trigger is not None:
+            from polar.email_sequence.service import (
+                email_sequence as sequence_service,
+            )
+
+            await sequence_service.enroll_for_trigger(
+                session,
+                course.organization_id,
+                milestone_trigger,
+                subscriber.id,
+                course_id=course_id,
+            )
+
     async def _fire_lesson_completion_events(
         self,
         session: AsyncSession,

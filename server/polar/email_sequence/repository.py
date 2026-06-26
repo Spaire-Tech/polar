@@ -74,6 +74,7 @@ class EmailSequenceRepository(
         trigger_type: EmailSequenceTriggerType,
         *,
         lesson_id: UUID | None = None,
+        course_id: UUID | None = None,
     ) -> list[EmailSequence]:
         statement = self.get_base_statement().where(
             EmailSequence.organization_id == organization_id,
@@ -84,6 +85,21 @@ class EmailSequenceRepository(
         # lesson that was just completed.
         if lesson_id is not None:
             statement = statement.where(EmailSequence.lesson_id == lesson_id)
+        # Course-lifecycle triggers only fan out to sequences for that course,
+        # so a milestone in one course never enters another course's sequence.
+        if course_id is not None:
+            statement = statement.where(EmailSequence.course_id == course_id)
+        return list(await self.get_all(statement))
+
+    async def list_active_by_trigger(
+        self, trigger_type: EmailSequenceTriggerType
+    ) -> list[EmailSequence]:
+        """All active sequences with this trigger, across every org — used by
+        the daily inactivity scan to find which courses to check."""
+        statement = self.get_base_statement().where(
+            EmailSequence.status == EmailSequenceStatus.active,
+            EmailSequence.trigger_type == trigger_type,
+        )
         return list(await self.get_all(statement))
 
     async def get_enrollment(
