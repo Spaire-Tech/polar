@@ -91,3 +91,39 @@ start, don't retrofit.
 Flip `COURSE_ASSISTANT_UI_ENABLED` to `true`, then **build v2 fresh as a clean
 stateless service** — do not patch v1. v1's complexity is the thing v2 exists to
 remove.
+
+## Training vs context (and verified caching facts)
+
+There is **no training / fine-tuning** in this build and there shouldn't be.
+The TA is a stock Claude model with the course in its prompt — "open book," not
+"crammed." When the creator edits a lesson, the prompt changes; nothing is
+re-trained. v1 already works this way (`ai.py` sends the course as a `document`
+content block). "Maximum context" = what we put in the prompt, not a training
+step.
+
+Each answer is one bundle: **system prompt (rules/authority hierarchy)** →
+**course block (metadata day-zero, transcripts appended as they process)** →
+**conversation (question + history)**.
+
+**Prompt caching is the cost lever — design it in from day one.** Verified facts
+for Claude (re-check at build time, but these are current):
+
+- It's a flag: `cache_control: {type: "ephemeral"}` on the course block — not
+  infrastructure.
+- Cache **reads ≈ 0.1×** input price; **writes ≈ 1.25×** (5-min TTL) or **2×**
+  (1-hour TTL). Pays for itself on the 2nd message (5-min) / 3rd (1-hour).
+- TTL default **5 min**, refreshed on hit; use `ttl: "1h"` for bursty/idle
+  courses.
+- Minimum cacheable prefix ≈ **2,048 tokens** on Sonnet 4.6 (the answer model);
+  smaller blocks silently don't cache — fine, they're cheap.
+- **Prefix match:** everything before the breakpoint must be byte-identical
+  every call. Order must be **stable course block → breakpoint → volatile
+  question/history**. Never put a timestamp/question inside the cached block.
+- Verify with `usage.cache_read_input_tokens` (0 across repeats = a silent
+  invalidator).
+
+Retrieval (vector DB) is the *only* thing that replaces "send the whole course"
+— and only once course size forces it. Tabled for v1, correctly. Structure
+(clear lesson boundaries, the instructor's framework stated plainly) grounds the
+TA better than raw transcript volume.
+
