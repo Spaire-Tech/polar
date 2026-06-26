@@ -163,7 +163,9 @@ export function BroadcastEditorV3({
   courseName = 'Southern Cooking',
   course: courseProp = SAMPLE_COURSE,
   initialDocument,
+  initialSubject,
   onSave,
+  onClose,
   onGenerateCopy,
   onUploadImage,
 }: {
@@ -175,6 +177,10 @@ export function BroadcastEditorV3({
   /** Restore a previously saved document (TipTap JSON from content_json). */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   initialDocument?: Record<string, any>
+  /** Seed the subject (e.g. an existing sequence step's subject). */
+  initialSubject?: string
+  /** Close / exit the editor — wired to the top-bar back button. */
+  onClose?: () => void
   /** Persist the email. Receives the TipTap JSON, the inbox-correct HTML, and
       the broadcast meta. The route wires this to create/patch the broadcast. */
   onSave?: (payload: SavePayload) => Promise<void> | void
@@ -220,7 +226,7 @@ export function BroadcastEditorV3({
   const [triggerKey, setTriggerKey] = useState<TriggerKey>('enrolment')
   const trigger = triggerByKey(triggerKey)
   const [broadcast, setBroadcast] = useState({
-    subject: trigger.subject,
+    subject: initialSubject || trigger.subject,
     preview: trigger.preview,
     from: 'Adaeze Bello',
   })
@@ -528,8 +534,8 @@ export function BroadcastEditorV3({
       />
       {/* ── Top bar ─────────────────────────────────────────── */}
       <header className="topbar">
-        <button className="tb-back">
-          <I d={IC.back} size={16} /> Broadcasts
+        <button className="tb-back" data-testid="tb-back" onClick={onClose}>
+          <I d={IC.back} size={16} /> {onClose ? 'Back' : 'Broadcasts'}
         </button>
         <span className="tb-divide" />
         <button
