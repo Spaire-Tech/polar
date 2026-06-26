@@ -7,6 +7,8 @@ from fastapi import Depends, File, HTTPException, Query, Response, UploadFile
 from pydantic import UUID4
 
 from polar.config import settings
+from polar.course.repository import CourseRepository
+from polar.email_copy import ai as email_copy_ai
 from polar.email_subscriber.auth import EmailSubscribersRead, EmailSubscribersWrite
 from polar.exceptions import ResourceNotFound
 from polar.integrations.aws.s3 import S3Service
@@ -19,15 +21,8 @@ from polar.postgres import (
 )
 from polar.routing import APIRouter
 
-from polar.course.repository import CourseRepository
-from polar.email_copy import ai as email_copy_ai
-
 from .schemas import (
     EmailBroadcast as EmailBroadcastSchema,
-)
-from .schemas import (
-    EmailCopyRequest,
-    EmailCopyResponse,
 )
 from .schemas import (
     EmailBroadcastABTest as EmailBroadcastABTestSchema,
@@ -43,10 +38,13 @@ from .schemas import (
     EmailBroadcastRowAnalytics,
     EmailBroadcastSchedule,
     EmailBroadcastSendRow,
+    EmailBroadcastTestInline,
     EmailBroadcastTestSend,
     EmailBroadcastTopLink,
     EmailBroadcastUpdate,
     EmailBroadcastWithAnalytics,
+    EmailCopyRequest,
+    EmailCopyResponse,
 )
 from .service import email_broadcast as email_broadcast_service
 
@@ -604,6 +602,38 @@ async def send_test_email_broadcast(
         raise ResourceNotFound()
     await email_broadcast_service.send_test(
         session, broadcast, to_email=body.email
+    )
+
+
+@router.post("/test-inline", status_code=204)
+async def send_test_inline_email(
+    auth_subject: EmailSubscribersWrite,
+    body: EmailBroadcastTestInline,
+    organization_id: UUID = Query(),
+    session: AsyncSession = Depends(get_db_session),
+) -> None:
+    """Send a test of in-progress authored content (not a saved broadcast).
+
+    Used by the sequence email editor's "Send test to me" — the creator sees
+    the exact email in their own inbox before saving it into a sequence.
+    """
+    from polar.auth.models import is_user
+
+    to_email = body.to_email
+    if not to_email and is_user(auth_subject):
+        to_email = auth_subject.subject.email
+    if not to_email:
+        raise HTTPException(
+            status_code=400, detail="No recipient email for the test send"
+        )
+    await email_broadcast_service.send_test_inline(
+        session,
+        organization_id=organization_id,
+        subject=body.subject,
+        content_html=body.content_html,
+        preview_text=body.preview_text,
+        sender_name=body.sender_name,
+        to_email=to_email,
     )
 
 

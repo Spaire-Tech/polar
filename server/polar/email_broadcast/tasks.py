@@ -284,6 +284,53 @@ async def send_emails(
             broadcast.sent_at = utc_now()
 
 
+@actor(actor_name="email_broadcast.send_test_inline", priority=TaskPriority.MEDIUM)
+async def send_test_inline(
+    organization_id: UUID,
+    subject: str,
+    content_html: str,
+    preview_text: str | None,
+    sender_name: str | None,
+    to_email: str,
+) -> None:
+    """Render and deliver a test of in-progress authored content.
+
+    Builds a transient (unsaved) broadcast from the authored fields and runs
+    it through the same render + Resend path as a real broadcast test, so the
+    sequence editor's "Send test to me" lands a real email.
+    """
+    from uuid import uuid4
+
+    from polar.email_subscriber.unsubscribe_token import (
+        build_test_unsubscribe_url,
+    )
+
+    async with AsyncSessionMaker() as session:
+        organization = await session.get(Organization, organization_id)
+        broadcast = EmailBroadcast(
+            organization_id=organization_id,
+            subject=subject or "(no subject)",
+            content_html=content_html,
+            preview_text=preview_text,
+            sender_name=sender_name,
+        )
+        # Not persisted; give it an id only for Resend tracking tags.
+        broadcast.id = uuid4()
+        try:
+            await send_broadcast_email(
+                broadcast,
+                organization,
+                to_email=to_email,
+                unsubscribe_url=build_test_unsubscribe_url(),
+                extra_subject_prefix="[TEST] ",
+            )
+        except Exception:
+            log.exception(
+                "email_broadcast.send_test_inline_failed", to_email=to_email
+            )
+            raise
+
+
 @actor(actor_name="email_broadcast.send_test", priority=TaskPriority.MEDIUM)
 async def send_test_broadcast(broadcast_id: UUID, to_email: str) -> None:
     """Render and deliver a single test send of a broadcast.

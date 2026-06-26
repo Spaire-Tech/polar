@@ -352,6 +352,33 @@ class EmailBroadcastService:
             to_email=to_email,
         )
 
+    async def send_test_inline(
+        self,
+        session: AsyncSession,
+        *,
+        organization_id: UUID,
+        subject: str,
+        content_html: str,
+        preview_text: str | None,
+        sender_name: str | None,
+        to_email: str,
+    ) -> None:
+        """Send a test of in-progress authored content (no saved broadcast).
+
+        Used by the sequence email editor so a creator can preview the exact
+        email in their own inbox before wiring it into a sequence. Runs through
+        the same render + Resend path as a real broadcast test.
+        """
+        enqueue_job(
+            "email_broadcast.send_test_inline",
+            organization_id=organization_id,
+            subject=subject,
+            content_html=content_html,
+            preview_text=preview_text,
+            sender_name=sender_name,
+            to_email=to_email,
+        )
+
     async def send(
         self,
         session: AsyncSession,
