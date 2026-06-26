@@ -1,13 +1,16 @@
 'use client'
 
 /* ============================================================
-   Course Assistant — student "Ask {name}" chat (Phase 4)
-   Floating launcher → office-hours sheet. Grounded answers stream
-   from the creator's approved, course-only assistant, in their voice.
-   Ported from the Ask-Carla design; wired to the live endpoints.
+   Course Assistant — student "Course TA" chat (v2)
+   Floating launcher → office-hours sheet. A neutral teaching
+   assistant (gradient sparkle mark, NOT the instructor's face or
+   voice): course-first answers that cite the lessons, with general
+   subject knowledge clearly labeled. Ported from the "Ask Carla —
+   Student" design and wired to the live SSE endpoint.
    ============================================================ */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 
 import {
   type AskCitation,
@@ -25,10 +28,16 @@ interface AskAssistantProps {
 const SF = {
   close: 'M6 6l12 12M18 6 6 18',
   send: 'M21 3 3 11l7 2.6L13 21l8-18Z',
+  play2: 'M8 6.5v11a1 1 0 0 0 1.5.87l9-5.5a1 1 0 0 0 0-1.74l-9-5.5A1 1 0 0 0 8 6.5Z',
+  chevron: 'm9 6 6 6-6 6',
   check: 'm5 12.5 4.5 4.5L19 6.5',
   book: 'M5 4.5h9a2.5 2.5 0 0 1 2.5 2.5v12.5 M5 4.5A1.5 1.5 0 0 0 3.5 6v12a1.5 1.5 0 0 0 1.5 1.5h11.5 M8 9h5.5 M8 12.5h5.5',
   user: 'M12 12.5a4 4 0 1 0 0-8 4 4 0 0 0 0 8 M5 20a7 7 0 0 1 14 0',
-  chevron: 'm9 6 6 6-6 6',
+  bolt: 'M13 3 4 14h6l-1 7 9-11h-6l1-7Z',
+  globe: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18 M3.5 12h17 M12 3c2.6 2.7 2.6 15.3 0 18 M12 3c-2.6 2.7-2.6 15.3 0 18',
+  info: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18 M12 11v5 M12 7.6h.01',
+  moon: 'M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z',
+  sun: 'M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8 M12 2v2 M12 20v2 M4.9 4.9l1.4 1.4 M17.7 17.7l1.4 1.4 M2 12h2 M20 12h2 M4.9 19.1l1.4-1.4 M17.7 6.3l1.4-1.4',
 }
 
 function Glyph({
@@ -60,29 +69,31 @@ function Glyph({
   )
 }
 
-function VerifiedSeal({ size = 14 }: { size?: number }) {
+// TA mark — a clearly-AI assistant badge (gradient sparkle), never the
+// instructor's face. `cls` provides the tile size slot; `g` is the glyph size.
+function Mark({ cls = '', g = 22 }: { cls?: string; g?: number }) {
   return (
-    <span className="vseal" style={{ width: size + 4, height: size + 4 }}>
-      <Glyph d={SF.check} size={size - 3} stroke={2.8} />
-    </span>
-  )
-}
-
-// Letter avatar — the status payload carries no portrait, so we render the
-// instructor's initial rather than a stock photo.
-function Ava({ name, className }: { name: string; className: string }) {
-  return (
-    <span
-      className={className}
-      style={{
-        display: 'grid',
-        placeItems: 'center',
-        background: 'var(--fill-2)',
-        color: 'var(--text)',
-        fontWeight: 700,
-      }}
-    >
-      {(name.trim()[0] || '?').toUpperCase()}
+    <span className={`ta-mark ${cls}`}>
+      <svg width={g} height={g} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <defs>
+          <linearGradient
+            id="taSparkGrad"
+            x1="4.5"
+            y1="18.5"
+            x2="19.5"
+            y2="5.5"
+            gradientUnits="userSpaceOnUse"
+          >
+            <stop offset="0" stopColor="#8E54D6" />
+            <stop offset="0.45" stopColor="#5C6FE0" />
+            <stop offset="1" stopColor="#2E9BE8" />
+          </linearGradient>
+        </defs>
+        <path
+          d="M12 1.6 C12.95 8.3 15.7 11.05 22.4 12 C15.7 12.95 12.95 15.7 12 22.4 C11.05 15.7 8.3 12.95 1.6 12 C8.3 11.05 11.05 8.3 12 1.6 Z"
+          fill="url(#taSparkGrad)"
+        />
+      </svg>
     </span>
   )
 }
@@ -91,54 +102,112 @@ interface ChatMessage {
   role: 'user' | 'ta'
   text: string
   citations?: AskCitation[]
+  general?: boolean
+  follow?: string[]
+  _new?: boolean
 }
 
-const firstName = (n: string | null | undefined) =>
-  (n ?? '').trim().split(/\s+/)[0] || ''
+// Minimal **bold** → <strong> renderer for streamed paragraphs. No HTML is
+// injected — odd segments between `**` pairs become <strong>.
+function renderInline(text: string) {
+  return text.split('**').map((seg, i) =>
+    i % 2 === 1 ? <strong key={i}>{seg}</strong> : <span key={i}>{seg}</span>,
+  )
+}
 
-function Citations({ cites }: { cites?: AskCitation[] }) {
-  const usable = (cites ?? []).filter((c) => c.cited_text)
+function Citations({
+  cites,
+  onJump,
+}: {
+  cites?: AskCitation[]
+  onJump: (c: AskCitation) => void
+}) {
+  // Prefer lesson-mapped citations; fall back to anything with a snippet.
+  const usable = (cites ?? []).filter(
+    (c) => c.lesson_id || c.lesson_title || c.cited_text || c.document_title,
+  )
   if (!usable.length) return null
   return (
     <div className="m-cites">
       <div className="m-cites-h">
-        <Glyph d={SF.book} size={14} stroke={1.9} /> From your lessons
+        <Glyph d={SF.book} size={14} stroke={1.9} /> From the course
       </div>
-      {usable.map((c, i) => (
-        <div className="cite" key={i} style={{ cursor: 'default' }}>
-          <span className="cite-main">
-            <span className="cl">{c.document_title || 'From the course'}</span>
-            <span className="cm">
-              “
-              {(c.cited_text ?? '').length > 140
-                ? (c.cited_text ?? '').slice(0, 140) + '…'
-                : c.cited_text}
-              ”
+      {usable.map((c, i) => {
+        const title =
+          c.lesson_title || c.document_title || 'From the course'
+        const heading =
+          c.lesson_number != null
+            ? `Lesson ${c.lesson_number} · ${title}`
+            : title
+        const sub =
+          c.label ||
+          (c.cited_text
+            ? `“${c.cited_text.length > 120 ? c.cited_text.slice(0, 120) + '…' : c.cited_text}”`
+            : null)
+        const clickable = !!c.lesson_id
+        return (
+          <button
+            className="cite"
+            key={i}
+            onClick={() => clickable && onJump(c)}
+            style={clickable ? undefined : { cursor: 'default' }}
+          >
+            {c.thumbnail_url ? (
+              <span className="cite-thumb">
+                <img src={c.thumbnail_url} alt="" />
+                <span className="pl">
+                  <Glyph d={SF.play2} size={15} fill="currentColor" stroke={0} />
+                </span>
+              </span>
+            ) : null}
+            <span className="cite-main">
+              <span className="cl">{heading}</span>
+              {sub ? <span className="cm">{sub}</span> : null}
             </span>
-          </span>
-        </div>
-      ))}
+            {clickable ? (
+              <span className="cite-go">
+                <Glyph d={SF.chevron} size={17} stroke={2.2} />
+              </span>
+            ) : null}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
+function GeneralNote() {
+  return (
+    <div className="m-general">
+      <div className="m-general-h">
+        <Glyph d={SF.globe} size={14} stroke={1.9} /> General knowledge
+      </div>
+      <div className="m-general-tx">
+        Not from the course lessons — the course is the source of truth wherever
+        they differ.
+      </div>
     </div>
   )
 }
 
 function TAMessage({
   m,
-  name,
+  onJump,
+  onChip,
   streaming,
 }: {
   m: ChatMessage
-  name: string
+  onJump: (c: AskCitation) => void
+  onChip: (q: string) => void
   streaming: boolean
 }) {
   const paras = m.text.split(/\n{2,}/).filter(Boolean)
   return (
-    <div className="msg-ta">
-      <Ava name={name} className="m-ava" />
+    <div className={`msg-ta ${m._new ? 'msg-in' : ''}`}>
+      <Mark cls="m-ava" g={18} />
       <div className="m-body">
         <div className="m-name">
-          <span className="nm">{name}</span>
-          <span className="tag">AI</span>
+          <span className="nm">Course TA</span>
         </div>
         {streaming && m.text.length === 0 ? (
           <div className="typing">
@@ -149,25 +218,31 @@ function TAMessage({
         ) : (
           paras.map((p, i) => (
             <p className="m-p" key={i}>
-              {p}
+              {renderInline(p)}
             </p>
           ))
         )}
-        {!streaming && <Citations cites={m.citations} />}
+        {!streaming &&
+          (m.general ? (
+            <GeneralNote />
+          ) : (
+            <Citations cites={m.citations} onJump={onJump} />
+          ))}
+        {!streaming && m.follow && m.follow.length > 0 && (
+          <div className="m-follow">
+            {m.follow.map((f, i) => (
+              <button className="fchip" key={i} onClick={() => onChip(f)}>
+                {f}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )
 }
 
-function TrustCard({
-  fullName,
-  onClose,
-  onAsk,
-}: {
-  fullName: string
-  onClose: () => void
-  onAsk: () => void
-}) {
+function TrustCard({ onClose, onAsk }: { onClose: () => void; onAsk: () => void }) {
   return (
     <div
       className="mind-overlay"
@@ -180,12 +255,10 @@ function TrustCard({
           <Glyph d={SF.close} size={14} stroke={2.3} />
         </button>
         <div className="trust-head">
-          <Ava name={fullName} className="trust-ava" />
+          <Mark cls="trust-ava" g={26} />
           <div className="trust-id">
-            <div className="trust-name">
-              {fullName} <VerifiedSeal />
-            </div>
-            <div className="trust-role">Your instructor</div>
+            <div className="trust-name">Course TA</div>
+            <div className="trust-role">Teaching assistant for this course</div>
           </div>
         </div>
 
@@ -195,8 +268,9 @@ function TrustCard({
               <Glyph d={SF.user} size={18} stroke={1.9} />
             </span>
             <span className="trust-tx">
-              <strong>{firstName(fullName)}’s official assistant.</strong> Their
-              voice and their teaching — not a generic chatbot.
+              <strong>A course assistant, not your instructor.</strong> It’s the
+              AI teaching assistant for this course — clearly labeled, and it
+              never speaks as your instructor.
             </span>
           </div>
           <div className="trust-row">
@@ -204,17 +278,18 @@ function TrustCard({
               <Glyph d={SF.book} size={17} stroke={1.9} />
             </span>
             <span className="trust-tx">
-              <strong>Answers only from this course.</strong> Every reply is
-              drawn from the lessons and points back to the source.
+              <strong>Course first.</strong> Answers come from the lessons and
+              link to the source. General knowledge fills the gaps — labeled when
+              it does, never overriding the course.
             </span>
           </div>
           <div className="trust-row">
             <span className="trust-ico">
-              <Glyph d={SF.check} size={18} stroke={2.2} />
+              <Glyph d={SF.bolt} size={18} stroke={1.9} />
             </span>
             <span className="trust-tx">
-              <strong>Reviewed by {firstName(fullName)}.</strong> They approved
-              how it answers before it went live.
+              <strong>On from day one.</strong> It works the moment the course is
+              live and quietly gets sharper as each lesson is processed.
             </span>
           </div>
         </div>
@@ -223,12 +298,12 @@ function TrustCard({
           <span className="vchk">
             <Glyph d={SF.check} size={11} stroke={2.8} />
           </span>
-          Verified &amp; owned by {fullName}
+          Course-first answers · general knowledge always labeled
         </div>
 
         <div className="mind-ctas">
           <button className="mind-cta primary" onClick={onAsk}>
-            Ask {firstName(fullName)} anything
+            Ask a question
           </button>
         </div>
       </div>
@@ -236,30 +311,58 @@ function TrustCard({
   )
 }
 
+const DEFAULT_STARTERS = [
+  'What’s the best place to start?',
+  'Summarize the key ideas of this course',
+]
+
 export function AskAssistant({ courseId, token }: AskAssistantProps) {
   const { data: status } = useCourseAssistantStatus(courseId, token)
+  const router = useRouter()
+  const searchParams = useSearchParams()
 
+  // Default to dark so the sheet reads on the (black) portal — respects an
+  // existing choice under the shared theme key.
+  const [dark, setDark] = useState(true)
   const [open, setOpen] = useState(false)
   const [closing, setClosing] = useState(false)
   const [msgs, setMsgs] = useState<ChatMessage[]>([])
   const [streaming, setStreaming] = useState(false)
   const [draft, setDraft] = useState('')
   const [trustOpen, setTrustOpen] = useState(false)
+  const [toast, setToast] = useState<string | null>(null)
   const convoRef = useRef<HTMLDivElement | null>(null)
   const inputRef = useRef<HTMLTextAreaElement | null>(null)
   const abortRef = useRef<AbortController | null>(null)
+  const toastT = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const launcherName =
-    status?.display_name || firstName(status?.instructor_name) || 'your instructor'
-  const fullName =
-    status?.instructor_name || status?.display_name || 'Your instructor'
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('spaire_theme')
+      if (stored) setDark(stored === 'dark')
+    } catch {
+      /* ignore */
+    }
+  }, [])
+
   const disclaimer =
-    status?.disclaimer || 'AI assistant. Double-check anything important.'
+    status?.disclaimer || 'AI assistant · double-check anything important.'
+  const starters =
+    status?.starters && status.starters.length
+      ? status.starters
+      : DEFAULT_STARTERS
+  const suggestions = status?.suggestions ?? []
 
   useEffect(() => {
     const el = convoRef.current
     if (el) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' })
   }, [msgs, streaming])
+
+  const flashToast = useCallback((msg: string) => {
+    setToast(msg)
+    if (toastT.current) clearTimeout(toastT.current)
+    toastT.current = setTimeout(() => setToast(null), 2200)
+  }, [])
 
   const ask = useCallback(
     (raw: string) => {
@@ -267,8 +370,8 @@ export function AskAssistant({ courseId, token }: AskAssistantProps) {
       if (!text || streaming) return
       setMsgs((m) => [
         ...m,
-        { role: 'user', text },
-        { role: 'ta', text: '' },
+        { role: 'user', text, _new: true },
+        { role: 'ta', text: '', _new: true },
       ])
       setDraft('')
       setStreaming(true)
@@ -288,6 +391,8 @@ export function AskAssistant({ courseId, token }: AskAssistantProps) {
           appendToLastTA((m) => ({ ...m, text: m.text + chunk })),
         onCitations: (citations) =>
           appendToLastTA((m) => ({ ...m, citations })),
+        onGeneral: () => appendToLastTA((m) => ({ ...m, general: true })),
+        onFollow: (follow) => appendToLastTA((m) => ({ ...m, follow })),
         onRefusal: (message) =>
           appendToLastTA((m) => ({ ...m, text: m.text || message })),
         onError: (message) =>
@@ -296,6 +401,21 @@ export function AskAssistant({ courseId, token }: AskAssistantProps) {
       })
     },
     [courseId, token, streaming],
+  )
+
+  const onJump = useCallback(
+    (c: AskCitation) => {
+      if (!c.lesson_id) return
+      const label =
+        c.lesson_number != null
+          ? `Opening Lesson ${c.lesson_number}`
+          : 'Opening lesson'
+      flashToast(c.label ? `${label} · ${c.label}` : label)
+      const params = new URLSearchParams(searchParams.toString())
+      params.set('lesson', c.lesson_id)
+      router.push(`?${params.toString()}`, { scroll: false })
+    },
+    [router, searchParams, flashToast],
   )
 
   const doClose = useCallback(() => {
@@ -319,6 +439,18 @@ export function AskAssistant({ courseId, token }: AskAssistantProps) {
 
   useEffect(() => () => abortRef.current?.abort(), [])
 
+  const toggleDark = useCallback(() => {
+    setDark((d) => {
+      const next = !d
+      try {
+        localStorage.setItem('spaire_theme', next ? 'dark' : 'light')
+      } catch {
+        /* ignore */
+      }
+      return next
+    })
+  }, [])
+
   if (!status?.available) return null
 
   const autosize = (el: HTMLTextAreaElement) => {
@@ -327,25 +459,35 @@ export function AskAssistant({ courseId, token }: AskAssistantProps) {
   }
 
   return (
-    <div className="ta-widget">
+    <div className={`ta-widget ${dark ? 'dark' : ''}`}>
       {open && (
         <section className={`ta-sheet ${closing ? 'closing' : ''}`}>
           <header className="ta-head">
-            <Ava name={fullName} className="ta-ava" />
+            <div className="ta-ava-wrap">
+              <Mark cls="ta-ava" g={24} />
+              <span className="ta-ava-dot" title="Always on"></span>
+            </div>
             <div className="ta-id">
               <div className="ta-id-top">
-                <span className="ta-name">{fullName}</span>
+                <span className="ta-name">Course TA</span>
                 <button
                   className="ta-seal"
                   onClick={() => setTrustOpen(true)}
                   aria-label="About this assistant"
                 >
-                  <VerifiedSeal size={13} />
+                  <Glyph d={SF.info} size={16} stroke={1.9} />
                 </button>
               </div>
-              <div className="ta-sub">AI assistant · open 24/7</div>
+              <div className="ta-sub">AI assistant</div>
             </div>
             <div className="ta-head-btns">
+              <button
+                className="ta-iconbtn"
+                onClick={toggleDark}
+                aria-label="Toggle theme"
+              >
+                <Glyph d={dark ? SF.sun : SF.moon} size={16} stroke={2} />
+              </button>
               <button
                 className="ta-iconbtn"
                 onClick={doClose}
@@ -357,26 +499,32 @@ export function AskAssistant({ courseId, token }: AskAssistantProps) {
           </header>
 
           <div className="ta-convo" ref={convoRef}>
-            {msgs.length === 0 ? (
+            {msgs.length === 0 && !streaming ? (
               <div className="ta-empty">
-                <Ava name={launcherName} className="ta-empty-ava" />
-                <div className="ta-empty-t">Office hours with {launcherName}</div>
-                <div className="ta-empty-s">Ask anything about the course.</div>
-                {status.example_question && (
+                <div className="ta-empty-ava-wrap">
+                  <Mark cls="ta-empty-ava" g={30} />
+                  <span className="ta-empty-dot"></span>
+                </div>
+                <div className="ta-empty-t">Course TA</div>
+                <div className="ta-empty-s">
+                  Answers from your course, any time.
+                </div>
+                {starters.length > 0 && (
                   <>
                     <div className="ta-empty-k">Try asking</div>
                     <div className="ta-starters">
-                      <button
-                        className="starter"
-                        onClick={() => ask(status.example_question as string)}
-                      >
-                        <span className="starter-tx">
-                          {status.example_question}
-                        </span>
-                        <span className="starter-go">
-                          <Glyph d={SF.chevron} size={16} stroke={2.2} />
-                        </span>
-                      </button>
+                      {starters.map((s, i) => (
+                        <button
+                          className="starter"
+                          key={i}
+                          onClick={() => ask(s)}
+                        >
+                          <span className="starter-tx">{s}</span>
+                          <span className="starter-go">
+                            <Glyph d={SF.chevron} size={16} stroke={2.2} />
+                          </span>
+                        </button>
+                      ))}
                     </div>
                   </>
                 )}
@@ -384,14 +532,15 @@ export function AskAssistant({ courseId, token }: AskAssistantProps) {
             ) : (
               msgs.map((m, i) =>
                 m.role === 'user' ? (
-                  <div className="msg-user" key={i}>
+                  <div className={`msg-user ${m._new ? 'msg-in' : ''}`} key={i}>
                     <div className="bubble">{m.text}</div>
                   </div>
                 ) : (
                   <TAMessage
                     key={i}
                     m={m}
-                    name={launcherName}
+                    onJump={onJump}
+                    onChip={ask}
                     streaming={streaming && i === msgs.length - 1}
                   />
                 ),
@@ -400,13 +549,22 @@ export function AskAssistant({ courseId, token }: AskAssistantProps) {
           </div>
 
           <div className="ta-compose">
+            {msgs.length > 0 && suggestions.length > 0 && (
+              <div className="ta-suggest">
+                {suggestions.map((s, i) => (
+                  <button className="schip" key={i} onClick={() => ask(s)}>
+                    {s}
+                  </button>
+                ))}
+              </div>
+            )}
             <div className="ta-inputrow">
               <textarea
                 ref={inputRef}
                 className="ta-input"
                 rows={1}
                 value={draft}
-                placeholder={`Ask ${launcherName} anything about the course…`}
+                placeholder="Ask anything about the course…"
                 onChange={(e) => {
                   setDraft(e.target.value)
                   autosize(e.target)
@@ -439,19 +597,27 @@ export function AskAssistant({ courseId, token }: AskAssistantProps) {
       {!open && (
         <button className="ta-launcher" onClick={() => setOpen(true)}>
           <span className="lc-ava-wrap">
-            <Ava name={launcherName} className="lc-ava" />
+            <Mark cls="lc-ava" g={20} />
             <span className="lc-dot"></span>
           </span>
           <span className="lc-txt">
-            <span className="lc-t">Ask {launcherName}</span>
-            <span className="lc-s">Office hours · open 24/7</span>
+            <span className="lc-t">Course TA</span>
+            <span className="lc-s">Always on</span>
           </span>
         </button>
       )}
 
+      {toast && (
+        <div className="ta-toast">
+          <span className="tk">
+            <Glyph d={SF.play2} size={14} fill="currentColor" stroke={0} />
+          </span>
+          {toast}
+        </div>
+      )}
+
       {trustOpen && (
         <TrustCard
-          fullName={fullName}
           onClose={() => setTrustOpen(false)}
           onAsk={() => {
             setTrustOpen(false)

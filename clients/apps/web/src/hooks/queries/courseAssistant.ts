@@ -192,17 +192,37 @@ export const useCourseAssistantQuestions = (courseId: string | undefined) =>
 
 export interface CourseAssistantStudentStatus {
   available: boolean
-  display_name: string | null
-  instructor_name: string | null
-  disclaimer: string | null
-  example_question: string | null
+  // v2: the TA is a neutral "Course TA", not the instructor. These drive the
+  // header / empty state / compose suggestions and degrade to sane defaults.
+  display_name?: string | null
+  course_title?: string | null
+  disclaimer?: string | null
+  // Empty-state starter prompts and the in-compose suggestion chips.
+  starters?: string[] | null
+  suggestions?: string[] | null
+  // 'course_only' | 'course_plus_general' — informs copy only; the backend
+  // enforces it in the prompt.
+  strictness?: string | null
+  // Legacy v1 fields, still tolerated so an old payload doesn't break parsing.
+  instructor_name?: string | null
+  example_question?: string | null
 }
 
+// A grounded source the TA points back to. v2 maps each citation to a concrete
+// lesson so the UI can render "Lesson N · Title · 2:40" and jump to it. The
+// Anthropic-citation fields (cited_text / char indices) are kept for the
+// snippet + back-compat with the v1 stream.
 export interface AskCitation {
-  cited_text: string | null
-  document_title: string | null
-  start_char_index: number | null
-  end_char_index: number | null
+  lesson_id?: string | null
+  lesson_number?: number | null
+  lesson_title?: string | null
+  // Human label for the moment cited, e.g. "The toss · 2:40" or "Start here".
+  label?: string | null
+  thumbnail_url?: string | null
+  cited_text?: string | null
+  document_title?: string | null
+  start_char_index?: number | null
+  end_char_index?: number | null
 }
 
 export const useCourseAssistantStatus = (
@@ -226,6 +246,11 @@ export const useCourseAssistantStatus = (
 export interface AskHandlers {
   onText: (chunk: string) => void
   onCitations: (citations: AskCitation[]) => void
+  // The answer drew on general subject knowledge (not the course) — the UI
+  // shows the labeled "General knowledge" note. Fired at most once per answer.
+  onGeneral: () => void
+  // Suggested follow-up questions to render as chips under the answer.
+  onFollow: (suggestions: string[]) => void
   onRefusal: (message: string) => void
   onError: (message: string) => void
   onDone: () => void
@@ -289,6 +314,7 @@ export function streamAsk(
           let payload: {
             text?: string
             citations?: AskCitation[]
+            suggestions?: string[]
             message?: string
           }
           try {
@@ -299,6 +325,9 @@ export function streamAsk(
           if (event === 'text') handlers.onText(payload.text ?? '')
           else if (event === 'citations')
             handlers.onCitations(payload.citations ?? [])
+          else if (event === 'general') handlers.onGeneral()
+          else if (event === 'follow')
+            handlers.onFollow(payload.suggestions ?? [])
           else if (event === 'refusal')
             handlers.onRefusal(payload.message ?? '')
           else if (event === 'error')
