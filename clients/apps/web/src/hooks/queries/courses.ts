@@ -103,6 +103,11 @@ export type HeroVariant = 'marquee' | 'cover'
 export type LessonCardVariant = 'spotlight' | 'catalog'
 export type TrialMode = 'free_preview' | 'lesson_sample'
 
+// Course Assistant strictness. "course_only" keeps the TA strictly on the
+// course material; "course_plus_general" (default) lets it fall back to
+// Claude's general subject knowledge, clearly labeled as such.
+export type AssistantStrictness = 'course_only' | 'course_plus_general'
+
 // Series-only "Episode Sample" block configuration. The creator picks one
 // lesson and a window inside it (start_seconds + duration_seconds), and
 // the public landing renders an auto-play-on-scroll sub-hero clip of that
@@ -138,6 +143,9 @@ export type CourseRead = {
   paywall_lesson_id: string | null
   paywall_position: number | null
   ai_generated: boolean
+  // Course Assistant (stateless TA): master switch + how far it may roam.
+  assistant_enabled: boolean
+  assistant_strictness: AssistantStrictness
   // Onboarding presentation choices — drive the public portal render.
   hero_variant: HeroVariant
   lesson_card_variant: LessonCardVariant
@@ -387,6 +395,8 @@ export const useUpdateCourse = () =>
         format?: CourseFormat
         paywall_enabled?: boolean
         paywall_position?: number | null
+        assistant_enabled?: boolean
+        assistant_strictness?: AssistantStrictness
         description?: string | null
         thumbnail_url?: string | null
         thumbnail_object_position?: string | null

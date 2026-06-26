@@ -1,10 +1,12 @@
 'use client'
 
 import {
+  AssistantStrictness,
   CourseRead,
   useUpdateCourse,
   useUploadCourseThumbnail,
 } from '@/hooks/queries/courses'
+import { getQueryClient } from '@/utils/api/query'
 import { toast } from '../../Toast/use-toast'
 import ImageOutlined from '@mui/icons-material/ImageOutlined'
 import { useEffect, useRef, useState } from 'react'
@@ -44,9 +46,46 @@ export function SettingsTab({
   const [thumbnailPosition, setThumbnailPosition] = useState<string | null>(
     course.thumbnail_object_position ?? null,
   )
+  const [assistantEnabled, setAssistantEnabled] = useState(
+    course.assistant_enabled,
+  )
+  const [strictness, setStrictness] = useState<AssistantStrictness>(
+    course.assistant_strictness,
+  )
   const thumbnailInputRef = useRef<HTMLInputElement>(null)
   const uploadThumbnail = useUploadCourseThumbnail()
   const updateCourse = useUpdateCourse()
+
+  // The assistant toggle / strictness save immediately (not via the bottom
+  // Save bar, which is for the editable text fields). Optimistic local state,
+  // reverted on failure.
+  const persistAssistant = async (patch: {
+    assistant_enabled?: boolean
+    assistant_strictness?: AssistantStrictness
+  }) => {
+    try {
+      await updateCourse.mutateAsync({ courseId: course.id, body: patch })
+      getQueryClient().invalidateQueries({
+        queryKey: ['courses', { courseId: course.id }],
+      })
+    } catch {
+      // Revert optimistic state to the server's last-known values.
+      setAssistantEnabled(course.assistant_enabled)
+      setStrictness(course.assistant_strictness)
+      toast({ title: 'Failed to update the course assistant' })
+    }
+  }
+
+  const handleToggleAssistant = (next: boolean) => {
+    setAssistantEnabled(next)
+    persistAssistant({ assistant_enabled: next })
+  }
+
+  const handleSetStrictness = (next: AssistantStrictness) => {
+    if (next === strictness) return
+    setStrictness(next)
+    persistAssistant({ assistant_strictness: next })
+  }
 
   const handleRemoveThumbnail = async () => {
     try {
@@ -74,6 +113,8 @@ export function SettingsTab({
     setInstructorBio(course.instructor_bio ?? '')
     setThumbnailUrl(course.thumbnail_url ?? null)
     setThumbnailPosition(course.thumbnail_object_position ?? null)
+    setAssistantEnabled(course.assistant_enabled)
+    setStrictness(course.assistant_strictness)
   }, [
     course.id,
     course.title,
@@ -82,6 +123,8 @@ export function SettingsTab({
     course.instructor_bio,
     course.thumbnail_url,
     course.thumbnail_object_position,
+    course.assistant_enabled,
+    course.assistant_strictness,
   ])
 
   const handleThumbnailChange = async (
@@ -301,6 +344,107 @@ export function SettingsTab({
             >
               {uploadThumbnail.isPending ? 'Uploading…' : 'Select image'}
             </button>
+          </div>
+        )}
+      </section>
+
+      <section className="mb-6 rounded-2xl border border-gray-200 bg-white p-6">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h2 className="text-lg font-medium text-gray-900">
+              Course assistant
+            </h2>
+            <p className="mt-1 text-gray-500">
+              An AI teaching assistant your students can chat with inside the
+              course. It answers from your material and explains concepts on
+              demand — available the moment you publish.
+            </p>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={assistantEnabled}
+            aria-label="Enable the course assistant"
+            disabled={updateCourse.isPending}
+            onClick={() => handleToggleAssistant(!assistantEnabled)}
+            className={
+              'relative mt-1 inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors disabled:opacity-50 ' +
+              (assistantEnabled ? 'bg-[#0066cc]' : 'bg-gray-300')
+            }
+          >
+            <span
+              className={
+                'inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ' +
+                (assistantEnabled ? 'translate-x-[22px]' : 'translate-x-[2px]')
+              }
+            />
+          </button>
+        </div>
+
+        {assistantEnabled && (
+          <div className="mt-5 border-t border-gray-100 pt-5">
+            <p className="text-sm font-medium text-gray-900">
+              How closely should it stick to your course?
+            </p>
+            <p className="mt-0.5 text-xs text-gray-500">
+              Choose how far the assistant may go beyond your material when a
+              student asks something the course doesn’t cover.
+            </p>
+            <div className="mt-3 flex flex-col gap-2">
+              {(
+                [
+                  {
+                    value: 'course_plus_general' as const,
+                    title: 'Course + general knowledge',
+                    sub: 'Answers from your course first, then falls back to general knowledge about the subject — clearly labeled when it does.',
+                  },
+                  {
+                    value: 'course_only' as const,
+                    title: 'Course only',
+                    sub: 'Sticks strictly to your material and points students to the relevant lesson instead of improvising. Best for proprietary or opinionated methods.',
+                  },
+                ] satisfies {
+                  value: AssistantStrictness
+                  title: string
+                  sub: string
+                }[]
+              ).map((opt) => {
+                const active = strictness === opt.value
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    disabled={updateCourse.isPending}
+                    onClick={() => handleSetStrictness(opt.value)}
+                    className={
+                      'flex items-start gap-3 rounded-xl border p-3.5 text-left transition-colors disabled:opacity-50 ' +
+                      (active
+                        ? 'border-[#0066cc] bg-blue-50/50 ring-1 ring-blue-100'
+                        : 'border-gray-200 hover:border-gray-300')
+                    }
+                  >
+                    <span
+                      className={
+                        'mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border ' +
+                        (active ? 'border-[#0066cc]' : 'border-gray-300')
+                      }
+                    >
+                      {active && (
+                        <span className="h-2 w-2 rounded-full bg-[#0066cc]" />
+                      )}
+                    </span>
+                    <span>
+                      <span className="block text-sm font-medium text-gray-900">
+                        {opt.title}
+                      </span>
+                      <span className="mt-0.5 block text-xs text-gray-500">
+                        {opt.sub}
+                      </span>
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
           </div>
         )}
       </section>

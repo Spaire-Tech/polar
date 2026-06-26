@@ -1,11 +1,40 @@
 # Course Assistant — v2 design decisions
 
-**Status: shelved / deferred.** The v1 implementation (AI-clone-of-instructor,
-approval-gated, transcript-gated) is **hidden** behind the
-`COURSE_ASSISTANT_UI_ENABLED` flag
-(`clients/apps/web/src/components/Courses/assistant/flag.ts`). Code is intact,
-nothing deleted. This note captures the agreed v2 direction so the decisions
-aren't relitigated when we pick it back up. It's a decision record, not a spec.
+**Status: rework in progress.** The creator-facing v1 console (the "Assistant"
+editor tab, approval-gated, transcript-gated) has been **removed from the UI**
+and replaced with a per-course toggle in **course Settings**. The student chat
+widget in the portal (`AskAssistant`) stays behind `COURSE_ASSISTANT_UI_ENABLED`
+(`clients/apps/web/src/components/Courses/assistant/flag.ts`) until the reworked
+v2 chat UI lands. The old `AssistantPanel` is unreferenced but kept in-tree.
+This note captures the agreed v2 direction so the decisions aren't relitigated.
+
+## Confirmed decisions (2026-06-26)
+
+These were locked in with the user and are now partially implemented:
+
+1. **Default ON.** New courses get the assistant automatically
+   (`Course.assistant_enabled` defaults `true`, server_default `true`; the
+   existing rows backfill ON via the migration). ✅ implemented.
+2. **Strictness surfaced in Settings, not buried.** The toggle lives in course
+   Settings; when enabled, a two-option choice appears
+   (`course_plus_general` default / `course_only`). Stored on
+   `Course.assistant_strictness`. ✅ implemented (model + schema + Settings UI).
+3. **Drop "What students are asking" (Phase 5) for v2.** The
+   `course_assistant_questions` table + migration stay in-tree (no destructive
+   drop), but no creator-facing analytics surface ships in v2.
+4. **Remove the transcription UI entirely.** No per-lesson transcript badges or
+   rows in the outline / lesson editor. Transcription remains invisible
+   background enrichment for the answer model. ✅ implemented (badges removed
+   from `OutlineTab`, `LessonEditorV2`, dead `ModuleCard`; `transcriptStatus.ts`
+   deleted; the `transcript_status` field + refetch polling stay).
+
+### Still to build (depends on the user's incoming portal chat design)
+
+- The stateless `ask` service rewrite (system prompt + live course block +
+  prompt caching), deleting v1 approval/snapshot/voice/state-machine.
+- The reworked in-portal chat widget; then flip `COURSE_ASSISTANT_UI_ENABLED`.
+- The `ask` endpoint contract simplifies to "available = enabled + enrolled"
+  (read `assistant_enabled` / `assistant_strictness` off the course).
 
 ## What v2 is
 

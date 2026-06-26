@@ -168,6 +168,11 @@ class CourseCreate(Schema):
     paywall_lesson_id: UUID4 | None = None
     paywall_position: int | None = None
     ai_generated: bool = False
+    # Course Assistant defaults ON for new courses.
+    assistant_enabled: bool = True
+    assistant_strictness: Literal["course_only", "course_plus_general"] = (
+        "course_plus_general"
+    )
     # Onboarding presentation choices — drive the public portal render.
     hero_variant: Literal["marquee", "cover"] = "cover"
     lesson_card_variant: Literal["spotlight", "catalog"] = "catalog"
@@ -194,6 +199,8 @@ class CourseUpdate(Schema):
     paywall_enabled: bool | None = None
     paywall_lesson_id: UUID4 | None = None
     paywall_position: int | None = None
+    assistant_enabled: bool | None = None
+    assistant_strictness: Literal["course_only", "course_plus_general"] | None = None
     hero_variant: Literal["marquee", "cover"] | None = None
     lesson_card_variant: Literal["spotlight", "catalog"] | None = None
     trial_mode: Literal["free_preview", "lesson_sample"] | None = None
@@ -305,6 +312,8 @@ class CourseRead(TimestampedSchema):
     paywall_lesson_id: UUID4 | None
     paywall_position: int | None
     ai_generated: bool
+    assistant_enabled: bool = True
+    assistant_strictness: str = "course_plus_general"
     hero_variant: str = "cover"
     lesson_card_variant: str = "catalog"
     trial_mode: str = "free_preview"

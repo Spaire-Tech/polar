@@ -6,24 +6,23 @@ import ChevronLeftOutlined from '@mui/icons-material/ChevronLeftOutlined'
 import DarkModeOutlined from '@mui/icons-material/DarkModeOutlined'
 import LightModeOutlined from '@mui/icons-material/LightModeOutlined'
 import { cn } from '@spaire/ui/lib/utils'
-import { COURSE_ASSISTANT_UI_ENABLED } from '../assistant/flag'
 
 export type TabId =
   | 'outline'
   | 'customize'
   | 'community'
-  | 'assistant'
   | 'automations'
   | 'settings'
   | 'auth'
   | 'pricing'
   | 'customers'
 
+// The Course Assistant is configured from the Settings tab (a toggle), not a
+// top-level tab of its own.
 const TABS: { id: TabId; label: string }[] = [
   { id: 'outline', label: 'Outline' },
   { id: 'customize', label: 'Landing' },
   { id: 'community', label: 'Community' },
-  { id: 'assistant', label: 'Assistant' },
   { id: 'automations', label: 'Automations' },
   { id: 'settings', label: 'Settings' },
   { id: 'auth', label: 'Auth' },
@@ -56,11 +55,6 @@ export function CourseHeader({
   const lessonCount = course.modules.reduce(
     (acc, m) => acc + m.lessons.length,
     0,
-  )
-
-  // The Course Assistant tab is hidden behind a flag while reworked.
-  const visibleTabs = TABS.filter(
-    (tab) => tab.id !== 'assistant' || COURSE_ASSISTANT_UI_ENABLED,
   )
 
   return (
@@ -115,7 +109,7 @@ export function CourseHeader({
 
       {/* Tabs row — centered */}
       <div className="flex flex-shrink-0 items-center justify-center border-b border-gray-200 bg-white">
-        {visibleTabs.map((tab) => {
+        {TABS.map((tab) => {
           const active = tab.id === activeTab
           return (
             <button
