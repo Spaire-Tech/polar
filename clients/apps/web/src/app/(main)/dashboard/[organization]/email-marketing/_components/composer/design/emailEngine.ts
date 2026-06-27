@@ -47,6 +47,9 @@ export interface EditorState {
   version: 3
   trigger: string
   themeKey: string
+  /** Per-email overrides of the base theme (e.g. a changed email background or
+   *  backdrop). Saved + restored so a chosen colour survives a reopen. */
+  themeOverrides?: Partial<Theme>
   blocks: { type: string; props: Props }[]
   broadcast: BroadcastMeta
 }
@@ -146,7 +149,12 @@ export function createEditor(root: HTMLElement, opts: CreateEditorOpts = {}): Ed
   let selId: string | null = null
   let selPart: string | null = null
   let themeKey = 'studio'
-  const theme = (): Theme => THEMES[themeKey]
+  // Per-instance theme overrides. We never mutate the shared THEMES singleton
+  // (that leaks a chosen colour into every other course/email in the session and
+  // is never persisted). Instead we layer per-email overrides on top, and save
+  // them in the editor state so the colour survives a reopen.
+  const themeOverrides: Record<string, unknown> = {}
+  const theme = (): Theme => ({ ...THEMES[themeKey], ...themeOverrides }) as Theme
   const broadcast: BroadcastMeta = {
     from: opts.fromName || 'Spaire',
     audience: 'New enrollments',
@@ -215,6 +223,7 @@ export function createEditor(root: HTMLElement, opts: CreateEditorOpts = {}): Ed
       version: 3,
       trigger: currentTrigger,
       themeKey,
+      themeOverrides: { ...themeOverrides },
       blocks: blocks.map((b) => ({ type: b.type, props: b.props })),
       broadcast: { ...broadcast },
     }
@@ -303,6 +312,8 @@ export function createEditor(root: HTMLElement, opts: CreateEditorOpts = {}): Ed
     broadcast.subject = swap(m.subject); broadcast.preview = swap(m.preview); broadcast.audience = m.audience
     broadcast.count = realCount() ?? m.count
     themeKey = tpl.theme
+    // A freshly-loaded template starts from its own theme with no overrides.
+    Object.keys(themeOverrides).forEach((k) => delete themeOverrides[k])
     blocks = tpl.blocks.map((s) => makeBlock(s.type, s.props))
     if (opts.applyCourse) blocks = opts.applyCourse(blocks, key)
     applyTheme(); updateCrumb(); renderCanvas(); deselect()
@@ -662,7 +673,7 @@ export function createEditor(root: HTMLElement, opts: CreateEditorOpts = {}): Ed
     r.append(main, sw); c.appendChild(r); return c
   }
   function ctlColorGlobal(label: string, prop: string) {
-    return colorTrigger(label, (theme() as any)[prop], (v) => { (theme() as any)[prop] = v; applyTheme(); renderCanvas(); flagSaving() })
+    return colorTrigger(label, (theme() as any)[prop], (v) => { themeOverrides[prop] = v; applyTheme(); renderCanvas(); flagSaving() })
   }
 
   /* ============================================================ COLOUR PICKER */
@@ -964,6 +975,10 @@ export function createEditor(root: HTMLElement, opts: CreateEditorOpts = {}): Ed
   function restore(state: EditorState) {
     currentTrigger = state.trigger || 'enrolment'
     themeKey = state.themeKey || TEMPLATES[currentTrigger]?.theme || 'studio'
+    // Re-hydrate the saved per-email colour overrides so a chosen background /
+    // backdrop comes back on reopen instead of reverting to the template default.
+    Object.keys(themeOverrides).forEach((k) => delete themeOverrides[k])
+    Object.assign(themeOverrides, state.themeOverrides || {})
     Object.assign(broadcast, state.broadcast || {})
     const rc = realCount(); if (rc) broadcast.count = rc
     // Back-fill the current design defaults UNDER the saved props. A saved email
