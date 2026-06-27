@@ -25,7 +25,10 @@
   --sf:
     -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text',
     system-ui, sans-serif;
-  --po: 'Poppins', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  /* Headings: the design used Poppins, but the app CSP blocks external fonts,
+     so fall back to the system stack rather than fetch (and get blocked). */
+  --po: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui,
+    sans-serif;
 }
 .ta-widget.dark {
   --bg: #141416;
@@ -72,8 +75,8 @@
   right: 30px;
   bottom: 30px;
   z-index: 50;
-  width: min(420px, calc(100vw - 36px));
-  height: min(720px, calc(100vh - 60px));
+  width: min(680px, calc(100vw - 48px));
+  height: min(862px, calc(100vh - 48px));
   display: flex;
   flex-direction: column;
   border-radius: 28px;

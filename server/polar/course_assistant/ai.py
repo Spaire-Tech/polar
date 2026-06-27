@@ -29,19 +29,26 @@ Design notes
 from __future__ import annotations
 
 import json
+import logging
 import re
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from typing import Any, Literal, cast
 
+log = logging.getLogger(__name__)
+
 # --------------------------------------------------------------------------- #
 # Constants
 # --------------------------------------------------------------------------- #
 
+# v1 (instructor-voice) disclaimer — retained for the legacy paths only.
 DEFAULT_DISCLAIMER = (
     "You are an AI version of the instructor, trained only on this course. "
     "I'm not the real person, and I can be wrong — double-check anything important."
 )
+
+# v2 neutral Course TA disclaimer shown under the composer.
+COURSE_TA_DISCLAIMER = "AI assistant · double-check anything important."
 
 # Keys inside a lesson's ``content`` JSONB that are not part of the teaching
 # text and must never leak into the knowledge base.
@@ -965,6 +972,10 @@ async def stream_answer(
             else None,
         }
     except Exception as exc:
+        # Surface the real cause server-side — otherwise an answer failure looks
+        # like a generic "temporarily unavailable" with no way to diagnose it
+        # (bad API key, model id, rate limit, oversized prompt, etc.).
+        log.exception("course_assistant.answer_failed", extra={"model": model})
         yield {
             "type": "error",
             "message": "The assistant is temporarily unavailable.",
