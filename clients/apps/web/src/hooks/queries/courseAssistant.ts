@@ -303,6 +303,12 @@ export function streamAsk(
         const { done: streamDone, value } = await reader.read()
         if (streamDone) break
         buffer += decoder.decode(value, { stream: true })
+        // The server (sse_starlette) ends SSE lines with CRLF ("\r\n"), so
+        // frames are separated by "\r\n\r\n". Normalize CRLF → LF before
+        // splitting, otherwise the "\n\n" frame boundary never matches and no
+        // event is ever parsed (the answer silently never renders). Done on the
+        // whole buffer each pass so a CRLF split across chunks still collapses.
+        buffer = buffer.replace(/\r\n/g, '\n')
         let sep: number
         while ((sep = buffer.indexOf('\n\n')) >= 0) {
           const frame = buffer.slice(0, sep)
