@@ -10,4 +10,4 @@
 // Note: this flag does NOT gate whether the assistant exists for a course —
 // that's the creator's per-course `assistant_enabled` setting. This only gates
 // the in-portal chat surface during the rework.
-export const COURSE_ASSISTANT_UI_ENABLED: boolean = false
+export const COURSE_ASSISTANT_UI_ENABLED: boolean = true
