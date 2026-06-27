@@ -273,6 +273,118 @@
   font-weight: 600;
 }
 
+/* ---------- rendered markdown answer (headings, lists, code…) ---------- */
+.m-md {
+  font-size: 15px;
+  line-height: 1.62;
+  color: var(--ans);
+  letter-spacing: -0.008em;
+}
+.m-md > *:first-child {
+  margin-top: 0;
+}
+.m-md > *:last-child {
+  margin-bottom: 0;
+}
+.m-md p {
+  margin: 11px 0 0;
+}
+.m-md strong {
+  color: var(--text);
+  font-weight: 600;
+}
+.m-md em {
+  font-style: italic;
+}
+.m-md h1,
+.m-md h2,
+.m-md h3,
+.m-md h4 {
+  font-family: var(--po);
+  color: var(--text);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.3;
+  margin: 18px 0 8px;
+}
+.m-md h1 {
+  font-size: 19px;
+}
+.m-md h2 {
+  font-size: 17px;
+}
+.m-md h3,
+.m-md h4 {
+  font-size: 15px;
+}
+.m-md ul,
+.m-md ol {
+  margin: 10px 0 0;
+  padding-left: 22px;
+}
+.m-md li {
+  margin: 5px 0;
+}
+.m-md li::marker {
+  color: var(--text-2);
+}
+.m-md a {
+  color: var(--blue);
+  text-decoration: none;
+}
+.m-md a:hover {
+  text-decoration: underline;
+}
+.m-md code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.86em;
+  background: var(--fill);
+  padding: 1.5px 5px;
+  border-radius: 6px;
+}
+.m-md pre {
+  background: var(--fill);
+  border: 1px solid var(--hair);
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin: 12px 0 0;
+  overflow-x: auto;
+}
+.m-md pre code {
+  background: none;
+  padding: 0;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.m-md blockquote {
+  margin: 12px 0 0;
+  padding: 2px 0 2px 14px;
+  border-left: 3px solid var(--hair);
+  color: var(--text-2);
+}
+.m-md hr {
+  border: none;
+  border-top: 1px solid var(--hair);
+  margin: 16px 0;
+}
+.m-md table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 12px 0 0;
+  font-size: 13.5px;
+}
+.m-md th,
+.m-md td {
+  border: 1px solid var(--hair);
+  padding: 7px 10px;
+  text-align: left;
+}
+.m-md th {
+  font-weight: 600;
+  color: var(--text);
+  background: var(--fill);
+}
+
 /* citation cluster — "From the course" */
 .m-cites {
   margin-top: 15px;
@@ -317,7 +429,7 @@
   height: 42px;
   border-radius: 8px;
   overflow: hidden;
-  background: #111;
+  background: var(--fill-2);
 }
 .cite-thumb img {
   width: 100%;
@@ -331,6 +443,11 @@
   place-items: center;
   background: rgba(0, 0, 0, 0.28);
   color: #fff;
+}
+/* No lesson thumbnail: a quiet play tile instead of a dark scrim. */
+.cite-thumb--empty .pl {
+  background: transparent;
+  color: var(--text-2);
 }
 .cite-main {
   flex: 1;

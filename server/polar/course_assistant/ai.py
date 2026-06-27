@@ -551,6 +551,10 @@ def render_system_text_v2(
         "",
         "## Style",
         "- Lead with the answer, then the why. Be focused and conversational.",
+        "- Format for easy reading with Markdown, the way a thoughtful assistant "
+        "would: short paragraphs, **bold** for key terms, bullet or numbered "
+        "lists for steps, and a short `##` heading only when an answer is long "
+        "enough to need sections. Don't over-format a one-line answer.",
         "- If you're unsure, say so rather than guessing. Never invent facts, "
         "numbers, or quotes that aren't in the course.",
         "- Don't give professional advice (medical, legal, financial) outside "
