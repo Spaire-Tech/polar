@@ -39,24 +39,43 @@ function emailButton(b: Props, t: Theme, align: string): string {
   const label = esc(b.text) + (b.arrow ? '&nbsp;&nbsp;→' : '')
   const href = b.href ? escAttr(b.href) : '#'
   const aAlign = b.align || align || 'left'
+  // Align-aware margin: `margin:0` (the old value) actively DEFEATS the auto
+  // margins CSS clients (Apple Mail, Gmail webmail) use to centre a shrink-to-fit
+  // table, so a "centered" button rendered left-aligned. Center needs `0 auto`,
+  // right needs `0 0 0 auto`.
+  const m = aAlign === 'center' ? '0 auto' : aAlign === 'right' ? '0 0 0 auto' : '0'
+  // Wrap the shrink-to-fit pill in a full-width cell that carries BOTH the align
+  // attribute (Outlook's Word engine always honours cell align) and text-align
+  // (a fallback for clients that drop the inner table's align). The inner pill
+  // must stay width-less or it stretches full-width in Outlook.
+  const wrap = (pill: string): string =>
+    `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td align="${aAlign}" style="text-align:${aAlign}">${pill}</td></tr></table>`
   if (style === 'link') {
-    return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" align="${aAlign}" style="margin:0"><tr><td><a href="${href}" target="_blank" style="font-family:${font};font-size:${b.size || 14}px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:${b.color || t.link};text-decoration:none;border-bottom:1px solid ${b.color || t.link};padding-bottom:3px">${label}</a></td></tr></table>`
+    return wrap(
+      `<table role="presentation" cellpadding="0" cellspacing="0" border="0" align="${aAlign}" style="margin:${m}"><tr><td><a href="${href}" target="_blank" style="font-family:${font};font-size:${b.size || 14}px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:${b.color || t.link};text-decoration:none;border-bottom:1px solid ${b.color || t.link};padding-bottom:3px">${label}</a></td></tr></table>`,
+    )
   }
   const radius = b.radius == null ? 999 : b.radius
   const bg = style === 'outline' ? 'transparent' : b.bg || t.button
   const color = b.color || (style === 'outline' ? t.heading : t.buttonText)
   const border = style === 'outline' ? `border:1px solid ${b.border || t.border};` : ''
-  return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" align="${aAlign}" style="margin:0"><tr><td bgcolor="${style === 'outline' ? '' : bg}" style="border-radius:${radius}px;background:${bg};${border}">
+  return wrap(
+    `<table role="presentation" cellpadding="0" cellspacing="0" border="0" align="${aAlign}" style="margin:${m}"><tr><td bgcolor="${style === 'outline' ? '' : bg}" style="border-radius:${radius}px;background:${bg};${border}">
     <a href="${href}" target="_blank" style="display:inline-block;font-family:${font};font-size:${b.size || 14.5}px;font-weight:600;letter-spacing:.005em;color:${color};text-decoration:none;padding:15px 30px;border-radius:${radius}px">${label}</a>
-  </td></tr></table>`
+  </td></tr></table>`,
+  )
 }
 
-/* Wrap a block's inner HTML in a full-width row + padded cell, with an optional
-   solid background (bgcolor attr so dark sections survive). */
+/* Wrap a block's inner HTML in a full-width row + padded cell. Every cell carries
+   its OWN opaque dark bgcolor (defaulting to the email background) — never a
+   transparent cell that relies on the inner table painting through it. A
+   transparent cell is exactly what a mobile client's dark-mode remap repaints
+   toward white, which is the "email turns white on the phone" bug. The `em-bg`
+   class lets the dark colour be re-pinned for Outlook.com's dark engine. */
 function section(inner: string, p: Props, t: Theme, extra = ''): string {
-  const bg = p.bg && p.bg !== 'none' ? p.bg : ''
+  const bg = p.bg && p.bg !== 'none' ? p.bg : t.emailBg
   const pad = `padding:${p.pt || 0}px ${px(p)}px ${p.pb || 0}px`
-  return `<tr><td class="em-px" ${bg ? `bgcolor="${bg}"` : ''} style="${pad};${bg ? 'background:' + bg + ';' : ''}${extra}">${inner}</td></tr>`
+  return `<tr><td class="em-bg em-px" bgcolor="${bg}" style="${pad};background-color:${bg};${extra}">${inner}</td></tr>`
 }
 
 const BLOCK: Record<string, (p: Props, t: Theme, r: Resolver) => string> = {
@@ -76,7 +95,7 @@ const BLOCK: Record<string, (p: Props, t: Theme, r: Resolver) => string> = {
     if (p.tagline)
       body += `<p style="margin:14px 0 0;max-width:400px;${mw(p.taglineAlign)}text-align:${p.taglineAlign};font-family:${ff(p.taglineFont)};font-size:${p.taglineSize}px;line-height:1.5;color:${p.taglineColor}">${esc(p.tagline)}</p>`
     if (p.showBtn !== false && p.btn)
-      body += `<div style="margin-top:32px">${emailButton(p.btn, t, p.titleAlign)}</div>`
+      body += `<div style="margin-top:32px;text-align:${(p.btn && p.btn.align) || p.titleAlign}">${emailButton(p.btn, t, p.titleAlign)}</div>`
     // Bulletproof hero background: the cover photo + the SAME dark gradient the
     // editor draws, reproduced so it survives real inboxes. Modern clients
     // (Apple Mail, iOS, Gmail) get `background-image: <gradient>, url(photo)`;
@@ -186,15 +205,20 @@ const BLOCK: Record<string, (p: Props, t: Theme, r: Resolver) => string> = {
 
   instructor(p, t, r) {
     const img = p.img ? r(p.img) : ''
+    // Fixed 132×160 crop with object-fit:cover, matching the editor's portrait
+    // box (NOT background-image — Gmail strips that and the face would vanish).
     const portrait = img
-      ? `<img src="${escAttr(img)}" width="132" alt="${escAttr(p.name)}" style="display:block;width:132px;max-width:100%;border-radius:${p.imgRadius}px;border:0"/>`
-      : `<table role="presentation" width="132" cellpadding="0" cellspacing="0" border="0"><tr><td height="160" bgcolor="#eef1ea" style="border-radius:${p.imgRadius}px"></td></tr></table>`
+      ? `<img src="${escAttr(img)}" width="132" height="160" alt="${escAttr(p.name)}" style="display:block;width:132px;height:160px;max-width:100%;object-fit:cover;border-radius:${p.imgRadius}px;border:0"/>`
+      : `<table role="presentation" width="132" cellpadding="0" cellspacing="0" border="0"><tr><td height="160" bgcolor="#26211c" style="border-radius:${p.imgRadius}px"></td></tr></table>`
     const txt = `<p style="margin:0 0 10px;font-family:${ff(t.font)};font-size:11px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:${p.roleColor}">${esc(p.role)}</p>
       <p style="margin:0;font-family:${ff(p.nameFont)};font-size:${p.nameSize}px;font-weight:${p.nameFont === 'Geist' ? 600 : 400};letter-spacing:-.4px;line-height:1.05;color:${p.nameColor}">${esc(p.name)}</p>
-      <p style="margin:16px 0 0;font-family:${ff(p.bioFont)};font-size:${p.bioSize}px;line-height:1.6;color:${p.bioColor}">${esc(p.bio)}</p>`
+      <p style="margin:16px 0 0;text-align:${p.bioAlign || p.nameAlign};font-family:${ff(p.bioFont)};font-size:${p.bioSize}px;line-height:1.6;color:${p.bioColor}">${esc(p.bio)}</p>`
+    // Explicit 132 / 26-gap / auto columns reproduce the editor's
+    // portrait(132) + gap(26) + text(flex:1) geometry exactly.
     const inner = `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-top:1px solid ${p.divider}"><tr><td style="padding-top:36px">
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
-        <td class="em-ins-img" width="158" valign="top" style="width:158px">${portrait}</td>
+        <td class="em-ins-img" width="132" valign="top" style="width:132px">${portrait}</td>
+        <td class="em-ins-gap" width="26" style="width:26px;font-size:0;line-height:0">&nbsp;</td>
         <td class="em-ins-txt" valign="top" style="text-align:${p.nameAlign}">${txt}</td>
       </tr></table>
     </td></tr></table>`
@@ -234,7 +258,7 @@ const BLOCK: Record<string, (p: Props, t: Theme, r: Resolver) => string> = {
     if (p.body)
       inner += `<p style="margin:0 0 30px;font-family:${ff(p.bodyFont)};font-size:${p.bodySize}px;line-height:1.55;color:${p.bodyColor};text-align:${p.bAlign}">${esc(p.body)}</p>`
     if (p.btn && p.showBtn !== false) inner += emailButton(p.btn, t, p.align)
-    const wrap = `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-top:1px solid ${p.divider}"><tr><td style="padding-top:56px;text-align:${p.align}">${inner}</td></tr></table>`
+    const wrap = `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-top:1px solid ${p.divider}"><tr><td align="${p.align}" style="padding-top:56px;text-align:${p.align}">${inner}</td></tr></table>`
     return section(wrap, { ...p, bg: 'none' }, t)
   },
 
@@ -249,9 +273,9 @@ const BLOCK: Record<string, (p: Props, t: Theme, r: Resolver) => string> = {
     return section(inner, p, t)
   },
 
-  spacer(p) {
-    const bg = p.bg && p.bg !== 'none' ? p.bg : ''
-    return `<tr><td height="${p.h}" ${bg ? `bgcolor="${bg}"` : ''} style="height:${p.h}px;font-size:0;line-height:0">&nbsp;</td></tr>`
+  spacer(p, t) {
+    const bg = p.bg && p.bg !== 'none' ? p.bg : t.emailBg
+    return `<tr><td class="em-bg" height="${p.h}" bgcolor="${bg}" style="height:${p.h}px;background-color:${bg};font-size:0;line-height:0">&nbsp;</td></tr>`
   },
 
   footer(p, t) {
@@ -281,6 +305,8 @@ export function buildEmailHTML(
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <meta http-equiv="X-UA-Compatible" content="IE=edge"/>
+<meta name="color-scheme" content="dark light"/>
+<meta name="supported-color-schemes" content="dark light"/>
 <title>${escAttr(broadcast.subject)}</title>
 <!-- Web fonts for clients that honour them (Apple Mail, iOS) so the email shows
      the real Instrument Serif / Geist; Gmail & Outlook ignore these and fall
@@ -290,27 +316,45 @@ export function buildEmailHTML(
 <!--<![endif]-->
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap');
+  :root{color-scheme:dark light;supported-color-schemes:dark light}
   html,body{margin:0!important;padding:0!important;width:100%!important}
+  body{color-scheme:dark light}
   *{-ms-text-size-adjust:100%;-webkit-text-size-adjust:100%}
   table{border-collapse:collapse!important;mso-table-lspace:0;mso-table-rspace:0}
   img{border:0;outline:none;text-decoration:none;-ms-interpolation-mode:bicubic}
   a{text-decoration:none}
   @media only screen and (max-width:620px){
+    .em-outer{padding-left:8px!important;padding-right:8px!important}
     .em-px{padding-left:26px!important;padding-right:26px!important}
     .em-hero-pad{padding-left:26px!important;padding-right:26px!important;padding-bottom:40px!important}
     .em-hero-h1{font-size:42px!important;letter-spacing:-1px!important}
-    .em-ins-img{display:block!important;width:100%!important;padding-bottom:18px!important}
+    .em-ins-img{display:block!important;width:132px!important;padding-bottom:18px!important}
+    .em-ins-gap{display:none!important}
     .em-ins-txt{display:block!important;width:100%!important}
+  }
+  /* Outlook.com's dark engine prefixes the host with data-ogsc/data-ogsb and
+     rewrites colours; re-assert the dark fill where those appear. Gmail ignores
+     these (it's covered by the per-cell bgcolor); they can't regress others. */
+  [data-ogsc] .em-bg{background-color:${t.emailBg}!important}
+  [data-ogsb] .em-bg{background-color:${t.emailBg}!important}
+  @media (prefers-color-scheme: dark){
+    .em-bg{background-color:${t.emailBg}!important}
   }
 </style>
 </head>
 <body style="margin:0;padding:0;background:${t.outerBg}">
 <div style="display:none;max-height:0;overflow:hidden;mso-hide:all">${escAttr(broadcast.preview)}</div>
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="${t.outerBg}" style="background:${t.outerBg}">
-  <tr><td align="center" style="padding:24px 12px">
-    <table role="presentation" width="640" cellpadding="0" cellspacing="0" border="0" bgcolor="${t.emailBg}" style="width:100%;max-width:640px;background:${t.emailBg};border-radius:12px;overflow:hidden">
+  <tr><td class="em-outer" align="center" style="padding:24px 12px">
+    <!--[if mso]>
+    <table role="presentation" width="640" cellpadding="0" cellspacing="0" border="0" align="center"><tr><td width="640">
+    <![endif]-->
+    <table role="presentation" class="em-bg" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="${t.emailBg}" style="width:100%;max-width:640px;background-color:${t.emailBg};border-radius:12px;overflow:hidden">
       ${body}
     </table>
+    <!--[if mso]>
+    </td></tr></table>
+    <![endif]-->
   </td></tr>
 </table>
 </body>
