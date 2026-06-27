@@ -71,10 +71,28 @@ export function setAssetResolver(fn: (p: string) => string) {
 }
 const ASSET = (p: string): string => assetResolver(p)
 
+// The canvas renders these family names into inline styles. In the EDITOR the
+// `var(--font-*)` tokens resolve to the app's next/font faces (loaded app-wide
+// in layout.tsx: --font-geist-sans, --font-instrument-serif, --font-inter), so
+// the editor no longer depends on design.css's remote @import — which the
+// Next.js/Lightning-CSS build can drop or reorder, silently falling Geist /
+// Instrument Serif back to system fonts and wrecking the weights, tracking and
+// proportions. In the SENT email the `var()` tokens are undefined and harmlessly
+// fall through to the named/Georgia/system fonts, exactly as before.
+// IMPORTANT: the next/font token MUST carry its own literal fallback INSIDE the
+// var() — `var(--font-x, 'X')` — not merely as a later list item. A bare
+// `var(--font-x)` that is undefined invalidates the WHOLE font-family
+// declaration (the trailing fallbacks are NOT consulted), collapsing the text to
+// inherited/system fonts. With the fallback inside var(), an undefined token
+// (the SENT email, or any context without next/font) cleanly degrades to the
+// named/Georgia/system fonts instead.
 export const FONTS: Record<string, string> = {
-  Geist: "'Geist', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
-  'Instrument Serif': "'Instrument Serif', Georgia, 'Times New Roman', serif",
-  Inter: "'Inter', -apple-system, BlinkMacSystemFont, Arial, sans-serif",
+  Geist:
+    "var(--font-geist-sans, 'Geist'), 'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
+  'Instrument Serif':
+    "var(--font-instrument-serif, 'Instrument Serif'), Georgia, 'Times New Roman', serif",
+  Inter:
+    "var(--font-inter, 'Inter'), -apple-system, BlinkMacSystemFont, Arial, sans-serif",
   'IBM Plex Sans Condensed':
     "'IBM Plex Sans Condensed', 'Arial Narrow', Arial, sans-serif",
 }

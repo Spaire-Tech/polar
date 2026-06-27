@@ -141,8 +141,14 @@ export function makeAssetResolver(course: CourseData | undefined): (key: string)
     if (!key) return ph
     if (/^(https?:|data:|blob:)/.test(key)) return key
     if (key.startsWith('assets/')) {
-      if (course?.heroImage) return course.heroImage
-      return ph
+      // Map each design asset key to its real counterpart rather than collapsing
+      // every key to the cover — otherwise the instructor portrait and trailer
+      // poster both render as the cover image.
+      if (/chef|instructor|portrait|avatar/i.test(key))
+        return course?.instructor?.avatar || course?.heroImage || ph
+      if (/trailer|video|poster/i.test(key))
+        return course?.trailerImage || course?.heroImage || ph
+      return course?.heroImage || ph
     }
     return key
   }
