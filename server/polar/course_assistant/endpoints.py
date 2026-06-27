@@ -210,6 +210,8 @@ async def get_status(
         available=True,
         display_name="Course TA",
         course_title=course.title,
+        # The instructor name lets the launcher read "Ask {First}'s TA".
+        instructor_name=course.instructor_name,
         disclaimer=ai.COURSE_TA_DISCLAIMER,
         strictness=course.assistant_strictness,
         starters=[
