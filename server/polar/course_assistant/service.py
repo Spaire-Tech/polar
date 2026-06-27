@@ -607,7 +607,7 @@ class CourseAssistantService:
             instructor_name=course.instructor_name,
             display_name="Course TA",
             voice_card=None,
-            disclaimer=ai.DEFAULT_DISCLAIMER,
+            disclaimer=ai.COURSE_TA_DISCLAIMER,
             knowledge_base=knowledge_base,
             model=settings.COURSE_ASSISTANT_ANSWER_MODEL,
             scope=scope,

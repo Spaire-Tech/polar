@@ -210,7 +210,7 @@ async def get_status(
         available=True,
         display_name="Course TA",
         course_title=course.title,
-        disclaimer=ai.DEFAULT_DISCLAIMER,
+        disclaimer=ai.COURSE_TA_DISCLAIMER,
         strictness=course.assistant_strictness,
         starters=[
             "What should I focus on first?",
