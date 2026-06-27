@@ -338,6 +338,13 @@ export function AskAssistant({ courseId, token }: AskAssistantProps) {
   const inputRef = useRef<HTMLTextAreaElement | null>(null)
   const abortRef = useRef<AbortController | null>(null)
   const toastT = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // Smooth-streaming buffer: network deltas arrive in uneven bursts, so we
+  // accumulate them in fullTextRef and reveal them at a steady, eased pace
+  // (like Claude / the AI-SDK smoothStream), instead of dumping each burst.
+  const fullTextRef = useRef('')
+  const shownRef = useRef(0)
+  const rafRef = useRef<number | null>(null)
+  const streamDoneRef = useRef(false)
 
   useEffect(() => {
     try {
@@ -358,7 +365,9 @@ export function AskAssistant({ courseId, token }: AskAssistantProps) {
 
   useEffect(() => {
     const el = convoRef.current
-    if (el) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' })
+    // 'auto' (not 'smooth'): the answer updates many times a second while
+    // streaming, and re-triggering smooth-scroll each frame fights itself.
+    if (el) el.scrollTo({ top: el.scrollHeight, behavior: 'auto' })
   }, [msgs, streaming])
 
   const flashToast = useCallback((msg: string) => {
@@ -366,6 +375,48 @@ export function AskAssistant({ courseId, token }: AskAssistantProps) {
     if (toastT.current) clearTimeout(toastT.current)
     toastT.current = setTimeout(() => setToast(null), 2200)
   }, [])
+
+  const updateLastTA = useCallback(
+    (fn: (m: ChatMessage) => ChatMessage) =>
+      setMsgs((cur) => {
+        const next = [...cur]
+        for (let i = next.length - 1; i >= 0; i--) {
+          if (next[i].role === 'ta') {
+            next[i] = fn(next[i])
+            break
+          }
+        }
+        return next
+      }),
+    [],
+  )
+
+  // Reveal the buffered answer a little each frame so it reads as if it's being
+  // typed, smoothing out bursty network chunks. Speed eases with the backlog:
+  // it catches up when far behind and slows as it drains.
+  const pumpReveal = useCallback(() => {
+    if (rafRef.current != null) return
+    const tick = () => {
+      const full = fullTextRef.current
+      const remaining = full.length - shownRef.current
+      if (remaining > 0) {
+        const step = Math.max(3, Math.ceil(remaining / 10))
+        shownRef.current = Math.min(full.length, shownRef.current + step)
+        const shown = full.slice(0, shownRef.current)
+        updateLastTA((m) => ({ ...m, text: shown }))
+      }
+      if (
+        shownRef.current < fullTextRef.current.length ||
+        !streamDoneRef.current
+      ) {
+        rafRef.current = requestAnimationFrame(tick)
+      } else {
+        rafRef.current = null
+        setStreaming(false)
+      }
+    }
+    rafRef.current = requestAnimationFrame(tick)
+  }, [updateLastTA])
 
   const ask = useCallback(
     (raw: string) => {
@@ -378,32 +429,32 @@ export function AskAssistant({ courseId, token }: AskAssistantProps) {
       ])
       setDraft('')
       setStreaming(true)
-      const appendToLastTA = (fn: (m: ChatMessage) => ChatMessage) =>
-        setMsgs((cur) => {
-          const next = [...cur]
-          for (let i = next.length - 1; i >= 0; i--) {
-            if (next[i].role === 'ta') {
-              next[i] = fn(next[i])
-              break
-            }
-          }
-          return next
-        })
+      fullTextRef.current = ''
+      shownRef.current = 0
+      streamDoneRef.current = false
       abortRef.current = streamAsk(courseId, token, text, {
-        onText: (chunk) =>
-          appendToLastTA((m) => ({ ...m, text: m.text + chunk })),
-        onCitations: (citations) =>
-          appendToLastTA((m) => ({ ...m, citations })),
-        onGeneral: () => appendToLastTA((m) => ({ ...m, general: true })),
-        onFollow: (follow) => appendToLastTA((m) => ({ ...m, follow })),
-        onRefusal: (message) =>
-          appendToLastTA((m) => ({ ...m, text: m.text || message })),
-        onError: (message) =>
-          appendToLastTA((m) => ({ ...m, text: m.text || message })),
-        onDone: () => setStreaming(false),
+        onText: (chunk) => {
+          fullTextRef.current += chunk
+          pumpReveal()
+        },
+        onCitations: (citations) => updateLastTA((m) => ({ ...m, citations })),
+        onGeneral: () => updateLastTA((m) => ({ ...m, general: true })),
+        onFollow: (follow) => updateLastTA((m) => ({ ...m, follow })),
+        onRefusal: (message) => {
+          if (!fullTextRef.current) fullTextRef.current = message
+          pumpReveal()
+        },
+        onError: (message) => {
+          if (!fullTextRef.current) fullTextRef.current = message
+          pumpReveal()
+        },
+        onDone: () => {
+          streamDoneRef.current = true
+          pumpReveal()
+        },
       })
     },
-    [courseId, token, streaming],
+    [courseId, token, streaming, pumpReveal, updateLastTA],
   )
 
   const onJump = useCallback(
@@ -445,7 +496,13 @@ export function AskAssistant({ courseId, token }: AskAssistantProps) {
     return () => window.removeEventListener('keydown', onKey)
   }, [open, trustOpen, doClose])
 
-  useEffect(() => () => abortRef.current?.abort(), [])
+  useEffect(
+    () => () => {
+      abortRef.current?.abort()
+      if (rafRef.current != null) cancelAnimationFrame(rafRef.current)
+    },
+    [],
+  )
 
   const toggleDark = useCallback(() => {
     setDark((d) => {
