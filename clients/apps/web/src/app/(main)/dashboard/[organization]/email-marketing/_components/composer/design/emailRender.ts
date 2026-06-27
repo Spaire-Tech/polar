@@ -310,8 +310,8 @@ export function buildEmailHTML(
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <meta http-equiv="X-UA-Compatible" content="IE=edge"/>
-<meta name="color-scheme" content="dark light"/>
-<meta name="supported-color-schemes" content="dark light"/>
+<meta name="color-scheme" content="dark"/>
+<meta name="supported-color-schemes" content="dark"/>
 <title>${escAttr(broadcast.subject)}</title>
 <!-- Web fonts for clients that honour them (Apple Mail, iOS) so the email shows
      the real Instrument Serif / Geist; Gmail & Outlook ignore these and fall
@@ -321,9 +321,9 @@ export function buildEmailHTML(
 <!--<![endif]-->
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap');
-  :root{color-scheme:dark light;supported-color-schemes:dark light}
+  :root{color-scheme:only dark;supported-color-schemes:only dark}
   html,body{margin:0!important;padding:0!important;width:100%!important}
-  body{color-scheme:dark light}
+  body{color-scheme:only dark}
   *{-ms-text-size-adjust:100%;-webkit-text-size-adjust:100%}
   table{border-collapse:collapse!important;mso-table-lspace:0;mso-table-rspace:0}
   img{border:0;outline:none;text-decoration:none;-ms-interpolation-mode:bicubic}

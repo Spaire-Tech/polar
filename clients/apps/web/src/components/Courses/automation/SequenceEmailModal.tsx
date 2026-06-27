@@ -78,6 +78,11 @@ export function SequenceEmailModal({
   const sendTest = useSendTestEmail(organization.id)
   const { data: courseRead } = useCourseById(courseId)
   const course = courseRead ? mapCourse(courseRead) : undefined
+  // Follow the course's own light/dark setting (the toggle in the course
+  // editor, persisted to landing_overrides.theme_mode). Putting `dark` on the
+  // overlay makes it the `.dark` ancestor design.css's chrome rules expect, so
+  // the editor flips with the course — no separate toggle of its own.
+  const dark = courseRead?.landing_overrides?.theme_mode === 'dark'
   // Real enrolled count — one row is enough; we only read pagination.total_count.
   const { data: enrollments } = useCourseEnrollments(courseId, { page: 1, limit: 1 })
   const enrolledCount = enrollments?.pagination.total_count
@@ -96,7 +101,7 @@ export function SequenceEmailModal({
   if (typeof document === 'undefined') return null
 
   return createPortal(
-    <div className="fixed inset-0 z-50 bg-black">
+    <div className={`fixed inset-0 z-50 bg-black${dark ? ' dark' : ''}`}>
       <BroadcastEditorDesign
         courseName={courseRead?.title ?? course?.title ?? 'Course'}
         course={course}
