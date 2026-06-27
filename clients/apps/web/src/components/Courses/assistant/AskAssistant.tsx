@@ -362,6 +362,12 @@ export function AskAssistant({ courseId, token }: AskAssistantProps) {
       ? status.starters
       : DEFAULT_STARTERS
   const suggestions = status?.suggestions ?? []
+  // Launcher reads "Ask {First}'s TA" (e.g. "Ask Didi's TA") when we know the
+  // instructor, else the neutral label.
+  const instructorFirst = (status?.instructor_name ?? '').trim().split(/\s+/)[0]
+  const launcherLabel = instructorFirst
+    ? `Ask ${instructorFirst}’s TA`
+    : 'Course TA'
 
   useEffect(() => {
     const el = convoRef.current
@@ -666,8 +672,7 @@ export function AskAssistant({ courseId, token }: AskAssistantProps) {
             <span className="lc-dot"></span>
           </span>
           <span className="lc-txt">
-            <span className="lc-t">Course TA</span>
-            <span className="lc-s">Always on</span>
+            <span className="lc-t">{launcherLabel}</span>
           </span>
         </button>
       )}
