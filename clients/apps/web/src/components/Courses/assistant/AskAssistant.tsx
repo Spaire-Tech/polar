@@ -198,11 +198,13 @@ function GeneralNote() {
 
 function TAMessage({
   m,
+  name,
   onJump,
   onChip,
   streaming,
 }: {
   m: ChatMessage
+  name: string
   onJump: (c: AskCitation) => void
   onChip: (q: string) => void
   streaming: boolean
@@ -212,7 +214,7 @@ function TAMessage({
       <Mark cls="m-ava" g={18} />
       <div className="m-body">
         <div className="m-name">
-          <span className="nm">Course TA</span>
+          <span className="nm">{name}</span>
         </div>
         {streaming && m.text.length === 0 ? (
           <div className="typing">
@@ -245,7 +247,15 @@ function TAMessage({
   )
 }
 
-function TrustCard({ onClose, onAsk }: { onClose: () => void; onAsk: () => void }) {
+function TrustCard({
+  name,
+  onClose,
+  onAsk,
+}: {
+  name: string
+  onClose: () => void
+  onAsk: () => void
+}) {
   return (
     <div
       className="mind-overlay"
@@ -260,7 +270,7 @@ function TrustCard({ onClose, onAsk }: { onClose: () => void; onAsk: () => void 
         <div className="trust-head">
           <Mark cls="trust-ava" g={26} />
           <div className="trust-id">
-            <div className="trust-name">Course TA</div>
+            <div className="trust-name">{name}</div>
             <div className="trust-role">Teaching assistant for this course</div>
           </div>
         </div>
@@ -362,12 +372,12 @@ export function AskAssistant({ courseId, token }: AskAssistantProps) {
       ? status.starters
       : DEFAULT_STARTERS
   const suggestions = status?.suggestions ?? []
-  // Launcher reads "Ask {First}'s TA" (e.g. "Ask Didi's TA") when we know the
-  // instructor, else the neutral label.
+  // The TA's name everywhere in the UI: "{First}'s TA" (e.g. "Didi's TA") when
+  // we know the instructor, else the neutral "Course TA". The launcher prefixes
+  // it with "Ask ".
   const instructorFirst = (status?.instructor_name ?? '').trim().split(/\s+/)[0]
-  const launcherLabel = instructorFirst
-    ? `Ask ${instructorFirst}’s TA`
-    : 'Course TA'
+  const taName = instructorFirst ? `${instructorFirst}’s TA` : 'Course TA'
+  const launcherLabel = instructorFirst ? `Ask ${taName}` : 'Course TA'
 
   useEffect(() => {
     const el = convoRef.current
@@ -540,7 +550,7 @@ export function AskAssistant({ courseId, token }: AskAssistantProps) {
             </div>
             <div className="ta-id">
               <div className="ta-id-top">
-                <span className="ta-name">Course TA</span>
+                <span className="ta-name">{taName}</span>
                 <button
                   className="ta-seal"
                   onClick={() => setTrustOpen(true)}
@@ -576,7 +586,7 @@ export function AskAssistant({ courseId, token }: AskAssistantProps) {
                   <Mark cls="ta-empty-ava" g={30} />
                   <span className="ta-empty-dot"></span>
                 </div>
-                <div className="ta-empty-t">Course TA</div>
+                <div className="ta-empty-t">{taName}</div>
                 <div className="ta-empty-s">
                   Answers from your course, any time.
                 </div>
@@ -610,6 +620,7 @@ export function AskAssistant({ courseId, token }: AskAssistantProps) {
                   <TAMessage
                     key={i}
                     m={m}
+                    name={taName}
                     onJump={onJump}
                     onChip={ask}
                     streaming={streaming && i === msgs.length - 1}
@@ -688,6 +699,7 @@ export function AskAssistant({ courseId, token }: AskAssistantProps) {
 
       {trustOpen && (
         <TrustCard
+          name={taName}
           onClose={() => setTrustOpen(false)}
           onAsk={() => {
             setTrustOpen(false)
