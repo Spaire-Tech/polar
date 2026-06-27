@@ -9,6 +9,7 @@
 
 import type { schemas } from '@spaire/client'
 import { useEffect } from 'react'
+import { createPortal } from 'react-dom'
 
 import { BroadcastEditorDesign } from '@/app/(main)/dashboard/[organization]/email-marketing/_components/composer/design/BroadcastEditorDesign'
 import type { EditorState } from '@/app/(main)/dashboard/[organization]/email-marketing/_components/composer/design/emailEngine'
@@ -65,6 +66,14 @@ export function SequenceEmailModal({
     }
   }, [])
 
+  // The editor is a full-viewport overlay. It MUST render as a direct child of
+  // <body>, not inline in the dashboard tree: the dashboard content lives inside
+  // framer-motion / overflow wrappers (DashboardLayout) that become the
+  // containing block for `position: fixed`, which would trap this overlay inside
+  // the narrow content column — squeezing the 640px email stage and breaking the
+  // design's proportions. Portaling to <body> gives it the true full viewport the
+  // standalone design assumes, so the embedded editor mirrors it exactly.
+
   const upload = useUploadEmailImage(organization.id)
   const sendTest = useSendTestEmail(organization.id)
   const { data: courseRead } = useCourseById(courseId)
@@ -83,7 +92,10 @@ export function SequenceEmailModal({
       ? (initialContentJson as unknown as EditorState)
       : null
 
-  return (
+  // 'use client' + mounted only on user interaction ⇒ always client-side here.
+  if (typeof document === 'undefined') return null
+
+  return createPortal(
     <div className="fixed inset-0 z-50 bg-black">
       <BroadcastEditorDesign
         courseName={courseRead?.title ?? course?.title ?? 'Course'}
@@ -113,7 +125,8 @@ export function SequenceEmailModal({
         }}
         onClose={onClose}
       />
-    </div>
+    </div>,
+    document.body,
   )
 }
 
