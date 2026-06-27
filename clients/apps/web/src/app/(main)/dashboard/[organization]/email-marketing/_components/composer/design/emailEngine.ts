@@ -966,7 +966,20 @@ export function createEditor(root: HTMLElement, opts: CreateEditorOpts = {}): Ed
     themeKey = state.themeKey || TEMPLATES[currentTrigger]?.theme || 'studio'
     Object.assign(broadcast, state.broadcast || {})
     const rc = realCount(); if (rc) broadcast.count = rc
-    blocks = (state.blocks || []).map((s) => ({ id: uid(), type: s.type, props: s.props }))
+    // Back-fill the current design defaults UNDER the saved props. A saved email
+    // only persists whatever props existed when it was saved; re-opening it must
+    // not render with `undefined` style props (which collapse the hero overlay,
+    // drop the fonts to a fallback, and break every size/colour). Merging the
+    // live REG defaults underneath restores the full design while keeping the
+    // creator's authored values on top — exactly like makeBlock does for fresh
+    // blocks. Unknown block types fall back to their saved props verbatim.
+    blocks = (state.blocks || []).map((s) => ({
+      id: uid(),
+      type: s.type,
+      props: REG[s.type]
+        ? Object.assign({}, REG[s.type].defaults(theme()), s.props || {})
+        : s.props || {},
+    }))
     // Re-bind the live course onto the saved blocks so course-derived fields
     // (instructor, lessons, cover, facts) refresh to the real course instead of
     // showing whatever was saved earlier — e.g. a stale "Adaeze Bello". Authored
