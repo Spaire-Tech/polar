@@ -11,6 +11,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import Markdown from 'markdown-to-jsx'
 
 import {
   type AskCitation,
@@ -107,12 +108,17 @@ interface ChatMessage {
   _new?: boolean
 }
 
-// Minimal **bold** → <strong> renderer for streamed paragraphs. No HTML is
-// injected — odd segments between `**` pairs become <strong>.
-function renderInline(text: string) {
-  return text.split('**').map((seg, i) =>
-    i % 2 === 1 ? <strong key={i}>{seg}</strong> : <span key={i}>{seg}</span>,
-  )
+// Render the answer as Markdown (headings, bold, lists, code…) the way Claude
+// does — and progressively, so it reads as if it's being written. Raw HTML is
+// disabled for safety; links open in a new tab.
+const MD_OPTIONS = {
+  forceBlock: true,
+  disableParsingRawHTML: true,
+  overrides: {
+    a: (props: React.ComponentProps<'a'>) => (
+      <a {...props} target="_blank" rel="noopener noreferrer nofollow" />
+    ),
+  },
 }
 
 function Citations({
@@ -152,14 +158,14 @@ function Citations({
             onClick={() => clickable && onJump(c)}
             style={clickable ? undefined : { cursor: 'default' }}
           >
-            {c.thumbnail_url ? (
-              <span className="cite-thumb">
-                <img src={c.thumbnail_url} alt="" />
-                <span className="pl">
-                  <Glyph d={SF.play2} size={15} fill="currentColor" stroke={0} />
-                </span>
+            <span
+              className={`cite-thumb${c.thumbnail_url ? '' : ' cite-thumb--empty'}`}
+            >
+              {c.thumbnail_url ? <img src={c.thumbnail_url} alt="" /> : null}
+              <span className="pl">
+                <Glyph d={SF.play2} size={15} fill="currentColor" stroke={0} />
               </span>
-            ) : null}
+            </span>
             <span className="cite-main">
               <span className="cl">{heading}</span>
               {sub ? <span className="cm">{sub}</span> : null}
@@ -201,7 +207,6 @@ function TAMessage({
   onChip: (q: string) => void
   streaming: boolean
 }) {
-  const paras = m.text.split(/\n{2,}/).filter(Boolean)
   return (
     <div className={`msg-ta ${m._new ? 'msg-in' : ''}`}>
       <Mark cls="m-ava" g={18} />
@@ -216,11 +221,9 @@ function TAMessage({
             <i></i>
           </div>
         ) : (
-          paras.map((p, i) => (
-            <p className="m-p" key={i}>
-              {renderInline(p)}
-            </p>
-          ))
+          <div className="m-md">
+            <Markdown options={MD_OPTIONS}>{m.text}</Markdown>
+          </div>
         )}
         {!streaming &&
           (m.general ? (

@@ -8,6 +8,7 @@ import {
 } from '@/hooks/queries/courses'
 import { getQueryClient } from '@/utils/api/query'
 import { toast } from '../../Toast/use-toast'
+import Switch from '@spaire/ui/components/atoms/Switch'
 import ImageOutlined from '@mui/icons-material/ImageOutlined'
 import { useEffect, useRef, useState } from 'react'
 import { ThumbnailPositioner } from './ThumbnailPositioner'
@@ -349,43 +350,38 @@ export function SettingsTab({
       </section>
 
       <section className="mb-6 rounded-2xl border border-gray-200 bg-white p-6">
-        <div className="flex items-start justify-between gap-4">
+        <div className="mb-4">
+          <h2 className="text-lg font-medium text-gray-900">Course assistant</h2>
+          <p className="mt-1 text-gray-500">
+            An AI teaching assistant your students can chat with inside the
+            course. It answers from your material and explains concepts on
+            demand — available the moment you publish.
+          </p>
+        </div>
+
+        <div className="flex items-center justify-between gap-4 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
           <div>
-            <h2 className="text-lg font-medium text-gray-900">
-              Course assistant
-            </h2>
-            <p className="mt-1 text-gray-500">
-              An AI teaching assistant your students can chat with inside the
-              course. It answers from your material and explains concepts on
-              demand — available the moment you publish.
-            </p>
+            <div className="text-sm font-medium text-gray-900">
+              Enable for students
+            </div>
+            <div className="mt-0.5 text-xs text-gray-500">
+              Shows the assistant chat inside the course player.
+            </div>
           </div>
-          <button
-            type="button"
-            role="switch"
-            aria-checked={assistantEnabled}
-            aria-label="Enable the course assistant"
+          <Switch
+            checked={assistantEnabled}
+            onCheckedChange={handleToggleAssistant}
             disabled={updateCourse.isPending}
-            onClick={() => handleToggleAssistant(!assistantEnabled)}
-            className={
-              'relative mt-1 inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors disabled:opacity-50 ' +
-              (assistantEnabled ? 'bg-[#0066cc]' : 'bg-gray-300')
-            }
-          >
-            <span
-              className={
-                'inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ' +
-                (assistantEnabled ? 'translate-x-[22px]' : 'translate-x-[2px]')
-              }
-            />
-          </button>
+            aria-label="Enable the course assistant"
+            className="data-[state=checked]:bg-[#0066cc]"
+          />
         </div>
 
         {assistantEnabled && (
-          <div className="mt-5 border-t border-gray-100 pt-5">
-            <p className="text-sm font-medium text-gray-900">
+          <div className="mt-4">
+            <label className="block text-sm font-medium text-gray-900">
               How closely should it stick to your course?
-            </p>
+            </label>
             <p className="mt-0.5 text-xs text-gray-500">
               Choose how far the assistant may go beyond your material when a
               student asks something the course doesn’t cover.
