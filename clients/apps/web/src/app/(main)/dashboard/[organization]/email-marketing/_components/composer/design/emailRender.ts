@@ -75,7 +75,12 @@ function emailButton(b: Props, t: Theme, align: string): string {
 function section(inner: string, p: Props, t: Theme, extra = ''): string {
   const bg = p.bg && p.bg !== 'none' ? p.bg : t.emailBg
   const pad = `padding:${p.pt || 0}px ${px(p)}px ${p.pb || 0}px`
-  return `<tr><td class="em-bg em-px" bgcolor="${bg}" style="${pad};background-color:${bg};${extra}">${inner}</td></tr>`
+  // A flat linear-gradient is a *background image*. Gmail's mobile dark mode
+  // recolours plain-colour cells (turning the dark sections white) but leaves
+  // image-backed cells alone — which is why the photo hero survived and these
+  // didn't. Painting the same dark colour as a gradient makes the cell read as
+  // image-backed, so the dark sticks. bgcolor stays as the universal fallback.
+  return `<tr><td class="em-bg em-px" bgcolor="${bg}" style="${pad};background-color:${bg};background-image:linear-gradient(${bg},${bg});${extra}">${inner}</td></tr>`
 }
 
 const BLOCK: Record<string, (p: Props, t: Theme, r: Resolver) => string> = {
@@ -275,7 +280,7 @@ const BLOCK: Record<string, (p: Props, t: Theme, r: Resolver) => string> = {
 
   spacer(p, t) {
     const bg = p.bg && p.bg !== 'none' ? p.bg : t.emailBg
-    return `<tr><td class="em-bg" height="${p.h}" bgcolor="${bg}" style="height:${p.h}px;background-color:${bg};font-size:0;line-height:0">&nbsp;</td></tr>`
+    return `<tr><td class="em-bg" height="${p.h}" bgcolor="${bg}" style="height:${p.h}px;background-color:${bg};background-image:linear-gradient(${bg},${bg});font-size:0;line-height:0">&nbsp;</td></tr>`
   },
 
   footer(p, t) {
@@ -333,23 +338,25 @@ export function buildEmailHTML(
     .em-ins-txt{display:block!important;width:100%!important}
   }
   /* Outlook.com's dark engine prefixes the host with data-ogsc/data-ogsb and
-     rewrites colours; re-assert the dark fill where those appear. Gmail ignores
-     these (it's covered by the per-cell bgcolor); they can't regress others. */
-  [data-ogsc] .em-bg{background-color:${t.emailBg}!important}
-  [data-ogsb] .em-bg{background-color:${t.emailBg}!important}
+     rewrites colours; re-assert the dark fill (colour + the gradient "image")
+     where those appear. Gmail ignores these — it's covered by the per-cell
+     gradient + bgcolor — and they can't regress other clients. */
+  [data-ogsc] .em-bg,[data-ogsb] .em-bg{background-color:${t.emailBg}!important;background-image:linear-gradient(${t.emailBg},${t.emailBg})!important}
+  [data-ogsc] .em-body,[data-ogsb] .em-body{background-color:${t.outerBg}!important;background-image:linear-gradient(${t.outerBg},${t.outerBg})!important}
   @media (prefers-color-scheme: dark){
-    .em-bg{background-color:${t.emailBg}!important}
+    .em-bg{background-color:${t.emailBg}!important;background-image:linear-gradient(${t.emailBg},${t.emailBg})!important}
+    .em-body{background-color:${t.outerBg}!important;background-image:linear-gradient(${t.outerBg},${t.outerBg})!important}
   }
 </style>
 </head>
-<body style="margin:0;padding:0;background:${t.outerBg}">
+<body class="em-body" style="margin:0;padding:0;background-color:${t.outerBg};background-image:linear-gradient(${t.outerBg},${t.outerBg})">
 <div style="display:none;max-height:0;overflow:hidden;mso-hide:all">${escAttr(broadcast.preview)}</div>
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="${t.outerBg}" style="background:${t.outerBg}">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="${t.outerBg}" style="background-color:${t.outerBg};background-image:linear-gradient(${t.outerBg},${t.outerBg})">
   <tr><td class="em-outer" align="center" style="padding:24px 12px">
     <!--[if mso]>
     <table role="presentation" width="640" cellpadding="0" cellspacing="0" border="0" align="center"><tr><td width="640">
     <![endif]-->
-    <table role="presentation" class="em-bg" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="${t.emailBg}" style="width:100%;max-width:640px;background-color:${t.emailBg};border-radius:12px;overflow:hidden">
+    <table role="presentation" class="em-bg" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="${t.emailBg}" style="width:100%;max-width:640px;background-color:${t.emailBg};background-image:linear-gradient(${t.emailBg},${t.emailBg});border-radius:12px;overflow:hidden">
       ${body}
     </table>
     <!--[if mso]>
