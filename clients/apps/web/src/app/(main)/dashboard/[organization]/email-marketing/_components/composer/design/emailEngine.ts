@@ -1017,6 +1017,36 @@ export function createEditor(root: HTMLElement, opts: CreateEditorOpts = {}): Ed
   })
   on(root, 'focusin', (e: FocusEvent) => { const t = e.target as HTMLElement; if (t.matches && t.matches('[contenteditable][data-edit]')) lastEditEl = t })
 
+  /* ---------- fit-to-width ----------
+     The design is a fixed three-column layout (palette 296 + 640px email stage
+     + inspector 360 ≈ 1360px to breathe). When the editor is handed less width
+     — a smaller screen, a non-maximised window, or any constrained container —
+     the 640px stage would otherwise shrink, the hero title would wrap, and the
+     whole thing would look squished and "off". Instead we scale the ENTIRE
+     editor down proportionally so it always renders as a faithful, pixel-exact
+     mirror of the design, just smaller. Measured from the real parent box so it
+     adapts to whatever width it's actually given. */
+  const NATURAL_W = 1360
+  const MIN_ZOOM = 0.5
+  function fitToWidth() {
+    const host = root.parentElement
+    const avail = host ? host.getBoundingClientRect().width : window.innerWidth
+    if (!avail) return
+    const z = Math.max(MIN_ZOOM, Math.min(1, avail / NATURAL_W))
+    // `zoom` (unlike transform: scale) reflows the layout, so the columns lay
+    // out at full design width and then render scaled — no squish, fills width.
+    ;(root.style as any).zoom = z === 1 ? '' : String(z)
+    // zoom scales height too; compensate so the editor still fills the viewport.
+    root.style.height = z === 1 ? '' : 100 / z + 'vh'
+  }
+  fitToWidth()
+  const fitRO =
+    typeof ResizeObserver !== 'undefined' ? new ResizeObserver(fitToWidth) : null
+  if (fitRO && root.parentElement) fitRO.observe(root.parentElement)
+  on(window, 'resize', fitToWidth)
+  cleanups.push(() => {
+    if (fitRO) fitRO.disconnect()
+  })
 
   return {
     getState,
