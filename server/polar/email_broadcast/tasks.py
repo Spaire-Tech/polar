@@ -4,10 +4,9 @@ from uuid import UUID, uuid4
 import structlog
 from sqlalchemy import select
 
+from polar.email.compose import finalize_email_html
 from polar.email.personalize import build_variables
 from polar.email.personalize import render as personalize
-from polar.email.react import render_email_template
-from polar.email.schemas import MarketingEmail, MarketingEmailProps
 from polar.email.sender import email_sender, resolve_creator_from_address
 from polar.kit.utils import utc_now
 from polar.models.email_broadcast import EmailBroadcast, EmailBroadcastStatus
@@ -49,22 +48,17 @@ def _render_broadcast_html(
     """
     body_html = broadcast.content_html or "<p>No content</p>"
     if personalize_vars is not None:
+        # Make {{unsubscribe_url}} resolve in the body before personalize() would
+        # otherwise wipe it as an unknown token.
+        personalize_vars = {**personalize_vars, "unsubscribe_url": unsubscribe_url}
         body_html = personalize(body_html, personalize_vars, html=True)
-    return render_email_template(
-        MarketingEmail(
-            props=MarketingEmailProps(
-                organization_name=organization.name
-                if organization
-                else broadcast.sender_name,
-                organization_logo_url=organization.avatar_url
-                if organization
-                else None,
-                organization_website=organization.website if organization else None,
-                html_content=body_html,
-                preview_text=broadcast.preview_text,
-                unsubscribe_url=unsubscribe_url,
-            )
-        )
+    return finalize_email_html(
+        body_html,
+        unsubscribe_url=unsubscribe_url,
+        organization_name=organization.name if organization else broadcast.sender_name,
+        organization_logo_url=organization.avatar_url if organization else None,
+        organization_website=organization.website if organization else None,
+        preview_text=broadcast.preview_text,
     )
 
 

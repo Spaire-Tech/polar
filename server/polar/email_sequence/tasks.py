@@ -3,8 +3,7 @@ from uuid import UUID
 
 import structlog
 
-from polar.email.react import render_email_template
-from polar.email.schemas import MarketingEmail, MarketingEmailProps
+from polar.email.compose import finalize_email_html
 from polar.email.sender import email_sender, resolve_creator_from_address
 from polar.kit.utils import utc_now
 from polar.models.email_sequence import EmailSequence, EmailSequenceStatus
@@ -58,22 +57,12 @@ async def send_test_step(step_id: UUID, to_email: str) -> None:
         )
 
         unsubscribe_url = build_test_unsubscribe_url()
-        wrapped_html = render_email_template(
-            MarketingEmail(
-                props=MarketingEmailProps(
-                    organization_name=(
-                        organization.name if organization else step.sender_name
-                    ),
-                    organization_logo_url=(
-                        organization.avatar_url if organization else None
-                    ),
-                    organization_website=(
-                        organization.website if organization else None
-                    ),
-                    html_content=step.content_html or "<p>No content</p>",
-                    unsubscribe_url=unsubscribe_url,
-                )
-            )
+        wrapped_html = finalize_email_html(
+            step.content_html or "<p>No content</p>",
+            unsubscribe_url=unsubscribe_url,
+            organization_name=organization.name if organization else step.sender_name,
+            organization_logo_url=organization.avatar_url if organization else None,
+            organization_website=organization.website if organization else None,
         )
         try:
             await email_sender.send(
@@ -529,28 +518,21 @@ async def _send_email_step(
         personalize_vars = build_variables(
             subscriber=subscriber, custom_fields=custom_fields
         )
+        # Make {{unsubscribe_url}} resolve in the body (the editor's footer block
+        # emits it) — otherwise personalize() would wipe it as an unknown token.
+        personalize_vars["unsubscribe_url"] = unsubscribe_url
         body_html = step.content_html or "<p>No content</p>"
         body_html = personalize(body_html, personalize_vars, html=True)
         subject_text = personalize(
             step.subject or "", personalize_vars, html=False
         )
 
-        wrapped_html = render_email_template(
-            MarketingEmail(
-                props=MarketingEmailProps(
-                    organization_name=organization.name
-                    if organization
-                    else step.sender_name,
-                    organization_logo_url=organization.avatar_url
-                    if organization
-                    else None,
-                    organization_website=organization.website
-                    if organization
-                    else None,
-                    html_content=body_html,
-                    unsubscribe_url=unsubscribe_url,
-                )
-            )
+        wrapped_html = finalize_email_html(
+            body_html,
+            unsubscribe_url=unsubscribe_url,
+            organization_name=organization.name if organization else step.sender_name,
+            organization_logo_url=organization.avatar_url if organization else None,
+            organization_website=organization.website if organization else None,
         )
         from_name, from_email = resolve_creator_from_address(
             organization=organization,
@@ -640,20 +622,12 @@ async def _send_inline(
 
     unsubscribe_url = build_unsubscribe_url(enrollment.subscriber_id)
     try:
-        wrapped_html = render_email_template(
-            MarketingEmail(
-                props=MarketingEmailProps(
-                    organization_name=organization.name if organization else sender_name,
-                    organization_logo_url=organization.avatar_url
-                    if organization
-                    else None,
-                    organization_website=organization.website
-                    if organization
-                    else None,
-                    html_content=content_html,
-                    unsubscribe_url=unsubscribe_url,
-                )
-            )
+        wrapped_html = finalize_email_html(
+            content_html.replace("{{unsubscribe_url}}", unsubscribe_url),
+            unsubscribe_url=unsubscribe_url,
+            organization_name=organization.name if organization else sender_name,
+            organization_logo_url=organization.avatar_url if organization else None,
+            organization_website=organization.website if organization else None,
         )
         await email_sender.send(
             to_email_addr=subscriber.email,
