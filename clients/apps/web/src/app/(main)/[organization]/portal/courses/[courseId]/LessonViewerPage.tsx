@@ -94,10 +94,18 @@ const LessonViewerPage = ({
   const currentLesson =
     flatLessons.find((l) => l.id === selectedLessonId) ?? null
 
+  // Optional ?t=<seconds> deep-link (set by a Course Assistant citation) — the
+  // second to start the selected lesson's video at.
+  const tParam = searchParams.get('t')
+  const startSeconds = tParam ? Math.max(0, parseInt(tParam, 10) || 0) : 0
+
   const handleSelectLesson = (lesson: FlatLesson) => {
     setSelectedLessonId(lesson.id)
     const params = new URLSearchParams(searchParams.toString())
     params.set('lesson', lesson.id)
+    // Manual navigation clears any citation timestamp so it doesn't carry over
+    // to a different lesson.
+    params.delete('t')
     // push (not replace) so the browser back button returns to the
     // previous lesson / the course overview instead of blowing past it.
     router.push(`?${params.toString()}`, { scroll: false })
@@ -107,6 +115,7 @@ const LessonViewerPage = ({
     setSelectedLessonId(null)
     const params = new URLSearchParams(searchParams.toString())
     params.delete('lesson')
+    params.delete('t')
     router.push(`?${params.toString()}`, { scroll: false })
   }
 
@@ -194,6 +203,7 @@ const LessonViewerPage = ({
         courseId={courseId}
         organizationSlug={organization.slug}
         customerName={data.customer_name ?? null}
+        startSeconds={startSeconds}
       />
       {COURSE_ASSISTANT_UI_ENABLED && (
         <AskAssistant courseId={courseId} token={customerSessionToken} />

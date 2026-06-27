@@ -423,48 +423,6 @@ function LessonRow({
         </span>
       </button>
 
-      {/* Transcription status (video lessons) — always shown for an uploaded
-          video so the creator can watch the Course Assistant pipeline move
-          instead of guessing whether it's hidden or broken. */}
-      {(() => {
-        if (!isVideo) return null
-        // A video lesson with no upload yet has nothing to transcribe.
-        const hasUpload = !!lesson.mux_upload_id || !!lesson.mux_status
-        if (!hasUpload) return null
-        const ts = lesson.transcript_status
-        let badge: { text: string; cls: string }
-        if (ts === 'ready') {
-          badge = { text: 'Transcribed', cls: 'bg-emerald-50 text-emerald-700' }
-        } else if (ts === 'pending') {
-          badge = { text: 'Transcribing…', cls: 'bg-amber-50 text-amber-700' }
-        } else if (ts === 'failed') {
-          badge = { text: 'Transcript failed', cls: 'bg-red-50 text-red-600' }
-        } else if (ts === 'unavailable') {
-          badge = { text: 'No captions', cls: 'bg-gray-100 text-gray-500' }
-        } else if (lesson.mux_status !== 'ready') {
-          badge = { text: 'Processing video…', cls: 'bg-gray-100 text-gray-500' }
-        } else {
-          // Video is ready but no transcript state yet: captions are being
-          // requested. If this never advances, the Mux caption webhook isn't
-          // reaching the backend.
-          badge = {
-            text: 'Preparing transcript…',
-            cls: 'bg-amber-50 text-amber-700',
-          }
-        }
-        return (
-          <span
-            className={cn(
-              'inline-flex shrink-0 items-center rounded-full px-1.5 py-0.5 text-[9px] font-semibold tracking-[0.05em] uppercase',
-              badge.cls,
-            )}
-            title="Course Assistant transcription status"
-          >
-            {badge.text}
-          </span>
-        )
-      })()}
-
       {/* Published indicator */}
       {lesson.published ? (
         <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-green-100 px-1.5 py-0.5 text-[9px] font-semibold tracking-[0.05em] text-green-700 uppercase">

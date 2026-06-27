@@ -37,6 +37,7 @@ export const HlsVideo = ({
   autoPlay = false,
   muted = false,
   loop = false,
+  startSec = 0,
   onEnded,
   onVideoElement,
 }: {
@@ -48,6 +49,8 @@ export const HlsVideo = ({
   autoPlay?: boolean
   muted?: boolean
   loop?: boolean
+  // Start playback at this second (e.g. opened from an assistant citation).
+  startSec?: number
   onEnded?: () => void
   // Lets a parent reach the underlying <video> element for things like
   // reading currentTime or seeking. Called with the element on mount and
@@ -71,6 +74,27 @@ export const HlsVideo = ({
     onVideoElement?.(el)
     return () => onVideoElement?.(null)
   }, [onVideoElement])
+
+  // Seek to startSec (e.g. when opened at a moment from an assistant citation).
+  // Re-runs when startSec changes so jumping to a new timestamp in the same
+  // lesson re-seeks. Waits for metadata so duration/seekable are known.
+  useEffect(() => {
+    const el = videoRef.current
+    if (!el || !startSec || startSec <= 0) return
+    const seek = () => {
+      const target = Number.isFinite(el.duration)
+        ? Math.min(startSec, Math.max(0, el.duration - 1))
+        : startSec
+      try {
+        el.currentTime = target
+      } catch {
+        /* element not ready to seek yet */
+      }
+    }
+    if (el.readyState >= 1) seek()
+    else el.addEventListener('loadedmetadata', seek, { once: true })
+    return () => el.removeEventListener('loadedmetadata', seek)
+  }, [startSec])
 
   useEffect(() => {
     setFatalError(null)

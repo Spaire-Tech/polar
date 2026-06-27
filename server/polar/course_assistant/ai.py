@@ -105,64 +105,133 @@ _VTT_INLINE_TS_RE = re.compile(r"\d{1,2}:\d{2}:\d{2}[.,]\d{1,3}")
 _WS_RE = re.compile(r"\s+")
 
 
-def parse_vtt(vtt: str) -> str:
-    """Turn a WebVTT caption file into plain transcript text.
+# Start time of a cue: the left side of a "00:00:02.000 --> ..." timing line.
+_VTT_CUE_START_RE = re.compile(r"(\d{1,2}):(\d{2})(?::(\d{2}))?[.,](\d{1,3})\s*-->")
 
-    Strips the ``WEBVTT`` header, ``NOTE`` / ``STYLE`` / ``REGION`` blocks,
-    cue identifiers, timing lines, cue-setting text, and inline tags
-    (``<v Speaker>``, ``<00:00:01.000>`` karaoke timestamps). Collapses
-    whitespace and removes the consecutive-duplicate cue lines that
-    auto-generated captions emit when text rolls across cues.
+
+def _vtt_start_seconds(line: str) -> int | None:
+    """Parse the start time (whole seconds) from a VTT timing line."""
+    m = _VTT_CUE_START_RE.search(line)
+    if not m:
+        return None
+    a, b, c, _ms = m.groups()
+    if c is not None:  # hh:mm:ss
+        return int(a) * 3600 + int(b) * 60 + int(c)
+    return int(a) * 60 + int(b)  # mm:ss
+
+
+def parse_vtt_cues(vtt: str) -> list[dict[str, Any]]:
+    """Turn a WebVTT caption file into timestamped cues: ``[{"t": int_seconds,
+    "text": str}, ...]``.
+
+    Strips the ``WEBVTT`` header, ``NOTE`` / ``STYLE`` / ``REGION`` blocks, cue
+    identifiers, and inline tags. De-dupes the rolling-caption repetition that
+    auto-generated captions emit (a phrase repeated as it rolls cue-to-cue),
+    keeping the *earliest* start time for a kept phrase. ``parse_vtt`` is the
+    plain-text join of these cues, so transcript text and cue times stay
+    aligned (used to map an answer citation back to a moment in the video).
     """
     if not vtt:
-        return ""
+        return []
 
     lines = vtt.replace("\r\n", "\n").replace("\r", "\n").split("\n")
-    out: list[str] = []
-    last: str | None = None
+    # First pass: group text lines under their cue's start time.
+    raw_cues: list[tuple[int, str]] = []
+    cur_start: int | None = None
+    cur_parts: list[str] = []
     skipping_block = False
+
+    def _flush() -> None:
+        nonlocal cur_parts
+        if cur_start is None or not cur_parts:
+            cur_parts = []
+            return
+        text = _WS_RE.sub(" ", " ".join(cur_parts)).strip()
+        if text:
+            raw_cues.append((cur_start, text))
+        cur_parts = []
 
     for raw in lines:
         line = raw.strip()
         if not line:
+            _flush()
             skipping_block = False
             continue
         upper = line.upper()
-        if upper == "WEBVTT" or upper.startswith("WEBVTT"):
+        if upper.startswith("WEBVTT"):
             continue
         if upper.startswith(("NOTE", "STYLE", "REGION")):
-            # NOTE/STYLE/REGION introduce a block that runs until a blank line.
             skipping_block = True
             continue
         if skipping_block:
             continue
         if "-->" in line and _VTT_TIMESTAMP_RE.search(line):
+            _flush()
+            cur_start = _vtt_start_seconds(line)
             continue
-        # A bare cue identifier (integer, or "1" style) on its own line.
-        if line.isdigit():
+        if line.isdigit():  # bare cue identifier
             continue
-
         text = _VTT_TAG_RE.sub("", line)
         text = _VTT_INLINE_TS_RE.sub("", text)
         text = _WS_RE.sub(" ", text).strip()
-        if not text:
-            continue
+        if text:
+            cur_parts.append(text)
+    _flush()
+
+    # Second pass: rolling-caption de-duplication (both directions), preserving
+    # the earliest start time of a phrase.
+    cues: list[dict[str, Any]] = []
+    last: str | None = None
+    for start, text in raw_cues:
         if last is not None:
-            # Rolling-caption de-duplication, both directions: auto-generated
-            # captions repeat a phrase as it rolls from one cue into the next,
-            # so a cue is often a substring of its neighbour.
             if text == last or text in last:
-                # Fully covered by the previous line — drop it.
                 continue
             if last in text:
-                # The new cue extends the previous one — replace it.
-                out[-1] = text
+                cues[-1]["text"] = text
                 last = text
                 continue
-        out.append(text)
+        cues.append({"t": start, "text": text})
         last = text
+    return cues
 
-    return _WS_RE.sub(" ", " ".join(out)).strip()
+
+def parse_vtt(vtt: str) -> str:
+    """Plain transcript text — the whitespace-collapsed join of the cue texts
+    (see :func:`parse_vtt_cues`)."""
+    cues = parse_vtt_cues(vtt)
+    return _WS_RE.sub(" ", " ".join(c["text"] for c in cues)).strip()
+
+
+def cue_seconds_for_text(
+    cited_text: str | None, cues: list[dict[str, Any]]
+) -> int | None:
+    """Find the video second a citation came from by locating its quote within
+    the cue texts. Robust to whitespace; returns None when it can't be placed
+    (the UI then just opens the lesson at the start)."""
+    if not cited_text or not cues:
+        return None
+    needle = _WS_RE.sub(" ", cited_text).strip().casefold()
+    if not needle:
+        return None
+    # Match on a prefix so a quote spanning two cues still resolves to the cue
+    # it starts in.
+    probe = needle[:60]
+    joined = ""
+    spans: list[tuple[int, int, int]] = []  # (start, end, seconds)
+    for cue in cues:
+        text = _WS_RE.sub(" ", str(cue.get("text", ""))).strip().casefold()
+        if not text:
+            continue
+        start = len(joined)
+        joined += text + " "
+        spans.append((start, len(joined), int(cue.get("t", 0))))
+    pos = joined.find(probe)
+    if pos < 0:
+        return None
+    for start, end, seconds in spans:
+        if start <= pos < end:
+            return seconds
+    return None
 
 
 def lesson_text_from_content(content: Any) -> str:
@@ -244,20 +313,114 @@ def build_lesson_source(
     )
 
 
-def assemble_knowledge_base(sources: list[LessonSource]) -> str:
-    """Concatenate lesson sources into one labelled document.
+@dataclass(frozen=True)
+class LessonCitationRef:
+    """Maps a character range in the assembled knowledge base back to the lesson
+    it came from, so an Anthropic citation (which reports char offsets into the
+    document) can be rendered as a clickable "Lesson N · Title" card."""
 
-    Each lesson becomes a ``[Lesson N: Title]`` section so citations and the
-    model's own references can point a student back to a specific lesson.
-    Lessons with no usable text are still listed (so the model knows they
-    exist) but flagged as having no transcript yet.
+    lesson_id: str
+    number: int
+    title: str
+    thumbnail_url: str | None
+    start: int
+    end: int
+
+
+_KB_SECTION_SEP = "\n\n"
+
+
+def assemble_knowledge_base_with_refs(
+    sources: list[LessonSource],
+    thumbnails: dict[str, str | None] | None = None,
+) -> tuple[str, list[LessonCitationRef]]:
+    """Concatenate lesson sources into one labelled document AND return, for
+    each lesson, the char range it occupies in that document.
+
+    Each lesson becomes a ``[Lesson N: Title]`` section. The returned text is
+    byte-identical to :func:`assemble_knowledge_base` so prompt caching is
+    unaffected; the refs let the answer path turn document citations into
+    lesson-level grounding.
     """
+    thumbs = thumbnails or {}
     sections: list[str] = []
+    refs: list[LessonCitationRef] = []
+    cursor = 0
     for index, source in enumerate(sources, start=1):
         header = f"[Lesson {index}: {source.title}]"
         body = source.text if source.text else "(no transcript or text available yet)"
-        sections.append(f"{header}\n{body}")
-    return "\n\n".join(sections)
+        section = f"{header}\n{body}"
+        start = cursor
+        end = start + len(section)
+        refs.append(
+            LessonCitationRef(
+                lesson_id=source.lesson_id,
+                number=index,
+                title=source.title,
+                thumbnail_url=thumbs.get(source.lesson_id),
+                start=start,
+                end=end,
+            )
+        )
+        sections.append(section)
+        cursor = end + len(_KB_SECTION_SEP)
+    return _KB_SECTION_SEP.join(sections), refs
+
+
+def assemble_knowledge_base(sources: list[LessonSource]) -> str:
+    """Concatenate lesson sources into one labelled document. See
+    :func:`assemble_knowledge_base_with_refs` for the offset-tracking variant."""
+    text, _ = assemble_knowledge_base_with_refs(sources)
+    return text
+
+
+def format_timestamp(seconds: int) -> str:
+    """Whole seconds → "m:ss" (or "h:mm:ss")."""
+    seconds = max(0, int(seconds))
+    h, rem = divmod(seconds, 3600)
+    m, s = divmod(rem, 60)
+    if h:
+        return f"{h}:{m:02d}:{s:02d}"
+    return f"{m}:{s:02d}"
+
+
+def map_citations_to_lessons(
+    citations: list[dict[str, Any]],
+    refs: list[LessonCitationRef],
+    cues_by_lesson: dict[str, list[dict[str, Any]]] | None = None,
+) -> list[dict[str, Any]]:
+    """Enrich raw document citations with the lesson each one falls in (so the
+    UI can render "Lesson N · Title" and link to the lesson) and, when the
+    lesson has timestamped captions, the second the quote came from (so the link
+    opens the video at that moment). Citations that don't resolve are passed
+    through unchanged."""
+    if not refs:
+        return citations
+    cues_by_lesson = cues_by_lesson or {}
+    enriched: list[dict[str, Any]] = []
+    for citation in citations:
+        index = citation.get("start_char_index")
+        ref = None
+        if isinstance(index, int):
+            ref = next((r for r in refs if r.start <= index < r.end), None)
+        if ref is None:
+            enriched.append(citation)
+            continue
+        item = {
+            **citation,
+            "lesson_id": ref.lesson_id,
+            "lesson_number": ref.number,
+            "lesson_title": ref.title,
+            "thumbnail_url": ref.thumbnail_url,
+        }
+        seconds = cue_seconds_for_text(
+            citation.get("cited_text"), cues_by_lesson.get(ref.lesson_id, [])
+        )
+        if seconds is not None:
+            item["seconds"] = seconds
+            item["label"] = format_timestamp(seconds)
+        enriched.append(item)
+    return enriched
 
 
 def estimate_tokens(text: str) -> int:
@@ -320,6 +483,97 @@ def render_system_text(
             voice_card.strip(),
         ]
     return "\n".join(lines)
+
+
+def render_system_text_v2(
+    *,
+    course_title: str,
+    course_description: str | None = None,
+    strictness: str = "course_plus_general",
+    disclaimer: str = DEFAULT_DISCLAIMER,
+) -> str:
+    """The v2 system prompt: a neutral "Course TA" (NOT the instructor).
+
+    Course-first with an explicit authority hierarchy and grounding-scaled
+    confidence (the day-zero paradox: hedge when only metadata is known, answer
+    with authority once transcripts land). ``strictness`` controls whether
+    general subject knowledge is allowed as labeled backup.
+    """
+    course_only = strictness == "course_only"
+    lines: list[str] = [
+        "You are the Course TA — a neutral AI teaching assistant for the course "
+        f'"{course_title}". You are NOT the instructor and you never speak as '
+        "them or claim to be a person. You help an enrolled student understand "
+        "the course, the way a good teaching assistant would.",
+    ]
+    if course_description and course_description.strip():
+        lines += ["", f"What the course is about: {course_description.strip()}"]
+    lines += [
+        "",
+        "## Source of truth (in order)",
+        "1. The attached course document is the single source of truth for what "
+        "this course teaches. Prefer it over everything else, and NEVER "
+        "contradict or override what the course teaches.",
+        "2. When the course covers the question, ground your answer in it and "
+        'point the student to the relevant lesson (e.g. "as covered in '
+        'Lesson 3"). Cite the course material you used.',
+    ]
+    if course_only:
+        lines += [
+            "3. If the course does not cover the question, say so plainly and "
+            "orient the student — point them to the closest lesson or ask what "
+            "they're stuck on. Do NOT answer from outside knowledge; this "
+            "assistant stays strictly on the course material.",
+        ]
+    else:
+        lines += [
+            "3. If the course does not cover the question directly, you MAY use "
+            "your general knowledge of the subject — but say plainly that "
+            "you're stepping outside the course (e.g. \"the course doesn't "
+            'cover this directly, but generally…"). Never present general '
+            "knowledge as something the course taught.",
+        ]
+    lines += [
+        "",
+        "## Confidence scales with what you know",
+        "- If a lesson only has a title/description (no transcript yet), don't "
+        "improvise the instructor's specific method — stay general and route "
+        "the student to that lesson.",
+        "- Once a lesson's transcript is present, you can answer about its "
+        "actual content with more authority.",
+        "",
+        "## Style",
+        "- Lead with the answer, then the why. Be focused and conversational.",
+        "- If you're unsure, say so rather than guessing. Never invent facts, "
+        "numbers, or quotes that aren't in the course.",
+        "- Don't give professional advice (medical, legal, financial) outside "
+        "the course's domain; gently redirect.",
+        f'- Be transparent if asked: "{disclaimer}"',
+    ]
+    return "\n".join(lines)
+
+
+def build_system_blocks_v2(
+    *,
+    course_title: str,
+    course_description: str | None = None,
+    strictness: str = "course_plus_general",
+    disclaimer: str = DEFAULT_DISCLAIMER,
+) -> list[dict[str, Any]]:
+    """v2 system blocks with a cache breakpoint (stable prefix)."""
+    text = render_system_text_v2(
+        course_title=course_title,
+        course_description=course_description,
+        strictness=strictness,
+        disclaimer=disclaimer,
+    )
+    return [
+        {
+            "type": "text",
+            "text": text,
+            "cache_control": {"type": "ephemeral"},
+        }
+    ]
 
 
 def build_system_blocks(
@@ -743,6 +997,82 @@ async def run_guardrail(
         if getattr(block, "type", None) == "text":
             text += getattr(block, "text", "")
     return parse_guardrail_text(text)
+
+
+def parse_followups(text: str, *, limit: int = 3) -> list[str]:
+    """Tolerantly pull a short list of follow-up questions from the model's
+    reply (JSON array preferred, newline list as fallback)."""
+    if not text:
+        return []
+    candidate = text.strip()
+    fence = re.search(r"```(?:json)?\s*(.+?)```", candidate, re.DOTALL)
+    if fence:
+        candidate = fence.group(1).strip()
+    items: list[str] = []
+    start, end = candidate.find("["), candidate.rfind("]")
+    if start != -1 and end != -1 and end > start:
+        try:
+            data = json.loads(candidate[start : end + 1])
+            if isinstance(data, list):
+                items = [str(x).strip() for x in data if str(x).strip()]
+        except (ValueError, TypeError):
+            items = []
+    if not items:
+        # Fallback: one question per line, stripped of list/bullet markers.
+        for line in candidate.splitlines():
+            cleaned = re.sub(r"^[\s\-*\d.)]+", "", line).strip().strip('"')
+            if cleaned and "?" in cleaned:
+                items.append(cleaned)
+    # De-dupe, keep order, cap length and count.
+    seen: set[str] = set()
+    out: list[str] = []
+    for item in items:
+        key = item.casefold()
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(item[:120])
+        if len(out) >= limit:
+            break
+    return out
+
+
+async def generate_followups(
+    *,
+    api_key: str,
+    model: str,
+    course_title: str,
+    question: str,
+    answer: str,
+    limit: int = 3,
+) -> list[str]:
+    """Suggest a few natural follow-up questions given the exchange. Cheap, and
+    best-effort — returns [] on any error so it never breaks the answer path."""
+    if not answer.strip():
+        return []
+    instructions = (
+        f'A student is chatting with the AI teaching assistant for "{course_title}".\n'
+        f"Student asked:\n{question.strip()}\n\n"
+        f"The assistant answered:\n{answer.strip()[:2000]}\n\n"
+        f"Suggest up to {limit} short, natural follow-up questions the student "
+        "might ask next — each from the student's point of view, under 8 words "
+        "where possible, specific to this exchange. Respond with ONLY a JSON "
+        "array of strings, no prose."
+    )
+    client = _client(api_key)
+    try:
+        message = await client.messages.create(
+            model=model,
+            max_tokens=200,
+            messages=[{"role": "user", "content": instructions}],
+        )
+    except Exception:
+        return []
+    text = ""
+    for block in getattr(message, "content", None) or []:
+        if getattr(block, "type", None) == "text":
+            text += getattr(block, "text", "")
+    return parse_followups(text, limit=limit)
 
 
 async def generate_voice_card(

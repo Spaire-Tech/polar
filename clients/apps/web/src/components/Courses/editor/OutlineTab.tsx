@@ -38,8 +38,6 @@ import {
 } from './LessonOptionsMenu'
 import { LessonContentType } from './ModuleCard'
 import { PaywallRow } from './PaywallRow'
-import { COURSE_ASSISTANT_UI_ENABLED } from '../assistant/flag'
-import { transcriptBadge } from './transcriptStatus'
 
 const THUMB_GRADIENTS: [string, string][] = [
   ['#1c1c2e', '#2d1b69'],
@@ -202,20 +200,6 @@ function LessonCard({
         <div className="mb-[5px] line-clamp-2 text-[11.5px] leading-[1.35] font-semibold tracking-tight text-gray-900">
           {lesson.title}
         </div>
-        {(() => {
-          if (!COURSE_ASSISTANT_UI_ENABLED) return null
-          const b = transcriptBadge(lesson)
-          return b ? (
-            <div className="mb-[5px]">
-              <span
-                title="Course Assistant transcription status"
-                className={`inline-flex items-center rounded-full px-1.5 py-[2px] text-[8.5px] font-semibold tracking-[0.05em] uppercase ${b.color}`}
-              >
-                {b.text}
-              </span>
-            </div>
-          ) : null
-        })()}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-[3px] text-[10.5px] text-gray-400">
             <ScheduleOutlined sx={{ fontSize: 10 }} />

@@ -33,7 +33,6 @@ import { schemas } from '@spaire/client'
 import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from '../../Toast/use-toast'
-import { COURSE_ASSISTANT_UI_ENABLED } from '../assistant/flag'
 import { RepositionInPortal } from '../watch/RepositionInPortal'
 import { WatchPlayer } from '../watch/WatchPlayer'
 import { SampleSettingsPopover } from './SeriesSampleBlock'
@@ -489,21 +488,6 @@ export function LessonEditorV2({
                   ready={!processing && captions}
                   busy={processing}
                 />
-                {/* Transcript feeds the Course Assistant. Hidden behind the
-                    TA flag while the feature is reworked. */}
-                {COURSE_ASSISTANT_UI_ENABLED && (
-                  <AutoRow
-                    label="Transcript"
-                    sub="Read by your course assistant"
-                    ready={lesson.transcript_status === 'ready'}
-                    busy={
-                      lesson.transcript_status === 'pending' ||
-                      (lesson.transcript_status == null && processing) ||
-                      (lesson.transcript_status == null &&
-                        lesson.mux_status === 'ready')
-                    }
-                  />
-                )}
               </div>
             )}
             {/* Thumbnail — lesson card cover image, drag to reposition */}

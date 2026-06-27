@@ -68,6 +68,9 @@ export interface MasterClassLessonViewerProps {
   // 'portal' = signed-in customer, full toolbar (Share + Class Guide + Bookmark)
   // 'landing' = public preview, only Share is shown
   mode?: 'portal' | 'landing'
+  // When opened from a Course Assistant citation: auto-start the video at this
+  // second. 0/undefined = normal open.
+  startSeconds?: number
 }
 
 const formatDuration = (seconds: number | null | undefined): string => {
@@ -107,6 +110,7 @@ export const MasterClassLessonViewer = ({
   organizationSlug,
   customerName,
   mode = 'portal',
+  startSeconds = 0,
 }: MasterClassLessonViewerProps) => {
   const { isMobile } = useIsMobile()
   const [playing, setPlaying] = useState(false)
@@ -214,6 +218,22 @@ export const MasterClassLessonViewer = ({
     if (noteDirtyRef.current) return
     setNoteText(savedNote?.content ?? '')
   }, [savedNote, lesson.id])
+
+  // Opened from a Course Assistant citation at a timestamp: auto-start the
+  // video (the player then seeks to startSec via HlsVideo). Fires once per
+  // (lesson, second); if the video is already up, HlsVideo handles the seek.
+  const autoPlayedRef = useRef<string>('')
+  useEffect(() => {
+    if (!startSeconds || startSeconds <= 0) return
+    if (lesson.content_type !== 'video' || lesson.mux_status !== 'ready') return
+    const key = `${lesson.id}:${startSeconds}`
+    if (autoPlayedRef.current === key) return
+    autoPlayedRef.current = key
+    if (playing && playbackUrl) return
+    void handlePlayClicked()
+    // handlePlayClicked is a stable closure; re-running only on the inputs below.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [startSeconds, lesson.id, lesson.content_type, lesson.mux_status])
 
   const handleNoteChange = (text: string) => {
     noteDirtyRef.current = true
@@ -350,6 +370,7 @@ export const MasterClassLessonViewer = ({
               playbackUrl={playbackUrl}
               poster={thumbnailSrc ?? undefined}
               autoPlay
+              startSec={startSeconds}
               onEnded={() => {
                 if (!lesson.completed) onMarkComplete()
               }}

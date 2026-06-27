@@ -430,6 +430,8 @@ export function WizardLandingEditor({
       paywall_lesson_id: null,
       paywall_position: paywallPosition,
       ai_generated: true,
+      assistant_enabled: true,
+      assistant_strictness: 'course_plus_general',
       hero_variant: 'cover',
       lesson_card_variant: 'catalog',
       trial_mode: 'free_preview',

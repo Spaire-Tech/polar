@@ -17,7 +17,7 @@ import logging
 import re
 import unicodedata
 from collections.abc import AsyncIterator
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
@@ -81,6 +81,15 @@ class AnswerSnapshot:
     knowledge_base: str
     model: str
     scope: str
+    # v2: "course_only" | "course_plus_general". Defaults to the latter so v1
+    # constructors (which don't set it) remain valid.
+    strictness: str = "course_plus_general"
+    # v2: per-lesson char ranges in the knowledge base, for mapping document
+    # citations back to clickable lessons. Empty for v1 snapshots.
+    citation_refs: tuple[ai.LessonCitationRef, ...] = ()
+    # v2: lesson_id -> timestamped caption cues, for mapping a citation to the
+    # second in the video it came from. Empty for v1 / lessons without captions.
+    lesson_cues: dict[str, list[dict[str, Any]]] = field(default_factory=dict)
 
 
 def is_configured() -> bool:
@@ -141,11 +150,13 @@ class CourseAssistantService:
         lesson = await lesson_repo.get_by_id(lesson_id)
         if lesson is None:
             return None
+        cues = ai.parse_vtt_cues(vtt)
         text = ai.parse_vtt(vtt)
         await lesson_repo.update(
             lesson,
             update_dict={
                 "transcript": text or None,
+                "transcript_cues": cues or None,
                 "transcript_status": "ready" if text else "failed",
             },
         )
@@ -175,11 +186,13 @@ class CourseAssistantService:
         if vtt is None:
             # Caption track not ready/fetchable yet — leave status as-is.
             return False
+        cues = ai.parse_vtt_cues(vtt)
         text = ai.parse_vtt(vtt)
         await lesson_repo.update(
             lesson,
             update_dict={
                 "transcript": text or None,
+                "transcript_cues": cues or None,
                 "transcript_status": "ready" if text else "failed",
             },
         )
@@ -537,6 +550,173 @@ class CourseAssistantService:
             max_tokens=settings.COURSE_ASSISTANT_MAX_ANSWER_TOKENS,
         ):
             yield event
+
+    # ----------------------------------------------------------------- #
+    # v2 — stateless live answering (no snapshot / approval gate)
+    # ----------------------------------------------------------------- #
+
+    async def get_live_snapshot(
+        self,
+        session: AsyncSession,
+        *,
+        course_id: UUID,
+        customer_id: UUID,
+    ) -> AnswerSnapshot:
+        """Build an answer snapshot directly from the LIVE course — no approval,
+        no stored snapshot. Gated only on: feature configured, the creator's
+        per-course ``assistant_enabled`` toggle, and active enrollment.
+
+        The knowledge base is assembled on every ask from current lesson text +
+        transcripts. Cost is controlled by prompt caching on the course block
+        (see ai.build_user_blocks), not by snapshotting.
+        """
+        if not is_configured():
+            raise NotConfigured()
+
+        course = await CourseRepository.from_session(session).get_by_id(course_id)
+        if course is None or not course.assistant_enabled:
+            raise AssistantNotAvailable()
+
+        enrollment = await CourseEnrollmentRepository.from_session(
+            session
+        ).get_active_for_customer_course(customer_id, course_id)
+        if enrollment is None:
+            raise NotEnrolled()
+
+        lessons = await self._buildable_lessons(session, course_id)
+        sources = self._collect_sources(lessons)
+        thumbnails = {str(lesson.id): lesson.thumbnail_url for lesson in lessons}
+        knowledge_base, citation_refs = ai.assemble_knowledge_base_with_refs(
+            sources, thumbnails
+        )
+        lesson_cues = {
+            str(lesson.id): lesson.transcript_cues
+            for lesson in lessons
+            if lesson.transcript_cues
+        }
+
+        course_title = course.title or "this course"
+        scope = course_title
+        if course.description:
+            scope = f"{course_title}. {course.description[:300]}"
+
+        return AnswerSnapshot(
+            course_id=course_id,
+            organization_id=course.organization_id,
+            course_title=course_title,
+            instructor_name=course.instructor_name,
+            display_name="Course TA",
+            voice_card=None,
+            disclaimer=ai.DEFAULT_DISCLAIMER,
+            knowledge_base=knowledge_base,
+            model=settings.COURSE_ASSISTANT_ANSWER_MODEL,
+            scope=scope,
+            strictness=course.assistant_strictness,
+            citation_refs=tuple(citation_refs),
+            lesson_cues=lesson_cues,
+        )
+
+    async def live_answer_event_stream(
+        self,
+        snapshot: AnswerSnapshot,
+        question: str,
+        *,
+        course_description: str | None = None,
+    ) -> AsyncIterator[dict[str, Any]]:
+        """Yield v2 answer events (no DB access — safe after the session closes).
+
+        Runs the permissive guardrail, then streams a course-first answer using
+        the neutral "Course TA" system prompt. When strictness allows general
+        knowledge and the model produced no course citations, a ``general``
+        event is emitted so the UI can show the labeled note.
+        """
+        api_key = settings.ANTHROPIC_API_KEY
+
+        decision = await ai.run_guardrail(
+            api_key=api_key,
+            model=settings.COURSE_ASSISTANT_GUARDRAIL_MODEL,
+            course_title=snapshot.course_title,
+            scope=snapshot.scope,
+            question=question,
+        )
+        if not decision.allowed:
+            yield {
+                "type": "refusal",
+                "message": (
+                    "That's outside what I can help with here — ask me anything "
+                    "about the course and I'll dig in."
+                ),
+            }
+            yield {"type": "done", "stop_reason": "guardrail"}
+            return
+
+        system_blocks = ai.build_system_blocks_v2(
+            course_title=snapshot.course_title,
+            course_description=course_description,
+            strictness=snapshot.strictness,
+            disclaimer=snapshot.disclaimer or ai.DEFAULT_DISCLAIMER,
+        )
+        user_blocks = ai.build_user_blocks(
+            knowledge_base=snapshot.knowledge_base,
+            question=question,
+            course_title=snapshot.course_title,
+        )
+
+        had_citations = False
+        answer_parts: list[str] = []
+        async for event in ai.stream_answer(
+            api_key=api_key,
+            model=snapshot.model,
+            system_blocks=system_blocks,
+            user_blocks=user_blocks,
+            max_tokens=settings.COURSE_ASSISTANT_MAX_ANSWER_TOKENS,
+        ):
+            event_type = event.get("type")
+            if event_type == "text":
+                answer_parts.append(str(event.get("text", "")))
+                yield event
+                continue
+            if event_type == "citations":
+                # Map raw document citations to clickable lessons.
+                citations = ai.map_citations_to_lessons(
+                    list(event.get("citations") or []),
+                    list(snapshot.citation_refs),
+                    snapshot.lesson_cues,
+                )
+                had_citations = bool(citations)
+                yield {"type": "citations", "citations": citations}
+                continue
+            if event_type == "done":
+                # No citations + general allowed ⇒ a general-knowledge answer:
+                # flag it so the UI shows the labeled note.
+                if not had_citations and snapshot.strictness == "course_plus_general":
+                    yield {"type": "general"}
+                followups = await self._safe_followups(
+                    course_title=snapshot.course_title,
+                    question=question,
+                    answer="".join(answer_parts),
+                )
+                if followups:
+                    yield {"type": "follow", "suggestions": followups}
+                yield event
+                continue
+            yield event
+
+    async def _safe_followups(
+        self, *, course_title: str, question: str, answer: str
+    ) -> list[str]:
+        """Best-effort follow-up suggestions; never raises into the stream."""
+        try:
+            return await ai.generate_followups(
+                api_key=settings.ANTHROPIC_API_KEY,
+                model=settings.COURSE_ASSISTANT_GUARDRAIL_MODEL,
+                course_title=course_title,
+                question=question,
+                answer=answer,
+            )
+        except Exception:
+            log.warning("course_assistant.followups_failed", exc_info=True)
+            return []
 
     # ----------------------------------------------------------------- #
     # Creator preview & settings (Phase 3 review)

@@ -14,23 +14,37 @@ class CourseAssistantAskRequest(Schema):
 
 
 class CourseAssistantStatusRead(Schema):
-    """Drives the student-facing chat empty-state in the course player."""
+    """Drives the student-facing "Course TA" chat in the course player."""
 
     available: bool = Field(
-        description="Whether a live assistant exists for this course."
+        description="Whether the assistant is enabled for this course and the "
+        "student is enrolled."
     )
     display_name: str | None = Field(
-        default=None, description='Name shown to students, e.g. "Carla".'
+        default=None,
+        description='Name shown to students. Always the neutral "Course TA".',
     )
-    instructor_name: str | None = Field(default=None)
+    course_title: str | None = Field(default=None)
     disclaimer: str | None = Field(
         default=None,
-        description="AI-version disclaimer to show in the chat.",
+        description="AI disclaimer to show under the composer.",
     )
-    example_question: str | None = Field(
+    strictness: str | None = Field(
         default=None,
-        description="One example question to lower the blank-page barrier.",
+        description="'course_only' | 'course_plus_general' — informs copy only.",
     )
+    starters: list[str] = Field(
+        default_factory=list,
+        description="Empty-state starter prompts to lower the blank-page "
+        "barrier.",
+    )
+    suggestions: list[str] = Field(
+        default_factory=list,
+        description="In-composer suggestion chips shown once a chat is going.",
+    )
+    # Legacy v1 fields, kept so existing clients don't break.
+    instructor_name: str | None = Field(default=None)
+    example_question: str | None = Field(default=None)
 
 
 # ── Creator-facing (Phase 3 review & approve) ─────────────────────────────── #
