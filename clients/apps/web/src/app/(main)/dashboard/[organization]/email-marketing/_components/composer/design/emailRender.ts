@@ -17,7 +17,13 @@ import type { Block, BroadcastMeta } from './emailEngine'
 const esc = (s: any): string => String(s == null ? '' : s)
 const escAttr = (s: any): string =>
   String(s == null ? '' : s).replace(/"/g, '&quot;').replace(/</g, '&lt;')
-const ff = (f: string): string => FONTS[f] || FONTS.Geist
+// Email clients (notably Gmail) don't support CSS custom properties, and an
+// unsupported `var()` makes them drop the whole font-family. The editor's font
+// stacks lead with `var(--font-x, 'X')` for the app; here we strip the var()
+// down to its literal fallback so the email carries a plain, universally-parsed
+// stack (e.g. `'Instrument Serif', Georgia, serif`).
+const ff = (f: string): string =>
+  (FONTS[f] || FONTS.Geist).replace(/var\(\s*--[^,]+,\s*([^)]+)\)/g, '$1')
 
 // Side padding as a left/right pair (top/bottom handled per block via pt/pb).
 const px = (p: Props): number => (p.px == null ? 44 : p.px)
@@ -71,12 +77,29 @@ const BLOCK: Record<string, (p: Props, t: Theme, r: Resolver) => string> = {
       body += `<p style="margin:14px 0 0;max-width:400px;${mw(p.taglineAlign)}text-align:${p.taglineAlign};font-family:${ff(p.taglineFont)};font-size:${p.taglineSize}px;line-height:1.5;color:${p.taglineColor}">${esc(p.tagline)}</p>`
     if (p.showBtn !== false && p.btn)
       body += `<div style="margin-top:32px">${emailButton(p.btn, t, p.titleAlign)}</div>`
-    const bgAttr = img ? `background="${escAttr(img)}"` : ''
-    const bgCss = img
-      ? `background:${hexA(p.overlayColor || '#0c0a08', 0.32)} url('${escAttr(img)}') center center / cover no-repeat;`
-      : `background:${p.overlayColor || '#26211c'};`
-    return `<tr><td ${bgAttr} bgcolor="${p.overlayColor || '#26211c'}" class="em-hero-pad" style="${bgCss}padding:34px 44px 52px" valign="top">
-      ${eyebrow}<div style="line-height:0;font-size:0;height:${spacer}px">&nbsp;</div>${body}
+    // Bulletproof hero background: the cover photo + the SAME dark gradient the
+    // editor draws, reproduced so it survives real inboxes. Modern clients
+    // (Apple Mail, iOS, Gmail) get `background-image: <gradient>, url(photo)`;
+    // Outlook (Word engine, which ignores all of that) gets a VML <v:rect> with
+    // the photo as a frame fill; everything falls back to the dark bgcolor. This
+    // is what makes the sent hero look like the editor instead of a flat block.
+    const oc = p.overlayColor || '#0c0a08'
+    const ov = p.overlay == null ? 58 : p.overlay
+    const grad = `linear-gradient(180deg, ${hexA(oc, ov / 240)} 0%, ${hexA(oc, Math.min(0.92, ov / 95))} 100%)`
+    const darkBg = img ? oc : p.overlayColor || '#26211c'
+    const heroH = p.height || 560
+    const bgStyle = img
+      ? `background-color:${darkBg};background-image:${grad}, url('${escAttr(img)}');background-position:center center, center center;background-size:cover, cover;background-repeat:no-repeat, no-repeat;`
+      : `background-color:${darkBg};background-image:${grad};background-position:center center;background-size:cover;background-repeat:no-repeat;`
+    const content = `<div class="em-hero-pad" style="padding:34px 44px 52px">${eyebrow}<div style="line-height:0;font-size:0;height:${spacer}px">&nbsp;</div>${body}</div>`
+    return `<tr><td ${img ? `background="${escAttr(img)}"` : ''} bgcolor="${darkBg}" valign="top" style="${bgStyle}padding:0">
+      <!--[if gte mso 9]>
+      <v:rect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" fill="true" stroke="false" style="width:640px;height:${heroH}px;">
+      <v:fill type="frame" ${img ? `src="${escAttr(img)}"` : ''} color="${darkBg}" />
+      <v:textbox inset="0,0,0,0">
+      <![endif]-->
+      ${content}
+      <!--[if gte mso 9]></v:textbox></v:rect><![endif]-->
     </td></tr>`
   },
 
@@ -138,10 +161,22 @@ const BLOCK: Record<string, (p: Props, t: Theme, r: Resolver) => string> = {
   trailer(p, t, r) {
     const img = p.img ? r(p.img) : ''
     const href = p.href ? escAttr(p.href) : ''
+    const w = 640 - px(p) * 2
+    const h = Math.round(w * 0.5625) // 16:9, mirrors the editor's poster
+    const radius = p.radius == null ? 14 : p.radius
+    // A round play button centred over the poster — matches the editor. Built as
+    // a cell with the poster as background (+ VML for Outlook) and the button
+    // centred inside, so it survives clients that strip absolute positioning.
+    const playBtn = `<table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center" style="margin:0 auto"><tr><td height="60" width="60" align="center" valign="middle" bgcolor="#ffffff" style="width:60px;height:60px;background:#ffffff;border-radius:50%;font-family:Arial,sans-serif;font-size:22px;line-height:60px;color:#1a1a1a;text-align:center">&#9658;</td></tr></table>`
     const poster = img
-      ? `<img src="${escAttr(img)}" width="${640 - px(p) * 2}" alt="${escAttr(p.label)}" style="display:block;width:100%;height:auto;border-radius:${p.radius}px;border:0"/>`
-      : `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td height="240" bgcolor="#26211c" style="border-radius:${p.radius}px"></td></tr></table>`
-    const linked = href ? `<a href="${href}" target="_blank" style="text-decoration:none">▶ &nbsp;${poster}</a>` : poster
+      ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+          <td background="${escAttr(img)}" bgcolor="#26211c" height="${h}" align="center" valign="middle" style="background-image:url('${escAttr(img)}');background-size:cover;background-position:center center;background-repeat:no-repeat;height:${h}px;border-radius:${radius}px">
+            <!--[if gte mso 9]><v:rect xmlns:v="urn:schemas-microsoft-com:vml" fill="true" stroke="false" style="width:${w}px;height:${h}px;"><v:fill type="frame" src="${escAttr(img)}" color="#26211c" /><v:textbox inset="0,0,0,0"><![endif]-->
+            ${playBtn}
+            <!--[if gte mso 9]></v:textbox></v:rect><![endif]-->
+          </td></tr></table>`
+      : `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td height="${h}" align="center" valign="middle" bgcolor="#26211c" style="height:${h}px;border-radius:${radius}px">${playBtn}</td></tr></table>`
+    const linked = href ? `<a href="${href}" target="_blank" style="text-decoration:none">${poster}</a>` : poster
     const caption = `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:16px"><tr>
       <td align="left" style="font-family:${ff(p.labelFont)};font-size:${p.labelSize}px;font-weight:600;color:${p.labelColor}">${esc(p.label)}</td>
       <td align="right" style="font-family:${ff(t.font)};font-size:13px;color:${p.subColor}">${esc(p.sub)}</td>
@@ -247,7 +282,14 @@ export function buildEmailHTML(
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <meta http-equiv="X-UA-Compatible" content="IE=edge"/>
 <title>${escAttr(broadcast.subject)}</title>
+<!-- Web fonts for clients that honour them (Apple Mail, iOS) so the email shows
+     the real Instrument Serif / Geist; Gmail & Outlook ignore these and fall
+     back to Georgia/system per the inline font stacks. -->
+<!--[if !mso]><!-->
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet"/>
+<!--<![endif]-->
 <style>
+  @import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap');
   html,body{margin:0!important;padding:0!important;width:100%!important}
   *{-ms-text-size-adjust:100%;-webkit-text-size-adjust:100%}
   table{border-collapse:collapse!important;mso-table-lspace:0;mso-table-rspace:0}
