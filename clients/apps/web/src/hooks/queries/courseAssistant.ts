@@ -279,18 +279,19 @@ export function streamAsk(
       handlers.onDone()
     }
     try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}${base(courseId)}/ask`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ question }),
-          signal: controller.signal,
+      // POST to the SAME-ORIGIN proxy route (not the cross-origin API). The app
+      // origin streams SSE token-by-token; the cross-origin API edge buffers it
+      // and delivers the whole answer at once. The route forwards our bearer
+      // token to the backend over the internal URL.
+      const res = await fetch(`/api/course-assistant/${courseId}/ask`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
         },
-      )
+        body: JSON.stringify({ question }),
+        signal: controller.signal,
+      })
       if (!res.ok || !res.body) {
         handlers.onError('The assistant is temporarily unavailable.')
         finish()
