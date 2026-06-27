@@ -17,7 +17,7 @@ import logging
 import re
 import unicodedata
 from collections.abc import AsyncIterator
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
@@ -87,6 +87,9 @@ class AnswerSnapshot:
     # v2: per-lesson char ranges in the knowledge base, for mapping document
     # citations back to clickable lessons. Empty for v1 snapshots.
     citation_refs: tuple[ai.LessonCitationRef, ...] = ()
+    # v2: lesson_id -> timestamped caption cues, for mapping a citation to the
+    # second in the video it came from. Empty for v1 / lessons without captions.
+    lesson_cues: dict[str, list[dict[str, Any]]] = field(default_factory=dict)
 
 
 def is_configured() -> bool:
@@ -147,11 +150,13 @@ class CourseAssistantService:
         lesson = await lesson_repo.get_by_id(lesson_id)
         if lesson is None:
             return None
+        cues = ai.parse_vtt_cues(vtt)
         text = ai.parse_vtt(vtt)
         await lesson_repo.update(
             lesson,
             update_dict={
                 "transcript": text or None,
+                "transcript_cues": cues or None,
                 "transcript_status": "ready" if text else "failed",
             },
         )
@@ -181,11 +186,13 @@ class CourseAssistantService:
         if vtt is None:
             # Caption track not ready/fetchable yet — leave status as-is.
             return False
+        cues = ai.parse_vtt_cues(vtt)
         text = ai.parse_vtt(vtt)
         await lesson_repo.update(
             lesson,
             update_dict={
                 "transcript": text or None,
+                "transcript_cues": cues or None,
                 "transcript_status": "ready" if text else "failed",
             },
         )
@@ -582,6 +589,11 @@ class CourseAssistantService:
         knowledge_base, citation_refs = ai.assemble_knowledge_base_with_refs(
             sources, thumbnails
         )
+        lesson_cues = {
+            str(lesson.id): lesson.transcript_cues
+            for lesson in lessons
+            if lesson.transcript_cues
+        }
 
         course_title = course.title or "this course"
         scope = course_title
@@ -601,6 +613,7 @@ class CourseAssistantService:
             scope=scope,
             strictness=course.assistant_strictness,
             citation_refs=tuple(citation_refs),
+            lesson_cues=lesson_cues,
         )
 
     async def live_answer_event_stream(
@@ -666,7 +679,9 @@ class CourseAssistantService:
             if event_type == "citations":
                 # Map raw document citations to clickable lessons.
                 citations = ai.map_citations_to_lessons(
-                    list(event.get("citations") or []), list(snapshot.citation_refs)
+                    list(event.get("citations") or []),
+                    list(snapshot.citation_refs),
+                    snapshot.lesson_cues,
                 )
                 had_citations = bool(citations)
                 yield {"type": "citations", "citations": citations}

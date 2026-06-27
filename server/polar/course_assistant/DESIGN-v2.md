@@ -51,14 +51,20 @@ These were locked in with the user and are now partially implemented:
 - **Follow-up generation**: ✅ `generate_followups` (cheap guardrail model) runs
   after each answer and emits the `follow` event; the UI renders the chips.
 
+- **Per-second citation timestamps**: ✅ captions are now stored as timestamped
+  cues (`course_lessons.transcript_cues`, migration `ca_cues_627`);
+  `cue_seconds_for_text` locates the quote in the cues, citations carry
+  `seconds`, and the portal deep-links `?lesson=<id>&t=<sec>` — `HlsVideo`
+  seeks there (auto-starting the lesson). Existing transcripts backfill cues on
+  the next (re)fetch; until then a citation opens the lesson at the start.
+- **Live**: ✅ `COURSE_ASSISTANT_UI_ENABLED` is on.
+
 ### Still to build
 
-- **Per-second citation timestamps** (store VTT cue times, deep-link to the
-  second) — cards currently open the lesson, not a timestamp.
 - **Delete v1** (approval/snapshot/voice/state-machine, sample-QA, preview) once
   v2 is confirmed in production — currently retained, just unsurfaced.
-- **Flip `COURSE_ASSISTANT_UI_ENABLED`** to surface the chat once smoke-tested
-  (holding per the latest decision).
+- **Backfill cues** for already-transcribed lessons (re-run the transcript
+  fetch) so older videos get clickable timestamps too.
 
 > Note: the backend changes are static-checked (ruff/mypy clean on the touched
 > files) but NOT runtime-verified — the Py3.14 pydantic-settings crash blocks

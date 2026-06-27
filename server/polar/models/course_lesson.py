@@ -76,6 +76,13 @@ class CourseLesson(RecordModel):
     transcript_status: Mapped[str | None] = mapped_column(
         String(20), nullable=True, default=None
     )
+    # Timestamped caption cues: [{"t": int_seconds, "text": str}, ...], aligned
+    # with `transcript` (which is their plain-text join). Lets the Course
+    # Assistant map an answer citation back to the moment in the video so a
+    # citation can open the lesson at that second.
+    transcript_cues: Mapped[list[dict[str, object]] | None] = mapped_column(
+        JSONB, nullable=True, default=None
+    )
 
     thumbnail_url: Mapped[str | None] = mapped_column(
         String(2048), nullable=True, default=None

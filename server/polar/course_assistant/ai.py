@@ -105,64 +105,133 @@ _VTT_INLINE_TS_RE = re.compile(r"\d{1,2}:\d{2}:\d{2}[.,]\d{1,3}")
 _WS_RE = re.compile(r"\s+")
 
 
-def parse_vtt(vtt: str) -> str:
-    """Turn a WebVTT caption file into plain transcript text.
+# Start time of a cue: the left side of a "00:00:02.000 --> ..." timing line.
+_VTT_CUE_START_RE = re.compile(r"(\d{1,2}):(\d{2})(?::(\d{2}))?[.,](\d{1,3})\s*-->")
 
-    Strips the ``WEBVTT`` header, ``NOTE`` / ``STYLE`` / ``REGION`` blocks,
-    cue identifiers, timing lines, cue-setting text, and inline tags
-    (``<v Speaker>``, ``<00:00:01.000>`` karaoke timestamps). Collapses
-    whitespace and removes the consecutive-duplicate cue lines that
-    auto-generated captions emit when text rolls across cues.
+
+def _vtt_start_seconds(line: str) -> int | None:
+    """Parse the start time (whole seconds) from a VTT timing line."""
+    m = _VTT_CUE_START_RE.search(line)
+    if not m:
+        return None
+    a, b, c, _ms = m.groups()
+    if c is not None:  # hh:mm:ss
+        return int(a) * 3600 + int(b) * 60 + int(c)
+    return int(a) * 60 + int(b)  # mm:ss
+
+
+def parse_vtt_cues(vtt: str) -> list[dict[str, Any]]:
+    """Turn a WebVTT caption file into timestamped cues: ``[{"t": int_seconds,
+    "text": str}, ...]``.
+
+    Strips the ``WEBVTT`` header, ``NOTE`` / ``STYLE`` / ``REGION`` blocks, cue
+    identifiers, and inline tags. De-dupes the rolling-caption repetition that
+    auto-generated captions emit (a phrase repeated as it rolls cue-to-cue),
+    keeping the *earliest* start time for a kept phrase. ``parse_vtt`` is the
+    plain-text join of these cues, so transcript text and cue times stay
+    aligned (used to map an answer citation back to a moment in the video).
     """
     if not vtt:
-        return ""
+        return []
 
     lines = vtt.replace("\r\n", "\n").replace("\r", "\n").split("\n")
-    out: list[str] = []
-    last: str | None = None
+    # First pass: group text lines under their cue's start time.
+    raw_cues: list[tuple[int, str]] = []
+    cur_start: int | None = None
+    cur_parts: list[str] = []
     skipping_block = False
+
+    def _flush() -> None:
+        nonlocal cur_parts
+        if cur_start is None or not cur_parts:
+            cur_parts = []
+            return
+        text = _WS_RE.sub(" ", " ".join(cur_parts)).strip()
+        if text:
+            raw_cues.append((cur_start, text))
+        cur_parts = []
 
     for raw in lines:
         line = raw.strip()
         if not line:
+            _flush()
             skipping_block = False
             continue
         upper = line.upper()
-        if upper == "WEBVTT" or upper.startswith("WEBVTT"):
+        if upper.startswith("WEBVTT"):
             continue
         if upper.startswith(("NOTE", "STYLE", "REGION")):
-            # NOTE/STYLE/REGION introduce a block that runs until a blank line.
             skipping_block = True
             continue
         if skipping_block:
             continue
         if "-->" in line and _VTT_TIMESTAMP_RE.search(line):
+            _flush()
+            cur_start = _vtt_start_seconds(line)
             continue
-        # A bare cue identifier (integer, or "1" style) on its own line.
-        if line.isdigit():
+        if line.isdigit():  # bare cue identifier
             continue
-
         text = _VTT_TAG_RE.sub("", line)
         text = _VTT_INLINE_TS_RE.sub("", text)
         text = _WS_RE.sub(" ", text).strip()
-        if not text:
-            continue
+        if text:
+            cur_parts.append(text)
+    _flush()
+
+    # Second pass: rolling-caption de-duplication (both directions), preserving
+    # the earliest start time of a phrase.
+    cues: list[dict[str, Any]] = []
+    last: str | None = None
+    for start, text in raw_cues:
         if last is not None:
-            # Rolling-caption de-duplication, both directions: auto-generated
-            # captions repeat a phrase as it rolls from one cue into the next,
-            # so a cue is often a substring of its neighbour.
             if text == last or text in last:
-                # Fully covered by the previous line — drop it.
                 continue
             if last in text:
-                # The new cue extends the previous one — replace it.
-                out[-1] = text
+                cues[-1]["text"] = text
                 last = text
                 continue
-        out.append(text)
+        cues.append({"t": start, "text": text})
         last = text
+    return cues
 
-    return _WS_RE.sub(" ", " ".join(out)).strip()
+
+def parse_vtt(vtt: str) -> str:
+    """Plain transcript text — the whitespace-collapsed join of the cue texts
+    (see :func:`parse_vtt_cues`)."""
+    cues = parse_vtt_cues(vtt)
+    return _WS_RE.sub(" ", " ".join(c["text"] for c in cues)).strip()
+
+
+def cue_seconds_for_text(
+    cited_text: str | None, cues: list[dict[str, Any]]
+) -> int | None:
+    """Find the video second a citation came from by locating its quote within
+    the cue texts. Robust to whitespace; returns None when it can't be placed
+    (the UI then just opens the lesson at the start)."""
+    if not cited_text or not cues:
+        return None
+    needle = _WS_RE.sub(" ", cited_text).strip().casefold()
+    if not needle:
+        return None
+    # Match on a prefix so a quote spanning two cues still resolves to the cue
+    # it starts in.
+    probe = needle[:60]
+    joined = ""
+    spans: list[tuple[int, int, int]] = []  # (start, end, seconds)
+    for cue in cues:
+        text = _WS_RE.sub(" ", str(cue.get("text", ""))).strip().casefold()
+        if not text:
+            continue
+        start = len(joined)
+        joined += text + " "
+        spans.append((start, len(joined), int(cue.get("t", 0))))
+    pos = joined.find(probe)
+    if pos < 0:
+        return None
+    for start, end, seconds in spans:
+        if start <= pos < end:
+            return seconds
+    return None
 
 
 def lesson_text_from_content(content: Any) -> str:
@@ -305,32 +374,52 @@ def assemble_knowledge_base(sources: list[LessonSource]) -> str:
     return text
 
 
+def format_timestamp(seconds: int) -> str:
+    """Whole seconds → "m:ss" (or "h:mm:ss")."""
+    seconds = max(0, int(seconds))
+    h, rem = divmod(seconds, 3600)
+    m, s = divmod(rem, 60)
+    if h:
+        return f"{h}:{m:02d}:{s:02d}"
+    return f"{m}:{s:02d}"
+
+
 def map_citations_to_lessons(
-    citations: list[dict[str, Any]], refs: list[LessonCitationRef]
+    citations: list[dict[str, Any]],
+    refs: list[LessonCitationRef],
+    cues_by_lesson: dict[str, list[dict[str, Any]]] | None = None,
 ) -> list[dict[str, Any]]:
-    """Enrich raw document citations with the lesson each one falls in, so the
-    UI can render "Lesson N · Title" and link to the lesson. Citations that
-    don't resolve to a lesson are passed through unchanged."""
+    """Enrich raw document citations with the lesson each one falls in (so the
+    UI can render "Lesson N · Title" and link to the lesson) and, when the
+    lesson has timestamped captions, the second the quote came from (so the link
+    opens the video at that moment). Citations that don't resolve are passed
+    through unchanged."""
     if not refs:
         return citations
+    cues_by_lesson = cues_by_lesson or {}
     enriched: list[dict[str, Any]] = []
     for citation in citations:
         index = citation.get("start_char_index")
         ref = None
         if isinstance(index, int):
             ref = next((r for r in refs if r.start <= index < r.end), None)
-        if ref is not None:
-            enriched.append(
-                {
-                    **citation,
-                    "lesson_id": ref.lesson_id,
-                    "lesson_number": ref.number,
-                    "lesson_title": ref.title,
-                    "thumbnail_url": ref.thumbnail_url,
-                }
-            )
-        else:
+        if ref is None:
             enriched.append(citation)
+            continue
+        item = {
+            **citation,
+            "lesson_id": ref.lesson_id,
+            "lesson_number": ref.number,
+            "lesson_title": ref.title,
+            "thumbnail_url": ref.thumbnail_url,
+        }
+        seconds = cue_seconds_for_text(
+            citation.get("cited_text"), cues_by_lesson.get(ref.lesson_id, [])
+        )
+        if seconds is not None:
+            item["seconds"] = seconds
+            item["label"] = format_timestamp(seconds)
+        enriched.append(item)
     return enriched
 
 

@@ -413,6 +413,11 @@ export function AskAssistant({ courseId, token }: AskAssistantProps) {
       flashToast(c.label ? `${label} · ${c.label}` : label)
       const params = new URLSearchParams(searchParams.toString())
       params.set('lesson', c.lesson_id)
+      if (c.seconds != null && c.seconds > 0) {
+        params.set('t', String(Math.floor(c.seconds)))
+      } else {
+        params.delete('t')
+      }
       router.push(`?${params.toString()}`, { scroll: false })
     },
     [router, searchParams, flashToast],

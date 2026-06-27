@@ -216,8 +216,11 @@ export interface AskCitation {
   lesson_id?: string | null
   lesson_number?: number | null
   lesson_title?: string | null
-  // Human label for the moment cited, e.g. "The toss · 2:40" or "Start here".
+  // Human label for the moment cited, e.g. "2:40" or "Start here".
   label?: string | null
+  // The second in the video the quote came from, for a deep-link that opens
+  // the lesson at that moment. Null when it couldn't be placed.
+  seconds?: number | null
   thumbnail_url?: string | null
   cited_text?: string | null
   document_title?: string | null
