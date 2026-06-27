@@ -310,8 +310,8 @@ export function buildEmailHTML(
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <meta http-equiv="X-UA-Compatible" content="IE=edge"/>
-<meta name="color-scheme" content="dark"/>
-<meta name="supported-color-schemes" content="dark"/>
+<meta name="color-scheme" content="light dark"/>
+<meta name="supported-color-schemes" content="light dark"/>
 <title>${escAttr(broadcast.subject)}</title>
 <!-- Web fonts for clients that honour them (Apple Mail, iOS) so the email shows
      the real Instrument Serif / Geist; Gmail & Outlook ignore these and fall
@@ -321,9 +321,11 @@ export function buildEmailHTML(
 <!--<![endif]-->
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap');
-  :root{color-scheme:only dark;supported-color-schemes:only dark}
+  /* Declare BOTH schemes so clients that honour color-scheme (Apple Mail/iOS)
+     keep the authored colours as-is and do NOT generate an inverted "dark
+     mode" version that recolours the text. The email is one fixed design. */
+  :root{color-scheme:light dark;supported-color-schemes:light dark}
   html,body{margin:0!important;padding:0!important;width:100%!important}
-  body{color-scheme:only dark}
   *{-ms-text-size-adjust:100%;-webkit-text-size-adjust:100%}
   table{border-collapse:collapse!important;mso-table-lspace:0;mso-table-rspace:0}
   img{border:0;outline:none;text-decoration:none;-ms-interpolation-mode:bicubic}
@@ -336,16 +338,6 @@ export function buildEmailHTML(
     .em-ins-img{display:block!important;width:132px!important;padding-bottom:18px!important}
     .em-ins-gap{display:none!important}
     .em-ins-txt{display:block!important;width:100%!important}
-  }
-  /* Outlook.com's dark engine prefixes the host with data-ogsc/data-ogsb and
-     rewrites colours; re-assert the dark fill (colour + the gradient "image")
-     where those appear. Gmail ignores these — it's covered by the per-cell
-     gradient + bgcolor — and they can't regress other clients. */
-  [data-ogsc] .em-bg,[data-ogsb] .em-bg{background-color:${t.emailBg}!important;background-image:linear-gradient(${t.emailBg},${t.emailBg})!important}
-  [data-ogsc] .em-body,[data-ogsb] .em-body{background-color:${t.outerBg}!important;background-image:linear-gradient(${t.outerBg},${t.outerBg})!important}
-  @media (prefers-color-scheme: dark){
-    .em-bg{background-color:${t.emailBg}!important;background-image:linear-gradient(${t.emailBg},${t.emailBg})!important}
-    .em-body{background-color:${t.outerBg}!important;background-image:linear-gradient(${t.outerBg},${t.outerBg})!important}
   }
 </style>
 </head>
