@@ -67,7 +67,11 @@ class _PlatformCustomerRepository(RepositoryBase[Customer]):
     model = Customer
 
     async def get_for_creator_org(
-        self, platform_org_id: UUID, creator_org_id: UUID
+        self,
+        platform_org_id: UUID,
+        creator_org_id: UUID,
+        *,
+        load_organization: bool = False,
     ) -> Customer | None:
         statement = (
             select(Customer)
@@ -78,6 +82,11 @@ class _PlatformCustomerRepository(RepositoryBase[Customer]):
             )
             .where(Customer.deleted_at.is_(None))
         )
+        # Customer.organization is lazy="raise"; callers that read it (e.g.
+        # building the customer-portal URL, which needs organization.slug)
+        # must opt in to eager-loading it, or the access raises -> 500.
+        if load_organization:
+            statement = statement.options(selectinload(Customer.organization))
         return await self.get_one_or_none(statement)
 
 
