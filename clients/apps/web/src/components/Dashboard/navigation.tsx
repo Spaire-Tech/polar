@@ -2,9 +2,11 @@ import { PolarHog, usePostHog } from '@/hooks/posthog'
 import { useOrganizationAccount } from '@/hooks/queries'
 import AttachMoneyOutlined from '@mui/icons-material/AttachMoneyOutlined'
 import CodeOutlined from '@mui/icons-material/CodeOutlined'
+import DiscountOutlined from '@mui/icons-material/DiscountOutlined'
 import ExtensionOutlined from '@mui/icons-material/ExtensionOutlined'
 import HiveOutlined from '@mui/icons-material/HiveOutlined'
 import LayersOutlined from '@mui/icons-material/LayersOutlined'
+import LinkOutlined from '@mui/icons-material/LinkOutlined'
 import MailOutlined from '@mui/icons-material/MailOutlined'
 import OndemandVideoOutlined from '@mui/icons-material/OndemandVideoOutlined'
 import PeopleAltOutlined from '@mui/icons-material/PeopleAltOutlined'
@@ -186,7 +188,7 @@ const generalRoutesList = (org?: schemas['Organization']): Route[] => [
     checkIsActive: (currentRoute: string): boolean => {
       return currentRoute.startsWith(`/dashboard/${org?.slug}/storefront`)
     },
-    if: true,
+    if: false,
   },
   {
     id: 'catalog',
@@ -196,7 +198,7 @@ const generalRoutesList = (org?: schemas['Organization']): Route[] => [
     checkIsActive: (currentRoute: string): boolean => {
       return currentRoute.startsWith(`/dashboard/${org?.slug}/products`)
     },
-    if: true,
+    if: false,
     showSubsInNav: false,
     subs: [
       { title: 'Products', link: `/dashboard/${org?.slug}/products` },
@@ -213,7 +215,7 @@ const generalRoutesList = (org?: schemas['Organization']): Route[] => [
   },
   {
     id: 'courses',
-    title: 'Courses',
+    title: 'MasterClass',
     icon: <OndemandVideoOutlined fontSize="inherit" />,
     link: `/dashboard/${org?.slug}/courses`,
     checkIsActive: (currentRoute: string): boolean => {
@@ -229,7 +231,7 @@ const generalRoutesList = (org?: schemas['Organization']): Route[] => [
     checkIsActive: (currentRoute: string): boolean => {
       return currentRoute.startsWith(`/dashboard/${org?.slug}/customers`)
     },
-    if: true,
+    if: false,
   },
   {
     id: 'invoices',
@@ -261,6 +263,33 @@ const generalRoutesList = (org?: schemas['Organization']): Route[] => [
     },
     if: true,
   },
+  // Promoted out of the (now hidden) Products/catalog parent so they survive
+  // the course-only reposition. Routes still live under /products/* and are
+  // intentionally NOT URL-gated in [organization]/layout.tsx.
+  {
+    id: 'payment-links',
+    title: 'Payment Links',
+    icon: <LinkOutlined fontSize="inherit" />,
+    link: `/dashboard/${org?.slug}/products/checkout-links`,
+    checkIsActive: (currentRoute: string): boolean => {
+      return currentRoute.startsWith(
+        `/dashboard/${org?.slug}/products/checkout-links`,
+      )
+    },
+    if: true,
+  },
+  {
+    id: 'discounts',
+    title: 'Discounts',
+    icon: <DiscountOutlined fontSize="inherit" />,
+    link: `/dashboard/${org?.slug}/products/discounts`,
+    checkIsActive: (currentRoute: string): boolean => {
+      return currentRoute.startsWith(
+        `/dashboard/${org?.slug}/products/discounts`,
+      )
+    },
+    if: true,
+  },
   {
     id: 'marketing',
     title: 'Marketing',
@@ -269,7 +298,7 @@ const generalRoutesList = (org?: schemas['Organization']): Route[] => [
     checkIsActive: (currentRoute: string): boolean => {
       return currentRoute.startsWith(`/dashboard/${org?.slug}/email-marketing`)
     },
-    if: true,
+    if: false,
   },
   {
     id: 'developers',
@@ -279,7 +308,7 @@ const generalRoutesList = (org?: schemas['Organization']): Route[] => [
     checkIsActive: (currentRoute: string): boolean => {
       return currentRoute.startsWith(`/dashboard/${org?.slug}/developers`)
     },
-    if: true,
+    if: false,
   },
   {
     id: 'founder-tools',
@@ -289,7 +318,7 @@ const generalRoutesList = (org?: schemas['Organization']): Route[] => [
     checkIsActive: (currentRoute: string): boolean => {
       return currentRoute.startsWith(`/dashboard/${org?.slug}/founder-tools`)
     },
-    if: true,
+    if: false,
   },
 ]
 
@@ -313,7 +342,7 @@ const accountRoutesList = (): Route[] => [
     title: 'Developer',
     link: `/dashboard/account/developer`,
     icon: <CodeOutlined fontSize="inherit" />,
-    if: true,
+    if: false,
   },
 ]
 

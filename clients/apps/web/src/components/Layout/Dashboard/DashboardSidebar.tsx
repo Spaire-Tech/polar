@@ -64,6 +64,11 @@ export const DashboardSidebar = ({
   }, [])
   const isTopBannerVisible = CONFIG.IS_SANDBOX || _isImpersonating
 
+  // Course-only reposition: creators are individuals, so the "New
+  // Organization" action is hidden. Existing organizations remain switchable.
+  // Reversible: flip to true to re-enable creating organizations.
+  const allowCreateOrganization = false
+
   return (
     <Sidebar variant="inset" collapsible="icon">
       <SidebarHeader
@@ -109,14 +114,18 @@ export const DashboardSidebar = ({
                   <span className="min-w-0 truncate">{org.name}</span>
                 </DropdownMenuItem>
               ))}
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onClick={() =>
-                  router.push('/dashboard/create?existing_org=true')
-                }
-              >
-                New Organization
-              </DropdownMenuItem>
+              {allowCreateOrganization && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={() =>
+                      router.push('/dashboard/create?existing_org=true')
+                    }
+                  >
+                    New Organization
+                  </DropdownMenuItem>
+                </>
+              )}
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 onClick={() =>
