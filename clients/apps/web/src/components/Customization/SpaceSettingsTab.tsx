@@ -251,7 +251,7 @@ export const SpaceSettingsTab = ({
           <Field label="SEO title">
             <CommitInput
               value={settings.meta_title ?? ''}
-              placeholder={`${organization.name} — Spaire Space`}
+              placeholder={`${organization.name} — Courses`}
               maxLength={70}
               onCommit={(v) => updateSetting('meta_title', v.trim() || null)}
             />

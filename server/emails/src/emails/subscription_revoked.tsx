@@ -15,13 +15,13 @@ export function SubscriptionRevoked({
 }: schemas['SubscriptionRevokedProps']) {
   return (
     <WrapperOrganization organization={organization}>
-      <Preview>Your subscription to {product.name} has now ended</Preview>
+      <Preview>Your enrollment in {product.name} has now ended</Preview>
       <Section>
         <Heading as="h1" className="text-xl font-bold text-gray-900">
-          Your subscription has now ended
+          Your enrollment has now ended
         </Heading>
         <BodyText>
-          Thank you for being a subscriber of{' '}
+          Thank you for being a student of{' '}
           <span className="font-bold">{product.name}</span>.
         </BodyText>
         <BodyText>
@@ -29,7 +29,7 @@ export function SubscriptionRevoked({
         </BodyText>
       </Section>
       <Section className="my-4 text-center">
-        <Button href={url}>View subscription</Button>
+        <Button href={url}>View enrollment</Button>
       </Section>
       <Section className="mt-4 border-t border-gray-200 pt-2">
         <Text className="text-sm text-gray-600">

@@ -16,19 +16,19 @@ export function SubscriptionPastDue({
 }: schemas['SubscriptionPastDueProps']) {
   return (
     <WrapperOrganization organization={organization}>
-      <Preview>Your {product.name} subscription payment is past due</Preview>
+      <Preview>Your {product.name} enrollment payment is past due</Preview>
       <Section>
         <Heading as="h1" className="text-xl font-bold text-gray-900">
-          Your subscription payment is past due
+          Your enrollment payment is past due
         </Heading>
         <BodyText>
           We were unable to process your payment for your{' '}
-          <span className="font-bold">{product.name}</span> subscription. Your
-          subscription is now past due and access to benefits has been
+          <span className="font-bold">{product.name}</span> enrollment. Your
+          enrollment is now past due and your course access has been
           temporarily suspended.
         </BodyText>
         <BodyText>
-          To restore access to your subscription benefits, please update your
+          To restore your course access, please update your
           payment method and complete the payment.
         </BodyText>
       </Section>
@@ -38,7 +38,7 @@ export function SubscriptionPastDue({
         </Section>
       )}
       <Section className="my-8 text-center">
-        <Button href={url}>Manage my subscription</Button>
+        <Button href={url}>Manage my enrollment</Button>
       </Section>
       <Section className="mt-6 border-t border-gray-200 pt-6">
         <Text className="text-sm text-gray-600">

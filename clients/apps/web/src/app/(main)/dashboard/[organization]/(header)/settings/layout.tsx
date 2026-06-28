@@ -5,14 +5,19 @@ import Link from 'next/link'
 import { useParams, usePathname } from 'next/navigation'
 import { PropsWithChildren } from 'react'
 
+// Reframed for individual creators (Spaire MasterClass builder).
+// Enterprise/multi-tenant/dev tabs are gated off below via `enabled: false`.
+// Routes & page components are intentionally KEPT — only nav visibility changes,
+// so flipping `enabled` back to true fully restores each tab.
 const settingsTabs = [
-  { title: 'Organization', suffix: '' },
-  { title: 'Plan', suffix: '/plan' },
-  { title: 'Billing', suffix: '/billing' },
-  { title: 'Members', suffix: '/members' },
-  { title: 'Webhooks', suffix: '/webhooks' },
-  { title: 'Custom Fields', suffix: '/custom-fields' },
-]
+  { title: 'Account', suffix: '', enabled: true },
+  { title: 'Subscription', suffix: '/plan', enabled: true },
+  { title: 'Billing', suffix: '/billing', enabled: true },
+  // Hidden for the course-only creator experience (reversible):
+  { title: 'Members', suffix: '/members', enabled: false }, // team management
+  { title: 'Webhooks', suffix: '/webhooks', enabled: false }, // dev integrations
+  { title: 'Custom Fields', suffix: '/custom-fields', enabled: false },
+].filter((tab) => tab.enabled)
 
 export default function SettingsLayout({ children }: PropsWithChildren) {
   const params = useParams<{ organization: string }>()

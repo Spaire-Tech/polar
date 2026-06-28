@@ -1,9 +1,11 @@
 'use client'
 
 // Mobile-only bottom tab bar. Sticks to the bottom of the viewport and
-// mirrors the desktop `TopBar` tabs (Overview / Courses / Downloads /
-// Orders / Billing) with permission rules. Visible only at narrow
+// mirrors the desktop `TopBar` tabs (Overview / Courses / Community /
+// Enrollments / Billing) with permission rules. Visible only at narrow
 // widths — the CSS in portal.css hides it on desktop.
+//
+// Phase 4d: Downloads is hidden in both this bar and the desktop TopBar.
 
 import {
   useAuthenticatedCustomer,
@@ -63,6 +65,8 @@ const StackIcon = (active: boolean) => (
     <rect x="3" y="14" width="18" height="6" rx="1.5" />
   </svg>
 )
+// Retained for when the Downloads tab is restored (Phase 4d).
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const TrayIcon = (active: boolean) => (
   <svg
     width="22"
@@ -169,17 +173,19 @@ const buildTabs = (
         /\/portal\/courses\/[^/]+\/community/.test(p),
       icon: ChatIcon,
     },
-    {
-      href: `/${slug}/portal/downloads`,
-      label: 'Downloads',
-      matches: (p) => p.includes('/portal/downloads'),
-      icon: TrayIcon,
-    },
+    // Phase 4d: Downloads tab hidden from the student portal nav. Route file
+    // is kept; restore this entry to bring the tab back.
+    // {
+    //   href: `/${slug}/portal/downloads`,
+    //   label: 'Downloads',
+    //   matches: (p) => p.includes('/portal/downloads'),
+    //   icon: TrayIcon,
+    // },
   ]
   if (canAccessBilling) {
     tabs.push({
       href: `/${slug}/portal/orders`,
-      label: 'Orders',
+      label: 'Enrollments',
       matches: (p) => p.includes('/portal/orders'),
       icon: BagIcon,
     })
@@ -218,7 +224,7 @@ export const MobileTabBar = ({
   }
 
   return (
-    <nav className="sp-tabbar" aria-label="Customer portal sections">
+    <nav className="sp-tabbar" aria-label="Student portal sections">
       <div className="sp-tabbar-inner">
         {tabs.map((t) => {
           const active = t.matches(pathname)

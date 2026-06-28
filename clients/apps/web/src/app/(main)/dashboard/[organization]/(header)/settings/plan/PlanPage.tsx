@@ -13,7 +13,7 @@ export default function PlanPage({
   organization: schemas['Organization']
 }) {
   return (
-    <DashboardBody wrapperClassName="max-w-6xl" title="Plan">
+    <DashboardBody wrapperClassName="max-w-6xl" title="Subscription">
       <div className="flex flex-col gap-y-12">
         <Section id="plans">
           <SpairePlanCards organization={organization} />
@@ -30,7 +30,7 @@ export default function PlanPage({
         <Section id="plan_usage">
           <SectionDescription
             title="Usage this period"
-            description="What your organization has consumed against the limits on your current plan."
+            description="What you have consumed against the limits on your current plan."
           />
           <QuotaUsageCard organization={organization} />
         </Section>

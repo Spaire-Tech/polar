@@ -55,7 +55,7 @@ const Benefits = ({ benefits }: { benefits: schemas['Benefit'][] }) => {
   return (
     <Section>
       <Heading as="h2" className="text-lg font-bold">
-        Included benefits
+        What's included
       </Heading>
       {benefits.map((benefit, index) => (
         <Benefit key={index} benefit={benefit} />

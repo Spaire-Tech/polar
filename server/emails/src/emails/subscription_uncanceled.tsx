@@ -15,18 +15,18 @@ export function SubscriptionUncanceled({
 }: schemas['SubscriptionUncanceledProps']) {
   return (
     <WrapperOrganization organization={organization}>
-      <Preview>Your subscription to {product.name} is now uncanceled</Preview>
+      <Preview>Your enrollment in {product.name} is now uncanceled</Preview>
       <Section>
         <Heading as="h1" className="text-xl font-bold text-gray-900">
-          Your subscription is now uncanceled
+          Your enrollment is now uncanceled
         </Heading>
         <BodyText>
-          Your subscription to <span className="font-bold">{product.name}</span>{' '}
+          Your enrollment in <span className="font-bold">{product.name}</span>{' '}
           is no longer canceled.
         </BodyText>
       </Section>
       <Section className="my-8 text-center">
-        <Button href={url}>Manage my subscription</Button>
+        <Button href={url}>Manage my enrollment</Button>
       </Section>
       <Section className="mt-6 border-t border-gray-200 pt-6">
         <Text className="text-sm text-gray-600">

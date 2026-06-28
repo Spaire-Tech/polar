@@ -16,7 +16,7 @@ export function CustomerSessionCode({
   return (
     <WrapperOrganization organization={organization}>
       <Preview>
-        Here is your code to access your {organization.name} purchases
+        Here is your code to access your {organization.name} courses
       </Preview>
       <IntroWithHi>
         Here is your code to access your {organization.name}{' '}

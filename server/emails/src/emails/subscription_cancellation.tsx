@@ -14,7 +14,7 @@ function BenefitsSection({ benefits }: { benefits: any[] }) {
   return (
     <>
       <BodyText>
-        Meanwhile, you will continue to have access to the following benefits:
+        Meanwhile, you will continue to have access to the following:
       </BodyText>
       <ul className="list-disc space-y-1 pl-6">
         {benefits.map((benefit, index) => (
@@ -40,25 +40,25 @@ export function SubscriptionCancellation({
 
   return (
     <WrapperOrganization organization={organization}>
-      <Preview>Your subscription to {product.name} has been canceled</Preview>
+      <Preview>Your enrollment in {product.name} has been canceled</Preview>
       <Section>
         <Heading as="h1" className="text-xl font-bold text-gray-900">
-          Your subscription has been canceled
+          Your enrollment has been canceled
         </Heading>
         <BodyText>
-          We're sorry to see you go! Your subscription to{' '}
+          We're sorry to see you go! Your enrollment in{' '}
           <span className="font-bold">{product.name}</span> will remain active
           until <span className="font-bold">{endDate}</span>, after which it
           will be canceled.
         </BodyText>
         <BodyText>
-          If you change your mind, you can renew your subscription anytime
+          If you change your mind, you can renew your enrollment anytime
           before the end date.
         </BodyText>
         <BenefitsSection benefits={product.benefits} />
       </Section>
       <Section className="my-8 text-center">
-        <Button href={url}>Manage my subscription</Button>
+        <Button href={url}>Manage my enrollment</Button>
       </Section>
       <Section className="mt-6 border-t border-gray-200 pt-6">
         <Text className="text-sm text-gray-600">

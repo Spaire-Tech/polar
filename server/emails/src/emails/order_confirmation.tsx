@@ -24,14 +24,14 @@ export function OrderConfirmation({
 }: schemas['OrderConfirmationProps']) {
   return (
     <WrapperOrganization organization={organization}>
-      <Preview>Thank you for your order of {order.description}!</Preview>
+      <Preview>Thank you for enrolling in {order.description}!</Preview>
       <Section>
         <Heading as="h1" className="text-xl font-bold text-gray-900">
-          Thank you for your order!
+          Thank you for enrolling!
         </Heading>
         <BodyText>
-          Your order of <span className="font-bold">{order.description}</span>{' '}
-          is now processed.
+          Your enrollment in <span className="font-bold">{order.description}</span>{' '}
+          is now confirmed.
         </BodyText>
       </Section>
       {product && (
@@ -40,7 +40,7 @@ export function OrderConfirmation({
             <Benefits benefits={product.benefits} />
           )}
           <Section className="my-8 text-center">
-            <Button href={url}>Access my purchase</Button>
+            <Button href={url}>Access my course</Button>
           </Section>
         </>
       )}

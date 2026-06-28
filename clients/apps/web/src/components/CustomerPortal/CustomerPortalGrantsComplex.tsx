@@ -55,12 +55,12 @@ export const CustomerPortalGrantsComplex = ({
 
   return (
     <div className="flex w-full flex-col gap-4">
-      <h3 className="text-xl">Benefit Grants</h3>
+      <h3 className="text-xl">What&apos;s included</h3>
 
       {/* Search box */}
       <Input
         preSlot={<Search className="h-4 w-4" />}
-        placeholder="Search benefit grants..."
+        placeholder="Search course access..."
         value={searchQuery}
         onChange={onSearchChange}
       />
@@ -69,7 +69,7 @@ export const CustomerPortalGrantsComplex = ({
       <div className="relative">
         {grants.length === 0 && !isLoading ? (
           <div className=" rounded-xl border border-gray-200 py-8 text-center text-sm text-gray-500">
-            No benefit grants found
+            No course access found
           </div>
         ) : (
           <div className="flex flex-col gap-4">

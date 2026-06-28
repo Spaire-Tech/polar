@@ -19,11 +19,11 @@ export async function generateMetadata(props: {
 
   // Creator-controlled SEO (Settings → Search & sharing), with sensible
   // fallbacks to the existing name / description / cover image.
-  const title = settings?.meta_title ?? `${organization.name} — Spaire Space`
+  const title = settings?.meta_title ?? `${organization.name} — Courses`
   const description =
     settings?.meta_description ??
     settings?.description ??
-    `${organization.name} on Spaire`
+    `${organization.name}'s courses on Spaire`
   const ogImage =
     settings?.header_image_url ??
     organization.avatar_url ??

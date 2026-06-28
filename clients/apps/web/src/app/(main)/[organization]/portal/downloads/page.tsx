@@ -14,7 +14,7 @@ export async function generateMetadata(props: {
     params.organization,
   )
   return {
-    title: `Customer Portal | ${organization.name}`,
+    title: `Student Portal | ${organization.name}`,
   }
 }
 

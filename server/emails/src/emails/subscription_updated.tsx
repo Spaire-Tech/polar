@@ -25,19 +25,19 @@ export function SubscriptionUpdated({
 }: schemas['SubscriptionUpdatedProps']) {
   return (
     <WrapperOrganization organization={organization}>
-      <Preview>Your subscription has been updated to {product.name}</Preview>
+      <Preview>Your enrollment has been updated to {product.name}</Preview>
       <Section>
         <Heading as="h1" className="text-xl font-bold text-gray-900">
-          Your subscription has been updated
+          Your enrollment has been updated
         </Heading>
         <BodyText>
-          Your subscription has been successfully changed to{' '}
+          Your enrollment has been successfully changed to{' '}
           <span className="font-bold">{product.name}</span>.
         </BodyText>
       </Section>
       {product.benefits.length > 0 && <Benefits benefits={product.benefits} />}
       <Section className="my-8 text-center">
-        <Button href={url}>View my subscription</Button>
+        <Button href={url}>View my enrollment</Button>
       </Section>
       <Hr />
       {order ? (
