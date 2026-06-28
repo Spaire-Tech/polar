@@ -1,6 +1,8 @@
 import { OrganizationContextProvider } from '@/providers/maintainerOrganization'
 import PastDueBanner from '@/components/Settings/SpaireTier/PastDueBanner'
-import TrialBanner from '@/components/Settings/SpaireTier/TrialBanner'
+// Trial banner temporarily hidden per request — re-enable by uncommenting
+// this import and the <TrialBanner /> render below.
+// import TrialBanner from '@/components/Settings/SpaireTier/TrialBanner'
 import { getServerSideAPI } from '@/utils/client/serverside'
 import { getOrganizationBySlugOrNotFound } from '@/utils/organization'
 import { getUserOrganizations } from '@/utils/user'
@@ -132,10 +134,12 @@ export default async function Layout(props: {
       organizations={userOrganizations}
     >
       <PastDueBanner organizationId={organization.id} />
-      <TrialBanner
+      {/* Trial banner temporarily hidden per request — re-enable by
+          uncommenting this and the TrialBanner import above. */}
+      {/* <TrialBanner
         organizationId={organization.id}
         organizationSlug={organization.slug}
-      />
+      /> */}
       {children}
     </OrganizationContextProvider>
   )
