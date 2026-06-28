@@ -276,7 +276,7 @@ const generalRoutesList = (org?: schemas['Organization']): Route[] => [
         `/dashboard/${org?.slug}/products/checkout-links`,
       )
     },
-    if: true,
+    if: false,
   },
   {
     id: 'discounts',
@@ -288,7 +288,7 @@ const generalRoutesList = (org?: schemas['Organization']): Route[] => [
         `/dashboard/${org?.slug}/products/discounts`,
       )
     },
-    if: true,
+    if: false,
   },
   {
     id: 'marketing',
