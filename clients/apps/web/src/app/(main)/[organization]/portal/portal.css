@@ -8,6 +8,7 @@
 
 .spaire-portal {
   --sp-accent: #111111;
+  --sp-band: 255, 255, 255;
   --sp-accent-ink: #ffffff;
   --sp-bg: #ffffff;
   --sp-surface: #ffffff;
@@ -43,7 +44,7 @@
 
 .spaire-portal ::selection {
   background: var(--sp-ink);
-  color: #fff;
+  color: var(--sp-bg);
 }
 
 .spaire-portal button {
@@ -62,7 +63,7 @@
   position: sticky;
   top: 0;
   z-index: 40;
-  background: rgba(255, 255, 255, 0.85);
+  background: rgba(var(--sp-band), 0.85);
   backdrop-filter: saturate(160%) blur(14px);
   -webkit-backdrop-filter: saturate(160%) blur(14px);
   border-bottom: 1px solid var(--sp-line);
@@ -89,7 +90,7 @@
   height: 28px;
   border-radius: 7px;
   background: var(--sp-ink);
-  color: #fff;
+  color: var(--sp-bg);
   display: grid;
   place-items: center;
   font-weight: 700;
@@ -171,7 +172,7 @@
   height: 6px;
   border-radius: 50%;
   background: var(--sp-accent);
-  box-shadow: 0 0 0 2px #fff;
+  box-shadow: 0 0 0 2px var(--sp-bg);
 }
 .spaire-portal .sp-search {
   display: flex;
@@ -256,7 +257,7 @@
   top: calc(100% + 8px);
   right: 0;
   min-width: 220px;
-  background: #ffffff;
+  background: var(--sp-surface);
   border: 1px solid rgba(0, 0, 0, 0.06);
   border-radius: 12px;
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12);
@@ -342,7 +343,7 @@
 .spaire-portal .sp-chip {
   appearance: none;
   border: 1px solid var(--sp-line);
-  background: #fff;
+  background: var(--sp-surface);
   color: var(--sp-ink-2);
   padding: 9px 16px;
   border-radius: var(--sp-radius-pill);
@@ -357,11 +358,11 @@
 }
 .spaire-portal .sp-chip:hover {
   border-color: var(--sp-line-strong);
-  background: #fafafa;
+  background: var(--sp-surface-2);
 }
 .spaire-portal .sp-chip.is-active {
   background: var(--sp-ink);
-  color: #fff;
+  color: var(--sp-bg);
   border-color: var(--sp-ink);
 }
 
@@ -425,7 +426,7 @@
   top: 10px;
   left: 10px;
   background: var(--sp-ink);
-  color: #fff;
+  color: var(--sp-bg);
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.08em;
@@ -493,7 +494,7 @@
   appearance: none;
   border: 0;
   background: var(--sp-ink);
-  color: #fff;
+  color: var(--sp-bg);
   padding: 10px 16px;
   border-radius: 10px;
   font-family: var(--sp-font);
@@ -618,7 +619,7 @@
   border-radius: var(--sp-radius);
   overflow: hidden;
   margin-bottom: 36px;
-  background: #fff;
+  background: var(--sp-surface);
 }
 @media (max-width: 720px) {
   .spaire-portal .sp-stats {
@@ -658,7 +659,7 @@
   border: 1px solid var(--sp-line);
   border-radius: var(--sp-radius);
   background: var(--sp-ink);
-  color: #fff;
+  color: var(--sp-bg);
   padding: 28px 32px;
   display: flex;
   align-items: center;
@@ -708,7 +709,7 @@
 .spaire-portal .sp-plan-actions .sp-btn-light {
   appearance: none;
   border: 0;
-  background: #fff;
+  background: var(--sp-surface);
   color: var(--sp-ink);
   padding: 10px 16px;
   border-radius: 10px;
@@ -756,7 +757,7 @@
   border: 1px solid var(--sp-line);
   border-radius: var(--sp-radius);
   overflow: hidden;
-  background: #fff;
+  background: var(--sp-surface);
 }
 .spaire-portal .sp-order-row {
   border-bottom: 1px solid var(--sp-line);
@@ -781,7 +782,7 @@
   color: inherit;
 }
 .spaire-portal .sp-order-summary:hover {
-  background: #fafafa;
+  background: var(--sp-surface-2);
 }
 @media (max-width: 720px) {
   .spaire-portal .sp-order-summary {
@@ -852,7 +853,7 @@
   padding: 2px 8px;
   border: 1px solid var(--sp-line);
   border-radius: 6px;
-  background: #fff;
+  background: var(--sp-surface);
   color: var(--sp-ink-2);
   font-weight: 500;
   display: inline-block;
@@ -867,7 +868,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  background: #fff;
+  background: var(--sp-surface);
   flex-wrap: wrap;
 }
 .spaire-portal .sp-pm-row {
@@ -916,7 +917,7 @@
   padding: 2px 7px;
   border-radius: 999px;
   background: var(--sp-ink);
-  color: #fff;
+  color: var(--sp-bg);
   letter-spacing: 0.02em;
 }
 
@@ -937,7 +938,7 @@
   border: 1px solid var(--sp-line);
   border-radius: var(--sp-radius);
   overflow: hidden;
-  background: #fff;
+  background: var(--sp-surface);
 }
 .spaire-portal .sp-inv-head,
 .spaire-portal .sp-inv-row {
@@ -1180,7 +1181,7 @@
     border: 1px solid var(--sp-line);
     border-radius: 14px;
     padding: 14px 16px;
-    background: #fff;
+    background: var(--sp-surface);
   }
   .spaire-portal .sp-stat-value {
     font-size: 22px;
@@ -1233,7 +1234,7 @@
     border: 1px solid var(--sp-line);
     border-radius: 14px;
     padding: 10px;
-    background: #fff;
+    background: var(--sp-surface);
   }
   .spaire-portal .sp-dl-cover {
     width: 74px;
@@ -1279,7 +1280,7 @@
     border-radius: 10px;
     padding: 0;
     background: var(--sp-ink);
-    color: #fff;
+    color: var(--sp-bg);
   }
   .spaire-portal .sp-dl-actions .sp-btn span,
   .spaire-portal .sp-dl-actions .sp-btn .sp-btn-label {
@@ -1415,4 +1416,110 @@
   border-radius: 50%;
   background: var(--sp-muted-2);
   flex: none;
+}
+
+/* ============================================================
+   DARK MODE — the creator's landing theme carries into every
+   portal page (Overview / Courses / Downloads / Orders / Billing).
+   Applied as .sp-dark on the portal root by PortalShell when an
+   enrolled course's landing theme_mode is 'dark'.
+   ============================================================ */
+.spaire-portal.sp-dark {
+  --sp-accent: #f5f5f7;
+  --sp-accent-ink: #141416;
+  --sp-band: 20, 20, 22;
+  --sp-bg: #141416;
+  --sp-surface: #1d1d20;
+  --sp-surface-2: #232327;
+  --sp-line: rgba(245, 245, 247, 0.14);
+  --sp-line-strong: rgba(245, 245, 247, 0.28);
+  --sp-ink: #f5f5f7;
+  --sp-ink-2: rgba(245, 245, 247, 0.85);
+  --sp-muted: rgba(245, 245, 247, 0.6);
+  --sp-muted-2: rgba(245, 245, 247, 0.4);
+  color-scheme: dark;
+}
+
+/* ============================================================
+   DARK MODE — element-level fixes (nav, search, progress, leaks).
+   Light rules hardcode #f4f4f4 / #f0f0f0 / #ececec / white; these
+   override them so the whole portal reads dark.
+   ============================================================ */
+
+/* Active/hover tab: the pill goes light, so the label + icon on it
+   must go DARK (otherwise white-on-white is unreadable). */
+.spaire-portal.sp-dark .sp-tab:hover {
+  color: var(--sp-ink);
+  background: rgba(245, 245, 247, 0.1);
+}
+.spaire-portal.sp-dark .sp-tab.is-active {
+  color: var(--sp-accent-ink);
+  background: var(--sp-accent);
+}
+.spaire-portal.sp-dark .sp-iconbtn:hover {
+  background: rgba(245, 245, 247, 0.1);
+}
+.spaire-portal.sp-dark .sp-tabbar-item.is-active .sp-tabbar-icon {
+  background: rgba(245, 245, 247, 0.12);
+}
+
+/* Search — translucent "water glass" dark, no black focus ring. */
+.spaire-portal.sp-dark .sp-search {
+  background: rgba(245, 245, 247, 0.08);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  backdrop-filter: blur(14px) saturate(140%);
+  color: var(--sp-muted);
+  box-shadow: inset 0 0 0 1px rgba(245, 245, 247, 0.08);
+}
+.spaire-portal.sp-dark .sp-search:hover {
+  background: rgba(245, 245, 247, 0.14);
+  color: var(--sp-ink-2);
+}
+.spaire-portal.sp-dark .sp-search:focus-within {
+  box-shadow: inset 0 0 0 1px rgba(245, 245, 247, 0.18);
+  outline: none;
+}
+.spaire-portal.sp-dark .sp-search input,
+.spaire-portal.sp-dark .sp-search input:focus {
+  outline: none;
+  box-shadow: none;
+}
+
+/* Progress track — was #ececec (invisible against the light fill). */
+.spaire-portal.sp-dark .sp-progress {
+  background: rgba(245, 245, 247, 0.14);
+}
+
+/* Mobile bottom tab bar + active chip. */
+.spaire-portal.sp-dark .sp-tabbar {
+  background: rgba(20, 20, 22, 0.92);
+  border-top-color: var(--sp-line);
+}
+
+/* Misc light leaks that had no dark override. */
+.spaire-portal.sp-dark .sp-pill.is-pending {
+  background: rgba(245, 200, 120, 0.16);
+  color: #f0c27b;
+}
+.spaire-portal.sp-dark .sp-dl-format,
+.spaire-portal.sp-dark .sp-dl-done {
+  background: rgba(20, 20, 22, 0.85);
+  color: var(--sp-ink-2);
+}
+
+/* The page wrapper must paint dark all the way down — the (main)
+   layout behind the portal is bg-white, so a transparent .sp-page on
+   short pages (Courses / Downloads / Orders) leaked white below the
+   content. .sp-app already fills 100vh; make the routed area grow into
+   it and carry the theme bg. */
+.spaire-portal .sp-app {
+  background: var(--sp-bg);
+}
+.spaire-portal .sp-page,
+.spaire-portal .sp-course-portal {
+  flex: 1 1 auto;
+  background: var(--sp-bg);
+}
+.spaire-portal .sp-route {
+  min-height: 100%;
 }

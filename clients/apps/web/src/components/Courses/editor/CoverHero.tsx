@@ -21,6 +21,8 @@ export type CoverHeroProps = {
   enrollLabel?: string
   imageUrl?: string
   imagePosition?: string
+  /** Eyebrow dot colour (design accent; Yoga Foundations uses teal). */
+  dotColor?: string
   /** Size to the parent container instead of the viewport (picker tiles). */
   fill?: boolean
   onWatchTrailer?: () => void
@@ -38,6 +40,7 @@ export function CoverHero({
   enrollLabel = 'Enroll · $79',
   imageUrl = '/assets/onboarding/cover-fore.jpg',
   imagePosition = 'center 62%',
+  dotColor = '#e0482e',
   fill = false,
   onWatchTrailer,
   onEnroll,
@@ -57,7 +60,7 @@ export function CoverHero({
       <div className="hero-shade" />
 
       <div className="hero-eyebrow">
-        <span className="dot" />
+        <span className="dot" style={{ background: dotColor }} />
         {eyebrow}
       </div>
 
@@ -124,8 +127,8 @@ export function CoverHero({
             BlinkMacSystemFont, system-ui, sans-serif;
           position: relative;
           width: 100%;
-          height: 100vh;
-          min-height: 560px;
+          height: 100svh;
+          min-height: 640px;
           overflow: hidden;
           background: #0a0807;
           font-family: var(--po);

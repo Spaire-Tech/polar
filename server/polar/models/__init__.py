@@ -26,6 +26,8 @@ from .community_reaction import CommunityReaction
 from .community_settings import CommunitySettings
 from .community_tag import CommunityTag
 from .course import Course
+from .course_assistant import CourseAssistant
+from .course_assistant_question import CourseAssistantQuestion
 from .course_enrollment import CourseEnrollment
 from .course_lesson import CourseLesson
 from .course_lesson_progress import CourseLessonProgress
@@ -71,6 +73,7 @@ from .form_submission import FormSubmission
 from .held_balance import HeldBalance
 from .issue_reward import IssueReward
 from .lesson_comment import LessonComment
+from .lesson_comment_like import LessonCommentLike
 from .license_key import LicenseKey
 from .license_key_activation import LicenseKeyActivation
 from .login_code import LoginCode
@@ -157,6 +160,8 @@ __all__ = [
     "CommunitySettings",
     "CommunityTag",
     "Course",
+    "CourseAssistant",
+    "CourseAssistantQuestion",
     "CourseEnrollment",
     "CourseLesson",
     "CourseLessonProgress",
@@ -207,6 +212,7 @@ __all__ = [
     "LegacyRecurringProductPriceFixed",
     "LegacyRecurringProductPriceFree",
     "LessonComment",
+    "LessonCommentLike",
     "LicenseKey",
     "LicenseKeyActivation",
     "LoginCode",

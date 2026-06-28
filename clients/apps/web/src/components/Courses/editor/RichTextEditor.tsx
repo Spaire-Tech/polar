@@ -49,7 +49,7 @@ export function RichTextEditor({
         heading: { levels: [1, 2, 3] },
         link: {
           openOnClick: false,
-          HTMLAttributes: { class: 'text-blue-600 underline' },
+          HTMLAttributes: { class: 'text-[#0066cc] underline' },
         },
       }),
       Placeholder.configure({ placeholder }),
@@ -198,7 +198,7 @@ function Toolbar({
           <button
             type="button"
             onClick={onGenerate}
-            className="flex items-center gap-1 rounded-md border border-indigo-200 bg-indigo-50 px-2 py-1 text-xs font-medium text-indigo-700 hover:bg-indigo-100"
+            className="flex items-center gap-1 rounded-md border border-blue-200 bg-blue-50 px-2 py-1 text-xs font-medium text-[#0066cc] hover:bg-blue-100"
           >
             <AutoAwesomeOutlined sx={{ fontSize: 14 }} />
             {hasContent ? 'Regenerate' : 'Generate'}

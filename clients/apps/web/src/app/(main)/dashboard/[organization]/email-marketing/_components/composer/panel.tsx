@@ -33,6 +33,7 @@ export function SendOptions({
   setSo,
   onTouch,
   onTest,
+  sequence,
 }: {
   organization: schemas['Organization']
   senderEmail: string
@@ -42,6 +43,9 @@ export function SendOptions({
   setSo: (next: SendOptionsState) => void
   onTouch?: () => void
   onTest: () => void
+  /** Automation-sequence email: no Schedule send (the sequence's timing
+      controls when it goes out) and no "Send a test" (no broadcast). */
+  sequence?: boolean
 }) {
   const set = (patch: Partial<SendOptionsState>) => {
     setSo({ ...so, ...patch })
@@ -60,7 +64,7 @@ export function SendOptions({
 
   return (
     <div className="sopts">
-      <h2>Broadcast settings</h2>
+      <h2>{sequence ? 'Email settings' : 'Broadcast settings'}</h2>
 
       <div className="st-group">
         <h3>Sender</h3>
@@ -94,40 +98,47 @@ export function SendOptions({
 
       <div className="st-divider"></div>
 
-      <div className="opt-row" style={{ borderTop: 'none' }}>
-        <span className="oic">
-          <Icon name="clock" size={21} />
-        </span>
-        <span className="ot">
-          <b>Schedule send</b>
-          <p>Pick the day and time it goes out</p>
-        </span>
-        <Toggle on={so.schedule} onClick={() => set({ schedule: !so.schedule })} />
-      </div>
-      {so.schedule && (
-        <div className="opt-expand">
-          <div className="sched" style={{ marginTop: 0 }}>
-            <div className="sched-f">
-              <label>Date</label>
-              <input
-                type="date"
-                value={so.date}
-                onChange={(e) => set({ date: e.target.value })}
-              />
-            </div>
-            <div className="sched-f">
-              <label>Time</label>
-              <input
-                type="time"
-                value={so.time}
-                onChange={(e) => set({ time: e.target.value })}
-              />
-            </div>
+      {!sequence && (
+        <>
+          <div className="opt-row" style={{ borderTop: 'none' }}>
+            <span className="oic">
+              <Icon name="clock" size={21} />
+            </span>
+            <span className="ot">
+              <b>Schedule send</b>
+              <p>Pick the day and time it goes out</p>
+            </span>
+            <Toggle
+              on={so.schedule}
+              onClick={() => set({ schedule: !so.schedule })}
+            />
           </div>
-        </div>
+          {so.schedule && (
+            <div className="opt-expand">
+              <div className="sched" style={{ marginTop: 0 }}>
+                <div className="sched-f">
+                  <label>Date</label>
+                  <input
+                    type="date"
+                    value={so.date}
+                    onChange={(e) => set({ date: e.target.value })}
+                  />
+                </div>
+                <div className="sched-f">
+                  <label>Time</label>
+                  <input
+                    type="time"
+                    value={so.time}
+                    onChange={(e) => set({ time: e.target.value })}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+        </>
       )}
 
-      <div className="opt-row">
+      <div className="opt-row" style={sequence ? { borderTop: 'none' } : undefined}>
         <span className="oic">
           <Icon name="shield" size={21} />
         </span>
@@ -152,11 +163,14 @@ export function SendOptions({
         />
       </div>
 
-      <div className="st-divider"></div>
-
-      <button className="test-btn" onClick={onTest}>
-        <Icon name="flask" size={19} /> Send a test to myself
-      </button>
+      {!sequence && (
+        <>
+          <div className="st-divider"></div>
+          <button className="test-btn" onClick={onTest}>
+            <Icon name="flask" size={19} /> Send a test to myself
+          </button>
+        </>
+      )}
     </div>
   )
 }

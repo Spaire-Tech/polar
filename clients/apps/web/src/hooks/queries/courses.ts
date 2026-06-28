@@ -62,6 +62,9 @@ export type CourseLessonRead = {
   mux_asset_id: string | null
   mux_playback_id: string | null
   mux_status: string | null
+  // Course Assistant transcript pipeline state for video lessons:
+  // pending | ready | failed | unavailable (null = not started / not a video).
+  transcript_status?: string | null
   thumbnail_url: string | null
   thumbnail_object_position: string | null
   description?: string | null
@@ -100,6 +103,11 @@ export type HeroVariant = 'marquee' | 'cover'
 export type LessonCardVariant = 'spotlight' | 'catalog'
 export type TrialMode = 'free_preview' | 'lesson_sample'
 
+// Course Assistant strictness. "course_only" keeps the TA strictly on the
+// course material; "course_plus_general" (default) lets it fall back to
+// Claude's general subject knowledge, clearly labeled as such.
+export type AssistantStrictness = 'course_only' | 'course_plus_general'
+
 // Series-only "Episode Sample" block configuration. The creator picks one
 // lesson and a window inside it (start_seconds + duration_seconds), and
 // the public landing renders an auto-play-on-scroll sub-hero clip of that
@@ -135,6 +143,9 @@ export type CourseRead = {
   paywall_lesson_id: string | null
   paywall_position: number | null
   ai_generated: boolean
+  // Course Assistant (stateless TA): master switch + how far it may roam.
+  assistant_enabled: boolean
+  assistant_strictness: AssistantStrictness
   // Onboarding presentation choices — drive the public portal render.
   hero_variant: HeroVariant
   lesson_card_variant: LessonCardVariant
@@ -244,6 +255,9 @@ export type LandingOverrides = {
   portrait_url?: string | null
   // FAQ — AI-written Q/A pairs grounded in the course facts, editable.
   ai_faq?: { q: string; a: string }[] | null
+  // The hero band's badge chips ("All Levels", "Self-paced", …) — creator
+  // editable; absent means the design defaults.
+  badges?: string[] | null
 }
 
 async function courseApiFetch<T>(
@@ -280,7 +294,21 @@ export const useCourseById = (courseId: string | undefined) =>
             l.mux_upload_id && (!l.mux_playback_id || l.mux_status !== 'ready'),
         ),
       )
-      return hasPendingMux ? 5000 : false
+      // Keep polling while a video is still being transcribed for the Course
+      // Assistant, so the outline's transcription chip updates live (Mux
+      // becomes "ready" before captions exist, so the mux check alone stops
+      // too early).
+      const hasPendingTranscript = data.modules.some((m) =>
+        m.lessons.some(
+          (l) =>
+            l.content_type === 'video' &&
+            (!!l.mux_upload_id || !!l.mux_status) &&
+            l.transcript_status !== 'ready' &&
+            l.transcript_status !== 'failed' &&
+            l.transcript_status !== 'unavailable',
+        ),
+      )
+      return hasPendingMux || hasPendingTranscript ? 5000 : false
     },
   })
 
@@ -367,6 +395,8 @@ export const useUpdateCourse = () =>
         format?: CourseFormat
         paywall_enabled?: boolean
         paywall_position?: number | null
+        assistant_enabled?: boolean
+        assistant_strictness?: AssistantStrictness
         description?: string | null
         thumbnail_url?: string | null
         thumbnail_object_position?: string | null
@@ -592,6 +622,8 @@ export type CustomerCourseEnrollment = {
     thumbnail_url: string | null
     thumbnail_object_position: string | null
     total_duration_seconds: number
+    // The creator's landing theme — drives portal-wide dark mode.
+    theme_mode?: 'light' | 'dark'
   }
   progress: {
     total_lessons: number
@@ -1101,7 +1133,23 @@ export type LessonCommentRead = {
   content: string
   created_at: string
   is_own: boolean
-  author: { enrollment_id: string; name: string | null }
+  author: {
+    enrollment_id: string
+    name: string | null
+    avatar_url?: string | null
+    // The course's instructor — drives the badge next to the name.
+    is_instructor?: boolean
+  }
+  // Hearts — total count + whether the requesting customer has liked it.
+  likes?: number
+  liked?: boolean
+  // Instructor moderation (YouTube-style): a pinned comment sorts to the
+  // top; instructor_hearted is the single creator heart.
+  pinned?: boolean
+  instructor_hearted?: boolean
+  // True when the REQUESTING customer is the instructor — shows the
+  // pin / heart / delete-any controls.
+  viewer_is_instructor?: boolean
   // Soft-deleted parents come back as tombstones so their replies stay in
   // the tree. The frontend renders them as "Comment deleted" placeholders.
   deleted?: boolean
@@ -1141,6 +1189,34 @@ export const useCreateLessonComment = (
     },
   })
 
+// Toggle a heart on a lesson comment. The server flips the like for the
+// requesting customer (one per customer — no double-likes) and returns the
+// new count + state, which we write straight into the cached comment list.
+export const useLikeLessonComment = (
+  token: string | null | undefined,
+  courseId: string | undefined,
+  lessonId: string | null | undefined,
+) =>
+  useMutation({
+    mutationFn: (commentId: string) =>
+      portalApiFetch<{ liked: boolean; likes: number }>(
+        `/v1/customer-portal/courses/${courseId}/lessons/${lessonId}/comments/${commentId}/like`,
+        token!,
+        { method: 'POST' },
+      ),
+    onSuccess: (res, commentId) => {
+      getQueryClient().setQueryData<LessonCommentRead[]>(
+        ['lesson-comments', token, courseId, lessonId],
+        (prev) =>
+          prev?.map((c) =>
+            c.id === commentId
+              ? { ...c, liked: res.liked, likes: res.likes }
+              : c,
+          ),
+      )
+    },
+  })
+
 export const useDeleteLessonComment = (
   token: string | null | undefined,
   courseId: string | undefined,
@@ -1157,6 +1233,62 @@ export const useDeleteLessonComment = (
       getQueryClient().invalidateQueries({
         queryKey: ['lesson-comments', token, courseId, lessonId],
       })
+    },
+  })
+
+// Instructor-only: pin/unpin a comment (at most one pinned per lesson —
+// the server unpins siblings) and the single creator heart. Both write the
+// fresh state straight into the cached list.
+export const usePinLessonComment = (
+  token: string | null | undefined,
+  courseId: string | undefined,
+  lessonId: string | null | undefined,
+) =>
+  useMutation({
+    mutationFn: (commentId: string) =>
+      portalApiFetch<{ pinned: boolean }>(
+        `/v1/customer-portal/courses/${courseId}/lessons/${lessonId}/comments/${commentId}/pin`,
+        token!,
+        { method: 'POST' },
+      ),
+    onSuccess: (res, commentId) => {
+      getQueryClient().setQueryData<LessonCommentRead[]>(
+        ['lesson-comments', token, courseId, lessonId],
+        (prev) =>
+          prev?.map((c) =>
+            c.id === commentId
+              ? { ...c, pinned: res.pinned }
+              : // Single-pin semantics: pinning one unpins the rest.
+                res.pinned
+                ? { ...c, pinned: false }
+                : c,
+          ),
+      )
+    },
+  })
+
+export const useInstructorHeartComment = (
+  token: string | null | undefined,
+  courseId: string | undefined,
+  lessonId: string | null | undefined,
+) =>
+  useMutation({
+    mutationFn: (commentId: string) =>
+      portalApiFetch<{ hearted: boolean }>(
+        `/v1/customer-portal/courses/${courseId}/lessons/${lessonId}/comments/${commentId}/instructor-heart`,
+        token!,
+        { method: 'POST' },
+      ),
+    onSuccess: (res, commentId) => {
+      getQueryClient().setQueryData<LessonCommentRead[]>(
+        ['lesson-comments', token, courseId, lessonId],
+        (prev) =>
+          prev?.map((c) =>
+            c.id === commentId
+              ? { ...c, instructor_hearted: res.hearted }
+              : c,
+          ),
+      )
     },
   })
 

@@ -352,47 +352,31 @@ class EmailBroadcastService:
             to_email=to_email,
         )
 
-    async def _resolve_audience(
+    async def send_test_inline(
         self,
         session: AsyncSession,
-        broadcast: EmailBroadcast,
-    ) -> list[EmailSubscriber]:
-        """Resolve a broadcast's recipients.
+        *,
+        organization_id: UUID,
+        subject: str,
+        content_html: str,
+        preview_text: str | None,
+        sender_name: str | None,
+        to_email: str,
+    ) -> None:
+        """Send a test of in-progress authored content (no saved broadcast).
 
-        Audience precedence: inline filter_rules → saved segment → all active.
+        Used by the sequence email editor so a creator can preview the exact
+        email in their own inbox before wiring it into a sequence. Runs through
+        the same render + Resend path as a real broadcast test.
         """
-        repository = EmailBroadcastRepository.from_session(session)
-        if broadcast.filter_rules:
-            from polar.email_subscriber.service import (
-                email_subscriber as subscriber_service,
-            )
-
-            return list(
-                await subscriber_service.resolve_filter_subscribers(
-                    session,
-                    organization_id=broadcast.organization_id,
-                    filter_rules=broadcast.filter_rules,
-                )
-            )
-        if broadcast.segment_id is not None:
-            from polar.email_segment.service import email_segment as segment_service
-            from polar.models.email_segment import EmailSegment
-
-            segment = await session.get(EmailSegment, broadcast.segment_id)
-            if segment is not None:
-                subscriber_ids = await segment_service.get_subscriber_ids(
-                    session, segment
-                )
-                subscribers: list[EmailSubscriber] = []
-                for sid in subscriber_ids:
-                    sub = await session.get(EmailSubscriber, sid)
-                    if sub is not None:
-                        subscribers.append(sub)
-                return subscribers
-        return list(
-            await repository.get_active_subscribers_for_org(
-                broadcast.organization_id
-            )
+        enqueue_job(
+            "email_broadcast.send_test_inline",
+            organization_id=organization_id,
+            subject=subject,
+            content_html=content_html,
+            preview_text=preview_text,
+            sender_name=sender_name,
+            to_email=to_email,
         )
 
     async def send(
@@ -403,7 +387,39 @@ class EmailBroadcastService:
         """Initiate sending a broadcast. Creates send records and enqueues jobs."""
         repository = EmailBroadcastRepository.from_session(session)
 
-        subscribers = await self._resolve_audience(session, broadcast)
+        # Audience precedence: inline filter_rules → saved segment → all active.
+        if broadcast.filter_rules:
+            from polar.email_subscriber.service import (
+                email_subscriber as subscriber_service,
+            )
+
+            subscribers = await subscriber_service.resolve_filter_subscribers(
+                session,
+                organization_id=broadcast.organization_id,
+                filter_rules=broadcast.filter_rules,
+            )
+        elif broadcast.segment_id is not None:
+            from polar.email_segment.service import email_segment as segment_service
+            from polar.models.email_segment import EmailSegment
+
+            segment = await session.get(EmailSegment, broadcast.segment_id)
+            if segment is not None:
+                subscriber_ids = await segment_service.get_subscriber_ids(
+                    session, segment
+                )
+                subscribers = []
+                for sid in subscriber_ids:
+                    sub = await session.get(EmailSubscriber, sid)
+                    if sub is not None:
+                        subscribers.append(sub)
+            else:
+                subscribers = await repository.get_active_subscribers_for_org(
+                    broadcast.organization_id
+                )
+        else:
+            subscribers = await repository.get_active_subscribers_for_org(
+                broadcast.organization_id
+            )
 
         if not subscribers:
             broadcast.status = EmailBroadcastStatus.sent

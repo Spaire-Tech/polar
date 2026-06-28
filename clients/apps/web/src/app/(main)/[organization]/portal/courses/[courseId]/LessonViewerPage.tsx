@@ -1,14 +1,15 @@
 'use client'
 
+import { AskAssistant } from '@/components/Courses/assistant/AskAssistant'
+import { COURSE_ASSISTANT_UI_ENABLED } from '@/components/Courses/assistant/flag'
+import { WatchHome } from '@/components/Courses/watch/WatchHome'
 import {
   useCustomerCourse,
   useMarkLessonComplete,
-  type CustomerLessonRead,
 } from '@/hooks/queries/courses'
 import { schemas } from '@spaire/client'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
-import { CoursePortalView } from './CoursePortalView'
 import { MasterClassLessonViewer } from './MasterClassLessonViewer'
 
 interface FlatLesson {
@@ -93,10 +94,18 @@ const LessonViewerPage = ({
   const currentLesson =
     flatLessons.find((l) => l.id === selectedLessonId) ?? null
 
+  // Optional ?t=<seconds> deep-link (set by a Course Assistant citation) — the
+  // second to start the selected lesson's video at.
+  const tParam = searchParams.get('t')
+  const startSeconds = tParam ? Math.max(0, parseInt(tParam, 10) || 0) : 0
+
   const handleSelectLesson = (lesson: FlatLesson) => {
     setSelectedLessonId(lesson.id)
     const params = new URLSearchParams(searchParams.toString())
     params.set('lesson', lesson.id)
+    // Manual navigation clears any citation timestamp so it doesn't carry over
+    // to a different lesson.
+    params.delete('t')
     // push (not replace) so the browser back button returns to the
     // previous lesson / the course overview instead of blowing past it.
     router.push(`?${params.toString()}`, { scroll: false })
@@ -106,6 +115,7 @@ const LessonViewerPage = ({
     setSelectedLessonId(null)
     const params = new URLSearchParams(searchParams.toString())
     params.delete('lesson')
+    params.delete('t')
     router.push(`?${params.toString()}`, { scroll: false })
   }
 
@@ -114,8 +124,10 @@ const LessonViewerPage = ({
     markComplete.mutate(currentLesson.id)
   }
 
-  const handleSelectCustomerLesson = (lesson: CustomerLessonRead) => {
-    const flat = flatLessons.find((l) => l.id === lesson.id)
+  // Text / quiz lessons open the reading view (MasterClassLessonViewer);
+  // video lessons play inside WatchHome's player overlay.
+  const handleOpenTextLesson = (lessonId: string) => {
+    const flat = flatLessons.find((l) => l.id === lessonId)
     if (flat) handleSelectLesson(flat)
   }
 
@@ -140,6 +152,7 @@ const LessonViewerPage = ({
   // Show lesson viewer if a lesson is selected
   if (currentLesson) {
     return (
+      <>
       <MasterClassLessonViewer
         lesson={{
           id: currentLesson.id,
@@ -190,18 +203,34 @@ const LessonViewerPage = ({
         courseId={courseId}
         organizationSlug={organization.slug}
         customerName={data.customer_name ?? null}
+        startSeconds={startSeconds}
       />
+      {COURSE_ASSISTANT_UI_ENABLED && (
+        <AskAssistant courseId={courseId} token={customerSessionToken} />
+      )}
+      </>
     )
   }
 
-  // No lesson selected — render the redesigned course portal (cinematic
-  // hero, Apple-TV-style module rows, achievements + instructor).
+  // No lesson selected — render the Spaire Originals v2 watch page
+  // (now-playing hero + rail; player, comments, bookmarks, progress).
   return (
-    <CoursePortalView
-      data={data}
-      organizationName={organization.name}
-      onSelectLesson={handleSelectCustomerLesson}
-    />
+    <>
+      <WatchHome
+        organization={organization}
+        data={data}
+        lessons={flatLessons}
+        token={customerSessionToken}
+        onOpenTextLesson={handleOpenTextLesson}
+        onMarkComplete={(lessonId) => {
+          const lesson = flatLessons.find((l) => l.id === lessonId)
+          if (lesson && !lesson.completed) markComplete.mutate(lessonId)
+        }}
+      />
+      {COURSE_ASSISTANT_UI_ENABLED && (
+        <AskAssistant courseId={courseId} token={customerSessionToken} />
+      )}
+    </>
   )
 }
 

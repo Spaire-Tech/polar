@@ -77,6 +77,10 @@ class CourseLessonRead(TimestampedSchema):
     mux_asset_id: str | None = None
     mux_playback_id: str | None = None
     mux_status: str | None = None
+    # Course Assistant transcript pipeline state, surfaced so the editor can
+    # show whether a video lesson has been transcribed yet:
+    # pending | ready | failed | unavailable (null = not started / not a video).
+    transcript_status: str | None = None
     thumbnail_url: str | None = None
     thumbnail_object_position: str | None = None
     description: str | None = None
@@ -164,6 +168,11 @@ class CourseCreate(Schema):
     paywall_lesson_id: UUID4 | None = None
     paywall_position: int | None = None
     ai_generated: bool = False
+    # Course Assistant defaults ON for new courses.
+    assistant_enabled: bool = True
+    assistant_strictness: Literal["course_only", "course_plus_general"] = (
+        "course_plus_general"
+    )
     # Onboarding presentation choices — drive the public portal render.
     hero_variant: Literal["marquee", "cover"] = "cover"
     lesson_card_variant: Literal["spotlight", "catalog"] = "catalog"
@@ -190,6 +199,8 @@ class CourseUpdate(Schema):
     paywall_enabled: bool | None = None
     paywall_lesson_id: UUID4 | None = None
     paywall_position: int | None = None
+    assistant_enabled: bool | None = None
+    assistant_strictness: Literal["course_only", "course_plus_general"] | None = None
     hero_variant: Literal["marquee", "cover"] | None = None
     lesson_card_variant: Literal["spotlight", "catalog"] | None = None
     trial_mode: Literal["free_preview", "lesson_sample"] | None = None
@@ -253,6 +264,10 @@ class LessonCommentCreate(Schema):
 class LessonCommentAuthor(Schema):
     enrollment_id: UUID4
     name: str | None = None
+    avatar_url: str | None = None
+    # True when this author is the course's instructor (their customer
+    # email matches an org member's user email) — drives the badge.
+    is_instructor: bool = False
 
 
 class LessonCommentRead(Schema):
@@ -263,9 +278,26 @@ class LessonCommentRead(Schema):
     created_at: datetime
     is_own: bool
     author: LessonCommentAuthor
+    # Hearts — total count + whether the requesting customer has liked it.
+    likes: int = 0
+    liked: bool = False
+    # Instructor moderation, YouTube-style: a pinned comment sorts to the
+    # top; instructor_hearted is the single creator heart.
+    pinned: bool = False
+    instructor_hearted: bool = False
+    # True when the REQUESTING customer is the course's instructor — the
+    # client uses it to show pin / heart / delete-any controls.
+    viewer_is_instructor: bool = False
     # True when the comment has been soft-deleted but is included in the
     # response as a tombstone so its replies remain renderable.
     deleted: bool = False
+
+
+class LessonCommentLikeRead(Schema):
+    # Returned by the heart toggle endpoint: the requesting customer's new
+    # liked state plus the comment's refreshed total.
+    liked: bool
+    likes: int
 
 
 class CourseRead(TimestampedSchema):
@@ -280,6 +312,8 @@ class CourseRead(TimestampedSchema):
     paywall_lesson_id: UUID4 | None
     paywall_position: int | None
     ai_generated: bool
+    assistant_enabled: bool = True
+    assistant_strictness: str = "course_plus_general"
     hero_variant: str = "cover"
     lesson_card_variant: str = "catalog"
     trial_mode: str = "free_preview"

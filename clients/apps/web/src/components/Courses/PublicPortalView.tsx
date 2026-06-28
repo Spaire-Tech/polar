@@ -20,7 +20,7 @@ import type {
 import { api } from '@/utils/client'
 import { CONFIG } from '@/utils/config'
 import { schemas } from '@spaire/client'
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { toast } from '../Toast/use-toast'
 import { formatProductPrice } from './editor/EditableCourseLandingView'
 import {
@@ -28,12 +28,44 @@ import {
   type GeneratedGroup,
 } from './editor/GeneratedPortalPage'
 import { HlsVideo } from './HlsVideo'
+import { WatchPlayer } from './watch/WatchPlayer'
 
 type PlayingClip = {
   title: string
   mux_playback_id?: string | null
   thumbnail_url?: string | null
   trailer?: boolean
+}
+
+// Anonymous viewing progress for the landing's free preview — localStorage,
+// per course. The portal uses server-side enrollment progress; visitors who
+// haven't bought yet still get Resume + per-lesson progress here.
+type WatchState = { p: Record<string, number>; done: string[] }
+
+function readWatchState(courseId: string): WatchState {
+  try {
+    const raw = window.localStorage.getItem(`spaire_watch:${courseId}`)
+    if (raw) return JSON.parse(raw) as WatchState
+  } catch {
+    /* ignore */
+  }
+  return { p: {}, done: [] }
+}
+
+function writeWatchState(courseId: string, s: WatchState) {
+  try {
+    window.localStorage.setItem(`spaire_watch:${courseId}`, JSON.stringify(s))
+  } catch {
+    /* ignore */
+  }
+}
+
+function fmtRuntime(secs?: number | null): string {
+  const s = secs ?? 0
+  if (s <= 0) return '0 min'
+  const h = Math.floor(s / 3600)
+  const m = Math.round((s % 3600) / 60)
+  return h > 0 ? `${h}h ${m}m` : `${m} min`
 }
 
 export function PublicPortalView({
@@ -48,6 +80,7 @@ export function PublicPortalView({
   const isEpisodic = landing.format === 'series'
   const unit = isEpisodic ? 'episode' : 'lesson'
   const unitCap = isEpisodic ? 'Episode' : 'Lesson'
+  const metaDuration = fmtRuntime(landing.total_duration_seconds)
   const heroVariant = landing.hero_variant ?? 'cover'
   const cardVariant = landing.lesson_card_variant ?? 'catalog'
   const trialMode = landing.trial_mode ?? 'free_preview'
@@ -88,8 +121,23 @@ export function PublicPortalView({
     window.location.href = `/${organization.slug}/portal/courses/${landing.id}`
   }, [organization.slug, landing.id])
 
-  // ── Lightbox (free preview / trailer / sample) ───────────────────────────
+  // ── Playback — lessons open the v2 WatchPlayer; the trailer keeps a
+  //    simple lightbox (it's a plain file, not a lesson). ──────────────────
   const [playing, setPlaying] = useState<PlayingClip | null>(null)
+  const [watching, setWatching] = useState<CourseLandingLesson | null>(null)
+  const [watchState, setWatchState] = useState<WatchState>({
+    p: {},
+    done: [],
+  })
+  useEffect(() => {
+    setWatchState(readWatchState(landing.id))
+  }, [landing.id])
+
+  const lessonNumber = useCallback(
+    (lesson: CourseLandingLesson) =>
+      landing.lessons.findIndex((l) => l.id === lesson.id) + 1,
+    [landing.lessons],
+  )
 
   const isLocked = useCallback(
     (l: CourseLandingLesson) =>
@@ -104,16 +152,39 @@ export function PublicPortalView({
         return
       }
       if (!isLocked(lesson) && lesson.mux_playback_id) {
-        setPlaying({
-          title: lesson.title,
-          mux_playback_id: lesson.mux_playback_id,
-          thumbnail_url: lesson.thumbnail_url,
-        })
+        setWatching(lesson)
         return
       }
       void enroll()
     },
     [hasAccess, goToPortal, isLocked, enroll],
+  )
+
+  const onWatchProgress = useCallback(
+    (lessonId: string, frac: number) => {
+      setWatchState((s) => {
+        if (s.done.includes(lessonId)) return s
+        const next = { ...s, p: { ...s.p, [lessonId]: frac } }
+        writeWatchState(landing.id, next)
+        return next
+      })
+    },
+    [landing.id],
+  )
+  const onWatchComplete = useCallback(
+    (lessonId: string) => {
+      setWatchState((s) => {
+        const p = { ...s.p }
+        delete p[lessonId]
+        const next = {
+          p,
+          done: s.done.includes(lessonId) ? s.done : [...s.done, lessonId],
+        }
+        writeWatchState(landing.id, next)
+        return next
+      })
+    },
+    [landing.id],
   )
 
   // ── Labels — same vocabulary the wizard preview used ─────────────────────
@@ -122,18 +193,39 @@ export function PublicPortalView({
     [landing.lessons],
   )
   const cadence = recurring ? 'cancel anytime' : 'one-time purchase'
+  const enrollPriceSub = isFreeProduct
+    ? `${landing.lesson_count} ${unit}${landing.lesson_count === 1 ? '' : 's'} · Free`
+    : recurring
+      ? `Subscription · ${landing.lesson_count} ${unit}${landing.lesson_count === 1 ? '' : 's'} · cancel anytime`
+      : `One-time purchase · ${landing.lesson_count} ${unit}${landing.lesson_count === 1 ? '' : 's'} · Lifetime access`
   const sample = landing.sample
   const samplePlayable = Boolean(sample?.mux_playback_id)
 
+  // Resume target — the free-preview lesson the visitor is mid-way through
+  // (anonymous progress); drives both the hero label and where Play starts.
+  const resumeLesson = useMemo(() => {
+    return (
+      landing.lessons.find(
+        (l) =>
+          l.is_free_preview &&
+          l.mux_playback_id &&
+          !watchState.done.includes(l.id) &&
+          (watchState.p[l.id] ?? 0) > 0.01,
+      ) ?? null
+    )
+  }, [landing.lessons, watchState])
+
   const playLabel = hasAccess
     ? 'Continue Watching'
-    : isFreeProduct
-      ? 'Start Watching'
-      : trialMode === 'lesson_sample'
-        ? 'Play Sample'
-        : freeCount > 0
-          ? `Play ${unitCap} 1 Free`
-          : 'Watch Preview'
+    : resumeLesson
+      ? `Resume ${unitCap} ${lessonNumber(resumeLesson)}`
+      : isFreeProduct
+        ? 'Start Watching'
+        : trialMode === 'lesson_sample'
+          ? 'Play Sample'
+          : freeCount > 0
+            ? `Play ${unitCap} 1 Free`
+            : 'Watch Preview'
   const buyLabel = hasAccess
     ? 'Open Portal'
     : isFreeProduct
@@ -159,17 +251,25 @@ export function PublicPortalView({
       goToPortal()
       return
     }
-    const firstFree = landing.lessons.find(
-      (l) => l.is_free_preview && l.mux_playback_id,
-    )
-    if (firstFree) {
-      setPlaying({
-        title: firstFree.title,
-        mux_playback_id: firstFree.mux_playback_id,
-        thumbnail_url: firstFree.thumbnail_url,
-      })
-    } else void enroll()
-  }, [hasAccess, goToPortal, landing.lessons, enroll])
+    const target =
+      resumeLesson ??
+      landing.lessons.find(
+        (l) =>
+          l.is_free_preview &&
+          l.mux_playback_id &&
+          !watchState.done.includes(l.id),
+      ) ??
+      landing.lessons.find((l) => l.is_free_preview && l.mux_playback_id)
+    if (target) setWatching(target)
+    else void enroll()
+  }, [
+    hasAccess,
+    goToPortal,
+    resumeLesson,
+    landing.lessons,
+    watchState.done,
+    enroll,
+  ])
 
   const onBuy = useCallback(() => {
     if (hasAccess) goToPortal()
@@ -201,6 +301,32 @@ export function PublicPortalView({
   const aiInstructor = landing.landing_overrides?.ai_instructor ?? null
   const aiFaq = landing.landing_overrides?.ai_faq ?? []
   const portraitUrl = landing.landing_overrides?.portrait_url ?? null
+  const badges = landing.landing_overrides?.badges ?? undefined
+
+  // Match the document background to the page theme and kill overscroll
+  // bounce — otherwise rubber-banding past the top/bottom flashes the
+  // browser's white canvas behind the dark page (desktop and mobile).
+  useEffect(() => {
+    const root = document.documentElement
+    const body = document.body
+    const bg = dark ? '#141416' : '#ffffff'
+    const prev = {
+      rootBg: root.style.backgroundColor,
+      bodyBg: body.style.backgroundColor,
+      rootOver: root.style.overscrollBehaviorY,
+      bodyOver: body.style.overscrollBehaviorY,
+    }
+    root.style.backgroundColor = bg
+    body.style.backgroundColor = bg
+    root.style.overscrollBehaviorY = 'none'
+    body.style.overscrollBehaviorY = 'none'
+    return () => {
+      root.style.backgroundColor = prev.rootBg
+      body.style.backgroundColor = prev.bodyBg
+      root.style.overscrollBehaviorY = prev.rootOver
+      body.style.overscrollBehaviorY = prev.bodyOver
+    }
+  }, [dark])
 
   // ── Groups — per-lesson media only; placeholder otherwise ────────────────
   const flatLessons = landing.lessons
@@ -267,7 +393,7 @@ export function PublicPortalView({
   return (
     <div className="gpp-fullbleed" data-gpp-fullbleed>
       <GeneratedPortalPage
-        brand={organization.name ?? 'Spaire Originals'}
+        brand="Spaire Originals"
         title={landing.title ?? product.name}
         titleLines={heroTitleLines}
         eyebrow={heroEyebrow}
@@ -286,6 +412,7 @@ export function PublicPortalView({
         freeLine={freeLine}
         coverUrl={landing.thumbnail_url}
         coverPosition={landing.thumbnail_object_position}
+        trailerUrl={landing.trailer_url ?? null}
         sampleImageUrl={sample?.thumbnail_url ?? null}
         samplePlayable={samplePlayable}
         samplePlaybackId={sample?.mux_playback_id ?? null}
@@ -301,8 +428,11 @@ export function PublicPortalView({
         portraitUrl={portraitUrl}
         portraitCaption={aiInstructor?.caption ?? ''}
         faq={aiFaq}
+        badges={badges}
         groups={groups}
         lessonCount={landing.lesson_count}
+        metaDuration={metaDuration}
+        enrollPriceSub={enrollPriceSub}
         unit={unit}
         dark={dark}
         showTrailerButton={
@@ -392,6 +522,29 @@ export function PublicPortalView({
         </div>
       )}
 
+      {/* v2 WatchPlayer — free-preview lessons, with anonymous progress
+          (Resume + completion) persisted per course in localStorage. */}
+      {watching && (
+        <WatchPlayer
+          lesson={{
+            n: lessonNumber(watching),
+            title: watching.title,
+            description: watching.description,
+            thumbnailUrl: watching.thumbnail_url,
+            muxPlaybackId: watching.mux_playback_id,
+          }}
+          courseTitle={landing.title ?? product.name}
+          instructorName={landing.instructor_name}
+          startSec={
+            (watchState.p[watching.id] ?? 0) *
+            (watching.duration_seconds ?? 0)
+          }
+          onClose={() => setWatching(null)}
+          onProgress={(frac) => onWatchProgress(watching.id, frac)}
+          onComplete={() => onWatchComplete(watching.id)}
+        />
+      )}
+
       {/* Full-bleed escape — the storefront layout frames content in a
           padded max-width column; the course page owns the whole viewport.
           The horizontal breakout is self-contained (no ancestor knowledge);
@@ -410,14 +563,19 @@ export function PublicPortalView({
           margin-left: -50vw;
           margin-right: -50vw;
         }
-        /* Collapse the storefront column's own vertical spacing above the
-           page so the hero starts at the very top. */
+        /* Collapse the storefront column's own vertical spacing around the
+           page so the hero starts at the very top AND the dark page reaches
+           the very bottom — otherwise the column's light background shows
+           through its leftover bottom padding (the "white strip" under the
+           FAQ in dark mode). */
         :has(> [data-gpp-fullbleed]),
         :has(> div > [data-gpp-fullbleed]),
         :has(> main > div > [data-gpp-fullbleed]),
         :has(> div > main > div > [data-gpp-fullbleed]) {
           padding-top: 0 !important;
           margin-top: 0 !important;
+          padding-bottom: 0 !important;
+          margin-bottom: 0 !important;
         }
       `}</style>
     </div>

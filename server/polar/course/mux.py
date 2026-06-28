@@ -6,6 +6,7 @@ import hmac
 import json
 import logging
 import time
+from typing import Any
 
 import httpx
 
@@ -200,6 +201,279 @@ async def delete_asset(asset_id: str) -> bool:
         return True
     log.warning(
         "Mux delete returned non-success status",
+        extra={"asset_id": asset_id, "status": resp.status_code},
+    )
+    return False
+
+
+async def get_caption_vtt(
+    asset_id: str,
+    playback_id: str,
+    *,
+    language_code: str = "en",
+) -> str | None:
+    """Fetch the raw WebVTT of a ready auto-generated caption track.
+
+    Looks the ready text track up on the asset, then downloads its sidecar
+    ``.vtt`` from the Mux stream domain (signed when signing keys are
+    configured, since the asset uses signed playback). Returns the raw VTT
+    text, or None when there is no ready text track yet or the download
+    fails (the caller treats None as "not ready, retry later").
+    """
+    if not asset_id or not playback_id:
+        return None
+    if not settings.MUX_TOKEN_ID or not settings.MUX_TOKEN_SECRET:
+        return None
+    async with _client() as client:
+        try:
+            asset_resp = await client.get(f"/video/v1/assets/{asset_id}")
+            if asset_resp.status_code == 404:
+                return None
+            asset_resp.raise_for_status()
+            tracks = asset_resp.json()["data"].get("tracks", [])
+        except (httpx.HTTPError, KeyError, ValueError):
+            log.exception(
+                "Failed to read Mux asset tracks for transcript",
+                extra={"asset_id": asset_id},
+            )
+            return None
+
+    # Pick the best ready text track. Prefer the exact requested language,
+    # then any "en*" variant (Mux can return e.g. "en-US"), then the first
+    # ready text track — auto-generated captions are sometimes labelled
+    # differently than what we requested, and a too-strict match was leaving
+    # lessons stuck "pending" until the 2h reconcile timeout.
+    text_tracks = [
+        t
+        for t in tracks
+        if t.get("type") == "text" and t.get("status") == "ready"
+    ]
+    if not text_tracks:
+        log.info(
+            "No ready Mux text track yet for transcript",
+            extra={
+                "asset_id": asset_id,
+                "tracks": [
+                    {
+                        "type": t.get("type"),
+                        "status": t.get("status"),
+                        "language_code": t.get("language_code"),
+                        "text_source": t.get("text_source"),
+                    }
+                    for t in tracks
+                ],
+            },
+        )
+        return None
+    track = (
+        next(
+            (t for t in text_tracks if t.get("language_code") == language_code),
+            None,
+        )
+        or next(
+            (
+                t
+                for t in text_tracks
+                if (t.get("language_code") or "").startswith(language_code)
+            ),
+            None,
+        )
+        or text_tracks[0]
+    )
+    track_id = track.get("id")
+    if not track_id:
+        return None
+
+    base_url = f"{MUX_STREAM_BASE}/{playback_id}/text/{track_id}.vtt"
+    # The token must match the asset's *playback policy*, which a global
+    # signing-key config doesn't tell us: a signed token on a public playback
+    # id (or no token on a signed one) is 403'd by Mux. Try both the signed and
+    # unsigned URL so we work regardless of the individual asset's policy.
+    token = sign_playback_token(playback_id, audience="v")
+    candidate_urls = [base_url]
+    if token:
+        candidate_urls.insert(0, f"{base_url}?token={token}")
+
+    last_status: int | None = None
+    for url in candidate_urls:
+        try:
+            # follow_redirects=True is essential: stream.mux.com answers the
+            # text-track sidecar with a redirect to its CDN. Browsers follow it
+            # (so captions play in the player); httpx does NOT by default, so
+            # without this every fetch returns a 3xx and the transcript silently
+            # never lands — the exact "captions work but transcript doesn't" bug.
+            async with httpx.AsyncClient(
+                timeout=30, follow_redirects=True
+            ) as http_client:
+                resp = await http_client.get(url)
+        except httpx.HTTPError:
+            log.exception(
+                "Failed to download Mux caption VTT",
+                extra={"asset_id": asset_id, "track_id": track_id},
+            )
+            continue
+        if resp.status_code == 200 and resp.text.strip():
+            return resp.text
+        last_status = resp.status_code
+    log.warning(
+        "Mux caption VTT download returned non-success",
+        extra={
+            "asset_id": asset_id,
+            "track_id": track_id,
+            "status": last_status,
+            "signed_attempted": token is not None,
+        },
+    )
+    return None
+
+
+async def diagnose_caption_fetch(
+    asset_id: str | None,
+    playback_id: str | None,
+    *,
+    language_code: str = "en",
+) -> dict[str, Any]:
+    """Run the caption-fetch steps and report exactly what happens, for
+    creator-facing debugging. Never raises — returns a structured dict so we
+    can see, from inside the deployment, whether Mux produced a text track and
+    whether the .vtt download is authorized."""
+    out: dict[str, Any] = {"asset_id": asset_id, "playback_id": playback_id}
+    if not asset_id or not playback_id:
+        out["error"] = "missing_mux_ids"
+        return out
+    if not settings.MUX_TOKEN_ID or not settings.MUX_TOKEN_SECRET:
+        out["error"] = "mux_api_token_not_configured"
+        return out
+    async with _client() as client:
+        try:
+            r = await client.get(f"/video/v1/assets/{asset_id}")
+            out["asset_http"] = r.status_code
+            if r.status_code != 200:
+                out["error"] = "asset_fetch_failed"
+                return out
+            tracks = r.json()["data"].get("tracks", [])
+        except (httpx.HTTPError, KeyError, ValueError) as exc:
+            out["error"] = f"asset_fetch_error: {exc}"
+            return out
+
+    out["tracks"] = [
+        {
+            "type": t.get("type"),
+            "status": t.get("status"),
+            "language_code": t.get("language_code"),
+            "text_source": t.get("text_source"),
+        }
+        for t in tracks
+    ]
+    text_tracks = [
+        t for t in tracks if t.get("type") == "text" and t.get("status") == "ready"
+    ]
+    if not text_tracks:
+        out["error"] = "no_ready_text_track"
+        return out
+    track = (
+        next((t for t in text_tracks if t.get("language_code") == language_code), None)
+        or next(
+            (
+                t
+                for t in text_tracks
+                if (t.get("language_code") or "").startswith(language_code)
+            ),
+            None,
+        )
+        or text_tracks[0]
+    )
+    track_id = track.get("id")
+    out["chosen_track_id"] = track_id
+    out["signing_keys_configured"] = signing_keys_configured()
+    if not track_id:
+        out["error"] = "track_missing_id"
+        return out
+
+    base = f"{MUX_STREAM_BASE}/{playback_id}/text/{track_id}.vtt"
+    token = sign_playback_token(playback_id, audience="v")
+    attempts: list[tuple[str, str]] = []
+    if token:
+        attempts.append(("signed", f"{base}?token={token}"))
+    attempts.append(("unsigned", base))
+    for label, url in attempts:
+        try:
+            async with httpx.AsyncClient(
+                timeout=30, follow_redirects=True
+            ) as http_client:
+                resp = await http_client.get(url)
+            out[f"vtt_{label}_status"] = resp.status_code
+            out[f"vtt_{label}_len"] = len(resp.text or "")
+            out[f"vtt_{label}_redirected"] = len(resp.history) > 0
+        except httpx.HTTPError as exc:
+            out[f"vtt_{label}_error"] = str(exc)
+    return out
+
+
+async def request_auto_captions(
+    asset_id: str, *, language_code: str = "en", name: str = "English (auto)"
+) -> bool:
+    """Ask Mux to auto-generate subtitles for an asset's audio track.
+
+    Mux generates captions from the audio of the asset's primary audio
+    track. We look the audio track up on the ready asset, then POST a
+    generated-subtitles request for it. The finished caption track is
+    delivered on the HLS manifest, so players pick it up natively (the
+    WatchPlayer only shows its CC control once a text track exists).
+
+    Returns True when the request was accepted (or captions already exist),
+    False on a transient failure so the caller can retry. Idempotent:
+    re-requesting an existing language is treated as success.
+    """
+    if not asset_id or not settings.MUX_TOKEN_ID or not settings.MUX_TOKEN_SECRET:
+        return False
+    async with _client() as client:
+        try:
+            asset_resp = await client.get(f"/video/v1/assets/{asset_id}")
+            asset_resp.raise_for_status()
+            tracks = asset_resp.json()["data"].get("tracks", [])
+        except (httpx.HTTPError, KeyError, ValueError):
+            log.exception(
+                "Failed to read Mux asset tracks for captions",
+                extra={"asset_id": asset_id},
+            )
+            return False
+
+        audio_track = next(
+            (t for t in tracks if t.get("type") == "audio"), None
+        )
+        if audio_track is None:
+            log.warning(
+                "Mux asset has no audio track; skipping captions",
+                extra={"asset_id": asset_id},
+            )
+            return False
+
+        # Already has a generated/text subtitle in this language → done.
+        for t in tracks:
+            if t.get("type") == "text" and t.get("language_code") == language_code:
+                return True
+
+        track_id = audio_track["id"]
+        try:
+            resp = await client.post(
+                f"/video/v1/assets/{asset_id}/tracks/{track_id}/generate-subtitles",
+                json={
+                    "generated_subtitles": [
+                        {"language_code": language_code, "name": name}
+                    ]
+                },
+            )
+        except httpx.HTTPError:
+            log.exception(
+                "Failed to call Mux generate-subtitles",
+                extra={"asset_id": asset_id},
+            )
+            return False
+    if resp.status_code in (200, 201):
+        return True
+    log.warning(
+        "Mux generate-subtitles returned non-success status",
         extra={"asset_id": asset_id, "status": resp.status_code},
     )
     return False

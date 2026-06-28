@@ -3,6 +3,8 @@
 import { CourseRead } from '@/hooks/queries/courses'
 import AddOutlined from '@mui/icons-material/AddOutlined'
 import ChevronLeftOutlined from '@mui/icons-material/ChevronLeftOutlined'
+import DarkModeOutlined from '@mui/icons-material/DarkModeOutlined'
+import LightModeOutlined from '@mui/icons-material/LightModeOutlined'
 import { cn } from '@spaire/ui/lib/utils'
 
 export type TabId =
@@ -11,15 +13,19 @@ export type TabId =
   | 'community'
   | 'automations'
   | 'settings'
+  | 'auth'
   | 'pricing'
   | 'customers'
 
+// The Course Assistant is configured from the Settings tab (a toggle), not a
+// top-level tab of its own.
 const TABS: { id: TabId; label: string }[] = [
   { id: 'outline', label: 'Outline' },
   { id: 'customize', label: 'Landing' },
   { id: 'community', label: 'Community' },
   { id: 'automations', label: 'Automations' },
   { id: 'settings', label: 'Settings' },
+  { id: 'auth', label: 'Auth' },
   { id: 'pricing', label: 'Pricing' },
   { id: 'customers', label: 'Customers' },
 ]
@@ -30,6 +36,8 @@ export function CourseHeader({
   onTabChange,
   onAddContent,
   onBack,
+  dark,
+  onToggleDark,
 }: {
   course: CourseRead
   organizationSlug: string
@@ -40,6 +48,8 @@ export function CourseHeader({
   onAddContent?: () => void
   onBack?: () => void
   onClose?: () => void
+  dark?: boolean
+  onToggleDark?: () => void
 }) {
   const moduleCount = course.modules.length
   const lessonCount = course.modules.reduce(
@@ -55,7 +65,7 @@ export function CourseHeader({
           <button
             type="button"
             onClick={onBack}
-            className="flex items-center gap-0.5 py-1 text-[13px] tracking-tight text-blue-600 transition-opacity hover:opacity-70"
+            className="flex items-center gap-0.5 py-1 text-[13px] tracking-tight text-[#0066cc] transition-opacity hover:opacity-70"
           >
             <ChevronLeftOutlined sx={{ fontSize: 16 }} />
             Courses
@@ -71,10 +81,24 @@ export function CourseHeader({
           </div>
         </div>
         <div className="flex items-center justify-end gap-2">
+          {onToggleDark && (
+            <button
+              onClick={onToggleDark}
+              aria-label={dark ? 'Switch to light mode' : 'Switch to dark mode'}
+              title={dark ? 'Light mode' : 'Dark mode'}
+              className="flex h-7 w-7 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900"
+            >
+              {dark ? (
+                <LightModeOutlined sx={{ fontSize: 17 }} />
+              ) : (
+                <DarkModeOutlined sx={{ fontSize: 17 }} />
+              )}
+            </button>
+          )}
           {activeTab === 'outline' && (
             <button
               onClick={onAddContent}
-              className="flex items-center gap-1 rounded-full bg-blue-600 px-3.5 py-[5px] text-xs font-medium tracking-tight text-white transition-[filter] hover:brightness-110"
+              className="flex items-center gap-1 rounded-full bg-[#0066cc] px-3.5 py-[5px] text-xs font-medium tracking-tight text-white transition-[filter] hover:brightness-110"
             >
               <AddOutlined sx={{ fontSize: 12 }} />
               Add lesson
@@ -94,7 +118,7 @@ export function CourseHeader({
               className={cn(
                 '-mb-px border-b-2 px-4 py-2.5 text-[13px] tracking-tight transition-colors',
                 active
-                  ? 'border-gray-900 font-medium text-gray-900'
+                  ? 'border-[#0066cc] font-medium text-[#0066cc]'
                   : 'border-transparent text-gray-500 hover:text-gray-900',
               )}
             >

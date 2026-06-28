@@ -78,6 +78,7 @@ def _lesson_read(lesson) -> CourseLessonRead:
         mux_asset_id=lesson.mux_asset_id,
         mux_playback_id=lesson.mux_playback_id,
         mux_status=lesson.mux_status,
+        transcript_status=getattr(lesson, "transcript_status", None),
         thumbnail_url=lesson.thumbnail_url,
         description=getattr(lesson, "description", None),
         release_at=getattr(lesson, "release_at", None),
@@ -1165,6 +1166,53 @@ async def mux_webhook(
                     update["duration_seconds"] = int(duration)
                 await lesson_repo.update(lesson, update_dict=update)
 
+                # Auto-generated captions: when the lesson keeps captions on
+                # (the default; the lesson editor's Captions switch writes
+                # content.captions=false to opt out), ask Mux to generate an
+                # English subtitle track from the audio now that the asset is
+                # ready. Best-effort and idempotent — a failure here must not
+                # fail the webhook (the asset is already playable).
+                if target_status == "ready" and not previously_ready:
+                    captions_enabled = (lesson.content or {}).get(
+                        "captions", True
+                    )
+                    # Drive the Course Assistant transcript pipeline: request
+                    # captions and record whether a transcript is coming
+                    # ("pending") or never will ("unavailable"). The
+                    # transcript-track webhook (or the reconcile cron) fetches
+                    # the VTT once Mux finishes generating it.
+                    transcript_status = "unavailable"
+                    if captions_enabled:
+                        try:
+                            ok = await mux_client.request_auto_captions(asset_id)
+                            transcript_status = "pending" if ok else "unavailable"
+                        except Exception:
+                            log.exception(
+                                "course.captions.request_failed",
+                                lesson_id=str(lesson.id),
+                                asset_id=asset_id,
+                            )
+                            # Optimistic: the track may still arrive; let the
+                            # reconcile cron resolve it rather than giving up.
+                            transcript_status = "pending"
+                    await lesson_repo.update(
+                        lesson,
+                        update_dict={"transcript_status": transcript_status},
+                    )
+                    if transcript_status == "unavailable":
+                        # This lesson will never yield a transcript, so it may
+                        # be the last thing the assistant build was waiting on.
+                        from polar.worker import enqueue_job
+
+                        course_id = await lesson_repo.get_course_id_for_lesson(
+                            lesson.id
+                        )
+                        if course_id is not None:
+                            enqueue_job(
+                                "course_assistant.maybe_build",
+                                course_id=course_id,
+                            )
+
                 if (
                     not previously_ready
                     and duration
@@ -1273,4 +1321,67 @@ async def mux_webhook(
                             session,
                             organization_id=organization_id,
                             duration_seconds=-int(previous_duration),
+                        )
+
+    elif event_type == "video.asset.track.ready":
+        # An auto-generated caption track finished. Pull its transcript for the
+        # Course Assistant. Only text tracks matter here.
+        if data.get("type") == "text":
+            asset_id = data.get("asset_id")
+            if asset_id:
+                lesson = await lesson_repo.get_by_mux_asset_id(asset_id)
+                if lesson is not None:
+                    from polar.course_assistant.service import (
+                        course_assistant_service,
+                    )
+                    from polar.worker import enqueue_job
+
+                    # Fetch + store inline (the API path works); fall back to
+                    # the worker only if the fetch isn't ready yet.
+                    stored = False
+                    try:
+                        stored = (
+                            await course_assistant_service.fetch_and_store_transcript(
+                                session, lesson_id=lesson.id
+                            )
+                        )
+                    except Exception:
+                        log.exception(
+                            "course.transcript.inline_fetch_failed",
+                            lesson_id=str(lesson.id),
+                        )
+                    if stored:
+                        course_id = await lesson_repo.get_course_id_for_lesson(
+                            lesson.id
+                        )
+                        if course_id is not None:
+                            enqueue_job(
+                                "course_assistant.maybe_build", course_id=course_id
+                            )
+                    else:
+                        enqueue_job(
+                            "course_assistant.fetch_transcript",
+                            lesson_id=lesson.id,
+                        )
+
+    elif event_type == "video.asset.track.errored":
+        # Caption generation failed for this asset. Don't let it block the
+        # assistant build forever — mark it unavailable and re-check the course.
+        if data.get("type") == "text":
+            asset_id = data.get("asset_id")
+            if asset_id:
+                lesson = await lesson_repo.get_by_mux_asset_id(asset_id)
+                if lesson is not None:
+                    await lesson_repo.update(
+                        lesson, update_dict={"transcript_status": "unavailable"}
+                    )
+                    from polar.worker import enqueue_job
+
+                    course_id = await lesson_repo.get_course_id_for_lesson(
+                        lesson.id
+                    )
+                    if course_id is not None:
+                        enqueue_job(
+                            "course_assistant.maybe_build",
+                            course_id=course_id,
                         )

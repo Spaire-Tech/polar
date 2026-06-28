@@ -8,7 +8,8 @@ from sqlalchemy.orm import selectinload
 
 log = logging.getLogger(__name__)
 
-from polar.auth.models import is_customer, is_member
+from polar.auth.models import AuthSubject, Member, is_customer, is_member
+from polar.auth.models import Customer as CustomerSubject
 from polar.course import mux as mux_client
 from polar.course.repository import CourseLessonRepository
 from polar.organization.repository import OrganizationRepository
@@ -23,6 +24,7 @@ from polar.course.schemas import (
     CourseProgressRead,
     LessonCommentAuthor,
     LessonCommentCreate,
+    LessonCommentLikeRead,
     LessonCommentRead,
     QuizAnswerResult,
     QuizAttemptResult,
@@ -35,12 +37,14 @@ from polar.models.course_enrollment import CourseEnrollment
 from polar.models.course_lesson_progress import CourseLessonProgress
 from polar.models.product import Product
 from polar.models.product_media import ProductMedia
+from polar.models.user import User
+from polar.models.user_organization import UserOrganization
 from polar.openapi import APITag
 from polar.postgres import AsyncSession, get_db_session
 from polar.routing import APIRouter
 
 from .. import auth
-from ..utils import get_customer_id
+from ..utils import get_customer, get_customer_id
 
 router = APIRouter(prefix="/courses", tags=["customer_portal_courses", APITag.public])
 
@@ -52,7 +56,7 @@ def _serialize_lesson(
 
     When ``accessible`` is False (paywall- or drip-locked), strip body fields
     that would let a client bypass the lock (content, mux playback id,
-    description, attachments).
+    attachments).
     """
     base = {
         "id": str(lesson.id),
@@ -68,9 +72,12 @@ def _serialize_lesson(
         ),
         "comments_mode": getattr(lesson, "comments_mode", "visible"),
         "completed": str(lesson.id) in completed_ids,
+        # The one-line card description is marketing copy the public landing
+        # renders on every lesson card (locked included) — it sells the
+        # lesson, it doesn't reveal it. Only body fields below are gated.
+        "description": getattr(lesson, "description", None),
     }
     if accessible:
-        base["description"] = getattr(lesson, "description", None)
         base["content"] = lesson.content
         playback_id = getattr(lesson, "mux_playback_id", None)
         base["mux_playback_id"] = playback_id
@@ -83,7 +90,6 @@ def _serialize_lesson(
         base["mux_playback_url"] = None
         base["mux_status"] = getattr(lesson, "mux_status", None)
     else:
-        base["description"] = None
         base["content"] = None
         base["mux_playback_id"] = None
         base["mux_playback_url"] = None
@@ -323,6 +329,11 @@ async def list_enrolled_courses(
                     "thumbnail_url": thumbnail_url,
                     "thumbnail_object_position": course.thumbnail_object_position,
                     "total_duration_seconds": total_duration_seconds,
+                    # The creator's landing theme — the portal renders every
+                    # page in this theme (dark landing → dark portal).
+                    "theme_mode": (course.landing_overrides or {}).get(
+                        "theme_mode", "light"
+                    ),
                 },
                 "progress": {
                     "total_lessons": total_lessons,
@@ -997,22 +1008,68 @@ def _resolve_author_name(name: str | None, email: str | None) -> str | None:
     return None
 
 
+async def _instructor_emails(
+    session: AsyncSession, organization_id: UUID
+) -> set[str]:
+    """Lowercased emails of the course org's members. A portal customer
+    whose email matches one of these is the instructor — they authored the
+    course and moderate its discussion (badge, pin, heart, delete-any)."""
+    stmt = (
+        select(User.email)
+        .join(UserOrganization, UserOrganization.user_id == User.id)
+        .where(
+            UserOrganization.organization_id == organization_id,
+            UserOrganization.deleted_at.is_(None),
+        )
+    )
+    result = await session.execute(stmt)
+    return {row.email.lower() for row in result if row.email}
+
+
 async def _load_authors(
-    session: AsyncSession, enrollment_ids: set[UUID]
+    session: AsyncSession,
+    enrollment_ids: set[UUID],
+    instructor_emails: set[str] | None = None,
 ) -> dict[UUID, LessonCommentAuthor]:
     if not enrollment_ids:
         return {}
-    stmt = select(CourseEnrollment.id, Customer.name, Customer.email).join(
-        Customer, Customer.id == CourseEnrollment.customer_id
-    ).where(CourseEnrollment.id.in_(enrollment_ids))
+    stmt = select(
+        CourseEnrollment.id,
+        Customer.name,
+        Customer.email,
+        Customer.avatar_url,
+    ).join(Customer, Customer.id == CourseEnrollment.customer_id).where(
+        CourseEnrollment.id.in_(enrollment_ids)
+    )
     result = await session.execute(stmt)
     return {
         row.id: LessonCommentAuthor(
             enrollment_id=row.id,
             name=_resolve_author_name(row.name, row.email),
+            avatar_url=row.avatar_url,
+            is_instructor=bool(
+                instructor_emails
+                and row.email
+                and row.email.lower() in instructor_emails
+            ),
         )
         for row in result
     }
+
+
+async def _viewer_is_instructor(
+    session: AsyncSession,
+    auth_subject: AuthSubject[CustomerSubject | Member],
+    organization_id: UUID,
+    instructor_emails: set[str] | None = None,
+) -> tuple[bool, set[str]]:
+    """(is_instructor, instructor_emails) for the requesting customer.
+    Pass pre-fetched emails to skip the org-members query."""
+    if instructor_emails is None:
+        instructor_emails = await _instructor_emails(session, organization_id)
+    customer = get_customer(auth_subject)
+    email = (customer.email or "").lower()
+    return bool(email and email in instructor_emails), instructor_emails
 
 
 @router.get(
@@ -1037,7 +1094,21 @@ async def list_lesson_comments(
     comments = await course_service.list_lesson_comments(
         session, lesson_id=lesson_id
     )
-    authors = await _load_authors(session, {c.enrollment_id for c in comments})
+    # Instructor identity: badge authors whose customer email matches an
+    # org member, and tell the client whether the VIEWER is the instructor
+    # (drives pin / heart / delete-any controls).
+    viewer_instructor, instructor_emails = await _viewer_is_instructor(
+        session, auth_subject, enrollment.course.organization_id
+    )
+    authors = await _load_authors(
+        session, {c.enrollment_id for c in comments}, instructor_emails
+    )
+    # Hearts — total per comment + whether this enrollment has liked it.
+    # Tombstones never carry likes (their body is stripped too).
+    like_targets = [c.id for c in comments if c.deleted_at is None]
+    like_counts, liked_ids = await course_service.get_lesson_comment_likes(
+        session, comment_ids=like_targets, enrollment_id=enrollment.id
+    )
     return [
         LessonCommentRead(
             id=c.id,
@@ -1053,6 +1124,13 @@ async def list_lesson_comments(
                 c.enrollment_id,
                 LessonCommentAuthor(enrollment_id=c.enrollment_id, name=None),
             ),
+            likes=like_counts.get(c.id, 0),
+            liked=c.id in liked_ids,
+            pinned=c.pinned_at is not None and c.deleted_at is None,
+            instructor_hearted=(
+                c.instructor_hearted_at is not None and c.deleted_at is None
+            ),
+            viewer_is_instructor=viewer_instructor,
             deleted=c.deleted_at is not None,
         )
         for c in comments
@@ -1097,7 +1175,10 @@ async def create_lesson_comment(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-    authors = await _load_authors(session, {enrollment.id})
+    viewer_instructor, instructor_emails = await _viewer_is_instructor(
+        session, auth_subject, enrollment.course.organization_id
+    )
+    authors = await _load_authors(session, {enrollment.id}, instructor_emails)
     return LessonCommentRead(
         id=comment.id,
         lesson_id=comment.lesson_id,
@@ -1109,6 +1190,7 @@ async def create_lesson_comment(
             enrollment.id,
             LessonCommentAuthor(enrollment_id=enrollment.id, name=None),
         ),
+        viewer_is_instructor=viewer_instructor,
     )
 
 
@@ -1131,9 +1213,119 @@ async def delete_lesson_comment(
     comment = await course_service.get_lesson_comment(session, comment_id)
     if comment is None or comment.lesson_id != lesson_id:
         raise HTTPException(status_code=404, detail="Comment not found")
+    # Own comments are always deletable; the instructor moderates the whole
+    # discussion (YouTube-style) and can delete anyone's.
     if comment.enrollment_id != enrollment.id:
-        raise HTTPException(status_code=403, detail="Not your comment")
+        viewer_instructor, _ = await _viewer_is_instructor(
+            session, auth_subject, enrollment.course.organization_id
+        )
+        if not viewer_instructor:
+            raise HTTPException(status_code=403, detail="Not your comment")
     await course_service.delete_lesson_comment(session, comment)
+
+
+async def _get_moderatable_comment(
+    session: AsyncSession,
+    auth_subject: AuthSubject[CustomerSubject | Member],
+    course_id: UUID,
+    lesson_id: UUID,
+    comment_id: UUID,
+):
+    """Shared guard for pin/heart: lesson must be enrolled + accessible,
+    the comment live, and the viewer the course's instructor."""
+    customer_id = get_customer_id(auth_subject)
+    enrollment, _ = await _verify_lesson_in_enrolled_course(
+        session, customer_id, course_id, lesson_id
+    )
+    viewer_instructor, _ = await _viewer_is_instructor(
+        session, auth_subject, enrollment.course.organization_id
+    )
+    if not viewer_instructor:
+        raise HTTPException(
+            status_code=403, detail="Only the instructor can moderate comments"
+        )
+    comment = await course_service.get_lesson_comment(session, comment_id)
+    if (
+        comment is None
+        or comment.lesson_id != lesson_id
+        or comment.deleted_at is not None
+    ):
+        raise HTTPException(status_code=404, detail="Comment not found")
+    return comment
+
+
+@router.post(
+    "/{course_id}/lessons/{lesson_id}/comments/{comment_id}/pin",
+    summary="Toggle Lesson Comment Pin",
+)
+async def pin_lesson_comment(
+    course_id: UUID,
+    lesson_id: UUID,
+    comment_id: UUID,
+    auth_subject: auth.CustomerPortalUnionRead,
+    session: AsyncSession = Depends(get_db_session),
+) -> dict[str, bool]:
+    comment = await _get_moderatable_comment(
+        session, auth_subject, course_id, lesson_id, comment_id
+    )
+    pinned = await course_service.toggle_lesson_comment_pin(
+        session, comment=comment
+    )
+    return {"pinned": pinned}
+
+
+@router.post(
+    "/{course_id}/lessons/{lesson_id}/comments/{comment_id}/instructor-heart",
+    summary="Toggle Instructor Heart",
+)
+async def instructor_heart_comment(
+    course_id: UUID,
+    lesson_id: UUID,
+    comment_id: UUID,
+    auth_subject: auth.CustomerPortalUnionRead,
+    session: AsyncSession = Depends(get_db_session),
+) -> dict[str, bool]:
+    comment = await _get_moderatable_comment(
+        session, auth_subject, course_id, lesson_id, comment_id
+    )
+    hearted = await course_service.toggle_instructor_heart(
+        session, comment=comment
+    )
+    return {"hearted": hearted}
+
+
+@router.post(
+    "/{course_id}/lessons/{lesson_id}/comments/{comment_id}/like",
+    response_model=LessonCommentLikeRead,
+    summary="Toggle Lesson Comment Like",
+)
+async def like_lesson_comment(
+    course_id: UUID,
+    lesson_id: UUID,
+    comment_id: UUID,
+    auth_subject: auth.CustomerPortalUnionRead,
+    session: AsyncSession = Depends(get_db_session),
+) -> LessonCommentLikeRead:
+    customer_id = get_customer_id(auth_subject)
+    enrollment, lesson = await _verify_lesson_in_enrolled_course(
+        session, customer_id, course_id, lesson_id
+    )
+    # Hidden comments aren't shown, so they can't be liked either.
+    if getattr(lesson, "comments_mode", "visible") == "hidden":
+        raise HTTPException(
+            status_code=403, detail="Comments are disabled for this lesson"
+        )
+    comment = await course_service.get_lesson_comment(session, comment_id)
+    if (
+        comment is None
+        or comment.lesson_id != lesson_id
+        or comment.deleted_at is not None
+    ):
+        raise HTTPException(status_code=404, detail="Comment not found")
+    liked, likes = await course_service.toggle_lesson_comment_like(
+        session, comment=comment, enrollment_id=enrollment.id
+    )
+    return LessonCommentLikeRead(liked=liked, likes=likes)
 
 
 # ── Notes ──────────────────────────────────────────────────────────────────

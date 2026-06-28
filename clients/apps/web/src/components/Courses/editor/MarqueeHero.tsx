@@ -123,7 +123,21 @@ export function MarqueeHero({
 
       <div className="panel-title">
         <div className={`pt-eyebrow${rise} d1`}>{eyebrow}</div>
-        <h1 className={`pt-h${rise} d1`}>{title}</h1>
+        <h1 className={`pt-h${rise} d1`}>
+          {title.includes('\n')
+            ? // Explicit line breaks (e.g. "The Art of\nSouthern Cooking"):
+              // each line is its own non-wrapping block so it lands on exactly
+              // one line, ignoring pt-h's max-width — no stray third line.
+              title.split('\n').map((line, i) => (
+                <span
+                  key={i}
+                  style={{ display: 'block', whiteSpace: 'nowrap' }}
+                >
+                  {line}
+                </span>
+              ))
+            : title}
+        </h1>
       </div>
 
       <div className={`band${rise} d2`}>

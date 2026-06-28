@@ -1,9 +1,38 @@
-'use server'
-
 import { outlineSchema } from '@/components/Courses/schemas'
 import { getAuthenticatedUser } from '@/utils/user'
-import { anthropic } from '@ai-sdk/anthropic'
-import { streamObject } from 'ai'
+import { z } from 'zod'
+
+// Streaming generation can run ~40s; give the function room so the platform
+// doesn't kill it mid-stream (the "loads forever then fails" symptom).
+export const maxDuration = 300
+export const runtime = 'nodejs'
+
+// JSON Schema for Anthropic's structured outputs (output_config.format),
+// derived from the Zod schema so the two never drift. Computed lazily (NOT
+// at module load) and cached — a throw here must never take down the route
+// module itself (that 404s the whole endpoint).
+let cachedJsonSchema: Record<string, unknown> | null = null
+function outlineJsonSchema(): Record<string, unknown> {
+  if (cachedJsonSchema) return cachedJsonSchema
+  const js = z.toJSONSchema(outlineSchema) as Record<string, unknown>
+  delete js['$schema']
+  // The Zod schema marks arc/kicker/instructor/faq OPTIONAL so the client's
+  // partial-JSON streaming never stalls — but with constrained decoding the
+  // model legally OMITS optional fields, which silently dropped the
+  // instructor + FAQ sections from generated pages. The API-side schema
+  // requires everything the page renders; the client stays lenient.
+  js['required'] = ['arc', 'modules', 'instructor', 'faq', 'hero']
+  const moduleItems = (
+    (js['properties'] as Record<string, unknown> | undefined)?.[
+      'modules'
+    ] as Record<string, unknown> | undefined
+  )?.['items'] as Record<string, unknown> | undefined
+  if (moduleItems) {
+    moduleItems['required'] = ['kicker', 'title', 'description', 'lessons']
+  }
+  cachedJsonSchema = js
+  return js
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Spaire Original generation. Produces the STRUCTURE (modules/lessons) and all
@@ -162,42 +191,149 @@ export async function POST(req: Request) {
       : 'Always produce EXACTLY 4 modules, each with 3–6 lessons (never more than 6).'
   }\n- Every lesson/episode MUST have a non-empty "description"; every module a "kicker".\n\nReturn the JSON object now and stop. Do not add prose after the JSON.`
 
-  const result = streamObject({
-    model: anthropic('claude-opus-4-7'),
-    schema: outlineSchema,
-    system: systemPrompt,
-    // Generous budget: a full outline (modules + lessons + per-item
-    // descriptions + the hero block) can run long, and any truncation is a
-    // SILENT 'length' finish that yields a partial/empty object with no error
-    // thrown — exactly the "came back empty, backend says nothing" symptom.
-    // 3200 was occasionally clipping the stream before the modules completed.
-    maxOutputTokens: 16000,
-    prompt: intro,
-    onError: ({ error }) => {
-      // eslint-disable-next-line no-console
-      console.error('[outline] streamObject error:', error)
+  // ── Generation via Anthropic's native structured outputs ──────────────────
+  // We DON'T use the AI SDK's streamObject here: for claude-opus-4-7 the SDK
+  // falls back to a streaming tool-call that intermittently returns nothing
+  // (the "outline came back empty / 422" symptom). Anthropic's
+  // `output_config.format` (JSON-schema constrained decoding) is reliable —
+  // verified at 100% across course + series runs — so we call /v1/messages
+  // directly, stream the JSON text deltas, and re-emit them as the same plain
+  // text stream the client's useObject already consumes (it accumulates the
+  // text and parses partial JSON). The Zod schema is converted to JSON
+  // Schema lazily (see outlineJsonSchema).
+  const apiKey = process.env.ANTHROPIC_API_KEY
+  if (!apiKey) {
+    console.error('[outline] ANTHROPIC_API_KEY is not set')
+    return new Response('Generator not configured', { status: 500 })
+  }
+  // Build the endpoint EXACTLY like @ai-sdk/anthropic does (the provider that
+  // already worked in this environment): baseURL defaults to
+  // https://api.anthropic.com/v1 (overridable via ANTHROPIC_BASE_URL) and the
+  // request goes to `${baseURL}/messages`. Matching this avoids any URL
+  // mismatch with whatever gateway/base the deployment is configured for.
+  const base = (
+    process.env.ANTHROPIC_BASE_URL || 'https://api.anthropic.com/v1'
+  ).replace(/\/+$/, '')
+  const messagesUrl = `${base}/messages`
+
+  // Don't let a stuck upstream hang the request for minutes — abort well
+  // inside the function budget and surface a clean error instead.
+  const abort = new AbortController()
+  const abortTimer = setTimeout(() => abort.abort(), 240_000)
+
+  let upstream: Response
+  try {
+    upstream = await fetch(messagesUrl, {
+      method: 'POST',
+      signal: abort.signal,
+      headers: {
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'claude-opus-4-7',
+        max_tokens: 16000,
+        system: systemPrompt,
+        stream: true,
+        output_config: {
+          format: { type: 'json_schema', schema: outlineJsonSchema() },
+        },
+        messages: [{ role: 'user', content: intro }],
+      }),
+    })
+  } catch (err) {
+    clearTimeout(abortTimer)
+    console.error('[outline] upstream fetch failed:', err)
+    return new Response('Generator unavailable', { status: 502 })
+  }
+
+  if (!upstream.ok || !upstream.body) {
+    clearTimeout(abortTimer)
+    const detail = await upstream.text().catch(() => '')
+    console.error(
+      '[outline] upstream error:',
+      upstream.status,
+      detail.slice(0, 500),
+    )
+    return new Response('Generation failed', { status: upstream.status })
+  }
+
+  // Pipe the Anthropic SSE stream → a plain text stream of just the JSON text
+  // deltas, which is exactly what the client's useObject accumulates and
+  // parses. Using pipeThrough(TransformStream) (rather than a hand-pulled
+  // ReadableStream) is the idiomatic, backpressure-friendly primitive the
+  // runtime/proxy handle cleanly. The final outcome is logged so an empty
+  // generation is never silent.
+  const decoder = new TextDecoder()
+  let sseBuffer = ''
+  let jsonText = ''
+  let stopReason: string | null = null
+
+  const transform = new TransformStream<Uint8Array, Uint8Array>({
+    transform(chunk, controller) {
+      sseBuffer += decoder.decode(chunk, { stream: true })
+      let nl: number
+      while ((nl = sseBuffer.indexOf('\n')) >= 0) {
+        const line = sseBuffer.slice(0, nl)
+        sseBuffer = sseBuffer.slice(nl + 1)
+        if (!line.startsWith('data:')) continue
+        const payload = line.slice(5).trim()
+        if (!payload || payload === '[DONE]') continue
+        try {
+          const ev = JSON.parse(payload)
+          if (
+            ev.type === 'content_block_delta' &&
+            ev.delta?.type === 'text_delta' &&
+            typeof ev.delta.text === 'string'
+          ) {
+            jsonText += ev.delta.text
+            controller.enqueue(new TextEncoder().encode(ev.delta.text))
+          } else if (ev.type === 'message_delta' && ev.delta?.stop_reason) {
+            stopReason = ev.delta.stop_reason
+          } else if (ev.type === 'error') {
+            console.error('[outline] stream error event:', ev.error)
+          }
+        } catch {
+          /* ignore keepalive / non-JSON lines */
+        }
+      }
     },
-    onFinish: ({ object, error, usage }) => {
-      const moduleCount = object?.modules?.length ?? 0
-      const lessonCount =
-        object?.modules?.reduce(
-          (acc, m) => acc + (m.lessons?.length ?? 0),
-          0,
-        ) ?? 0
-      // Always log the outcome so an empty/partial generation is never silent.
-      // eslint-disable-next-line no-console
+    flush() {
+      clearTimeout(abortTimer)
+      let moduleCount = 0
+      let lessonCount = 0
+      try {
+        const obj = JSON.parse(jsonText)
+        moduleCount = obj?.modules?.length ?? 0
+        lessonCount =
+          obj?.modules?.reduce(
+            (acc: number, m: { lessons?: unknown[] }) =>
+              acc + (m.lessons?.length ?? 0),
+            0,
+          ) ?? 0
+      } catch {
+        /* partial/invalid — logged as an error below */
+      }
       console[moduleCount === 0 ? 'error' : 'log'](
         '[outline] finished:',
         JSON.stringify({
           format: isSeries ? 'series' : 'course',
           moduleCount,
           lessonCount,
-          validationFailed: !!error,
-          usage,
+          stopReason,
+          textLength: jsonText.length,
         }),
       )
     },
   })
 
-  return result.toTextStreamResponse()
+  return new Response(upstream.body.pipeThrough(transform), {
+    headers: {
+      'content-type': 'text/plain; charset=utf-8',
+      'cache-control': 'no-store',
+      // Defeat proxy buffering of the streamed response.
+      'x-accel-buffering': 'no',
+    },
+  })
 }

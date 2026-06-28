@@ -72,9 +72,31 @@ class EmailSequenceRepository(
         self,
         organization_id: UUID,
         trigger_type: EmailSequenceTriggerType,
+        *,
+        lesson_id: UUID | None = None,
+        course_id: UUID | None = None,
     ) -> list[EmailSequence]:
         statement = self.get_base_statement().where(
             EmailSequence.organization_id == organization_id,
+            EmailSequence.status == EmailSequenceStatus.active,
+            EmailSequence.trigger_type == trigger_type,
+        )
+        # Lesson-completion triggers only fan out to sequences scoped to the
+        # lesson that was just completed.
+        if lesson_id is not None:
+            statement = statement.where(EmailSequence.lesson_id == lesson_id)
+        # Course-lifecycle triggers only fan out to sequences for that course,
+        # so a milestone in one course never enters another course's sequence.
+        if course_id is not None:
+            statement = statement.where(EmailSequence.course_id == course_id)
+        return list(await self.get_all(statement))
+
+    async def list_active_by_trigger(
+        self, trigger_type: EmailSequenceTriggerType
+    ) -> list[EmailSequence]:
+        """All active sequences with this trigger, across every org — used by
+        the daily inactivity scan to find which courses to check."""
+        statement = self.get_base_statement().where(
             EmailSequence.status == EmailSequenceStatus.active,
             EmailSequence.trigger_type == trigger_type,
         )
@@ -211,6 +233,21 @@ class EmailSequenceRepository(
                 EmailSequenceStep.position == position,
                 EmailSequenceStep.deleted_at.is_(None),
             )
+        )
+        result = await self.session.execute(statement)
+        return result.scalar_one_or_none()
+
+    async def get_step_by_flow_id(
+        self, sequence_id: UUID, flow_step_id: str
+    ) -> EmailSequenceStep | None:
+        """Resolve the materialised step row for a flow_doc email node by its
+        stable client-authored id. Preferred over position lookup for flow
+        sequences — position arithmetic drifts once a flow has waits/branches,
+        but the node id is stable across edits."""
+        statement = select(EmailSequenceStep).where(
+            EmailSequenceStep.sequence_id == sequence_id,
+            EmailSequenceStep.flow_step_id == flow_step_id,
+            EmailSequenceStep.deleted_at.is_(None),
         )
         result = await self.session.execute(statement)
         return result.scalar_one_or_none()

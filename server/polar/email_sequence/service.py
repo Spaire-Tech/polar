@@ -217,7 +217,12 @@ class EmailSequenceService:
             course_id=course_id,
             lesson_id=lesson_id,
         )
-        return await repository.create(sequence, flush=True)
+        sequence = await repository.create(sequence, flush=True)
+        # The automation builder ships the authored email design inside
+        # trigger_config.flow_doc; materialise it into step rows the worker
+        # can actually send (see sync_flow_steps).
+        await self.sync_flow_steps(session, sequence)
+        return sequence
 
     async def update(
         self,
@@ -266,7 +271,12 @@ class EmailSequenceService:
             sequence.course_id = course_id
         if lesson_id is not None:
             sequence.lesson_id = lesson_id
-        return await repository.update(sequence)
+        sequence = await repository.update(sequence)
+        # Re-materialise the flow_doc's email nodes whenever the authored doc
+        # changes, so edits to the email body/subject reach the send path.
+        if trigger_config is not None:
+            await self.sync_flow_steps(session, sequence)
+        return sequence
 
     async def delete(self, session: AsyncSession, sequence: EmailSequence) -> None:
         repository = EmailSequenceRepository.from_session(session)
@@ -352,6 +362,101 @@ class EmailSequenceService:
             )
         await session.flush()
         return clone
+
+    async def sync_flow_steps(
+        self,
+        session: AsyncSession,
+        sequence: EmailSequence,
+    ) -> None:
+        """Materialise the flow_doc's email nodes into EmailSequenceStep rows.
+
+        The automation builder saves the authored email design *inside*
+        ``trigger_config.flow_doc`` — each email node carries its own
+        ``subject`` / ``content_html`` / ``content_json``. The worker's send
+        path, however, reads the body from a materialised EmailSequenceStep row
+        (so personalisation, quota, idempotency and analytics all hang off a
+        stable row). Without this bridge the send path finds no row and falls
+        back to an empty ``(no subject)`` email — the body the creator designed
+        never ships.
+
+        Idempotent: rows are aligned to nodes by ``flow_step_id``, updated in
+        place, created when new, and soft-deleted when their node disappears.
+        Rows with no ``flow_step_id`` (legacy/template steps) are left
+        untouched.
+        """
+        from .flow_engine import get_flow_doc
+
+        flow = get_flow_doc(sequence)
+        if flow is None:
+            return
+
+        # Collect email nodes in pre-order (root then branch arms), preserving
+        # the order the flow walker visits them so `position` lines up with the
+        # send path's email-ordinal fallback.
+        email_nodes: list[dict] = []
+
+        def _walk(nodes: object) -> None:
+            if not isinstance(nodes, list):
+                return
+            for node in nodes:
+                if not isinstance(node, dict):
+                    continue
+                if node.get("type") == "email":
+                    email_nodes.append(node)
+                elif node.get("type") == "branch":
+                    _walk(node.get("yes"))
+                    _walk(node.get("no"))
+
+        _walk(flow.get("steps"))
+
+        repository = EmailSequenceRepository.from_session(session)
+        existing = await repository.list_steps(sequence.id)
+        by_flow_id = {s.flow_step_id: s for s in existing if s.flow_step_id}
+
+        # The step's sender_name is only a fallback — the send path re-resolves
+        # the real From identity from the organization — but the column is
+        # NOT NULL, so seed it with the org name (or a safe default).
+        organization = await session.get(Organization, sequence.organization_id)
+        default_sender = organization.name if organization is not None else "Team"
+
+        seen: set[str] = set()
+        for position, node in enumerate(email_nodes):
+            node_id = node.get("id")
+            if not isinstance(node_id, str) or not node_id:
+                continue
+            seen.add(node_id)
+            subject = str(node.get("subject") or node.get("name") or "").strip()
+            content_html = node.get("content_html")
+            content_json = node.get("content_json")
+            row = by_flow_id.get(node_id)
+            if row is None:
+                session.add(
+                    EmailSequenceStep(
+                        sequence_id=sequence.id,
+                        position=position,
+                        delay_hours=0,
+                        subject=subject or "(no subject)",
+                        sender_name=default_sender,
+                        content_html=content_html,
+                        content_json=content_json,
+                        flow_step_id=node_id,
+                    )
+                )
+            else:
+                row.position = position
+                row.subject = subject or row.subject or "(no subject)"
+                row.content_html = content_html
+                row.content_json = content_json
+                if not row.sender_name:
+                    row.sender_name = default_sender
+
+        # Soft-delete rows whose node vanished from the flow. Only touch rows we
+        # own (flow-linked); legacy/template rows keep flow_step_id=None.
+        for row in existing:
+            if row.flow_step_id and row.flow_step_id not in seen:
+                row.deleted_at = utc_now()
+
+        await session.flush()
 
     # ── Steps ──────────────────────────────────────────────────────────────
 
@@ -604,11 +709,19 @@ class EmailSequenceService:
         subscriber_id: UUID,
         *,
         trigger_filter: dict | None = None,
+        lesson_id: UUID | None = None,
+        course_id: UUID | None = None,
     ) -> None:
-        """Find all active sequences matching this trigger and enqueue enrollment."""
+        """Find all active sequences matching this trigger and enqueue enrollment.
+
+        `lesson_id` narrows the match to sequences scoped to that lesson — used
+        by the per-lesson "completes this lesson" trigger so only that lesson's
+        automations enrol the subscriber. `course_id` narrows course-lifecycle
+        triggers (first lesson / halfway / completed) to that course's sequences.
+        """
         repository = EmailSequenceRepository.from_session(session)
         sequences = await repository.get_active_for_org_by_trigger(
-            organization_id, trigger_type
+            organization_id, trigger_type, lesson_id=lesson_id, course_id=course_id
         )
         from .audience import evaluate_audience
         from .tags import has_any_tag

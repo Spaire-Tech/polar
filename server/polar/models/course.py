@@ -73,6 +73,28 @@ class Course(RecordModel):
         Boolean, nullable=False, default=False
     )
 
+    # ── Course Assistant ─────────────────────────────────────────────────────
+    # The student-facing AI teaching assistant. Stateless: it answers from the
+    # live course (metadata + transcripts) plus Claude's general knowledge. No
+    # snapshot, no approval gate — these two columns are the whole config.
+    #
+    # assistant_enabled defaults ON for new courses; the creator can switch it
+    # off in course Settings.
+    assistant_enabled: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=True, server_default="true"
+    )
+    # assistant_strictness controls how far the TA may roam from the course.
+    #   "course_only"        — answer strictly from the course; route/orient
+    #                          rather than improvise when it isn't covered.
+    #   "course_plus_general" — course first, Claude's general subject knowledge
+    #                          as labeled backup (the default).
+    assistant_strictness: Mapped[str] = mapped_column(
+        String(32),
+        nullable=False,
+        default="course_plus_general",
+        server_default="course_plus_general",
+    )
+
     # ── Onboarding presentation choices ──────────────────────────────────────
     # These are picked in the create-course wizard and drive how the public
     # portal (now both landing + player) renders. They are NOT decorative:

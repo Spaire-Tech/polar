@@ -16,6 +16,7 @@ from polar.models.course_module import CourseModule
 from polar.models.course_note import CourseNote
 from polar.models.customer import Customer
 from polar.models.lesson_comment import LessonComment
+from polar.models.lesson_comment_like import LessonCommentLike
 from polar.models.product_benefit import ProductBenefit
 from polar.postgres import AsyncSession
 
@@ -26,6 +27,7 @@ from .repository import (
     CourseModuleRepository,
     CourseNoteRepository,
     CourseRepository,
+    LessonCommentLikeRepository,
     LessonCommentRepository,
 )
 from .schemas import (
@@ -684,6 +686,61 @@ class CourseService:
             lesson_id=lesson_id,
         )
 
+        # Per-lesson automations use a dedicated "completes this lesson"
+        # trigger: completing the lesson ENTERS the subscriber into any active
+        # sequence scoped to it (whereas fire_event above only resumes
+        # sequences already parked on an until-event wait).
+        if event_name == "course.lesson_completed" and lesson_id is not None:
+            from polar.email_sequence.service import (
+                email_sequence as sequence_service,
+            )
+            from polar.models.email_sequence import EmailSequenceTriggerType
+
+            await sequence_service.enroll_for_trigger(
+                session,
+                course.organization_id,
+                EmailSequenceTriggerType.on_lesson_completed,
+                subscriber.id,
+                lesson_id=lesson_id,
+            )
+
+        # Course-lifecycle automations enter the subscriber when they cross a
+        # milestone — and, crucially, the moment they ENROL. Scoped to this
+        # course so an event here never enrols into another course's sequence.
+        # fire_event above already resumes any sequence parked on an until-event
+        # wait for these same events.
+        #
+        # The "Student enrols" builder trigger is persisted as `on_purchase`
+        # (see clients automationTrigger.ts) but enrolling into a course is not
+        # a purchase — without this mapping the authored welcome email had no
+        # path to ever send. We scope the on_purchase fan-out to this course_id,
+        # so it only matches the course's own enrol automations and never the
+        # org-wide purchase sequences (which carry no course_id).
+        from polar.models.email_sequence import EmailSequenceTriggerType
+
+        milestone_trigger = {
+            "course.enrolled": EmailSequenceTriggerType.on_purchase,
+            "course.first_lesson_completed": (
+                EmailSequenceTriggerType.on_first_lesson_completed
+            ),
+            "course.mid_checkpoint": (
+                EmailSequenceTriggerType.on_course_progress_halfway
+            ),
+            "course.completed": EmailSequenceTriggerType.on_course_completed,
+        }.get(event_name)
+        if milestone_trigger is not None:
+            from polar.email_sequence.service import (
+                email_sequence as sequence_service,
+            )
+
+            await sequence_service.enroll_for_trigger(
+                session,
+                course.organization_id,
+                milestone_trigger,
+                subscriber.id,
+                course_id=course_id,
+            )
+
     async def _fire_lesson_completion_events(
         self,
         session: AsyncSession,
@@ -843,6 +900,89 @@ class CourseService:
     ) -> None:
         repo = LessonCommentRepository.from_session(session)
         await repo.soft_delete(comment)
+
+    async def toggle_lesson_comment_like(
+        self,
+        session: AsyncSession,
+        *,
+        comment: LessonComment,
+        enrollment_id: UUID,
+    ) -> tuple[bool, int]:
+        """Toggle the requesting enrollment's heart on a comment.
+
+        Returns (liked, likes) — the new liked state for this enrollment and
+        the comment's total like count. The unique (comment, enrollment)
+        constraint means a row can exist at most once, so a second call
+        hard-deletes it: there is no way to double-like.
+        """
+        repo = LessonCommentLikeRepository.from_session(session)
+        existing = await repo.get_like(comment.id, enrollment_id)
+        if existing is not None:
+            await session.delete(existing)
+            await session.flush()
+            liked = False
+        else:
+            await repo.create(
+                LessonCommentLike(
+                    lesson_comment_id=comment.id,
+                    enrollment_id=enrollment_id,
+                ),
+                flush=True,
+            )
+            liked = True
+        likes = await repo.count_for_comment(comment.id)
+        return liked, likes
+
+    async def get_lesson_comment_likes(
+        self,
+        session: AsyncSession,
+        *,
+        comment_ids: Sequence[UUID],
+        enrollment_id: UUID,
+    ) -> tuple[dict[UUID, int], set[UUID]]:
+        """Bulk like data for a listing: (counts by comment id, set of
+        comment ids the requesting enrollment has liked)."""
+        repo = LessonCommentLikeRepository.from_session(session)
+        counts = await repo.counts_for_comments(comment_ids)
+        liked = await repo.liked_comment_ids(comment_ids, enrollment_id)
+        return counts, liked
+
+    async def toggle_lesson_comment_pin(
+        self,
+        session: AsyncSession,
+        *,
+        comment: LessonComment,
+    ) -> bool:
+        """Pin/unpin a comment, YouTube-style: at most one pinned comment
+        per lesson, so pinning clears the pin on any sibling first.
+        Returns the comment's new pinned state."""
+        repo = LessonCommentRepository.from_session(session)
+        if comment.pinned_at is not None:
+            await repo.update(comment, update_dict={"pinned_at": None})
+            return False
+        await repo.clear_pins_for_lesson(comment.lesson_id)
+        await repo.update(
+            comment, update_dict={"pinned_at": datetime.now(tz=UTC)}
+        )
+        return True
+
+    async def toggle_instructor_heart(
+        self,
+        session: AsyncSession,
+        *,
+        comment: LessonComment,
+    ) -> bool:
+        """Toggle the single creator heart on a comment. Returns the new
+        hearted state."""
+        repo = LessonCommentRepository.from_session(session)
+        hearted = comment.instructor_hearted_at is None
+        await repo.update(
+            comment,
+            update_dict={
+                "instructor_hearted_at": datetime.now(tz=UTC) if hearted else None
+            },
+        )
+        return hearted
 
     # --- Flat lesson gating logic ---
 

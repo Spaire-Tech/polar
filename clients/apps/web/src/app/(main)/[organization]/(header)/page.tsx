@@ -15,22 +15,33 @@ export async function generateMetadata(props: {
     params.organization,
   )
 
+  const settings = organization.storefront_settings
+
+  // Creator-controlled SEO (Settings → Search & sharing), with sensible
+  // fallbacks to the existing name / description / cover image.
+  const title = settings?.meta_title ?? `${organization.name} — Spaire Space`
   const description =
-    organization.storefront_settings?.description ??
+    settings?.meta_description ??
+    settings?.description ??
     `${organization.name} on Spaire`
   const ogImage =
-    organization.storefront_settings?.header_image_url ??
+    settings?.header_image_url ??
+    organization.avatar_url ??
     `https://spairehq.com/og?org=${organization.slug}`
   const canonicalUrl = spacePageLink(organization)
+  // `index` defaults to true; only emit a robots directive when the creator
+  // has explicitly turned indexing off.
+  const indexable = settings?.index ?? true
 
   return {
-    title: `${organization.name} — Spaire Space`,
+    title,
     description,
     alternates: {
       canonical: canonicalUrl,
     },
+    robots: indexable ? undefined : { index: false, follow: false },
     openGraph: {
-      title: `${organization.name} — Spaire Space`,
+      title,
       description,
       siteName: 'Spaire',
       type: 'website',
@@ -49,11 +60,11 @@ export async function generateMetadata(props: {
           url: ogImage,
           width: 1200,
           height: 630,
-          alt: `${organization.name} — Spaire Space`,
+          alt: title,
         },
       ],
       card: 'summary_large_image',
-      title: `${organization.name} — Spaire Space`,
+      title,
       description,
     },
   }

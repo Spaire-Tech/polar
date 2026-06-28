@@ -172,7 +172,7 @@ export function WizardPortalPreview({
 
       <div className="flex-1 overflow-y-auto">
         <GeneratedPortalPage
-          brand={organization.name ?? 'Spaire Originals'}
+          brand="Spaire Originals"
           title={draft.title || 'Untitled Original'}
           titleLines={draft.titleLines}
           eyebrow={draft.eyebrow || 'A Spaire Original'}
@@ -195,6 +195,8 @@ export function WizardPortalPreview({
           coverUrl={draft.heroImageUrl}
           groups={groups}
           lessonCount={lessonCount}
+          metaDuration="0 min"
+          enrollPriceSub={`${lessonCount} ${unit}${lessonCount === 1 ? '' : 's'} · Lifetime access`}
           unit={unit}
           dark={dark}
           onToggleDark={toggleDark}

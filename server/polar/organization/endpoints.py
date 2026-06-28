@@ -1,6 +1,7 @@
+import hashlib
 from typing import cast
 
-from fastapi import Depends, Query, Response, status
+from fastapi import Depends, File, HTTPException, Query, Response, UploadFile, status
 from sqlalchemy.orm import joinedload
 
 from polar.account.schemas import Account as AccountSchema
@@ -14,14 +15,17 @@ from polar.email.sender import enqueue_email
 from polar.entitlements.service import entitlements as entitlements_service
 from polar.exceptions import (
     NotPermitted,
-    SpaireRequestValidationError,
     ResourceNotFound,
+    SpaireRequestValidationError,
     Unauthorized,
 )
 from polar.kit.pagination import ListResource, Pagination, PaginationParamsQuery
 from polar.models import Account, Organization
 from polar.openapi import APITag
-from polar.organization.repository import OrganizationReviewRepository
+from polar.organization.repository import (
+    OrganizationRepository,
+    OrganizationReviewRepository,
+)
 from polar.postgres import (
     AsyncReadSession,
     AsyncSession,
@@ -152,6 +156,97 @@ async def update(
         raise ResourceNotFound()
 
     return await organization_service.update(session, organization, organization_update)
+
+
+@router.post(
+    "/{id}/customer-portal-sign-in-image",
+    response_model=OrganizationSchema,
+    summary="Upload Customer Portal Sign-In Image",
+    responses={
+        200: {"description": "Image uploaded."},
+        403: {
+            "description": "You don't have the permission to update this organization.",
+            "model": NotPermitted.schema(),
+        },
+        404: OrganizationNotFound,
+    },
+    tags=[APITag.private],
+)
+async def upload_customer_portal_sign_in_image(
+    id: OrganizationID,
+    auth_subject: auth.OrganizationsWrite,
+    file: UploadFile = File(...),
+    session: AsyncSession = Depends(get_db_session),
+) -> Organization:
+    """Upload the image shown on the customer portal sign-in screen.
+
+    The portal sign-in is org-scoped, so this image applies to every product
+    and course in the organization. Configured from the course builder's
+    "Auth" tab.
+    """
+    from polar.integrations.aws.s3 import S3Service
+
+    organization = await organization_service.get(session, auth_subject, id)
+    if organization is None:
+        raise ResourceNotFound()
+
+    content_type = file.content_type or "image/jpeg"
+    if not content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="File must be an image")
+
+    data = await file.read()
+    if len(data) > 10 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="Image must be under 10 MB")
+
+    ext = (file.filename or "sign-in.jpg").rsplit(".", 1)[-1].lower()
+    if ext not in {"jpg", "jpeg", "png", "webp", "gif"}:
+        ext = "jpg"
+
+    # Content-addressed path so re-uploading a new image yields a fresh URL
+    # (and busts any CDN cache on the previous one).
+    digest = hashlib.sha256(data).hexdigest()[:12]
+    path = f"organization-portal/{organization.id}/sign-in-{digest}.{ext}"
+    s3 = S3Service(bucket=settings.S3_FILES_PUBLIC_BUCKET_NAME)
+    s3.upload(data, path, content_type)
+    image_url = s3.get_public_url(path)
+
+    repository = OrganizationRepository.from_session(session)
+    organization = await repository.update(
+        organization, update_dict={"customer_portal_sign_in_image_url": image_url}
+    )
+    return organization
+
+
+@router.delete(
+    "/{id}/customer-portal-sign-in-image",
+    response_model=OrganizationSchema,
+    summary="Remove Customer Portal Sign-In Image",
+    responses={
+        200: {"description": "Image removed; the portal reverts to the default."},
+        403: {
+            "description": "You don't have the permission to update this organization.",
+            "model": NotPermitted.schema(),
+        },
+        404: OrganizationNotFound,
+    },
+    tags=[APITag.private],
+)
+async def delete_customer_portal_sign_in_image(
+    id: OrganizationID,
+    auth_subject: auth.OrganizationsWrite,
+    session: AsyncSession = Depends(get_db_session),
+) -> Organization:
+    """Remove the custom sign-in image so the portal falls back to the
+    organization's most recent course thumbnail."""
+    organization = await organization_service.get(session, auth_subject, id)
+    if organization is None:
+        raise ResourceNotFound()
+
+    repository = OrganizationRepository.from_session(session)
+    organization = await repository.update(
+        organization, update_dict={"customer_portal_sign_in_image_url": None}
+    )
+    return organization
 
 
 @router.delete(

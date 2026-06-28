@@ -30,6 +30,7 @@ from polar.customer_portal.utils import get_customer_id
 from polar.file.s3 import S3_SERVICES
 from polar.kit.pagination import ListResourceWithCursorPagination
 from polar.models.community_comment import CommunityComment
+from polar.models.community_event import CommunityEvent
 from polar.models.community_post import CommunityPost
 from polar.models.file import FileServiceTypes
 from polar.openapi import APITag
@@ -54,8 +55,11 @@ from .schemas import (
     CommunityMemberRead,
     CommunityModuleChip,
     CommunityPinPayload,
+    CommunityPollRead,
+    CommunityPollVote,
     CommunityPostActivityPin,
     CommunityPostCreate,
+    CommunityPostEventRef,
     CommunityPostImageUploadResult,
     CommunityPostMediaRead,
     CommunityPostRead,
@@ -169,6 +173,7 @@ def _media_to_read(post: CommunityPost) -> list[CommunityPostMediaRead]:
     for m in post.media:
         public_url: str | None = None
         playback_url: str | None = None
+        external_url: str | None = m.external_url
         thumbnail_url: str | None = m.thumbnail_url
         if m.media_type == "image" and m.file is not None and m.file.is_uploaded:
             public_url = S3_SERVICES[
@@ -187,6 +192,7 @@ def _media_to_read(post: CommunityPost) -> list[CommunityPostMediaRead]:
                 id=m.id,
                 media_type=m.media_type,  # type: ignore[arg-type]
                 position=m.position,
+                external_url=external_url,
                 file_id=m.file_id,
                 public_url=public_url,
                 mux_playback_id=m.mux_playback_id,
@@ -214,6 +220,22 @@ def _module_chip_from_ctx(
     return CommunityModuleChip(module_id=module_id, module_title=module_title)
 
 
+def _event_ref(event: "CommunityEvent | None") -> CommunityPostEventRef | None:
+    if event is None:
+        return None
+    return CommunityPostEventRef(
+        id=event.id,
+        title=event.title,
+        type=event.type,  # type: ignore[arg-type]
+        start_at=event.start_at,
+        timezone=event.timezone,
+        duration_minutes=event.duration_minutes,
+        cover_url=event.cover_url,
+        cover_object_position=event.cover_object_position,
+        meeting_url=event.meeting_url,
+    )
+
+
 def _post_to_read(
     post: CommunityPost,
     *,
@@ -223,6 +245,8 @@ def _post_to_read(
     activity_id: UUID | None = None,
     activity_pin: CommunityPostActivityPin | None = None,
     module_chip: CommunityModuleChip | None = None,
+    poll: "CommunityPollRead | None" = None,
+    event: "CommunityEvent | None" = None,
 ) -> CommunityPostRead:
     return CommunityPostRead(
         id=post.id,
@@ -250,6 +274,8 @@ def _post_to_read(
         reactions=reactions,
         activity_id=activity_id,
         activity=activity_pin,
+        poll=poll,
+        event=_event_ref(event),
         created_at=post.created_at,
         modified_at=post.modified_at,
     )
@@ -296,6 +322,8 @@ async def _render_single_post(
         activity_id=ctx.get("activities", {}).get(post.id),
         activity_pin=_activity_pin_from_ctx(post, ctx),
         module_chip=_module_chip_from_ctx(post, ctx),
+        poll=ctx.get("polls", {}).get(post.id),
+        event=ctx.get("events", {}).get(post.id),
     )
 
 
@@ -380,6 +408,8 @@ async def list_posts_creator(
             activity_id=ctx.get("activities", {}).get(p.id),
             activity_pin=_activity_pin_from_ctx(p, ctx),
             module_chip=_module_chip_from_ctx(p, ctx),
+            poll=ctx.get("polls", {}).get(p.id),
+            event=ctx.get("events", {}).get(p.id),
         )
         for p in posts
     ]
@@ -435,6 +465,8 @@ async def preview_feed_creator(
             activity_id=ctx.get("activities", {}).get(p.id),
             activity_pin=_activity_pin_from_ctx(p, ctx),
             module_chip=_module_chip_from_ctx(p, ctx),
+            poll=ctx.get("polls", {}).get(p.id),
+            event=ctx.get("events", {}).get(p.id),
         )
         for p in posts
     ]
@@ -857,6 +889,34 @@ async def react_to_post_creator(
 
 
 @creator_router.post(
+    "/{course_id}/posts/{post_id}/poll/vote",
+    response_model=CommunityPollRead,
+    summary="Vote on Community Post Poll (Creator)",
+)
+async def vote_poll_creator(
+    course_id: CourseID,
+    post_id: PostID,
+    payload: CommunityPollVote,
+    auth_subject: CommunityCreatorWrite,
+    session: AsyncSession = Depends(get_db_session),
+) -> CommunityPollRead:
+    await _require_creator_owns_course(session, course_id, auth_subject)
+    user_id = _require_user_subject(auth_subject)
+    post = await community_service.vote_poll(
+        session,
+        course_id=course_id,
+        post_id=post_id,
+        option_id=payload.option_id,
+        voter_user_id=user_id,
+    )
+    poll = community_service.build_poll_read(
+        post.poll, viewer_enrollment_id=None, viewer_user_id=user_id
+    )
+    assert poll is not None
+    return poll
+
+
+@creator_router.post(
     "/{course_id}/comments/{comment_id}/react",
     response_model=CommunityReactionToggleResult,
     summary="Toggle Reaction on Community Comment (Creator)",
@@ -1053,6 +1113,8 @@ async def list_feed_customer(
             activity_id=ctx.get("activities", {}).get(p.id),
             activity_pin=_activity_pin_from_ctx(p, ctx),
             module_chip=_module_chip_from_ctx(p, ctx),
+            poll=ctx.get("polls", {}).get(p.id),
+            event=ctx.get("events", {}).get(p.id),
         )
         for p in posts
     ]
@@ -1327,6 +1389,37 @@ async def react_to_post_customer(
     return CommunityReactionToggleResult(
         emoji=payload.emoji, active=active, count=count, reactions=reactions
     )
+
+
+@customer_router.post(
+    "/{course_id}/posts/{post_id}/poll/vote",
+    response_model=CommunityPollRead,
+    summary="Vote on Community Post Poll",
+)
+async def vote_poll_customer(
+    course_id: CourseID,
+    post_id: PostID,
+    payload: CommunityPollVote,
+    auth_subject: CommunityCustomerWrite,
+    session: AsyncSession = Depends(get_db_session),
+) -> CommunityPollRead:
+    customer_id = get_customer_id(auth_subject)
+    enrollment = await community_service.assert_enrolled(
+        session, customer_id=customer_id, course_id=course_id
+    )
+    await community_service.assert_community_enabled(session, course_id)
+    post = await community_service.vote_poll(
+        session,
+        course_id=course_id,
+        post_id=post_id,
+        option_id=payload.option_id,
+        voter_enrollment_id=enrollment.id,
+    )
+    poll = community_service.build_poll_read(
+        post.poll, viewer_enrollment_id=enrollment.id, viewer_user_id=None
+    )
+    assert poll is not None
+    return poll
 
 
 @customer_router.post(

@@ -278,17 +278,25 @@ function SampleHlsPlayer({
 
 // ── Editor-only settings popover ───────────────────────────────────────────
 
-function SampleSettingsPopover({
+export function SampleSettingsPopover({
   open,
   onOpenChange,
   course,
   initial,
+  unit = 'episode',
+  lockedLessonId = null,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
   course: CourseRead
   initial: CourseRead['sample']
+  /** "episode" for series, "lesson" for module courses — labels only. */
+  unit?: 'episode' | 'lesson'
+  /** When set, the picker is hidden and the sample is scoped to this one
+   *  lesson — used when the editor opens from inside a single lesson. */
+  lockedLessonId?: string | null
 }) {
+  const unitCap = unit === 'lesson' ? 'Lesson' : 'Episode'
   const updateCourse = useUpdateCourse()
   const allLessons = useMemo(() => flattenLessonsWithIndex(course), [course])
   const playableLessons = useMemo(
@@ -302,28 +310,43 @@ function SampleSettingsPopover({
     [allLessons],
   )
 
+  // When locked to a lesson, that lesson IS the sample source (the picker is
+  // hidden). Whether this lesson already is the saved sample drives the
+  // default enabled/start/duration.
+  const lockedIsCurrent = Boolean(
+    lockedLessonId && initial?.lesson_id === lockedLessonId,
+  )
   const firstPlayableId = playableLessons[0]?.lesson.id ?? null
+  const defaultLessonId =
+    lockedLessonId ?? initial?.lesson_id ?? firstPlayableId
   const [enabled, setEnabled] = useState<boolean>(
-    initial?.enabled ?? Boolean(firstPlayableId),
+    lockedLessonId ? true : (initial?.enabled ?? Boolean(firstPlayableId)),
   )
-  const [lessonId, setLessonId] = useState<string | null>(
-    initial?.lesson_id ?? firstPlayableId,
-  )
+  const [lessonId, setLessonId] = useState<string | null>(defaultLessonId)
   const [startSeconds, setStartSeconds] = useState<number>(
-    initial?.start_seconds ?? 0,
+    lockedIsCurrent ? (initial?.start_seconds ?? 0) : 0,
   )
   const [durationSeconds, setDurationSeconds] = useState<number>(
-    initial?.duration_seconds ?? DEFAULT_DURATION_SEC,
+    lockedIsCurrent
+      ? (initial?.duration_seconds ?? DEFAULT_DURATION_SEC)
+      : DEFAULT_DURATION_SEC,
   )
 
   // Reset draft state when the popover (re)opens.
   useEffect(() => {
     if (!open) return
-    setEnabled(initial?.enabled ?? Boolean(firstPlayableId))
-    setLessonId(initial?.lesson_id ?? firstPlayableId)
-    setStartSeconds(initial?.start_seconds ?? 0)
-    setDurationSeconds(initial?.duration_seconds ?? DEFAULT_DURATION_SEC)
-  }, [open, initial, firstPlayableId])
+    setEnabled(
+      lockedLessonId ? true : (initial?.enabled ?? Boolean(firstPlayableId)),
+    )
+    setLessonId(lockedLessonId ?? initial?.lesson_id ?? firstPlayableId)
+    setStartSeconds(lockedIsCurrent ? (initial?.start_seconds ?? 0) : 0)
+    setDurationSeconds(
+      lockedIsCurrent
+        ? (initial?.duration_seconds ?? DEFAULT_DURATION_SEC)
+        : DEFAULT_DURATION_SEC,
+    )
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, initial, firstPlayableId, lockedLessonId])
 
   const selectedLesson = useMemo(
     () =>
@@ -353,6 +376,10 @@ function SampleSettingsPopover({
   const previewRef = useRef<HTMLVideoElement | null>(null)
   const [previewPlaying, setPreviewPlaying] = useState(false)
   const [hasEnded, setHasEnded] = useState(false)
+  // Preview audio is ON by default — the creator presses play themselves (a
+  // user gesture), so the browser allows sound. This is what lets them
+  // actually hear the cut they're choosing.
+  const [previewMuted, setPreviewMuted] = useState(false)
 
   const submitting = updateCourse.isPending
   const canSave = Boolean(lessonId) && !submitting
@@ -417,7 +444,7 @@ function SampleSettingsPopover({
               marginBottom: 8,
             }}
           >
-            Episode Sample
+            {unitCap} Sample
           </div>
           <h3
             style={{
@@ -428,10 +455,14 @@ function SampleSettingsPopover({
               fontFamily: HEADING_VAR,
             }}
           >
-            Configure sample
+            {lockedLessonId ? 'Free sample' : 'Configure sample'}
           </h3>
 
-          {playableLessons.length === 0 ? (
+          {(
+            lockedLessonId
+              ? !playableLessons.some((p) => p.lesson.id === lockedLessonId)
+              : playableLessons.length === 0
+          ) ? (
             <p
               style={{
                 fontSize: 13,
@@ -439,8 +470,9 @@ function SampleSettingsPopover({
                 lineHeight: 1.5,
               }}
             >
-              No episodes are ready to play yet. Upload at least one video to an
-              episode, then come back here.
+              {lockedLessonId
+                ? `This ${unit}'s video isn't ready to clip yet. Upload a video and wait for it to finish processing, then set a sample.`
+                : `No ${unit}s are ready to play yet. Upload at least one video to a ${unit}, then come back here.`}
             </p>
           ) : (
             <>
@@ -478,41 +510,57 @@ function SampleSettingsPopover({
                 />
               </label>
 
-              {/* Episode picker */}
-              <div style={{ marginBottom: 18 }}>
-                <div
-                  style={{
-                    fontSize: 11,
-                    fontWeight: 600,
-                    letterSpacing: '0.12em',
-                    textTransform: 'uppercase',
-                    color: 'oklch(0.52 0.008 280)',
-                    marginBottom: 8,
-                  }}
-                >
-                  Episode
+              {/* Episode picker — hidden when the editor is locked to one
+                  lesson (opened from inside that lesson). */}
+              {!lockedLessonId && (
+                <div style={{ marginBottom: 18 }}>
+                  <div
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 600,
+                      letterSpacing: '0.12em',
+                      textTransform: 'uppercase',
+                      color: 'oklch(0.52 0.008 280)',
+                      marginBottom: 8,
+                    }}
+                  >
+                    {unitCap}
+                  </div>
+                  <select
+                    value={lessonId ?? ''}
+                    onChange={(e) => setLessonId(e.target.value || null)}
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      borderRadius: 10,
+                      border: '1.5px solid oklch(0.92 0.003 280)',
+                      background: '#fff',
+                      fontSize: 13.5,
+                      fontFamily: FONT_VAR,
+                      color: 'oklch(0.18 0.008 280)',
+                    }}
+                  >
+                    {playableLessons.map(({ lesson, index }) => (
+                      <option key={lesson.id} value={lesson.id}>
+                        {`${unitCap} ${String(index + 1).padStart(2, '0')} · ${lesson.title}`}
+                      </option>
+                    ))}
+                  </select>
                 </div>
-                <select
-                  value={lessonId ?? ''}
-                  onChange={(e) => setLessonId(e.target.value || null)}
-                  style={{
-                    width: '100%',
-                    padding: '10px 12px',
-                    borderRadius: 10,
-                    border: '1.5px solid oklch(0.92 0.003 280)',
-                    background: '#fff',
-                    fontSize: 13.5,
-                    fontFamily: FONT_VAR,
-                    color: 'oklch(0.18 0.008 280)',
-                  }}
-                >
-                  {playableLessons.map(({ lesson, index }) => (
-                    <option key={lesson.id} value={lesson.id}>
-                      {`Episode ${String(index + 1).padStart(2, '0')} · ${lesson.title}`}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              )}
+
+              <p
+                style={{
+                  fontSize: 12.5,
+                  color: 'oklch(0.52 0.008 280)',
+                  lineHeight: 1.5,
+                  margin: '0 0 14px',
+                }}
+              >
+                Drag <b>Start at</b> to find the exact moment — the frame below
+                updates as you go — then set how long the clip runs. Press play
+                to hear the cut.
+              </p>
 
               {/* Inline scrub preview */}
               {selectedLesson && (
@@ -537,13 +585,58 @@ function SampleSettingsPopover({
                     startSeconds={startSeconds}
                     durationSeconds={durationSeconds}
                     playing={previewPlaying}
-                    muted
+                    muted={previewMuted}
                     onClipEnd={() => {
                       setPreviewPlaying(false)
                       setHasEnded(true)
                     }}
                     videoRef={previewRef}
                   />
+                  {/* Mute / unmute the preview. */}
+                  <button
+                    type="button"
+                    onClick={() => setPreviewMuted((m) => !m)}
+                    aria-label={
+                      previewMuted ? 'Unmute preview' : 'Mute preview'
+                    }
+                    style={{
+                      position: 'absolute',
+                      bottom: 10,
+                      right: 50,
+                      width: 32,
+                      height: 32,
+                      borderRadius: 999,
+                      background: 'rgba(0,0,0,0.55)',
+                      backdropFilter: 'blur(10px)',
+                      WebkitBackdropFilter: 'blur(10px)',
+                      border: '1px solid rgba(255,255,255,0.2)',
+                      color: '#fff',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    {previewMuted ? (
+                      <svg
+                        width="13"
+                        height="13"
+                        viewBox="0 0 24 24"
+                        fill="currentColor"
+                      >
+                        <path d="M5 9v6h4l5 5V4L9 9H5zm12.59 3l2.7-2.7-1.42-1.42-2.7 2.71-2.71-2.71-1.41 1.42 2.7 2.7-2.7 2.7 1.41 1.42 2.71-2.71 2.7 2.71 1.42-1.42-2.7-2.7z" />
+                      </svg>
+                    ) : (
+                      <svg
+                        width="13"
+                        height="13"
+                        viewBox="0 0 24 24"
+                        fill="currentColor"
+                      >
+                        <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3a4.5 4.5 0 0 0-2.5-4.03v8.06A4.5 4.5 0 0 0 16.5 12zM14 3.23v2.06a7 7 0 0 1 0 13.42v2.06a9 9 0 0 0 0-17.54z" />
+                      </svg>
+                    )}
+                  </button>
                   <button
                     type="button"
                     onClick={() => {
@@ -681,6 +774,40 @@ function SampleSettingsPopover({
                       startSeconds + durationSeconds,
                     )}`}
                   </span>
+                </div>
+                {/* Quick length presets — faster and clearer than hunting on
+                    the slider for a common clip length. */}
+                <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
+                  {[15, 30, 45, 60, 90].map((preset) => {
+                    const disabled = preset > maxDurationForLesson
+                    const active = durationSeconds === preset
+                    return (
+                      <button
+                        key={preset}
+                        type="button"
+                        disabled={disabled}
+                        onClick={() => setDurationSeconds(preset)}
+                        style={{
+                          flex: 1,
+                          padding: '7px 0',
+                          borderRadius: 8,
+                          border: `1px solid ${active ? 'oklch(0.18 0.008 280)' : 'oklch(0.92 0.003 280)'}`,
+                          background: active ? 'oklch(0.18 0.008 280)' : '#fff',
+                          color: active
+                            ? '#fff'
+                            : disabled
+                              ? 'oklch(0.82 0.003 280)'
+                              : 'oklch(0.32 0.008 280)',
+                          fontSize: 12,
+                          fontWeight: 600,
+                          fontFamily: FONT_VAR,
+                          cursor: disabled ? 'not-allowed' : 'pointer',
+                        }}
+                      >
+                        {preset}s
+                      </button>
+                    )
+                  })}
                 </div>
                 <input
                   type="range"
@@ -1104,8 +1231,7 @@ function SamplePlayerFrame({
           borderRadius: 'calc(28px * var(--radius-mul, 1))',
           overflow: 'hidden',
           background: '#000',
-          boxShadow:
-            '0 2px 6px rgba(0,0,0,0.06), 0 24px 60px rgba(0,0,0,0.10)',
+          boxShadow: '0 2px 6px rgba(0,0,0,0.06), 0 24px 60px rgba(0,0,0,0.10)',
           border: '1px solid oklch(0.92 0.003 280)',
         }}
       >

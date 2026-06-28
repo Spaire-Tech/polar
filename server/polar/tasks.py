@@ -6,6 +6,7 @@ from polar.community import activities_tasks as community_activities
 from polar.community import events_tasks as community_events
 from polar.community import tasks as community
 from polar.course import tasks as course
+from polar.course_assistant import tasks as course_assistant
 from polar.customer import tasks as customer
 from polar.customer_meter import tasks as customer_meter
 from polar.customer_notifications import tasks as customer_notifications
@@ -49,6 +50,7 @@ __all__ = [
     "community_activities",
     "community_events",
     "course",
+    "course_assistant",
     "customer",
     "customer_meter",
     "customer_notifications",

@@ -62,8 +62,10 @@ export interface CommunityLessonChip {
 
 export interface CommunityPostMediaRead {
   id: string
-  media_type: 'image' | 'video'
+  media_type: 'image' | 'video' | 'gif'
   position: number
+  /** GIF branch — the external (GIPHY) URL the client renders directly. */
+  external_url: string | null
   file_id: string | null
   public_url: string | null
   mux_playback_id: string | null
@@ -71,6 +73,29 @@ export interface CommunityPostMediaRead {
   mux_status: string | null
   duration_seconds: number | null
   thumbnail_url: string | null
+}
+
+export interface CommunityPollOptionRead {
+  id: string
+  text: string
+  votes: number
+}
+export interface CommunityPollRead {
+  options: CommunityPollOptionRead[]
+  total: number
+  /** The option id the viewer voted for, or null. */
+  my_vote: string | null
+}
+export interface CommunityPostEventRef {
+  id: string
+  title: string
+  type: CommunityEventType
+  start_at: string
+  timezone: string
+  duration_minutes: number
+  cover_url: string | null
+  cover_object_position: string | null
+  meeting_url: string | null
 }
 
 export interface CommunityPostRead {
@@ -105,6 +130,9 @@ export interface CommunityPostRead {
     submission_type: 'photo' | 'video' | 'text' | 'link'
     submission_count: number
   } | null
+  /** Composer extras. */
+  poll?: CommunityPollRead | null
+  event?: CommunityPostEventRef | null
   created_at: string
   modified_at: string | null
 }
@@ -141,6 +169,15 @@ export interface CommunitySettingsRead {
   watching_rail_threshold: number
   presence_blurb: string | null
   prompt_of_week_post_id: string | null
+  who_can_post: 'everyone' | 'approved'
+  moderate_new_members: boolean
+  profanity_filter: boolean
+  default_meeting_provider: 'zoom' | 'meet' | 'teams' | 'webex' | 'other'
+  member_rsvp: boolean
+  notify_new_submissions: boolean
+  notify_new_comments: boolean
+  weekly_digest: boolean
+  archived: boolean
   created_at: string
   modified_at: string | null
 }
@@ -265,14 +302,16 @@ const invalidateAllFeeds = (
   token: string | null | undefined,
   courseId: string,
 ) => {
+  const qc = getQueryClient()
   if (mode === 'customer' && token) {
-    getQueryClient().invalidateQueries({
-      queryKey: ['community-feed', token, courseId],
-    })
+    qc.invalidateQueries({ queryKey: ['community-feed', token, courseId] })
   } else {
-    getQueryClient().invalidateQueries({
-      queryKey: ['creator-community-feed', courseId],
-    })
+    // The creator hub renders useCreatorCommunityFeed (key
+    // 'creator-community-preview') and the moderation list keys on
+    // 'creator-community-posts'. Invalidate both (prefix match hits the
+    // filtered/cursor variants) so the feed refreshes in place.
+    qc.invalidateQueries({ queryKey: ['creator-community-preview', courseId] })
+    qc.invalidateQueries({ queryKey: ['creator-community-posts', courseId] })
   }
 }
 
@@ -399,16 +438,22 @@ export const useCommunityFeed = (
 
 export interface CommunityPostMediaCreateBody {
   // Image branch: composer uploads via /media/upload, passes file_id.
-  // Video branch (Phase 3A): composer creates an upload via
-  // /media/mux-upload, PUTs bytes to Mux, then passes mux_upload_id.
-  media_type?: 'image' | 'video'
+  // Video branch: composer creates an upload via /media/mux-upload,
+  // PUTs bytes to Mux, then passes mux_upload_id.
+  // GIF branch: composer passes the GIPHY media URL as external_url.
+  media_type?: 'image' | 'video' | 'gif'
   file_id?: string
   mux_upload_id?: string
+  external_url?: string
   position?: number
 }
 
+export interface CommunityPollCreateBody {
+  options: string[]
+}
+
 export interface CommunityPostCreateBody {
-  // Phase 3A: 'video' posts carry exactly one video entry in media[].
+  // 'video' posts carry exactly one video entry in media[].
   type?: 'text' | 'video'
   body: string
   title?: string | null
@@ -416,6 +461,8 @@ export interface CommunityPostCreateBody {
   lesson_id?: string | null
   tag_id?: string | null
   media?: CommunityPostMediaCreateBody[]
+  poll?: CommunityPollCreateBody | null
+  event_id?: string | null
 }
 
 const invalidateFeed = (token: string, courseId: string) => {
@@ -695,7 +742,7 @@ export const useTogglePostReaction = (
   // surface the user is actually looking at.
   const feedQueryKey =
     mode === 'creator'
-      ? (['creator-community-feed', courseId] as const)
+      ? (['creator-community-preview', courseId] as const)
       : (['community-feed', token, courseId] as const)
 
   // The customer feed is a useInfiniteQuery — its cached shape is
@@ -918,6 +965,11 @@ export const useDeleteCommunityTag = (courseId: string | undefined) =>
       getQueryClient().invalidateQueries({
         queryKey: creatorPostsKey(courseId),
       })
+      // Also refresh the hub feed (useCreatorCommunityFeed →
+      // 'creator-community-preview'); prefix match hits the filtered key.
+      getQueryClient().invalidateQueries({
+        queryKey: ['creator-community-preview', courseId],
+      })
     },
   })
 
@@ -1008,6 +1060,11 @@ export const useCreatorDeletePost = (courseId: string | undefined) =>
       getQueryClient().invalidateQueries({
         queryKey: creatorPostsKey(courseId),
       })
+      // Also refresh the hub feed (useCreatorCommunityFeed →
+      // 'creator-community-preview'); prefix match hits the filtered key.
+      getQueryClient().invalidateQueries({
+        queryKey: ['creator-community-preview', courseId],
+      })
     },
   })
 
@@ -1021,6 +1078,11 @@ export const useCreatorDeleteComment = (courseId: string | undefined) =>
       if (!courseId) return
       getQueryClient().invalidateQueries({
         queryKey: creatorPostsKey(courseId),
+      })
+      // Also refresh the hub feed (useCreatorCommunityFeed →
+      // 'creator-community-preview'); prefix match hits the filtered key.
+      getQueryClient().invalidateQueries({
+        queryKey: ['creator-community-preview', courseId],
       })
     },
   })
@@ -1051,6 +1113,11 @@ export const usePinPost = (courseId: string | undefined) =>
       getQueryClient().invalidateQueries({
         queryKey: creatorPostsKey(courseId),
       })
+      // Also refresh the hub feed (useCreatorCommunityFeed →
+      // 'creator-community-preview'); prefix match hits the filtered key.
+      getQueryClient().invalidateQueries({
+        queryKey: ['creator-community-preview', courseId],
+      })
       // Settings holds prompt_of_week_post_id — refresh so the editor
       // shows the new pin in its preview.
       getQueryClient().invalidateQueries({
@@ -1071,9 +1138,72 @@ export const useUnpinPost = (courseId: string | undefined) =>
       getQueryClient().invalidateQueries({
         queryKey: creatorPostsKey(courseId),
       })
+      // Also refresh the hub feed (useCreatorCommunityFeed →
+      // 'creator-community-preview'); prefix match hits the filtered key.
+      getQueryClient().invalidateQueries({
+        queryKey: ['creator-community-preview', courseId],
+      })
       getQueryClient().invalidateQueries({
         queryKey: creatorSettingsKey(courseId),
       })
+    },
+  })
+
+// Poll voting — writes the server's authoritative poll back into every
+// feed cache that might hold the post (creator preview + customer feed,
+// infinite or single-page).
+type PollFeedCache =
+  | CommunityFeedPage
+  | { pages: CommunityFeedPage[]; pageParams: unknown[] }
+  | undefined
+const patchFeedPostPoll = (
+  data: PollFeedCache,
+  postId: string,
+  poll: CommunityPollRead,
+): PollFeedCache => {
+  if (!data) return data
+  const patchPage = (page: CommunityFeedPage): CommunityFeedPage => ({
+    ...page,
+    items: page.items.map((p) => (p.id === postId ? { ...p, poll } : p)),
+  })
+  if ('pages' in data) {
+    return { ...data, pages: data.pages.map(patchPage) }
+  }
+  return patchPage(data)
+}
+
+export const useVotePostPoll = (
+  token: string | null | undefined,
+  courseId: string | undefined,
+  mode: CommunityIOMode = 'creator',
+) =>
+  useMutation({
+    mutationFn: ({
+      postId,
+      optionId,
+    }: {
+      postId: string
+      optionId: string
+    }) =>
+      communityFetch<CommunityPollRead>(
+        mode,
+        token,
+        `${communityBase(mode, courseId!)}/posts/${postId}/poll/vote`,
+        { method: 'POST', body: JSON.stringify({ option_id: optionId }) },
+      ),
+    onSuccess: (poll, { postId }) => {
+      if (!courseId) return
+      const queryClient = getQueryClient()
+      const keys: readonly unknown[][] = [
+        ['creator-community-preview', courseId],
+        ['creator-community-posts', courseId],
+        ['community-feed', token, courseId],
+      ]
+      for (const key of keys) {
+        queryClient.setQueriesData<PollFeedCache>({ queryKey: key }, (data) =>
+          patchFeedPostPoll(data, postId, poll),
+        )
+      }
     },
   })
 
@@ -1808,5 +1938,65 @@ export const usePostSubmissionComment = (
       getQueryClient().invalidateQueries({
         queryKey: submissionCommentsKey(mode, token ?? mode, submissionId),
       })
+    },
+  })
+
+// ---------------------------------------------------------------------
+// Student Profile tab — identity + notification preferences
+//
+// These live outside the /community surface (they're per-customer, not
+// per-course) but power the student community's Profile tab. Token-based,
+// matching the rest of the customer community data layer.
+// ---------------------------------------------------------------------
+
+export type CustomerNotificationPreferences = {
+  email_enabled: boolean
+  bell_enabled: boolean
+}
+
+/** Update the student's display name + avatar (shared with the portal). */
+export const useUpdateCommunityProfile = (token: string | null | undefined) =>
+  useMutation({
+    mutationFn: (body: { name: string | null; avatar_url: string | null }) =>
+      portalFetch<{ id: string; name: string | null; avatar_url: string | null }>(
+        '/v1/customer-portal/customers/me/profile',
+        token!,
+        { method: 'PATCH', body: JSON.stringify(body) },
+      ),
+    onSuccess: () => {
+      const qc = getQueryClient()
+      qc.invalidateQueries({ queryKey: ['customer'] })
+      qc.invalidateQueries({ queryKey: ['customer-course'] })
+    },
+  })
+
+export const useCustomerNotificationPreferences = (
+  token: string | null | undefined,
+) =>
+  useQuery<CustomerNotificationPreferences>({
+    queryKey: ['customer-notification-preferences', token ?? ''],
+    queryFn: () =>
+      portalFetch<CustomerNotificationPreferences>(
+        '/v1/customer-portal/notifications/preferences',
+        token!,
+      ),
+    enabled: !!token,
+  })
+
+export const useUpdateCustomerNotificationPreferences = (
+  token: string | null | undefined,
+) =>
+  useMutation({
+    mutationFn: (body: CustomerNotificationPreferences) =>
+      portalFetch<CustomerNotificationPreferences>(
+        '/v1/customer-portal/notifications/preferences',
+        token!,
+        { method: 'PATCH', body: JSON.stringify(body) },
+      ),
+    onSuccess: (data) => {
+      getQueryClient().setQueryData(
+        ['customer-notification-preferences', token ?? ''],
+        data,
+      )
     },
   })

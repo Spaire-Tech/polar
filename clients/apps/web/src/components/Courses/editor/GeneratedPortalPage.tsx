@@ -26,6 +26,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { HlsVideo } from '../HlsVideo'
+import { RepositionInPortal } from '../watch/RepositionInPortal'
 
 const PLAY_PATH =
   'M8 5.5v13a1 1 0 0 0 1.5.87l11-6.5a1 1 0 0 0 0-1.74l-11-6.5A1 1 0 0 0 8 5.5Z'
@@ -90,12 +91,73 @@ const LockChip = () => (
   </div>
 )
 
+// Touch-to-edit text (the design's contenteditable). Module-level so its
+// identity is stable across renders — defined inline it would REMOUNT on
+// every parent re-render (FAQ toggle, trailer peek, strip scroll), killing
+// focus mid-typing. React renders NO children here; the text is written via
+// effects and only synced from props while the element is NOT focused, so an
+// in-flight edit can never be clobbered by a background refetch.
+function EditText({
+  field,
+  value,
+  className,
+  tag: Tag = 'span',
+  ctx,
+  editable,
+  onEditText,
+}: {
+  field: EditField
+  value: string
+  className?: string
+  tag?: 'span' | 'div' | 'h1' | 'h2' | 'p'
+  ctx?: { flatIdx?: number; groupIdx?: number; idx?: number }
+  editable?: boolean
+  onEditText?: (
+    field: EditField,
+    value: string,
+    ctx?: { flatIdx?: number; groupIdx?: number; idx?: number },
+  ) => void
+}) {
+  const ref = useRef<HTMLElement | null>(null)
+  const focusedRef = useRef(false)
+  useEffect(() => {
+    const el = ref.current
+    if (el && !focusedRef.current && el.textContent !== value) {
+      el.textContent = value
+    }
+  }, [value])
+  if (!editable || !onEditText) {
+    return <Tag className={className}>{value}</Tag>
+  }
+  return (
+    <Tag
+      ref={ref as never}
+      className={`${className ?? ''} gpp-editable`}
+      contentEditable
+      suppressContentEditableWarning
+      spellCheck={false}
+      onPointerDown={(e: React.PointerEvent) => e.stopPropagation()}
+      onClick={(e: React.MouseEvent) => e.stopPropagation()}
+      onFocus={() => {
+        focusedRef.current = true
+      }}
+      onBlur={(e: React.FocusEvent<HTMLElement>) => {
+        focusedRef.current = false
+        const next = (e.currentTarget.textContent ?? '').trim()
+        if (next !== value) onEditText(field, next, ctx)
+      }}
+    />
+  )
+}
+
 export type GeneratedLesson = {
   title: string
   description: string
   flatIdx: number
   /** Real lesson still when it exists; otherwise the glass placeholder. */
   imageUrl?: string | null
+  /** object-position for the lesson still (creator-set via Reposition). */
+  imagePosition?: string | null
   durationLabel?: string | null
   free: boolean
   locked: boolean
@@ -155,8 +217,13 @@ export type GeneratedPortalPageProps = {
   portraitBusy?: boolean
   /** FAQ — AI-written Q/A pairs, all editable. */
   faq?: { q: string; a: string }[]
+  /** The band's badge chips — creator-editable; defaults to the design's. */
+  badges?: string[]
   groups: GeneratedGroup[]
   lessonCount: number
+  /** Total runtime, pre-formatted ("4h 15m" / "0 min"). The meta line shows
+   *  lessons · duration · level, exactly like the design. */
+  metaDuration?: string
   unit: 'lesson' | 'episode'
   dark: boolean
   /** Theme toggle (creator-facing). Omit to hide (public page). */
@@ -183,6 +250,13 @@ export type GeneratedPortalPageProps = {
    *  Commit/debounce is the caller's job. */
   onCoverPosition?: (pos: string) => void
   onAddLessonImage?: (flatIdx: number) => void
+  /** Live object-position updates while the creator drags a lesson still in
+   *  the reposition overlay. Commit/debounce is the caller's job (mirrors
+   *  onCoverPosition). */
+  onRepositionLesson?: (flatIdx: number, pos: string) => void
+  /** Replace a lesson still with the file picked inside the reposition
+   *  overlay (mirrors onAddLessonImage but receives the File directly). */
+  onReplaceLessonImage?: (flatIdx: number, file: File) => void | Promise<void>
   lessonImageBusy?: number | null
   /** Configure-sample affordance on the sample screen (editor only). */
   onConfigureSample?: () => void
@@ -193,6 +267,9 @@ export type GeneratedPortalPageProps = {
     value: string,
     ctx?: { flatIdx?: number; groupIdx?: number; idx?: number },
   ) => void
+  /** Enroll-sheet price sub-line ("One-time purchase · 18 lessons ·
+   *  Lifetime access"). The big price is parsed from buyLabel. */
+  enrollPriceSub?: string
 }
 
 export type EditField =
@@ -201,6 +278,7 @@ export type EditField =
   | 'byline'
   | 'eyebrow'
   | 'badge'
+  | 'bdg'
   | 'instructorName'
   | 'lessonTitle'
   | 'lessonDesc'
@@ -225,7 +303,6 @@ export function GeneratedPortalPage({
   structure,
   trialMode,
   paywallEnabled,
-  freeLessons,
   playLabel,
   buyLabel,
   freeLine,
@@ -246,8 +323,10 @@ export function GeneratedPortalPage({
   onAddPortrait,
   portraitBusy = false,
   faq = [],
+  badges = ['All Levels', 'Self-paced', 'Captions', 'Mobile & TV'],
   groups,
   lessonCount,
+  metaDuration = '0 min',
   unit,
   dark,
   onToggleDark,
@@ -265,31 +344,109 @@ export function GeneratedPortalPage({
   trailerBusy = false,
   onCoverPosition,
   onAddLessonImage,
+  onRepositionLesson,
+  onReplaceLessonImage,
   lessonImageBusy = null,
   onConfigureSample,
   onEditText,
+  enrollPriceSub,
 }: GeneratedPortalPageProps) {
   const isEpisodic = structure === 'episodic'
   const unitCap = unit === 'episode' ? 'Episode' : 'Lesson'
   const year = new Date().getFullYear()
 
-  // ── hover-trailer peek: play muted on hover, snap back on leave/scroll.
+  // ── enroll sheet (paywall): which locked lesson opened it ──
+  const [enrollLesson, setEnrollLesson] = useState<{
+    n: number
+    title: string
+  } | null>(null)
+  const enrollPrice = (buyLabel.match(/[$€£]\s?[\d.,]+/)?.[0] ?? '').replace(
+    /\s/g,
+    '',
+  )
+  // The free-sample section only exists when a real, playable sample is
+  // configured. Remove the sample and the whole section disappears from the
+  // landing — no empty screen, no "set up your sample" placeholder. (Creators
+  // add/remove the sample from the lesson editor.)
+  const hasSampleSection =
+    paywallEnabled && trialMode === 'lesson_sample' && samplePlayable
+  // The primary CTA should lead with the trailer, not the sample. When a
+  // trailer exists the main button plays it and the sample is demoted to the
+  // secondary slot (where the trailer button used to sit). With no trailer the
+  // sample stays primary so the button is never a dead end.
+  const sampleMode = playStartsSample && samplePlayable
+  const trailerPrimary = sampleMode && !!trailerUrl
+  const closeEnroll = useCallback(() => setEnrollLesson(null), [])
+  useEffect(() => {
+    if (!enrollLesson) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') closeEnroll()
+    }
+    document.addEventListener('keydown', onKey)
+    // Lock background scroll while the sheet is open (the design does this).
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.removeEventListener('keydown', onKey)
+      document.body.style.overflow = prev
+    }
+  }, [enrollLesson, closeEnroll])
+
+  // ── hover-trailer peek: play WITH sound on hover, snap back on leave/scroll.
   //    (The protected behavior from the original landing's HeroMedia.) ──
   const heroRef = useRef<HTMLElement | null>(null)
   const trailerVideoRef = useRef<HTMLVideoElement | null>(null)
   const [trailerPeek, setTrailerPeek] = useState(false)
+  const trailerPeekRef = useRef(false)
+  useEffect(() => {
+    trailerPeekRef.current = trailerPeek
+  }, [trailerPeek])
   useEffect(() => {
     if (!trailerUrl) return
     const v = trailerVideoRef.current
     if (!v) return
     if (trailerPeek) {
       v.currentTime = 0
-      v.muted = true
-      void v.play().catch(() => setTrailerPeek(false))
+      // The creator wants the trailer audible the moment you hover. Try to play
+      // unmuted first; if the browser blocks autoplay-with-sound (no prior user
+      // gesture on the page), fall back to a muted peek so the video still
+      // shows. The gesture-unlock effect below turns the sound on the instant
+      // the visitor interacts with anything.
+      v.muted = false
+      v.volume = 1
+      void v.play().catch(() => {
+        v.muted = true
+        void v.play().catch(() => setTrailerPeek(false))
+      })
     } else {
       v.pause()
     }
   }, [trailerPeek, trailerUrl])
+  // Browsers block autoplay-WITH-sound until the page has had a user gesture.
+  // The dashboard editor always has one (you clicked your way in), but a fresh
+  // visitor who opens the public landing and only hovers has not — so the first
+  // peek can come up muted. Listen for the first real interaction anywhere on
+  // the page and, if the trailer is peeking right then, unmute it immediately;
+  // every later hover then plays with sound (activation is sticky).
+  useEffect(() => {
+    if (!trailerUrl) return
+    const unmuteIfPeeking = () => {
+      const v = trailerVideoRef.current
+      if (v && trailerPeekRef.current && v.muted) {
+        v.muted = false
+        v.volume = 1
+        void v.play().catch(() => {})
+      }
+    }
+    window.addEventListener('pointerdown', unmuteIfPeeking, true)
+    window.addEventListener('keydown', unmuteIfPeeking, true)
+    window.addEventListener('touchstart', unmuteIfPeeking, true)
+    return () => {
+      window.removeEventListener('pointerdown', unmuteIfPeeking, true)
+      window.removeEventListener('keydown', unmuteIfPeeking, true)
+      window.removeEventListener('touchstart', unmuteIfPeeking, true)
+    }
+  }, [trailerUrl])
   useEffect(() => {
     if (!trailerUrl || !trailerPeek) return
     // Any scroll pauses the peek — same rule the original hero enforced.
@@ -297,6 +454,17 @@ export function GeneratedPortalPage({
     window.addEventListener('scroll', onScroll, { passive: true })
     return () => window.removeEventListener('scroll', onScroll)
   }, [trailerUrl, trailerPeek])
+
+  // ── per-lesson still reposition: opens the shared RepositionInPortal
+  //    overlay; live position updates flow to onRepositionLesson (the caller
+  //    debounces + persists thumbnail_object_position). Keyed by flatIdx so the
+  //    overlay tracks fresh lesson data (e.g. after an in-overlay Replace). ──
+  const [reposIdx, setReposIdx] = useState<number | null>(null)
+  const reposLesson =
+    reposIdx == null
+      ? null
+      : (groups.flatMap((g) => g.lessons).find((l) => l.flatIdx === reposIdx) ??
+        null)
 
   // ── reposition: drag the cover to move object-position; live callback,
   //    caller persists. Activated from the design's ⤧ pill. ──
@@ -316,7 +484,12 @@ export function GeneratedPortalPage({
   const onDragStart = (e: React.PointerEvent) => {
     if (!repositioning) return
     const [px, py] = parsePos(effectiveCoverPos)
-    dragRef.current = { startX: e.clientX, startY: e.clientY, posX: px, posY: py }
+    dragRef.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      posX: px,
+      posY: py,
+    }
     ;(e.target as HTMLElement).setPointerCapture?.(e.pointerId)
   }
   const onDragMove = (e: React.PointerEvent) => {
@@ -325,8 +498,14 @@ export function GeneratedPortalPage({
     if (!repositioning || !d || !hero) return
     const r = hero.getBoundingClientRect()
     // Dragging right shows more of the image's left side → position decreases.
-    const nx = Math.min(100, Math.max(0, d.posX - ((e.clientX - d.startX) / r.width) * 100))
-    const ny = Math.min(100, Math.max(0, d.posY - ((e.clientY - d.startY) / r.height) * 100))
+    const nx = Math.min(
+      100,
+      Math.max(0, d.posX - ((e.clientX - d.startX) / r.width) * 100),
+    )
+    const ny = Math.min(
+      100,
+      Math.max(0, d.posY - ((e.clientY - d.startY) / r.height) * 100),
+    )
     const next = `${nx.toFixed(1)}% ${ny.toFixed(1)}%`
     setLivePos(next)
     onCoverPosition?.(next)
@@ -345,14 +524,40 @@ export function GeneratedPortalPage({
   const sampleIsHls = Boolean(
     samplePlaybackId || (sampleSrc && sampleSrc.includes('.m3u8')),
   )
+  const [sampleMuted, setSampleMuted] = useState(false)
   const startSample = useCallback(() => {
     if (!samplePlayable) return
+    setSampleMuted(false)
     setSamplePlaying(true)
     sampleScreenRef.current?.scrollIntoView({
       behavior: 'smooth',
       block: 'center',
     })
   }, [samplePlayable])
+  // Auto-play on scroll — the design's "plays automatically when scrolled
+  // into view". Starts MUTED (browsers only allow muted autoplay) and fires
+  // once per visit; the viewer can unmute via the player controls, and an
+  // explicit click/play always runs with sound.
+  const sampleAutoPlayedRef = useRef(false)
+  useEffect(() => {
+    if (!samplePlayable || samplePlaying || sampleAutoPlayedRef.current) return
+    const screen = sampleScreenRef.current
+    if (!screen) return
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          if (e.intersectionRatio >= 0.6 && !sampleAutoPlayedRef.current) {
+            sampleAutoPlayedRef.current = true
+            setSampleMuted(true)
+            setSamplePlaying(true)
+          }
+        }
+      },
+      { threshold: [0.6] },
+    )
+    io.observe(screen)
+    return () => io.disconnect()
+  }, [samplePlayable, samplePlaying])
   const stopSample = useCallback(() => {
     sampleVideoRef.current?.pause()
     setSamplePlaying(false)
@@ -370,16 +575,35 @@ export function GeneratedPortalPage({
     },
     [sampleStart],
   )
-  // Clip window: stop once the configured duration has played.
+  // Clip window: the sample is only the chosen slice. Keep playback inside
+  // [start, start+duration] — a viewer can never scrub back into footage
+  // before the sample or run on past its end. Reaching the end stops it.
   useEffect(() => {
-    if (!samplePlaying || sampleDuration <= 0) return
+    if (!samplePlaying) return
     const el = sampleVideoRef.current
     if (!el) return
-    const onTime = () => {
-      if (el.currentTime >= sampleStart + sampleDuration) stopSample()
+    const lo = Math.max(0, sampleStart)
+    const hi = sampleDuration > 0 ? sampleStart + sampleDuration : Infinity
+    const clamp = () => {
+      if (el.currentTime >= hi) {
+        stopSample()
+        return
+      }
+      // Snap any seek that lands before the sample start back to the start.
+      if (el.currentTime < lo - 0.3) {
+        try {
+          el.currentTime = lo
+        } catch {
+          /* noop */
+        }
+      }
     }
-    el.addEventListener('timeupdate', onTime)
-    return () => el.removeEventListener('timeupdate', onTime)
+    el.addEventListener('timeupdate', clamp)
+    el.addEventListener('seeking', clamp)
+    return () => {
+      el.removeEventListener('timeupdate', clamp)
+      el.removeEventListener('seeking', clamp)
+    }
   }, [samplePlaying, sampleStart, sampleDuration, stopSample])
   // Scroll-past: pause the sample when its screen leaves the viewport.
   // The observer only ARMS once the screen has actually been visible —
@@ -415,50 +639,6 @@ export function GeneratedPortalPage({
         openFaq === i && clip ? `${clip.scrollHeight}px` : '0px'
     })
   }, [openFaq, faq])
-
-  // Touch-to-edit text (the design's contenteditable). Commits on blur only,
-  // so no re-render happens mid-edit → the caret never jumps. Pointer/click
-  // are stopped so editing the hero text doesn't trigger reposition/hover or
-  // a card's onClick.
-  const Edit = ({
-    field,
-    value,
-    className,
-    tag: Tag = 'span',
-    ctx,
-  }: {
-    field: EditField
-    value: string
-    className?: string
-    tag?: 'span' | 'div' | 'h1' | 'h2' | 'p'
-    ctx?: { flatIdx?: number; groupIdx?: number; idx?: number }
-  }) => {
-    if (!editable || !onEditText) {
-      return <Tag className={className}>{value}</Tag>
-    }
-    return (
-      <Tag
-        className={`${className ?? ''} gpp-editable`}
-        contentEditable
-        suppressContentEditableWarning
-        spellCheck={false}
-        onPointerDown={(e: React.PointerEvent) => e.stopPropagation()}
-        onClick={(e: React.MouseEvent) => e.stopPropagation()}
-        onBlur={(e: React.FocusEvent<HTMLElement>) => {
-          const next = (e.currentTarget.textContent ?? '').trim()
-          if (next !== value) onEditText(field, next, ctx)
-        }}
-      >
-        {value}
-      </Tag>
-    )
-  }
-
-  const trialShort = !paywallEnabled
-    ? `all ${unit}s free`
-    : trialMode === 'lesson_sample'
-      ? 'sample clip free'
-      : `first ${freeLessons} free`
 
   // ── strip arrows: show/hide by scroll position (the design's script) ──
   const stripRef = useRef<HTMLDivElement | null>(null)
@@ -528,7 +708,12 @@ export function GeneratedPortalPage({
     </button>
   ) : null
 
+  // free_preview mode marks every locked lesson with a Free / lock chip.
   const showChips = paywallEnabled && trialMode === 'free_preview'
+  // Regardless of trial mode, a lesson that's been set to free preview should
+  // wear a "Free" badge so viewers can see what's actually free to watch —
+  // otherwise (e.g. in lesson_sample mode) nothing signals the free lessons.
+  const markFreeOnly = paywallEnabled && !showChips
 
   const PillImageIcon = (
     <svg
@@ -550,13 +735,13 @@ export function GeneratedPortalPage({
   // The design's creator bar: frosted Add pills + the theme toggle.
   const creatorBarVisible = Boolean(
     (editable && (onAddCover || onAddTrailer || onCoverPosition)) ||
-      onToggleDark,
+    onToggleDark,
   )
   const creatorBar = !creatorBarVisible ? null : (
     <div className="creator-bar">
       {editable && onAddCover && (
         <button
-          className="add-pill"
+          className="add-pill is-cover"
           type="button"
           onClick={onAddCover}
           disabled={coverBusy}
@@ -569,7 +754,7 @@ export function GeneratedPortalPage({
       )}
       {editable && coverUrl && onCoverPosition && (
         <button
-          className={`add-pill${repositioning ? ' active' : ''}`}
+          className={`add-pill is-reposition${repositioning ? ' active' : ''}`}
           type="button"
           onClick={() => {
             setRepositioning((r) => !r)
@@ -587,14 +772,22 @@ export function GeneratedPortalPage({
           onClick={onAddTrailer}
           disabled={trailerBusy}
         >
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+          <svg
+            className="add-pill-ic"
+            width="13"
+            height="13"
+            viewBox="0 0 24 24"
+            fill="currentColor"
+          >
             <path d={PLAY_PATH} />
           </svg>
-          {trailerBusy
-            ? 'Uploading…'
-            : trailerUrl
-              ? 'Change trailer'
-              : 'Add trailer'}
+          <span>
+            {trailerBusy
+              ? 'Uploading…'
+              : trailerUrl
+                ? 'Change trailer'
+                : 'Add trailer'}
+          </span>
         </button>
       )}
       {themeToggle}
@@ -602,13 +795,14 @@ export function GeneratedPortalPage({
   )
 
   // Hover-trailer layer — shared by both heroes. Sits above the still,
-  // below the text/band. Muted; fades in while peeking.
+  // below the text/band. Fades in while peeking. Muted state is controlled
+  // imperatively in the peek effect (we want sound on hover), so no static
+  // `muted` attribute here — it would re-mute the element on every re-render.
   const trailerLayer = trailerUrl ? (
     <video
       ref={trailerVideoRef}
       className={`trailer-layer${trailerPeek ? ' on' : ''}`}
       src={trailerUrl}
-      muted
       playsInline
       loop
       preload="metadata"
@@ -640,23 +834,46 @@ export function GeneratedPortalPage({
     ).toFixed(2)})`,
   })
 
+  // A locked lesson opens the enroll sheet (the design's paywall modal);
+  // an unlocked one plays via onLessonClick. Editing controls inside the
+  // card stop their own propagation, so this only fires on the card body.
+  const lessonClickable = (l: GeneratedLesson) =>
+    l.locked || Boolean(onLessonClick)
+  const handleLessonClick = (l: GeneratedLesson) => {
+    if (l.locked) setEnrollLesson({ n: l.flatIdx + 1, title: l.title })
+    else onLessonClick?.(l.flatIdx)
+  }
+
   const spotlightCard = (l: GeneratedLesson) => (
     <div
       className={`card${l.imageUrl ? ' filled' : ''}`}
       key={l.flatIdx}
-      onClick={onLessonClick ? () => onLessonClick(l.flatIdx) : undefined}
-      role={onLessonClick ? 'button' : undefined}
+      onClick={lessonClickable(l) ? () => handleLessonClick(l) : undefined}
+      role={lessonClickable(l) ? 'button' : undefined}
     >
       <div className="ph-ambient" style={ambientTint(l.flatIdx + 1)} />
       <div className="glass-tint" />
       <div
         className="photo"
         style={
-          l.imageUrl ? { backgroundImage: `url("${l.imageUrl}")` } : undefined
+          l.imageUrl
+            ? {
+                backgroundImage: `url("${l.imageUrl}")`,
+                backgroundPosition: l.imagePosition ?? undefined,
+              }
+            : undefined
         }
       />
       <div className="photo-shade" />
-      {showChips && (l.free ? <FreeChip /> : <LockChip />)}
+      {showChips ? (
+        l.free ? (
+          <FreeChip />
+        ) : (
+          <LockChip />
+        )
+      ) : markFreeOnly && l.free ? (
+        <FreeChip />
+      ) : null}
       {editable && onAddLessonImage && (
         <button
           className="card-add"
@@ -676,18 +893,34 @@ export function GeneratedPortalPage({
           )}
         </button>
       )}
+      {editable && l.imageUrl && onRepositionLesson && (
+        <button
+          className="card-add is-repos"
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation()
+            setReposIdx(l.flatIdx)
+          }}
+        >
+          ⤧ Reposition
+        </button>
+      )}
       <div className="card-info">
         <div className="ep">
           {unitCap} {l.flatIdx + 1}
         </div>
-        <Edit
+        <EditText
+          editable={editable}
+          onEditText={onEditText}
           field="lessonTitle"
           value={l.title}
           className="title"
           tag="div"
           ctx={{ flatIdx: l.flatIdx }}
         />
-        <Edit
+        <EditText
+          editable={editable}
+          onEditText={onEditText}
           field="lessonDesc"
           value={l.description}
           className="desc"
@@ -716,24 +949,33 @@ export function GeneratedPortalPage({
     <div
       className="lc-catalog"
       key={l.flatIdx}
-      onClick={onLessonClick ? () => onLessonClick(l.flatIdx) : undefined}
-      role={onLessonClick ? 'button' : undefined}
+      onClick={lessonClickable(l) ? () => handleLessonClick(l) : undefined}
+      role={lessonClickable(l) ? 'button' : undefined}
     >
       <div className="lc-card">
         <div className={`lc-thumb${l.imageUrl ? '' : ' ph'}`}>
           {l.imageUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={l.imageUrl} alt="" />
+            <img
+              src={l.imageUrl}
+              alt=""
+              style={{ objectPosition: l.imagePosition ?? undefined }}
+            />
           ) : (
             <>
-              <div
-                className="ph-ambient"
-                style={ambientTint(l.flatIdx + 1)}
-              />
+              <div className="ph-ambient" style={ambientTint(l.flatIdx + 1)} />
               <div className="glass-tint" />
             </>
           )}
-          {showChips && (l.free ? <FreeChip /> : <LockChip />)}
+          {showChips ? (
+            l.free ? (
+              <FreeChip />
+            ) : (
+              <LockChip />
+            )
+          ) : markFreeOnly && l.free ? (
+            <FreeChip />
+          ) : null}
           {editable && onAddLessonImage && (
             <button
               className="thumb-add"
@@ -751,6 +993,18 @@ export function GeneratedPortalPage({
                   Add image or cover
                 </>
               )}
+            </button>
+          )}
+          {editable && l.imageUrl && onRepositionLesson && (
+            <button
+              className="thumb-add is-repos"
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                setReposIdx(l.flatIdx)
+              }}
+            >
+              ⤧ Reposition
             </button>
           )}
           {l.durationLabel && (
@@ -778,14 +1032,18 @@ export function GeneratedPortalPage({
           <div className="lc-num">
             {unitCap} {l.flatIdx + 1}
           </div>
-          <Edit
+          <EditText
+            editable={editable}
+            onEditText={onEditText}
             field="lessonTitle"
             value={l.title}
             className="lc-title"
             tag="div"
             ctx={{ flatIdx: l.flatIdx }}
           />
-          <Edit
+          <EditText
+            editable={editable}
+            onEditText={onEditText}
             field="lessonDesc"
             value={l.description}
             className="lc-desc"
@@ -804,7 +1062,7 @@ export function GeneratedPortalPage({
   const card = cardVariant === 'spotlight' ? spotlightCard : catalogCard
 
   return (
-    <div className={`gpp${dark ? ' dark' : ''}`}>
+    <div className={`gpp${dark ? ' dark' : ''}${isEpisodic ? ' epi' : ''}`}>
       {/* ════════ MARQUEE HERO (Marquee Course Page.html) ════════ */}
       {heroVariant === 'marquee' ? (
         <header
@@ -842,14 +1100,42 @@ export function GeneratedPortalPage({
           <div className="panel-brand rise">{brand}</div>
           {creatorBar}
 
+          {/* Mobile-only centered Add cover (matches the cover hero). */}
+          {editable && onAddCover && (
+            <button
+              className="hero-cta"
+              type="button"
+              onClick={onAddCover}
+              disabled={coverBusy}
+            >
+              {PillImageIcon}
+              <span>
+                {coverBusy
+                  ? 'Uploading…'
+                  : coverUrl
+                    ? 'Change cover'
+                    : 'Add cover'}
+              </span>
+            </button>
+          )}
+
           <div className="panel-title">
-            <Edit
+            <EditText
+              editable={editable}
+              onEditText={onEditText}
               field="eyebrow"
               value={eyebrow}
               className="pt-eyebrow rise d1"
               tag="div"
             />
-            <Edit field="title" value={title} className="pt-h rise d1" tag="h1" />
+            <EditText
+              editable={editable}
+              onEditText={onEditText}
+              field="title"
+              value={title}
+              className="pt-h rise d1"
+              tag="h1"
+            />
           </div>
 
           <div className="band rise d2">
@@ -858,7 +1144,7 @@ export function GeneratedPortalPage({
                 className="abtn play"
                 type="button"
                 onClick={
-                  playStartsSample && samplePlayable ? startSample : onPlay
+                  trailerPrimary ? onTrailer : sampleMode ? startSample : onPlay
                 }
               >
                 <svg
@@ -869,7 +1155,7 @@ export function GeneratedPortalPage({
                 >
                   <path d={PLAY_PATH} />
                 </svg>
-                {playLabel}
+                {trailerPrimary ? 'Watch Trailer' : playLabel}
               </button>
               <button className="abtn buy" type="button" onClick={onBuy}>
                 {buyLabel}
@@ -878,22 +1164,40 @@ export function GeneratedPortalPage({
             </div>
 
             <div className="band-desc">
-              <Edit field="desc" value={desc} className="bd-text" tag="p" />
+              <EditText
+                editable={editable}
+                onEditText={onEditText}
+                field="desc"
+                value={desc}
+                className="bd-text"
+                tag="p"
+              />
               <div className="bd-meta">
-                {eyebrow}&nbsp;&nbsp;·&nbsp;&nbsp;{year}
-                &nbsp;&nbsp;·&nbsp;&nbsp;{lessonCount} {unitCap}
-                {lessonCount === 1 ? '' : 's'}
+                <span className="bd-meta-eyebrow">
+                  {eyebrow}&nbsp;&nbsp;·&nbsp;&nbsp;
+                </span>
+                {year}&nbsp;&nbsp;·&nbsp;&nbsp;{lessonCount} {unitCap}
+                {lessonCount === 1 ? '' : 's'}&nbsp;&nbsp;·&nbsp;&nbsp;
+                {metaDuration}
               </div>
               <div className="bd-badges">
-                <span className="bdg rate">All Levels</span>
-                <span className="bdg">Self-paced</span>
-                <span className="bdg">Captions</span>
-                <span className="bdg">Mobile &amp; TV</span>
-                {showTrailerButton && (
+                {badges.map((b, i) => (
+                  <EditText
+                    key={i}
+                    editable={editable}
+                    onEditText={onEditText}
+                    field="bdg"
+                    value={b}
+                    className={i === 0 ? 'bdg rate' : 'bdg'}
+                    tag="span"
+                    ctx={{ idx: i }}
+                  />
+                ))}
+                {trailerPrimary ? (
                   <button
                     className="bd-trailer"
                     type="button"
-                    onClick={onTrailer}
+                    onClick={startSample}
                   >
                     <svg
                       width="12"
@@ -903,21 +1207,48 @@ export function GeneratedPortalPage({
                     >
                       <path d={PLAY_PATH} />
                     </svg>
-                    Trailer
+                    Sample
                   </button>
+                ) : (
+                  showTrailerButton && (
+                    <button
+                      className="bd-trailer"
+                      type="button"
+                      onClick={onTrailer}
+                    >
+                      <svg
+                        width="12"
+                        height="12"
+                        viewBox="0 0 24 24"
+                        fill="currentColor"
+                      >
+                        <path d={PLAY_PATH} />
+                      </svg>
+                      Trailer
+                    </button>
+                  )
                 )}
               </div>
             </div>
 
             <div className="band-cast">
               <div className="bc-k">Instructor</div>
-              <Edit
+              <EditText
+                editable={editable}
+                onEditText={onEditText}
                 field="instructorName"
                 value={instructorName}
                 className="bc-v"
                 tag="div"
               />
-              <Edit field="byline" value={byline} className="bc-sub" tag="div" />
+              <EditText
+                editable={editable}
+                onEditText={onEditText}
+                field="byline"
+                value={byline}
+                className="bc-sub"
+                tag="div"
+              />
             </div>
           </div>
         </header>
@@ -954,26 +1285,61 @@ export function GeneratedPortalPage({
 
           <div className="hero-eyebrow">
             <span className="dot" />
-            <span>Spaire Original</span>
+            <span>{brand}</span>
           </div>
 
           {creatorBar}
 
+          {/* Mobile-only centered Add cover (the design moves cover upload
+              out of the icon-pill bar on phones). Hidden ≥640px by default. */}
+          {editable && onAddCover && (
+            <button
+              className="hero-cta"
+              type="button"
+              onClick={onAddCover}
+              disabled={coverBusy}
+            >
+              {PillImageIcon}
+              <span>
+                {coverBusy
+                  ? 'Uploading…'
+                  : coverUrl
+                    ? 'Change cover'
+                    : 'Add cover'}
+              </span>
+            </button>
+          )}
+
           <div className="hero-content">
             <div className="hero-meta">
-              <Edit field="badge" value={badge} className="badge" />
+              <EditText
+                editable={editable}
+                onEditText={onEditText}
+                field="badge"
+                value={badge}
+                className="badge"
+              />
               <div className="meta-line">
                 <span>
                   {lessonCount} {unit}
                   {lessonCount === 1 ? '' : 's'}
                 </span>
                 <span className="sep">·</span>
+                <span>{metaDuration}</span>
+                <span className="sep">·</span>
                 <span>All levels</span>
               </div>
             </div>
 
             {editable && onEditText ? (
-              <Edit field="title" value={title} className="hero-title" tag="h1" />
+              <EditText
+                editable={editable}
+                onEditText={onEditText}
+                field="title"
+                value={title}
+                className="hero-title"
+                tag="h1"
+              />
             ) : (
               <h1 className="hero-title">
                 {titleLines && titleLines.length > 1
@@ -988,9 +1354,20 @@ export function GeneratedPortalPage({
             )}
 
             <p className="hero-desc">
-              <Edit field="desc" value={desc} />{' '}
+              <EditText
+                editable={editable}
+                onEditText={onEditText}
+                field="desc"
+                value={desc}
+              />{' '}
               <span className="with">
-                — <Edit field="byline" value={byline || `with ${instructorName}`} />
+                —{' '}
+                <EditText
+                  editable={editable}
+                  onEditText={onEditText}
+                  field="byline"
+                  value={byline || `with ${instructorName}`}
+                />
               </span>
             </p>
 
@@ -1000,9 +1377,11 @@ export function GeneratedPortalPage({
                   className="btn-trailer"
                   type="button"
                   onClick={
-                    playStartsSample && samplePlayable
-                      ? startSample
-                      : (onTrailer ?? onPlay)
+                    trailerPrimary
+                      ? onTrailer
+                      : sampleMode
+                        ? startSample
+                        : (onTrailer ?? onPlay)
                   }
                 >
                   <span className="play">
@@ -1015,7 +1394,30 @@ export function GeneratedPortalPage({
                       <path d={PLAY_PATH} />
                     </svg>
                   </span>
-                  {trialMode === 'lesson_sample' ? playLabel : 'Watch trailer'}
+                  {trailerPrimary
+                    ? 'Watch trailer'
+                    : trialMode === 'lesson_sample'
+                      ? playLabel
+                      : 'Watch trailer'}
+                </button>
+              )}
+              {trailerPrimary && (
+                <button
+                  className="btn-trailer"
+                  type="button"
+                  onClick={startSample}
+                >
+                  <span className="play">
+                    <svg
+                      width="12"
+                      height="12"
+                      viewBox="0 0 24 24"
+                      fill="currentColor"
+                    >
+                      <path d={PLAY_PATH} />
+                    </svg>
+                  </span>
+                  Sample
                 </button>
               )}
               <button className="btn-enroll" type="button" onClick={onBuy}>
@@ -1071,13 +1473,17 @@ export function GeneratedPortalPage({
                   </svg>
                 </div>
                 <div className="inst-id">
-                  <Edit
+                  <EditText
+                    editable={editable}
+                    onEditText={onEditText}
                     field="instructorName"
                     value={instructorName}
                     className="inst-name"
                     tag="h2"
                   />
-                  <Edit
+                  <EditText
+                    editable={editable}
+                    onEditText={onEditText}
                     field="instructorSub"
                     value={instructorSub}
                     className="inst-sub"
@@ -1086,7 +1492,9 @@ export function GeneratedPortalPage({
                 </div>
               </div>
               {instructorBio.map((p, i) => (
-                <Edit
+                <EditText
+                  editable={editable}
+                  onEditText={onEditText}
                   key={i}
                   field="instructorBioP"
                   value={p}
@@ -1148,7 +1556,9 @@ export function GeneratedPortalPage({
                 </div>
               )}
               {portraitCaption && (
-                <Edit
+                <EditText
+                  editable={editable}
+                  onEditText={onEditText}
                   field="portraitCaption"
                   value={portraitCaption}
                   className="inst-caption"
@@ -1171,13 +1581,12 @@ export function GeneratedPortalPage({
       )}
 
       {/* ════════ FREE SAMPLE (Course Page Empty State.html) ════════ */}
-      {paywallEnabled && trialMode === 'lesson_sample' && (
+      {hasSampleSection && (
         <section className="sample">
           <div className="sample-eyebrow">Free Sample</div>
           <h2>Watch a free sample</h2>
           <p className="sample-sub">
             A few minutes inside the {unit === 'episode' ? 'series' : 'course'}.
-            No account, no card.
           </p>
           <div
             ref={sampleScreenRef}
@@ -1210,7 +1619,8 @@ export function GeneratedPortalPage({
                   playbackId={samplePlaybackId}
                   playbackUrl={sampleSrc}
                   poster={sampleImageUrl}
-                  controls
+                  controls={false}
+                  muted={sampleMuted}
                   className="sample-video"
                   onVideoElement={onSampleVideoEl}
                   onEnded={stopSample}
@@ -1220,12 +1630,46 @@ export function GeneratedPortalPage({
                   className="sample-video"
                   src={sampleSrc ?? undefined}
                   poster={sampleImageUrl ?? undefined}
-                  controls
+                  muted={sampleMuted}
                   playsInline
                   ref={onSampleVideoEl}
                   onEnded={stopSample}
                 />
               ))}
+            {/* Sound toggle — the sample has no scrub bar (so it can't escape
+                the clip window); this is the one control, so audio is always
+                reachable even though autoplay starts muted. */}
+            {samplePlaying && (
+              <button
+                className="sample-mute"
+                type="button"
+                aria-label={sampleMuted ? 'Unmute sample' : 'Mute sample'}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setSampleMuted((m) => !m)
+                }}
+              >
+                {sampleMuted ? (
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="currentColor"
+                  >
+                    <path d="M5 9v6h4l5 5V4L9 9H5zm12.59 3l2.7-2.7-1.42-1.42-2.7 2.71-2.71-2.71-1.41 1.42 2.7 2.7-2.7 2.7 1.41 1.42 2.71-2.71 2.7 2.71 1.42-1.42-2.7-2.7z" />
+                  </svg>
+                ) : (
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="currentColor"
+                  >
+                    <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3a4.5 4.5 0 0 0-2.5-4.03v8.06A4.5 4.5 0 0 0 16.5 12zM14 3.23v2.06a7 7 0 0 1 0 13.42v2.06a9 9 0 0 0 0-17.54z" />
+                  </svg>
+                )}
+              </button>
+            )}
             {samplePlayable && !samplePlaying ? (
               <div className="ph-cta">
                 <span className="ph-ic">
@@ -1269,19 +1713,22 @@ export function GeneratedPortalPage({
                 <span className="ph-s">A 2–3 minute clip from any {unit}</span>
               </div>
             ) : null}
-            {editable && onConfigureSample && samplePlayable && !samplePlaying && (
-              <button
-                className="change-pill"
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onConfigureSample()
-                }}
-              >
-                {PillImageIcon}
-                Change
-              </button>
-            )}
+            {editable &&
+              onConfigureSample &&
+              samplePlayable &&
+              !samplePlaying && (
+                <button
+                  className="change-pill"
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onConfigureSample()
+                  }}
+                >
+                  {PillImageIcon}
+                  Change
+                </button>
+              )}
           </div>
         </section>
       )}
@@ -1290,10 +1737,10 @@ export function GeneratedPortalPage({
       {isEpisodic ? (
         <div className="lessons">
           <div className="row-head strip-rh">
-            <span className="rh">Episodes</span>
-            <span className="rh-meta">
-              {lessonCount} episode{lessonCount === 1 ? '' : 's'} · {trialShort}
-            </span>
+            {/* Desktop labels this "Episodes"; the mobile design uses
+                "Free preview". Both render, one shows per breakpoint. */}
+            <span className="rh rh-desktop">Episodes</span>
+            <span className="rh rh-mobile">Free preview</span>
           </div>
           <div className="strip-wrap">
             <button
@@ -1345,7 +1792,9 @@ export function GeneratedPortalPage({
             <section className="row" key={gi}>
               <div className="row-head">
                 <span className="mod">Module {gi + 1}</span>
-                <Edit
+                <EditText
+                  editable={editable}
+                  onEditText={onEditText}
                   field="moduleTitle"
                   value={g.title ?? ''}
                   ctx={{ groupIdx: gi }}
@@ -1357,7 +1806,6 @@ export function GeneratedPortalPage({
         </div>
       )}
 
-
       {/* ════════ FAQ (Course Page Empty State.html) ════════ */}
       {faq.length > 0 && (
         <section className="faq">
@@ -1365,13 +1813,18 @@ export function GeneratedPortalPage({
             <h2>Questions? Answers.</h2>
             <div className="faq-list">
               {faq.map((item, i) => (
-                <div className={`faq-item${openFaq === i ? ' open' : ''}`} key={i}>
+                <div
+                  className={`faq-item${openFaq === i ? ' open' : ''}`}
+                  key={i}
+                >
                   <button
                     className="faq-q"
                     type="button"
                     onClick={() => setOpenFaq((o) => (o === i ? null : i))}
                   >
-                    <Edit
+                    <EditText
+                      editable={editable}
+                      onEditText={onEditText}
                       field="faqQ"
                       value={item.q}
                       ctx={{ idx: i }}
@@ -1402,7 +1855,9 @@ export function GeneratedPortalPage({
                         faqClipRefs.current[i] = el
                       }}
                     >
-                      <Edit
+                      <EditText
+                        editable={editable}
+                        onEditText={onEditText}
                         field="faqA"
                         value={item.a}
                         className="faq-a"
@@ -1416,6 +1871,148 @@ export function GeneratedPortalPage({
             </div>
           </div>
         </section>
+      )}
+
+      {/* ════════ ENROLL SHEET — a locked lesson was clicked ════════ */}
+      <div
+        className={`enroll-overlay${enrollLesson ? ' show' : ''}`}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Enroll to watch"
+        onClick={(e) => {
+          if (e.target === e.currentTarget) closeEnroll()
+        }}
+      >
+        {enrollLesson && (
+          <div className="enroll-sheet">
+            <div className={`es-cover${coverUrl ? ' filled' : ''}`}>
+              <div className="es-grab" />
+              <div className="ph-ambient" />
+              <div
+                className="photo"
+                style={
+                  coverUrl
+                    ? { backgroundImage: `url("${coverUrl}")` }
+                    : undefined
+                }
+              />
+              <div className="photo-shade" />
+              <div className="es-eyebrow">
+                <span className="dot" />
+                <span>Spaire Original</span>
+              </div>
+              <div className="es-title">{title}</div>
+              <button
+                className="es-close"
+                type="button"
+                aria-label="Close"
+                onClick={closeEnroll}
+              >
+                <svg
+                  width="13"
+                  height="13"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.4"
+                  strokeLinecap="round"
+                >
+                  <path d="M5 5l14 14M19 5L5 19" />
+                </svg>
+              </button>
+            </div>
+            <div className="es-body">
+              <div className="es-lesson">
+                <svg
+                  width="11"
+                  height="11"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.1"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <rect x="4.5" y="10.5" width="15" height="10" rx="2.5" />
+                  <path d="M8 10.5V7.8a4 4 0 0 1 8 0v2.7" />
+                </svg>
+                <span>
+                  {unitCap} {enrollLesson.n} · {enrollLesson.title}
+                </span>
+              </div>
+              <h3 className="es-h">Enroll to start watching</h3>
+              <p className="es-sub">
+                This {unit} is part of the{' '}
+                {unit === 'episode' ? 'series' : 'course'}. Enroll once and
+                every {unit} is yours — at your own pace, forever.
+              </p>
+              {enrollPrice && <div className="es-price">{enrollPrice}</div>}
+              {enrollPriceSub && (
+                <div className="es-price-sub">{enrollPriceSub}</div>
+              )}
+              <div className="es-actions">
+                <button
+                  className="es-enroll"
+                  type="button"
+                  onClick={() => {
+                    closeEnroll()
+                    onBuy?.()
+                  }}
+                >
+                  {buyLabel}
+                  <svg
+                    width="15"
+                    height="15"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M5 12h14M13 6l6 6-6 6" />
+                  </svg>
+                </button>
+                {hasSampleSection && (
+                  <button
+                    className="es-sample-link"
+                    type="button"
+                    onClick={() => {
+                      closeEnroll()
+                      heroRef.current
+                        ?.closest('.gpp')
+                        ?.querySelector('.sample')
+                        ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                    }}
+                  >
+                    Watch the free sample first
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Per-lesson still reposition — the same overlay the lesson editor
+          uses. Position updates stream live to onRepositionLesson (caller
+          debounces + persists); Replace swaps the still; Save & return just
+          closes. Keyed by reposIdx so it tracks fresh lesson data. */}
+      {reposLesson && reposLesson.imageUrl && (
+        <RepositionInPortal
+          imageUrl={reposLesson.imageUrl}
+          position={reposLesson.imagePosition}
+          title={reposLesson.title}
+          lessonLabel={`${unitCap} ${reposLesson.flatIdx + 1}`}
+          description={reposLesson.description}
+          instructorName={instructorName}
+          busy={lessonImageBusy === reposLesson.flatIdx}
+          onReposition={(pos) => onRepositionLesson?.(reposLesson.flatIdx, pos)}
+          onReplace={(file) =>
+            void onReplaceLessonImage?.(reposLesson.flatIdx, file)
+          }
+          onClose={() => setReposIdx(null)}
+        />
       )}
 
       {/* CSS — copied verbatim from the two design files. Selectors are
@@ -1432,10 +2029,12 @@ export function GeneratedPortalPage({
           --text-2: #86868b;
           --blue: #0071e3;
           --ink: #07080a;
-          --sf: -apple-system, BlinkMacSystemFont, 'SF Pro Display',
-            'SF Pro Text', system-ui, sans-serif;
-          --po: 'Poppins', var(--font-poppins), -apple-system,
-            BlinkMacSystemFont, system-ui, sans-serif;
+          --sf:
+            -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text',
+            system-ui, sans-serif;
+          --po:
+            'Poppins', var(--font-poppins), -apple-system, BlinkMacSystemFont,
+            system-ui, sans-serif;
           --gut: 64px;
           font-family: var(--sf);
           background: var(--bg);
@@ -1472,11 +2071,8 @@ export function GeneratedPortalPage({
         .gpp .ph-ambient {
           position: absolute;
           inset: -15%;
-          background: radial-gradient(
-              42% 52% at 20% 28%,
-              #6e7a5e 0%,
-              transparent 70%
-            ),
+          background:
+            radial-gradient(42% 52% at 20% 28%, #6e7a5e 0%, transparent 70%),
             radial-gradient(46% 56% at 76% 22%, #8a7565 0%, transparent 70%),
             radial-gradient(52% 62% at 62% 82%, #46464c 0%, transparent 72%),
             radial-gradient(36% 46% at 28% 78%, #5d6e6a 0%, transparent 70%),
@@ -1546,16 +2142,39 @@ export function GeneratedPortalPage({
             rgba(0, 0, 0, 0.4) 40%,
             rgba(0, 0, 0, 0.1) 100%
           );
+          /* Frosted blur fading up from the bottom so the episode title/meta
+             read cleanly over the still — the Apple-TV spotlight look. Masked
+             so only the lower portion blurs and the artwork stays crisp above. */
+          -webkit-backdrop-filter: blur(16px);
+          backdrop-filter: blur(16px);
+          -webkit-mask-image: linear-gradient(
+            to top,
+            #000 0%,
+            #000 24%,
+            transparent 54%
+          );
+          mask-image: linear-gradient(
+            to top,
+            #000 0%,
+            #000 24%,
+            transparent 54%
+          );
         }
 
         /* ============================================================ MARQUEE HERO */
         .gpp .panel {
           position: relative;
           width: 100%;
-          height: 92vh;
-          min-height: 560px;
+          height: 100svh;
+          min-height: 640px;
           overflow: hidden;
           background: var(--ink);
+          /* title + band in normal flow, anchored to the bottom — the cover
+             image gets all the room above, and a tall title can never run
+             under the band (it pushes the band down instead). */
+          display: flex;
+          flex-direction: column;
+          justify-content: flex-end;
         }
         .gpp .panel-art {
           position: absolute;
@@ -1621,7 +2240,9 @@ export function GeneratedPortalPage({
           box-shadow: none;
           display: grid;
           place-items: center;
-          transition: background 0.2s, transform 0.16s;
+          transition:
+            background 0.2s,
+            transform 0.16s;
         }
         .gpp .panel .theme-toggle:hover {
           background: rgba(40, 40, 46, 0.6);
@@ -1641,11 +2262,9 @@ export function GeneratedPortalPage({
         }
 
         .gpp .panel-title {
-          position: absolute;
-          left: var(--gut);
-          right: var(--gut);
-          bottom: 242px;
+          position: relative;
           z-index: 4;
+          margin: 0 var(--gut);
         }
         .gpp .pt-eyebrow {
           font-size: 13px;
@@ -1665,18 +2284,17 @@ export function GeneratedPortalPage({
           text-shadow: 0 4px 50px rgba(0, 0, 0, 0.4);
         }
 
-        /* frosted control band — fades into the page color */
+        /* frosted control band — fades into the page color. In normal flow
+           below the title (not absolute), so the title can never overlap. */
         .gpp .band {
-          position: absolute;
-          left: 0;
-          right: 0;
-          bottom: 0;
+          position: relative;
           z-index: 5;
+          margin-top: 26px;
           display: grid;
           grid-template-columns: 280px minmax(0, 1fr) 250px;
           gap: 44px;
           align-items: start;
-          padding: 76px var(--gut) 38px;
+          padding: 34px var(--gut) 38px;
           -webkit-backdrop-filter: blur(32px) saturate(140%);
           backdrop-filter: blur(32px) saturate(140%);
           background: linear-gradient(
@@ -1686,8 +2304,8 @@ export function GeneratedPortalPage({
             rgba(var(--band), 0.45) 82%,
             rgba(var(--band), 0) 100%
           );
-          -webkit-mask-image: linear-gradient(0deg, #000 78%, transparent 100%);
-          mask-image: linear-gradient(0deg, #000 78%, transparent 100%);
+          -webkit-mask-image: linear-gradient(0deg, #000 86%, transparent 100%);
+          mask-image: linear-gradient(0deg, #000 86%, transparent 100%);
           color: var(--bt);
           transition: color 0.4s ease;
         }
@@ -1706,8 +2324,10 @@ export function GeneratedPortalPage({
           font-size: 15px;
           font-weight: 600;
           letter-spacing: -0.01em;
-          transition: transform 0.16s cubic-bezier(0.2, 1.2, 0.3, 1),
-            background 0.16s, box-shadow 0.16s;
+          transition:
+            transform 0.16s cubic-bezier(0.2, 1.2, 0.3, 1),
+            background 0.16s,
+            box-shadow 0.16s;
         }
         .gpp .abtn:active {
           transform: scale(0.975);
@@ -1853,8 +2473,10 @@ export function GeneratedPortalPage({
         .gpp .hero {
           position: relative;
           width: 100%;
-          height: 92vh;
-          min-height: 540px;
+          /* Full-viewport tall, same as the marquee (.panel) — the cover hero
+             owns the whole first screen. */
+          height: 100svh;
+          min-height: 640px;
           overflow: hidden;
           background: transparent;
           font-family: var(--po);
@@ -1946,7 +2568,9 @@ export function GeneratedPortalPage({
           font-size: 14px;
           font-weight: 600;
           letter-spacing: -0.01em;
-          transition: background 0.2s, transform 0.16s;
+          transition:
+            background 0.2s,
+            transform 0.16s;
         }
         .gpp .add-pill:hover {
           background: rgba(255, 255, 255, 0.28);
@@ -1985,7 +2609,9 @@ export function GeneratedPortalPage({
           letter-spacing: -0.005em;
           white-space: nowrap;
           cursor: pointer;
-          transition: background 0.18s, transform 0.18s;
+          transition:
+            background 0.18s,
+            transform 0.18s;
         }
         .gpp .card-add:hover {
           background: rgba(255, 255, 255, 0.28);
@@ -1995,7 +2621,9 @@ export function GeneratedPortalPage({
         .gpp .card.filled .card-add {
           opacity: 0;
           pointer-events: none;
-          transition: opacity 0.2s, background 0.18s;
+          transition:
+            opacity 0.2s,
+            background 0.18s;
         }
         .gpp .card.filled:hover .card-add {
           opacity: 1;
@@ -2022,7 +2650,9 @@ export function GeneratedPortalPage({
           letter-spacing: -0.005em;
           white-space: nowrap;
           cursor: pointer;
-          transition: background 0.18s, transform 0.18s;
+          transition:
+            background 0.18s,
+            transform 0.18s;
         }
         .gpp .thumb-add:hover {
           background: rgba(255, 255, 255, 0.28);
@@ -2036,6 +2666,15 @@ export function GeneratedPortalPage({
         .gpp .lc-catalog:hover .lc-thumb:not(.ph) .thumb-add {
           opacity: 1;
           pointer-events: auto;
+        }
+        /* Reposition pill — the second control, stacked below the Add/Replace
+           pill so the two never overlap. Inherits .thumb-add/.card-add styling
+           and the filled-hover reveal; only the vertical offset changes. */
+        .gpp .thumb-add.is-repos {
+          top: calc(50% + 42px);
+        }
+        .gpp .card-add.is-repos {
+          top: 58px;
         }
         .gpp .change-pill {
           position: absolute;
@@ -2058,7 +2697,9 @@ export function GeneratedPortalPage({
           font-weight: 600;
           cursor: pointer;
           opacity: 0;
-          transition: opacity 0.2s, background 0.18s;
+          transition:
+            opacity 0.2s,
+            background 0.18s;
         }
         .gpp .sample-screen:hover .change-pill {
           opacity: 1;
@@ -2137,7 +2778,9 @@ export function GeneratedPortalPage({
           box-shadow: none;
           display: grid;
           place-items: center;
-          transition: background 0.2s, transform 0.16s;
+          transition:
+            background 0.2s,
+            transform 0.16s;
         }
         .gpp .creator-bar .theme-toggle:hover {
           background: rgba(255, 255, 255, 0.28);
@@ -2209,6 +2852,40 @@ export function GeneratedPortalPage({
           gap: 13px;
           margin-top: 26px;
         }
+        /* Mobile centered Add-cover button (anchored below the icon-pill
+           bar). Hidden on desktop; the mobile media query reveals it. */
+        .gpp .hero-cta {
+          display: none;
+          position: absolute;
+          top: clamp(84px, 15%, 130px);
+          left: 50%;
+          transform: translateX(-50%);
+          z-index: 4;
+          align-items: center;
+          gap: 8px;
+          height: 40px;
+          padding: 0 18px;
+          border-radius: 980px;
+          background: rgba(255, 255, 255, 0.14);
+          color: #fff;
+          -webkit-backdrop-filter: blur(40px) saturate(150%);
+          backdrop-filter: blur(40px) saturate(150%);
+          font-family: var(--sf);
+          font-size: 14px;
+          font-weight: 600;
+          letter-spacing: -0.01em;
+          white-space: nowrap;
+          transition:
+            background 0.2s,
+            transform 0.16s;
+        }
+        .gpp .hero-cta:active {
+          background: rgba(255, 255, 255, 0.28);
+          transform: translateX(-50%) scale(0.96);
+        }
+        .gpp .hero.filled .hero-cta {
+          background: rgba(10, 11, 13, 0.46);
+        }
         .gpp .btn-trailer {
           display: inline-flex;
           align-items: center;
@@ -2254,7 +2931,9 @@ export function GeneratedPortalPage({
           padding: 15px 26px;
           border-radius: 980px;
           font-family: var(--sf);
-          transition: background 0.18s, transform 0.16s ease;
+          transition:
+            background 0.18s,
+            transform 0.16s ease;
         }
         .gpp .btn-enroll:hover {
           background: rgba(255, 255, 255, 0.28);
@@ -2286,6 +2965,9 @@ export function GeneratedPortalPage({
           font-size: clamp(28px, 3vw, 40px);
           font-weight: 600;
           letter-spacing: -0.025em;
+          /* the app's global heading styles leak a 1.5 line-height in here;
+             the design relies on the browser default (~1.15) */
+          line-height: 1.15;
           color: var(--text);
           transition: color 0.4s ease;
         }
@@ -2327,6 +3009,27 @@ export function GeneratedPortalPage({
         .gpp .sample-screen.playing .glass-tint {
           display: none;
         }
+        .gpp .sample-mute {
+          position: absolute;
+          right: 14px;
+          bottom: 14px;
+          z-index: 4;
+          width: 38px;
+          height: 38px;
+          border-radius: 999px;
+          display: grid;
+          place-items: center;
+          color: #fff;
+          background: rgba(0, 0, 0, 0.5);
+          -webkit-backdrop-filter: blur(12px) saturate(180%);
+          backdrop-filter: blur(12px) saturate(180%);
+          border: 1px solid rgba(255, 255, 255, 0.2);
+          cursor: pointer;
+          transition: background 0.15s ease;
+        }
+        .gpp .sample-mute:hover {
+          background: rgba(0, 0, 0, 0.66);
+        }
         .gpp .ph-cta {
           position: relative;
           z-index: 2;
@@ -2347,7 +3050,9 @@ export function GeneratedPortalPage({
           display: grid;
           place-items: center;
           cursor: pointer;
-          transition: background 0.2s, transform 0.18s;
+          transition:
+            background 0.2s,
+            transform 0.18s;
         }
         .gpp .ph-cta .ph-ic:hover {
           background: rgba(255, 255, 255, 0.28);
@@ -2397,9 +3102,14 @@ export function GeneratedPortalPage({
         /* 4-up when the viewport supports it; below that, cards hold a
            cinematic minimum width and the rail scrolls — never shrink into
            squat tiles. */
-        .gpp .row .grid .card,
-        .gpp .row .grid .lc-catalog {
+        .gpp .row .grid .card {
           flex: 0 0 max(calc((100% - 90px) / 4), 400px);
+          scroll-snap-align: start;
+        }
+        /* Catalog cards mirror the customer portal: a clean 4-up that scales
+           with the container (no 400px min-width floor → no chunky 3-up rail). */
+        .gpp .row .grid .lc-catalog {
+          flex: 0 0 calc((100% - 90px) / 4);
           scroll-snap-align: start;
         }
 
@@ -2411,6 +3121,7 @@ export function GeneratedPortalPage({
           border-radius: 24px;
           overflow: hidden;
           box-shadow: 0 20px 18px rgba(0, 0, 0, 0.04);
+          min-width: 0;
         }
         .gpp .card[role='button'] {
           cursor: pointer;
@@ -2437,9 +3148,11 @@ export function GeneratedPortalPage({
           line-height: 1.2;
           color: #fff;
           margin-top: 5px;
-          white-space: nowrap;
+          display: -webkit-box;
+          -webkit-line-clamp: 2;
+          -webkit-box-orient: vertical;
           overflow: hidden;
-          text-overflow: ellipsis;
+          overflow-wrap: anywhere;
         }
         .gpp .card .desc {
           font-size: 14px;
@@ -2488,6 +3201,9 @@ export function GeneratedPortalPage({
           gap: 13px;
           margin-bottom: 18px;
         }
+        .gpp .strip-rh .rh-mobile {
+          display: none;
+        }
         .gpp .strip-rh .rh {
           font-size: 19px;
           font-weight: 700;
@@ -2517,7 +3233,9 @@ export function GeneratedPortalPage({
         .gpp .strip-wrap .grid::-webkit-scrollbar {
           display: none;
         }
-        .gpp .strip-wrap .grid .lc-catalog,
+        .gpp .strip-wrap .grid .lc-catalog {
+          flex: 0 0 calc((100% - 90px) / 4);
+        }
         .gpp .strip-wrap .grid .card {
           flex: 0 0 max(calc((100% - 90px) / 4), 400px);
           scroll-snap-align: start;
@@ -2535,7 +3253,9 @@ export function GeneratedPortalPage({
           place-items: center;
           opacity: 0;
           pointer-events: none;
-          transition: opacity 0.2s, color 0.15s;
+          transition:
+            opacity 0.2s,
+            color 0.15s;
         }
         .gpp .arrow:hover {
           color: #000;
@@ -2569,23 +3289,29 @@ export function GeneratedPortalPage({
           -webkit-font-smoothing: antialiased;
           -moz-osx-font-smoothing: grayscale;
           letter-spacing: -0.014em;
+          /* keep the card at its flex-basis — long titles wrap inside instead
+             of stretching the card wider. */
+          min-width: 0;
         }
         .gpp .lc-card {
           width: 100%;
-          border-radius: 24px;
+          border-radius: 16px;
           overflow: hidden;
           background: #ffffff;
           border: 1px solid #e6e6e9;
           display: flex;
           flex-direction: column;
-          box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04),
+          box-shadow:
+            0 1px 2px rgba(0, 0, 0, 0.04),
             0 4px 16px rgba(0, 0, 0, 0.05);
-          transition: transform 0.26s cubic-bezier(0.34, 1.3, 0.64, 1),
+          transition:
+            transform 0.26s cubic-bezier(0.34, 1.3, 0.64, 1),
             box-shadow 0.26s;
         }
         .gpp .lc-catalog:hover .lc-card {
           transform: translateY(-5px);
-          box-shadow: 0 16px 48px rgba(0, 0, 0, 0.14),
+          box-shadow:
+            0 16px 48px rgba(0, 0, 0, 0.14),
             0 2px 8px rgba(0, 0, 0, 0.06);
         }
         .gpp .lc-thumb {
@@ -2701,9 +3427,13 @@ export function GeneratedPortalPage({
           line-height: 1.2;
           color: #1d1d1f;
           margin-bottom: 7px;
-          white-space: nowrap;
+          /* Long titles wrap to a second line and clamp — they never widen or
+             grow the fixed-size card. */
+          display: -webkit-box;
+          -webkit-line-clamp: 2;
+          -webkit-box-orient: vertical;
           overflow: hidden;
-          text-overflow: ellipsis;
+          overflow-wrap: anywhere;
         }
         .gpp .lc-desc {
           font-size: 14px;
@@ -2726,6 +3456,25 @@ export function GeneratedPortalPage({
           font-weight: 500;
           color: #86868b;
           font-variant-numeric: tabular-nums;
+        }
+        /* Dark mode: darken the whole catalog card — body + info block — on
+           every breakpoint, matching the customer portal (the info part below
+           turns dark too, instead of staying white). */
+        .gpp.dark .lc-card {
+          background: #1d1d20;
+          border-color: rgba(245, 245, 247, 0.12);
+        }
+        .gpp.dark .lc-num {
+          color: rgba(245, 245, 247, 0.6);
+        }
+        .gpp.dark .lc-title {
+          color: #f5f5f7;
+        }
+        .gpp.dark .lc-desc {
+          color: rgba(245, 245, 247, 0.6);
+        }
+        .gpp.dark .lc-meta {
+          color: rgba(245, 245, 247, 0.6);
         }
 
         /* ============================================================ INSTRUCTOR — Apple/MasterClass style */
@@ -2897,7 +3646,9 @@ export function GeneratedPortalPage({
           font-weight: 600;
           letter-spacing: -0.02em;
           color: var(--text);
-          transition: color 0.2s ease, opacity 0.2s ease;
+          transition:
+            color 0.2s ease,
+            opacity 0.2s ease;
         }
         .gpp .faq-q:hover {
           opacity: 0.62;
@@ -2905,7 +3656,8 @@ export function GeneratedPortalPage({
         .gpp .faq-q .chev {
           flex: none;
           color: var(--faq-chev);
-          transition: transform 0.42s cubic-bezier(0.4, 0, 0.2, 1),
+          transition:
+            transform 0.42s cubic-bezier(0.4, 0, 0.2, 1),
             color 0.2s ease;
         }
         .gpp .faq-item.open .faq-q .chev {
@@ -2932,13 +3684,245 @@ export function GeneratedPortalPage({
           color: var(--faq-ans);
           opacity: 0;
           transform: translateY(-6px);
-          transition: opacity 0.32s ease 0.04s,
+          transition:
+            opacity 0.32s ease 0.04s,
             transform 0.42s cubic-bezier(0.4, 0, 0.2, 1);
         }
         .gpp .faq-item.open .faq-a {
           opacity: 1;
           transform: none;
           padding-bottom: 30px;
+        }
+
+        /* ============================================================ ENROLL SHEET — locked lesson */
+        .gpp .enroll-overlay {
+          position: fixed;
+          inset: 0;
+          z-index: 100;
+          display: grid;
+          place-items: center;
+          padding: 24px;
+          background: rgba(10, 10, 12, 0.4);
+          -webkit-backdrop-filter: blur(22px) saturate(120%);
+          backdrop-filter: blur(22px) saturate(120%);
+          opacity: 0;
+          pointer-events: none;
+          transition: opacity 0.32s ease;
+        }
+        .gpp .enroll-overlay.show {
+          opacity: 1;
+          pointer-events: auto;
+        }
+        .gpp .enroll-sheet {
+          width: min(540px, 100%);
+          border-radius: 28px;
+          overflow: hidden;
+          max-height: 100%;
+          display: flex;
+          flex-direction: column;
+          background: var(--bg);
+          color: var(--text);
+          box-shadow:
+            0 50px 100px rgba(0, 0, 0, 0.4),
+            0 8px 28px rgba(0, 0, 0, 0.2);
+          transform: translateY(22px) scale(0.96);
+          transition:
+            transform 0.42s cubic-bezier(0.2, 1, 0.3, 1),
+            background 0.4s ease;
+        }
+        .gpp .enroll-overlay.show .enroll-sheet {
+          transform: none;
+        }
+        .gpp .es-cover {
+          position: relative;
+          flex: none;
+          aspect-ratio: 540 / 280;
+          overflow: hidden;
+          display: grid;
+          place-items: center;
+        }
+        /* Bottom-sheet grab handle — mobile-only (the phone design). */
+        .gpp .es-grab {
+          position: absolute;
+          top: 8px;
+          left: 50%;
+          transform: translateX(-50%);
+          z-index: 3;
+          width: 38px;
+          height: 5px;
+          border-radius: 980px;
+          background: rgba(255, 255, 255, 0.5);
+          display: none;
+        }
+        .gpp .es-cover .photo-shade {
+          display: block;
+          background: linear-gradient(
+            0deg,
+            rgba(5, 5, 8, 0.66) 0%,
+            rgba(5, 5, 8, 0.24) 44%,
+            transparent 70%
+          );
+        }
+        .gpp .es-cover.filled .ph-ambient {
+          display: none;
+        }
+        .gpp .es-eyebrow {
+          position: absolute;
+          top: 20px;
+          left: 24px;
+          z-index: 2;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          color: rgba(255, 255, 255, 0.9);
+          font-family: var(--po);
+          font-size: 10px;
+          font-weight: 700;
+          letter-spacing: 0.22em;
+          text-transform: uppercase;
+        }
+        .gpp .es-eyebrow .dot {
+          width: 6px;
+          height: 6px;
+          border-radius: 50%;
+          background: #e0482e;
+        }
+        .gpp .es-title {
+          position: absolute;
+          left: 24px;
+          right: 70px;
+          bottom: 18px;
+          z-index: 2;
+          font-family: var(--po);
+          font-size: 27px;
+          font-weight: 700;
+          letter-spacing: -0.025em;
+          line-height: 1.05;
+          color: #fff;
+        }
+        .gpp .es-close {
+          position: absolute;
+          top: 16px;
+          right: 16px;
+          z-index: 3;
+          width: 32px;
+          height: 32px;
+          border-radius: 50%;
+          background: rgba(10, 11, 13, 0.46);
+          color: #fff;
+          -webkit-backdrop-filter: blur(14px) saturate(150%);
+          backdrop-filter: blur(14px) saturate(150%);
+          display: grid;
+          place-items: center;
+          transition:
+            background 0.18s,
+            transform 0.16s;
+        }
+        .gpp .es-close:hover {
+          background: rgba(40, 40, 46, 0.7);
+          transform: scale(1.06);
+        }
+        .gpp .es-close:active {
+          transform: scale(0.92);
+        }
+        .gpp .es-body {
+          overflow-y: auto;
+          overscroll-behavior: contain;
+          min-height: 0;
+          padding: 30px 36px 34px;
+          text-align: center;
+        }
+        .gpp .es-lesson {
+          font-size: 11px;
+          font-weight: 600;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          color: var(--text-2);
+          transition: color 0.4s ease;
+          display: inline-flex;
+          align-items: center;
+          gap: 7px;
+        }
+        .gpp .es-lesson svg {
+          margin-top: -1px;
+        }
+        .gpp .es-h {
+          font-family: var(--po);
+          font-size: 26px;
+          font-weight: 600;
+          letter-spacing: -0.025em;
+          /* pin the browser-default line-height — the app's global heading
+             styles leak 1.5 in here and stretch the sheet */
+          line-height: 1.15;
+          color: var(--text);
+          margin-top: 10px;
+          transition: color 0.4s ease;
+        }
+        .gpp .es-sub {
+          font-size: 15px;
+          line-height: 1.55;
+          color: var(--text-2);
+          max-width: 380px;
+          margin: 10px auto 0;
+          transition: color 0.4s ease;
+        }
+        .gpp .es-price {
+          font-size: 40px;
+          font-weight: 700;
+          letter-spacing: -0.03em;
+          line-height: 1.15;
+          color: var(--text);
+          margin-top: 22px;
+          transition: color 0.4s ease;
+        }
+        .gpp .es-price-sub {
+          font-size: 13px;
+          color: var(--text-2);
+          margin-top: 4px;
+          transition: color 0.4s ease;
+        }
+        .gpp .es-actions {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 14px;
+          margin-top: 24px;
+        }
+        .gpp .es-enroll {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 9px;
+          width: 100%;
+          max-width: 340px;
+          height: 50px;
+          border-radius: 980px;
+          background: var(--text);
+          color: var(--bg);
+          font-size: 16px;
+          font-weight: 600;
+          letter-spacing: -0.01em;
+          transition:
+            transform 0.16s,
+            opacity 0.16s,
+            background 0.4s ease,
+            color 0.4s ease;
+        }
+        .gpp .es-enroll:hover {
+          opacity: 0.88;
+          transform: scale(1.02);
+        }
+        .gpp .es-enroll:active {
+          transform: scale(0.97);
+        }
+        .gpp .es-sample-link {
+          font-size: 14px;
+          font-weight: 500;
+          color: var(--blue, #0071e3);
+          padding: 4px 8px;
+        }
+        .gpp .es-sample-link:hover {
+          text-decoration: underline;
         }
 
         /* ============================================================ MEDIA QUERIES */
@@ -2963,9 +3947,6 @@ export function GeneratedPortalPage({
           .gpp {
             --gut: 22px;
           }
-          .gpp .panel-title {
-            bottom: 234px;
-          }
           .gpp .band {
             grid-template-columns: 1fr;
             gap: 18px;
@@ -2979,38 +3960,526 @@ export function GeneratedPortalPage({
             flex-basis: min(465px, 84%);
           }
         }
-        @media (max-width: 760px) {
-          .gpp .row {
-            margin-top: 32px;
+        /* ============================================================ MOBILE
+           Full phone layout — a faithful port of "Course Page Empty State
+           (Mobile).html". ~390px-first; the page caps content width and the
+           sections restack: cover hero with a centered Add-cover button +
+           icon-pill creator bar, single-column instructor, 82%-wide card
+           rail, and the compact sample + FAQ. */
+        @media (max-width: 640px) {
+          /* The mobile designs put EVERY section on one 20px axis (--gut)
+             and cap the page at a centered 520px column. The gut override
+             is load-bearing: the hero title, the band's CTA buttons, and
+             the rails all reference it — miss it and the buttons sit on a
+             different axis than the text above them. */
+          .gpp {
+            --gut: 20px;
+            max-width: 520px;
+            margin: 0 auto;
           }
-          .gpp .row .grid {
-            gap: 18px;
+
+          /* ── cover hero ── full-viewport, same as the marquee ── */
+          .gpp .hero {
+            height: 100svh;
+            min-height: 640px;
+            max-height: none;
           }
-          .gpp .row .grid .card,
-          .gpp .row .grid .lc-catalog {
-            flex: 0 0 min(465px, 84%);
+          .gpp .hero .photo-shade {
+            background: linear-gradient(
+              0deg,
+              rgba(5, 5, 8, 0.66) 0%,
+              rgba(5, 5, 8, 0.3) 36%,
+              transparent 60%
+            );
           }
-          .gpp .lessons {
-            padding: 28px 20px 56px;
+          .gpp .hero-ph {
+            top: 44%;
           }
-          .gpp .sample {
-            padding: 48px 20px 8px;
+          .gpp .hero-blend {
+            height: 40px;
           }
           .gpp .hero-eyebrow {
-            top: 30px;
-            left: 24px;
+            top: 22px;
+            left: 20px;
+            font-size: 11px;
           }
-          .gpp .creator-bar {
-            top: 24px;
-            right: 20px;
+          .gpp .hero-eyebrow .dot {
+            width: 6px;
+            height: 6px;
           }
           .gpp .hero-content {
-            left: 24px;
-            right: 24px;
-            bottom: 36px;
+            left: 20px;
+            right: 20px;
+            bottom: 28px;
+          }
+          .gpp .hero-meta {
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 14px;
+          }
+          .gpp .badge {
+            font-size: 10px;
+            padding: 6px 12px;
+          }
+          .gpp .meta-line {
+            font-size: 13px;
+            gap: 8px;
+          }
+          .gpp .hero-title {
+            font-size: clamp(38px, 11.5vw, 48px);
+            line-height: 1.04;
+          }
+          .gpp .hero-desc {
+            margin-top: 14px;
+            font-size: 15px;
           }
           .gpp .hero-actions {
-            flex-wrap: wrap;
+            flex-direction: column;
+            /* reset the desktop row's align-items: center — the design's
+               buttons fill the 20px-gutter column edge to edge */
+            align-items: stretch;
+            gap: 10px;
+            margin-top: 22px;
+          }
+          .gpp .btn-trailer,
+          .gpp .btn-enroll {
+            justify-content: center;
+            height: 50px;
+            font-size: 15px;
+          }
+          .gpp .btn-trailer {
+            padding: 0 20px;
+          }
+          .gpp .btn-trailer .play {
+            width: 28px;
+            height: 28px;
+          }
+          .gpp .btn-enroll {
+            padding: 0 22px;
+          }
+
+          /* creator controls → 44px icon pills; Add-cover is the centered
+             .hero-cta (rendered separately in editable mode). */
+          .gpp .creator-bar {
+            top: 14px;
+            right: 14px;
+            gap: 8px;
+          }
+          .gpp .creator-bar .add-pill {
+            width: 44px;
+            height: 44px;
+            padding: 0;
+            border-radius: 50%;
+            justify-content: center;
+          }
+          .gpp .creator-bar .add-pill span {
+            display: none;
+          }
+          .gpp .creator-bar .add-pill svg {
+            width: 16px;
+            height: 16px;
+          }
+          /* the labelled Add cover + Reposition pills collapse on phones;
+             cover upload lives in the centered .hero-cta, reposition is a
+             desktop-drag affordance. */
+          .gpp .creator-bar .add-pill.is-cover,
+          .gpp .creator-bar .add-pill.is-reposition {
+            display: none;
+          }
+          .gpp .panel .creator-bar {
+            top: 14px;
+            right: 14px;
+          }
+          .gpp .creator-bar .theme-toggle {
+            width: 44px;
+            height: 44px;
+          }
+          .gpp .hero-cta {
+            display: inline-flex;
+          }
+
+          /* ── instructor → single column ── */
+          .gpp .instructor {
+            padding: 64px 20px 8px;
+          }
+          .gpp .inst-inner {
+            grid-template-columns: 1fr;
+            gap: 0;
+          }
+          .gpp .inst-head {
+            grid-template-columns: 76px 1fr;
+            gap: 16px;
+            margin-bottom: 24px;
+          }
+          .gpp .inst-avatar {
+            width: 76px;
+            height: 76px;
+          }
+          .gpp .inst-name {
+            font-size: 30px;
+          }
+          .gpp .inst-sub {
+            margin-top: 8px;
+            font-size: 14px;
+          }
+          .gpp .inst-bio {
+            font-size: 16px;
+          }
+          .gpp .inst-bio + .inst-bio {
+            margin-top: 16px;
+          }
+          .gpp .inst-media {
+            margin-top: 32px;
+            border-radius: 24px;
+          }
+          .gpp .inst-caption {
+            left: 16px;
+            bottom: 16px;
+            font-size: 12.5px;
+          }
+
+          /* ── free sample ── */
+          .gpp .sample {
+            padding: 56px 20px 8px;
+          }
+          .gpp .sample-eyebrow {
+            font-size: 11px;
+            margin-bottom: 10px;
+          }
+          .gpp .sample h2 {
+            font-size: 27px;
+          }
+          .gpp .sample-sub {
+            font-size: 15px;
+            margin-top: 8px;
+          }
+          .gpp .sample-screen {
+            aspect-ratio: 16 / 10;
+            margin-top: 24px;
+            border-radius: 18px;
+            box-shadow: 0 24px 22px rgba(0, 0, 0, 0.05);
+          }
+          .gpp .ph-cta .ph-ic {
+            width: 56px;
+            height: 56px;
+          }
+          .gpp .ph-cta .ph-k {
+            font-size: 14px;
+          }
+          .gpp .ph-cta .ph-s {
+            font-size: 12px;
+            margin-top: -7px;
+          }
+
+          /* ── lesson rails — one card at a time ── */
+          .gpp .lessons {
+            padding: 40px 20px 64px;
+          }
+          .gpp .row {
+            margin-top: 36px;
+          }
+          .gpp .row-head,
+          .gpp .strip-rh {
+            font-size: 17px;
+            margin-bottom: 12px;
+          }
+          .gpp .row .grid,
+          .gpp .strip-wrap .grid {
+            gap: 14px;
+            scroll-padding-inline: 20px;
+            margin: 0 -20px;
+            padding: 0 20px;
+          }
+          /* module rows show 82% spotlight cards; the episode strip shows
+             78% catalog cards (per the two mobile designs). */
+          .gpp .row .grid .card,
+          .gpp .row .grid .lc-catalog {
+            flex: 0 0 82%;
+          }
+          .gpp .strip-wrap .grid .card,
+          .gpp .strip-wrap .grid .lc-catalog {
+            flex: 0 0 78%;
+          }
+          .gpp .card {
+            border-radius: 18px;
+            box-shadow: 0 14px 14px rgba(0, 0, 0, 0.04);
+          }
+          .gpp .card-info {
+            padding: 0 16px 13px;
+          }
+          .gpp .card .title {
+            font-size: 16px;
+            margin-top: 4px;
+          }
+          .gpp .card .desc {
+            font-size: 13px;
+            min-height: 37px;
+          }
+
+          /* ── faq ── */
+          .gpp .faq {
+            padding: 16px 20px 88px;
+          }
+          .gpp .faq h2 {
+            font-size: clamp(34px, 10.5vw, 44px);
+            white-space: normal;
+            margin-bottom: 36px;
+          }
+          .gpp .faq-q {
+            padding: 20px 2px;
+            font-size: 17px;
+            gap: 16px;
+          }
+          .gpp .faq-a {
+            padding: 0 28px 6px 2px;
+            font-size: 15px;
+          }
+          .gpp .faq-item.open .faq-a {
+            padding-bottom: 24px;
+          }
+
+          /* ── marquee hero (Marquee Course Page Mobile) ── */
+          /* The panel becomes a bottom-anchored flex column, and the title +
+             band live in NORMAL FLOW (not absolute) so a long 3-line title
+             can never run under the CTA buttons — it pushes the band down
+             instead. Everything else (art, scrim, brand, toggle) stays
+             absolute, so only these two are flow children. */
+          .gpp .panel {
+            height: 100svh;
+            min-height: 640px;
+            max-height: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+          }
+          .gpp .panel-scrim {
+            background: linear-gradient(
+              180deg,
+              rgba(0, 0, 0, 0.34) 0%,
+              transparent 26%,
+              transparent 52%,
+              rgba(0, 0, 0, 0.2) 74%
+            );
+          }
+          .gpp .panel-brand {
+            top: 24px;
+            font-size: 11px;
+          }
+          .gpp .panel .creator-bar {
+            top: 14px;
+            right: 14px;
+          }
+          .gpp .panel-title {
+            position: relative;
+            left: auto;
+            right: auto;
+            bottom: auto;
+            margin: 0 var(--gut);
+          }
+          .gpp .pt-eyebrow {
+            font-size: 12px;
+            margin-bottom: 10px;
+          }
+          .gpp .pt-h {
+            font-size: clamp(34px, 10.5vw, 44px);
+            line-height: 0.98;
+            letter-spacing: -0.03em;
+            max-width: 12ch;
+            text-wrap: balance;
+          }
+          /* band → in-flow, single column; drop the desktop description +
+             in-band instructor (instructor is its own section below). */
+          .gpp .band {
+            position: relative;
+            left: auto;
+            right: auto;
+            bottom: auto;
+            margin-top: 22px;
+            display: flex;
+            flex-direction: column;
+            /* reset the desktop grid's align-items: start — without this the
+               CTA buttons shrink to their text width and float off-axis
+               instead of filling the 20px-gutter column like the design */
+            align-items: stretch;
+            gap: 16px;
+            padding: 30px var(--gut) 26px;
+            -webkit-mask-image: linear-gradient(
+              0deg,
+              #000 86%,
+              transparent 100%
+            );
+            mask-image: linear-gradient(0deg, #000 86%, transparent 100%);
+          }
+          .gpp .band-actions {
+            gap: 10px;
+          }
+          .gpp .abtn {
+            height: 50px;
+            border-radius: 13px;
+            font-size: 15px;
+          }
+          .gpp .band-free {
+            text-align: center;
+            margin-top: 0;
+          }
+          .gpp .band-desc {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            padding-top: 0;
+          }
+          .gpp .band-desc .bd-text {
+            display: none;
+          }
+          .gpp .bd-meta {
+            font-size: 13px;
+            text-align: center;
+            margin-top: 0;
+          }
+          .gpp .bd-meta-eyebrow {
+            display: none;
+          }
+          .gpp .bd-badges {
+            justify-content: center;
+            margin-top: 0;
+          }
+          .gpp .band-cast {
+            display: none;
+          }
+          /* the strip arrows are a desktop hover affordance — no place on
+             touch, where the rail scroll-snaps one card at a time. */
+          .gpp .arrow {
+            display: none;
+          }
+          /* (dark-mode catalog card darkening now lives in the base rules so it
+             applies on every breakpoint — matching the customer portal.) */
+          /* free-preview strip header + card sizing. The header sits at the
+             page's 20px inset (the .lessons padding); the grid breaks out of
+             that padding and re-pads itself so the rail scrolls full-bleed
+             with a 20px card inset (no double-inset). */
+          .gpp .strip-rh {
+            margin: 0 0 14px;
+          }
+          .gpp .strip-rh .rh {
+            font-size: 19px;
+          }
+          .gpp .strip-rh .rh-desktop {
+            display: none;
+          }
+          .gpp .strip-rh .rh-mobile {
+            display: inline;
+          }
+          .gpp .strip-wrap .grid {
+            overscroll-behavior-x: contain;
+            margin: 0 -20px;
+            padding: 4px 20px 16px;
+          }
+          .gpp .lc-card {
+            border-radius: 16px;
+          }
+          .gpp .lc-info {
+            padding: 15px 16px 16px;
+          }
+          .gpp .lc-num {
+            font-size: 10px;
+            letter-spacing: 0.08em;
+            margin-bottom: 5px;
+          }
+          .gpp .lc-title {
+            font-size: 17px;
+            margin-bottom: 6px;
+          }
+          .gpp .lc-desc {
+            font-size: 13.5px;
+            line-height: 1.5;
+            min-height: 40px;
+          }
+          .gpp .lc-meta {
+            padding-top: 10px;
+            font-size: 12.5px;
+          }
+
+          /* ── episodic (marquee) section rhythm — its design spaces the
+             instructor / strip / FAQ tighter than the module-course page ── */
+          .gpp.epi .instructor {
+            padding: 56px var(--gut) 8px;
+          }
+          .gpp.epi .lessons {
+            padding: 52px var(--gut) 8px;
+          }
+          .gpp.epi .faq {
+            padding-top: 44px;
+          }
+
+          /* ── enroll sheet → bottom sheet (the mobile design slides it up
+             from the bottom edge, full-width, rounded top corners) ── */
+          .gpp .enroll-overlay {
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            padding: 0;
+          }
+          .gpp .enroll-sheet {
+            width: 100%;
+            max-width: 520px;
+            max-height: 92svh;
+            border-radius: 24px 24px 0 0;
+            box-shadow: 0 -20px 60px rgba(0, 0, 0, 0.35);
+            transform: translateY(100%);
+            transition:
+              transform 0.46s cubic-bezier(0.2, 1, 0.3, 1),
+              background 0.4s ease;
+            padding-bottom: env(safe-area-inset-bottom, 0px);
+          }
+          .gpp .enroll-overlay.show .enroll-sheet {
+            transform: none;
+          }
+          .gpp .es-grab {
+            display: block;
+          }
+          .gpp .es-cover {
+            aspect-ratio: 16 / 9;
+          }
+          .gpp .es-eyebrow {
+            top: 24px;
+            left: 20px;
+            font-size: 10px;
+          }
+          .gpp .es-title {
+            font-size: 23px;
+            left: 20px;
+            right: 64px;
+            bottom: 16px;
+          }
+          .gpp .es-close {
+            top: 14px;
+            right: 14px;
+            width: 36px;
+            height: 36px;
+          }
+          .gpp .es-body {
+            padding: 26px 22px 30px;
+          }
+          .gpp .es-h {
+            font-size: 23px;
+            margin-top: 9px;
+          }
+          .gpp .es-sub {
+            font-size: 14px;
+            max-width: 340px;
+            margin-top: 9px;
+          }
+          .gpp .es-price {
+            font-size: 36px;
+            margin-top: 18px;
+          }
+          .gpp .es-actions {
+            gap: 12px;
+            margin-top: 20px;
+          }
+          .gpp .es-enroll {
+            max-width: none;
+            font-size: 16px;
           }
         }
       `}</style>

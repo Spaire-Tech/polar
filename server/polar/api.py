@@ -23,6 +23,7 @@ from polar.community.endpoints import creator_router as community_creator_router
 from polar.community.endpoints import customer_router as community_customer_router
 from polar.community.endpoints import public_router as community_public_router
 from polar.course.endpoints import router as course_router
+from polar.course_assistant.endpoints import router as course_assistant_router
 from polar.custom_field.endpoints import router as custom_field_router
 from polar.customer.endpoints import router as customer_router
 from polar.customer_meter.endpoints import router as customer_meter_router
@@ -211,6 +212,9 @@ router.include_router(resend_router)
 router.include_router(chargeback_stop_router)
 # /courses
 router.include_router(course_router)
+
+# /course-assistant
+router.include_router(course_assistant_router)
 # /community (creator-side)
 router.include_router(community_creator_router)
 # /customer-portal/community (customer-side)

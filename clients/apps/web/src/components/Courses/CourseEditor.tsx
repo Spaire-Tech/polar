@@ -17,14 +17,17 @@ import {
 import { getQueryClient } from '@/utils/api/query'
 import { schemas } from '@spaire/client'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { toast } from '../Toast/use-toast'
+import '@/styles/editor-dark.css'
+import { AuthTab } from './editor/AuthTab'
 import { AutomationsPanel } from './editor/AutomationsPanel'
 import { CommunityTab } from './editor/CommunityTab'
 import { CourseHeader, TabId } from './editor/CourseHeader'
 import { CustomersTab } from './editor/CustomersTab'
 import { CustomizeTab } from './editor/CustomizeTab'
-import { LessonDetail, LessonEdits } from './editor/LessonDetail'
+import { LessonEdits } from './editor/LessonDetail'
+import { LessonEditorV2 } from './editor/LessonEditorV2'
 import { LessonContentType } from './editor/ModuleCard'
 import { OutlineTab } from './editor/OutlineTab'
 import { PricingTab } from './editor/PricingTab'
@@ -81,32 +84,118 @@ export default function CourseEditor({
     'community',
     'automations',
     'settings',
+    'auth',
     'pricing',
     'customers',
   ])
   const initialTab: TabId =
     tabFromQs && KNOWN_TABS.has(tabFromQs) ? tabFromQs : 'outline'
   const [activeTab, setActiveTab] = useState<TabId>(initialTab)
-  const [selectedLessonId, setSelectedLessonId] = useState<string | null>(null)
+  // Returning from the standalone automation builder deep-links back to the
+  // lesson via ?lesson=<id>; preselect it (and the outline tab).
+  const lessonFromQs = searchParams.get('lesson')
+  const [selectedLessonId, setSelectedLessonId] = useState<string | null>(
+    lessonFromQs ?? null,
+  )
   // LessonDetail reports its dirty state up here so the host can guard
   // navigation (lesson swap, outline click) against silently dropping
   // the user's unsaved typing.
   const [lessonDirty, setLessonDirty] = useState(false)
+  // Id of a lesson that was just added from the outline. The redesigned editor
+  // (LessonEditorV2) persists eagerly, so a blank "New Lesson" card would
+  // otherwise be left behind the moment you open it. We track the fresh id and,
+  // if you leave it still untouched, offer Save-as-draft / Discard instead of
+  // silently keeping the empty row.
+  const [newLessonId, setNewLessonId] = useState<string | null>(null)
   const confirmLeaveDirty = (): boolean => {
     if (!lessonDirty) return true
     return window.confirm(
       'This lesson has unsaved changes. Leave without saving?',
     )
   }
+
+  const DEFAULT_LESSON_TITLES = new Set([
+    'New Lesson',
+    'New Video Lesson',
+    'Untitled quiz',
+  ])
+  const findLessonById = (id: string): CourseLessonRead | null => {
+    for (const mod of course.modules) {
+      const l = mod.lessons.find((x) => x.id === id)
+      if (l) return l
+    }
+    return null
+  }
+  // A freshly-added lesson still looks "empty" — default title, no copy, no
+  // video, not published, no authored content.
+  const lessonLooksEmpty = (l: CourseLessonRead): boolean => {
+    const c = (l.content ?? {}) as {
+      overview?: string
+      takeaways?: string[]
+      attachments?: unknown[]
+      textContent?: string
+    }
+    const hasContent =
+      !!(c.overview && c.overview.trim()) ||
+      !!(c.takeaways && c.takeaways.some((t) => t && t.trim())) ||
+      !!(c.attachments && c.attachments.length > 0) ||
+      !!(c.textContent && c.textContent.trim())
+    return (
+      DEFAULT_LESSON_TITLES.has((l.title ?? '').trim()) &&
+      !(l.description ?? '').trim() &&
+      !l.mux_playback_id &&
+      !l.published &&
+      !hasContent
+    )
+  }
+  // Returns true if it's OK to proceed with the navigation. When leaving an
+  // untouched brand-new lesson, ask whether to keep it as a draft or discard.
+  const reconcileNewLesson = (): boolean => {
+    if (!newLessonId || selectedLessonId !== newLessonId) return true
+    const lesson = findLessonById(newLessonId)
+    const id = newLessonId
+    setNewLessonId(null)
+    if (!lesson || !lessonLooksEmpty(lesson)) return true
+    const keepDraft = window.confirm(
+      'This new lesson is still empty.\n\n' +
+        'Click OK to keep it as a draft, or Cancel to discard it.',
+    )
+    if (!keepDraft) {
+      deleteLesson
+        .mutateAsync(id)
+        .then(invalidateCourse)
+        .catch(() => {
+          /* best-effort cleanup */
+        })
+    }
+    return true
+  }
+
   const guardedSetSelectedLessonId = (next: string | null) => {
     if (next === selectedLessonId) return
     if (!confirmLeaveDirty()) return
+    if (!reconcileNewLesson()) return
     setLessonDirty(false)
     setSelectedLessonId(next)
   }
   const [isSaving, setIsSaving] = useState(false)
   const [isGenerating, setIsGenerating] = useState(false)
   const abortRef = useRef<AbortController | null>(null)
+
+  // Universal editor theme. Persisted under one key shared with the community
+  // hub so a single toggle drives both surfaces (and the dark matches the
+  // community/landing palette).
+  const [dark, setDark] = useState(false)
+  useEffect(() => {
+    setDark(localStorage.getItem('spaire_theme') === 'dark')
+  }, [])
+  const toggleDark = useCallback(() => {
+    setDark((d) => {
+      const next = !d
+      localStorage.setItem('spaire_theme', next ? 'dark' : 'light')
+      return next
+    })
+  }, [])
 
   const addLesson = useAddCourseLesson()
   const updateLesson = useUpdateCourseLesson()
@@ -148,6 +237,7 @@ export default function CourseEditor({
         },
       })
       invalidateCourse()
+      setNewLessonId(lesson.id)
       setSelectedLessonId(lesson.id)
     } catch {
       toast({ title: 'Failed to add lesson' })
@@ -369,6 +459,7 @@ export default function CourseEditor({
 
   const handleTabChange = (tab: TabId) => {
     if (tab !== activeTab && !confirmLeaveDirty()) return
+    if (tab !== activeTab && !reconcileNewLesson()) return
     setActiveTab(tab)
     if (tab !== 'outline') {
       setSelectedLessonId(null)
@@ -412,20 +503,14 @@ export default function CourseEditor({
             isSaving={isSaving}
           />
         ) : (
-          <LessonDetail
+          <LessonEditorV2
             key={selectedLessonInfo.lesson.id}
             lesson={selectedLessonInfo.lesson}
             module={selectedLessonInfo.module}
             course={course}
             organization={organization}
             organizationSlug={organization.slug}
-            onSave={handleSaveLesson}
-            onDelete={() => handleDeleteLesson(selectedLessonInfo.lesson)}
-            onDirtyChange={setLessonDirty}
-            isSaving={isSaving}
-            onGenerateAI={handleGenerateAI}
-            isGenerating={isGenerating}
-            onStopAI={handleStopAI}
+            onDelete={() => guardedSetSelectedLessonId(null)}
           />
         )
     } else {
@@ -450,7 +535,7 @@ export default function CourseEditor({
     mainContent = <CustomizeTab course={course} organization={organization} />
   } else if (activeTab === 'community') {
     mainContent = (
-      <CommunityTab course={course} organizationSlug={organization.slug} />
+      <CommunityTab course={course} organization={organization} dark={dark} />
     )
   } else if (activeTab === 'automations') {
     mainContent = (
@@ -477,6 +562,8 @@ export default function CourseEditor({
         isSaving={updateCourse.isPending}
       />
     )
+  } else if (activeTab === 'auth') {
+    mainContent = <AuthTab course={course} organization={organization} />
   } else if (activeTab === 'pricing') {
     mainContent = (
       <PricingTab
@@ -500,13 +587,17 @@ export default function CourseEditor({
       setSelectedLessonId(null)
       return
     }
-    // Otherwise return to the previous page (typically the products list).
-    // The wizard uses router.replace after creation so it never sits in history.
-    router.back()
+    // Otherwise leave the editor for the Courses list. This is a DETERMINISTIC
+    // push, not router.back(): visiting the standalone automation builder (and
+    // other sub-routes) pushes entries onto history, so router.back() would
+    // retrace into the automation builder instead of leaving the course.
+    router.push(`/dashboard/${organization.slug}/courses`)
   }
 
   return (
-    <div className="flex h-screen flex-col bg-gray-50">
+    <div
+      className={`flex h-screen flex-col bg-gray-50 ${dark ? 'editor-dark' : ''}`}
+    >
       <CourseHeader
         course={course}
         organizationSlug={organization.slug}
@@ -515,6 +606,8 @@ export default function CourseEditor({
         onAddContent={handleAddContent}
         onBack={handleBack}
         onClose={handleClose}
+        dark={dark}
+        onToggleDark={toggleDark}
       />
       <div className="flex-1 overflow-y-auto">{mainContent}</div>
     </div>

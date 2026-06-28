@@ -1,13 +1,16 @@
 'use client'
 
 import {
+  AssistantStrictness,
   CourseRead,
   useUpdateCourse,
   useUploadCourseThumbnail,
 } from '@/hooks/queries/courses'
+import { getQueryClient } from '@/utils/api/query'
 import { toast } from '../../Toast/use-toast'
+import Switch from '@spaire/ui/components/atoms/Switch'
 import ImageOutlined from '@mui/icons-material/ImageOutlined'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ThumbnailPositioner } from './ThumbnailPositioner'
 
 export type CourseSettingsEdits = {
@@ -15,8 +18,9 @@ export type CourseSettingsEdits = {
   description?: string | null
   instructor_name?: string | null
   instructor_bio?: string | null
-  paywall_enabled: boolean
-  paywall_position: number | null
+  // Paywall lives on the PRICING tab; Settings no longer sends these.
+  paywall_enabled?: boolean
+  paywall_position?: number | null
   thumbnail_object_position?: string | null
 }
 
@@ -37,40 +41,52 @@ export function SettingsTab({
   const [instructorBio, setInstructorBio] = useState(
     course.instructor_bio ?? '',
   )
-  const totalLessons = course.modules.reduce(
-    (sum, m) => sum + m.lessons.length,
-    0,
-  )
-  // Free preview count = positional cutoff PLUS any lesson after the
-  // cutoff that's been explicitly marked is_free_preview via the lesson
-  // options menu. The settings input mirrors this combined count so it
-  // matches what the OutlineTab's Free Preview section shows.
-  const derivedFreePreviewCount = useMemo(() => {
-    const flat = course.modules.flatMap((m) => m.lessons)
-    const positional = Math.min(course.paywall_position ?? 0, flat.length)
-    const flaggedAfter = flat
-      .slice(positional)
-      .filter((l) => l.is_free_preview).length
-    return positional + flaggedAfter
-  }, [course.modules, course.paywall_position])
-  const flaggedAfterPaywall = derivedFreePreviewCount - (course.paywall_position ?? 0)
-  const [enabled, setEnabled] = useState(course.paywall_enabled)
-  const [position, setPosition] = useState<number | null>(
-    derivedFreePreviewCount > 0
-      ? derivedFreePreviewCount
-      : totalLessons > 1
-        ? 1
-        : null,
-  )
   const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(
     course.thumbnail_url ?? null,
   )
   const [thumbnailPosition, setThumbnailPosition] = useState<string | null>(
     course.thumbnail_object_position ?? null,
   )
+  const [assistantEnabled, setAssistantEnabled] = useState(
+    course.assistant_enabled,
+  )
+  const [strictness, setStrictness] = useState<AssistantStrictness>(
+    course.assistant_strictness,
+  )
   const thumbnailInputRef = useRef<HTMLInputElement>(null)
   const uploadThumbnail = useUploadCourseThumbnail()
   const updateCourse = useUpdateCourse()
+
+  // The assistant toggle / strictness save immediately (not via the bottom
+  // Save bar, which is for the editable text fields). Optimistic local state,
+  // reverted on failure.
+  const persistAssistant = async (patch: {
+    assistant_enabled?: boolean
+    assistant_strictness?: AssistantStrictness
+  }) => {
+    try {
+      await updateCourse.mutateAsync({ courseId: course.id, body: patch })
+      getQueryClient().invalidateQueries({
+        queryKey: ['courses', { courseId: course.id }],
+      })
+    } catch {
+      // Revert optimistic state to the server's last-known values.
+      setAssistantEnabled(course.assistant_enabled)
+      setStrictness(course.assistant_strictness)
+      toast({ title: 'Failed to update the course assistant' })
+    }
+  }
+
+  const handleToggleAssistant = (next: boolean) => {
+    setAssistantEnabled(next)
+    persistAssistant({ assistant_enabled: next })
+  }
+
+  const handleSetStrictness = (next: AssistantStrictness) => {
+    if (next === strictness) return
+    setStrictness(next)
+    persistAssistant({ assistant_strictness: next })
+  }
 
   const handleRemoveThumbnail = async () => {
     try {
@@ -96,23 +112,20 @@ export function SettingsTab({
     setDescription(course.description ?? '')
     setInstructorName(course.instructor_name ?? '')
     setInstructorBio(course.instructor_bio ?? '')
-    setEnabled(course.paywall_enabled)
-    // Sync the input to the actual free-preview count whenever it
-    // changes — that includes any lessons flagged via the lesson
-    // options menu, not just the positional cutoff.
-    setPosition(derivedFreePreviewCount)
     setThumbnailUrl(course.thumbnail_url ?? null)
     setThumbnailPosition(course.thumbnail_object_position ?? null)
+    setAssistantEnabled(course.assistant_enabled)
+    setStrictness(course.assistant_strictness)
   }, [
     course.id,
     course.title,
     course.description,
     course.instructor_name,
     course.instructor_bio,
-    course.paywall_enabled,
-    derivedFreePreviewCount,
     course.thumbnail_url,
     course.thumbnail_object_position,
+    course.assistant_enabled,
+    course.assistant_strictness,
   ])
 
   const handleThumbnailChange = async (
@@ -141,15 +154,7 @@ export function SettingsTab({
     instructorBio.trim() !== (course.instructor_bio ?? '').trim()
   const dirty =
     detailsDirty ||
-    enabled !== course.paywall_enabled ||
-    // Compare against the derived count (positional + flagged) instead
-    // of raw paywall_position so the form isn't permanently "dirty"
-    // whenever there are lessons flagged via the lesson menu.
-    position !== derivedFreePreviewCount ||
     (thumbnailPosition ?? null) !== (course.thumbnail_object_position ?? null)
-
-  const lockedCount =
-    enabled && position != null ? Math.max(0, totalLessons - position) : 0
 
   const handleSave = () => {
     if (titleError) return
@@ -158,8 +163,6 @@ export function SettingsTab({
       description: description.trim() || null,
       instructor_name: instructorName.trim() || null,
       instructor_bio: instructorBio.trim() || null,
-      paywall_enabled: enabled,
-      paywall_position: enabled ? position : null,
       thumbnail_object_position: thumbnailPosition,
     })
   }
@@ -169,8 +172,6 @@ export function SettingsTab({
     setDescription(course.description ?? '')
     setInstructorName(course.instructor_name ?? '')
     setInstructorBio(course.instructor_bio ?? '')
-    setEnabled(course.paywall_enabled)
-    setPosition(course.paywall_position)
     setThumbnailPosition(course.thumbnail_object_position ?? null)
   }
 
@@ -180,7 +181,7 @@ export function SettingsTab({
         <h1 className="text-lg font-medium text-gray-900">Course settings</h1>
         <p className="mt-1 text-gray-500">
           The course title, description, instructor and thumbnail used on the
-          landing page, plus paywall and access controls.
+          landing page.
         </p>
       </div>
 
@@ -206,7 +207,7 @@ export function SettingsTab({
                 'mt-2 w-full rounded-xl border px-3.5 py-2.5 text-sm text-gray-900 focus:ring-2 focus:outline-none ' +
                 (titleError
                   ? 'border-red-400 focus:border-red-500 focus:ring-red-100'
-                  : 'border-gray-300 focus:border-indigo-500 focus:ring-indigo-100')
+                  : 'border-gray-300 focus:border-[#0066cc] focus:ring-blue-100')
               }
               placeholder="e.g. The Art of Persuasive Writing"
             />
@@ -227,7 +228,7 @@ export function SettingsTab({
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               rows={4}
-              className="mt-2 w-full rounded-xl border border-gray-300 px-3.5 py-2.5 text-sm text-gray-900 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 focus:outline-none"
+              className="mt-2 w-full rounded-xl border border-gray-300 px-3.5 py-2.5 text-sm text-gray-900 focus:border-[#0066cc] focus:ring-2 focus:ring-blue-100 focus:outline-none"
               placeholder="What learners walk away with."
             />
           </div>
@@ -251,7 +252,7 @@ export function SettingsTab({
               type="text"
               value={instructorName}
               onChange={(e) => setInstructorName(e.target.value)}
-              className="mt-2 w-full rounded-xl border border-gray-300 px-3.5 py-2.5 text-sm text-gray-900 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 focus:outline-none"
+              className="mt-2 w-full rounded-xl border border-gray-300 px-3.5 py-2.5 text-sm text-gray-900 focus:border-[#0066cc] focus:ring-2 focus:ring-blue-100 focus:outline-none"
               placeholder="e.g. Dr. Lena Marchetti"
             />
           </div>
@@ -264,7 +265,7 @@ export function SettingsTab({
               value={instructorBio}
               onChange={(e) => setInstructorBio(e.target.value)}
               rows={4}
-              className="mt-2 w-full rounded-xl border border-gray-300 px-3.5 py-2.5 text-sm text-gray-900 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 focus:outline-none"
+              className="mt-2 w-full rounded-xl border border-gray-300 px-3.5 py-2.5 text-sm text-gray-900 focus:border-[#0066cc] focus:ring-2 focus:ring-blue-100 focus:outline-none"
               placeholder="Short third-person bio."
             />
           </div>
@@ -348,66 +349,98 @@ export function SettingsTab({
         )}
       </section>
 
-      <section className="rounded-2xl border border-gray-200 bg-white p-6">
-        <div className="mb-4 flex items-start gap-4">
-          <div className="flex-1">
-            <h2 className="text-lg font-medium text-gray-900">Paywall</h2>
-            <p className="mt-1 text-gray-500">
-              Place a paywall between lessons. Lessons before the paywall are
-              free preview; everything after is locked until purchase.
-            </p>
-          </div>
-          <Toggle checked={enabled} onChange={setEnabled} />
+      <section className="mb-6 rounded-2xl border border-gray-200 bg-white p-6">
+        <div className="mb-4">
+          <h2 className="text-lg font-medium text-gray-900">Course assistant</h2>
+          <p className="mt-1 text-gray-500">
+            An AI teaching assistant your students can chat with inside the
+            course. It answers from your material and explains concepts on
+            demand — available the moment you publish.
+          </p>
         </div>
 
-        {enabled && (
-          <div className="mt-4 border-t border-gray-100 pt-4">
+        <div className="flex items-center justify-between gap-4 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
+          <div>
+            <div className="text-sm font-medium text-gray-900">
+              Enable for students
+            </div>
+            <div className="mt-0.5 text-xs text-gray-500">
+              Shows the assistant chat inside the course player.
+            </div>
+          </div>
+          <Switch
+            checked={assistantEnabled}
+            onCheckedChange={handleToggleAssistant}
+            disabled={updateCourse.isPending}
+            aria-label="Enable the course assistant"
+            className="data-[state=checked]:bg-[#0066cc]"
+          />
+        </div>
+
+        {assistantEnabled && (
+          <div className="mt-4">
             <label className="block text-sm font-medium text-gray-900">
-              Paywall position
+              How closely should it stick to your course?
             </label>
             <p className="mt-0.5 text-xs text-gray-500">
-              Number of lessons visible before the paywall. Lessons after this
-              count are locked.
+              Choose how far the assistant may go beyond your material when a
+              student asks something the course doesn’t cover.
             </p>
-            <div className="mt-3 flex items-center gap-3">
-              <input
-                type="number"
-                min={0}
-                max={totalLessons}
-                value={position ?? ''}
-                onChange={(e) => {
-                  const raw = e.target.value
-                  if (raw === '') {
-                    setPosition(null)
-                    return
-                  }
-                  const parsed = parseInt(raw, 10)
-                  if (!Number.isFinite(parsed)) return
-                  setPosition(Math.max(0, Math.min(totalLessons, parsed)))
-                }}
-                onBlur={() => {
-                  if (position == null) setPosition(0)
-                }}
-                className="w-24 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 focus:outline-none"
-              />
-              <span className="text-sm text-gray-600">
-                of {totalLessons} lessons visible
-              </span>
+            <div className="mt-3 flex flex-col gap-2">
+              {(
+                [
+                  {
+                    value: 'course_plus_general' as const,
+                    title: 'Course + general knowledge',
+                    sub: 'Answers from your course first, then falls back to general knowledge about the subject — clearly labeled when it does.',
+                  },
+                  {
+                    value: 'course_only' as const,
+                    title: 'Course only',
+                    sub: 'Sticks strictly to your material and points students to the relevant lesson instead of improvising. Best for proprietary or opinionated methods.',
+                  },
+                ] satisfies {
+                  value: AssistantStrictness
+                  title: string
+                  sub: string
+                }[]
+              ).map((opt) => {
+                const active = strictness === opt.value
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    disabled={updateCourse.isPending}
+                    onClick={() => handleSetStrictness(opt.value)}
+                    className={
+                      'flex items-start gap-3 rounded-xl border p-3.5 text-left transition-colors disabled:opacity-50 ' +
+                      (active
+                        ? 'border-[#0066cc] bg-blue-50/50 ring-1 ring-blue-100'
+                        : 'border-gray-200 hover:border-gray-300')
+                    }
+                  >
+                    <span
+                      className={
+                        'mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border ' +
+                        (active ? 'border-[#0066cc]' : 'border-gray-300')
+                      }
+                    >
+                      {active && (
+                        <span className="h-2 w-2 rounded-full bg-[#0066cc]" />
+                      )}
+                    </span>
+                    <span>
+                      <span className="block text-sm font-medium text-gray-900">
+                        {opt.title}
+                      </span>
+                      <span className="mt-0.5 block text-xs text-gray-500">
+                        {opt.sub}
+                      </span>
+                    </span>
+                  </button>
+                )
+              })}
             </div>
-            {flaggedAfterPaywall > 0 && (
-              <p className="mt-2 text-xs text-gray-500">
-                Includes {flaggedAfterPaywall} lesson
-                {flaggedAfterPaywall === 1 ? '' : 's'} marked as free preview
-                from the lesson menu.
-              </p>
-            )}
-
-            {lockedCount === 0 && position != null && (
-              <p className="mt-3 text-xs text-amber-600">
-                With this position, no lessons are locked — everything is a
-                free preview.
-              </p>
-            )}
           </div>
         )}
       </section>
@@ -432,31 +465,5 @@ export function SettingsTab({
         </button>
       </div>
     </div>
-  )
-}
-
-function Toggle({
-  checked,
-  onChange,
-}: {
-  checked: boolean
-  onChange: (next: boolean) => void
-}) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      onClick={() => onChange(!checked)}
-      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none ${
-        checked ? 'bg-gray-900' : 'bg-gray-200'
-      }`}
-    >
-      <span
-        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition ${
-          checked ? 'translate-x-5' : 'translate-x-0'
-        }`}
-      />
-    </button>
   )
 }

@@ -386,7 +386,7 @@ export function OutlineTab({
     <div className="mx-auto w-full max-w-[880px] px-8 pt-7 pb-20">
       {/* Search + Preview */}
       <div className="flex items-center gap-3 pb-5">
-        <div className="flex flex-1 items-center gap-2 rounded-xl border border-gray-200 bg-white px-3.5 py-[9px] shadow-sm transition-colors focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-100">
+        <div className="flex flex-1 items-center gap-2 rounded-xl border border-gray-200 bg-white px-3.5 py-[9px] shadow-sm transition-colors focus-within:border-[#0066cc] focus-within:ring-2 focus-within:ring-blue-100">
           <SearchOutlined sx={{ fontSize: 14 }} className="text-gray-400" />
           <input
             type="text"
@@ -705,7 +705,7 @@ function ModuleHeader({
               Math.max(draft.length, mod.title.length, 8) + 2
             }ch + 1.25rem)`,
           }}
-          className="rounded-md border border-gray-300 bg-white px-2 py-0.5 text-[11px] font-semibold tracking-[0.06em] text-gray-700 uppercase focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 focus:outline-none"
+          className="rounded-md border border-gray-300 bg-white px-2 py-0.5 text-[11px] font-semibold tracking-[0.06em] text-gray-700 uppercase focus:border-[#0066cc] focus:ring-2 focus:ring-blue-100 focus:outline-none"
         />
       ) : (
         <button

@@ -1,7 +1,7 @@
 from collections.abc import Sequence
 from uuid import UUID
 
-from sqlalchemy import Select, func, select
+from sqlalchemy import Select, func, select, update
 
 from polar.auth.models import AuthSubject, Organization, User, is_organization, is_user
 from polar.kit.repository import (
@@ -17,6 +17,7 @@ from polar.models.course_lesson_progress import CourseLessonProgress
 from polar.models.course_module import CourseModule
 from polar.models.course_note import CourseNote
 from polar.models.lesson_comment import LessonComment
+from polar.models.lesson_comment_like import LessonCommentLike
 
 
 class CourseRepository(
@@ -217,6 +218,39 @@ class CourseLessonRepository(
         row = result.first()
         return (row[0], row[1]) if row is not None else None
 
+    async def get_course_id_for_lesson(self, lesson_id: UUID) -> UUID | None:
+        """Resolve the owning course of a lesson via its module. Used by the
+        Course Assistant ingestion pipeline (a transcript landing on a lesson
+        triggers a re-check of that lesson's course)."""
+        statement = (
+            select(CourseModule.course_id)
+            .join(CourseLesson, CourseLesson.module_id == CourseModule.id)
+            .where(CourseLesson.id == lesson_id)
+        )
+        result = await self.session.execute(statement)
+        return result.scalar_one_or_none()
+
+    async def get_by_mux_asset_id(self, asset_id: str) -> CourseLesson | None:
+        """Find a (non-soft-deleted) lesson by its Mux asset id. Used by the
+        caption-track webhook, which identifies the asset, not the upload."""
+        statement = self.get_base_statement().where(
+            CourseLesson.mux_asset_id == asset_id
+        )
+        return await self.get_one_or_none(statement)
+
+    async def list_pending_transcripts(
+        self, limit: int = 200
+    ) -> Sequence[CourseLesson]:
+        """Lessons whose caption transcript is still pending. The Course
+        Assistant reconcile cron retries / times these out so a silently
+        stuck caption can't block a course's assistant build forever."""
+        statement = (
+            self.get_base_statement()
+            .where(CourseLesson.transcript_status == "pending")
+            .limit(limit)
+        )
+        return await self.get_all(statement)
+
 
 class CourseEnrollmentRepository(
     RepositorySoftDeletionIDMixin[CourseEnrollment, UUID],
@@ -336,6 +370,19 @@ class LessonCommentRepository(
             LessonComment.lesson_id == lesson_id,
         )
 
+    async def clear_pins_for_lesson(self, lesson_id: UUID) -> None:
+        """Unpin every comment on a lesson — called before pinning a new
+        one so the lesson holds at most a single pin (YouTube semantics)."""
+        statement = (
+            update(LessonComment)
+            .where(
+                LessonComment.lesson_id == lesson_id,
+                LessonComment.pinned_at.isnot(None),
+            )
+            .values(pinned_at=None)
+        )
+        await self.session.execute(statement)
+
     async def get_tombstone_parents(
         self, lesson_id: UUID, parent_ids: set[UUID]
     ) -> Sequence[LessonComment]:
@@ -350,6 +397,59 @@ class LessonCommentRepository(
             LessonComment.lesson_id == lesson_id,
         )
         return await self.get_all(statement)
+
+
+class LessonCommentLikeRepository(
+    RepositoryBase[LessonCommentLike],
+):
+    model = LessonCommentLike
+
+    async def get_like(
+        self, comment_id: UUID, enrollment_id: UUID
+    ) -> LessonCommentLike | None:
+        statement = self.get_base_statement().where(
+            LessonCommentLike.lesson_comment_id == comment_id,
+            LessonCommentLike.enrollment_id == enrollment_id,
+        )
+        return await self.get_one_or_none(statement)
+
+    async def count_for_comment(self, comment_id: UUID) -> int:
+        statement = select(func.count(LessonCommentLike.id)).where(
+            LessonCommentLike.lesson_comment_id == comment_id
+        )
+        result = await self.session.execute(statement)
+        return result.scalar_one()
+
+    async def counts_for_comments(
+        self, comment_ids: Sequence[UUID]
+    ) -> dict[UUID, int]:
+        """Like counts keyed by comment id (only comments with ≥1 like
+        appear). Single grouped query for the whole listing."""
+        if not comment_ids:
+            return {}
+        statement = (
+            select(
+                LessonCommentLike.lesson_comment_id,
+                func.count(LessonCommentLike.id),
+            )
+            .where(LessonCommentLike.lesson_comment_id.in_(comment_ids))
+            .group_by(LessonCommentLike.lesson_comment_id)
+        )
+        result = await self.session.execute(statement)
+        return {row[0]: row[1] for row in result}
+
+    async def liked_comment_ids(
+        self, comment_ids: Sequence[UUID], enrollment_id: UUID
+    ) -> set[UUID]:
+        """Subset of `comment_ids` the given enrollment has liked."""
+        if not comment_ids:
+            return set()
+        statement = select(LessonCommentLike.lesson_comment_id).where(
+            LessonCommentLike.lesson_comment_id.in_(comment_ids),
+            LessonCommentLike.enrollment_id == enrollment_id,
+        )
+        result = await self.session.execute(statement)
+        return {row[0] for row in result}
 
 
 class CourseNoteRepository(

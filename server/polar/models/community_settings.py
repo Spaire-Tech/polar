@@ -35,6 +35,15 @@ class CommunitySettings(RecordModel):
             "watching_rail_threshold >= 1",
             name="community_settings_watching_rail_threshold_check",
         ),
+        CheckConstraint(
+            "who_can_post IN ('everyone', 'approved')",
+            name="community_settings_who_can_post_check",
+        ),
+        CheckConstraint(
+            "default_meeting_provider IN "
+            "('zoom', 'meet', 'teams', 'webex', 'other')",
+            name="community_settings_default_provider_check",
+        ),
     )
 
     course_id: Mapped[UUID] = mapped_column(
@@ -110,6 +119,47 @@ class CommunitySettings(RecordModel):
     # the service layer enforces the post belongs to this course.
     prompt_of_week_post_id: Mapped[UUID | None] = mapped_column(
         Uuid, nullable=True, default=None
+    )
+
+    # ---- Posting & moderation (Community Hub Settings tab) ----
+    # Who may start a submission or thread: everyone, or approved members only.
+    who_can_post: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="everyone"
+    )
+    # Hold the first post from a new member for review before it hits the feed.
+    moderate_new_members: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False
+    )
+    # Auto-hide flagged language.
+    profanity_filter: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=True
+    )
+
+    # ---- Events ----
+    # Pre-selected provider when scheduling a live moment.
+    default_meeting_provider: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="zoom"
+    )
+    # Let members RSVP (and receive reminders).
+    member_rsvp: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=True
+    )
+
+    # ---- Notifications ----
+    notify_new_submissions: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=True
+    )
+    notify_new_comments: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False
+    )
+    weekly_digest: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=True
+    )
+
+    # ---- Danger zone ----
+    # Hidden from members and paused; restorable.
+    archived: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False
     )
 
     @declared_attr

@@ -7,7 +7,13 @@ from typing import Annotated, Literal
 from uuid import UUID
 
 from annotated_types import Ge
-from pydantic import AfterValidator, DirectoryPath, Field, PostgresDsn
+from pydantic import (
+    AfterValidator,
+    AliasChoices,
+    DirectoryPath,
+    Field,
+    PostgresDsn,
+)
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from polar.enums import TaxProcessor
@@ -59,6 +65,14 @@ class Settings(BaseSettings):
     POSTHOG_DEBUG: bool = False
     LOG_LEVEL: str = "DEBUG"
     TESTING: bool = False
+
+    # When true, the API runs `alembic upgrade head` at startup, before it
+    # serves traffic or runs any query. Lets deploys that can only migrate
+    # *after* shipping code (no pre-deploy hook) avoid the window where new
+    # code hits an un-migrated schema. Opt-in so tests, CI and other
+    # processes don't migrate implicitly. Set MIGRATE_ON_STARTUP=true on the
+    # web service.
+    MIGRATE_ON_STARTUP: bool = False
 
     WORKER_HEALTH_CHECK_INTERVAL: timedelta = timedelta(seconds=30)
     WORKER_MAX_RETRIES: int = 20
@@ -219,6 +233,36 @@ class Settings(BaseSettings):
     # OpenAI
     OPENAI_API_KEY: str = ""
     OPENAI_MODEL: str = "o4-mini-2025-04-16"
+
+    # Anthropic / Claude — powers the Course Assistant ("Office Hours") TA.
+    # When the key is empty the feature is treated as not configured:
+    # ingestion no-ops and the answer endpoints return 503.
+    #
+    # Read from the unprefixed `ANTHROPIC_API_KEY` (the name the Anthropic SDK
+    # itself uses, and what's set in the deployment env), falling back to the
+    # `spaire_`-prefixed `SPAIRE_ANTHROPIC_API_KEY` for consistency with the
+    # rest of the settings. An explicit validation_alias overrides env_prefix.
+    ANTHROPIC_API_KEY: str = Field(
+        default="",
+        validation_alias=AliasChoices(
+            "ANTHROPIC_API_KEY", "SPAIRE_ANTHROPIC_API_KEY"
+        ),
+    )
+    # Strong model for student answers; cheap model for the guardrail pass.
+    COURSE_ASSISTANT_ANSWER_MODEL: str = "claude-sonnet-4-6"
+    COURSE_ASSISTANT_GUARDRAIL_MODEL: str = "claude-haiku-4-5"
+    # Voice-card extraction / sample-question generation use the answer model
+    # unless overridden here.
+    COURSE_ASSISTANT_BUILD_MODEL: str = "claude-sonnet-4-6"
+    # Lifecycle email recap copy ("Welcome note" generation) — a short, creative
+    # generation that benefits from the strongest model + adaptive thinking.
+    EMAIL_COPY_MODEL: str = "claude-opus-4-8"
+    # Whole-course-in-context ceiling. A knowledge base larger than this many
+    # tokens is rejected at build time (status=failed) — that's the point at
+    # which real retrieval/RAG would be needed, which is out of scope for v1.
+    COURSE_ASSISTANT_MAX_CONTEXT_TOKENS: int = 600_000
+    # Max tokens for a single streamed answer.
+    COURSE_ASSISTANT_MAX_ANSWER_TOKENS: int = 1_500
 
     # Stripe
     STRIPE_SECRET_KEY: str = ""

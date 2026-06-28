@@ -121,7 +121,7 @@ export function EditText({
         ref={ref as React.Ref<HTMLElement>}
         style={{
           ...mergedStyle,
-          outline: editing ? '2px solid #6366f1' : undefined,
+          outline: editing ? '2px solid #0066cc' : undefined,
           outlineOffset: 2,
           borderRadius: 3,
           cursor: editing ? 'text' : 'pointer',
@@ -803,7 +803,7 @@ function ReposOverlay({
           marginTop: -7,
           borderRadius: '50%',
           background: 'rgba(255,255,255,0.95)',
-          border: '2px solid #6366f1',
+          border: '2px solid #0066cc',
           boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
           zIndex: 8,
           pointerEvents: 'none',

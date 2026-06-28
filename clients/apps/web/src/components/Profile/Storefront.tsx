@@ -2,6 +2,7 @@
 
 import { SpaceEmptyHero } from '@/components/Customization/SpaceEmptyHero'
 import { ProductCard } from '@/components/Products/ProductCard'
+import { StorefrontCourseCard } from '@/components/Products/StorefrontCourseCard'
 import { FormPublic } from '@/hooks/queries/forms'
 import { schemas } from '@spaire/client'
 import Link from 'next/link'
@@ -71,6 +72,9 @@ export const Storefront = ({
     <div className="flex w-full flex-col gap-12">
       {chunks.map((chunk, idx) => {
         if (chunk.kind === 'product') {
+          // Courses get the Apple-TV-style tile (full-width, one per row) with
+          // a hover trailer; other products keep the 2-column card grid.
+          const isCourse = chunk.category === 'course'
           return (
             <section
               key={`p-${idx}`}
@@ -80,29 +84,34 @@ export const Storefront = ({
               <SectionLabel count={chunk.items.length}>
                 {CATEGORY_LABELS[chunk.category] ?? CATEGORY_LABELS.other}
               </SectionLabel>
-              <div className="grid w-full grid-cols-1 gap-6 md:grid-cols-2">
-                {chunk.items.map((entry) =>
-                  preview ? (
-                    <div key={entry.id}>
-                      <ProductCard
-                        product={entry.product}
-                        showDetails={showDetails}
-                        thumbnailSize={thumbnailSize}
-                      />
-                    </div>
+              <div
+                className={
+                  isCourse
+                    ? 'flex w-full flex-col gap-6'
+                    : 'grid w-full grid-cols-1 gap-6 md:grid-cols-2'
+                }
+              >
+                {chunk.items.map((entry) => {
+                  const card = isCourse ? (
+                    <StorefrontCourseCard product={entry.product} />
+                  ) : (
+                    <ProductCard
+                      product={entry.product}
+                      showDetails={showDetails}
+                      thumbnailSize={thumbnailSize}
+                    />
+                  )
+                  return preview ? (
+                    <div key={entry.id}>{card}</div>
                   ) : (
                     <Link
                       key={entry.id}
                       href={`/${organization.slug}/products/${entry.product.id}`}
                     >
-                      <ProductCard
-                        product={entry.product}
-                        showDetails={showDetails}
-                        thumbnailSize={thumbnailSize}
-                      />
+                      {card}
                     </Link>
-                  ),
-                )}
+                  )
+                })}
               </div>
             </section>
           )

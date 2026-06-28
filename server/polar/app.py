@@ -1,3 +1,4 @@
+import asyncio
 import contextlib
 from collections.abc import AsyncIterator
 from typing import TypedDict
@@ -122,6 +123,15 @@ class State(TypedDict):
 @contextlib.asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[State]:
     log.info("Starting Polar API")
+
+    # Apply pending migrations before anything queries the database. This is
+    # opt-in (MIGRATE_ON_STARTUP) for deploys that can only migrate after
+    # shipping code — without it, new code would hit an un-migrated schema and
+    # crash on boot. alembic is synchronous, so run it in a worker thread.
+    if settings.MIGRATE_ON_STARTUP:
+        from polar.migrate import upgrade_to_head
+
+        await asyncio.to_thread(upgrade_to_head)
 
     # Start HTTP metrics pusher (if configured)
     # Use include_queue_metrics=False since queue metrics are worker-specific

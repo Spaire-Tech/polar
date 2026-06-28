@@ -21,8 +21,6 @@ const CHECK_PATH = 'M5 12.5l4.5 4.5L19 7'
 
 type Option = {
   style: LessonCardStyle
-  name: string
-  desc: string
   node: React.ReactNode
   /** Base tile colour behind the card (matches the card's own background). */
   tileBg: string
@@ -44,8 +42,7 @@ export function LessonCardPicker({
   const options: Option[] = [
     {
       style: 'Spotlight',
-      name: 'Spotlight',
-      desc: 'Title and details rest over the image.',
+      // Spotlight example — "Lesson 9 · Constructing the Point".
       node: (
         <SpotlightLessonCard
           imageUrl="/assets/onboarding/spotlight-tennis.jpg"
@@ -56,10 +53,9 @@ export function LessonCardPicker({
     },
     {
       style: 'Catalog',
-      name: 'Catalog',
-      desc: 'Title and details sit below the image.',
-      node: <CatalogCard />,
-      tileBg: '#ffffff',
+      // Catalog example — dark variant (Lesson Card B.html).
+      node: <CatalogCard dark />,
+      tileBg: '#1a1a1c',
     },
   ]
 
@@ -176,10 +172,6 @@ export function LessonCardPicker({
                   </svg>
                 </div>
               </div>
-              <div className="cap">
-                <div className="cap-name">{opt.name}</div>
-                <div className="cap-desc">{opt.desc}</div>
-              </div>
             </div>
           )
         })}
@@ -261,7 +253,7 @@ export function LessonCardPicker({
         /* header */
         .head {
           text-align: center;
-          margin-bottom: 40px;
+          margin-bottom: 52px;
         }
         .head h1 {
           font-family: var(--po);
@@ -290,7 +282,7 @@ export function LessonCardPicker({
           display: grid;
           grid-template-columns: repeat(2, 380px);
           justify-content: center;
-          gap: 36px;
+          gap: 72px;
         }
         .card {
           cursor: pointer;
@@ -370,24 +362,6 @@ export function LessonCardPicker({
           box-shadow: inset 0 0 0 1.5px rgba(0, 0, 0, 0.12);
         }
 
-        /* caption */
-        .cap {
-          padding: 22px 6px 0;
-        }
-        .cap-name {
-          font-family: var(--po);
-          font-size: 23px;
-          font-weight: 600;
-          letter-spacing: -0.02em;
-        }
-        .cap-desc {
-          font-size: 17px;
-          line-height: 1.45;
-          color: var(--gray);
-          font-weight: 400;
-          margin-top: 5px;
-        }
-
         /* footer */
         .foot {
           display: flex;
@@ -395,7 +369,7 @@ export function LessonCardPicker({
           align-items: center;
           justify-content: center;
           gap: 16px;
-          margin-top: 40px;
+          margin-top: 52px;
         }
         .continue {
           display: inline-flex;

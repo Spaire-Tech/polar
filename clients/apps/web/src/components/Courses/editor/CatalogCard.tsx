@@ -15,6 +15,8 @@ export type CatalogCardProps = {
   duration?: string
   imageUrl?: string
   imagePosition?: string
+  /** Dark surface variant (Lesson Card B.html) — used by the lesson picker. */
+  dark?: boolean
   onClick?: () => void
 }
 
@@ -42,10 +44,11 @@ export function CatalogCard({
   duration = '14m 22s',
   imageUrl = '/assets/onboarding/chef-marco.jpg',
   imagePosition = '50% 30%',
+  dark = false,
   onClick,
 }: CatalogCardProps = {}) {
   return (
-    <div className="lc-catalog" onClick={onClick}>
+    <div className={`lc-catalog${dark ? ' dark' : ''}`} onClick={onClick}>
       <div className="lc-card">
         <div className="lc-thumb">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -226,6 +229,29 @@ export function CatalogCard({
           font-weight: 500;
           color: #86868b;
           font-variant-numeric: tabular-nums;
+        }
+
+        /* dark variant — Lesson Card B.html (catalog card on a dark surface) */
+        .lc-catalog.dark .lc-card {
+          background: #1a1a1c;
+          border-color: rgba(255, 255, 255, 0.1);
+          box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4),
+            0 4px 20px rgba(0, 0, 0, 0.45);
+        }
+        .lc-catalog.dark:hover .lc-card {
+          box-shadow: 0 18px 50px rgba(0, 0, 0, 0.6), 0 2px 8px rgba(0, 0, 0, 0.5);
+        }
+        .lc-catalog.dark .lc-num {
+          color: rgba(245, 245, 247, 0.48);
+        }
+        .lc-catalog.dark .lc-title {
+          color: #f5f5f7;
+        }
+        .lc-catalog.dark .lc-desc {
+          color: rgba(245, 245, 247, 0.62);
+        }
+        .lc-catalog.dark .lc-meta {
+          color: rgba(245, 245, 247, 0.48);
         }
       `}</style>
     </div>

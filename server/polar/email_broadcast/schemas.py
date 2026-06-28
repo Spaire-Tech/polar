@@ -67,8 +67,44 @@ class EmailBroadcast(TimestampedSchema, IDSchema):
     total_recipients: int = 0
 
 
+class EmailCopyRequest(Schema):
+    course_id: UUID4 = Field(description="Course to generate the recap copy from.")
+    moment: str = Field(
+        default="enrolment",
+        description=(
+            "Lifecycle moment: enrolment, firstLesson, specificLesson, halfway, "
+            "courseComplete, or inactive."
+        ),
+        max_length=40,
+    )
+
+
+class EmailCopyResponse(Schema):
+    subject: str = Field(description="Generated subject line.")
+    preview: str = Field(description="Generated inbox preview text.")
+    heading: str = Field(description="Generated welcome-note heading.")
+    body: list[str] = Field(
+        default_factory=list, description="Generated welcome-note paragraphs."
+    )
+
+
 class EmailBroadcastTestSend(Schema):
     email: str = Field(description="Inbox to send the test email to.", max_length=320)
+
+
+class EmailBroadcastTestInline(Schema):
+    """Send a test of in-progress authored content (not a saved broadcast) —
+    used by the sequence email editor's "Send test to me"."""
+
+    subject: str = Field(default="", max_length=998)
+    content_html: str = Field(description="The authored, inbox-ready HTML.")
+    preview_text: str | None = Field(default=None, max_length=512)
+    sender_name: str | None = Field(default=None, max_length=255)
+    to_email: str | None = Field(
+        default=None,
+        max_length=320,
+        description="Recipient; defaults to the authenticated user's email.",
+    )
 
 
 class EmailBroadcastTopLink(Schema):

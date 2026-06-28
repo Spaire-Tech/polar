@@ -4,10 +4,9 @@ from uuid import UUID, uuid4
 import structlog
 from sqlalchemy import select
 
+from polar.email.compose import finalize_email_html
 from polar.email.personalize import build_variables
 from polar.email.personalize import render as personalize
-from polar.email.react import render_email_template
-from polar.email.schemas import MarketingEmail, MarketingEmailProps
 from polar.email.sender import email_sender, resolve_creator_from_address
 from polar.kit.utils import utc_now
 from polar.models.email_broadcast import EmailBroadcast, EmailBroadcastStatus
@@ -46,22 +45,17 @@ def _render_broadcast_html(
     """
     body_html = broadcast.content_html or "<p>No content</p>"
     if personalize_vars is not None:
+        # Make {{unsubscribe_url}} resolve in the body before personalize() would
+        # otherwise wipe it as an unknown token.
+        personalize_vars = {**personalize_vars, "unsubscribe_url": unsubscribe_url}
         body_html = personalize(body_html, personalize_vars, html=True)
-    return render_email_template(
-        MarketingEmail(
-            props=MarketingEmailProps(
-                organization_name=organization.name
-                if organization
-                else broadcast.sender_name,
-                organization_logo_url=organization.avatar_url
-                if organization
-                else None,
-                organization_website=organization.website if organization else None,
-                html_content=body_html,
-                preview_text=broadcast.preview_text,
-                unsubscribe_url=unsubscribe_url,
-            )
-        )
+    return finalize_email_html(
+        body_html,
+        unsubscribe_url=unsubscribe_url,
+        organization_name=organization.name if organization else broadcast.sender_name,
+        organization_logo_url=organization.avatar_url if organization else None,
+        organization_website=organization.website if organization else None,
+        preview_text=broadcast.preview_text,
     )
 
 
@@ -250,6 +244,53 @@ async def send_emails(
         if remaining is None:
             broadcast.status = EmailBroadcastStatus.sent
             broadcast.sent_at = utc_now()
+
+
+@actor(actor_name="email_broadcast.send_test_inline", priority=TaskPriority.MEDIUM)
+async def send_test_inline(
+    organization_id: UUID,
+    subject: str,
+    content_html: str,
+    preview_text: str | None,
+    sender_name: str | None,
+    to_email: str,
+) -> None:
+    """Render and deliver a test of in-progress authored content.
+
+    Builds a transient (unsaved) broadcast from the authored fields and runs
+    it through the same render + Resend path as a real broadcast test, so the
+    sequence editor's "Send test to me" lands a real email.
+    """
+    from uuid import uuid4
+
+    from polar.email_subscriber.unsubscribe_token import (
+        build_test_unsubscribe_url,
+    )
+
+    async with AsyncSessionMaker() as session:
+        organization = await session.get(Organization, organization_id)
+        broadcast = EmailBroadcast(
+            organization_id=organization_id,
+            subject=subject or "(no subject)",
+            content_html=content_html,
+            preview_text=preview_text,
+            sender_name=sender_name,
+        )
+        # Not persisted; give it an id only for Resend tracking tags.
+        broadcast.id = uuid4()
+        try:
+            await send_broadcast_email(
+                broadcast,
+                organization,
+                to_email=to_email,
+                unsubscribe_url=build_test_unsubscribe_url(),
+                extra_subject_prefix="[TEST] ",
+            )
+        except Exception:
+            log.exception(
+                "email_broadcast.send_test_inline_failed", to_email=to_email
+            )
+            raise
 
 
 @actor(actor_name="email_broadcast.send_test", priority=TaskPriority.MEDIUM)

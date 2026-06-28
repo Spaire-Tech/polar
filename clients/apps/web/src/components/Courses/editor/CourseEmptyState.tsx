@@ -333,7 +333,7 @@ export function CourseEmptyState() {
           suppressContentEditableWarning
           spellCheck={false}
         >
-          A few minutes inside the course. No account, no card.
+          A few minutes inside the course.
         </p>
         <div className={`sample-screen${sample ? ' filled' : ''}`}>
           <div className="ph-ambient" />
@@ -640,8 +640,9 @@ export function CourseEmptyState() {
         .hero {
           position: relative;
           width: 100%;
-          height: 92vh;
-          min-height: 540px;
+          /* Full-viewport tall, same as the marquee/extended hero. */
+          height: 100svh;
+          min-height: 640px;
           overflow: hidden;
           background: transparent;
           font-family: var(--po);

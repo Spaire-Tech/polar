@@ -9,22 +9,42 @@ const MIN_ZOOM = 1
 const MAX_ZOOM = 3
 
 type Props = {
-  file: File
-  onCancel: () => void
+  // What to position: a freshly-picked File, or the URL of the existing avatar
+  // (so clicking the avatar re-opens this panel to reposition it).
+  src: File | string
   onSave: (blob: Blob) => void | Promise<void>
+  onCancel: () => void
+  // "Replace" opens the file picker to choose a new image.
+  onReplace: () => void
+  // "Delete" removes the avatar entirely (only shown when one exists).
+  onDelete?: () => void
+  // Mirrors the Space's dark theme. The modal portals to <body> (outside the
+  // editor's `.space-dark` root), so it carries its own marker class — its
+  // Tailwind utilities then theme via the shared space-dark remap.
+  dark?: boolean
 }
 
 /**
- * Native HTML canvas avatar cropper. The user picks a file (any image
- * format their browser can decode), positions it inside a square frame
- * with drag + zoom, and we output a centred JPEG at OUTPUT_SIZE so the
- * uploaded asset is always small and always renders cleanly in <img>.
+ * Native HTML canvas avatar positioner. Shows the image inside a square frame
+ * with drag-to-reposition + a zoom slider, and outputs a centred 512×512 JPEG
+ * so the avatar always renders cleanly.
  *
- * HEIC / AVIF inputs depend on browser support. If the browser can't
- * decode the file we show a recoverable error instead of silently
- * uploading something the public Space can't render.
+ * Opens both for a freshly-picked File and for the existing avatar URL (click
+ * the avatar again to reposition). Footer carries Replace + Delete.
+ *
+ * Note on zoom: the preview <img> is sized larger than the frame and clipped.
+ * Tailwind Preflight sets `img { max-width: 100% }`, which would clamp the
+ * width while the inline height stayed fixed — squashing the image. We pin
+ * `maxWidth/maxHeight: none` so zoom scales instead of stretching.
  */
-export const AvatarCropModal = ({ file, onCancel, onSave }: Props) => {
+export const AvatarCropModal = ({
+  src,
+  onSave,
+  onCancel,
+  onReplace,
+  onDelete,
+  dark = false,
+}: Props) => {
   const [imgUrl, setImgUrl] = useState<string | null>(null)
   const [imgEl, setImgEl] = useState<HTMLImageElement | null>(null)
   const [zoom, setZoom] = useState(1)
@@ -39,26 +59,38 @@ export const AvatarCropModal = ({ file, onCancel, onSave }: Props) => {
     pid: number
   } | null>(null)
 
-  // Decode the file into an Image we can draw to canvas.
+  // Decode the source (File or URL) into an Image we can draw to canvas.
   useEffect(() => {
-    const url = URL.createObjectURL(file)
+    setImgEl(null)
+    setError(null)
+    setZoom(1)
+    setOffset({ x: 0, y: 0 })
+
+    const isFile = typeof src !== 'string'
+    const url = isFile ? URL.createObjectURL(src) : src
     setImgUrl(url)
+
     const img = new Image()
+    // Remote avatars must be CORS-enabled to export the cropped canvas; our
+    // CDN sends the header. If it can't, we surface a recoverable error.
+    if (!isFile) img.crossOrigin = 'anonymous'
     img.onload = () => setImgEl(img)
     img.onerror = () =>
       setError(
-        "We couldn't read this image in your browser. If it's a HEIC photo, export it as JPEG first.",
+        isFile
+          ? "We couldn't read this image in your browser. If it's a HEIC photo, export it as JPEG first."
+          : "We couldn't load this image to reposition it. Try Replace to upload a new one.",
       )
     img.src = url
-    return () => URL.revokeObjectURL(url)
-  }, [file])
 
-  // baseScale fills the frame edge-to-edge at zoom = 1.
+    return () => {
+      if (isFile) URL.revokeObjectURL(url)
+    }
+  }, [src])
+
+  // baseScale fills the frame edge-to-edge at zoom = 1 (cover).
   const baseScale = imgEl
-    ? Math.max(
-        CROP_FRAME / imgEl.naturalWidth,
-        CROP_FRAME / imgEl.naturalHeight,
-      )
+    ? Math.max(CROP_FRAME / imgEl.naturalWidth, CROP_FRAME / imgEl.naturalHeight)
     : 1
   const scale = baseScale * zoom
   const dispW = imgEl ? imgEl.naturalWidth * scale : 0
@@ -76,8 +108,8 @@ export const AvatarCropModal = ({ file, onCancel, onSave }: Props) => {
     [dispW, dispH],
   )
 
-  // Re-clamp the offset whenever the displayed image size changes
-  // (zoom slider, or the image just finished loading).
+  // Re-clamp the offset whenever the displayed image size changes (zoom, or the
+  // image just finished loading).
   useEffect(() => {
     setOffset((prev) => clamp(prev))
   }, [clamp])
@@ -122,9 +154,8 @@ export const AvatarCropModal = ({ file, onCancel, onSave }: Props) => {
         setError("Your browser doesn't support image cropping. Try Chrome or Safari.")
         return
       }
-      // Source rect in image-natural pixels: the square visible inside
-      // the crop frame. centre-of-image - offset/scale gives us the
-      // current centre of the crop rectangle in source space.
+      // Source rect in image-natural pixels: the square visible inside the crop
+      // frame. centre-of-image − offset/scale gives the current crop centre.
       const sourceSide = CROP_FRAME / scale
       const cx = imgEl.naturalWidth / 2 - offset.x / scale
       const cy = imgEl.naturalHeight / 2 - offset.y / scale
@@ -141,11 +172,20 @@ export const AvatarCropModal = ({ file, onCancel, onSave }: Props) => {
         OUTPUT_SIZE,
         OUTPUT_SIZE,
       )
-      const blob = await new Promise<Blob | null>((resolve) =>
-        canvas.toBlob(resolve, 'image/jpeg', 0.92),
-      )
+      let blob: Blob | null = null
+      try {
+        blob = await new Promise<Blob | null>((resolve) =>
+          canvas.toBlob(resolve, 'image/jpeg', 0.92),
+        )
+      } catch {
+        // Tainted canvas (CORS) — only possible when repositioning an existing
+        // remote avatar whose host didn't send CORS headers.
+        blob = null
+      }
       if (!blob) {
-        setError('Could not encode the cropped image. Please try again.')
+        setError(
+          'Could not save this crop. Use Replace to upload the image again.',
+        )
         return
       }
       await onSave(blob)
@@ -163,7 +203,11 @@ export const AvatarCropModal = ({ file, onCancel, onSave }: Props) => {
       aria-modal="true"
       aria-label="Position your avatar"
     >
-      <div className="flex w-[420px] max-w-full flex-col gap-4 rounded-2xl bg-white p-6 shadow-2xl">
+      <div
+        className={`flex w-[420px] max-w-full flex-col gap-4 rounded-2xl bg-white p-6 shadow-2xl${
+          dark ? ' space-dark' : ''
+        }`}
+      >
         <div>
           <h2 className="text-lg font-semibold text-gray-900">
             Position your avatar
@@ -184,7 +228,7 @@ export const AvatarCropModal = ({ file, onCancel, onSave }: Props) => {
           />
         ) : (
           <div
-            className="relative self-center overflow-hidden rounded-2xl bg-gray-900 select-none"
+            className="relative self-center cursor-grab overflow-hidden rounded-2xl bg-gray-900 select-none active:cursor-grabbing"
             style={{ width: CROP_FRAME, height: CROP_FRAME, touchAction: 'none' }}
             onPointerDown={onPointerDown}
             onPointerMove={onPointerMove}
@@ -202,9 +246,12 @@ export const AvatarCropModal = ({ file, onCancel, onSave }: Props) => {
                 top: '50%',
                 width: dispW,
                 height: dispH,
+                // Defeat Tailwind Preflight's `img { max-width:100% }`, which
+                // would clamp the width and squash the image.
+                maxWidth: 'none',
+                maxHeight: 'none',
                 transform: `translate(calc(-50% + ${offset.x}px), calc(-50% + ${offset.y}px))`,
                 pointerEvents: 'none',
-                cursor: 'grab',
               }}
             />
             {/* Subtle inner border to show the crop bounds */}
@@ -232,23 +279,46 @@ export const AvatarCropModal = ({ file, onCancel, onSave }: Props) => {
           />
         </div>
 
-        <div className="flex flex-row justify-end gap-2">
-          <button
-            type="button"
-            onClick={onCancel}
-            disabled={saving}
-            className="rounded-xl bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200 disabled:opacity-50"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={handleSave}
-            disabled={!imgEl || saving}
-            className="rounded-xl bg-blue-500 px-4 py-2 text-sm font-medium text-white hover:bg-blue-600 disabled:opacity-50"
-          >
-            {saving ? 'Saving…' : 'Save avatar'}
-          </button>
+        {/* Footer — Replace / Delete on the left, Cancel / Save on the right. */}
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={onReplace}
+              disabled={saving}
+              className="rounded-xl bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200 disabled:opacity-50"
+            >
+              Replace
+            </button>
+            {onDelete && (
+              <button
+                type="button"
+                onClick={onDelete}
+                disabled={saving}
+                className="rounded-xl px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 disabled:opacity-50"
+              >
+                Delete
+              </button>
+            )}
+          </div>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={onCancel}
+              disabled={saving}
+              className="rounded-xl px-4 py-2 text-sm font-medium text-gray-500 hover:bg-gray-100 disabled:opacity-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={!imgEl || saving}
+              className="rounded-xl bg-blue-500 px-4 py-2 text-sm font-medium text-white hover:bg-blue-600 disabled:opacity-50"
+            >
+              {saving ? 'Saving…' : 'Save'}
+            </button>
+          </div>
         </div>
       </div>
     </div>,

@@ -352,6 +352,30 @@ class Organization(RateLimitGroupMixin, RecordModel):
         mapped_column(JSONB, nullable=False, default=_default_customer_portal_settings)
     )
 
+    customer_portal_sign_in_image_url: Mapped[str | None] = mapped_column(
+        String, nullable=True, default=None
+    )
+    """Creator-uploaded image shown on the left panel of the customer portal
+    sign-in screen. Configured from the course builder's "Auth" tab and applies
+    to the whole organization's portal sign-in (the portal is org-scoped, not
+    per-course). When unset, the portal falls back to the organization's most
+    recent course thumbnail."""
+
+    customer_portal_sign_in_image_position: Mapped[str | None] = mapped_column(
+        String, nullable=True, default=None
+    )
+    """CSS object-position (e.g. "50% 30%") for the sign-in image, set by
+    dragging to reposition in the Auth tab. Applies to the uploaded image;
+    when falling back to a course thumbnail the portal uses that course's own
+    object-position instead."""
+
+    customer_portal_sign_in_theme: Mapped[str | None] = mapped_column(
+        String, nullable=True, default=None
+    )
+    """Creator-chosen appearance for the customer portal sign-in screen:
+    "light" or "dark". The customer does not toggle this — it's part of the
+    creator's design. None is treated as "light"."""
+
     @property
     def allow_customer_updates(self) -> bool:
         return self.customer_portal_settings["subscription"]["update_plan"]

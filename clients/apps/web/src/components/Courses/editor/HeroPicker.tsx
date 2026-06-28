@@ -23,7 +23,6 @@ const PLAY_PATH =
 type Option = {
   style: HeroStyle
   name: string
-  desc: string
   node: React.ReactNode
 }
 
@@ -44,23 +43,45 @@ export function HeroPicker({
     {
       style: 'Marquee',
       name: 'Marquee',
-      desc: 'Cinematic and full-bleed, like a streaming title.',
+      // Marquee example — "The Art of Southern Cooking" (dark variant: dark
+      // band, white type, white Play, glass Subscribe).
       node: (
-        // Dark variant per the latest Marquee Hero design — the preview shows
-        // the band fading into the dark page, not the light one.
         <MarqueeHero
           fill
           instant
           dark
-          imageUrl="/assets/onboarding/cover-hero.jpg"
+          eyebrow="Documentary Series · Food"
+          title={'The Art of\nSouthern Cooking'}
+          description="A James Beard–winning chef opens her kitchen and her table — the gravies, the greens, the cornbread, and the slow craft of a Southern meal made from scratch. Shot like a film, taught like Sunday dinner."
+          metaLine="Documentary Series · Food  ·  2026  ·  9 Lessons  ·  3h 10m"
+          badges={['All Levels', 'Self-paced', 'Recipe cards', 'Mobile & TV']}
+          instructorName="Della Carter"
+          instructorSub="James Beard–winning chef and Lowcountry restaurateur."
+          playLabel="Play Lesson 1 Free"
+          buyLabel="Subscribe — $89"
+          freeLine="3 lessons free · one-time purchase"
+          imageUrl="/assets/onboarding/southern-cooking.jpg"
+          imagePosition="center 22%"
         />
       ),
     },
     {
       style: 'Cover',
       name: 'Cover',
-      desc: 'Editorial and typographic, like a magazine cover.',
-      node: <CoverHero fill />,
+      // Cover example — "Yoga Foundations" (editorial, teal accent dot).
+      node: (
+        <CoverHero
+          fill
+          dotColor="#6fb7c9"
+          metaItems={['12 lessons', '4 hr 05 min', 'Beginner']}
+          titleLines={['Yoga', 'Foundations']}
+          description="Build a home practice from the ground up — breath, alignment, and the handful of poses everything else is built on. Slow, unhurried, and made for the very first mat."
+          withByline="Ana Beltrán"
+          enrollLabel="Enroll · $69"
+          imageUrl="/assets/onboarding/yoga-foundations.jpg"
+          imagePosition="center 42%"
+        />
+      ),
     },
   ]
 
@@ -206,7 +227,6 @@ export function HeroPicker({
               </div>
               <div className="cap">
                 <div className="cap-name">{opt.name}</div>
-                <div className="cap-desc">{opt.desc}</div>
               </div>
             </div>
           )
@@ -380,7 +400,7 @@ export function HeroPicker({
           aspect-ratio: 16 / 10;
           border-radius: 20px;
           overflow: hidden;
-          background: #0a0807;
+          background: #fff;
           box-shadow: 0 6px 18px -10px rgba(0, 0, 0, 0.18),
             0 1px 3px rgba(0, 0, 0, 0.05);
           transition: transform 0.32s cubic-bezier(0.2, 1, 0.3, 1),
@@ -437,7 +457,7 @@ export function HeroPicker({
           background: rgba(20, 20, 24, 0.34);
           -webkit-backdrop-filter: blur(8px);
           backdrop-filter: blur(8px);
-          box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.9);
+          box-shadow: none;
           display: grid;
           place-items: center;
           color: #fff;
@@ -469,7 +489,7 @@ export function HeroPicker({
           backdrop-filter: blur(18px) saturate(160%);
           padding: 10px 17px;
           border-radius: 980px;
-          box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.2);
+          box-shadow: none;
           transition: background 0.18s, transform 0.18s;
         }
         .preview:hover {
@@ -486,13 +506,6 @@ export function HeroPicker({
           font-size: 23px;
           font-weight: 600;
           letter-spacing: -0.02em;
-        }
-        .cap-desc {
-          font-size: 17px;
-          line-height: 1.45;
-          color: var(--gray);
-          font-weight: 400;
-          margin-top: 5px;
         }
 
         /* footer */
@@ -609,7 +622,7 @@ export function HeroPicker({
           background: rgba(40, 40, 46, 0.6);
           -webkit-backdrop-filter: blur(20px);
           backdrop-filter: blur(20px);
-          box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18);
+          box-shadow: none;
           transition: background 0.16s, transform 0.16s;
         }
         .ov-close:hover {

@@ -30,13 +30,14 @@ import {
 } from '@/hooks/queries/courses'
 import { useProduct } from '@/hooks/queries/products'
 import type { schemas } from '@spaire/client'
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from '../../Toast/use-toast'
 import {
   GeneratedPortalPage,
   type EditField,
   type GeneratedGroup,
 } from './GeneratedPortalPage'
+import { SampleSettingsPopover } from './SeriesSampleBlock'
 
 function pickFile(accept: string, cb: (file: File) => void) {
   const input = document.createElement('input')
@@ -80,9 +81,12 @@ function formatPrice(product: schemas['Product'] | undefined): {
 export function CourseDesignEditor({
   course,
   organization,
+  onBusyChange,
 }: {
   course: CourseRead
   organization?: schemas['Organization']
+  /** Reports in-flight saves so the host can show a status indicator. */
+  onBusyChange?: (saving: boolean) => void
 }) {
   const updateCourse = useUpdateCourse()
   const updateLesson = useUpdateCourseLesson()
@@ -92,6 +96,33 @@ export function CourseDesignEditor({
   const uploadLessonThumb = useUploadLessonThumbnail()
   const uploadLandingMedia = useUploadLandingMedia()
   const { data: product } = useProduct(course.product_id)
+
+  // ── landing_overrides writes — ALL go through one accumulating ref.
+  // Each write builds on the latest LOCAL state (not the query-cache
+  // snapshot), so two quick edits can't clobber each other while the
+  // first PATCH is still in flight. The ref re-syncs from the server
+  // whenever the course query refreshes.
+  const overridesRef = useRef<NonNullable<CourseRead['landing_overrides']>>(
+    course.landing_overrides ?? {},
+  )
+  useEffect(() => {
+    overridesRef.current = course.landing_overrides ?? {}
+  }, [course.landing_overrides])
+  const writeOverrides = useCallback(
+    (
+      mutate: (
+        cur: NonNullable<CourseRead['landing_overrides']>,
+      ) => NonNullable<CourseRead['landing_overrides']>,
+    ) => {
+      const next = mutate(overridesRef.current)
+      overridesRef.current = next
+      updateCourse.mutate({
+        courseId: course.id,
+        body: { landing_overrides: next },
+      })
+    },
+    [course.id, updateCourse],
+  )
 
   const isEpisodic = course.format === 'series'
   const unit = isEpisodic ? 'episode' : 'lesson'
@@ -104,18 +135,13 @@ export function CourseDesignEditor({
   const toggleDark = useCallback(() => {
     setDark((d) => {
       const next = !d
-      updateCourse.mutate({
-        courseId: course.id,
-        body: {
-          landing_overrides: {
-            ...(course.landing_overrides ?? {}),
-            theme_mode: next ? 'dark' : 'light',
-          },
-        },
-      })
+      writeOverrides((cur) => ({
+        ...cur,
+        theme_mode: next ? 'dark' : 'light',
+      }))
       return next
     })
-  }, [course.id, course.landing_overrides, updateCourse])
+  }, [writeOverrides])
 
   // ── cover ─────────────────────────────────────────────────────────────────
   const [coverBusy, setCoverBusy] = useState(false)
@@ -186,6 +212,16 @@ export function CourseDesignEditor({
 
   const fmtDur = (secs: number | null) =>
     secs ? `${Math.max(1, Math.round(secs / 60))}m` : null
+  const totalSecs = flatLessons.reduce(
+    (a, l) => a + (l.duration_seconds ?? 0),
+    0,
+  )
+  const metaDuration =
+    totalSecs <= 0
+      ? '0 min'
+      : totalSecs >= 3600
+        ? `${Math.floor(totalSecs / 3600)}h ${Math.round((totalSecs % 3600) / 60)}m`
+        : `${Math.round(totalSecs / 60)} min`
 
   const groups: GeneratedGroup[] = useMemo(() => {
     let flat = 0
@@ -200,6 +236,7 @@ export function CourseDesignEditor({
               description: l.description ?? '',
               flatIdx,
               imageUrl: l.thumbnail_url ?? null,
+              imagePosition: l.thumbnail_object_position ?? null,
               durationLabel: fmtDur(l.duration_seconds),
               free: !isLocked(flatIdx),
               locked: isLocked(flatIdx),
@@ -221,6 +258,7 @@ export function CourseDesignEditor({
               description: l.description ?? '',
               flatIdx,
               imageUrl: l.thumbnail_url ?? null,
+              imagePosition: l.thumbnail_object_position ?? null,
               durationLabel: fmtDur(l.duration_seconds),
               free: !isLocked(flatIdx),
               locked: isLocked(flatIdx),
@@ -250,6 +288,43 @@ export function CourseDesignEditor({
     [flatLessons, uploadLessonThumb, unitCap],
   )
 
+  // Per-lesson still reposition — debounced commit, same 600ms pattern as the
+  // cover (onCoverPosition). One timer is enough: only one lesson is being
+  // dragged at a time (the overlay is modal).
+  const lessonReposTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const onRepositionLesson = useCallback(
+    (flatIdx: number, pos: string) => {
+      const lesson = flatLessons[flatIdx]
+      if (!lesson) return
+      if (lessonReposTimer.current) clearTimeout(lessonReposTimer.current)
+      lessonReposTimer.current = setTimeout(() => {
+        updateLesson.mutate({
+          lessonId: lesson.id,
+          body: { thumbnail_object_position: pos },
+        })
+      }, 600)
+    },
+    [flatLessons, updateLesson],
+  )
+
+  // Replace a still from inside the reposition overlay (it hands back a File).
+  const onReplaceLessonImage = useCallback(
+    async (flatIdx: number, file: File) => {
+      const lesson = flatLessons[flatIdx]
+      if (!lesson) return
+      setLessonImageBusy(flatIdx)
+      try {
+        await uploadLessonThumb.mutateAsync({ lessonId: lesson.id, file })
+        toast({ title: `${unitCap} image updated` })
+      } catch {
+        toast({ title: 'Upload failed', description: 'Please try again.' })
+      } finally {
+        setLessonImageBusy(null)
+      }
+    },
+    [flatLessons, uploadLessonThumb, unitCap],
+  )
+
   // ── modules, in render order — for moduleTitle edits by groupIdx ──────────
   const sortedModules = useMemo(
     () => [...course.modules].sort((a, b) => a.position - b.position),
@@ -260,31 +335,18 @@ export function CourseDesignEditor({
   const aiHero = course.landing_overrides?.ai_hero ?? null
   const patchAiHero = useCallback(
     (patch: Record<string, unknown>) => {
-      updateCourse.mutate({
-        courseId: course.id,
-        body: {
-          landing_overrides: {
-            ...(course.landing_overrides ?? {}),
-            ai_hero: { ...(aiHero ?? {}), ...patch },
-          },
-        },
-      })
+      writeOverrides((cur) => ({
+        ...cur,
+        ai_hero: { ...(cur.ai_hero ?? {}), ...patch },
+      }))
     },
-    [course.id, course.landing_overrides, aiHero, updateCourse],
+    [writeOverrides],
   )
   const patchOverrides = useCallback(
-    (patch: Record<string, unknown>) => {
-      updateCourse.mutate({
-        courseId: course.id,
-        body: {
-          landing_overrides: {
-            ...(course.landing_overrides ?? {}),
-            ...patch,
-          },
-        },
-      })
+    (patch: Partial<NonNullable<CourseRead['landing_overrides']>>) => {
+      writeOverrides((cur) => ({ ...cur, ...patch }))
     },
-    [course.id, course.landing_overrides, updateCourse],
+    [writeOverrides],
   )
 
   // ── instructor portrait (its own media slot, S3-backed) ──────────────────
@@ -359,31 +421,58 @@ export function CourseDesignEditor({
           break
         }
         case 'instructorSub':
-          patchOverrides({
-            ai_instructor: { ...(aiInstructor ?? {}), sub: value },
-          })
+          writeOverrides((cur) => ({
+            ...cur,
+            ai_instructor: { ...(cur.ai_instructor ?? {}), sub: value },
+          }))
           break
         case 'instructorBioP': {
           if (ctx?.idx == null) break
-          const bio = [...(aiInstructor?.bio ?? [])]
-          bio[ctx.idx] = value
-          patchOverrides({ ai_instructor: { ...(aiInstructor ?? {}), bio } })
+          const i = ctx.idx
+          writeOverrides((cur) => {
+            const bio = [...(cur.ai_instructor?.bio ?? [])]
+            bio[i] = value
+            return {
+              ...cur,
+              ai_instructor: { ...(cur.ai_instructor ?? {}), bio },
+            }
+          })
           break
         }
         case 'portraitCaption':
-          patchOverrides({
-            ai_instructor: { ...(aiInstructor ?? {}), caption: value },
+          writeOverrides((cur) => ({
+            ...cur,
+            ai_instructor: { ...(cur.ai_instructor ?? {}), caption: value },
+          }))
+          break
+        case 'bdg': {
+          if (ctx?.idx == null) break
+          const i = ctx.idx
+          writeOverrides((cur) => {
+            const next = [
+              ...(cur.badges ?? [
+                'All Levels',
+                'Self-paced',
+                'Captions',
+                'Mobile & TV',
+              ]),
+            ]
+            next[i] = value
+            return { ...cur, badges: next }
           })
           break
+        }
         case 'faqQ':
         case 'faqA': {
           if (ctx?.idx == null) break
-          const next = aiFaq.map((f, i) =>
-            i === ctx.idx
-              ? { ...f, [field === 'faqQ' ? 'q' : 'a']: value }
-              : f,
-          )
-          patchOverrides({ ai_faq: next })
+          const i = ctx.idx
+          const key = field === 'faqQ' ? 'q' : 'a'
+          writeOverrides((cur) => ({
+            ...cur,
+            ai_faq: (cur.ai_faq ?? []).map((f, j) =>
+              j === i ? { ...f, [key]: value } : f,
+            ),
+          }))
           break
         }
       }
@@ -393,9 +482,7 @@ export function CourseDesignEditor({
       flatLessons,
       sortedModules,
       patchAiHero,
-      patchOverrides,
-      aiInstructor,
-      aiFaq,
+      writeOverrides,
       updateCourse,
       updateLesson,
       updateModule,
@@ -406,6 +493,11 @@ export function CourseDesignEditor({
   const [sampleOpen, setSampleOpen] = useState(false)
   const { priceLabel, recurring } = formatPrice(product)
   const cadence = recurring ? 'cancel anytime' : 'one-time purchase'
+  const enrollPriceSub = !paywallEnabled
+    ? `${flatLessons.length} ${unit}${flatLessons.length === 1 ? '' : 's'} · Free`
+    : recurring
+      ? `Subscription · ${flatLessons.length} ${unit}${flatLessons.length === 1 ? '' : 's'} · cancel anytime`
+      : `One-time purchase · ${flatLessons.length} ${unit}${flatLessons.length === 1 ? '' : 's'} · Lifetime access`
   const buyLabel = !paywallEnabled
     ? 'Enroll Free'
     : recurring
@@ -434,19 +526,22 @@ export function CourseDesignEditor({
     sample?.enabled && sampleLesson?.mux_playback_id,
   )
 
-  const saveSample = useCallback(
-    (next: {
-      enabled: boolean
-      lesson_id: string
-      start_seconds: number
-      duration_seconds: number
-    }) => {
-      updateCourse.mutate({ courseId: course.id, body: { sample: next } })
-      setSampleOpen(false)
-      toast({ title: next.enabled ? 'Sample saved' : 'Sample disabled' })
-    },
-    [course.id, updateCourse],
-  )
+  // Report in-flight saves to the host bar.
+  const busy =
+    updateCourse.isPending ||
+    updateLesson.isPending ||
+    updateModule.isPending ||
+    uploadThumb.isPending ||
+    uploadTrailer.isPending ||
+    uploadLessonThumb.isPending ||
+    uploadLandingMedia.isPending ||
+    coverBusy ||
+    trailerBusy ||
+    portraitBusy ||
+    lessonImageBusy != null
+  useEffect(() => {
+    onBusyChange?.(busy)
+  }, [busy, onBusyChange])
 
   return (
     <>
@@ -473,10 +568,21 @@ export function CourseDesignEditor({
       sampleImageUrl={sampleLesson?.thumbnail_url ?? null}
       samplePlayable={samplePlayable}
       samplePlaybackId={sampleLesson?.mux_playback_id ?? null}
+      samplePlaybackUrl={
+        (sampleLesson as { mux_playback_url?: string | null } | null)
+          ?.mux_playback_url ?? null
+      }
       sampleStart={sample?.start_seconds ?? 0}
       sampleDuration={sample?.duration_seconds ?? 0}
+      // Preview the public, not-yet-enrolled state: when a clip sample is the
+      // trial, the hero leads with the trailer and the sample takes the
+      // secondary slot — the same swap the live landing does. Without this the
+      // editor never showed that arrangement.
+      playStartsSample={trialMode === 'lesson_sample' && samplePlayable}
       groups={groups}
       lessonCount={flatLessons.length}
+      metaDuration={metaDuration}
+      enrollPriceSub={enrollPriceSub}
       unit={unit}
       dark={dark}
       onToggleDark={toggleDark}
@@ -488,6 +594,8 @@ export function CourseDesignEditor({
       trailerBusy={trailerBusy}
       onCoverPosition={onCoverPosition}
       onAddLessonImage={onAddLessonImage}
+      onRepositionLesson={onRepositionLesson}
+      onReplaceLessonImage={onReplaceLessonImage}
       lessonImageBusy={lessonImageBusy}
       onConfigureSample={() => setSampleOpen(true)}
       onEditText={onEditText}
@@ -499,15 +607,18 @@ export function CourseDesignEditor({
       onAddPortrait={onAddPortrait}
       portraitBusy={portraitBusy}
       faq={aiFaq}
+      badges={course.landing_overrides?.badges ?? undefined}
     />
-      {sampleOpen && (
-        <SampleSettingsModal
-          course={course}
-          lessons={flatLessons}
-          onClose={() => setSampleOpen(false)}
-          onSave={saveSample}
-        />
-      )}
+      {/* Sample picker — the sheet with the live video scrub preview (episode
+          picker + inline clip player + start/duration sliders). It saves
+          course.sample itself via useUpdateCourse. */}
+      <SampleSettingsPopover
+        open={sampleOpen}
+        onOpenChange={setSampleOpen}
+        course={course}
+        initial={course.sample ?? null}
+        unit={isEpisodic ? 'episode' : 'lesson'}
+      />
     </>
   )
 }

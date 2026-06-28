@@ -567,6 +567,24 @@ export const useDeleteEmailBroadcastABTest = () =>
     },
   })
 
+export type GeneratedEmailCopy = {
+  subject: string
+  preview: string
+  heading: string
+  body: string[]
+}
+
+/** Generate lifecycle recap copy from a course (Claude) — brick 16. */
+export const useGenerateEmailCopy = () =>
+  useMutation({
+    mutationFn: ({ courseId, moment }: { courseId: string; moment: string }) =>
+      fetchApiWrite<GeneratedEmailCopy>(
+        `/v1/email-broadcasts/generate-copy`,
+        'POST',
+        { course_id: courseId, moment },
+      ),
+  })
+
 export const useUploadEmailImage = (organizationId: string) =>
   useMutation({
     mutationFn: async (file: File) => {
@@ -582,6 +600,34 @@ export const useUploadEmailImage = (organizationId: string) =>
         throw new Error(`Upload failed: ${res.status}`)
       }
       return (await res.json()) as { url: string }
+    },
+  })
+
+// Send a test of in-progress authored content to the creator's own inbox —
+// used by the sequence email editor's "Send test to me".
+export const useSendTestEmail = (organizationId: string) =>
+  useMutation({
+    mutationFn: async (payload: {
+      subject: string
+      content_html: string
+      preview_text?: string | null
+      sender_name?: string | null
+      to_email?: string | null
+    }) => {
+      const res = await fetch(
+        getServerURL(
+          `/v1/email-broadcasts/test-inline?organization_id=${organizationId}`,
+        ),
+        {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        },
+      )
+      if (!res.ok) {
+        throw new Error(`Test send failed: ${res.status}`)
+      }
     },
   })
 
@@ -935,6 +981,7 @@ export const useUpdateEmailSequence = () =>
       description?: string
       trigger_type?: string
       trigger_config?: Record<string, unknown>
+      lesson_id?: string | null
       status?: string
     }) => seqMutate<any>(`/v1/email-sequences/${sequenceId}`, 'PATCH', body),
     onSuccess: (_data, vars) => {

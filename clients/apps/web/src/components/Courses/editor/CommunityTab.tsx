@@ -1,37 +1,27 @@
 'use client'
 
-import { CommunityPreview } from '@/components/Community/CommunityPreview'
+import { CommunityHub } from '@/components/Community/hub/CommunityHub'
 import { type CourseRead } from '@/hooks/queries/courses'
+import { schemas } from '@spaire/client'
 
 type Props = {
   course: CourseRead
-  organizationSlug: string
+  organization: schemas['Organization']
+  dark?: boolean
 }
 
-// Full-page community surface inside the course editor.  Threads the
-// org slug so the preview can deep-link into the live customer-portal
-// community.
-export function CommunityTab({ course, organizationSlug }: Props) {
+// The community surface now lives inside the course editor as a tab (like
+// Outline / Landing), with the hub's embedded breadcrumb status bar. The
+// editor header owns the universal dark toggle, so the hub renders in
+// `embedded` mode (no full-page nav, no theme toggle, no draft pill) and the
+// editor controls its theme.
+export function CommunityTab({ course, organization, dark }: Props) {
   return (
-    <div className="h-full w-full">
-      <CommunityPreview
-        courseId={course.id}
-        courseTitle={course.title ?? undefined}
-        courseCoverUrl={course.thumbnail_url ?? null}
-        courseCoverPosition={course.thumbnail_object_position ?? null}
-        organizationSlug={organizationSlug}
-        discussionsKind={course.format === 'series' ? 'episode' : 'module'}
-        lessons={
-          course.format === 'series'
-            ? course.modules.flatMap((m) =>
-                (m.lessons ?? []).map((l) => ({
-                  id: l.id,
-                  label: l.title,
-                })),
-              )
-            : course.modules.map((m) => ({ id: m.id, label: m.title }))
-        }
-      />
-    </div>
+    <CommunityHub
+      course={course}
+      organization={organization}
+      embedded
+      dark={dark}
+    />
   )
 }

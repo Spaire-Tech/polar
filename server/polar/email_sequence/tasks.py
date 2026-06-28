@@ -3,8 +3,7 @@ from uuid import UUID
 
 import structlog
 
-from polar.email.react import render_email_template
-from polar.email.schemas import MarketingEmail, MarketingEmailProps
+from polar.email.compose import finalize_email_html
 from polar.email.sender import email_sender, resolve_creator_from_address
 from polar.kit.utils import utc_now
 from polar.models.email_sequence import EmailSequence, EmailSequenceStatus
@@ -55,22 +54,12 @@ async def send_test_step(step_id: UUID, to_email: str) -> None:
         )
 
         unsubscribe_url = build_test_unsubscribe_url()
-        wrapped_html = render_email_template(
-            MarketingEmail(
-                props=MarketingEmailProps(
-                    organization_name=(
-                        organization.name if organization else step.sender_name
-                    ),
-                    organization_logo_url=(
-                        organization.avatar_url if organization else None
-                    ),
-                    organization_website=(
-                        organization.website if organization else None
-                    ),
-                    html_content=step.content_html or "<p>No content</p>",
-                    unsubscribe_url=unsubscribe_url,
-                )
-            )
+        wrapped_html = finalize_email_html(
+            step.content_html or "<p>No content</p>",
+            unsubscribe_url=unsubscribe_url,
+            organization_name=organization.name if organization else step.sender_name,
+            organization_logo_url=organization.avatar_url if organization else None,
+            organization_website=organization.website if organization else None,
         )
         try:
             await email_sender.send(
@@ -141,6 +130,79 @@ async def process_due_enrollments() -> None:
             "email_sequence.send_step",
             enrollment_id=enrollment.id,
         )
+
+
+@actor(
+    actor_name="email_sequence.enrol_inactive",
+    cron_trigger=CronTrigger(hour="3", minute="0"),
+    priority=TaskPriority.LOW,
+)
+async def enrol_inactive_students() -> None:
+    """Daily scan: enter students with no recent course activity into any active
+    `on_inactivity` sequence for their course.
+
+    "Activity" is the student's latest lesson completion, falling back to their
+    enrolment time when they've completed nothing. A student whose last activity
+    is older than the sequence's configured `inactive_days` is enqueued for
+    enrolment. Re-enqueuing a still-inactive (already-enrolled) student is a
+    no-op — `enroll_subscriber` dedups — so they're never entered twice.
+    """
+    from sqlalchemy import func, select
+
+    from polar.email_subscriber.repository import EmailSubscriberRepository
+    from polar.models.course_enrollment import CourseEnrollment
+    from polar.models.course_lesson_progress import CourseLessonProgress
+    from polar.models.email_sequence import EmailSequenceTriggerType
+
+    from .repository import EmailSequenceRepository
+
+    async with AsyncSessionMaker() as session:
+        repository = EmailSequenceRepository.from_session(session)
+        sequences = await repository.list_active_by_trigger(
+            EmailSequenceTriggerType.on_inactivity
+        )
+        subscriber_repo = EmailSubscriberRepository.from_session(session)
+        now = utc_now()
+
+        for sequence in sequences:
+            if sequence.course_id is None:
+                continue
+            cfg = sequence.trigger_config or {}
+            try:
+                days = int(cfg.get("inactive_days", 7))
+            except (TypeError, ValueError):
+                days = 7
+            if days < 1:
+                days = 7
+            cutoff = now - timedelta(days=days)
+
+            # last activity = latest lesson completion, else when they enrolled
+            last_activity = func.coalesce(
+                select(func.max(CourseLessonProgress.completed_at))
+                .where(CourseLessonProgress.enrollment_id == CourseEnrollment.id)
+                .correlate(CourseEnrollment)
+                .scalar_subquery(),
+                CourseEnrollment.enrolled_at,
+            )
+            statement = select(CourseEnrollment.customer_id).where(
+                CourseEnrollment.course_id == sequence.course_id,
+                CourseEnrollment.deleted_at.is_(None),
+                last_activity < cutoff,
+            )
+            result = await session.execute(statement)
+            customer_ids = [row[0] for row in result.all()]
+
+            for customer_id in customer_ids:
+                subscriber = await subscriber_repo.get_by_customer_and_organization(
+                    customer_id, sequence.organization_id
+                )
+                if subscriber is None:
+                    continue
+                enqueue_job(
+                    "email_sequence.enroll_subscriber",
+                    sequence_id=sequence.id,
+                    subscriber_id=subscriber.id,
+                )
 
 
 @actor(actor_name="email_sequence.send_step", priority=TaskPriority.MEDIUM)
@@ -346,11 +408,23 @@ async def _send_email_node(
             return {"deferred_until": deferred}
 
     repository = EmailSequenceRepository.from_session(session)
-    cursor = enrollment.flow_index if enrollment.flow_index is not None else 0
-    ordinal = (
-        _email_ordinal_for_flow_index(flow, cursor) if flow is not None else 0
-    )
-    step = await repository.get_step_by_position(sequence.id, ordinal)
+    # Prefer resolving the step by the current flow node's stable id: the tree
+    # walker leaves `flow_next_step_id` pointing at the email node being sent
+    # (it only advances to the next node *after* this returns). This is exact
+    # even for flows with waits/branches, where the email-ordinal fallback —
+    # which counts only root-level email nodes against a flow_index the tree
+    # walker never advances — would otherwise always resolve to position 0.
+    step = None
+    if enrollment.flow_next_step_id:
+        step = await repository.get_step_by_flow_id(
+            sequence.id, enrollment.flow_next_step_id
+        )
+    if step is None:
+        cursor = enrollment.flow_index if enrollment.flow_index is not None else 0
+        ordinal = (
+            _email_ordinal_for_flow_index(flow, cursor) if flow is not None else 0
+        )
+        step = await repository.get_step_by_position(sequence.id, ordinal)
     if step is None:
         # Materialized step row missing — synthesise a best-effort send from
         # the flow node so authors can still ship even if syncEmailSteps
@@ -426,28 +500,21 @@ async def _send_email_step(
         personalize_vars = build_variables(
             subscriber=subscriber, custom_fields=custom_fields
         )
+        # Make {{unsubscribe_url}} resolve in the body (the editor's footer block
+        # emits it) — otherwise personalize() would wipe it as an unknown token.
+        personalize_vars["unsubscribe_url"] = unsubscribe_url
         body_html = step.content_html or "<p>No content</p>"
         body_html = personalize(body_html, personalize_vars, html=True)
         subject_text = personalize(
             step.subject or "", personalize_vars, html=False
         )
 
-        wrapped_html = render_email_template(
-            MarketingEmail(
-                props=MarketingEmailProps(
-                    organization_name=organization.name
-                    if organization
-                    else step.sender_name,
-                    organization_logo_url=organization.avatar_url
-                    if organization
-                    else None,
-                    organization_website=organization.website
-                    if organization
-                    else None,
-                    html_content=body_html,
-                    unsubscribe_url=unsubscribe_url,
-                )
-            )
+        wrapped_html = finalize_email_html(
+            body_html,
+            unsubscribe_url=unsubscribe_url,
+            organization_name=organization.name if organization else step.sender_name,
+            organization_logo_url=organization.avatar_url if organization else None,
+            organization_website=organization.website if organization else None,
         )
         from_name, from_email = resolve_creator_from_address(
             organization=organization,
@@ -533,20 +600,12 @@ async def _send_inline(
 
     unsubscribe_url = build_unsubscribe_url(enrollment.subscriber_id)
     try:
-        wrapped_html = render_email_template(
-            MarketingEmail(
-                props=MarketingEmailProps(
-                    organization_name=organization.name if organization else sender_name,
-                    organization_logo_url=organization.avatar_url
-                    if organization
-                    else None,
-                    organization_website=organization.website
-                    if organization
-                    else None,
-                    html_content=content_html,
-                    unsubscribe_url=unsubscribe_url,
-                )
-            )
+        wrapped_html = finalize_email_html(
+            content_html.replace("{{unsubscribe_url}}", unsubscribe_url),
+            unsubscribe_url=unsubscribe_url,
+            organization_name=organization.name if organization else sender_name,
+            organization_logo_url=organization.avatar_url if organization else None,
+            organization_website=organization.website if organization else None,
         )
         await email_sender.send(
             to_email_addr=subscriber.email,

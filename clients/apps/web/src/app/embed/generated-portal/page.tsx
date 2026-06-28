@@ -74,6 +74,7 @@ function Preview() {
   // window + scroll-pause behavior can be verified without a Mux asset.
   const fakeSample = params.get('fakesample') === '1'
   const [sampleUrl, setSampleUrl] = useState<string | null>(null)
+  const [lessonPos, setLessonPos] = useState<Record<number, string>>({})
   useEffect(() => {
     if (!fakeSample || sampleUrl) return
     const canvas = document.createElement('canvas')
@@ -106,7 +107,19 @@ function Preview() {
   const toLesson = ([title, description]: [string, string]) => {
     const flatIdx = flat++
     const locked = trialMode === 'lesson_sample' || flatIdx >= freeLessons
-    return { title, description, flatIdx, free: !locked, locked }
+    // Give the first two lessons a still so the editor's Reposition pill +
+    // overlay are exercisable; lessonPos holds the live drag result.
+    const imageUrl =
+      editable && flatIdx < 2 ? '/assets/onboarding/cover-hero.jpg' : undefined
+    return {
+      title,
+      description,
+      flatIdx,
+      free: !locked,
+      locked,
+      imageUrl,
+      imagePosition: lessonPos[flatIdx],
+    }
   }
   const groups: GeneratedGroup[] =
     structure === 'episodic'
@@ -119,8 +132,10 @@ function Preview() {
   return (
     <GeneratedPortalPage
       brand="Spaire Originals"
-      title="The Golfer’s Blueprint"
-      titleLines={['The Golfer’s', 'Blueprint']}
+      title={params.get('title') ?? 'The Golfer’s Blueprint'}
+      titleLines={
+        params.get('title') ? null : ['The Golfer’s', 'Blueprint']
+      }
       eyebrow="Documentary Series · Golf"
       badge="New Series"
       desc="A two-time major champion takes you inside the scoring game — the swing, the short game, and the mind that wins the shots that matter. Shot like a film, taught like a private lesson."
@@ -163,14 +178,29 @@ function Preview() {
       ]}
       samplePlayable={fakeSample && !!sampleUrl}
       samplePlaybackUrl={sampleUrl}
+      trailerUrl={fakeSample ? sampleUrl : undefined}
       sampleStart={2}
       sampleDuration={2}
       playStartsSample={fakeSample && !!sampleUrl}
       editable={editable}
       onAddCover={editable ? () => {} : undefined}
       onAddTrailer={editable ? () => {} : undefined}
-      onCoverPosition={editable ? () => {} : undefined}
+      onCoverPosition={
+        editable
+          ? (pos) => {
+              ;(
+                window as unknown as { __coverPos?: string }
+              ).__coverPos = pos
+            }
+          : undefined
+      }
       onAddLessonImage={editable ? () => {} : undefined}
+      onRepositionLesson={
+        editable
+          ? (i, pos) => setLessonPos((p) => ({ ...p, [i]: pos }))
+          : undefined
+      }
+      onReplaceLessonImage={editable ? () => {} : undefined}
       onConfigureSample={editable ? () => {} : undefined}
       onEditText={
         editable
