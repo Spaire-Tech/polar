@@ -90,35 +90,46 @@ async def verify_platform_setup(session: AsyncSession) -> None:
             ):
                 missing_trial_tiers.append(f"{tier.value} (annual)")
 
+    # A seeding gap degrades NEW-signup provisioning — it must not crash the
+    # whole API and take down payments, portals, courses, and existing
+    # customers. So we log each problem loudly (so ops sees exactly what to
+    # run) and keep booting. Re-run `uv run task seed_platform_products` to
+    # clear these. Previously these raised PlatformStartupError, which turned
+    # a missing product into a full production outage / crash-loop.
+    degraded = False
     if missing_tiers:
-        raise PlatformStartupError(
-            f"Platform organization '{platform_org.slug}' is missing tier "
-            f"products: {', '.join(missing_tiers)}. Run "
-            "`uv run task seed_platform_products` before starting the API. "
-            "Without these products new signups can't start a Starter trial "
-            "and resolve to 'inactive' (no access)."
+        degraded = True
+        log.error(
+            "platform.startup.missing_tier_products",
+            platform_org_slug=platform_org.slug,
+            missing=missing_tiers,
+            remediation="uv run task seed_platform_products",
+            impact="New signups can't start a trial and resolve to 'inactive'.",
         )
 
     if missing_annual_tiers:
-        raise PlatformStartupError(
-            f"Platform organization '{platform_org.slug}' is missing annual "
-            f"products for: {', '.join(missing_annual_tiers)}. Re-run "
-            "`uv run task seed_platform_products` so the annual billing "
-            "toggle on the Plan page has Products to point at."
+        degraded = True
+        log.error(
+            "platform.startup.missing_annual_products",
+            platform_org_slug=platform_org.slug,
+            missing=missing_annual_tiers,
+            remediation="uv run task seed_platform_products",
+            impact="The annual billing toggle has no Products to point at.",
         )
 
     if missing_trial_tiers:
-        raise PlatformStartupError(
-            f"Platform organization '{platform_org.slug}' has tier products "
-            f"missing a trial configuration: {', '.join(missing_trial_tiers)}. "
-            "Re-run `uv run task seed_platform_products` so "
-            "Starter/Studio/Scale carry their 14-day trial — without it, "
-            "every new org receives active (non-trial) Starter for $0 "
-            "indefinitely."
+        degraded = True
+        log.error(
+            "platform.startup.missing_trial_config",
+            platform_org_slug=platform_org.slug,
+            missing=missing_trial_tiers,
+            remediation="uv run task seed_platform_products",
+            impact="New orgs get active (non-trial) Starter for $0 indefinitely.",
         )
 
-    log.info(
-        "platform.startup.ok",
-        platform_org_id=str(platform_org.id),
-        tiers=[t.value for t in _REQUIRED_TIERS],
-    )
+    if not degraded:
+        log.info(
+            "platform.startup.ok",
+            platform_org_id=str(platform_org.id),
+            tiers=[t.value for t in _REQUIRED_TIERS],
+        )
