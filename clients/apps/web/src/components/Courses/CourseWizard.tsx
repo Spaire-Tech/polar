@@ -202,7 +202,9 @@ export default function CourseWizard({
 
   const handleClose = () => {
     stopOutline()
-    router.push(`/dashboard/${organization.slug}/products`)
+    // Course-only reposition: /products is hidden, so closing the wizard
+    // returns to the MasterClass (courses) list rather than the catalog.
+    router.push(`/dashboard/${organization.slug}/courses`)
   }
 
   // ── Price helpers (preview labels + AI billing context) ──────────────────
