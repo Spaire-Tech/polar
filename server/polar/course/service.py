@@ -639,12 +639,21 @@ class CourseService:
             )
 
         # Course-lifecycle automations enter the subscriber when they cross a
-        # milestone. Scoped to this course so a milestone here never enrols into
-        # another course's sequence. fire_event above already resumes any
-        # sequence parked on an until-event wait for these same events.
+        # milestone — and, crucially, the moment they ENROL. Scoped to this
+        # course so an event here never enrols into another course's sequence.
+        # fire_event above already resumes any sequence parked on an until-event
+        # wait for these same events.
+        #
+        # The "Student enrols" builder trigger is persisted as `on_purchase`
+        # (see clients automationTrigger.ts) but enrolling into a course is not
+        # a purchase — without this mapping the authored welcome email had no
+        # path to ever send. We scope the on_purchase fan-out to this course_id,
+        # so it only matches the course's own enrol automations and never the
+        # org-wide purchase sequences (which carry no course_id).
         from polar.models.email_sequence import EmailSequenceTriggerType
 
         milestone_trigger = {
+            "course.enrolled": EmailSequenceTriggerType.on_purchase,
             "course.first_lesson_completed": (
                 EmailSequenceTriggerType.on_first_lesson_completed
             ),

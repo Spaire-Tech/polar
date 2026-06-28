@@ -237,6 +237,21 @@ class EmailSequenceRepository(
         result = await self.session.execute(statement)
         return result.scalar_one_or_none()
 
+    async def get_step_by_flow_id(
+        self, sequence_id: UUID, flow_step_id: str
+    ) -> EmailSequenceStep | None:
+        """Resolve the materialised step row for a flow_doc email node by its
+        stable client-authored id. Preferred over position lookup for flow
+        sequences — position arithmetic drifts once a flow has waits/branches,
+        but the node id is stable across edits."""
+        statement = select(EmailSequenceStep).where(
+            EmailSequenceStep.sequence_id == sequence_id,
+            EmailSequenceStep.flow_step_id == flow_step_id,
+            EmailSequenceStep.deleted_at.is_(None),
+        )
+        result = await self.session.execute(statement)
+        return result.scalar_one_or_none()
+
     async def max_position(self, sequence_id: UUID) -> int:
         statement = select(
             func.coalesce(func.max(EmailSequenceStep.position), -1)
