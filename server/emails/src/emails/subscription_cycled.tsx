@@ -24,18 +24,18 @@ export function SubscriptionCycled({
 }: schemas['SubscriptionCycledProps']) {
   return (
     <WrapperOrganization organization={organization}>
-      <Preview>Your subscription to {product.name} has been renewed</Preview>
+      <Preview>Your enrollment in {product.name} has been renewed</Preview>
       <Section>
         <Heading as="h1" className="text-xl font-bold text-gray-900">
-          Your subscription has been renewed
+          Your enrollment has been renewed
         </Heading>
         <BodyText>
-          Your subscription to <span className="font-bold">{product.name}</span>{' '}
+          Your enrollment in <span className="font-bold">{product.name}</span>{' '}
           has been renewed.
         </BodyText>
       </Section>
       <Section className="my-8 text-center">
-        <Button href={url}>Manage my subscription</Button>
+        <Button href={url}>Manage my enrollment</Button>
       </Section>
       <Hr />
       <OrderSummary order={order} />

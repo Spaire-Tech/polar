@@ -47,6 +47,10 @@ import {
   SettingsGroupItem,
 } from './SettingsGroup'
 
+// Hide the raw internal account/org ID from the creator-facing profile.
+// Set to true to surface it again (e.g. for support/debugging).
+const SHOW_INTERNAL_ID = false
+
 interface OrganizationDetailsFormProps {
   organization: schemas['Organization']
   inKYCMode: boolean
@@ -294,12 +298,12 @@ export const OrganizationDetailsForm: React.FC<
           <div className="space-y-4 sm:col-span-10">
             <div>
               <label className="mb-2 block text-sm font-medium">
-                Organization Name *
+                Name *
               </label>
               <FormField
                 control={control}
                 name="name"
-                rules={{ required: 'Organization name is required' }}
+                rules={{ required: 'Name is required' }}
                 render={({ field }) => (
                   <div>
                     <Input
@@ -605,25 +609,32 @@ const OrganizationProfileSettings: React.FC<
         <SettingsGroup>
           {!inKYCMode && (
             <>
+              {/*
+                Raw internal account ID hidden from the creator-facing UI.
+                Reversible: flip SHOW_INTERNAL_ID to true to restore. The
+                value (organization.id) is unchanged.
+              */}
+              {SHOW_INTERNAL_ID && (
+                <SettingsGroupItem
+                  title="Identifier"
+                  description="Unique identifier for your account"
+                >
+                  <FormControl>
+                    <CopyToClipboardInput
+                      value={organization.id}
+                      onCopy={() => {
+                        toast({
+                          title: 'Copied To Clipboard',
+                          description: `Account ID was copied to clipboard`,
+                        })
+                      }}
+                    />
+                  </FormControl>
+                </SettingsGroupItem>
+              )}
               <SettingsGroupItem
-                title="Identifier"
-                description="Unique identifier for your organization"
-              >
-                <FormControl>
-                  <CopyToClipboardInput
-                    value={organization.id}
-                    onCopy={() => {
-                      toast({
-                        title: 'Copied To Clipboard',
-                        description: `Organization ID was copied to clipboard`,
-                      })
-                    }}
-                  />
-                </FormControl>
-              </SettingsGroupItem>
-              <SettingsGroupItem
-                title="Organization Slug"
-                description="Used for Customer Portal, Transaction Statements, etc."
+                title="Your Page URL"
+                description="Used for your customer portal, transaction statements, etc."
               >
                 <FormControl>
                   <CopyToClipboardInput
@@ -631,7 +642,7 @@ const OrganizationProfileSettings: React.FC<
                     onCopy={() => {
                       toast({
                         title: 'Copied To Clipboard',
-                        description: `Organization Slug was copied to clipboard`,
+                        description: `Your page URL was copied to clipboard`,
                       })
                     }}
                   />

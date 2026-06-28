@@ -67,20 +67,26 @@ const buildTabs = (
         p.includes('/portal/community') ||
         /\/portal\/courses\/[^/]+\/community/.test(p),
     },
-    {
-      href: `/${slug}/portal/downloads`,
-      label: 'Downloads',
-      matches: (p) => p.includes('/portal/downloads'),
-    },
+    // Phase 4d: Downloads tab hidden from the student portal nav. Route file
+    // is kept; restore this entry to bring the tab back.
+    // {
+    //   href: `/${slug}/portal/downloads`,
+    //   label: 'Downloads',
+    //   matches: (p) => p.includes('/portal/downloads'),
+    // },
   ]
   if (canAccessBilling) {
     tabs.push({
       href: `/${slug}/portal/orders`,
-      label: 'Orders',
+      label: 'Enrollments',
       matches: (p) => p.includes('/portal/orders'),
     })
   }
-  if (showTeam) {
+  // Phase 4d: Team tab hidden from the student portal nav. Route file is kept;
+  // flip SHOW_TEAM_TAB back to true to restore the tab (it then falls back to
+  // the original `showTeam` permission gate).
+  const SHOW_TEAM_TAB = false
+  if (SHOW_TEAM_TAB && showTeam) {
     tabs.push({
       href: `/${slug}/portal/team`,
       label: 'Team',
@@ -154,7 +160,7 @@ export const TopBar = ({
           </span>
           <span>{organization.name}</span>
         </Link>
-        <nav className="sp-tabs" aria-label="Customer portal sections">
+        <nav className="sp-tabs" aria-label="Student portal sections">
           {tabs.map((t) => (
             <Link
               key={t.href}

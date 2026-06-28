@@ -201,7 +201,7 @@ export default function ClientPage({
             <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
             <div className="flex flex-col items-center gap-2 text-center">
               <h2 className="text-xl">
-                {fulfillmentLabel || 'Claiming benefits...'}
+                {fulfillmentLabel || 'Claiming course access...'}
               </h2>
               <p className=" text-sm text-gray-500">
                 Please wait while we set up your access

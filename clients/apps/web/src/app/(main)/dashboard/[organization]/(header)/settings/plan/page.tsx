@@ -5,7 +5,7 @@ import PlanPage from './PlanPage'
 
 export async function generateMetadata(): Promise<Metadata> {
   return {
-    title: 'Plan',
+    title: 'Subscription',
   }
 }
 

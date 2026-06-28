@@ -17,6 +17,11 @@ import { BenefitRevocationGracePeriod } from './BenefitRevocationGracePeriod'
 import { ProrationBehavior } from './ProrationBehavior'
 import { SettingsGroup, SettingsGroupItem } from './SettingsGroup'
 
+// Hide the "Allow multiple subscriptions" toggle for the course-only creator
+// experience. Reversible: set to true to restore the toggle. The underlying
+// `allow_multiple_subscriptions` field and save logic are untouched.
+const SHOW_ALLOW_MULTIPLE_SUBSCRIPTIONS = false
+
 interface OrganizationSubscriptionSettingsProps {
   organization: schemas['Organization']
 }
@@ -72,27 +77,29 @@ const OrganizationSubscriptionSettings: React.FC<
         }}
       >
         <SettingsGroup>
-          <SettingsGroupItem
-            title="Allow multiple subscriptions"
-            description="Customers can have multiple active subscriptions at the same time."
-          >
-            <FormField
-              control={control}
-              name="allow_multiple_subscriptions"
-              render={({ field }) => (
-                <FormItem>
-                  <FormControl>
-                    <Switch
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                    />
-                  </FormControl>
+          {SHOW_ALLOW_MULTIPLE_SUBSCRIPTIONS && (
+            <SettingsGroupItem
+              title="Allow multiple subscriptions"
+              description="Customers can have multiple active subscriptions at the same time."
+            >
+              <FormField
+                control={control}
+                name="allow_multiple_subscriptions"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
 
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </SettingsGroupItem>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </SettingsGroupItem>
+          )}
 
           <SettingsGroupItem
             title="Proration"
@@ -116,8 +123,8 @@ const OrganizationSubscriptionSettings: React.FC<
           </SettingsGroupItem>
 
           <SettingsGroupItem
-            title="Grace period for benefit revocation"
-            description="How long to wait before revoking benefits during payment retries"
+            title="Course Access Revocation Grace Period"
+            description="How long to wait before revoking course access during payment retries"
           >
             <FormField
               control={control}

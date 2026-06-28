@@ -25,19 +25,19 @@ export function SubscriptionConfirmation({
 }: schemas['SubscriptionConfirmationProps']) {
   return (
     <WrapperOrganization organization={organization}>
-      <Preview>Thank you for your subscription to {product.name}!</Preview>
+      <Preview>Thank you for enrolling in {product.name}!</Preview>
       <Section>
         <Heading as="h1" className="text-xl font-bold text-gray-900">
-          Thank you for your subscription!
+          Thank you for enrolling!
         </Heading>
         <BodyText>
-          Your subscription to <span className="font-bold">{product.name}</span>{' '}
+          Your enrollment in <span className="font-bold">{product.name}</span>{' '}
           is now active.
         </BodyText>
       </Section>
       {product.benefits.length > 0 && <Benefits benefits={product.benefits} />}
       <Section className="my-8 text-center">
-        <Button href={url}>Access my purchase</Button>
+        <Button href={url}>Access my course</Button>
       </Section>
       <Hr />
       <OrderSummary order={order} />
