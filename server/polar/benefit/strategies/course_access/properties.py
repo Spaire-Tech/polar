@@ -5,5 +5,5 @@ class BenefitCourseAccessProperties(BenefitProperties):
     course_id: str
 
 
-class BenefitGrantCourseAccessProperties(BenefitGrantProperties):
+class BenefitGrantCourseAccessProperties(BenefitGrantProperties, total=False):
     enrollment_id: str | None
