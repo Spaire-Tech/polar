@@ -1,9 +1,14 @@
-"""Seed the Pro/Studio/Scale subscription products and overage meters in
+"""Seed the Starter/Studio/Scale subscription products and overage meters in
 the Spaire platform organization.
 
 Idempotent: re-running updates existing rows in place rather than creating
 duplicates. Products and meters are identified by metadata tier key and
 name respectively, both scoped to the platform organization.
+
+The Starter tier originally shipped under the key "pro". Re-seeding migrates
+those rows in place — the (tier, interval) finder accepts the legacy "pro"
+key for the Starter spec and re-stamps it to "starter" — so existing
+subscriptions keep pointing at the same Product, now correctly named.
 
 Usage:
     python -m scripts.seed_platform_products run
@@ -47,7 +52,8 @@ from polar.models.product_price import (
     ProductPriceFixed,
     ProductPriceFree,
 )
-from polar.platform.service import PlatformError, platform as platform_service
+from polar.platform.service import PlatformError
+from polar.platform.service import platform as platform_service
 from polar.postgres import create_async_engine
 
 cli = typer.Typer()
@@ -75,7 +81,7 @@ def typer_async(f):  # type: ignore
 
 
 # ---------------------------------------------------------------------------
-# Specs — the source of truth for what Spaire Pro/Studio/Scale look like.
+# Specs — the source of truth for what Spaire Starter/Studio/Scale look like.
 # ---------------------------------------------------------------------------
 
 
@@ -155,16 +161,16 @@ class PriceSpec:
     amount_type: ProductPriceAmountType
     price_currency: str = "usd"
     price_amount_cents: int | None = None  # required if amount_type == fixed
-    # tax_behavior=inclusive on Pro/Studio/Scale means the headline price
-    # ($49 / $129 / $299) is what the creator pays — Spaire absorbs the
-    # sales tax internally rather than tacking it on top. Legacy stays
+    # tax_behavior=inclusive on Starter/Studio/Scale means the headline
+    # price ($49 / $129 / $299) is what the creator pays — Spaire absorbs
+    # the sales tax internally rather than tacking it on top. Legacy stays
     # None (no tax to compute on a $0 product).
     tax_behavior: TaxBehaviorOption | None = None
 
 
 @dataclass(frozen=True)
 class ProductSpec:
-    tier: str  # "pro" | "studio" | "scale" | "legacy" — stamped onto user_metadata["tier"]
+    tier: str  # "starter" | "studio" | "scale" | "legacy" — stamped onto user_metadata["tier"]
     # "month" | "year" — stamped onto user_metadata["billing_interval"] so a
     # creator can pick monthly vs annual at checkout. Legacy is "month" by
     # convention (it's an internal grandfather product, the interval doesn't
@@ -177,53 +183,44 @@ class ProductSpec:
     trial: TrialSpec | None = None
 
 
-_PRO_DESCRIPTION = (
-    "For solo creators starting out. 4% + $0.40 per transaction. "
-    "3 published courses, 1,000 email subscribers, 10,000 monthly email "
-    "sends, 1 active email sequence, 10 hours of hosted video, sandbox "
-    "environment. 14-day free trial."
+_STARTER_DESCRIPTION = (
+    "For solo creators starting out. 7% + $0.30 per transaction. "
+    "5 published courses, 10,000 email subscribers, unlimited email sends "
+    "and sequences, 25 hours of hosted video, sandbox environment. "
+    "14-day free trial."
 )
 _STUDIO_DESCRIPTION = (
-    "For small teams scaling up. 3.8% + $0.35 per transaction. "
-    "Everything in Pro plus 15 published courses, 10,000 subscribers, "
-    "100k monthly sends, 10 active sequences, custom email sender domain, "
+    "For small teams scaling up. 5% + $0.30 per transaction. "
+    "Everything in Starter plus 25 published courses, 50,000 subscribers, "
+    "unlimited email sends and sequences, custom email sender domain, "
     "A/B testing, white-label course player, customer wallet, 5 team "
     "seats. 14-day free trial."
 )
 _SCALE_DESCRIPTION = (
-    "For established businesses. 3.5% + $0.30 per transaction, with "
+    "For established businesses. 3% + $0.30 per transaction, with "
     "custom pricing available above $50,000/month GMV. 100 published "
-    "courses, 50,000 subscribers, 500k monthly sends, unlimited "
-    "sequences, 250 GB storage, 20 team seats. Audit logs and dedicated "
-    "support with a 4-hour SLA. 14-day free trial."
+    "courses, 150,000 subscribers, unlimited email sends and sequences, "
+    "250 GB storage, 20 team seats. Audit logs and dedicated support "
+    "with a 4-hour SLA. 14-day free trial."
 )
 
-# 20% annual discount = pay for ~10 months, get 12. Stripe-standard.
-_ANNUAL_PRO_CENTS = 4900 * 12 * 80 // 100  # 47,040
-_ANNUAL_STUDIO_CENTS = 12900 * 12 * 80 // 100  # 123,840
-_ANNUAL_SCALE_CENTS = 29900 * 12 * 80 // 100  # 287,040
+# Annual = ~20% off the monthly run-rate, rounded to a whole dollar so the
+# published yearly price is clean (and matches PRICING.md exactly):
+#   $49/mo  -> $470/yr    ($39/mo effective)
+#   $129/mo -> $1,238/yr  ($103/mo effective)
+#   $299/mo -> $2,870/yr  ($239/mo effective)
+_ANNUAL_STARTER_CENTS = 47000
+_ANNUAL_STUDIO_CENTS = 123800
+_ANNUAL_SCALE_CENTS = 287000
 
 
 PRODUCT_SPECS: list[ProductSpec] = [
+    # Starter — monthly + annual
     ProductSpec(
-        tier="legacy",
+        tier="starter",
         billing_interval="month",
-        name="Spaire Legacy",
-        description=(
-            "Grandfathered plan for organizations created before tiered "
-            "pricing existed. Preserves the pre-tier transaction fee "
-            "(global default), no quota enforcement, full feature access. "
-            "Not available for new signups."
-        ),
-        recurring_interval=SubscriptionRecurringInterval.month,
-        price=PriceSpec(amount_type=ProductPriceAmountType.free),
-    ),
-    # Pro — monthly + annual
-    ProductSpec(
-        tier="pro",
-        billing_interval="month",
-        name="Spaire Pro",
-        description=_PRO_DESCRIPTION,
+        name="Spaire Starter",
+        description=_STARTER_DESCRIPTION,
         recurring_interval=SubscriptionRecurringInterval.month,
         price=PriceSpec(
             amount_type=ProductPriceAmountType.fixed,
@@ -233,15 +230,15 @@ PRODUCT_SPECS: list[ProductSpec] = [
         trial=TrialSpec(interval=TrialInterval.day, count=14),
     ),
     ProductSpec(
-        tier="pro",
+        tier="starter",
         billing_interval="year",
-        name="Spaire Pro (Annual)",
-        description=_PRO_DESCRIPTION + " Save 20% with annual billing.",
+        name="Spaire Starter (Annual)",
+        description=_STARTER_DESCRIPTION + " Save 20% with annual billing.",
         recurring_interval=SubscriptionRecurringInterval.year,
         price=PriceSpec(
             amount_type=ProductPriceAmountType.fixed,
             tax_behavior=TaxBehaviorOption.inclusive,
-            price_amount_cents=_ANNUAL_PRO_CENTS,
+            price_amount_cents=_ANNUAL_STARTER_CENTS,
         ),
         trial=TrialSpec(interval=TrialInterval.day, count=14),
     ),
@@ -307,6 +304,29 @@ PRODUCT_SPECS: list[ProductSpec] = [
 # ---------------------------------------------------------------------------
 
 
+def _configure_platform_org(
+    platform_org: Organization, *, dry_run: bool
+) -> str:
+    """Ensure the platform org is configured for self-billing.
+
+    `allow_multiple_subscriptions` must be True so the upgrade-checkout flow
+    can create a creator's new paid subscription WHILE their auto-trial is
+    still active (the trial is only superseded once payment succeeds). Each
+    creator still ends up with exactly one active platform subscription —
+    the setting only relaxes Polar's checkout uniqueness guard, which would
+    otherwise reject the conversion checkout.
+    """
+    current = dict(platform_org.subscription_settings)
+    if current.get("allow_multiple_subscriptions") is True:
+        return "unchanged"
+    if not dry_run:
+        platform_org.subscription_settings = {
+            **current,
+            "allow_multiple_subscriptions": True,
+        }
+    return "updated"
+
+
 async def _upsert_meter(
     session: AsyncSession,
     platform_org: Organization,
@@ -349,6 +369,16 @@ async def _upsert_meter(
     return existing, "updated" if changed else "unchanged"
 
 
+# Tier keys that an existing Product row may carry for a given spec tier.
+# The Starter tier shipped originally as "pro", so a Starter spec must also
+# adopt any leftover "pro"-tagged rows and re-stamp them to "starter".
+_TIER_LOOKUP_ALIASES: dict[str, list[str]] = {"starter": ["starter", "pro"]}
+
+
+def _tier_lookup_values(tier: str) -> list[str]:
+    return _TIER_LOOKUP_ALIASES.get(tier, [tier])
+
+
 async def _find_product_by_tier_and_interval(
     session: AsyncSession,
     platform_org_id: UUID,
@@ -361,11 +391,14 @@ async def _find_product_by_tier_and_interval(
     `billing_interval` user_metadata key — we treat any monthly-recurring
     product with the matching tier as the canonical "month" row so a
     re-seed migrates it in place rather than duplicating it.
+
+    The tier match honors legacy aliases (e.g. the original "pro" key for
+    the Starter tier) so a rename re-stamps the existing row in place.
     """
     result = await session.execute(
         select(Product)
         .where(Product.organization_id == platform_org_id)
-        .where(Product.user_metadata["tier"].astext == tier)
+        .where(Product.user_metadata["tier"].astext.in_(_tier_lookup_values(tier)))
         .where(Product.deleted_at.is_(None))
     )
     products = list(result.scalars().all())
@@ -459,11 +492,16 @@ async def _upsert_product(
         if not dry_run:
             existing.trial_interval_count = target_trial_count
         changed = True
-    if (existing.user_metadata or {}).get("billing_interval") != spec.billing_interval:
-        # Stamp the interval onto pre-existing rows (the previous seed
-        # didn't store this key).
+    existing_metadata = existing.user_metadata or {}
+    if (
+        existing_metadata.get("billing_interval") != spec.billing_interval
+        or existing_metadata.get("tier") != spec.tier
+    ):
+        # Stamp the interval onto pre-existing rows (an early seed didn't
+        # store this key) and re-stamp the tier key when migrating a
+        # renamed tier in place (e.g. "pro" -> "starter").
         if not dry_run:
-            merged = dict(existing.user_metadata or {})
+            merged = dict(existing_metadata)
             merged.update(target_metadata)
             existing.user_metadata = merged
         changed = True
@@ -590,7 +628,7 @@ def _format_billing_type(spec: ProductSpec) -> str:
 
 @cli.command(
     help=(
-        "Seed Pro/Studio/Scale subscription products and overage meters in "
+        "Seed Starter/Studio/Scale subscription products and overage meters in "
         "the platform organization."
     )
 )
@@ -612,6 +650,12 @@ async def run(
         typer.echo(
             f"Platform organization: {platform_org.name} "
             f"(slug={platform_org.slug}, id={platform_org.id})\n"
+        )
+
+        settings_action = _configure_platform_org(platform_org, dry_run=dry_run)
+        typer.echo(
+            f"Org settings:\n  {_format_action(settings_action)}  "
+            "allow_multiple_subscriptions=true\n"
         )
 
         typer.echo("Meters:")

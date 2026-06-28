@@ -35,16 +35,29 @@ class CourseRepository(
             Course.organization_id == organization_id
         )
 
-    async def count_by_organization(self, organization_id: UUID) -> int:
-        """Number of (non-soft-deleted) courses owned by the organization.
+    async def count_published_by_organization(self, organization_id: UUID) -> int:
+        """Number of *published* courses owned by the organization — courses
+        with at least one published (non-soft-deleted) lesson.
 
-        Used by the entitlements guard at create time. We count *all*
-        courses, draft or live, so the tier limit applies to anything
-        that uses Course storage / Spaire's course builder.
+        The tier limit is named ``published_courses`` and enforcement matches
+        the word: a draft course (no published lesson yet) does NOT occupy a
+        slot, so a creator can stage unlimited drafts and is only metered on
+        what's actually live. Counting *created* courses instead — drafts and
+        all — was the documented Kajabi surprise we deliberately avoid.
         """
-        statement = select(func.count(Course.id)).where(
+        published_course_ids = (
+            select(CourseModule.course_id)
+            .join(CourseLesson, CourseLesson.module_id == CourseModule.id)
+            .where(
+                CourseLesson.published.is_(True),
+                CourseLesson.deleted_at.is_(None),
+                CourseModule.deleted_at.is_(None),
+            )
+        )
+        statement = select(func.count(func.distinct(Course.id))).where(
             Course.organization_id == organization_id,
             Course.deleted_at.is_(None),
+            Course.id.in_(published_course_ids),
         )
         return (await self.session.execute(statement)).scalar_one()
 
@@ -130,6 +143,20 @@ class CourseLessonRepository(
         )
         return (await self.session.execute(statement)).scalar_one()
 
+    async def count_published_by_course(self, course_id: UUID) -> int:
+        """Published (non-soft-deleted) lesson count for a course. A course
+        with zero published lessons is a draft and doesn't occupy a
+        published_courses slot — see CourseRepository.
+        count_published_by_organization."""
+        statement = select(func.count(CourseLesson.id)).where(
+            CourseLesson.module_id.in_(
+                select(CourseModule.id).where(CourseModule.course_id == course_id)
+            ),
+            CourseLesson.published.is_(True),
+            CourseLesson.deleted_at.is_(None),
+        )
+        return (await self.session.execute(statement)).scalar_one()
+
     async def count_by_module(self, module_id: UUID) -> int:
         """Non-soft-deleted lesson count for a single module. Used by the
         module-completion detector — combined with the per-enrollment
@@ -174,6 +201,22 @@ class CourseLessonRepository(
         )
         result = await self.session.execute(statement)
         return result.scalar_one_or_none()
+
+    async def get_course_and_org_for_lesson(
+        self, lesson_id: UUID
+    ) -> tuple[UUID, UUID] | None:
+        """Resolve (course_id, organization_id) for a lesson via its
+        module/course chain. Used by the published_courses cap gate when a
+        lesson is published."""
+        statement = (
+            select(Course.id, Course.organization_id)
+            .join(CourseModule, CourseModule.course_id == Course.id)
+            .join(CourseLesson, CourseLesson.module_id == CourseModule.id)
+            .where(CourseLesson.id == lesson_id)
+        )
+        result = await self.session.execute(statement)
+        row = result.first()
+        return (row[0], row[1]) if row is not None else None
 
     async def get_course_id_for_lesson(self, lesson_id: UUID) -> UUID | None:
         """Resolve the owning course of a lesson via its module. Used by the

@@ -14,7 +14,6 @@ from polar.postgres import AsyncSession
 from polar.quotas.definitions import QuotaKey
 from polar.quotas.exceptions import QuotaExceededError
 from polar.quotas.producers import (
-    emit_email_sent,
     emit_storage_delta,
     emit_video_uploaded,
     emit_video_viewed,
@@ -36,15 +35,15 @@ def _patch_platform_org_id(mocker: MockerFixture, org_id: UUID | None) -> None:
     mocker.patch("polar.platform.service.settings.PLATFORM_ORG_ID", org_id)
 
 
-def _patch_pro_limits(mocker: MockerFixture, **limit_overrides: int | None) -> None:
-    """See tests/quotas/test_service.py:_patch_pro_limits."""
-    base = get_definition(TierKey.pro)
+def _patch_starter_limits(mocker: MockerFixture, **limit_overrides: int | None) -> None:
+    """See tests/quotas/test_service.py:_patch_starter_limits."""
+    base = get_definition(TierKey.starter)
     overridden = dataclasses.replace(
         base, limits=dataclasses.replace(base.limits, **limit_overrides)
     )
 
     def _resolve(tier: TierKey) -> "object":
-        if tier == TierKey.pro:
+        if tier == TierKey.starter:
             return overridden
         return get_definition(tier)
 
@@ -143,29 +142,6 @@ class TestEmitStorageDelta:
 
 
 @pytest.mark.asyncio
-class TestEmitEmailSent:
-    async def test_emits_one_event_per_recipient(
-        self,
-        session: AsyncSession,
-        save_fixture: SaveFixture,
-    ) -> None:
-        creator = await create_organization(save_fixture)
-
-        emit_email_sent(session, organization_id=creator.id, count=5)
-        await session.flush()
-
-        count = (
-            await session.execute(
-                select(func.count(Event.id)).where(
-                    Event.organization_id == creator.id,
-                    Event.name == "spaire.email.sent",
-                )
-            )
-        ).scalar_one()
-        assert count == 5
-
-
-@pytest.mark.asyncio
 class TestEmitVideoEvents:
     async def test_video_uploaded_carries_duration(
         self,
@@ -223,13 +199,13 @@ class TestEnforce:
         _patch_platform_org_id(mocker, platform_org.id)
         # Patch Pro down to 5000/mo so we can fill near-cap with 4999
         # events. Pro's real limit is 250k.
-        _patch_pro_limits(mocker, email_sends_monthly=5000)
+        _patch_starter_limits(mocker, video_views_monthly=5000)
         creator = await create_organization(save_fixture)
         await _subscribe(
             save_fixture,
             platform_org=platform_org,
             creator=creator,
-            tier="pro",
+            tier="starter",
             monthly_cents=0,
         )
         # Pro grace = 10%, ceiling = 5500. 4999 + requested=2 lands in
@@ -240,14 +216,14 @@ class TestEnforce:
                 save_fixture,
                 organization=creator,
                 source=EventSource.system,
-                name="spaire.email.sent",
+                name="spaire.video.viewed",
             )
 
         with pytest.raises(QuotaExceededError) as excinfo:
             await enforce(
                 session,
                 creator,
-                QuotaKey.email_sends_monthly,
+                QuotaKey.video_views_monthly,
                 requested_storage_units=600,
             )
         result = excinfo.value.result
@@ -267,7 +243,7 @@ class TestEnforce:
             save_fixture,
             platform_org=platform_org,
             creator=creator,
-            tier="pro",
+            tier="starter",
             monthly_cents=4900,
         )
 
@@ -287,17 +263,10 @@ class TestEnforce:
         session: AsyncSession,
         save_fixture: SaveFixture,
     ) -> None:
-        platform_org = await create_organization(save_fixture)
-        _patch_platform_org_id(mocker, platform_org.id)
+        # Every paid tier caps storage. The only unlimited path is
+        # `unmanaged` — platform billing not configured (dev / self-host).
+        _patch_platform_org_id(mocker, None)
         creator = await create_organization(save_fixture)
-        # Every paid tier caps storage now; Legacy is the unlimited tier.
-        await _subscribe(
-            save_fixture,
-            platform_org=platform_org,
-            creator=creator,
-            tier="legacy",
-            monthly_cents=0,
-        )
 
         result = await enforce(
             session,
@@ -326,7 +295,7 @@ class TestProducersIntegrateWithService:
             save_fixture,
             platform_org=platform_org,
             creator=creator,
-            tier="pro",
+            tier="starter",
             monthly_cents=4900,
         )
 

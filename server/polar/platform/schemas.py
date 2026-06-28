@@ -13,7 +13,6 @@ from polar.entitlements.schemas import (
 from polar.entitlements.tiers import TierKey
 from polar.kit.schemas import Schema
 
-
 BillingInterval = Literal["month", "year"]
 
 
@@ -21,7 +20,7 @@ class TierPlan(Schema):
     """A subscribable tier plan, as exposed to creators in the upgrade UI."""
 
     tier: TierKey = Field(description="Tier identifier.")
-    name: str = Field(description="Display name, e.g. 'Spaire Pro'.")
+    name: str = Field(description="Display name, e.g. 'Spaire Starter'.")
     description: str | None = Field(description="Marketing description.")
     product_id: UUID | None = Field(
         description=(
@@ -73,7 +72,7 @@ class CurrentSpaireSubscription(Schema):
     billing_interval: BillingInterval | None = Field(
         description=(
             "The Product's recurring interval ('month' or 'year'). None "
-            "when the creator has no platform-org subscription (Legacy)."
+            "when the creator has no platform-org subscription (no plan)."
         )
     )
     status: str = Field(
@@ -83,7 +82,7 @@ class CurrentSpaireSubscription(Schema):
         )
     )
     monthly_price_cents: int = Field(
-        description="Recurring monthly cost in cents (0 for Legacy)."
+        description="Recurring monthly cost in cents (0 when no plan)."
     )
     currency: str = Field(default="usd")
     current_period_end: datetime | None = Field(
@@ -98,10 +97,26 @@ class CurrentSpaireSubscription(Schema):
     cancel_at_period_end: bool = Field(
         description="Whether the subscription is scheduled to cancel."
     )
+    past_due_at: datetime | None = Field(
+        default=None,
+        description=(
+            "When the subscription first entered `past_due` (a Spaire "
+            "charge failed). None unless the subscription is past_due."
+        ),
+    )
+    suspension_at: datetime | None = Field(
+        default=None,
+        description=(
+            "The deadline by which the overdue balance must be paid before "
+            "the subscription is canceled and the org loses access. Computed "
+            "from past_due_at plus the dunning retry window. None unless "
+            "past_due. The dashboard uses this for the 'pay by {date}' banner."
+        ),
+    )
     is_default_trial: bool = Field(
         default=False,
         description=(
-            "True when the active subscription is the auto-created Pro "
+            "True when the active subscription is the auto-created Starter "
             "trial from the org-creation hook (i.e. `managed_by=trial`). "
             "Becomes False once the creator goes through upgrade-checkout "
             "and a payment method is captured. The onboarding review "
@@ -114,7 +129,7 @@ class CurrentSpaireSubscription(Schema):
 
 class UpgradeCheckoutCreate(Schema):
     tier: TierKey = Field(
-        description="Target tier to upgrade to (must be Pro, Studio, or Scale)."
+        description="Target tier to upgrade to (must be Starter, Studio, or Scale)."
     )
     billing_interval: BillingInterval = Field(
         default="month",
@@ -153,7 +168,7 @@ class SwitchPlan(Schema):
     tier: TierKey = Field(
         description=(
             "Target tier. Must be a different paid tier than the current "
-            "one (e.g. pro -> studio, studio -> scale). Use the cancel "
+            "one (e.g. starter -> studio, studio -> scale). Use the cancel "
             "endpoint to end your paid subscription."
         )
     )
@@ -169,8 +184,8 @@ class SwitchPlan(Schema):
 
 class CancelSpaireSubscription(Schema):
     """Schedule the current Spaire subscription for cancellation at the
-    end of the current billing period. The org will be auto-resubscribed
-    to Legacy (no charge, no enforcement) when the cancellation revokes."""
+    end of the current billing period. When the cancellation revokes, the
+    org has no active plan and resolves to `inactive` (no free fallback)."""
 
     pass
 

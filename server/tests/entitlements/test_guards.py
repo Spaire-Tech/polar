@@ -28,18 +28,18 @@ def _patch_platform_org_id(mocker: MockerFixture, org_id: UUID | None) -> None:
     mocker.patch("polar.platform.service.settings.PLATFORM_ORG_ID", org_id)
 
 
-def _patch_pro_limits(mocker: MockerFixture, **limit_overrides: int | None) -> None:
+def _patch_starter_limits(mocker: MockerFixture, **limit_overrides: int | None) -> None:
     """Override Pro's TierLimits so the limit-reached tests can assert
     against small values (Pro's real limits — unlimited courses /
     lessons, 250k email sends — make the original Free-shaped tests
     meaningless without an override)."""
-    base = get_definition(TierKey.pro)
+    base = get_definition(TierKey.starter)
     overridden = dataclasses.replace(
         base, limits=dataclasses.replace(base.limits, **limit_overrides)
     )
 
     def _resolve(tier: TierKey) -> "object":
-        if tier == TierKey.pro:
+        if tier == TierKey.starter:
             return overridden
         return get_definition(tier)
 
@@ -112,7 +112,7 @@ class TestRequireFeature:
             save_fixture,
             platform_org=platform_org,
             creator=creator,
-            tier="pro",
+            tier="starter",
             monthly_cents=0,
         )
 
@@ -122,7 +122,7 @@ class TestRequireFeature:
                 session, creator.id, "email_ab_testing"
             )
         assert excinfo.value.feature == "email_ab_testing"
-        assert excinfo.value.tier == TierKey.pro
+        assert excinfo.value.tier == TierKey.starter
         assert excinfo.value.status_code == 402
 
     async def test_passes_when_feature_enabled(
@@ -138,7 +138,7 @@ class TestRequireFeature:
             save_fixture,
             platform_org=platform_org,
             creator=creator,
-            tier="pro",
+            tier="starter",
             monthly_cents=4900,
         )
 
@@ -187,7 +187,7 @@ class TestRequireFeature:
             save_fixture,
             platform_org=platform_org,
             creator=creator,
-            tier="pro",
+            tier="starter",
             monthly_cents=0,
         )
 
@@ -224,13 +224,13 @@ class TestRequireUnderLimit:
         _patch_platform_org_id(mocker, platform_org.id)
         # Patch Pro down to 1 published course so the "at-cap" branch
         # can be exercised. Pro's real limit is unlimited.
-        _patch_pro_limits(mocker, published_courses=1)
+        _patch_starter_limits(mocker, published_courses=1)
         creator = await create_organization(save_fixture)
         await _subscribe(
             save_fixture,
             platform_org=platform_org,
             creator=creator,
-            tier="pro",
+            tier="starter",
             monthly_cents=0,
         )
 
@@ -240,7 +240,7 @@ class TestRequireUnderLimit:
             )
         assert excinfo.value.key == "published_courses"
         assert excinfo.value.limit == 1
-        assert excinfo.value.tier == TierKey.pro
+        assert excinfo.value.tier == TierKey.starter
         assert excinfo.value.status_code == 402
 
     async def test_raises_when_above_limit(
@@ -253,13 +253,13 @@ class TestRequireUnderLimit:
         # should still be blocked.
         platform_org = await create_organization(save_fixture)
         _patch_platform_org_id(mocker, platform_org.id)
-        _patch_pro_limits(mocker, lessons_per_course=10)
+        _patch_starter_limits(mocker, lessons_per_course=10)
         creator = await create_organization(save_fixture)
         await _subscribe(
             save_fixture,
             platform_org=platform_org,
             creator=creator,
-            tier="pro",
+            tier="starter",
             monthly_cents=0,
         )
 
@@ -276,13 +276,13 @@ class TestRequireUnderLimit:
     ) -> None:
         platform_org = await create_organization(save_fixture)
         _patch_platform_org_id(mocker, platform_org.id)
-        _patch_pro_limits(mocker, lessons_per_course=10)
+        _patch_starter_limits(mocker, lessons_per_course=10)
         creator = await create_organization(save_fixture)
         await _subscribe(
             save_fixture,
             platform_org=platform_org,
             creator=creator,
-            tier="pro",
+            tier="starter",
             monthly_cents=0,
         )
 
@@ -328,7 +328,7 @@ class TestRequireUnderLimit:
             save_fixture,
             platform_org=platform_org,
             creator=creator,
-            tier="pro",
+            tier="starter",
             monthly_cents=0,
         )
 

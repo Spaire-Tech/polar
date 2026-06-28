@@ -3,6 +3,7 @@
 import { toast } from '@/components/Toast/use-toast'
 import {
   BillingInterval,
+  breakevenGmvDollars,
   CurrentSpaireSubscription,
   formatTransactionFee,
   headlinePriceForPlan,
@@ -17,7 +18,6 @@ import {
   useSwitchSpairePlan,
 } from '@/hooks/queries/spaireTier'
 import CheckOutlined from '@mui/icons-material/CheckOutlined'
-import InfoOutlined from '@mui/icons-material/InfoOutlined'
 import { useQueryClient } from '@tanstack/react-query'
 import Button from '@spaire/ui/components/atoms/Button'
 import { schemas } from '@spaire/client'
@@ -31,7 +31,7 @@ interface SpairePlanCardsProps {
 }
 
 /**
- * Plan-selection grid — three cards (Pro / Studio / Scale) styled to
+ * Plan-selection grid — three cards (Starter / Studio / Scale) styled to
  * match the Framer/Webflow plan-card pattern, with a single global
  * Monthly/Annual toggle.
  *
@@ -49,6 +49,8 @@ const SpairePlanCards = ({ organization }: SpairePlanCardsProps) => {
   const cancelSub = useCancelSpaireSubscription(organization.id)
 
   const confirmCancel = useModal()
+  const confirmSwitch = useModal()
+  const [switchTarget, setSwitchTarget] = useState<PaidTierKey | null>(null)
   const [interval, setInterval] = useState<BillingInterval>(
     subscription.data?.billing_interval ?? 'month',
   )
@@ -57,7 +59,7 @@ const SpairePlanCards = ({ organization }: SpairePlanCardsProps) => {
   const ordered = useMemo<TierPlan[]>(() => {
     if (!plans.data?.items) return []
     const map = new Map(plans.data.items.map((p) => [p.tier, p]))
-    return (['pro', 'studio', 'scale'] as const)
+    return (['starter', 'studio', 'scale'] as const)
       .map((t) => map.get(t))
       .filter((p): p is TierPlan => Boolean(p))
   }, [plans.data])
@@ -113,14 +115,29 @@ const SpairePlanCards = ({ organization }: SpairePlanCardsProps) => {
     [switchPlan, interval, organization.id, queryClient],
   )
 
+  const requestSwitch = useCallback(
+    (tier: PaidTierKey) => {
+      setSwitchTarget(tier)
+      confirmSwitch.show()
+    },
+    [confirmSwitch],
+  )
+
+  const onConfirmSwitch = useCallback(async () => {
+    if (switchTarget === null) return
+    confirmSwitch.hide()
+    await doSwitch(switchTarget)
+    setSwitchTarget(null)
+  }, [switchTarget, confirmSwitch, doSwitch])
+
   const onCancel = useCallback(async () => {
     try {
       await cancelSub.mutateAsync()
       toast({
         title: isTrial ? 'Trial ended' : 'Subscription canceled',
         description: isTrial
-          ? 'Your trial has ended. Your org has been moved to the Legacy plan; upgrade any time from this page.'
-          : 'Your Spaire subscription will end at the close of the current billing period. Your org will move to the Legacy plan automatically.',
+          ? 'Your trial has ended. Your org has no active plan — pick one any time from this page to restore access.'
+          : 'Your Spaire subscription will end at the close of the current billing period, after which your org will have no active plan until you pick one.',
       })
       queryClient.invalidateQueries({
         queryKey: ['spaire', 'subscription', organization.id],
@@ -161,7 +178,7 @@ const SpairePlanCards = ({ organization }: SpairePlanCardsProps) => {
             <PlanCard
               key={plan.tier}
               plan={plan}
-              previousPlanName={idx === 0 ? null : ordered[idx - 1].name}
+              previousPlan={idx === 0 ? null : ordered[idx - 1]}
               interval={interval}
               currentTier={currentTier}
               currentInterval={currentInterval ?? null}
@@ -170,7 +187,7 @@ const SpairePlanCards = ({ organization }: SpairePlanCardsProps) => {
               cancelAtPeriodEnd={Boolean(sub?.cancel_at_period_end)}
               pending={pending}
               onUpgrade={startCheckout}
-              onSwitch={doSwitch}
+              onSwitch={requestSwitch}
               onCancel={confirmCancel.show}
             />
           ))}
@@ -187,16 +204,37 @@ const SpairePlanCards = ({ organization }: SpairePlanCardsProps) => {
         title={isTrial ? 'End your trial?' : 'Cancel your Spaire plan?'}
         description={
           isTrial
-            ? 'Your trial will end immediately. You will lose paid features and your org will move to the Legacy plan. You can upgrade again at any time.'
+            ? 'Your trial will end immediately. You will lose access until you pick a plan — you can choose one again at any time.'
             : sub?.current_period_end
               ? `Your plan stays active through ${new Date(
                   sub.current_period_end,
-                ).toLocaleDateString()}. After that your org moves to the Legacy plan automatically.`
-              : 'Your plan will be canceled at the end of the current billing period and your org will be moved to Legacy.'
+                ).toLocaleDateString()}. After that your org has no active plan until you pick one.`
+              : 'Your plan will be canceled at the end of the current billing period, after which your org has no active plan until you pick one.'
         }
         destructiveText={isTrial ? 'Yes, end trial' : 'Yes, cancel'}
         destructive
         onConfirm={onCancel}
+      />
+
+      <ConfirmModal
+        isShown={confirmSwitch.isShown}
+        hide={() => {
+          confirmSwitch.hide()
+          setSwitchTarget(null)
+        }}
+        title={
+          switchTarget
+            ? `Switch to Spaire ${tierDisplayName(switchTarget)}?`
+            : 'Switch plan?'
+        }
+        description={
+          switchTarget
+            ? `You'll move to Spaire ${tierDisplayName(switchTarget)}${
+                interval === 'year' ? ' (annual)' : ''
+              } now. Your card on file is used and a prorated amount for the rest of this billing period is invoiced immediately. Your transaction fee updates to the new plan's rate right away.`
+            : ''
+        }
+        onConfirm={onConfirmSwitch}
       />
     </div>
   )
@@ -267,7 +305,7 @@ const IntervalToggle = ({
 
 interface PlanCardProps {
   plan: TierPlan
-  previousPlanName: string | null
+  previousPlan: TierPlan | null
   interval: BillingInterval
   currentTier: CurrentSpaireSubscription['tier'] | undefined
   currentInterval: BillingInterval | null
@@ -282,7 +320,7 @@ interface PlanCardProps {
 
 const PlanCard = ({
   plan,
-  previousPlanName,
+  previousPlan,
   interval,
   currentTier,
   currentInterval,
@@ -295,6 +333,12 @@ const PlanCard = ({
   onCancel,
 }: PlanCardProps) => {
   const isCurrentTier = plan.tier === currentTier
+  const previousPlanName = previousPlan?.name ?? null
+  // Volume at which this tier's lower rate outweighs its higher monthly
+  // fee vs the next-cheaper tier — the "upgrade pays for itself here" line.
+  const breakeven = previousPlan
+    ? breakevenGmvDollars(previousPlan, plan)
+    : null
   const annualAvailable = plan.annual_price_cents != null
   const effectiveInterval: BillingInterval =
     interval === 'year' && !annualAvailable ? 'month' : interval
@@ -354,6 +398,15 @@ const PlanCard = ({
             {plan.trial_days}-day free trial included
           </span>
         )}
+        {breakeven !== null && previousPlanName && (
+          <span className="mt-2 text-xs text-gray-500">
+            Cheaper than {previousPlanName} above{' '}
+            <span className="font-medium text-gray-700">
+              ~${breakeven.toLocaleString('en-US')}/mo
+            </span>{' '}
+            in sales
+          </span>
+        )}
       </div>
 
       {/* Features */}
@@ -398,12 +451,11 @@ const FeatureRow = ({ label }: { label: string }) => (
 // -----------------------------------------------------------------------------
 
 type CtaKind =
-  | { kind: 'over_limits' } // disabled, the user is at the cap of a lower tier
   | { kind: 'cancel' } // CURRENT and active — show Cancel
   | { kind: 'end_trial' } // CURRENT and trialing — show End trial
   | { kind: 'convert_trial' } // trialing on this exact tier+interval, prompt to add card
   | { kind: 'switch'; primary: boolean } // paid → paid switch
-  | { kind: 'upgrade'; primary: boolean } // Legacy or trial → checkout
+  | { kind: 'upgrade'; primary: boolean } // no plan or trial → checkout
   | { kind: 'downgrade' } // paid on a higher tier → switch down
   | { kind: 'noop' }
 
@@ -418,8 +470,10 @@ interface ResolveCtaArgs {
 }
 
 const TIER_ORDER: Record<string, number> = {
-  legacy: 0,
-  pro: 1,
+  // No-plan states rank below every paid tier so any plan reads as an upgrade.
+  inactive: 0,
+  unmanaged: 0,
+  starter: 1,
   studio: 2,
   scale: 3,
 }
@@ -430,7 +484,8 @@ const resolveCta = (args: ResolveCtaArgs): CtaKind => {
 
   const planRank = TIER_ORDER[plan.tier]
   const currentRank = TIER_ORDER[currentTier]
-  const isLegacy = currentTier === 'legacy'
+  // No active plan (inactive/unmanaged) takes the checkout path, like a trial.
+  const isNoPlan = currentTier === 'inactive' || currentTier === 'unmanaged'
 
   // The card representing the user's exact current (tier, interval).
   const exactlyCurrent = plan.tier === currentTier && interval === currentInterval
@@ -444,8 +499,8 @@ const resolveCta = (args: ResolveCtaArgs): CtaKind => {
     return { kind: 'cancel' }
   }
 
-  // Same tier, different interval (e.g. Pro monthly user looking at Pro
-  // annual). Allow the switch via update_product unless trialing.
+  // Same tier, different interval (e.g. Starter monthly user looking at
+  // Starter annual). Allow the switch via update_product unless trialing.
   if (plan.tier === currentTier && interval !== currentInterval) {
     if (isTrial) {
       return { kind: 'convert_trial' }
@@ -453,8 +508,8 @@ const resolveCta = (args: ResolveCtaArgs): CtaKind => {
     return { kind: 'switch', primary: true }
   }
 
-  // Legacy or trial → a paid tier: checkout.
-  if (isLegacy || isTrial) {
+  // No plan or trial → a paid tier: checkout.
+  if (isNoPlan || isTrial) {
     return { kind: 'upgrade', primary: planRank >= currentRank }
   }
 
@@ -557,17 +612,6 @@ const PlanCardButton = ({
           Downgrade
         </Button>
       )
-    case 'over_limits':
-      return (
-        <button
-          type="button"
-          disabled
-          className="flex w-full flex-row items-center justify-center gap-x-1 rounded-xl bg-gray-50 px-4 py-2 text-sm font-medium text-gray-400"
-        >
-          <InfoOutlined style={{ fontSize: 14 }} />
-          Over limits
-        </button>
-      )
     case 'noop':
       return <div className="h-10" />
   }
@@ -599,7 +643,7 @@ const PrimaryBlackButton = ({
 // -----------------------------------------------------------------------------
 
 const buildFeatureLines = (plan: TierPlan): string[] => {
-  if (plan.tier === 'pro') return proLines(plan)
+  if (plan.tier === 'starter') return starterLines(plan)
   if (plan.tier === 'studio') return studioLines(plan)
   if (plan.tier === 'scale') return scaleLines(plan)
   // Defensive — Legacy isn't in the card grid.
@@ -612,26 +656,25 @@ const formatCount = (n: number): string => {
   return String(n)
 }
 
-// Pro lists the full baseline. Studio and Scale list only the
+// Starter lists the full baseline. Studio and Scale list only the
 // incremental delta — the "Everything from X, plus:" header above them
 // in the card carries the inheritance, so re-listing identical rows
 // would just inflate the cards.
-const proLines = (plan: TierPlan): string[] => [
+const starterLines = (plan: TierPlan): string[] => [
   'Merchant of Record — Spaire handles tax & VAT',
   `${formatTransactionFee(plan.transaction_fee)} per transaction`,
   `${plan.limits.published_courses} published courses`,
   `${formatCount(plan.limits.email_subscribers ?? 0)} email subscribers`,
-  `${formatCount(plan.limits.email_sends_monthly ?? 0)} email sends / month`,
-  `${plan.limits.active_email_sequences} active email sequence`,
+  'Unlimited email sends',
+  'Unlimited email sequences',
   `${plan.limits.video_hours_hosted} hours of hosted video`,
   'Sandbox / test environment',
 ]
 
 const studioLines = (plan: TierPlan): string[] => [
-  `${formatTransactionFee(plan.transaction_fee)} per transaction (saves ~0.2%)`,
+  `${formatTransactionFee(plan.transaction_fee)} per transaction (saves 2% vs Starter)`,
   `${plan.limits.published_courses} published courses`,
   `${formatCount(plan.limits.email_subscribers ?? 0)} email subscribers`,
-  `${plan.limits.active_email_sequences} active email sequences`,
   'Custom email sender domain',
   'White-label course player',
   'Customer wallet',
@@ -639,7 +682,7 @@ const studioLines = (plan: TierPlan): string[] => [
 ]
 
 const scaleLines = (plan: TierPlan): string[] => [
-  `${formatTransactionFee(plan.transaction_fee)} per transaction (saves ~0.5%)`,
+  `${formatTransactionFee(plan.transaction_fee)} per transaction (saves 4% vs Starter)`,
   `${plan.limits.published_courses} published courses`,
   `${formatCount(plan.limits.email_subscribers ?? 0)} email subscribers`,
   'Unlimited email sequences',

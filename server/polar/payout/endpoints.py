@@ -18,7 +18,7 @@ from . import auth as payouts_auth
 from . import sorting
 from .schemas import Payout as PayoutSchema
 from .schemas import PayoutCreate, PayoutEstimate, PayoutGenerateInvoice, PayoutInvoice
-from .service import InsufficientBalance, UnderReviewAccount
+from .service import AccountDelinquent, InsufficientBalance, UnderReviewAccount
 from .service import payout as payout_service
 
 router = APIRouter(prefix="/payouts", tags=["payouts", APITag.private])
@@ -62,6 +62,11 @@ async def list(
         400: {
             "description": "The balance is insufficient to create a payout.",
             "model": InsufficientBalance.schema(),
+        },
+        402: {
+            "description": "Payouts are held: a creator org on the account "
+            "has a past_due Spaire subscription.",
+            "model": AccountDelinquent.schema(),
         },
         403: {
             "description": "The account is under review or not ready.",

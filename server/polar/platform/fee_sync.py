@@ -20,11 +20,14 @@ import structlog
 from polar.account.repository import AccountRepository
 from polar.customer.repository import CustomerRepository
 from polar.entitlements.service import entitlements as entitlements_service
-from polar.entitlements.tiers import TierKey
+from polar.entitlements.tiers import PAID_TIERS, tier_from_value
 from polar.enums import RateLimitGroup
 from polar.exceptions import PolarError
+from polar.kit.utils import utc_now
 from polar.models import Organization, Subscription
+from polar.models.subscription import SubscriptionStatus
 from polar.organization.repository import OrganizationRepository
+from polar.platform.repository import platform_subscription_repository
 from polar.platform.service import platform as platform_service
 from polar.postgres import AsyncSession
 from polar.worker import enqueue_job
@@ -115,15 +118,36 @@ class PlatformFeeSyncService:
                 reason="rate_limit_only" if rate_limit_changed else "locked",
             )
 
-        # Legacy tier: leave the Account fee columns as-is — the global
-        # default kicks in via Account.platform_fee fallback. Writing the
-        # global default values explicitly would be lossy (we'd no longer
-        # be able to tell "never synced" from "synced to global default").
-        # Rate-limit group was already synced above.
-        if tier_entitlements.tier == TierKey.legacy:
+        # Non-paid tier (unmanaged / inactive): reset the Account fee columns
+        # to NULL so the global default applies via the Account.platform_fee
+        # fallback. This is the churn path — a creator who previously held
+        # Studio/Scale (and therefore had a lower rate written onto their
+        # Account) must NOT keep that negotiated rate once they have no plan.
+        # Nulling rather than writing the default explicitly preserves the
+        # "never synced == on global default" semantics. The lock check above
+        # already returned for locked accounts, so reaching here means
+        # unlocked (or force=True).
+        if tier_entitlements.tier not in PAID_TIERS:
+            if (
+                account._platform_fee_percent is not None
+                or account._platform_fee_fixed is not None
+            ):
+                previous_percent = account._platform_fee_percent
+                previous_fixed = account._platform_fee_fixed
+                account._platform_fee_percent = None
+                account._platform_fee_fixed = None
+                log.info(
+                    "platform.fee_sync.reset_to_default",
+                    organization_id=str(organization.id),
+                    account_id=str(account.id),
+                    tier=tier_entitlements.tier.value,
+                    previous_percent=previous_percent,
+                    previous_fixed=previous_fixed,
+                )
+                return _SyncResult(changed=True, reason="reset_to_default")
             return _SyncResult(
                 changed=rate_limit_changed,
-                reason="rate_limit_only" if rate_limit_changed else "legacy_tier",
+                reason="rate_limit_only" if rate_limit_changed else "non_paid_tier",
             )
 
         target_percent = tier_entitlements.transaction_fee.percent_basis_points
@@ -211,31 +235,89 @@ async def maybe_enqueue_sync_from_subscription(
         enqueue_sync(creator_org_id)
 
 
-async def maybe_enqueue_resubscribe_from_revoke(
+async def maybe_supersede_platform_trial(
     session: AsyncSession, subscription: Subscription
 ) -> None:
-    """If `subscription` belongs to a creator on the platform org and has
-    just been revoked, enqueue a job that re-creates an active Legacy
-    subscription so the org keeps a valid Spaire entitlement record.
+    """When a creator's NEW paid-tier Spaire subscription is created (via
+    the upgrade checkout — a first plan pick, a mid-trial tier switch, or a
+    re-subscribe after churn), cancel their OTHER active platform
+    subscriptions so they end up holding exactly one. On a mid-trial switch
+    this cancels the prior trial subscription once the new one is created;
+    the old one stays live until then, so an abandoned checkout leaves the
+    trial untouched.
 
-    Otherwise a no-op. Called from subscription/service.py inside
-    _on_subscription_revoked.
+    No-op unless `subscription` is a creator's platform sub on a paid tier.
     """
-    creator_org_id = await _platform_creator_org_id(session, subscription)
-    if creator_org_id is None:
+    if not platform_service.is_configured():
         return
-    try:
-        enqueue_job(
-            "platform.resubscribe_to_legacy", organization_id=creator_org_id
+
+    customer_repository = CustomerRepository.from_session(session)
+    customer = await customer_repository.get_by_id(subscription.customer_id)
+    if customer is None:
+        return
+    if not platform_service.is_platform_organization(customer.organization_id):
+        return
+
+    # Only a paid-tier subscription supersedes.
+    product = subscription.product
+    tier_value = (product.user_metadata or {}).get("tier") if product else None
+    tier = tier_from_value(tier_value) if isinstance(tier_value, str) else None
+    if tier not in PAID_TIERS:
+        return
+
+    subscription_repo = platform_subscription_repository(session)
+    others = await subscription_repo.list_active_for_customer(customer.id)
+    now = utc_now()
+    superseded: list[str] = []
+    for other in others:
+        if other.id == subscription.id:
+            continue
+        other.status = SubscriptionStatus.canceled
+        other.canceled_at = now
+        other.ended_at = now
+        other.cancel_at_period_end = False
+        superseded.append(str(other.id))
+
+    if superseded:
+        await session.flush()
+        log.info(
+            "platform.supersede_trial.done",
+            organization_id=customer.user_metadata.get("creator_org_id"),
+            customer_id=str(customer.id),
+            new_subscription_id=str(subscription.id),
+            new_tier=tier.value,
+            superseded_subscription_ids=superseded,
         )
-    except LookupError:
-        # Scripts / tests without a JobQueueManager — same logic as
-        # enqueue_sync above. The caller can re-run platform_billing
-        # .ensure_subscription(tier=legacy) manually if needed.
-        log.debug(
-            "platform.resubscribe_to_legacy.enqueue_skipped_no_queue_manager",
-            organization_id=str(creator_org_id),
-        )
+
+
+async def maybe_mark_platform_trial_consumed(
+    session: AsyncSession, subscription: Subscription
+) -> None:
+    """When a creator's platform subscription is created in `trialing`
+    status, stamp `trial_consumed_at` on their platform customer.
+
+    The trial is card-required and granted once: a later re-subscribe after
+    churn reads this stamp and bills immediately instead of handing out a
+    second free trial. Idempotent — only stamps the first time.
+    """
+    if not platform_service.is_configured():
+        return
+    if subscription.status != SubscriptionStatus.trialing:
+        return
+
+    customer_repository = CustomerRepository.from_session(session)
+    customer = await customer_repository.get_by_id(subscription.customer_id)
+    if customer is None:
+        return
+    if not platform_service.is_platform_organization(customer.organization_id):
+        return
+
+    metadata = dict(customer.user_metadata or {})
+    if metadata.get("trial_consumed_at"):
+        return
+    metadata["trial_consumed_at"] = utc_now().isoformat()
+    customer.user_metadata = metadata
+    await session.flush()
 
 
 async def _platform_creator_org_id(

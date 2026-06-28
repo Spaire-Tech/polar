@@ -90,7 +90,6 @@ def _limit_for(
         QuotaKey.video_hours_hosted: entitlements.limits.video_hours_hosted,
         QuotaKey.video_views_monthly: entitlements.limits.video_views_monthly,
         QuotaKey.storage_gb: entitlements.limits.storage_gb,
-        QuotaKey.email_sends_monthly: entitlements.limits.email_sends_monthly,
     }
     return mapping[quota]
 
@@ -151,7 +150,7 @@ class QuotasService:
         `requested_storage_units` is in the quota's storage unit:
           - bytes for storage_gb
           - seconds for video_hours_hosted
-          - count for video_views_monthly and email_sends_monthly
+          - count for video_views_monthly
         Producers always know the precise amount they want to consume,
         so this is the natural interface.
 

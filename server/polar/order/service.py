@@ -1743,13 +1743,31 @@ class OrderService:
             ),
         )
 
-        # Auto-subscribe buyer to email marketing list
+        # Auto-subscribe buyer to email marketing list. When this is the
+        # FIRST order of a subscription (a new sub or a started free trial —
+        # billing_reason `subscription_create`), pass the subscription /
+        # product so the task also fires the "Subscription started"
+        # automations. Renewal cycles and one-time purchases pass neither, so
+        # they never re-trigger that welcome.
+        is_subscription_start = (
+            order.subscription_id is not None
+            and order.billing_reason
+            == OrderBillingReasonInternal.subscription_create
+        )
         enqueue_job(
             "email_subscriber.subscribe_from_order",
             organization_id=order.organization.id,
             email=order.customer.email,
             name=order.customer.name,
             customer_id=order.customer_id,
+            subscription_id=(
+                str(order.subscription_id) if is_subscription_start else None
+            ),
+            product_id=(
+                str(order.product_id)
+                if is_subscription_start and order.product_id is not None
+                else None
+            ),
         )
 
         if order.subscription_id is not None and order.billing_reason in (

@@ -135,35 +135,31 @@ class PlatformBillingService:
             subscription_metadata=subscription_metadata,
         )
         # Schedule a tier-fee sync so the creator's Account picks up the
-        # tier's list rate. Safe no-op if the org doesn't have an Account
-        # yet, or if the tier is legacy (sync exits early on legacy).
+        # tier's list rate. Safe no-op if the org doesn't have an Account yet.
         enqueue_fee_sync(organization.id)
         return subscription
 
-    async def ensure_pro_trial_subscription(
+    async def ensure_starter_trial_subscription(
         self,
         session: AsyncSession,
         organization: Organization,
     ) -> Subscription | None:
-        """Convenience wrapper called from the org-creation hook.
+        """Start a local 14-day Starter trial subscription for an org.
 
-        Starts a 14-day Pro trial. The Pro product carries the trial
-        configuration (trial_interval=day, count=14) and `_create_subscription`
-        promotes that to a `trialing` status with `trial_end` set 14 days
-        from now. After the trial expires the platform.expire_trials
-        cron lapses the sub and re-subscribes the org to Legacy unless
-        the creator has converted via upgrade-checkout (which captures
-        a payment method and supersedes this auto-trial with a fresh
-        Stripe-managed subscription on the chosen tier).
+        NOTE: this is NOT the live trial path. Org creation only provisions
+        the platform Customer (``ensure_platform_customer``); the real,
+        card-required 14-day trial is created through the upgrade-checkout
+        flow, which captures a payment method and opens a Stripe-backed
+        subscription so Stripe bills the card automatically at trial_end.
 
-        Pre-attaching this trial is what gives a freshly created org a
-        real Pro tier from the first dashboard hit — without it,
-        EntitlementsService.get_tier silently falls back to Legacy
-        (unlimited everything), which is the exact bypass the PRICING.md
-        rollout is supposed to close.
+        This helper creates a LOCAL trialing subscription with no captured
+        payment method — it does not bill, and nothing in production calls
+        it. It's retained only for the platform-billing tests. Do NOT wire
+        it back into org creation: such a trial would never charge and never
+        lapse (there is no longer an expire-trials cron).
         """
         return await self.ensure_subscription(
-            session, organization, tier=TierKey.pro, managed_by="trial"
+            session, organization, tier=TierKey.starter, managed_by="trial"
         )
 
     async def ensure_platform_customer(

@@ -20,9 +20,9 @@ class QuotaNotification(RecordModel):
     to know whether the threshold has already been notified for the
     current period and avoids duplicate emails.
 
-    For monthly quotas (email_sends_monthly, video_views_monthly), the
-    period_key is the calendar month "YYYY-MM" so notifications reset
-    naturally on the 1st of each month.
+    For monthly quotas (video_views_monthly), the period_key is the
+    calendar month "YYYY-MM" so notifications reset naturally on the 1st
+    of each month.
 
     For lifetime quotas (storage_gb, video_hours_hosted), period_key is
     the constant "lifetime"; the cron deletes the row when usage drops

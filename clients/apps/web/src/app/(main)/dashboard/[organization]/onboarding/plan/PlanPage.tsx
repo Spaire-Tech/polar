@@ -37,7 +37,7 @@ export default function PlanPage() {
   const ordered = useMemo<TierPlan[]>(() => {
     if (!plans.data?.items) return []
     const map = new Map(plans.data.items.map((p) => [p.tier, p]))
-    return (['pro', 'studio', 'scale'] as const)
+    return (['starter', 'studio', 'scale'] as const)
       .map((t) => map.get(t))
       .filter((p): p is TierPlan => Boolean(p))
   }, [plans.data])
@@ -313,23 +313,23 @@ const formatCount = (n: number): string => {
 }
 
 const featuresForTier = (plan: TierPlan): string[] => {
-  if (plan.tier === 'pro') {
+  if (plan.tier === 'starter') {
     return [
       'Merchant of Record — Spaire handles tax & VAT',
       `${formatTransactionFee(plan.transaction_fee)} per transaction`,
       `${plan.limits.published_courses} published courses`,
       `${formatCount(plan.limits.email_subscribers ?? 0)} email subscribers`,
-      `${plan.limits.active_email_sequences} active email sequence`,
+      'Unlimited email sends',
+      'Unlimited email sequences',
       `${plan.limits.video_hours_hosted} hours of hosted video`,
       'Sandbox / test environment',
     ]
   }
   if (plan.tier === 'studio') {
     return [
-      `${formatTransactionFee(plan.transaction_fee)} per transaction (saves ~0.2%)`,
+      `${formatTransactionFee(plan.transaction_fee)} per transaction (saves 2% vs Starter)`,
       `${plan.limits.published_courses} published courses`,
       `${formatCount(plan.limits.email_subscribers ?? 0)} email subscribers`,
-      `${plan.limits.active_email_sequences} active email sequences`,
       'Custom email sender domain',
       'White-label course player',
       'Customer wallet',
@@ -338,7 +338,7 @@ const featuresForTier = (plan: TierPlan): string[] => {
   }
   if (plan.tier === 'scale') {
     return [
-      `${formatTransactionFee(plan.transaction_fee)} per transaction (saves ~0.5%)`,
+      `${formatTransactionFee(plan.transaction_fee)} per transaction (saves 4% vs Starter)`,
       `${plan.limits.published_courses} published courses`,
       `${formatCount(plan.limits.email_subscribers ?? 0)} email subscribers`,
       'Unlimited email sequences',

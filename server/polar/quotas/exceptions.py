@@ -15,7 +15,6 @@ _HUMAN_QUOTA_LABEL: dict[QuotaKey, tuple[str, str]] = {
     QuotaKey.video_hours_hosted: ("Video hosting", "hours"),
     QuotaKey.video_views_monthly: ("Video views (this month)", "views"),
     QuotaKey.storage_gb: ("File storage", "GB"),
-    QuotaKey.email_sends_monthly: ("Email sends (this month)", "emails"),
 }
 
 
