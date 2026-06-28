@@ -3,6 +3,7 @@ import { getServerSideAPI } from '@/utils/client/serverside'
 import { spacePageLink } from '@/utils/nav'
 import { getStorefrontOrNotFound } from '@/utils/storefront'
 import type { Metadata } from 'next'
+import { redirect } from 'next/navigation'
 import AppPage from './AppPage'
 
 export async function generateMetadata(props: {
@@ -79,6 +80,21 @@ export default async function Page(props: {
   const { organization, products } = storefront
   const forms = ((storefront as { forms?: FormPublic[] }).forms ??
     []) as FormPublic[]
+
+  // Course-only ("MasterClass builder") reposition: the bare creator page no
+  // longer renders the multi-product storefront — it forwards straight to the
+  // creator's course landing (/{slug}/products/{courseId}, which renders the
+  // cinematic PublicPortalView). Orgs with no course yet (mid-onboarding) or
+  // legacy digital-only orgs fall through to the storefront so nothing breaks.
+  // This is a temporary (307) redirect for now to stay reversible while the
+  // reposition settles; switch to permanentRedirect() for the SEO-permanent 308
+  // once the structure is final. Reversible: delete this block to restore grid.
+  const courseProduct = products.find(
+    (product) => product.category === 'course',
+  )
+  if (courseProduct) {
+    redirect(`/${organization.slug}/products/${courseProduct.id}`)
+  }
 
   return (
     <AppPage organization={organization} products={products} forms={forms} />
