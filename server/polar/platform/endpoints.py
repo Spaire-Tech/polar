@@ -447,8 +447,11 @@ async def create_customer_portal_session(
 
     platform_org_id = platform_service.get_id()
     customer_repo = platform_customer_repository(session)
+    # load_organization: customer_portal_url reads customer.organization.slug,
+    # and that relationship is lazy="raise" — without eager-loading it here
+    # the response build raises and the endpoint 500s.
     customer = await customer_repo.get_for_creator_org(
-        platform_org_id, organization.id
+        platform_org_id, organization.id, load_organization=True
     )
     if customer is None:
         # Should have been created by PR 4 on org-create or by PR 6's
