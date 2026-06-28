@@ -411,11 +411,23 @@ async def _send_email_node(
             return {"deferred_until": deferred}
 
     repository = EmailSequenceRepository.from_session(session)
-    cursor = enrollment.flow_index if enrollment.flow_index is not None else 0
-    ordinal = (
-        _email_ordinal_for_flow_index(flow, cursor) if flow is not None else 0
-    )
-    step = await repository.get_step_by_position(sequence.id, ordinal)
+    # Prefer resolving the step by the current flow node's stable id: the tree
+    # walker leaves `flow_next_step_id` pointing at the email node being sent
+    # (it only advances to the next node *after* this returns). This is exact
+    # even for flows with waits/branches, where the email-ordinal fallback —
+    # which counts only root-level email nodes against a flow_index the tree
+    # walker never advances — would otherwise always resolve to position 0.
+    step = None
+    if enrollment.flow_next_step_id:
+        step = await repository.get_step_by_flow_id(
+            sequence.id, enrollment.flow_next_step_id
+        )
+    if step is None:
+        cursor = enrollment.flow_index if enrollment.flow_index is not None else 0
+        ordinal = (
+            _email_ordinal_for_flow_index(flow, cursor) if flow is not None else 0
+        )
+        step = await repository.get_step_by_position(sequence.id, ordinal)
     if step is None:
         # Materialized step row missing — synthesise a best-effort send from
         # the flow node so authors can still ship even if syncEmailSteps
