@@ -183,15 +183,15 @@ class TestCreateFeesReversalBalances:
 
         assert len(fees_reversal_balances) == 2
 
-        # Payment fee
+        # Payment fee — global default rate (5% + 50c) on the $100 incoming.
         reversal_outgoing, reversal_incoming = fees_reversal_balances[0]
 
-        assert reversal_outgoing.amount == -440
+        assert reversal_outgoing.amount == -550
         assert reversal_outgoing.account == incoming.account
         assert reversal_outgoing.platform_fee_type == PlatformFeeType.payment
         assert reversal_outgoing.incurred_by_transaction == incoming
 
-        assert reversal_incoming.amount == 440
+        assert reversal_incoming.amount == 550
         assert reversal_incoming.account is None
         assert reversal_incoming.platform_fee_type == PlatformFeeType.payment
         assert reversal_incoming.incurred_by_transaction == outgoing
@@ -238,15 +238,15 @@ class TestCreateFeesReversalBalances:
 
         assert len(fees_reversal_balances) == 2
 
-        # Payment fee
+        # Payment fee — global default rate (5% + 50c) on the $100 incoming.
         reversal_outgoing, reversal_incoming = fees_reversal_balances[0]
 
-        assert reversal_outgoing.amount == -440
+        assert reversal_outgoing.amount == -550
         assert reversal_outgoing.account == incoming.account
         assert reversal_outgoing.platform_fee_type == PlatformFeeType.payment
         assert reversal_outgoing.incurred_by_transaction == incoming
 
-        assert reversal_incoming.amount == 440
+        assert reversal_incoming.amount == 550
         assert reversal_incoming.account is None
         assert reversal_incoming.platform_fee_type == PlatformFeeType.payment
         assert reversal_incoming.incurred_by_transaction == outgoing
@@ -368,15 +368,15 @@ class TestCreateFeesReversalBalances:
 
         assert len(fees_reversal_balances) == 3
 
-        # Payment fee
+        # Payment fee — global default rate (5% + 50c) on the $100 incoming.
         reversal_outgoing, reversal_incoming = fees_reversal_balances[0]
 
-        assert reversal_outgoing.amount == -440
+        assert reversal_outgoing.amount == -550
         assert reversal_outgoing.account == incoming.account
         assert reversal_outgoing.platform_fee_type == PlatformFeeType.payment
         assert reversal_outgoing.incurred_by_transaction == incoming
 
-        assert reversal_incoming.amount == 440
+        assert reversal_incoming.amount == 550
         assert reversal_incoming.account is None
         assert reversal_incoming.platform_fee_type == PlatformFeeType.payment
         assert reversal_incoming.incurred_by_transaction == outgoing
@@ -460,15 +460,15 @@ class TestCreateFeesReversalBalances:
 
         assert len(fees_reversal_balances) == 2
 
-        # Payment fee
+        # Payment fee — global default rate (5% + 50c) on the $100 incoming.
         reversal_outgoing, reversal_incoming = fees_reversal_balances[0]
 
-        assert reversal_outgoing.amount == -440
+        assert reversal_outgoing.amount == -550
         assert reversal_outgoing.account == incoming.account
         assert reversal_outgoing.platform_fee_type == PlatformFeeType.payment
         assert reversal_outgoing.incurred_by_transaction == incoming
 
-        assert reversal_incoming.amount == 440
+        assert reversal_incoming.amount == 550
         assert reversal_incoming.account is None
         assert reversal_incoming.platform_fee_type == PlatformFeeType.payment
         assert reversal_incoming.incurred_by_transaction == outgoing

@@ -17,7 +17,6 @@ from polar.held_balance.service import held_balance as held_balance_service
 from polar.integrations.plain.service import plain as plain_service
 from polar.models import Organization
 from polar.platform.billing import (
-    TierProductMissing,
     platform_billing,
 )
 from polar.platform.fee_sync import enqueue_sync as enqueue_platform_fee_sync
@@ -70,33 +69,16 @@ async def organization_created(organization_id: uuid.UUID) -> None:
         if organization is None:
             raise OrganizationDoesNotExist(organization_id)
 
-        # Start the new creator org on a 14-day Pro trial so they land
-        # on real Pro entitlements (capped limits, real tier) from the
-        # moment the dashboard opens — instead of silently falling
-        # through EntitlementsService's "no subscription -> legacy"
-        # branch, which used to grant unlimited everything until a
-        # human noticed.
-        #
-        # The trial-expiry cron (platform.tasks.platform_expire_trials)
-        # lapses this sub at day 14 if the creator hasn't converted via
-        # upgrade-checkout, then platform.resubscribe_to_legacy takes
-        # over and the org drops to Legacy ($0, no enforcement). That
-        # is the documented PRICING.md flow.
-        #
-        # If the platform org isn't configured yet, or its tier products
-        # haven't been seeded, we log and continue — the org should
-        # still be creatable in dev / single-tenant setups.
-        try:
-            await platform_billing.ensure_pro_trial_subscription(session, organization)
-        except TierProductMissing as exc:
-            log.warning(
-                "organization.created.pro_trial_skipped",
-                organization_id=str(organization_id),
-                reason=exc.message,
-            )
-            # Still ensure the platform Customer row exists so the
-            # upgrade-checkout endpoint has something to attach to.
-            await platform_billing.ensure_platform_customer(session, organization)
+        # Provision the platform-org billing Customer row so the
+        # upgrade-checkout endpoint has something to attach to from the
+        # very first click. We do NOT start a trial here: the 14-day trial
+        # is card-required and begins when the creator picks a plan and
+        # enters a card (Polar's checkout captures the card via a setup
+        # intent and starts the trial). Until then the org has no plan and
+        # resolves to `inactive`; the dashboard plan-gate routes them to
+        # /onboarding/plan. No platform org configured (dev / single-tenant)
+        # -> ensure_platform_customer is a no-op.
+        await platform_billing.ensure_platform_customer(session, organization)
 
 
 @actor(actor_name="organization.account_set", priority=TaskPriority.LOW)

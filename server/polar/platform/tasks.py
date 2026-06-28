@@ -3,15 +3,10 @@ import uuid
 import structlog
 from sqlalchemy import select
 
-from polar.entitlements.tiers import TierKey
 from polar.exceptions import PolarTaskError
 from polar.integrations.resend import domains as resend_domains
 from polar.kit.utils import utc_now
 from polar.models import Organization
-from polar.models.subscription import SubscriptionStatus
-from polar.organization.repository import OrganizationRepository
-from polar.platform.repository import platform_subscription_repository
-from polar.platform.service import platform as platform_service
 from polar.worker import (
     AsyncSessionMaker,
     CronTrigger,
@@ -20,7 +15,6 @@ from polar.worker import (
     enqueue_job,
 )
 
-from .billing import TierProductMissing, platform_billing
 from .fee_sync import platform_fee_sync
 from .trial_notifications import check_pending_trial_reminders
 
@@ -53,137 +47,15 @@ async def platform_fee_sync_task(organization_id: uuid.UUID) -> None:
         )
 
 
-@actor(
-    actor_name="platform.resubscribe_to_legacy",
-    priority=TaskPriority.LOW,
-)
-async def platform_resubscribe_to_legacy(organization_id: uuid.UUID) -> None:
-    """Auto-resubscribe a creator org to the Legacy plan after their paid
-    Spaire subscription is revoked (cancellation reaches end of period
-    or immediate revoke).
-
-    With the Free tier removed, Legacy is the only $0 fallback we can
-    drop a churned creator onto so they don't hard-lose access mid-month.
-    Operationally Legacy is "unlimited but grandfathered"; an admin can
-    archive these subs once a churn flow lands.
-
-    Idempotent: ensure_subscription returns the existing active sub if
-    one exists, so multiple revoke events in rapid succession do not
-    create duplicates.
-    """
-    async with AsyncSessionMaker() as session:
-        org_repo = OrganizationRepository.from_session(session)
-        organization = await org_repo.get_by_id(organization_id, include_blocked=True)
-        if organization is None:
-            log.warning(
-                "platform.resubscribe_to_legacy.org_missing",
-                organization_id=str(organization_id),
-            )
-            return
-
-        try:
-            subscription = await platform_billing.ensure_subscription(
-                session,
-                organization,
-                tier=TierKey.legacy,
-                managed_by="auto_downgrade_on_revoke",
-            )
-        except TierProductMissing as e:
-            log.warning(
-                "platform.resubscribe_to_legacy.skipped",
-                organization_id=str(organization_id),
-                reason=e.message,
-            )
-            return
-
-        log.info(
-            "platform.resubscribe_to_legacy.done",
-            organization_id=str(organization_id),
-            subscription_id=str(subscription.id) if subscription else None,
-        )
-
-
-# ---------------------------------------------------------------------------
-# Trial expiry: lapse trialing platform-org subscriptions whose trial_end
-# has already passed so the creator falls back to Legacy entitlements.
-# ---------------------------------------------------------------------------
-
-
-@actor(
-    actor_name="platform.expire_trials",
-    cron_trigger=CronTrigger(minute=5),
-    priority=TaskPriority.LOW,
-    max_retries=0,
-)
-async def platform_expire_trials() -> None:
-    """Hourly sweep: any platform-org subscription still in `trialing`
-    after `trial_end` is canceled in-place and the creator org is
-    enqueued for resubscribe to Legacy.
-
-    No Stripe round-trip — these subscriptions are platform-internal.
-    Conversion (capturing a payment method during the trial) goes
-    through the upgrade-checkout endpoint, which calls
-    subscription.update on the trialing sub directly; that path won't
-    leave a sub in trialing past its end. So anything we find here
-    really did expire without converting.
-    """
-    if not platform_service.is_configured():
-        return
-
-    platform_org_id = platform_service.get_id()
-    now = utc_now()
-
-    async with AsyncSessionMaker() as session:
-        subscription_repo = platform_subscription_repository(session)
-        expired = await subscription_repo.list_expired_trials(
-            platform_org_id, before=now
-        )
-        if not expired:
-            log.info("platform.expire_trials.none_found")
-            return
-
-        for subscription in expired:
-            subscription.status = SubscriptionStatus.canceled
-            subscription.ended_at = now
-            subscription.canceled_at = now
-
-            creator_org_id_raw = (
-                subscription.customer.user_metadata or {}
-            ).get("creator_org_id")
-            if not isinstance(creator_org_id_raw, str):
-                log.warning(
-                    "platform.expire_trials.missing_creator_org_id",
-                    subscription_id=str(subscription.id),
-                )
-                continue
-
-            try:
-                creator_org_id = uuid.UUID(creator_org_id_raw)
-            except ValueError:
-                log.warning(
-                    "platform.expire_trials.bad_creator_org_id",
-                    subscription_id=str(subscription.id),
-                    creator_org_id=creator_org_id_raw,
-                )
-                continue
-
-            enqueue_job(
-                "platform.resubscribe_to_legacy",
-                organization_id=creator_org_id,
-            )
-            log.info(
-                "platform.expire_trials.expired",
-                subscription_id=str(subscription.id),
-                creator_org_id=creator_org_id_raw,
-                tier=(subscription.product.user_metadata or {}).get("tier"),
-                trial_end=subscription.trial_end.isoformat()
-                if subscription.trial_end
-                else None,
-            )
-
-
 # ---------------------------------------------------------------------------
 # Trial reminder emails (T-7, T-2, T-0 days before trial_end)
+# ---------------------------------------------------------------------------
+#
+# Note: there is no trial-expiry cron. The 14-day trial is card-required, so
+# at trial_end the generic subscription-cycle scheduler charges the card on
+# file (trial -> active) or, on failure, hands off to Polar's dunning
+# (past_due -> retry -> revoke -> inactive). Nothing needs to "lapse" a
+# card-less trial because card-less trials no longer exist.
 # ---------------------------------------------------------------------------
 
 

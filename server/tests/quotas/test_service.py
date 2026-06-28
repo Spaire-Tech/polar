@@ -28,7 +28,7 @@ def _patch_platform_org_id(mocker: MockerFixture, org_id: UUID | None) -> None:
     mocker.patch("polar.platform.service.settings.PLATFORM_ORG_ID", org_id)
 
 
-def _patch_pro_limits(mocker: MockerFixture, **limit_overrides: int | None) -> None:
+def _patch_starter_limits(mocker: MockerFixture, **limit_overrides: int | None) -> None:
     """Override Pro's TierLimits with small testable values so the
     "fill near cap, then check" tests don't have to fixture 250k events.
 
@@ -38,13 +38,13 @@ def _patch_pro_limits(mocker: MockerFixture, **limit_overrides: int | None) -> N
     patching the limit to a small number preserves coverage while
     keeping tests fast.
     """
-    base = get_definition(TierKey.pro)
+    base = get_definition(TierKey.starter)
     overridden = dataclasses.replace(
         base, limits=dataclasses.replace(base.limits, **limit_overrides)
     )
 
     def _resolve(tier: TierKey) -> "object":
-        if tier == TierKey.pro:
+        if tier == TierKey.starter:
             return overridden
         return get_definition(tier)
 
@@ -104,7 +104,7 @@ async def _subscribe_to_tier(
 
 @pytest.mark.asyncio
 class TestGetUsage:
-    async def test_count_aggregation_for_email_sends(
+    async def test_count_aggregation_for_video_views(
         self,
         mocker: MockerFixture,
         session: AsyncSession,
@@ -112,13 +112,13 @@ class TestGetUsage:
     ) -> None:
         platform_org = await create_organization(save_fixture)
         _patch_platform_org_id(mocker, platform_org.id)
-        _patch_pro_limits(mocker, email_sends_monthly=5000)
+        _patch_starter_limits(mocker, video_views_monthly=5000)
         creator = await create_organization(save_fixture)
         await _subscribe_to_tier(
             save_fixture,
             platform_org=platform_org,
             creator=creator,
-            tier="pro",
+            tier="starter",
             monthly_cents=0,
         )
 
@@ -127,11 +127,11 @@ class TestGetUsage:
                 save_fixture,
                 organization=creator,
                 source=EventSource.system,
-                name="spaire.email.sent",
+                name="spaire.video.viewed",
             )
 
         usage = await quotas.get_usage(
-            session, creator.id, QuotaKey.email_sends_monthly
+            session, creator.id, QuotaKey.video_views_monthly
         )
 
         assert usage.used == 7
@@ -148,13 +148,13 @@ class TestGetUsage:
     ) -> None:
         platform_org = await create_organization(save_fixture)
         _patch_platform_org_id(mocker, platform_org.id)
-        _patch_pro_limits(mocker, video_hours_hosted=5)
+        _patch_starter_limits(mocker, video_hours_hosted=5)
         creator = await create_organization(save_fixture)
         await _subscribe_to_tier(
             save_fixture,
             platform_org=platform_org,
             creator=creator,
-            tier="pro",
+            tier="starter",
             monthly_cents=0,
         )
 
@@ -195,7 +195,7 @@ class TestGetUsage:
             save_fixture,
             platform_org=platform_org,
             creator=creator,
-            tier="pro",
+            tier="starter",
             monthly_cents=4900,
         )
 
@@ -252,7 +252,7 @@ class TestGetUsage:
             save_fixture,
             platform_org=platform_org,
             creator=creator,
-            tier="pro",
+            tier="starter",
             monthly_cents=0,
         )
 
@@ -263,11 +263,11 @@ class TestGetUsage:
                 save_fixture,
                 organization=creator,
                 source=EventSource.user,
-                name="spaire.email.sent",
+                name="spaire.video.viewed",
             )
 
         usage = await quotas.get_usage(
-            session, creator.id, QuotaKey.email_sends_monthly
+            session, creator.id, QuotaKey.video_views_monthly
         )
 
         assert usage.used == 0
@@ -285,7 +285,7 @@ class TestGetUsage:
             save_fixture,
             platform_org=platform_org,
             creator=creator,
-            tier="pro",
+            tier="starter",
             monthly_cents=0,
         )
 
@@ -297,7 +297,7 @@ class TestGetUsage:
             save_fixture,
             organization=creator,
             source=EventSource.system,
-            name="spaire.email.sent",
+            name="spaire.video.viewed",
             timestamp=old,
         )
         # Today — should count
@@ -305,11 +305,11 @@ class TestGetUsage:
             save_fixture,
             organization=creator,
             source=EventSource.system,
-            name="spaire.email.sent",
+            name="spaire.video.viewed",
         )
 
         usage = await quotas.get_usage(
-            session, creator.id, QuotaKey.email_sends_monthly
+            session, creator.id, QuotaKey.video_views_monthly
         )
 
         assert usage.used == 1
@@ -327,7 +327,7 @@ class TestGetUsage:
             save_fixture,
             platform_org=platform_org,
             creator=creator,
-            tier="pro",
+            tier="starter",
             monthly_cents=0,
         )
 
@@ -403,20 +403,20 @@ class TestCheck:
     ) -> None:
         platform_org = await create_organization(save_fixture)
         _patch_platform_org_id(mocker, platform_org.id)
-        _patch_pro_limits(mocker, email_sends_monthly=5000)
+        _patch_starter_limits(mocker, video_views_monthly=5000)
         creator = await create_organization(save_fixture)
         await _subscribe_to_tier(
             save_fixture,
             platform_org=platform_org,
             creator=creator,
-            tier="pro",
+            tier="starter",
             monthly_cents=0,
         )
 
         result = await quotas.check(
             session,
             creator.id,
-            QuotaKey.email_sends_monthly,
+            QuotaKey.video_views_monthly,
             requested_storage_units=100,
         )
 
@@ -434,13 +434,13 @@ class TestCheck:
     ) -> None:
         platform_org = await create_organization(save_fixture)
         _patch_platform_org_id(mocker, platform_org.id)
-        _patch_pro_limits(mocker, email_sends_monthly=5000)
+        _patch_starter_limits(mocker, video_views_monthly=5000)
         creator = await create_organization(save_fixture)
         await _subscribe_to_tier(
             save_fixture,
             platform_org=platform_org,
             creator=creator,
-            tier="pro",
+            tier="starter",
             monthly_cents=0,
         )
         for _ in range(4999):
@@ -448,7 +448,7 @@ class TestCheck:
                 save_fixture,
                 organization=creator,
                 source=EventSource.system,
-                name="spaire.email.sent",
+                name="spaire.video.viewed",
             )
 
         # Pro carries a 10% overage grace (ceiling 5500): the request has
@@ -456,7 +456,7 @@ class TestCheck:
         result = await quotas.check(
             session,
             creator.id,
-            QuotaKey.email_sends_monthly,
+            QuotaKey.video_views_monthly,
             requested_storage_units=600,
         )
 
@@ -471,18 +471,10 @@ class TestCheck:
         session: AsyncSession,
         save_fixture: SaveFixture,
     ) -> None:
-        platform_org = await create_organization(save_fixture)
-        _patch_platform_org_id(mocker, platform_org.id)
+        # Every paid tier caps video views. The only unlimited path is
+        # `unmanaged` — platform billing not configured (dev / self-host).
+        _patch_platform_org_id(mocker, None)
         creator = await create_organization(save_fixture)
-        # Every paid tier caps video views now; a subscription to the
-        # Legacy product is the only tier with unlimited quotas.
-        await _subscribe_to_tier(
-            save_fixture,
-            platform_org=platform_org,
-            creator=creator,
-            tier="legacy",
-            monthly_cents=0,
-        )
 
         result = await quotas.check(
             session,
@@ -495,13 +487,13 @@ class TestCheck:
         assert result.reason == "unlimited"
         assert result.limit is None
 
-    async def test_legacy_tier_is_unlimited(
+    async def test_unmanaged_tier_is_unlimited(
         self,
         mocker: MockerFixture,
         session: AsyncSession,
         save_fixture: SaveFixture,
     ) -> None:
-        # No platform org configured -> legacy tier returns None limits.
+        # No platform org configured -> unmanaged tier (unlimited).
         _patch_platform_org_id(mocker, None)
         creator = await create_organization(save_fixture)
 
@@ -529,13 +521,13 @@ class TestCheck:
         # Patch the Pro cap down to 10 so we can fill it without fixturing
         # 250k events. The 10% grace logic (overage_grace_pct=10 on Pro)
         # is what's actually under test.
-        _patch_pro_limits(mocker, email_sends_monthly=10)
+        _patch_starter_limits(mocker, video_views_monthly=10)
         creator = await create_organization(save_fixture)
         await _subscribe_to_tier(
             save_fixture,
             platform_org=platform_org,
             creator=creator,
-            tier="pro",
+            tier="starter",
             monthly_cents=4900,
         )
         for _ in range(10):
@@ -543,13 +535,13 @@ class TestCheck:
                 save_fixture,
                 organization=creator,
                 source=EventSource.system,
-                name="spaire.email.sent",
+                name="spaire.video.viewed",
             )
 
         result = await quotas.check(
             session,
             creator.id,
-            QuotaKey.email_sends_monthly,
+            QuotaKey.video_views_monthly,
             requested_storage_units=1,
         )
 
@@ -570,13 +562,13 @@ class TestCheck:
         _patch_platform_org_id(mocker, platform_org.id)
         # Cap=10, grace=10% -> ceiling=11. Pre-fill 11 events; the next
         # one is hard-blocked.
-        _patch_pro_limits(mocker, email_sends_monthly=10)
+        _patch_starter_limits(mocker, video_views_monthly=10)
         creator = await create_organization(save_fixture)
         await _subscribe_to_tier(
             save_fixture,
             platform_org=platform_org,
             creator=creator,
-            tier="pro",
+            tier="starter",
             monthly_cents=4900,
         )
         for _ in range(11):
@@ -584,13 +576,13 @@ class TestCheck:
                 save_fixture,
                 organization=creator,
                 source=EventSource.system,
-                name="spaire.email.sent",
+                name="spaire.video.viewed",
             )
 
         result = await quotas.check(
             session,
             creator.id,
-            QuotaKey.email_sends_monthly,
+            QuotaKey.video_views_monthly,
             requested_storage_units=1,
         )
 
@@ -598,34 +590,33 @@ class TestCheck:
         assert result.reason == "exceeded"
         assert result.overage_storage_units > 0
 
-    async def test_legacy_has_no_overage_grace(
+    async def test_zero_grace_hard_blocks_at_cap(
         self,
         mocker: MockerFixture,
         session: AsyncSession,
         save_fixture: SaveFixture,
     ) -> None:
-        """Legacy is the only $0 tier left; it carries unlimited limits
-        so the "no grace band, hard-block at the cap" semantics are
-        exercised by patching Pro down to a tiny cap with grace=0."""
+        """The "no grace band, hard-block at the cap" semantics, exercised
+        by patching Starter down to a tiny cap with overage_grace_pct=0."""
         platform_org = await create_organization(save_fixture)
         _patch_platform_org_id(mocker, platform_org.id)
         # Fake a 0% grace on Pro by patching the entitlement field.
-        base = get_definition(TierKey.pro)
+        base = get_definition(TierKey.starter)
         no_grace = dataclasses.replace(
             base,
-            limits=dataclasses.replace(base.limits, email_sends_monthly=10),
+            limits=dataclasses.replace(base.limits, video_views_monthly=10),
             overage_grace_pct=0,
         )
         mocker.patch(
             "polar.entitlements.service.get_definition",
-            side_effect=lambda t: no_grace if t == TierKey.pro else get_definition(t),
+            side_effect=lambda t: no_grace if t == TierKey.starter else get_definition(t),
         )
         creator = await create_organization(save_fixture)
         await _subscribe_to_tier(
             save_fixture,
             platform_org=platform_org,
             creator=creator,
-            tier="pro",
+            tier="starter",
             monthly_cents=0,
         )
         for _ in range(10):
@@ -633,13 +624,13 @@ class TestCheck:
                 save_fixture,
                 organization=creator,
                 source=EventSource.system,
-                name="spaire.email.sent",
+                name="spaire.video.viewed",
             )
 
         result = await quotas.check(
             session,
             creator.id,
-            QuotaKey.email_sends_monthly,
+            QuotaKey.video_views_monthly,
             requested_storage_units=1,
         )
 
@@ -658,13 +649,13 @@ class TestCheck:
         _patch_platform_org_id(mocker, platform_org.id)
         # Patch Pro storage cap down to 1 GB so we can fill it with a
         # single event without fixturing 25 GB.
-        _patch_pro_limits(mocker, storage_gb=1)
+        _patch_starter_limits(mocker, storage_gb=1)
         creator = await create_organization(save_fixture)
         await _subscribe_to_tier(
             save_fixture,
             platform_org=platform_org,
             creator=creator,
-            tier="pro",
+            tier="starter",
             monthly_cents=0,
         )
         gb = 1024 * 1024 * 1024

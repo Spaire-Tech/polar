@@ -93,16 +93,6 @@ class CourseService:
     ) -> Course:
         repo = CourseRepository.from_session(session)
 
-        # Enforce the tier's published_courses cap. Counts all non-deleted
-        # courses owned by the org (draft + public — both occupy a slot).
-        current = await repo.count_by_organization(create_schema.organization_id)
-        await entitlements_service.require_under_limit(
-            session,
-            create_schema.organization_id,
-            "published_courses",
-            current=current,
-        )
-
         course = Course(
             product_id=create_schema.product_id,
             organization_id=create_schema.organization_id,
@@ -145,6 +135,27 @@ class CourseService:
                 position=0,
                 lessons=[],
             )]
+
+        # Drafts are free; the published_courses cap only applies once a
+        # course actually goes live. A course can be created already-public
+        # (e.g. AI generation that publishes its lessons), so enforce the
+        # cap up front when any seed lesson is published. Counts the org's
+        # *other* published courses — this one isn't persisted yet.
+        will_be_published = any(
+            lesson.published
+            for module in modules_to_add
+            for lesson in module.lessons
+        )
+        if will_be_published:
+            current = await repo.count_published_by_organization(
+                create_schema.organization_id
+            )
+            await entitlements_service.require_under_limit(
+                session,
+                create_schema.organization_id,
+                "published_courses",
+                current=current,
+            )
 
         for mod_schema in modules_to_add:
             module = CourseModule(
@@ -273,6 +284,15 @@ class CourseService:
     ) -> CourseModule:
         module_repo = CourseModuleRepository.from_session(session)
 
+        # A new module seeded with published lessons can flip a draft course
+        # live — enforce the published_courses cap in that case.
+        if any(lesson.published for lesson in create_schema.lessons):
+            await self._require_published_course_slot(
+                session,
+                course_id=course.id,
+                organization_id=course.organization_id,
+            )
+
         module = CourseModule(
             course_id=course.id,
             title=create_schema.title,
@@ -359,9 +379,41 @@ class CourseService:
                     session, course.organization_id, "drip_scheduling"
                 )
 
+            # Adding an already-published lesson can flip a draft course
+            # live — enforce the published_courses cap in that case.
+            if create_schema.published:
+                await self._require_published_course_slot(
+                    session,
+                    course_id=course.id,
+                    organization_id=course.organization_id,
+                )
+
         lesson = _build_lesson(create_schema)
         lesson.module_id = module.id
         return await lesson_repo.create(lesson, flush=True)
+
+    async def _require_published_course_slot(
+        self,
+        session: AsyncSession,
+        *,
+        course_id: UUID,
+        organization_id: UUID,
+    ) -> None:
+        """Enforce the published_courses cap when a course is about to gain
+        its *first* published lesson (draft -> published). A course that
+        already has a published lesson doesn't consume a new slot, and draft
+        courses are free, so the cap meters live courses — not created ones.
+        """
+        lesson_repo = CourseLessonRepository.from_session(session)
+        if await lesson_repo.count_published_by_course(course_id) > 0:
+            return
+        course_repo = CourseRepository.from_session(session)
+        current = await course_repo.count_published_by_organization(
+            organization_id
+        )
+        await entitlements_service.require_under_limit(
+            session, organization_id, "published_courses", current=current
+        )
 
     async def update_lesson(
         self,
@@ -386,6 +438,20 @@ class CourseService:
             if organization_id is not None:
                 await entitlements_service.require_feature(
                     session, organization_id, "drip_scheduling"
+                )
+
+        # Publishing a lesson can flip its course from draft to live. Enforce
+        # the published_courses cap on that transition (False/None -> True),
+        # before the update lands. Unpublishing is always allowed.
+        publishing = update_dict.get("published") is True and not lesson.published
+        if publishing:
+            resolved = await lesson_repo.get_course_and_org_for_lesson(lesson.id)
+            if resolved is not None:
+                course_id, organization_id = resolved
+                await self._require_published_course_slot(
+                    session,
+                    course_id=course_id,
+                    organization_id=organization_id,
                 )
 
         return await lesson_repo.update(lesson, update_dict=update_dict)

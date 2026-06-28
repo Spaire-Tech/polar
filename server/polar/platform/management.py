@@ -11,7 +11,7 @@ from typing import Literal
 
 import structlog
 
-from polar.entitlements.tiers import TierKey
+from polar.entitlements.tiers import TierKey, tier_from_value
 from polar.enums import SubscriptionProrationBehavior, SubscriptionRecurringInterval
 from polar.exceptions import PolarError
 from polar.kit.utils import utc_now
@@ -26,12 +26,11 @@ from polar.platform.repository import (
 from polar.platform.service import platform as platform_service
 from polar.postgres import AsyncSession
 from polar.subscription.service import subscription as subscription_service
-from polar.worker import enqueue_job
 
 log: structlog.stdlib.BoundLogger = structlog.get_logger()
 
 
-_PAID_TIERS = (TierKey.pro, TierKey.studio, TierKey.scale)
+_PAID_TIERS = (TierKey.starter, TierKey.studio, TierKey.scale)
 
 
 class PlatformManagementError(PolarError): ...
@@ -81,7 +80,7 @@ class CannotSwitchDuringTrial(PlatformManagementError):
 
 
 class _ResolvedSubscription:
-    __slots__ = ("subscription", "current_tier", "current_interval")
+    __slots__ = ("current_interval", "current_tier", "subscription")
 
     def __init__(
         self,
@@ -116,10 +115,9 @@ async def _resolve_active(
     tier_value = (subscription.product.user_metadata or {}).get("tier")
     if not isinstance(tier_value, str):
         raise NoActiveSubscription()
-    try:
-        current_tier = TierKey(tier_value)
-    except ValueError as exc:
-        raise NoActiveSubscription() from exc
+    current_tier = tier_from_value(tier_value)
+    if current_tier is None:
+        raise NoActiveSubscription()
 
     # Derive the current billing interval from the subscription itself
     # (single source of truth — the Product's user_metadata may not be
@@ -155,16 +153,14 @@ class PlatformManagementService:
 
         `target_interval=None` keeps the current cadence.
         """
-        if target_tier == TierKey.legacy:
-            raise CannotSwitchToNonPaidTier()
         if target_tier not in _PAID_TIERS:
             raise CannotSwitchToNonPaidTier()
 
         resolved = await _resolve_active(session, organization)
 
         if resolved.current_tier not in _PAID_TIERS:
-            # Legacy -> paid goes through checkout, not update_product,
-            # since no card is on file yet. Surface a 409 with a hint.
+            # No active paid plan -> paid goes through checkout, not
+            # update_product, since no card is on file yet. Surface a 409.
             raise SwitchRequiresPaidTier()
 
         if resolved.subscription.trialing:
@@ -219,14 +215,12 @@ class PlatformManagementService:
         """Cancel the creator org's Spaire subscription.
 
         - Active paid subs schedule end-of-period cancellation; the
-          subscription stays valid through the current billing window
-          and the `platform.resubscribe_to_legacy` actor takes over
-          when the revoke event fires.
-        - Trialing subs (no payment method, no billing cycle to honor)
-          are revoked immediately. The customer loses Pro/Studio/Scale
-          entitlements right away and is enqueued for resubscribe to
-          Legacy on the next worker pass.
-        - Legacy is a no-op (no payment liability to release).
+          subscription stays valid through the current billing window, then
+          revokes. The org then has no active plan and resolves to
+          `inactive` (no free fallback).
+        - Trialing subs (no payment method, no billing cycle to honor) are
+          revoked immediately; the org drops to `inactive` right away.
+        - An org with no active paid plan is a no-op.
         """
         resolved = await _resolve_active(session, organization)
 
@@ -240,11 +234,6 @@ class PlatformManagementService:
             resolved.subscription.ended_at = now
             resolved.subscription.cancel_at_period_end = False
             await session.flush()
-
-            enqueue_job(
-                "platform.resubscribe_to_legacy",
-                organization_id=organization.id,
-            )
 
             log.info(
                 "platform.cancel.trial_revoked",

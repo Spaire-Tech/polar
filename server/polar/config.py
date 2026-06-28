@@ -423,13 +423,19 @@ class Settings(BaseSettings):
         # USD, default
         "usd": _DEFAULT_ACCOUNT_PAYOUT_MINIMUM_BALANCE,
     }
-    PLATFORM_FEE_BASIS_POINTS: int = 400
-    PLATFORM_FEE_FIXED: int = 40
+    # Global default transaction fee. This is the rate applied to any
+    # Account whose per-account fee columns are unset — i.e. the Legacy /
+    # un-converted / churned state — so it is deliberately the *worst*
+    # rate we charge (5% + 50¢). Paid tiers write their own lower rates
+    # onto the Account via polar.platform.fee_sync; Starter is 4% + 40¢,
+    # Studio 3.8% + 35¢, Scale 3.5% + 30¢.
+    PLATFORM_FEE_BASIS_POINTS: int = 500
+    PLATFORM_FEE_FIXED: int = 50
 
     # The Organization that represents Spaire itself. This org sells the
-    # Free/Pro/Scale subscriptions to every other creator org, and every
-    # creator org is a Customer of it. Unset = no tier billing is wired up
-    # (single-tenant / development).
+    # Starter/Studio/Scale subscriptions to every other creator org, and
+    # every creator org is a Customer of it. Unset = no tier billing is
+    # wired up (single-tenant / development).
     PLATFORM_ORG_ID: UUID | None = None
 
     ORGANIZATION_SLUG_RESERVED_KEYWORDS: list[str] = [

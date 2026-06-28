@@ -23,9 +23,16 @@ const platformApi = api as unknown as any
 // Types — mirror polar/platform/schemas.py
 // -----------------------------------------------------------------------------
 
-export type SpaireTierKey = 'pro' | 'studio' | 'scale' | 'legacy'
+export type SpaireTierKey =
+  | 'starter'
+  | 'studio'
+  | 'scale'
+  // No-plan fallbacks: `inactive` = real creator with no active plan;
+  // `unmanaged` = dev / self-host (platform billing not configured).
+  | 'inactive'
+  | 'unmanaged'
 
-export type PaidTierKey = 'pro' | 'studio' | 'scale'
+export type PaidTierKey = 'starter' | 'studio' | 'scale'
 
 export type BillingInterval = 'month' | 'year'
 
@@ -98,7 +105,12 @@ export interface CurrentSpaireSubscription {
   current_period_end: string | null
   trial_end: string | null
   cancel_at_period_end: boolean
-  // True only while the active sub is the auto-created Pro trial
+  // Set only while status === 'past_due' (a Spaire charge failed). past_due_at
+  // is when it first failed; suspension_at is the deadline to pay before the
+  // subscription is canceled and the org drops to no-plan.
+  past_due_at: string | null
+  suspension_at: string | null
+  // True only while the active sub is the auto-created Starter trial
   // (managed_by=trial). Flips False once the creator goes through
   // upgrade-checkout. Onboarding review uses this to verify a Stripe
   // checkout actually finished when it sees ?upgraded=1.
@@ -318,9 +330,36 @@ export const formatTransactionFee = (fee: TransactionFee): string => {
 }
 
 /**
+ * Monthly sales (GMV) at which `higher` becomes cheaper overall than
+ * `lower`. Moving up a tier trades a bigger monthly fee for a lower
+ * transaction rate, so it pays off once volume is high enough:
+ *
+ *   breakeven = (monthlyHigher − monthlyLower) / (rateLower − rateHigher)
+ *
+ * The fixed per-transaction cents are identical across tiers, so they
+ * cancel and don't enter the formula. Returns the dollar figure rounded
+ * to the nearest $100 for display, or null when `higher` isn't actually
+ * a step up (price not higher, or rate not lower) — in which case there's
+ * no honest breakeven to show.
+ */
+export const breakevenGmvDollars = (
+  lower: TierPlan,
+  higher: TierPlan,
+): number | null => {
+  const monthlyDiffCents = higher.monthly_price_cents - lower.monthly_price_cents
+  const rateDiffBps =
+    lower.transaction_fee.percent_basis_points -
+    higher.transaction_fee.percent_basis_points
+  if (monthlyDiffCents <= 0 || rateDiffBps <= 0) return null
+  // cents / (bps/10000) = cents * 10000 / bps -> /100 for dollars.
+  const dollars = (monthlyDiffCents * 100) / rateDiffBps
+  return Math.round(dollars / 100) * 100
+}
+
+/**
  * Match the screenshot's renewal copy:
  *   "This site is charged on a monthly basis and renews on Jun 12th, 2026."
- * Returns null if there's no active subscription yet (Legacy / pre-trial).
+ * Returns null if there's no active subscription yet (no plan / pre-trial).
  */
 export const renewalSentence = (
   sub: CurrentSpaireSubscription,
@@ -343,11 +382,15 @@ export const renewalSentence = (
 }
 
 const TIER_DISPLAY_NAME: Record<SpaireTierKey, string> = {
-  pro: 'Pro',
+  starter: 'Starter',
   studio: 'Studio',
   scale: 'Scale',
-  legacy: 'Legacy',
+  inactive: 'No plan',
+  unmanaged: 'Unmanaged',
 }
 
-export const tierDisplayName = (tier: SpaireTierKey): string =>
-  TIER_DISPLAY_NAME[tier]
+// The Starter tier shipped originally as "pro". The backend now normalizes
+// it to "starter" everywhere, but tolerate a stale/cached "pro" value so the
+// UI never renders an empty plan name.
+export const tierDisplayName = (tier: SpaireTierKey | 'pro'): string =>
+  tier === 'pro' ? 'Starter' : TIER_DISPLAY_NAME[tier]

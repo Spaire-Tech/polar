@@ -28,7 +28,13 @@ from polar.platform.service import platform as platform_service
 from polar.postgres import AsyncReadSession
 
 from .exceptions import FeatureNotInPlanError, TierLimitReachedError
-from .tiers import TierEntitlements, TierKey, get_definition
+from .tiers import (
+    PAID_TIERS,
+    TierEntitlements,
+    TierKey,
+    get_definition,
+    tier_from_value,
+)
 
 
 class EntitlementsService:
@@ -45,40 +51,49 @@ class EntitlementsService:
         session: AsyncReadSession,
         organization_id: UUID,
     ) -> TierKey:
+        # Platform billing isn't in play (dev / single-tenant / self-host) →
+        # unlimited. Same for the platform org resolving itself.
         if not platform_service.is_configured():
-            return TierKey.legacy
+            return TierKey.unmanaged
 
         if platform_service.is_platform_organization(organization_id):
-            return TierKey.legacy
+            return TierKey.unmanaged
 
         platform_org_id = platform_service.get_id()
 
+        # From here on this is a real creator on a configured platform. Any
+        # miss means "no active plan" -> inactive (restrictive), NOT unlimited.
+        # There is no free fallback.
         customer_repo = platform_customer_repository(session)
         customer = await customer_repo.get_for_creator_org(
             platform_org_id, organization_id
         )
         if customer is None:
-            return TierKey.legacy
+            return TierKey.inactive
 
         subscription_repo = platform_subscription_repository(session)
         subscription = await subscription_repo.get_active_for_customer(
             customer.id
         )
         if subscription is None:
-            return TierKey.legacy
+            return TierKey.inactive
 
         product: Product | None = subscription.product
         if product is None:
-            return TierKey.legacy
+            return TierKey.inactive
 
         tier_value = (product.user_metadata or {}).get("tier")
         if not isinstance(tier_value, str):
-            return TierKey.legacy
+            return TierKey.inactive
 
-        try:
-            return TierKey(tier_value)
-        except ValueError:
-            return TierKey.legacy
+        # Honor the "pro" -> "starter" alias so a creator whose platform
+        # product still carries the original "pro" metadata resolves to
+        # Starter rather than dropping to inactive. Only the three paid tiers
+        # are valid here; anything else is treated as no plan.
+        tier = tier_from_value(tier_value)
+        if tier not in PAID_TIERS:
+            return TierKey.inactive
+        return tier
 
     # ------------------------------------------------------------------
     # Guards — call-site helpers that check and raise.

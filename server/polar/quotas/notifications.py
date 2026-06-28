@@ -33,7 +33,6 @@ _HUMAN_LABEL: dict[QuotaKey, tuple[str, str]] = {
     QuotaKey.video_hours_hosted: ("video hosting", "hours"),
     QuotaKey.video_views_monthly: ("video views this month", "views"),
     QuotaKey.storage_gb: ("file storage", "GB"),
-    QuotaKey.email_sends_monthly: ("email sends this month", "emails"),
 }
 
 _THRESHOLDS = (80, 100)

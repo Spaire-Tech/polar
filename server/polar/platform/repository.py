@@ -87,15 +87,20 @@ class _PlatformSubscriptionRepository(RepositoryBase[Subscription]):
     async def get_active_for_customer(
         self, customer_id: UUID
     ) -> Subscription | None:
-        # Subscription.product is lazy="raise" so we have to eager-load
-        # it here — every caller of this method reads .product (to read
-        # user_metadata.tier or product.id) so deferring would just trip
-        # InvalidRequestError on the access.
+        # Returns the customer's current *billable* subscription — active,
+        # trialing, OR past_due. past_due is included on purpose: while a
+        # creator's Spaire charge is being retried (dunning window), they
+        # keep their tier entitlements and the dashboard can surface the
+        # "payment failed, pay by {date}" state. Only a fully canceled sub
+        # drops them out (-> inactive).
+        #
+        # Subscription.product is lazy="raise" so we eager-load it here —
+        # every caller reads .product (user_metadata.tier or product.id).
         statement = (
             select(Subscription)
             .where(Subscription.customer_id == customer_id)
             .where(
-                Subscription.status.in_(SubscriptionStatus.active_statuses())
+                Subscription.status.in_(SubscriptionStatus.billable_statuses())
             )
             .where(Subscription.deleted_at.is_(None))
             .options(selectinload(Subscription.product))
@@ -103,6 +108,23 @@ class _PlatformSubscriptionRepository(RepositoryBase[Subscription]):
             .limit(1)
         )
         return await self.get_one_or_none(statement)
+
+    async def list_active_for_customer(
+        self, customer_id: UUID
+    ) -> list[Subscription]:
+        """Every active/trialing subscription for a platform customer,
+        newest first. Used by trial supersession to cancel the leftover
+        auto-trial / Legacy subs once a paid subscription is created.
+        """
+        statement = (
+            select(Subscription)
+            .where(Subscription.customer_id == customer_id)
+            .where(Subscription.status.in_(SubscriptionStatus.active_statuses()))
+            .where(Subscription.deleted_at.is_(None))
+            .options(selectinload(Subscription.product))
+            .order_by(Subscription.created_at.desc())
+        )
+        return list(await self.get_all(statement))
 
     async def list_expired_trials(
         self, platform_org_id: UUID, *, before: datetime

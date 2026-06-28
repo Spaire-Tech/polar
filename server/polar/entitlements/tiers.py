@@ -11,14 +11,52 @@ from polar.config import settings
 
 
 class TierKey(StrEnum):
-    pro = "pro"
+    starter = "starter"
     studio = "studio"
     scale = "scale"
-    # Fallback for orgs that don't have a platform-org subscription yet:
-    # either because the platform is not configured (single-tenant /
-    # development), the grandfather migration hasn't run, or the org is
-    # the platform org itself. Treated as "unlimited" — no enforcement.
-    legacy = "legacy"
+    # `unmanaged`: platform billing is not in play at all — the platform org
+    # is unconfigured (single-tenant / self-hosted / dev), or the org being
+    # resolved IS the platform org itself. Unlimited, no enforcement. This
+    # preserves open-source / single-tenant behavior. It is NOT a state any
+    # real creator can land in.
+    unmanaged = "unmanaged"
+    # `inactive`: a real creator org on a configured platform that has NO
+    # active paid/trialing plan — never converted, trial lapsed, or churned.
+    # Deliberately restrictive (everything gated off) so "no plan == no
+    # access": there is no free, unlimited fallback. The dashboard plan-gate
+    # routes these orgs to /onboarding/plan; the delinquency lifecycle owns
+    # the storefront/admin side. There is no public `inactive` product.
+    inactive = "inactive"
+
+
+# The Starter tier originally shipped under the key "pro". Existing platform
+# product/subscription metadata, older API clients, and historical analytics
+# may still carry "pro"; normalize it to the canonical "starter" before any
+# enum resolution so no existing record silently resolves wrong.
+_TIER_ALIASES: dict[str, str] = {"pro": "starter"}
+
+# Tiers a creator actively pays for. Used by fee-sync and access checks to
+# tell a "real plan" apart from the unmanaged/inactive fallbacks.
+PAID_TIERS: tuple[TierKey, ...] = (TierKey.starter, TierKey.studio, TierKey.scale)
+
+
+def normalize_tier_value(value: str) -> str:
+    """Map a (possibly legacy) tier string onto its canonical TierKey value.
+
+    Unknown values pass through unchanged so the caller's own
+    ``TierKey(...)`` lookup raises/falls back as before.
+    """
+    return _TIER_ALIASES.get(value, value)
+
+
+def tier_from_value(value: str) -> TierKey | None:
+    """Resolve a raw tier string (honoring aliases) to a TierKey, or None
+    when it doesn't name a known tier."""
+    try:
+        return TierKey(normalize_tier_value(value))
+    except ValueError:
+        return None
+
 
 
 @dataclass(frozen=True)
@@ -93,11 +131,13 @@ class TierEntitlements:
     overage_grace_pct: int
 
 
-# `legacy` matches the behavior the platform had before tier billing existed:
-# unlimited everything, fee from the global config default. This is the
-# fallback for any org that doesn't have an active platform-org subscription.
-_LEGACY = TierEntitlements(
-    tier=TierKey.legacy,
+# `unmanaged` keeps unlimited features/quotas (no enforcement) and bills at
+# the global config default. It exists ONLY for the cases where platform
+# billing isn't in play — an unconfigured / single-tenant / self-hosted
+# deployment, or the platform org resolving itself. No real creator lands
+# here, so "unlimited" is safe.
+_UNMANAGED = TierEntitlements(
+    tier=TierKey.unmanaged,
     transaction_fee=TransactionFee(
         percent_basis_points=settings.PLATFORM_FEE_BASIS_POINTS,
         fixed_cents=settings.PLATFORM_FEE_FIXED,
@@ -136,31 +176,85 @@ _LEGACY = TierEntitlements(
 )
 
 
-_PRO = TierEntitlements(
-    tier=TierKey.pro,
-    transaction_fee=TransactionFee(percent_basis_points=400, fixed_cents=40),
+# `inactive` is the restrictive state for a real creator org with no active
+# plan (never converted / trial lapsed / churned). Everything is gated off —
+# zero limits, no features — so there is no free, unlimited fallback. The
+# dashboard plan-gate routes these orgs to plan selection; the delinquency
+# lifecycle handles storefront/admin access. Billed at the global default if
+# any stray transaction occurs.
+_INACTIVE = TierEntitlements(
+    tier=TierKey.inactive,
+    transaction_fee=TransactionFee(
+        percent_basis_points=settings.PLATFORM_FEE_BASIS_POINTS,
+        fixed_cents=settings.PLATFORM_FEE_FIXED,
+    ),
     limits=TierLimits(
-        # Tight caps on Pro by design — the cheapest tier intentionally
-        # squeezes any creator with a real catalog / list / team into
-        # Studio so the $80 jump pays for itself.
-        published_courses=3,
+        published_courses=0,
+        lessons_per_course=0,
+        active_email_sequences=0,
+        video_hours_hosted=0,
+        video_views_monthly=0,
+        storage_gb=0,
+        email_subscribers=0,
+        email_sends_monthly=0,
+        dashboard_team_seats=0,
+    ),
+    features=TierFeatures(
+        drip_scheduling=False,
+        email_sequences_and_segments=False,
+        email_ab_testing=False,
+        stackable_discounts=False,
+        custom_email_sender_domain=False,
+        seat_based_product_pricing=False,
+        cohort_analytics=False,
+        custom_pricing_negotiation=False,
+        customer_wallet=False,
+        white_label_course_player=False,
+        sandbox_mode=False,
+        custom_storefront_domain=False,
+        custom_checkout_domain=False,
+        sso=False,
+        audit_logs=False,
+    ),
+    rate_limit_group="default",
+    monthly_price_cents=0,
+    overage_grace_pct=0,
+)
+
+
+_STARTER = TierEntitlements(
+    tier=TierKey.starter,
+    # Steep fee spine (7% / 5% / 3%, all + $0.30) so moving up a tier buys a
+    # real rate cut, and the entry rate covers the usage-driven serving cost
+    # (Mux/AI/email/storage) that a transaction fee on a low-GMV creator
+    # otherwise wouldn't. The fixed $0.30 covers Stripe's per-transaction
+    # floor so low-ticket sales aren't loss-making.
+    transaction_fee=TransactionFee(percent_basis_points=700, fixed_cents=30),
+    limits=TierLimits(
+        # Email is metered on ONE dimension only — list size (email_subscribers).
+        # Sends and active sequences are unlimited so we never recreate the
+        # "10 emails and you're capped" failure; the ESP cost is absorbed into
+        # the fee spine. Studio still has clear reasons to upgrade (bigger
+        # list, custom sender domain, A/B testing, wallet, team seats).
+        published_courses=5,
         lessons_per_course=50,
-        active_email_sequences=1,
-        video_hours_hosted=10,
+        active_email_sequences=None,
+        video_hours_hosted=25,
         video_views_monthly=5_000,
         storage_gb=5,
-        email_subscribers=1_000,
-        email_sends_monthly=10_000,
+        email_subscribers=10_000,
+        email_sends_monthly=None,
         dashboard_team_seats=1,
     ),
     features=TierFeatures(
         drip_scheduling=True,
-        # email_sequences gate exists; the limit on the count lives in
-        # TierLimits.active_email_sequences. Pro gets 1; Studio gets 10.
+        # email_sequences gate (feature on/off). The active-sequence count
+        # is no longer capped on any tier — active_email_sequences is None
+        # everywhere now that email is metered on list size only.
         email_sequences_and_segments=True,
-        # Pulled up to Studio+. Pro doesn't get A/B testing — most Pro
-        # customers have lists under 1,000, where A/B testing has no
-        # statistical power anyway.
+        # Pulled up to Studio+. Starter doesn't get A/B testing — most
+        # Starter customers have lists where A/B testing has little
+        # statistical power, and it helps justify the Studio price.
         email_ab_testing=False,
         # stackable_discounts: roadmap — discount engine doesn't support
         # combining codes yet. Flip to True when the engine ships it.
@@ -196,20 +290,21 @@ _PRO = TierEntitlements(
 
 _STUDIO = TierEntitlements(
     tier=TierKey.studio,
-    transaction_fee=TransactionFee(percent_basis_points=380, fixed_cents=35),
+    transaction_fee=TransactionFee(percent_basis_points=500, fixed_cents=30),
     limits=TierLimits(
         # Studio is the "real business" tier — generous on courses /
-        # lessons / sequences (no working creator hits these caps often)
-        # but bounded on contacts / sends / video so Scale stays
-        # meaningful.
-        published_courses=15,
+        # lessons but bounded on contacts (list size) and video so Scale
+        # stays meaningful. Email is metered on list size only: sends and
+        # active sequences are unlimited (ESP cost absorbed in the fee
+        # spine), so the only email lever between tiers is the contact cap.
+        published_courses=25,
         lessons_per_course=None,
-        active_email_sequences=10,
+        active_email_sequences=None,
         video_hours_hosted=50,
         video_views_monthly=50_000,
         storage_gb=50,
-        email_subscribers=10_000,
-        email_sends_monthly=100_000,
+        email_subscribers=50_000,
+        email_sends_monthly=None,
         dashboard_team_seats=5,
     ),
     features=TierFeatures(
@@ -240,20 +335,26 @@ _STUDIO = TierEntitlements(
 
 _SCALE = TierEntitlements(
     tier=TierKey.scale,
-    transaction_fee=TransactionFee(percent_basis_points=350, fixed_cents=30),
+    # 3% base is at/under the true MoR cost floor (~3.5%); it stays profitable
+    # only because international/FX cards add the +1.5% passthrough
+    # (PlatformFeeType.international_payment) on top. Margin on this tier comes
+    # from the monthly fee, not the variable rate.
+    transaction_fee=TransactionFee(percent_basis_points=300, fixed_cents=30),
     limits=TierLimits(
         # Scale caps are the ceiling above which custom pricing kicks
-        # in. Anything bigger → talk-to-sales. Email sequences are
-        # genuinely unlimited because a Scale customer running enough
-        # parallel funnels to abuse this is already paying $299/mo.
+        # in. Anything bigger → talk-to-sales. The 150k contact cap is set
+        # deliberately high so a published Scale plan can hold a whale on
+        # day one; bigger lists are a negotiated bump, not a hard wall.
+        # Sends and active sequences are unlimited like every tier — email
+        # is metered on list size alone.
         published_courses=100,
         lessons_per_course=None,
         active_email_sequences=None,
         video_hours_hosted=200,
         video_views_monthly=250_000,
         storage_gb=250,
-        email_subscribers=50_000,
-        email_sends_monthly=500_000,
+        email_subscribers=150_000,
+        email_sends_monthly=None,
         dashboard_team_seats=20,
     ),
     features=TierFeatures(
@@ -287,8 +388,9 @@ def get_definition(tier: TierKey) -> TierEntitlements:
 
 
 _TIER_DEFINITIONS: dict[TierKey, TierEntitlements] = {
-    TierKey.pro: _PRO,
+    TierKey.starter: _STARTER,
     TierKey.studio: _STUDIO,
     TierKey.scale: _SCALE,
-    TierKey.legacy: _LEGACY,
+    TierKey.unmanaged: _UNMANAGED,
+    TierKey.inactive: _INACTIVE,
 }

@@ -1,10 +1,12 @@
-"""Send creator-facing reminders before a Pro/Studio/Scale trial expires.
+"""Send creator-facing reminders before a Starter/Studio/Scale trial ends.
 
 Three reminders per trial — at T-7, T-2, and T-0 days before
 `trial_end`. Each one is sent at most once per (subscription, marker)
 pair; we record the marker in the subscription's `user_metadata` to
-keep the implementation table-less. After expiry, `platform.expire_trials`
-takes over (revoke + resubscribe to Legacy).
+keep the implementation table-less. The trial is card-required, so at
+`trial_end` Stripe charges the card on file and the subscription
+converts to `active` automatically (or to `past_due` -> dunning if the
+charge fails). These reminders just warn the creator before that charge.
 
 Runs as a daily cron actor (`platform.notify_trial_reminders`).
 """
@@ -30,8 +32,11 @@ logging.getLogger(__name__)
 
 # Markers stored on subscription.user_metadata["trial_reminders_sent"].
 # Numbers are days-remaining-when-sent so the cron can decide which
-# reminder is due based on (trial_end - now).days.
-_REMINDER_DAYS = (7, 2, 0)
+# reminder is due based on (trial_end - now).days. Kept in ASCENDING order
+# so _due_marker returns the most-urgent (smallest) threshold the trial has
+# reached — iterating descending was the original bug that made every run
+# resolve to 7, so the T-2 and T-0 reminders never fired.
+_REMINDER_DAYS = (0, 2, 7)
 _METADATA_KEY = "trial_reminders_sent"
 
 
@@ -44,9 +49,18 @@ def _days_remaining(trial_end: datetime, now: datetime) -> int:
 def _due_marker(days_remaining: int) -> int | None:
     """Map a days-remaining value to the reminder marker that should fire.
 
-    The cron runs daily; we may overshoot a marker by a day if the cron
-    is delayed. Picking the smallest marker still <= days_remaining
-    (and >= 0) catches the first un-sent one without double-firing.
+    Returns the smallest marker M such that ``days_remaining <= M`` — i.e.
+    the most-urgent threshold the trial has already reached. Examples
+    (markers 0, 2, 7):
+
+      - days_remaining == 7  -> 7  (halfway reminder)
+      - days_remaining == 5  -> 7  (still in the T-7 window)
+      - days_remaining == 2  -> 2  (two days left)
+      - days_remaining == 0  -> 0  (last day)
+      - days_remaining == 9  -> None (T-7 not reached yet)
+
+    Per-marker idempotency (``_already_sent``) prevents a delayed cron from
+    re-firing a threshold it skipped past.
     """
     if days_remaining < 0:
         return None
@@ -95,36 +109,34 @@ def _render(
     tier_label = _tier_label(subscription)
     trial_end = subscription.trial_end
 
+    when = trial_end.strftime("%A, %B %-d") if trial_end is not None else "soon"
+
     if marker == 7:
         subject = f"You're halfway through your {tier_label} trial"
         body = (
             f"Hi {organization.name},<br><br>"
-            f"You've been on the {tier_label} trial for a week — there's "
-            "another week to go before it converts. If you're enjoying it, "
-            "you can lock in your plan from "
-            "<strong>Settings → Billing</strong> any time. We won't charge "
-            f"you until your trial ends."
+            f"You've been on the {tier_label} trial for a week — another "
+            f"week to go. When it ends on {when}, the card on file is "
+            "charged and your plan continues automatically. If you'd rather "
+            "not continue, you can cancel any time from "
+            "<strong>Settings → Plan</strong>."
         )
     elif marker == 2:
-        when = (
-            trial_end.strftime("%A, %B %-d") if trial_end is not None else "soon"
-        )
         subject = f"Your {tier_label} trial ends in 2 days"
         body = (
             f"Hi {organization.name},<br><br>"
-            f"Your {tier_label} trial ends on {when}. Add a payment method "
-            "from <strong>Settings → Billing</strong> to keep your access — "
-            "otherwise your org will move to the Legacy plan and you'll "
-            "lose Pro features."
+            f"Your {tier_label} trial ends on {when}, when the card on file "
+            "is charged and your plan continues. Nothing to do to keep your "
+            "access. If you don't want to continue, cancel before then from "
+            "<strong>Settings → Plan</strong>."
         )
     else:  # marker == 0 — last day
         subject = f"Last day of your {tier_label} trial"
         body = (
             f"Hi {organization.name},<br><br>"
-            f"This is the last day of your {tier_label} trial. Add a "
-            "payment method from <strong>Settings → Billing</strong> "
-            "before the day ends to keep going. After expiry your org "
-            "moves to the Legacy plan automatically."
+            f"This is the last day of your {tier_label} trial. The card on "
+            "file will be charged and your plan continues. If you don't want "
+            "to continue, cancel today from <strong>Settings → Plan</strong>."
         )
 
     html_content = (
@@ -231,7 +243,8 @@ async def check_pending_trial_reminders(
     for subscription in candidates:
         counters["checked"] += 1
         if subscription.trial_end is None or subscription.trial_end < current:
-            # Already expired — platform.expire_trials handles those.
+            # Already past trial_end — Stripe handles the charge/conversion;
+            # there's nothing left to remind about.
             continue
 
         marker = _due_marker(_days_remaining(subscription.trial_end, current))
