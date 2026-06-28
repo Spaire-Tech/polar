@@ -19,14 +19,15 @@ import { twMerge } from 'tailwind-merge'
 /**
  * Plan + checkout step of the new-signup flow.
  *
- * Sits between OrganizationStep ("name + slug + logo", at /dashboard/create)
- * and ReviewPage ("Create your Space Card", at /onboarding/review).
+ * Final visible step of onboarding: it sits after OrganizationStep
+ * ("name + slug + logo", at /dashboard/create).
  *
- * Visual port of the "Spaire Pricing" design — same data flow as before:
- * Spaire-tier plans are loaded via useSpairePlans, the user picks a tier
- * + billing interval, and clicking a CTA hands off to upgrade-checkout
- * which converts the trialing subscription in place and redirects to
- * Polar-hosted checkout. Success returns to /onboarding/review.
+ * Visual port of the "Spaire Pricing" design: Spaire-tier plans are loaded
+ * via useSpairePlans, the user picks a tier + billing interval, and clicking
+ * a CTA hands off to upgrade-checkout which converts the trialing subscription
+ * in place and redirects to Polar-hosted checkout. Success returns to
+ * /onboarding/review, which invisibly verifies the checkout, marks onboarding
+ * complete, and forwards the creator straight into the course wizard.
  */
 export default function PlanPage() {
   const { organization } = useContext(OrganizationContext)
@@ -94,7 +95,7 @@ export default function PlanPage() {
       {/* Existing onboarding chrome — same OnboardingProgressBar the other
           steps use, so the bar fill keeps progressing across the flow. */}
       <div className="mx-auto mb-5 w-full max-w-lg px-4 pt-6">
-        <OnboardingProgressBar currentStep={2} totalSteps={3} />
+        <OnboardingProgressBar currentStep={2} totalSteps={2} />
       </div>
 
       <div className="sp-stage" data-screen-label="Pricing">
