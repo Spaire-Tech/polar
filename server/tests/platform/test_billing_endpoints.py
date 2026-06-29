@@ -9,6 +9,7 @@ resolution + serialization.
 """
 
 import uuid
+from typing import cast
 
 import pytest
 from pytest_mock import MockerFixture
@@ -17,7 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from polar.auth.models import AuthSubject
 from polar.auth.scope import Scope
 from polar.enums import PaymentProcessor
-from polar.kit.address import AddressInput, CountryAlpha2
+from polar.kit.address import AddressInput
 from polar.kit.pagination import PaginationParams
 from polar.models import (
     Customer,
@@ -100,7 +101,15 @@ class TestPlatformBillingEndpoints:
         )
 
         assert result.pagination.total_count == 1
-        assert result.items[0].id == pm.id
+        # Assert the FULL serialized shape the dashboard card UI reads, not
+        # just the id — brand/last4/expiry come from method_metadata.
+        dumped = result.items[0].model_dump()
+        assert dumped["id"] == pm.id
+        assert dumped["type"] == "card"
+        assert dumped["method_metadata"]["brand"] == "visa"
+        assert dumped["method_metadata"]["last4"] == "4242"
+        assert dumped["method_metadata"]["exp_month"] == 12
+        assert dumped["method_metadata"]["exp_year"] == 2030
 
     async def test_list_orders(
         self,
@@ -163,11 +172,23 @@ class TestPlatformBillingEndpoints:
         )
         assert before.billing_name != "Jane Creator"
 
+        # The EXACT payload shape the dashboard form sends — explicit nulls
+        # for the optional address lines, a real city/postal, country set.
         updated = await platform_endpoints.update_billing_details(
             organization_id=creator.id,
             body=PlatformBillingDetailsUpdate(
                 billing_name="Jane Creator",
-                billing_address=AddressInput(country=CountryAlpha2("US")),
+                billing_address=cast(
+                    AddressInput,
+                    {
+                        "line1": "1 Main St",
+                        "line2": None,
+                        "city": "New York",
+                        "postal_code": "10001",
+                        "state": None,
+                        "country": "US",
+                    },
+                ),
             ),
             auth_subject=_auth(creator),
             session=session,
@@ -175,6 +196,8 @@ class TestPlatformBillingEndpoints:
         assert updated.billing_name == "Jane Creator"
         assert updated.billing_address is not None
         assert updated.billing_address.country == "US"
+        assert updated.billing_address.city == "New York"
+        assert updated.billing_address.line1 == "1 Main St"
 
     async def test_unprovisioned_org_404s(
         self,
