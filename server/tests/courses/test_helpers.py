@@ -36,6 +36,9 @@ def _lesson(
 ):
     return SimpleNamespace(
         id=id_ or uuid4(),
+        # _serialize_lesson reads lesson.module_id directly (not via getattr),
+        # so the fixture must provide it or every _build_*_list test errors.
+        module_id=uuid4(),
         title=f"Lesson {position + 1}",
         description=description,
         content_type=content_type,
