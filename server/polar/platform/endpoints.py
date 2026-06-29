@@ -31,7 +31,7 @@ from polar.integrations.resend import domains as resend_domains
 from polar.kit.trial import TrialInterval
 from polar.kit.utils import utc_now
 from polar.locker import Locker, get_locker
-from polar.models import Product
+from polar.models import Product, Subscription
 from polar.models.product_price import ProductPriceFixed
 from polar.models.subscription import SubscriptionStatus
 from polar.openapi import APITag
@@ -48,6 +48,7 @@ from polar.quotas.schemas import OrganizationUsage
 from polar.quotas.schemas import QuotaUsage as QuotaUsageSchema
 from polar.quotas.service import quotas as quotas_service
 from polar.routing import APIRouter
+from polar.subscription.repository import SubscriptionRepository
 from polar.subscription.schemas import Subscription as SubscriptionSchema
 
 from . import auth
@@ -342,6 +343,27 @@ async def create_upgrade_checkout(
     )
 
 
+async def _serialize_subscription(
+    session: AsyncSession, subscription: Subscription
+) -> SubscriptionSchema:
+    """Reload `subscription` with the relationships SubscriptionSchema
+    serializes — customer, product (+ medias, custom fields, organization),
+    and meters — which are all lazy="raise". The platform management methods
+    return a bare Subscription, so serializing it directly raises and the
+    endpoint 500s; reloading with the canonical eager options (the same ones
+    the regular /subscriptions endpoints use) is what makes serialization
+    work.
+    """
+    repository = SubscriptionRepository.from_session(session)
+    statement = (
+        repository.get_base_statement()
+        .where(Subscription.id == subscription.id)
+        .options(*repository.get_eager_options())
+    )
+    loaded = await repository.get_one_or_none(statement)
+    return SubscriptionSchema.model_validate(loaded)
+
+
 @router.post(
     "/organizations/{organization_id}/switch-plan",
     summary="Switch Spaire Plan",
@@ -373,7 +395,7 @@ async def switch_plan(
         target_tier=body.tier,
         target_interval=body.billing_interval,
     )
-    return SubscriptionSchema.model_validate(subscription)
+    return await _serialize_subscription(session, subscription)
 
 
 @router.post(
@@ -407,7 +429,7 @@ async def cancel_subscription(
     subscription = await platform_management.cancel_at_period_end(
         session, locker, organization=organization
     )
-    return SubscriptionSchema.model_validate(subscription)
+    return await _serialize_subscription(session, subscription)
 
 
 @router.post(
