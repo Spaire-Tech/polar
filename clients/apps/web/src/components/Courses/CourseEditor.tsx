@@ -14,12 +14,13 @@ import {
   useUpdateCourseLesson,
   useUpdateCourseModule,
 } from '@/hooks/queries/courses'
+import '@/styles/editor-dark.css'
 import { getQueryClient } from '@/utils/api/query'
 import { schemas } from '@spaire/client'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { toast } from '../Toast/use-toast'
-import '@/styles/editor-dark.css'
+import { AnalyticsTab } from './editor/AnalyticsTab'
 import { AuthTab } from './editor/AuthTab'
 import { AutomationsPanel } from './editor/AutomationsPanel'
 import { CommunityTab } from './editor/CommunityTab'
@@ -32,6 +33,7 @@ import { LessonContentType } from './editor/ModuleCard'
 import { OutlineTab } from './editor/OutlineTab'
 import { PricingTab } from './editor/PricingTab'
 import { QuizDetail, QuizSaveBody } from './editor/QuizDetail'
+import { SalesTab } from './editor/SalesTab'
 import { CourseSettingsEdits, SettingsTab } from './editor/SettingsTab'
 
 async function streamLessonContent(
@@ -86,6 +88,8 @@ export default function CourseEditor({
     'settings',
     'auth',
     'pricing',
+    'sales',
+    'analytics',
     'customers',
   ])
   const initialTab: TabId =
@@ -564,6 +568,10 @@ export default function CourseEditor({
     )
   } else if (activeTab === 'auth') {
     mainContent = <AuthTab course={course} organization={organization} />
+  } else if (activeTab === 'analytics') {
+    mainContent = <AnalyticsTab organization={organization} course={course} />
+  } else if (activeTab === 'sales') {
+    mainContent = <SalesTab organization={organization} course={course} />
   } else if (activeTab === 'pricing') {
     mainContent = (
       <PricingTab
