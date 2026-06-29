@@ -32,6 +32,7 @@ import { CoverDrop, Field, Seg } from './atoms'
 import { useHub } from './context'
 import { HeadInfo } from './HeadInfo'
 import { timeAgo } from './format'
+import { HubAvatar } from './HubAvatar'
 import { Glyph } from './icons'
 import { type ChannelOption, EpisodeSelect } from './pickers'
 
@@ -291,11 +292,11 @@ function SubmissionCard({
   return (
     <article className="crf-post">
       <header className="crf-head">
-        {s.author_avatar_url ? (
-          <img className="crf-av" src={s.author_avatar_url} alt={s.author_name} />
-        ) : (
-          <span className="crf-av hub-av-fallback" />
-        )}
+        <HubAvatar
+          name={s.author_name}
+          url={s.author_avatar_url}
+          className="crf-av"
+        />
         <div className="crf-id">
           <div className="crf-name">{s.author_name}</div>
           <div className="crf-meta">{timeAgo(s.created_at)}</div>
@@ -313,11 +314,11 @@ function SubmissionCard({
         <div className="comments">
           {comments.map((c) => (
             <div className="cmt" key={c.id}>
-              {c.author.avatar_url ? (
-                <img className="cmt-av" src={c.author.avatar_url} alt={c.author.name ?? ''} />
-              ) : (
-                <span className="cmt-av hub-av-fallback" />
-              )}
+              <HubAvatar
+                name={c.author.name}
+                url={c.author.avatar_url}
+                className="cmt-av"
+              />
               <div className="cmt-main">
                 <div className="cmt-bubble">
                   <div className="cmt-name">

@@ -364,10 +364,14 @@ function EventCard({
             <>
               View recap <Glyph d="chevR" size={15} stroke={2} />
             </>
-          ) : (
+          ) : ev.meeting_url ? (
             <>
               Join with {providerOf(provider).name}{' '}
               <Glyph d="chevR" size={15} stroke={2} />
+            </>
+          ) : (
+            <>
+              View details <Glyph d="chevR" size={15} stroke={2} />
             </>
           )}
         </div>
@@ -543,10 +547,12 @@ export function EventSheet({
               </button>
             )}
 
-            <button className="ev-sheet-join" onClick={join}>
-              <ProviderLogo k={provider} size={24} /> Join with {prov.name}
-              <Glyph d="chevR" size={16} stroke={2.2} />
-            </button>
+            {ev.meeting_url && (
+              <button className="ev-sheet-join" onClick={join}>
+                <ProviderLogo k={provider} size={24} /> Join with {prov.name}
+                <Glyph d="chevR" size={16} stroke={2.2} />
+              </button>
+            )}
 
             {/* Add to calendar — Google / Outlook deep links + Apple .ics. */}
             {!ev.past && (

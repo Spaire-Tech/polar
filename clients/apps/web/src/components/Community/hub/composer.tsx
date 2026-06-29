@@ -25,6 +25,7 @@ import {
 } from '@/hooks/queries/community'
 import * as React from 'react'
 import { createPortal } from 'react-dom'
+import { HubAvatar } from './HubAvatar'
 import { EventSheet } from './Events'
 import { Glyph } from './icons'
 import { fmtDateLabel, providerFromUrl, ProviderLogo } from './pickers'
@@ -345,7 +346,7 @@ export function Composer({
     return (
       <div className="card crf-composer">
         <div className="crf-comp-row">
-          {av ? <img src={av} alt="" /> : <span className="hub-av-fallback" />}
+          <HubAvatar name={name} url={av} />
           <button className="crf-comp-fake" onClick={expand}>
             {placeholder}
           </button>
@@ -382,7 +383,7 @@ export function Composer({
   return (
     <div className="card crf-composer open">
       <div className="crf-comp-head">
-        {av ? <img src={av} alt="" /> : <span className="hub-av-fallback" />}
+        <HubAvatar name={name} url={av} />
         <div className="crf-comp-who">
           <div className="n">{name}</div>
         </div>

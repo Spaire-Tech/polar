@@ -13,6 +13,7 @@ import {
 } from '@/hooks/queries/community'
 import * as React from 'react'
 import { HeadInfo } from './HeadInfo'
+import { HubAvatar } from './HubAvatar'
 import { Glyph } from './icons'
 
 function joinedLabel(iso: string | null): string {
@@ -82,11 +83,7 @@ export function MembersTab({
             const isHost = m.kind === 'instructor'
             return (
               <div className="member" key={m.id}>
-                {m.avatar_url ? (
-                  <img className="mav" src={m.avatar_url} alt={m.name ?? ''} />
-                ) : (
-                  <span className="mav hub-av-fallback" />
-                )}
+                <HubAvatar name={m.name} url={m.avatar_url} className="mav" />
                 <div className="member-id">
                   <div className="mn">
                     {m.name ?? 'Member'}

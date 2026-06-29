@@ -19,6 +19,7 @@ import {
   type CommunityPostEventRef,
   type CommunityPostMediaRead,
   type CommunityPostRead,
+  useCommunityEvents,
   useCommunityFeed,
   useCommunityPostComments,
   useCreateCommunityComment,
@@ -40,6 +41,7 @@ import { Composer } from './composer'
 import { useHub } from './context'
 import { EventSheet } from './Events'
 import { timeAgo } from './format'
+import { HubAvatar } from './HubAvatar'
 import { HeadInfo } from './HeadInfo'
 import { Glyph } from './icons'
 import { fmtDateLabel, providerFromUrl, ProviderLogo, providerOf } from './pickers'
@@ -119,10 +121,23 @@ function eventRefToRead(e: CommunityPostEventRef): CommunityEventRead {
   }
 }
 
-function PostEvent({ event }: { event: CommunityPostEventRef }) {
+function PostEvent({
+  event,
+  courseId,
+}: {
+  event: CommunityPostEventRef
+  courseId: string
+}) {
   const [sheet, setSheet] = useState(false)
+  const { mode, token } = useHub()
   const provider = providerFromUrl(event.meeting_url)
   const when = new Date(event.start_at)
+  // The post embed (`CommunityPostEventRef`) is a thin reference — it has no
+  // RSVP count, host, or live/past state. Resolve the full event from the
+  // events list so the detail sheet shows real data (and a working RSVP)
+  // instead of the fabricated zeros in `eventRefToRead`.
+  const eventsQ = useCommunityEvents(token, courseId, mode)
+  const full = eventsQ.data?.find((e) => e.id === event.id) ?? null
   return (
     <>
       <div className="ev-attach tap" onClick={() => setSheet(true)} role="button">
@@ -151,14 +166,15 @@ function PostEvent({ event }: { event: CommunityPostEventRef }) {
               hour: 'numeric',
               minute: '2-digit',
               timeZone: event.timezone || undefined,
-            })}{' '}
-            · Join with {providerOf(provider).name}
+            })}
+            {event.meeting_url ? ` · Join with ${providerOf(provider).name}` : ''}
           </div>
         </div>
       </div>
       {sheet && (
         <EventSheet
-          ev={eventRefToRead(event)}
+          ev={full ?? eventRefToRead(event)}
+          courseId={courseId}
           onClose={() => setSheet(false)}
           showToast={() => {}}
         />
@@ -348,8 +364,9 @@ function PostLightbox({
                   alt={authorName(a)}
                 />
               ) : (
-                <span
-                  className={`crf-av${isHost ? ' host' : ''} hub-av-fallback`}
+                <HubAvatar
+                  name={authorName(a)}
+                  className={`crf-av${isHost ? ' host' : ''}`}
                 />
               )}
               <div className="crf-id">
@@ -497,7 +514,7 @@ function HubComment({
           alt={authorName(a)}
         />
       ) : (
-        <span className={`cmt-av${depth ? ' sm' : ''} hub-av-fallback`} />
+        <HubAvatar name={authorName(a)} className={`cmt-av${depth ? ' sm' : ''}`} />
       )}
       <div className="cmt-main">
         <div className="cmt-bubble">
@@ -674,9 +691,13 @@ export function HubPost({
   const comments = post.comment_count
 
   const long = post.body.length > TRUNC
+  // Cut on the last word boundary before TRUNC; fall back to a hard cut when
+  // there's no space (a long URL / CJK text) so we don't collapse the whole
+  // post to a single "…".
+  const cut = post.body.lastIndexOf(' ', TRUNC)
   const shown =
     long && !expanded
-      ? post.body.slice(0, post.body.lastIndexOf(' ', TRUNC)) + '…'
+      ? post.body.slice(0, cut > 0 ? cut : TRUNC) + '…'
       : post.body
 
   const togglePin = () =>
@@ -704,7 +725,7 @@ export function HubPost({
             alt={authorName(a)}
           />
         ) : (
-          <span className={`crf-av${isHost ? ' host' : ''} hub-av-fallback`} />
+          <HubAvatar name={authorName(a)} className={`crf-av${isHost ? ' host' : ''}`} />
         )}
         <div className="crf-id">
           <div className="crf-name">
@@ -798,7 +819,7 @@ export function HubPost({
 
       <PostMedia media={post.media} onOpenImage={setLightbox} />
       {post.poll && <PostPoll courseId={courseId} post={post} />}
-      {post.event && <PostEvent event={post.event} />}
+      {post.event && <PostEvent event={post.event} courseId={courseId} />}
 
       {lightbox >= 0 && imageUrls.length > 0 && (
         <PostLightbox

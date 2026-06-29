@@ -14,6 +14,47 @@
   flex: none;
 }
 
+/* Initials fallback (HubAvatar) — name-derived tint + initials so members
+   without a photo are distinguishable. Size comes from the accompanying
+   size class (crf-av / cmt-av / mav) or an inline width; this only sets the
+   default box + glyph styling. */
+.spaire-hub .hub-av-init {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  flex: none;
+  overflow: hidden;
+  font-weight: 600;
+  font-size: 15px;
+  line-height: 1;
+  text-transform: uppercase;
+  user-select: none;
+}
+.spaire-hub .crf-av.hub-av-init {
+  font-size: 16px;
+}
+.spaire-hub .cmt-av.hub-av-init {
+  font-size: 12px;
+}
+.spaire-hub .cmt-av.sm.hub-av-init {
+  font-size: 10px;
+}
+.spaire-hub .mav.hub-av-init {
+  font-size: 14px;
+}
+
+/* Student hero is a static (non-repositionable) cover: undo the drag affordance
+   the shared `.mh-cover` applies (grab cursor + scroll/select lockouts) so the
+   page scrolls and text selects normally over it. */
+.spaire-hub .mh-cover.is-static {
+  cursor: default;
+  touch-action: auto;
+  user-select: auto;
+}
+
 /* ---- LinkedIn-style post photo gallery (the design's redesigned picture view).
    A 1–4 cell grid; the 4th cell carries a +N overflow. Cells are buttons that
    open the split-pane viewer below. */

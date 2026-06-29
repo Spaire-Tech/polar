@@ -198,7 +198,11 @@ export function CommunityHub({
             </span>
           </div>
           <div className="ch-statusbar-right">
-            <button className="btn btn-primary btn-sm" onClick={publish}>
+            <button
+              className="btn btn-primary btn-sm"
+              onClick={publish}
+              disabled={published}
+            >
               {published ? 'Published' : 'Publish'}
             </button>
           </div>
@@ -226,7 +230,11 @@ export function CommunityHub({
                 <Glyph d="sun" size={17} stroke={1.9} />
               </span>
             </button>
-            <button className="btn btn-primary btn-sm" onClick={publish}>
+            <button
+              className="btn btn-primary btn-sm"
+              onClick={publish}
+              disabled={published}
+            >
               {published ? 'Published' : 'Publish'}
             </button>
           </div>

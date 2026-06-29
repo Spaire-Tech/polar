@@ -23,6 +23,7 @@ import { EventsTab } from './Events'
 import { StudentFeedTab } from './Feed'
 import './hub-extra.css'
 import './hub.css'
+import { HubAvatar } from './HubAvatar'
 import { MembersTab } from './Members'
 import { ProfileTab } from './Profile'
 
@@ -134,7 +135,7 @@ export function CommunityHubStudent({
   return (
     <HubProvider value={ctx}>
       <div className={`spaire-hub${dark ? ' dark' : ''}`}>
-        <div className="mh-cover" style={{ cursor: 'default' }}>
+        <div className="mh-cover is-static">
           {cover && <img src={cover} alt="" style={{ objectPosition: coverPos }} />}
           <div className="wrap mh-brand">{brand}</div>
           <div className="wrap mh-head">
@@ -150,11 +151,11 @@ export function CommunityHubStudent({
             </div>
             <span className="spacer" />
             <span className="who">
-              {selfAvatar ? (
-                <img src={selfAvatar} alt="" />
-              ) : (
-                <span className="hub-av-fallback" style={{ width: 28, height: 28 }} />
-              )}
+              <HubAvatar
+                name={selfName}
+                url={selfAvatar}
+                style={{ width: 28, height: 28 }}
+              />
               {selfName}
             </span>
           </div>
