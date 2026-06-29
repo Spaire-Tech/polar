@@ -201,6 +201,24 @@ export function PublicPortalView({
   const sample = landing.sample
   const samplePlayable = Boolean(sample?.mux_playback_id)
 
+  // The landing payload no longer embeds the sample clip's playback URL (so it
+  // isn't handed to every visitor/crawler unmetered). Mint it on demand the
+  // first time the clip plays; the server counts the view against the org's
+  // quota, like any lesson playback.
+  const onRequestSampleUrl = useCallback(async (): Promise<string | null> => {
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/v1/customer-portal/courses/${landing.id}/sample/playback-url`,
+        { method: 'POST', credentials: 'include' },
+      )
+      if (!res.ok) return null
+      const data = (await res.json()) as { mux_playback_url?: string | null }
+      return data.mux_playback_url ?? null
+    } catch {
+      return null
+    }
+  }, [landing.id])
+
   // Resume target — the free-preview lesson the visitor is mid-way through
   // (anonymous progress); drives both the hero label and where Play starts.
   const resumeLesson = useMemo(() => {
@@ -332,6 +350,7 @@ export function PublicPortalView({
   const flatLessons = landing.lessons
   const groups: GeneratedGroup[] = useMemo(() => {
     const toGenerated = (l: CourseLandingLesson, flatIdx: number) => ({
+      id: l.id,
       title: l.title,
       description: l.description ?? '',
       flatIdx,
@@ -384,7 +403,11 @@ export function PublicPortalView({
     (flatIdx: number) => {
       const gen = flatForClick.find((l) => l.flatIdx === flatIdx)
       if (!gen) return
-      const lesson = flatLessons.find((l) => l.title === gen.title)
+      // Resolve by id, not title — two lessons can share a title, which used
+      // to open the wrong one. Fall back to title only if id is missing.
+      const lesson =
+        flatLessons.find((l) => l.id === gen.id) ??
+        flatLessons.find((l) => l.title === gen.title)
       if (lesson) onLessonSelect(lesson)
     },
     [flatForClick, flatLessons, onLessonSelect],
@@ -415,6 +438,7 @@ export function PublicPortalView({
         trailerUrl={landing.trailer_url ?? null}
         sampleImageUrl={sample?.thumbnail_url ?? null}
         samplePlayable={samplePlayable}
+        onRequestSampleUrl={onRequestSampleUrl}
         samplePlaybackId={sample?.mux_playback_id ?? null}
         samplePlaybackUrl={sample?.mux_playback_url ?? null}
         sampleStart={sample?.start_seconds ?? 0}
