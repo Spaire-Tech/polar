@@ -16,23 +16,17 @@
 //   theme        → the course's landing theme (dark landing → dark page)
 
 import {
-  useLessonComments,
   useCreateLessonComment,
-  useLikeLessonComment,
   useDeleteLessonComment,
-  usePinLessonComment,
   useInstructorHeartComment,
+  useLessonComments,
+  useLikeLessonComment,
   useMintLessonPlaybackUrl,
+  usePinLessonComment,
   type CustomerCourseDetail,
 } from '@/hooks/queries/courses'
 import { schemas } from '@spaire/client'
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Glyph, SF, fmtTime } from './WatchGlyphs'
 import { WatchPageStyles } from './WatchPageStyles'
 import { WatchPlayer } from './WatchPlayer'
@@ -55,6 +49,7 @@ export type WatchLessonData = {
   mux_status?: string | null
   completed: boolean
   locked?: boolean
+  locked_until?: string | null
   content_type: string
   content: Record<string, unknown> | null
   comments_mode?: 'visible' | 'hidden' | 'locked'
@@ -124,6 +119,15 @@ function fmtRuntime(secs: number): string {
   const h = Math.floor(secs / 3600)
   const m = Math.round((secs % 3600) / 60)
   return h > 0 ? `${h}h ${m}m` : `${m} min`
+}
+
+// Absolute unlock date for a dripped / scheduled lesson, e.g. "Mar 14". Shown
+// to students so a locked lesson says WHEN it opens instead of a vague "later".
+function unlockDateLabel(iso?: string | null): string | null {
+  if (!iso) return null
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return null
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
 }
 
 function lessonOverview(l: WatchLessonData): WatchOverview {
@@ -299,7 +303,9 @@ export function WatchHome({
   // pinned comment hoisted to the top (YouTube semantics). Replies to
   // soft-deleted parents fall back to root level so they stay reachable.
   const comments: WatchComment[] = useMemo(() => {
-    const mapOne = (c: NonNullable<typeof rawComments>[number]): WatchComment => ({
+    const mapOne = (
+      c: NonNullable<typeof rawComments>[number],
+    ): WatchComment => ({
       id: c.id,
       name: c.author?.name?.trim() || 'Student',
       avatarUrl: c.author?.avatar_url ?? null,
@@ -398,7 +404,8 @@ export function WatchHome({
   const playLesson = useCallback(
     async (l: WatchLessonData) => {
       if (l.locked) {
-        showToast('This lesson unlocks later')
+        const when = unlockDateLabel(l.locked_until)
+        showToast(when ? `Unlocks ${when}` : 'This lesson unlocks later')
         return
       }
       if (l.content_type !== 'video') {
@@ -481,7 +488,7 @@ export function WatchHome({
 
   if (!ep) {
     return (
-      <div className={`sow${dark ? ' dark' : ''}`}>
+      <div className={`sow${dark ? 'dark' : ''}`}>
         <div
           style={{
             display: 'grid',
@@ -498,7 +505,14 @@ export function WatchHome({
     )
   }
 
-  const lessonsDone = lessons.filter((l) => statusOf(l) === 'watched').length
+  // Progress is measured against lessons the student can actually open today.
+  // Counting not-yet-dripped (locked) lessons in the denominator made the bar
+  // understate how far they are through the available material.
+  const accessibleLessons = lessons.filter((l) => !l.locked)
+  const lessonsDone = accessibleLessons.filter(
+    (l) => statusOf(l) === 'watched',
+  ).length
+  const progressTotal = accessibleLessons.length
   const totalRuntime = lessons.reduce(
     (s, l) => s + (l.duration_seconds ?? 0),
     0,
@@ -531,9 +545,9 @@ export function WatchHome({
     )
 
   return (
-    <div className={`sow${dark ? ' dark' : ''}`}>
+    <div className={`sow${dark ? 'dark' : ''}`}>
       {/* ════════ now-playing hero ════════ */}
-      <header className={`panel${heroVariant === 'cover' ? ' cover' : ''}`}>
+      <header className={`panel${heroVariant === 'cover' ? 'cover' : ''}`}>
         {lessons.map((l, i) => {
           // The hero shows the lesson's own cover when it has one, else the
           // course cover. Honor whichever image's saved focal point
@@ -548,8 +562,8 @@ export function WatchHome({
           return (
             <div
               key={l.id}
-              className={`hero-layer${i === focus ? ' show' : ''}${
-                heroImage ? '' : ' ph'
+              className={`hero-layer${i === focus ? 'show' : ''}${
+                heroImage ? '' : 'ph'
               }`}
               style={
                 heroImage
@@ -583,7 +597,7 @@ export function WatchHome({
              buttons + progress (same set as the marquee band). ════ */
           <div className="hero-content">
             <div className="hero-meta">
-              <span className={`badge${status === 'watched' ? ' done' : ''}`}>
+              <span className={`badge${status === 'watched' ? 'done' : ''}`}>
                 {status === 'watched'
                   ? 'Watched'
                   : status === 'progress'
@@ -631,7 +645,7 @@ export function WatchHome({
               </button>
               <div className="icon-row">
                 <button
-                  className={`icon-glass${isBookmarked ? ' on' : ''}`}
+                  className={`icon-glass${isBookmarked ? 'on' : ''}`}
                   type="button"
                   aria-label="Bookmark lesson"
                   onClick={() => toggleBookmark(ep)}
@@ -662,15 +676,15 @@ export function WatchHome({
               <div className="cv-pt">
                 <span>Your progress</span>
                 <span>
-                  {lessonsDone} of {lessons.length}
+                  {lessonsDone} of {progressTotal}
                 </span>
               </div>
               <div className="cv-pbar">
                 <i
                   style={{
                     width: `${
-                      lessons.length
-                        ? Math.round((lessonsDone / lessons.length) * 100)
+                      progressTotal
+                        ? Math.round((lessonsDone / progressTotal) * 100)
                         : 0
                     }%`,
                   }}
@@ -680,116 +694,116 @@ export function WatchHome({
           </div>
         ) : (
           <>
-        <div className="panel-title">
-          <div className={`pt-kicker${status === 'watched' ? ' done' : ''}`}>
-            {kicker}
-          </div>
-          <h1 className="pt-h">{ep.title}</h1>
-        </div>
+            <div className="panel-title">
+              <div className={`pt-kicker${status === 'watched' ? 'done' : ''}`}>
+                {kicker}
+              </div>
+              <h1 className="pt-h">{ep.title}</h1>
+            </div>
 
-        <div className="band">
-          <div className="band-actions">
-            <button
-              className="abtn play"
-              type="button"
-              onClick={() => void playLesson(ep)}
-            >
-              <Glyph d={SF.play} size={17} fill="currentColor" /> {playLabel}{' '}
-              {unitCap} {epN}
-            </button>
-            <button
-              className="abtn glass"
-              type="button"
-              onClick={() => setOverviewFor(ep)}
-            >
-              <Glyph d={SF.doc} size={18} stroke={1.9} /> Overview
-            </button>
-            <div className="icon-row">
-              <button
-                className={`icon-glass${isBookmarked ? ' on' : ''}`}
-                type="button"
-                aria-label="Bookmark lesson"
-                onClick={() => toggleBookmark(ep)}
-              >
-                <Glyph
-                  d={SF.bookmark}
-                  size={19}
-                  fill={isBookmarked ? 'currentColor' : 'none'}
-                  stroke={isBookmarked ? 0 : 2}
-                />
-              </button>
-              {commentsVisible && (
+            <div className="band">
+              <div className="band-actions">
                 <button
-                  className="icon-glass"
+                  className="abtn play"
                   type="button"
-                  aria-label="Discussion"
-                  onClick={() => setShowComments(true)}
+                  onClick={() => void playLesson(ep)}
                 >
-                  <Glyph d={SF.bubble} size={19} stroke={2} />
-                  {comments.length > 0 && (
-                    <span className="icon-badge">{comments.length}</span>
-                  )}
+                  <Glyph d={SF.play} size={17} fill="currentColor" />{' '}
+                  {playLabel} {unitCap} {epN}
                 </button>
-              )}
-            </div>
-          </div>
+                <button
+                  className="abtn glass"
+                  type="button"
+                  onClick={() => setOverviewFor(ep)}
+                >
+                  <Glyph d={SF.doc} size={18} stroke={1.9} /> Overview
+                </button>
+                <div className="icon-row">
+                  <button
+                    className={`icon-glass${isBookmarked ? 'on' : ''}`}
+                    type="button"
+                    aria-label="Bookmark lesson"
+                    onClick={() => toggleBookmark(ep)}
+                  >
+                    <Glyph
+                      d={SF.bookmark}
+                      size={19}
+                      fill={isBookmarked ? 'currentColor' : 'none'}
+                      stroke={isBookmarked ? 0 : 2}
+                    />
+                  </button>
+                  {commentsVisible && (
+                    <button
+                      className="icon-glass"
+                      type="button"
+                      aria-label="Discussion"
+                      onClick={() => setShowComments(true)}
+                    >
+                      <Glyph d={SF.bubble} size={19} stroke={2} />
+                      {comments.length > 0 && (
+                        <span className="icon-badge">{comments.length}</span>
+                      )}
+                    </button>
+                  )}
+                </div>
+              </div>
 
-          <div className="band-desc">
-            <p className="bd-text">{ep.description ?? ''}</p>
-            <div className="bd-meta">
-              {course.title}&nbsp;&nbsp;·&nbsp;&nbsp;{lessons.length}{' '}
-              {unitCap.toLowerCase()}
-              {lessons.length === 1 ? '' : 's'}&nbsp;&nbsp;·&nbsp;&nbsp;
-              {fmtRuntime(totalRuntime)}
-              {ep.duration_seconds
-                ? `  ·  ${fmtTime(ep.duration_seconds)}`
-                : ''}
-            </div>
-          </div>
+              <div className="band-desc">
+                <p className="bd-text">{ep.description ?? ''}</p>
+                <div className="bd-meta">
+                  {course.title}&nbsp;&nbsp;·&nbsp;&nbsp;{lessons.length}{' '}
+                  {unitCap.toLowerCase()}
+                  {lessons.length === 1 ? '' : 's'}&nbsp;&nbsp;·&nbsp;&nbsp;
+                  {fmtRuntime(totalRuntime)}
+                  {ep.duration_seconds
+                    ? `  ·  ${fmtTime(ep.duration_seconds)}`
+                    : ''}
+                </div>
+              </div>
 
-          <div className="band-cast">
-            <div className="bc-row">
-              {organization.avatar_url ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  className="bc-av"
-                  src={organization.avatar_url}
-                  alt={course.instructor_name ?? organization.name}
-                />
-              ) : (
-                <div className="bc-av" />
-              )}
-              <div>
-                <div className="bc-k">Instructor</div>
-                <div className="bc-v">
-                  {course.instructor_name ?? organization.name}
+              <div className="band-cast">
+                <div className="bc-row">
+                  {organization.avatar_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      className="bc-av"
+                      src={organization.avatar_url}
+                      alt={course.instructor_name ?? organization.name}
+                    />
+                  ) : (
+                    <div className="bc-av" />
+                  )}
+                  <div>
+                    <div className="bc-k">Instructor</div>
+                    <div className="bc-v">
+                      {course.instructor_name ?? organization.name}
+                    </div>
+                  </div>
+                </div>
+                {course.instructor_bio && (
+                  <div className="bc-sub">{course.instructor_bio}</div>
+                )}
+                <div className="bc-progress">
+                  <div className="bc-pt">
+                    <span>Your progress</span>
+                    <span>
+                      {lessonsDone} of {progressTotal}
+                    </span>
+                  </div>
+                  <div className="bc-pbar">
+                    <i
+                      style={{
+                        width: `${
+                          progressTotal
+                            ? Math.round((lessonsDone / progressTotal) * 100)
+                            : 0
+                        }%`,
+                      }}
+                    />
+                  </div>
                 </div>
               </div>
             </div>
-            {course.instructor_bio && (
-              <div className="bc-sub">{course.instructor_bio}</div>
-            )}
-            <div className="bc-progress">
-              <div className="bc-pt">
-                <span>Your progress</span>
-                <span>
-                  {lessonsDone} of {lessons.length}
-                </span>
-              </div>
-              <div className="bc-pbar">
-                <i
-                  style={{
-                    width: `${
-                      lessons.length
-                        ? Math.round((lessonsDone / lessons.length) * 100)
-                        : 0
-                    }%`,
-                  }}
-                />
-              </div>
-            </div>
-          </div>
-        </div>
           </>
         )}
       </header>
@@ -806,22 +820,40 @@ export function WatchHome({
         </div>
         <div className="strip-wrap" onMouseEnter={updateArrows}>
           <button
-            className={`arrow prev${canPrev ? ' show' : ''}`}
+            className={`arrow prev${canPrev ? 'show' : ''}`}
             type="button"
             aria-label="Previous"
             onClick={() => scrollBy(-1)}
           >
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <svg
+              width="28"
+              height="28"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
               <path d="M14.5 5l-6.5 7 6.5 7" />
             </svg>
           </button>
           <button
-            className={`arrow next${canNext ? ' show' : ''}`}
+            className={`arrow next${canNext ? 'show' : ''}`}
             type="button"
             aria-label="Next"
             onClick={() => scrollBy(1)}
           >
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <svg
+              width="28"
+              height="28"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
               <path d="M9.5 5l6.5 7-6.5 7" />
             </svg>
           </button>
@@ -850,7 +882,12 @@ export function WatchHome({
                   ) : null}
                   {l.duration_seconds ? (
                     <div className="lc-dur">
-                      <Glyph d={SF.play2} size={11} fill="currentColor" stroke={0} />
+                      <Glyph
+                        d={SF.play2}
+                        size={11}
+                        fill="currentColor"
+                        stroke={0}
+                      />
                       <span>{fmtTime(l.duration_seconds)}</span>
                     </div>
                   ) : null}
@@ -859,11 +896,13 @@ export function WatchHome({
                       <i style={{ width: `${frac * 100}%` }} />
                     </div>
                   )}
-                  <div className="lc-play">
-                    <div className="lc-play-btn">
-                      <Glyph d={SF.play} size={18} fill="currentColor" />
+                  {!l.locked && (
+                    <div className="lc-play">
+                      <div className="lc-play-btn">
+                        <Glyph d={SF.play} size={18} fill="currentColor" />
+                      </div>
                     </div>
-                  </div>
+                  )}
                   <button
                     className="lc-ovbtn"
                     type="button"
@@ -878,22 +917,31 @@ export function WatchHome({
                   </button>
                 </>
               )
-              const meta =
-                st === 'watched' ? (
-                  <span className="ok">
-                    <Glyph d={SF.check} size={13} stroke={2.6} />
-                    Watched
+              const lockedWhen = l.locked
+                ? unlockDateLabel(l.locked_until)
+                : null
+              const meta = l.locked ? (
+                <span>{lockedWhen ? `Unlocks ${lockedWhen}` : 'Locked'}</span>
+              ) : st === 'watched' ? (
+                <span className="ok">
+                  <Glyph d={SF.check} size={13} stroke={2.6} />
+                  Watched
+                </span>
+              ) : st === 'progress' ? (
+                <span>Continue · {Math.round((frac ?? 0) * 100)}%</span>
+              ) : (
+                <>
+                  <Glyph
+                    d={SF.play2}
+                    size={12}
+                    fill="currentColor"
+                    stroke={0}
+                  />
+                  <span>
+                    {l.duration_seconds ? fmtTime(l.duration_seconds) : '—'}
                   </span>
-                ) : st === 'progress' ? (
-                  <span>Continue · {Math.round((frac ?? 0) * 100)}%</span>
-                ) : (
-                  <>
-                    <Glyph d={SF.play2} size={12} fill="currentColor" stroke={0} />
-                    <span>
-                      {l.duration_seconds ? fmtTime(l.duration_seconds) : '—'}
-                    </span>
-                  </>
-                )
+                </>
+              )
 
               if (cardVariant === 'spotlight') {
                 return (
@@ -903,7 +951,7 @@ export function WatchHome({
                     onMouseEnter={() => setFocus(i)}
                     onClick={() => void playLesson(l)}
                   >
-                    <div className={`spot-card${imgStyle ? '' : ' ph'}`}>
+                    <div className={`spot-card${imgStyle ? '' : 'ph'}`}>
                       <div className="img" style={imgStyle} />
                       <div className="spot-shade" />
                       {overlays}
@@ -932,7 +980,10 @@ export function WatchHome({
                 >
                   <div className="lc-card">
                     <div className="lc-thumb">
-                      <div className={`img${imgStyle ? '' : ' ph'}`} style={imgStyle} />
+                      <div
+                        className={`img${imgStyle ? '' : 'ph'}`}
+                        style={imgStyle}
+                      />
                       {overlays}
                     </div>
                     <div className="lc-info">
@@ -973,6 +1024,12 @@ export function WatchHome({
           }
           instructorName={course.instructor_name ?? organization.name}
           imageUrl={overviewFor.thumbnail_url ?? course.thumbnail_url}
+          locked={overviewFor.locked}
+          unlockLabel={
+            unlockDateLabel(overviewFor.locked_until)
+              ? `Unlocks ${unlockDateLabel(overviewFor.locked_until)}`
+              : undefined
+          }
           dark={dark}
           overview={lessonOverview(overviewFor)}
           onClose={() => setOverviewFor(null)}

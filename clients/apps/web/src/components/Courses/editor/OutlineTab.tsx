@@ -165,16 +165,23 @@ function LessonCard({
             />
           </button>
         )}
-        {locked && (
-          <div className="absolute top-[7px] right-2 flex h-[18px] w-[18px] items-center justify-center rounded-full bg-black/45 backdrop-blur-sm">
-            <LockOutlined sx={{ fontSize: 10 }} className="text-white" />
+        {/* Lock + Live share the top-right corner — render them in one flex
+            row so a published lesson sitting behind the paywall doesn't stack
+            the green "Live" pill on top of the lock glyph. */}
+        {(locked || lesson.published) && (
+          <div className="absolute top-[7px] right-2 z-10 flex items-center gap-1">
+            {locked && (
+              <span className="flex h-[18px] w-[18px] items-center justify-center rounded-full bg-black/45 backdrop-blur-sm">
+                <LockOutlined sx={{ fontSize: 10 }} className="text-white" />
+              </span>
+            )}
+            {lesson.published && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-1.5 py-0.5 text-[9px] font-semibold tracking-[0.05em] text-green-700 uppercase">
+                <span className="h-1 w-1 rounded-full bg-green-500" />
+                Live
+              </span>
+            )}
           </div>
-        )}
-        {lesson.published && (
-          <span className="absolute top-[7px] right-2 inline-flex items-center gap-1 rounded-full bg-green-100 px-1.5 py-0.5 text-[9px] font-semibold tracking-[0.05em] text-green-700 uppercase">
-            <span className="h-1 w-1 rounded-full bg-green-500" />
-            Live
-          </span>
         )}
         {(lesson.drip_days != null || lesson.release_at) && (
           <div className="absolute bottom-[7px] left-2 z-10 flex items-center gap-1">

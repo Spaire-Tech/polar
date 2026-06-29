@@ -37,7 +37,7 @@ import { RepositionInPortal } from '../watch/RepositionInPortal'
 import { WatchPlayer } from '../watch/WatchPlayer'
 import { SampleSettingsPopover } from './SeriesSampleBlock'
 
-type SaveState = 'saved' | 'saving'
+type SaveState = 'saved' | 'saving' | 'error'
 
 function fmtBytes(n: number): string {
   return n > 1048576
@@ -177,23 +177,25 @@ export function LessonEditorV2({
           await updateLesson.mutateAsync({ lessonId: lesson.id, body })
           setSaveState('saved')
         } catch {
-          setSaveState('saved')
+          setSaveState('error')
           toast({ title: 'Could not save', description: 'Please try again.' })
         }
       }, 600)
     },
     [lesson.id, updateLesson],
   )
-  // Merge a content-key change into the JSONB, preserving the rest.
+  // Accumulate every content edit into a ref (seeded from the lesson once at
+  // mount). Two edits inside the same 600ms debounce window must not clobber
+  // each other — the old code rebuilt `next` from the prop each time, so the
+  // edit that landed first was silently dropped because the prop hadn't
+  // refetched yet.
+  const contentRef = useRef<LessonContent>({ ...content })
   const saveContent = useCallback(
     (patch: Partial<LessonContent>) => {
-      const next: LessonContent = {
-        ...(lesson.content as LessonContent),
-        ...patch,
-      }
-      queueSave({ content: next })
+      contentRef.current = { ...contentRef.current, ...patch }
+      queueSave({ content: contentRef.current })
     },
-    [lesson.content, queueSave],
+    [queueSave],
   )
 
   // ── field handlers ──
@@ -284,11 +286,17 @@ export function LessonEditorV2({
           lessonId: lesson.id,
           file,
         })
-        setAttachments(
+        const nextAttachments =
           ((updated.content as LessonContent)?.attachments as
             | LessonAttachment[]
-            | undefined) ?? [],
-        )
+            | undefined) ?? []
+        // Keep the autosave ref in step with the server's attachment write so
+        // a queued content save can't overwrite the just-uploaded file.
+        contentRef.current = {
+          ...contentRef.current,
+          attachments: nextAttachments,
+        }
+        setAttachments(nextAttachments)
         toast({ title: `Attached ${file.name}` })
       } catch {
         toast({ title: 'Failed to upload attachment' })
@@ -302,26 +310,46 @@ export function LessonEditorV2({
         lessonId: lesson.id,
         attachmentId: id,
       })
-      setAttachments(
+      const nextAttachments =
         ((updated.content as LessonContent)?.attachments as
           | LessonAttachment[]
-          | undefined) ?? [],
-      )
+          | undefined) ?? []
+      contentRef.current = {
+        ...contentRef.current,
+        attachments: nextAttachments,
+      }
+      setAttachments(nextAttachments)
     } catch {
       toast({ title: 'Failed to remove file' })
     }
   }
 
-  const publish = () => {
-    setPublished(true)
-    queueSave({ published: true })
-    toast({ title: 'Lesson published' })
+  // Publish / unpublish are deliberate actions, so persist them immediately
+  // (not via the debounce) and only confirm once the server agrees — the old
+  // code toasted "published" before the request had even fired, and left the
+  // button showing the new state even if the save failed.
+  const setPublishedState = async (next: boolean) => {
+    const prev = published
+    setPublished(next)
+    setSaveState('saving')
+    try {
+      await updateLesson.mutateAsync({
+        lessonId: lesson.id,
+        body: { published: next },
+      })
+      setSaveState('saved')
+      toast({ title: next ? 'Lesson published' : 'Saved as draft' })
+    } catch {
+      setPublished(prev)
+      setSaveState('error')
+      toast({
+        title: next ? 'Could not publish' : 'Could not save draft',
+        description: 'Please try again.',
+      })
+    }
   }
-  const saveDraft = () => {
-    setPublished(false)
-    queueSave({ published: false })
-    toast({ title: 'Saved as draft' })
-  }
+  const publish = () => void setPublishedState(true)
+  const saveDraft = () => void setPublishedState(false)
 
   // ── thumbnail (lesson card cover image, drag to reposition) ──
   const [thumbUrl, setThumbUrl] = useState<string | null>(
@@ -400,8 +428,15 @@ export function LessonEditorV2({
             {course.title} · {unitCap} {lessonIdx}
           </div>
         </div>
-        <span className="tb-status">
-          {saveState === 'saving' ? 'Saving…' : 'Saved'}
+        <span
+          className="tb-status"
+          style={saveState === 'error' ? { color: '#dc2626' } : undefined}
+        >
+          {saveState === 'saving'
+            ? 'Saving…'
+            : saveState === 'error'
+              ? 'Couldn’t save'
+              : 'Saved'}
         </span>
         <div className="tb-actions">
           <button className="btn-glass" type="button" onClick={saveDraft}>
