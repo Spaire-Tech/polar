@@ -162,12 +162,32 @@ def _build_module_list(course, paywall_position, enrolled_at, now, completed_ids
         else:
             visible = published_lessons
 
-        lessons = [
-            _serialize_lesson(lesson, completed_ids, accessible=True)
-            for lesson in visible
-        ]
+        lessons = []
         for lesson in visible:
-            accessible_ids.add(str(lesson.id))
+            # Per-lesson drip (release_at / drip_days) is enforced in ADDITION
+            # to the module-level drip handled above. Previously this builder
+            # only honored module drip, so a lesson dripped individually inside
+            # an otherwise-unlocked module was serialized in full and counted as
+            # accessible — letting the content/playback/complete endpoints (which
+            # gate on this very accessible_ids set via
+            # _verify_lesson_in_enrolled_course) be hit before the release date.
+            # The flat lesson list already gated it; gate it here too so both
+            # representations agree and the content endpoints are protected.
+            is_accessible, locked_until_dt = (
+                course_service.calculate_lesson_accessibility(
+                    lesson, None, enrolled_at, now
+                )
+            )
+            lesson_data = _serialize_lesson(
+                lesson, completed_ids, accessible=is_accessible
+            )
+            lesson_data["locked"] = not is_accessible
+            lesson_data["locked_until"] = (
+                locked_until_dt.isoformat() if locked_until_dt else None
+            )
+            lessons.append(lesson_data)
+            if is_accessible:
+                accessible_ids.add(str(lesson.id))
 
         modules.append(
             {

@@ -705,6 +705,14 @@ export function EventsTab({
           onCreated={closeForm}
           showToast={showToast}
         />
+      ) : eventsQ.isError ? (
+        <div className="card ev-empty">
+          <span className="ev-empty-ic">
+            <Glyph d="calendar" size={26} stroke={1.7} />
+          </span>
+          <h3>Couldn&apos;t load events</h3>
+          <p>Something went wrong. Please refresh to try again.</p>
+        </div>
       ) : events.length === 0 ? (
         <div className="card ev-empty">
           <span className="ev-empty-ic">

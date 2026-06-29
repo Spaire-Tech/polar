@@ -108,6 +108,14 @@ function PostPoll({
 
 /* ---------- embedded event card (opens the event detail sheet) ---------- */
 function eventRefToRead(e: CommunityPostEventRef): CommunityEventRead {
+  // The post's embedded event ref carries scheduling info but not live RSVP
+  // state (rsvp_count / going / host). live/past are derived from the event's
+  // own timing here (accurate); the full record — with real RSVP state — is
+  // fetched when the sheet opens (see PostEvent). This fallback is only shown
+  // briefly while that fetch is in flight.
+  const start = new Date(e.start_at).getTime()
+  const end = start + (e.duration_minutes ?? 0) * 60_000
+  const now = Date.now()
   return {
     id: e.id,
     course_id: '',
@@ -125,8 +133,8 @@ function eventRefToRead(e: CommunityPostEventRef): CommunityEventRead {
     rsvp_count: 0,
     host: { user_id: '', name: '', avatar_url: null },
     going: false,
-    live: false,
-    past: false,
+    live: Number.isFinite(start) && now >= start && now < end,
+    past: Number.isFinite(end) && now >= end,
     created_at: e.start_at,
     modified_at: null,
   }
@@ -135,9 +143,11 @@ function eventRefToRead(e: CommunityPostEventRef): CommunityEventRead {
 function PostEvent({
   event,
   courseId,
+  showToast,
 }: {
   event: CommunityPostEventRef
   courseId: string
+  showToast: (m: string) => void
 }) {
   const [sheet, setSheet] = useState(false)
   const { mode, token } = useHub()
@@ -145,9 +155,9 @@ function PostEvent({
   const when = new Date(event.start_at)
   // The post embed (`CommunityPostEventRef`) is a thin reference — it has no
   // RSVP count, host, or live/past state. Resolve the full event from the
-  // events list so the detail sheet shows real data (and a working RSVP)
-  // instead of the fabricated zeros in `eventRefToRead`.
-  const eventsQ = useCommunityEvents(token, courseId, mode)
+  // events list (only while the sheet is open) so the detail sheet shows real
+  // data and a working RSVP instead of the fabricated zeros in eventRefToRead.
+  const eventsQ = useCommunityEvents(token, sheet ? courseId : undefined, mode)
   const full = eventsQ.data?.find((e) => e.id === event.id) ?? null
   return (
     <>
@@ -193,7 +203,7 @@ function PostEvent({
           ev={full ?? eventRefToRead(event)}
           courseId={courseId}
           onClose={() => setSheet(false)}
-          showToast={() => {}}
+          showToast={showToast}
         />
       )}
     </>
@@ -670,11 +680,13 @@ export function HubPost({
   courseId,
   selfName,
   selfAvatar,
+  showToast,
 }: {
   post: CommunityPostRead
   courseId: string
   selfName: string
   selfAvatar?: string | null
+  showToast?: (m: string) => void
 }) {
   const [open, setOpen] = useState(!!post.pinned_at)
   const [expanded, setExpanded] = useState(false)
@@ -845,7 +857,13 @@ export function HubPost({
 
       <PostMedia media={post.media} onOpenImage={setLightbox} />
       {post.poll && <PostPoll courseId={courseId} post={post} />}
-      {post.event && <PostEvent event={post.event} courseId={courseId} />}
+      {post.event && (
+        <PostEvent
+          event={post.event}
+          courseId={courseId}
+          showToast={showToast ?? (() => {})}
+        />
+      )}
 
       {lightbox >= 0 && imageUrls.length > 0 && (
         <PostLightbox
@@ -936,6 +954,7 @@ function FeedBody({
   courseId,
   posts,
   isLoading,
+  isError,
   hasNextPage,
   isFetchingNextPage,
   fetchNextPage,
@@ -949,6 +968,7 @@ function FeedBody({
   courseId: string
   posts: CommunityPostRead[]
   isLoading: boolean
+  isError?: boolean
   hasNextPage: boolean
   isFetchingNextPage: boolean
   fetchNextPage: () => void
@@ -979,6 +999,17 @@ function FeedBody({
             <div key={i} className="card" style={{ height: 200 }} />
           ))}
         </div>
+      ) : isError ? (
+        <div className="card crf-empty">
+          <span className="crf-empty-ic">
+            <Glyph d="bubble" size={26} stroke={1.7} />
+          </span>
+          <h3>Couldn&apos;t load the feed</h3>
+          <p>
+            Something went wrong loading this conversation. Please refresh to
+            try again.
+          </p>
+        </div>
       ) : posts.length === 0 ? (
         <div className="card crf-empty">
           <span className="crf-empty-ic">
@@ -997,6 +1028,7 @@ function FeedBody({
                 courseId={courseId}
                 selfName={selfName}
                 selfAvatar={selfAvatar}
+                showToast={showToast}
               />
             ))}
           </div>
@@ -1056,6 +1088,7 @@ export function FeedTab({
         courseId={courseId}
         posts={posts}
         isLoading={feedQ.isLoading}
+        isError={feedQ.isError}
         hasNextPage={!!feedQ.hasNextPage}
         isFetchingNextPage={feedQ.isFetchingNextPage}
         fetchNextPage={() => feedQ.fetchNextPage()}
@@ -1115,6 +1148,7 @@ export function StudentFeedTab({
         courseId={courseId}
         posts={posts}
         isLoading={feedQ.isLoading}
+        isError={feedQ.isError}
         hasNextPage={!!feedQ.hasNextPage}
         isFetchingNextPage={feedQ.isFetchingNextPage}
         fetchNextPage={() => feedQ.fetchNextPage()}

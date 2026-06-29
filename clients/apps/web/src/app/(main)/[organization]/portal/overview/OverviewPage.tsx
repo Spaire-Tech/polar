@@ -2,6 +2,8 @@
 
 import {
   useAuthenticatedCustomer,
+  useCustomerCustomerMeters,
+  useCustomerWallets,
   usePortalAuthenticatedUser,
 } from '@/hooks/queries'
 import {
@@ -141,6 +143,21 @@ const OverviewBody = ({
   const { data: authenticatedUser } = usePortalAuthenticatedUser(api)
   const { data: customer } = useAuthenticatedCustomer(api)
   const canAccessBilling = hasBillingPermission(authenticatedUser)
+
+  // Secondary destinations (Usage / Wallet / Team) have no top-level tab on
+  // their own; surface them here, gated so we never link to a feature the
+  // customer can't use or that has no data to show.
+  const { data: metersData } = useCustomerCustomerMeters(api)
+  const { data: walletsData } = useCustomerWallets(api)
+  const isTeamCustomer = customer?.type === 'team'
+  const showTeamLink =
+    isTeamCustomer &&
+    canAccessBilling &&
+    !!organization.organization_features?.member_model_enabled
+  const showUsageLink = (metersData?.items.length ?? 0) > 0
+  const showWalletLink =
+    canAccessBilling && (walletsData?.items.length ?? 0) > 0
+  const showManageSection = showUsageLink || showWalletLink || showTeamLink
 
   const { data: enrollments, isLoading: coursesLoading } =
     useCustomerCourses(customerSessionToken)
@@ -323,6 +340,47 @@ const OverviewBody = ({
         </>
       )}
 
+      {showManageSection && (
+        <>
+          <div className="sp-sec-head">
+            <h2 className="sp-sec-title">Manage</h2>
+          </div>
+          <div
+            style={{
+              display: 'flex',
+              gap: 10,
+              flexWrap: 'wrap',
+              marginBottom: 48,
+            }}
+          >
+            {showUsageLink && (
+              <Link
+                href={buildHref(`/${organization.slug}/portal/usage`)}
+                className="sp-btn is-ghost"
+              >
+                Usage <ArrowIcon size={13} />
+              </Link>
+            )}
+            {showWalletLink && (
+              <Link
+                href={buildHref(`/${organization.slug}/portal/wallet`)}
+                className="sp-btn is-ghost"
+              >
+                Wallet <ArrowIcon size={13} />
+              </Link>
+            )}
+            {showTeamLink && (
+              <Link
+                href={buildHref(`/${organization.slug}/portal/team`)}
+                className="sp-btn is-ghost"
+              >
+                Team <ArrowIcon size={13} />
+              </Link>
+            )}
+          </div>
+        </>
+      )}
+
       {headlineSubscription && (
         <div className="sp-lib">
           <div>
@@ -360,13 +418,11 @@ const formatCurrency = (amountCents: number, currency: string): string => {
 
 const ClientPage = ({
   organization,
-  products,
   subscriptions,
   claimedSubscriptions,
   customerSessionToken,
 }: {
   organization: schemas['CustomerOrganization']
-  products: schemas['CustomerProduct'][]
   subscriptions: schemas['ListResource_CustomerSubscription_']
   claimedSubscriptions: schemas['CustomerSubscription'][]
   customerSessionToken: string

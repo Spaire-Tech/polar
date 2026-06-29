@@ -48,23 +48,31 @@ export const CustomerUsage = ({ api }: CustomerUsageProps) => {
                   accessorKey: 'meter_name',
                   cell: ({
                     row: {
-                      original: { meter },
+                      original: { meter, consumed_units, credited_units },
                     },
                   }) => {
+                    // Bind the ring to how much of the credited allowance has
+                    // been consumed. It previously rendered a fixed full ring
+                    // (rotate(-90deg) over a full-rectangle clip) regardless of
+                    // the meter's actual usage.
+                    const ratio =
+                      credited_units > 0
+                        ? Math.max(
+                            0,
+                            Math.min(1, consumed_units / credited_units),
+                          )
+                        : 0
+                    const deg = Math.round(ratio * 360)
                     return (
                       <div className="flex items-center gap-2">
-                        <div className="relative h-3 w-3">
-                          <div className=" absolute h-full w-full rounded-full border-2 border-gray-200" />
-                          <div
-                            className="absolute h-full w-full rounded-full border-2 border-blue-500"
-                            style={{
-                              clipPath:
-                                'polygon(0 0, 100% 0, 100% 100%, 0% 100%)',
-                              transform: 'rotate(-90deg)',
-                              transition: 'all 0.3s ease',
-                            }}
-                          />
-                        </div>
+                        <div
+                          className="h-3 w-3 rounded-full"
+                          title={`${Math.round(ratio * 100)}% of credited units consumed`}
+                          style={{
+                            background: `conic-gradient(#3b82f6 ${deg}deg, var(--sp-line, #e5e7eb) ${deg}deg)`,
+                            transition: 'all 0.3s ease',
+                          }}
+                        />
                         <span>{meter.name}</span>
                       </div>
                     )

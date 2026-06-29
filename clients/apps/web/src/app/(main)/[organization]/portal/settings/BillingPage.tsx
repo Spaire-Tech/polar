@@ -1,16 +1,27 @@
 'use client'
 
+import revalidate from '@/app/actions'
+import { AddPaymentMethodModal } from '@/components/CustomerPortal/AddPaymentMethodModal'
+import { Modal } from '@/components/Modal'
+import { useModal } from '@/components/Modal/useModal'
 import {
   useCustomerPaymentMethods,
   useDeleteCustomerPaymentMethod,
 } from '@/hooks/queries'
 import { createClientSideAPI } from '@/utils/client'
 import { schemas } from '@spaire/client'
+import { getThemePreset } from '@spaire/ui/hooks/theming'
 import Link from 'next/link'
-import { useSearchParams } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { NuqsAdapter } from 'nuqs/adapters/next/app'
 import * as React from 'react'
 import { ArrowIcon, DownloadIcon, PlusIcon } from '../_components/icons'
+import { usePortalTheme } from '../usePortalTheme'
+
+interface SetupIntentParams {
+  setup_intent_client_secret: string
+  setup_intent: string
+}
 
 const formatCurrency = (amountCents: number, currency: string): string => {
   try {
@@ -149,17 +160,25 @@ const BillingBody = ({
   customer,
   subscriptions,
   orders,
+  setupIntentParams,
 }: {
   organization: schemas['CustomerOrganization']
   customerSessionToken: string
   customer: schemas['CustomerPortalCustomer'] | null
   subscriptions: schemas['CustomerSubscription'][]
   orders: schemas['CustomerOrder'][]
+  setupIntentParams?: SetupIntentParams
 }) => {
   const searchParams = useSearchParams()
   const searchString = searchParams.toString()
   const buildHref = (path: string) =>
     searchString ? `${path}?${searchString}` : path
+
+  const router = useRouter()
+  const { dark } = usePortalTheme(organization.slug, customerSessionToken)
+  // Match the embedded Stripe form to the portal's resolved theme instead of
+  // forcing light.
+  const themePreset = getThemePreset(organization.slug, dark ? 'dark' : 'light')
 
   const api = React.useMemo(
     () => createClientSideAPI(customerSessionToken),
@@ -168,6 +187,15 @@ const BillingBody = ({
 
   const { data: paymentMethods } = useCustomerPaymentMethods(api)
   const deletePaymentMethod = useDeleteCustomerPaymentMethod(api)
+
+  // Add-card uses Stripe's setup-intent flow. If Stripe redirected back with
+  // `setup_intent*` params, the modal opens automatically and completes the
+  // confirmation; otherwise the customer opens it from the "Add card" button.
+  const {
+    isShown: isAddCardOpen,
+    show: showAddCard,
+    hide: hideAddCard,
+  } = useModal(setupIntentParams !== undefined)
 
   const defaultPaymentMethodId = customer?.default_payment_method_id
 
@@ -198,14 +226,12 @@ const BillingBody = ({
     }
   }
 
-  // Adding a card uses Stripe's setup-intent flow; the legacy settings page
-  // mounts the modal via the `setup_intent_*` query params. We surface a
-  // hint so the customer is told to contact support if needed — the flow
-  // is still wired up server-side via setup-intent params.
-  const handleAddCard = () => {
-    window.alert(
-      'A card can be added when you next pay for an order — you will be prompted to save it for future renewals.',
-    )
+  const handleCardAdded = () => {
+    // The add/confirm mutations already invalidate the payment-methods query;
+    // refresh the server components so the customer's default method updates.
+    revalidate('customer_portal')
+    router.refresh()
+    hideAddCard()
   }
 
   const invoiceOrders = orders.slice(0, 12)
@@ -241,7 +267,7 @@ const BillingBody = ({
               )}
               className="sp-btn-dark-ghost"
             >
-              Change plan
+              Manage plan
             </Link>
           )}
           <Link
@@ -255,7 +281,7 @@ const BillingBody = ({
 
       <div className="sp-sec-head">
         <h2 className="sp-sec-title">Payment methods</h2>
-        <button type="button" className="sp-link" onClick={handleAddCard}>
+        <button type="button" className="sp-link" onClick={showAddCard}>
           <PlusIcon size={13} /> Add card
         </button>
       </div>
@@ -388,6 +414,21 @@ const BillingBody = ({
           </Link>
         </div>
       )}
+
+      <Modal
+        title="Add payment method"
+        isShown={isAddCardOpen}
+        hide={hideAddCard}
+        modalContent={
+          <AddPaymentMethodModal
+            api={api}
+            onPaymentMethodAdded={handleCardAdded}
+            setupIntentParams={setupIntentParams}
+            hide={hideAddCard}
+            themePreset={themePreset}
+          />
+        }
+      />
     </div>
   )
 }
@@ -398,12 +439,14 @@ const BillingPage = ({
   customer,
   subscriptions,
   orders,
+  setupIntentParams,
 }: {
   organization: schemas['CustomerOrganization']
   customerSessionToken: string
   customer: schemas['CustomerPortalCustomer'] | null
   subscriptions: schemas['CustomerSubscription'][]
   orders: schemas['CustomerOrder'][]
+  setupIntentParams?: SetupIntentParams
 }) => {
   return (
     <NuqsAdapter>
@@ -413,6 +456,7 @@ const BillingPage = ({
         customer={customer}
         subscriptions={subscriptions}
         orders={orders}
+        setupIntentParams={setupIntentParams}
       />
     </NuqsAdapter>
   )

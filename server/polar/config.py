@@ -13,6 +13,7 @@ from pydantic import (
     DirectoryPath,
     Field,
     PostgresDsn,
+    model_validator,
 )
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -531,6 +532,30 @@ class Settings(BaseSettings):
                 path=self.POSTGRES_READ_DATABASE,
             )
         )
+
+    @model_validator(mode="after")
+    def _forbid_default_secrets_in_production(self) -> "Settings":
+        """Refuse to boot in production with the built-in default secrets.
+
+        These defaults are convenient for local/dev/test but are public
+        knowledge. If one ever reached production, an attacker could forge
+        customer session-code hashes, OAuth ``state`` JWTs, and signed
+        downloadable URLs. Failing fast at startup is far safer than running
+        with a forgeable secret.
+        """
+        if self.ENV == Environment.production:
+            insecure: list[str] = []
+            if self.SECRET == "super secret jwt secret":
+                insecure.append("SECRET")
+            if self.S3_FILES_DOWNLOAD_SECRET == "supersecret":
+                insecure.append("S3_FILES_DOWNLOAD_SECRET")
+            if insecure:
+                raise ValueError(
+                    f"Insecure default value(s) for {', '.join(insecure)} are "
+                    "not allowed in production; set them to strong, unique "
+                    "secrets via the environment."
+                )
+        return self
 
     def is_environment(self, environments: set[Environment]) -> bool:
         return self.ENV in environments

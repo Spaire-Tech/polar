@@ -751,6 +751,14 @@ export function ActivitiesTab({
           onCreated={() => setShowForm(false)}
           showToast={showToast}
         />
+      ) : actsQ.isError ? (
+        <div className="card ev-empty">
+          <span className="ev-empty-ic">
+            <Glyph d="grid" size={26} stroke={1.7} />
+          </span>
+          <h3>Couldn&apos;t load activities</h3>
+          <p>Something went wrong. Please refresh to try again.</p>
+        </div>
       ) : activities.length === 0 ? (
         <div className="card ev-empty">
           <span className="ev-empty-ic">

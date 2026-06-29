@@ -16,9 +16,8 @@ from polar.benefit.strategies.base.service import BenefitActionRequiredError
 from polar.config import settings
 from polar.customer.repository import CustomerRepository
 from polar.customer_session.service import customer_session as customer_session_service
-from polar.exceptions import PolarError
+from polar.exceptions import NotPermitted, PolarError
 from polar.integrations.discord.oauth import user_client as discord_user_client
-from polar.integrations.github.client import Forbidden
 from polar.kit import jwt
 from polar.kit.http import ReturnTo, add_query_parameters, get_safe_return_url
 from polar.member.repository import MemberRepository
@@ -80,9 +79,14 @@ class OAuthCallbackError(PolarError):
 async def authorize(
     request: Request,
     return_to: ReturnTo,
-    auth_subject: auth.CustomerPortalOAuthAccount,
+    auth_subject: auth.CustomerPortalUnionWrite,
     platform: CustomerOAuthPlatform = Query(...),
-    customer_id: UUID4 = Query(...),
+    # Accepted for backwards compatibility with existing clients, but
+    # intentionally IGNORED. The customer is always derived from the
+    # authenticated subject below — never from this query parameter — so an
+    # anonymous caller cannot mint an OAuth `state` (and ultimately a session
+    # via `callback`) for an arbitrary customer. See `callback` for details.
+    customer_id: UUID4 | None = Query(None),
     session: AsyncSession = Depends(get_db_session),
 ) -> AuthorizeResponse:
     state: dict[str, str] = {
@@ -90,14 +94,15 @@ async def authorize(
         "return_to": return_to,
     }
 
+    # `CustomerPortalUnionWrite` only allows authenticated Customer | Member
+    # subjects, so the customer id in the signed state is always the
+    # authenticated subject's own id.
     if is_member(auth_subject):
         member = auth_subject.subject
         state["customer_id"] = str(member.customer_id)
         state["member_id"] = str(member.id)
     elif is_customer(auth_subject):
         state["customer_id"] = str(auth_subject.subject.id)
-    else:
-        state["customer_id"] = str(customer_id)
 
     encoded_state = jwt.encode(
         data=state, secret=settings.SECRET, type="customer_oauth"
@@ -127,7 +132,7 @@ async def callback(
             type="customer_oauth",
         )
     except jwt.DecodeError as e:
-        raise Forbidden("Invalid state") from e
+        raise NotPermitted("Invalid OAuth state") from e
 
     customer_repository = CustomerRepository.from_session(session)
     customer_id = uuid.UUID(state_data.get("customer_id"))
@@ -145,11 +150,15 @@ async def callback(
     elif is_customer(auth_subject):
         customer = auth_subject.subject
     elif is_anonymous(auth_subject):
-        # Trust the customer ID in the state for anonymous users
+        # The provider redirects the browser here without our bearer token, so
+        # the callback is necessarily anonymous. We trust the customer id from
+        # the `state` JWT because it is signed with our secret and could only
+        # have been issued by `authorize` to an authenticated subject for their
+        # OWN customer id — never an attacker-supplied value.
         customer = await customer_repository.get_by_id(customer_id)
 
     if customer is None:
-        raise Forbidden("Invalid customer")
+        raise NotPermitted("Invalid customer")
 
     return_to = state_data["return_to"]
     platform = CustomerOAuthPlatform(state_data["platform"])

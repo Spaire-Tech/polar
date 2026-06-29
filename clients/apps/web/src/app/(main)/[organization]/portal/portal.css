@@ -258,7 +258,7 @@
   right: 0;
   min-width: 220px;
   background: var(--sp-surface);
-  border: 1px solid rgba(0, 0, 0, 0.06);
+  border: 1px solid var(--sp-line);
   border-radius: 12px;
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12);
   padding: 6px;
@@ -266,7 +266,7 @@
 }
 .spaire-portal .sp-account-menu-head {
   padding: 8px 10px 10px;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  border-bottom: 1px solid var(--sp-line);
   margin-bottom: 6px;
 }
 .spaire-portal .sp-account-menu-name {
@@ -303,6 +303,10 @@
 }
 .spaire-portal .sp-account-menu-item--danger:hover {
   background: rgba(178, 59, 59, 0.08);
+}
+/* The light hover tint above is invisible on the dark dropdown surface. */
+.spaire-portal.sp-dark .sp-account-menu-item:hover {
+  background: rgba(255, 255, 255, 0.06);
 }
 
 /* ── Page ─────────────────────────────────────────────────────────────── */
@@ -1438,6 +1442,89 @@
   --sp-muted: rgba(245, 245, 247, 0.6);
   --sp-muted-2: rgba(245, 245, 247, 0.4);
   color-scheme: dark;
+}
+
+/* ============================================================
+   DARK MODE — embedded dashboard components.
+   The CustomerPortal widgets (billing details, usage, seats, payment
+   methods, empty states, pagination, charge preview) and a few shared
+   atoms predate the portal token system and still use the light
+   Tailwind gray palette. The app is force-locked to light, so their
+   dark: variants never fire. Remap the specific utilities they use to
+   the portal tokens, scoped to .spaire-portal.sp-dark so light mode and
+   any non-portal usage are unaffected, and at higher specificity than
+   the single-class Tailwind utilities so these win without !important.
+   (Native portal pages already use the sp- tokens; Stripe card forms
+   render in an iframe CSS cannot reach and instead follow the theme
+   preset passed in code.)
+   ============================================================ */
+.spaire-portal.sp-dark .bg-white {
+  background-color: var(--sp-surface);
+}
+.spaire-portal.sp-dark .bg-gray-50,
+.spaire-portal.sp-dark .bg-gray-100 {
+  background-color: var(--sp-surface-2);
+}
+.spaire-portal.sp-dark .hover\:bg-gray-50:hover,
+.spaire-portal.sp-dark .hover\:bg-gray-100:hover {
+  background-color: var(--sp-surface-2);
+}
+.spaire-portal.sp-dark .text-gray-900,
+.spaire-portal.sp-dark .text-gray-800 {
+  color: var(--sp-ink);
+}
+.spaire-portal.sp-dark .text-gray-700 {
+  color: var(--sp-ink-2);
+}
+.spaire-portal.sp-dark .text-gray-600,
+.spaire-portal.sp-dark .text-gray-500 {
+  color: var(--sp-muted);
+}
+.spaire-portal.sp-dark .text-gray-400 {
+  color: var(--sp-muted-2);
+}
+.spaire-portal.sp-dark .border-gray-200,
+.spaire-portal.sp-dark .border-gray-100 {
+  border-color: var(--sp-line);
+}
+.spaire-portal.sp-dark .border-gray-300 {
+  border-color: var(--sp-line-strong);
+}
+
+/* ProfileOnboarding / profile-settings modal. Its .po-* styles live in a
+   global styled-jsx block with the light palette baked in; remap the surfaces
+   for dark. The modal renders inside .spaire-portal, so the tokens resolve. */
+.spaire-portal.sp-dark .po-card {
+  background: var(--sp-surface);
+}
+.spaire-portal.sp-dark .po-title,
+.spaire-portal.sp-dark .po-avatar-placeholder,
+.spaire-portal.sp-dark .po-link,
+.spaire-portal.sp-dark .po-input {
+  color: var(--sp-ink);
+}
+.spaire-portal.sp-dark .po-eyebrow,
+.spaire-portal.sp-dark .po-sub,
+.spaire-portal.sp-dark .po-close,
+.spaire-portal.sp-dark .po-avatar-hint,
+.spaire-portal.sp-dark .po-avatar-label,
+.spaire-portal.sp-dark .po-label,
+.spaire-portal.sp-dark .po-link--muted,
+.spaire-portal.sp-dark .po-btn-back {
+  color: var(--sp-muted);
+}
+.spaire-portal.sp-dark .po-close:hover {
+  background: rgba(245, 245, 247, 0.08);
+  color: var(--sp-ink);
+}
+.spaire-portal.sp-dark .po-avatar,
+.spaire-portal.sp-dark .po-field {
+  background: var(--sp-surface-2);
+  border-color: var(--sp-line);
+}
+.spaire-portal.sp-dark .po-btn-cta {
+  background: var(--sp-accent);
+  color: var(--sp-accent-ink);
 }
 
 /* ============================================================
