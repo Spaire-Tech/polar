@@ -17,8 +17,23 @@ from datetime import datetime
 from uuid import UUID
 
 from fastapi import Depends
+from pydantic import UUID4
+from sqlalchemy import func, select
+from sqlalchemy.orm import selectinload
 
-from polar.auth.models import is_user
+from polar.auth.models import AuthSubject, is_user
+from polar.customer.repository import CustomerRepository
+from polar.customer_portal.schemas.customer import (
+    CustomerPaymentMethod,
+    CustomerPaymentMethodTypeAdapter,
+    CustomerPortalCustomerUpdate,
+)
+from polar.customer_portal.service.customer import (
+    customer as customer_portal_customer_service,
+)
+from polar.customer_portal.service.order import (
+    customer_order as customer_order_service,
+)
 from polar.customer_session.service import (
     customer_session as customer_session_service,
 )
@@ -28,10 +43,20 @@ from polar.entitlements.tiers import TierKey, get_definition
 from polar.enums import SubscriptionRecurringInterval
 from polar.exceptions import ResourceNotFound
 from polar.integrations.resend import domains as resend_domains
+from polar.integrations.stripe.service import stripe as stripe_service
+from polar.kit.pagination import ListResource, PaginationParamsQuery
 from polar.kit.trial import TrialInterval
 from polar.kit.utils import utc_now
 from polar.locker import Locker, get_locker
-from polar.models import Product, Subscription
+from polar.models import (
+    Customer,
+    Order,
+    Organization,
+    PaymentMethod,
+    Product,
+    Subscription,
+    User,
+)
 from polar.models.product_price import ProductPriceFixed
 from polar.models.subscription import SubscriptionStatus
 from polar.openapi import APITag
@@ -64,6 +89,10 @@ from .schemas import (
     CustomerPortalSession,
     CustomerPortalSessionCreate,
     EmailSenderDomainStatus,
+    PlatformBillingDetails,
+    PlatformBillingDetailsUpdate,
+    PlatformOrder,
+    PlatformOrderInvoice,
     SwitchPlan,
     TierPlan,
     TierPlanList,
@@ -581,4 +610,269 @@ async def verify_email_sender_domain(
         verified_at=organization.email_sender_verified_at,
         resend_id=organization.email_sender_resend_id,
         dns_records=organization.email_sender_dns_records,
+    )
+
+
+# ----------------------------------------------------------------------
+# Dashboard-native Spaire billing management
+#
+# These let a creator manage their Spaire subscription — cards on file,
+# invoices, billing address — entirely inside their dashboard, with NO
+# redirect to the customer portal. Each resolves the org's platform
+# Customer via get_for_creator_org (after the standard org-readable check)
+# and reuses the existing customer-portal services, which take a bare
+# Customer/Order — just authenticated with the dashboard session instead
+# of a customer-session token. Mirrors Polar's own /v1/organizations/{id}
+# billing endpoints.
+# ----------------------------------------------------------------------
+
+
+async def _billing_customer(
+    session: AsyncReadSession | AsyncSession,
+    auth_subject: AuthSubject[User | Organization],
+    organization_id: UUID,
+) -> Customer:
+    """Resolve the platform Customer holding this org's Spaire billing,
+    after verifying the dashboard caller can manage the org."""
+    org_repository = OrganizationRepository.from_session(session)
+    readable = org_repository.get_readable_statement(auth_subject).where(
+        OrganizationRepository.model.id == organization_id
+    )
+    organization = await org_repository.get_one_or_none(readable)
+    if organization is None:
+        raise ResourceNotFound("Organization not found.")
+    if not platform_service.is_configured():
+        raise ResourceNotFound(
+            "Spaire platform billing is not configured on this server."
+        )
+    customer = await platform_customer_repository(session).get_for_creator_org(
+        platform_service.get_id(), organization.id
+    )
+    if customer is None:
+        raise ResourceNotFound(
+            "Your organization has not been provisioned on Spaire billing yet."
+        )
+    return customer
+
+
+@router.get(
+    "/organizations/{organization_id}/payment-methods",
+    summary="List Spaire Payment Methods",
+    response_model=ListResource[CustomerPaymentMethod],
+)
+async def list_payment_methods(
+    organization_id: OrganizationID,
+    auth_subject: auth.PlatformRead,
+    pagination: PaginationParamsQuery,
+    session: AsyncReadSession = Depends(get_db_read_session),
+) -> ListResource[CustomerPaymentMethod]:
+    """Cards on file the creator uses to pay for their Spaire subscription."""
+    customer = await _billing_customer(session, auth_subject, organization_id)
+    statement = (
+        select(PaymentMethod)
+        .where(
+            PaymentMethod.customer_id == customer.id,
+            PaymentMethod.deleted_at.is_(None),
+        )
+        .order_by(PaymentMethod.created_at.desc())
+    )
+    results = (await session.execute(statement)).scalars().all()
+    items = [
+        CustomerPaymentMethodTypeAdapter.validate_python(pm) for pm in results
+    ]
+    return ListResource.from_paginated_results(items, len(items), pagination)
+
+
+@router.delete(
+    "/organizations/{organization_id}/payment-methods/{payment_method_id}",
+    summary="Delete Spaire Payment Method",
+    status_code=204,
+)
+async def delete_payment_method(
+    organization_id: OrganizationID,
+    payment_method_id: UUID4,
+    auth_subject: auth.PlatformWrite,
+    session: AsyncSession = Depends(get_db_session),
+) -> None:
+    """Remove a card. The card backing the active subscription is reassigned
+    automatically; you can't remove your only card."""
+    customer = await _billing_customer(session, auth_subject, organization_id)
+    statement = select(PaymentMethod).where(
+        PaymentMethod.id == payment_method_id,
+        PaymentMethod.customer_id == customer.id,
+        PaymentMethod.deleted_at.is_(None),
+    )
+    payment_method = (await session.execute(statement)).scalar_one_or_none()
+    if payment_method is None:
+        raise ResourceNotFound("Payment method not found.")
+    await customer_portal_customer_service.delete_payment_method(
+        session, payment_method
+    )
+
+
+@router.post(
+    "/organizations/{organization_id}/payment-methods/{payment_method_id}/default",
+    summary="Set Default Spaire Payment Method",
+    status_code=204,
+)
+async def set_default_payment_method(
+    organization_id: OrganizationID,
+    payment_method_id: UUID4,
+    auth_subject: auth.PlatformWrite,
+    session: AsyncSession = Depends(get_db_session),
+) -> None:
+    """Make a card the one Spaire charges each billing period."""
+    customer = await _billing_customer(session, auth_subject, organization_id)
+    statement = select(PaymentMethod).where(
+        PaymentMethod.id == payment_method_id,
+        PaymentMethod.customer_id == customer.id,
+        PaymentMethod.deleted_at.is_(None),
+    )
+    payment_method = (await session.execute(statement)).scalar_one_or_none()
+    if payment_method is None:
+        raise ResourceNotFound("Payment method not found.")
+    if customer.stripe_customer_id is not None:
+        await stripe_service.update_customer(
+            customer.stripe_customer_id,
+            invoice_settings={
+                "default_payment_method": payment_method.processor_id
+            },
+        )
+    customer_repository = CustomerRepository.from_session(session)
+    await customer_repository.update(
+        customer, update_dict={"default_payment_method": payment_method}
+    )
+
+
+@router.get(
+    "/organizations/{organization_id}/orders",
+    summary="List Spaire Orders",
+    response_model=ListResource[PlatformOrder],
+)
+async def list_orders(
+    organization_id: OrganizationID,
+    auth_subject: auth.PlatformRead,
+    pagination: PaginationParamsQuery,
+    session: AsyncReadSession = Depends(get_db_read_session),
+) -> ListResource[PlatformOrder]:
+    """Past invoices for the creator's Spaire subscription, newest first."""
+    customer = await _billing_customer(session, auth_subject, organization_id)
+    base = (
+        select(Order)
+        .where(Order.customer_id == customer.id, Order.deleted_at.is_(None))
+        .order_by(Order.created_at.desc())
+    )
+    count = await session.scalar(
+        select(func.count()).select_from(base.subquery())
+    )
+    # Order.description reads .product (and .items as a fallback); both are
+    # lazy="raise", so eager-load them before serializing.
+    page = (
+        (
+            await session.execute(
+                base.options(
+                    selectinload(Order.product), selectinload(Order.items)
+                )
+                .limit(pagination.limit)
+                .offset((pagination.page - 1) * pagination.limit)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    items = [
+        PlatformOrder(
+            id=order.id,
+            created_at=order.created_at,
+            invoice_number=order.invoice_number,
+            description=order.description,
+            total_amount=order.total_amount,
+            currency=order.currency,
+            status=order.status.value,
+            refunded_amount=order.refunded_amount,
+            is_invoice_generated=order.invoice_path is not None,
+        )
+        for order in page
+    ]
+    return ListResource.from_paginated_results(items, count or 0, pagination)
+
+
+@router.get(
+    "/organizations/{organization_id}/orders/{order_id}/invoice",
+    summary="Get Spaire Order Invoice",
+    response_model=PlatformOrderInvoice,
+)
+async def get_order_invoice(
+    organization_id: OrganizationID,
+    order_id: UUID4,
+    auth_subject: auth.PlatformWrite,
+    session: AsyncSession = Depends(get_db_session),
+) -> PlatformOrderInvoice:
+    """A signed URL to download a Spaire invoice PDF, generating it first
+    if it has not been built yet."""
+    customer = await _billing_customer(session, auth_subject, organization_id)
+    statement = select(Order).where(
+        Order.id == order_id,
+        Order.customer_id == customer.id,
+        Order.deleted_at.is_(None),
+    )
+    order = (await session.execute(statement)).scalar_one_or_none()
+    if order is None:
+        raise ResourceNotFound("Order not found.")
+    if order.invoice_path is None:
+        await customer_order_service.trigger_invoice_generation(session, order)
+        raise ResourceNotFound(
+            "Invoice is being generated. Try again in a few seconds."
+        )
+    invoice = await customer_order_service.get_order_invoice(order)
+    return PlatformOrderInvoice(url=invoice.url)
+
+
+@router.get(
+    "/organizations/{organization_id}/billing-details",
+    summary="Get Spaire Billing Details",
+    response_model=PlatformBillingDetails,
+)
+async def get_billing_details(
+    organization_id: OrganizationID,
+    auth_subject: auth.PlatformRead,
+    session: AsyncReadSession = Depends(get_db_read_session),
+) -> PlatformBillingDetails:
+    """The name/address/tax-id shown on the creator's Spaire invoices."""
+    customer = await _billing_customer(session, auth_subject, organization_id)
+    return PlatformBillingDetails(
+        billing_name=customer.billing_name,
+        billing_address=customer.billing_address,
+        tax_id=customer.tax_id,
+        default_payment_method_id=customer.default_payment_method_id,
+    )
+
+
+@router.patch(
+    "/organizations/{organization_id}/billing-details",
+    summary="Update Spaire Billing Details",
+    response_model=PlatformBillingDetails,
+)
+async def update_billing_details(
+    organization_id: OrganizationID,
+    body: PlatformBillingDetailsUpdate,
+    auth_subject: auth.PlatformWrite,
+    session: AsyncSession = Depends(get_db_session),
+) -> PlatformBillingDetails:
+    """Update the billing identity used on the creator's Spaire invoices."""
+    customer = await _billing_customer(session, auth_subject, organization_id)
+    customer = await customer_portal_customer_service.update(
+        session,
+        customer,
+        CustomerPortalCustomerUpdate(
+            billing_name=body.billing_name,
+            billing_address=body.billing_address,
+            tax_id=body.tax_id,
+        ),
+    )
+    return PlatformBillingDetails(
+        billing_name=customer.billing_name,
+        billing_address=customer.billing_address,
+        tax_id=customer.tax_id,
+        default_payment_method_id=customer.default_payment_method_id,
     )

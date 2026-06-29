@@ -284,6 +284,209 @@ export const useCreateCustomerPortalSession = (organizationId: string) =>
   })
 
 // -----------------------------------------------------------------------------
+// Billing management — cards, invoices, billing address (dashboard-native)
+//
+// These power the in-dashboard Billing sections so a creator never has to
+// leave for the customer portal. They hit the platform endpoints added in
+// polar/platform/endpoints.py (list/delete/set-default cards, list orders,
+// download invoice, get/update billing address).
+// -----------------------------------------------------------------------------
+
+export interface SpairePaymentMethod {
+  id: string
+  type: string
+  method_metadata: {
+    brand?: string
+    last4?: string
+    exp_month?: number
+    exp_year?: number
+    [key: string]: unknown
+  }
+}
+
+export interface SpaireBillingAddress {
+  line1: string | null
+  line2: string | null
+  postal_code: string | null
+  city: string | null
+  state: string | null
+  country: string | null
+}
+
+export interface SpaireBillingDetails {
+  billing_name: string | null
+  billing_address: SpaireBillingAddress | null
+  tax_id: [string, string] | null
+  default_payment_method_id: string | null
+}
+
+export interface SpaireOrder {
+  id: string
+  created_at: string
+  invoice_number: string | null
+  description: string
+  total_amount: number
+  currency: string
+  status: string
+  refunded_amount: number
+  is_invoice_generated: boolean
+}
+
+export const useSpairePaymentMethods = (
+  organizationId: string | undefined,
+): UseQueryResult<{ items: SpairePaymentMethod[] }> =>
+  useQuery({
+    queryKey: ['spaire', 'payment-methods', organizationId],
+    queryFn: async () => {
+      const { data, error } = await platformApi.GET(
+        '/v1/platform/organizations/{organization_id}/payment-methods',
+        { params: { path: { organization_id: organizationId as string } } },
+      )
+      if (error) throw error
+      return data as { items: SpairePaymentMethod[] }
+    },
+    retry: defaultRetry,
+    enabled: !!organizationId,
+  })
+
+export const useSpaireOrders = (
+  organizationId: string | undefined,
+): UseQueryResult<{ items: SpaireOrder[] }> =>
+  useQuery({
+    queryKey: ['spaire', 'orders', organizationId],
+    queryFn: async () => {
+      const { data, error } = await platformApi.GET(
+        '/v1/platform/organizations/{organization_id}/orders',
+        {
+          params: {
+            path: { organization_id: organizationId as string },
+            query: { page: 1, limit: 50 },
+          },
+        },
+      )
+      if (error) throw error
+      return data as { items: SpaireOrder[] }
+    },
+    retry: defaultRetry,
+    enabled: !!organizationId,
+  })
+
+export const useSpaireBillingDetails = (
+  organizationId: string | undefined,
+): UseQueryResult<SpaireBillingDetails> =>
+  useQuery({
+    queryKey: ['spaire', 'billing-details', organizationId],
+    queryFn: async () => {
+      const { data, error } = await platformApi.GET(
+        '/v1/platform/organizations/{organization_id}/billing-details',
+        { params: { path: { organization_id: organizationId as string } } },
+      )
+      if (error) throw error
+      return data as SpaireBillingDetails
+    },
+    retry: defaultRetry,
+    enabled: !!organizationId,
+  })
+
+export const useDeleteSpairePaymentMethod = (organizationId: string) => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (paymentMethodId: string) => {
+      const { error } = await platformApi.DELETE(
+        '/v1/platform/organizations/{organization_id}/payment-methods/{payment_method_id}',
+        {
+          params: {
+            path: {
+              organization_id: organizationId,
+              payment_method_id: paymentMethodId,
+            },
+          },
+        },
+      )
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ['spaire', 'payment-methods', organizationId],
+      })
+      queryClient.invalidateQueries({
+        queryKey: ['spaire', 'billing-details', organizationId],
+      })
+    },
+  })
+}
+
+export const useSetDefaultSpairePaymentMethod = (organizationId: string) => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (paymentMethodId: string) => {
+      const { error } = await platformApi.POST(
+        '/v1/platform/organizations/{organization_id}/payment-methods/{payment_method_id}/default',
+        {
+          params: {
+            path: {
+              organization_id: organizationId,
+              payment_method_id: paymentMethodId,
+            },
+          },
+        },
+      )
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ['spaire', 'payment-methods', organizationId],
+      })
+      queryClient.invalidateQueries({
+        queryKey: ['spaire', 'billing-details', organizationId],
+      })
+    },
+  })
+}
+
+export const useUpdateSpaireBillingDetails = (organizationId: string) => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: {
+      billing_name?: string | null
+      billing_address?: Partial<SpaireBillingAddress> | null
+      tax_id?: string | null
+    }): Promise<SpaireBillingDetails> => {
+      const { data, error } = await platformApi.PATCH(
+        '/v1/platform/organizations/{organization_id}/billing-details',
+        {
+          params: { path: { organization_id: organizationId } },
+          body: input,
+        },
+      )
+      if (error) throw error
+      return data as SpaireBillingDetails
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ['spaire', 'billing-details', organizationId],
+      })
+    },
+  })
+}
+
+export const useGetSpaireOrderInvoice = (organizationId: string) =>
+  useMutation({
+    mutationFn: async (orderId: string): Promise<{ url: string }> => {
+      const { data, error } = await platformApi.GET(
+        '/v1/platform/organizations/{organization_id}/orders/{order_id}/invoice',
+        {
+          params: {
+            path: { organization_id: organizationId, order_id: orderId },
+          },
+        },
+      )
+      if (error) throw error
+      return data as { url: string }
+    },
+  })
+
+// -----------------------------------------------------------------------------
 // Formatting helpers
 // -----------------------------------------------------------------------------
 
@@ -413,7 +616,8 @@ export const breakevenGmvDollars = (
   lower: TierPlan,
   higher: TierPlan,
 ): number | null => {
-  const monthlyDiffCents = higher.monthly_price_cents - lower.monthly_price_cents
+  const monthlyDiffCents =
+    higher.monthly_price_cents - lower.monthly_price_cents
   const rateDiffBps =
     lower.transaction_fee.percent_basis_points -
     higher.transaction_fee.percent_basis_points

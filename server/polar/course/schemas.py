@@ -1,9 +1,11 @@
 from datetime import datetime
 from typing import Literal
 
-from pydantic import UUID4, Field
+from pydantic import UUID4, Field, field_validator
 
 from polar.kit.schemas import Schema, TimestampedSchema
+
+from .landing import validate_landing_overrides, validate_object_position
 
 
 # Series-only "Episode Sample" block. The creator picks one lesson and a
@@ -55,6 +57,11 @@ class CourseLessonUpdate(Schema):
     release_at: datetime | None = None
     drip_days: int | None = None
     comments_mode: Literal["visible", "hidden", "locked"] | None = None
+
+    @field_validator("thumbnail_object_position")
+    @classmethod
+    def _validate_object_position(cls, value: str | None) -> str | None:
+        return validate_object_position(value)
 
 
 class MuxUploadRead(Schema):
@@ -190,6 +197,16 @@ class CourseCreate(Schema):
     sample: CourseSample | None = None
     modules: list[CourseModuleCreate] = Field(default_factory=list)
 
+    @field_validator("thumbnail_object_position")
+    @classmethod
+    def _validate_object_position(cls, value: str | None) -> str | None:
+        return validate_object_position(value)
+
+    @field_validator("landing_overrides")
+    @classmethod
+    def _validate_landing_overrides(cls, value: dict | None) -> dict | None:
+        return validate_landing_overrides(value)
+
 
 class CourseUpdate(Schema):
     title: str | None = None
@@ -218,6 +235,16 @@ class CourseUpdate(Schema):
     # object replaces whatever was there. Partial patches are not supported
     # — send the complete object every time.
     sample: CourseSample | None = None
+
+    @field_validator("thumbnail_object_position")
+    @classmethod
+    def _validate_object_position(cls, value: str | None) -> str | None:
+        return validate_object_position(value)
+
+    @field_validator("landing_overrides")
+    @classmethod
+    def _validate_landing_overrides(cls, value: dict | None) -> dict | None:
+        return validate_landing_overrides(value)
 
 
 class QuizAnswerSubmission(Schema):

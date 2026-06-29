@@ -280,6 +280,45 @@ async function courseApiFetch<T>(
   return res.json()
 }
 
+// Raw, non-invalidating PATCH helpers. The landing editor (useLandingEditor)
+// drives the course query cache optimistically and manages its own undo/redo,
+// so it must NOT trigger the invalidate-on-success that the useUpdateCourse*
+// hooks do — a refetch landing mid-edit is exactly the race that used to drop
+// edits. These mirror the mutation bodies but leave the cache to the caller.
+export type CourseFieldPatch = {
+  title?: string | null
+  instructor_name?: string | null
+  thumbnail_url?: string | null
+  trailer_url?: string | null
+  thumbnail_object_position?: string | null
+  landing_overrides?: LandingOverrides | null
+}
+export type LessonFieldPatch = {
+  title?: string
+  description?: string | null
+  thumbnail_url?: string | null
+  thumbnail_object_position?: string | null
+}
+export type ModuleFieldPatch = { title?: string }
+
+export const patchCourseRaw = (courseId: string, body: CourseFieldPatch) =>
+  courseApiFetch<CourseRead>(`/v1/courses/${courseId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+  })
+
+export const patchLessonRaw = (lessonId: string, body: LessonFieldPatch) =>
+  courseApiFetch<CourseLessonRead>(`/v1/courses/lessons/${lessonId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+  })
+
+export const patchModuleRaw = (moduleId: string, body: ModuleFieldPatch) =>
+  courseApiFetch<CourseModuleRead>(`/v1/courses/modules/${moduleId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+  })
+
 export const useCourseById = (courseId: string | undefined) =>
   useQuery<CourseRead>({
     queryKey: ['courses', { courseId }],

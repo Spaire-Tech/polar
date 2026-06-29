@@ -41,6 +41,7 @@ class EmailTemplate(StrEnum):
     subscription_uncanceled = "subscription_uncanceled"
     subscription_updated = "subscription_updated"
     user_welcome = "user_welcome"
+    platform_receipt = "platform_receipt"
     webhook_endpoint_disabled = "webhook_endpoint_disabled"
     notification_new_sale = "notification_new_sale"
     notification_new_subscription = "notification_new_subscription"
@@ -348,6 +349,30 @@ class UserWelcomeEmail(BaseModel):
     props: UserWelcomeProps
 
 
+# ----------------------------------------------------------------------
+# Spaire platform billing (self-billing: Spaire bills the creator)
+#
+# Transactional, Spaire-branded receipt for the platform's OWN billing of a
+# creator org. Distinct from the creator-commerce templates above — those
+# render the *selling* org's header + "Merchant of Record … by Spaire" and
+# are for a creator billing THEIR customers. On a Spaire plan the seller IS
+# the platform org, so those templates render "Spaire / Spaire" nonsense.
+# Uses the Spaire logo (WrapperPolar) and a transactional footer (no
+# unsubscribe). The trial-start welcome reuses the founder `user_welcome`.
+# ----------------------------------------------------------------------
+
+
+class PlatformReceiptProps(EmailProps):
+    plan_name: str
+    order: OrderEmail
+    url: str
+
+
+class PlatformReceiptEmail(BaseModel):
+    template: Literal[EmailTemplate.platform_receipt] = EmailTemplate.platform_receipt
+    props: PlatformReceiptProps
+
+
 class WebhookEndpointDisabledProps(EmailProps):
     organization: Organization
     webhook_endpoint_url: str
@@ -531,6 +556,7 @@ Email = Annotated[
     | SubscriptionUncanceledEmail
     | SubscriptionUpdatedEmail
     | UserWelcomeEmail
+    | PlatformReceiptEmail
     | WebhookEndpointDisabledEmail
     | NotificationNewSaleEmail
     | NotificationNewSubscriptionEmail

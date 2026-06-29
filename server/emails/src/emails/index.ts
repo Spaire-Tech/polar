@@ -22,6 +22,7 @@ import { OrganizationInvite } from './organization_invite'
 import OrganizationReviewed from './organization_reviewed'
 import { OrganizationUnderReview } from './organization_under_review'
 import { PersonalAccessTokenLeaked } from './personal_access_token_leaked'
+import { PlatformReceipt } from './platform_receipt'
 import { SeatInvitation } from './seat_invitation'
 import { SubscriptionCancellation } from './subscription_cancellation'
 import { SubscriptionConfirmation } from './subscription_confirmation'
@@ -30,6 +31,7 @@ import { SubscriptionPastDue } from './subscription_past_due'
 import { SubscriptionRevoked } from './subscription_revoked'
 import { SubscriptionUncanceled } from './subscription_uncanceled'
 import { SubscriptionUpdated } from './subscription_updated'
+import { UserWelcome } from './user_welcome'
 import { WebhookEndpointDisabled } from './webhook_endpoint_disabled'
 
 const TEMPLATES: Record<string, React.FC<any>> = {
@@ -48,6 +50,7 @@ const TEMPLATES: Record<string, React.FC<any>> = {
   organization_reviewed: OrganizationReviewed,
   personal_access_token_leaked: PersonalAccessTokenLeaked,
   seat_invitation: SeatInvitation,
+  platform_receipt: PlatformReceipt,
   subscription_cancellation: SubscriptionCancellation,
   subscription_confirmation: SubscriptionConfirmation,
   subscription_cycled: SubscriptionCycled,
@@ -55,6 +58,7 @@ const TEMPLATES: Record<string, React.FC<any>> = {
   subscription_revoked: SubscriptionRevoked,
   subscription_uncanceled: SubscriptionUncanceled,
   subscription_updated: SubscriptionUpdated,
+  user_welcome: UserWelcome,
   webhook_endpoint_disabled: WebhookEndpointDisabled,
   notification_new_sale: NotificationNewSale,
   notification_new_subscription: NotificationNewSubscription,

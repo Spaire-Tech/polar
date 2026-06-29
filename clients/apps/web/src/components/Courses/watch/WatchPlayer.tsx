@@ -5,9 +5,12 @@
 // element instead of the prototype's simulated clock:
 //
 //   • scrub bar (click + drag) with buffered shading and knob
-//   • ±10s skips, big center play, space/←/→/Esc keys
+//   • ±10s skips, big center play, space/←/→/Esc/f keys
 //   • captions button — wired to the video's text tracks; only rendered
-//     when the asset actually carries captions
+//     when the asset actually carries captions, and kept in lock-step with
+//     the on-screen captions so the button never lies about the state
+//   • fullscreen button — real Fullscreen API on the player root (not a
+//     disguised exit), with the icon/label reflecting the current state
 //   • discussion side panel — rendered only when comment wiring is passed
 //   • onProgress(frac) every 5s + on exit; onComplete at the end
 //
@@ -61,12 +64,20 @@ export function WatchPlayer({
   onComplete?: () => void
 }) {
   const videoRef = useRef<HTMLVideoElement | null>(null)
+  const containerRef = useRef<HTMLDivElement | null>(null)
   const [t, setT] = useState(0)
   const [dur, setDur] = useState(0)
   const [paused, setPaused] = useState(true)
   const [buffered, setBuffered] = useState(0)
   const [hasCaptions, setHasCaptions] = useState(false)
   const [cc, setCc] = useState(false)
+  // Mirror of `cc` for the polling loop, whose effect closes over the
+  // initial value. The poll re-asserts the desired caption mode every
+  // tick so the on-screen captions can never drift from the button (e.g.
+  // when hls.js or the OS tries to re-enable a default subtitle track).
+  const ccRef = useRef(false)
+  ccRef.current = cc
+  const [isFullscreen, setIsFullscreen] = useState(false)
   const [side, setSide] = useState<null | 'discussion'>(null)
   const [uiVisible, setUiVisible] = useState(true)
   const barRef = useRef<HTMLDivElement | null>(null)
@@ -112,16 +123,25 @@ export function WatchPlayer({
       } catch {
         /* ignore */
       }
-      setHasCaptions(
-        [...el.textTracks].some(
-          (tr) => tr.kind === 'subtitles' || tr.kind === 'captions',
-        ),
-      )
+      // Detect caption tracks and keep their visibility pinned to the
+      // viewer's choice. Re-asserting every tick (not just on toggle) means
+      // nothing else — hls.js, the browser, or OS caption settings — can
+      // flip a default track back on behind the button's back.
+      let captionsPresent = false
+      const want = ccRef.current ? 'showing' : 'hidden'
+      for (const tr of el.textTracks) {
+        if (tr.kind !== 'subtitles' && tr.kind !== 'captions') continue
+        captionsPresent = true
+        if (tr.mode !== want) tr.mode = want
+      }
+      setHasCaptions(captionsPresent)
     }, 250)
     return () => clearInterval(id)
   }, [])
 
-  // Captions toggle → native text track mode.
+  // Captions toggle → native text track mode. The poll above also enforces
+  // this, but applying it synchronously here makes the toggle feel instant
+  // instead of waiting for the next poll tick.
   useEffect(() => {
     const el = videoRef.current
     if (!el) return
@@ -193,6 +213,49 @@ export function WatchPlayer({
     onClose()
   }, [onClose, onProgress])
 
+  // ── real browser fullscreen ──
+  // The player is a fixed overlay, but that still lives inside the browser
+  // chrome (and the mobile address bar). The transport's fullscreen control
+  // requests true fullscreen on the player root so the video fills the whole
+  // screen, and mirrors the current state in its icon + label.
+  useEffect(() => {
+    const onFsChange = () =>
+      setIsFullscreen(Boolean(document.fullscreenElement))
+    document.addEventListener('fullscreenchange', onFsChange)
+    document.addEventListener('webkitfullscreenchange', onFsChange)
+    return () => {
+      document.removeEventListener('fullscreenchange', onFsChange)
+      document.removeEventListener('webkitfullscreenchange', onFsChange)
+    }
+  }, [])
+
+  const toggleFullscreen = useCallback(() => {
+    const doc = document as Document & {
+      webkitFullscreenElement?: Element | null
+      webkitExitFullscreen?: () => void
+    }
+    if (document.fullscreenElement || doc.webkitFullscreenElement) {
+      if (document.exitFullscreen)
+        void document.exitFullscreen().catch(() => undefined)
+      else doc.webkitExitFullscreen?.()
+      return
+    }
+    const root = containerRef.current as
+      | (HTMLDivElement & { webkitRequestFullscreen?: () => void })
+      | null
+    if (root?.requestFullscreen) {
+      void root.requestFullscreen().catch(() => undefined)
+    } else if (root?.webkitRequestFullscreen) {
+      root.webkitRequestFullscreen()
+    } else {
+      // iOS Safari only lets the <video> element itself go fullscreen.
+      const video = videoRef.current as
+        | (HTMLVideoElement & { webkitEnterFullscreen?: () => void })
+        | null
+      video?.webkitEnterFullscreen?.()
+    }
+  }, [])
+
   const togglePlay = useCallback(() => {
     const el = videoRef.current
     if (!el) return
@@ -246,16 +309,20 @@ export function WatchPlayer({
       revealUi()
       if (e.key === 'Escape') {
         if (side) setSide(null)
+        // While fullscreen, the browser already exits fullscreen on Escape —
+        // don't also tear down the whole player out from under the viewer.
+        else if (document.fullscreenElement) return
         else exit()
       } else if (e.key === ' ') {
         e.preventDefault()
         togglePlay()
       } else if (e.key === 'ArrowRight') seekBy(10)
       else if (e.key === 'ArrowLeft') seekBy(-10)
+      else if (e.key === 'f' || e.key === 'F') toggleFullscreen()
     }
     window.addEventListener('keydown', h)
     return () => window.removeEventListener('keydown', h)
-  }, [side, exit, togglePlay, seekBy, revealUi])
+  }, [side, exit, togglePlay, seekBy, revealUi, toggleFullscreen])
 
   // Lock page scroll while the player is up.
   useEffect(() => {
@@ -272,7 +339,7 @@ export function WatchPlayer({
   // through a plain element — mirrors the sample screen's split.
   const isHls = Boolean(
     lesson.muxPlaybackId ||
-      (lesson.playbackUrl && lesson.playbackUrl.includes('.m3u8')),
+    (lesson.playbackUrl && lesson.playbackUrl.includes('.m3u8')),
   )
   const onEndedCb = useCallback(() => {
     if (!done.current) {
@@ -283,7 +350,8 @@ export function WatchPlayer({
 
   return (
     <div
-      className={`sov2 player${uiVisible ? '' : ' ui-hidden'}`}
+      ref={containerRef}
+      className={`sov2 player${uiVisible ? '' : 'ui-hidden'}`}
       data-watch-player
       onMouseMove={revealUi}
       onMouseDown={revealUi}
@@ -381,7 +449,11 @@ export function WatchPlayer({
               onClick={togglePlay}
               aria-label={paused ? 'Play' : 'Pause'}
             >
-              <Glyph d={paused ? SF.play : SF.pause} size={30} fill="currentColor" />
+              <Glyph
+                d={paused ? SF.play : SF.pause}
+                size={30}
+                fill="currentColor"
+              />
             </button>
             <button
               className="pbtn"
@@ -396,7 +468,8 @@ export function WatchPlayer({
               <button
                 className={`pbtn sm ${cc ? 'on' : ''}`}
                 onClick={() => setCc((c) => !c)}
-                aria-label="Captions"
+                aria-label={cc ? 'Turn off captions' : 'Turn on captions'}
+                aria-pressed={cc}
               >
                 <Glyph d={SF.captions} size={21} stroke={1.9} />
               </button>
@@ -408,6 +481,7 @@ export function WatchPlayer({
                   setSide((s) => (s === 'discussion' ? null : 'discussion'))
                 }
                 aria-label="Discussion"
+                aria-pressed={side === 'discussion'}
               >
                 <Glyph d={SF.bubble} size={21} stroke={2} />
                 {comments!.length > 0 && (
@@ -415,8 +489,17 @@ export function WatchPlayer({
                 )}
               </button>
             )}
-            <button className="pbtn sm" onClick={exit} aria-label="Exit player">
-              <Glyph d={SF.fullscreen} size={21} stroke={2} />
+            <button
+              className="pbtn sm"
+              onClick={toggleFullscreen}
+              aria-label={isFullscreen ? 'Exit full screen' : 'Full screen'}
+              aria-pressed={isFullscreen}
+            >
+              <Glyph
+                d={isFullscreen ? SF.fullscreenExit : SF.fullscreen}
+                size={21}
+                stroke={2}
+              />
             </button>
           </div>
         </div>
