@@ -90,10 +90,13 @@ async def _inspect(session: AsyncSession, org: Organization) -> dict[str, Any]:
             Customer.organization_id == org.id
         )
     )
+    # Order has no organization_id; an org's orders are those whose customer
+    # belongs to the org (the canonical join — see OrderRepository).
     orders = await session.scalar(
-        select(func.count()).select_from(Order).where(
-            Order.organization_id == org.id
-        )
+        select(func.count())
+        .select_from(Order)
+        .join(Customer, Order.customer_id == Customer.id)
+        .where(Customer.organization_id == org.id)
     )
     products = await session.scalar(
         select(func.count()).select_from(Product).where(
@@ -187,6 +190,63 @@ def _print_inspection(label: str, info: dict[str, Any]) -> None:
     )
 
 
+async def _run(
+    session: AsyncSession,
+    *,
+    release_org: str,
+    claim_org: str,
+    slug: str,
+    release_slug: str | None,
+    apply: bool,
+) -> None:
+    """The whole flow against a given session: load both orgs, inspect them,
+    print the plan, perform the swap, then commit (``--apply``) or roll back.
+
+    Split out from the Typer command so it can be driven directly in a test
+    with the real test session — i.e. the actual ``_inspect`` SQL and the
+    actual ``perform_swap`` mutation run against a real database, not a proxy.
+    """
+    release = await _load_org(session, UUID(release_org))
+    claim = await _load_org(session, UUID(claim_org))
+    if release is None:
+        typer.echo(f"❌ release-org {release_org} not found.", err=True)
+        raise typer.Exit(code=1)
+    if claim is None:
+        typer.echo(f"❌ claim-org {claim_org} not found.", err=True)
+        raise typer.Exit(code=1)
+
+    target_release_slug = release_slug or _default_release_slug(slug, release)
+
+    _print_inspection("RELEASE org (will be renamed)", await _inspect(session, release))
+    _print_inspection("CLAIM org (will receive the slug)", await _inspect(session, claim))
+
+    typer.echo(
+        "Plan:\n"
+        f"  '{release.slug}'  ->  '{target_release_slug}'   (release org {release.id})\n"
+        f"  '{claim.slug}'  ->  '{slug}'   (claim org {claim.id})\n"
+        f"  invoice prefix  ->  '{slug.upper()[:_INVOICE_PREFIX_MAX]}'  on claim org\n"
+    )
+
+    try:
+        await perform_swap(
+            session,
+            release_org=release,
+            claim_org=claim,
+            slug=slug,
+            release_slug=target_release_slug,
+        )
+    except SwapError as e:
+        typer.echo(f"❌ {e}", err=True)
+        raise typer.Exit(code=1) from e
+
+    if apply:
+        await session.commit()
+        typer.echo("✓ Done — slug moved.")
+    else:
+        await session.rollback()
+        typer.echo("(dry-run — validated, nothing committed. Re-run with --apply.)")
+
+
 @cli.command(help="Move a slug from one org to another (dry-run unless --apply).")
 @typer_async
 async def run(
@@ -209,45 +269,14 @@ async def run(
     engine = create_async_engine("script")
     sessionmaker = create_async_sessionmaker(engine)
     async with sessionmaker() as session:
-        release = await _load_org(session, UUID(release_org))
-        claim = await _load_org(session, UUID(claim_org))
-        if release is None:
-            typer.echo(f"❌ release-org {release_org} not found.", err=True)
-            raise typer.Exit(code=1)
-        if claim is None:
-            typer.echo(f"❌ claim-org {claim_org} not found.", err=True)
-            raise typer.Exit(code=1)
-
-        target_release_slug = release_slug or _default_release_slug(slug, release)
-
-        _print_inspection("RELEASE org (will be renamed)", await _inspect(session, release))
-        _print_inspection("CLAIM org (will receive the slug)", await _inspect(session, claim))
-
-        typer.echo(
-            "Plan:\n"
-            f"  '{release.slug}'  ->  '{target_release_slug}'   (release org {release.id})\n"
-            f"  '{claim.slug}'  ->  '{slug}'   (claim org {claim.id})\n"
-            f"  invoice prefix  ->  '{slug.upper()[:_INVOICE_PREFIX_MAX]}'  on claim org\n"
+        await _run(
+            session,
+            release_org=release_org,
+            claim_org=claim_org,
+            slug=slug,
+            release_slug=release_slug,
+            apply=apply,
         )
-
-        try:
-            await perform_swap(
-                session,
-                release_org=release,
-                claim_org=claim,
-                slug=slug,
-                release_slug=target_release_slug,
-            )
-        except SwapError as e:
-            typer.echo(f"❌ {e}", err=True)
-            raise typer.Exit(code=1) from e
-
-        if apply:
-            await session.commit()
-            typer.echo("✓ Done — slug moved.")
-        else:
-            await session.rollback()
-            typer.echo("(dry-run — validated, nothing committed. Re-run with --apply.)")
 
 
 if __name__ == "__main__":
