@@ -49,7 +49,7 @@ export function RichTextEditor({
         heading: { levels: [1, 2, 3] },
         link: {
           openOnClick: false,
-          HTMLAttributes: { class: 'text-[#0066cc] underline' },
+          HTMLAttributes: { class: 'text-ce-accent underline' },
         },
       }),
       Placeholder.configure({ placeholder }),
@@ -198,7 +198,7 @@ function Toolbar({
           <button
             type="button"
             onClick={onGenerate}
-            className="flex items-center gap-1 rounded-md border border-blue-200 bg-blue-50 px-2 py-1 text-xs font-medium text-[#0066cc] hover:bg-blue-100"
+            className="border-ce-accent-border bg-ce-accent-tint text-ce-accent hover:bg-ce-accent-tint-strong flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-medium"
           >
             <AutoAwesomeOutlined sx={{ fontSize: 14 }} />
             {hasContent ? 'Regenerate' : 'Generate'}
@@ -258,9 +258,7 @@ function Btn({
       title={title}
       className={cn(
         'flex h-7 w-7 items-center justify-center rounded-md text-xs font-medium transition-colors',
-        active
-          ? 'bg-gray-900 text-white'
-          : 'text-gray-600 hover:bg-gray-100',
+        active ? 'bg-gray-900 text-white' : 'text-gray-600 hover:bg-gray-100',
       )}
     >
       {children}

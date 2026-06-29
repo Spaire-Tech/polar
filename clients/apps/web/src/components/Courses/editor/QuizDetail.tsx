@@ -439,13 +439,13 @@ function QuestionCard({
           onChange={(e) => onChange({ text: e.target.value })}
           placeholder="Question"
           rows={3}
-          className="mb-4 w-full resize-none rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-900 focus:border-[#0066cc] focus:ring-2 focus:ring-blue-100 focus:outline-none"
+          className="focus:border-ce-accent focus:ring-ce-accent-ring mb-4 w-full resize-none rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-900 focus:ring-2 focus:outline-none"
         />
 
         <select
           value={question.type}
           onChange={(e) => onChange({ type: e.target.value as QuestionType })}
-          className="mb-5 w-full appearance-none rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:border-[#0066cc] focus:ring-2 focus:ring-blue-100 focus:outline-none"
+          className="focus:border-ce-accent focus:ring-ce-accent-ring mb-5 w-full appearance-none rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 focus:ring-2 focus:outline-none"
         >
           {QUESTION_TYPES.map((qt) => (
             <option key={qt.value} value={qt.value}>
@@ -497,7 +497,7 @@ function QuestionCard({
                         onUpdateOption(option.id, { text: e.target.value })
                       }
                       placeholder="Option text"
-                      className="rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm text-gray-900 focus:border-[#0066cc] focus:ring-2 focus:ring-blue-100 focus:outline-none"
+                      className="focus:border-ce-accent focus:ring-ce-accent-ring rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm text-gray-900 focus:ring-2 focus:outline-none"
                     />
                     <input
                       value={option.explanation ?? ''}
@@ -562,7 +562,7 @@ function SettingsPanel({
               value={quiz.title ?? ''}
               onChange={(e) => onChange({ title: e.target.value })}
               placeholder="Untitled quiz"
-              className="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm focus:border-[#0066cc] focus:ring-2 focus:ring-blue-100 focus:outline-none"
+              className="focus:border-ce-accent focus:ring-ce-accent-ring w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm focus:ring-2 focus:outline-none"
             />
           </Field>
           <Field label="Description">
@@ -573,7 +573,7 @@ function SettingsPanel({
               }
               placeholder="Describe your quiz"
               rows={3}
-              className="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm focus:border-[#0066cc] focus:ring-2 focus:ring-blue-100 focus:outline-none"
+              className="focus:border-ce-accent focus:ring-ce-accent-ring w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm focus:ring-2 focus:outline-none"
             />
           </Field>
           <div className="flex items-center gap-4 rounded-xl border border-gray-200 bg-gray-50 p-3">
@@ -613,13 +613,10 @@ function SettingsPanel({
         <div className="flex flex-col gap-4">
           <div className="flex items-start justify-between gap-4">
             <div className="flex-1">
-              <p className="text-sm font-medium text-gray-900">
-                Passing grade
-              </p>
+              <p className="text-sm font-medium text-gray-900">Passing grade</p>
               <p className="mt-0.5 text-xs text-gray-500">
-                The minimum percentage of correct answers required to pass.
-                Mark individual questions as ungraded to exclude them from
-                scoring.
+                The minimum percentage of correct answers required to pass. Mark
+                individual questions as ungraded to exclude them from scoring.
               </p>
             </div>
             <div className="flex items-center gap-1.5 rounded-xl border border-gray-200 px-3 py-1.5">
@@ -759,7 +756,7 @@ function Toggle({
       onClick={() => onChange(!checked)}
       className={cn(
         'relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none',
-        checked ? 'bg-[#0066cc]' : 'bg-gray-200',
+        checked ? 'bg-ce-accent' : 'bg-gray-200',
       )}
     >
       <span

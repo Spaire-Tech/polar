@@ -169,7 +169,7 @@ export function ModuleCard({
                 setIsEditing(false)
               }
             }}
-            className="flex-1 rounded-lg border border-gray-300 px-2 py-1 text-sm font-semibold text-gray-900 focus:border-[#0066cc] focus:ring-2 focus:ring-blue-100 focus:outline-none"
+            className="focus:border-ce-accent focus:ring-ce-accent-ring flex-1 rounded-lg border border-gray-300 px-2 py-1 text-sm font-semibold text-gray-900 focus:ring-2 focus:outline-none"
           />
         ) : (
           <button
@@ -232,7 +232,7 @@ export function ModuleCard({
               >
                 <OndemandVideoOutlined
                   sx={{ fontSize: 16 }}
-                  className="text-[#0066cc]"
+                  className="text-ce-accent"
                 />
                 Video Lesson
               </button>
@@ -408,7 +408,7 @@ function LessonRow({
             isQuiz
               ? 'text-emerald-500'
               : isVideo
-                ? 'text-[#0066cc]'
+                ? 'text-ce-accent'
                 : 'text-gray-400',
           )}
           sx={{ fontSize: 15 }}

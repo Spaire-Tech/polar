@@ -4,13 +4,6 @@
 // Hosted by both the dashboard CustomizeTab and the onboarding wizard preview.
 // All state lives on the EditorProvider above; this component is pure chrome.
 
-import {
-  ACCENT_PRESETS,
-  FONT_PAIRS,
-  SURFACE_MODES,
-  useEditor,
-  type EditorPanel,
-} from './EditorContext'
 import type { LandingMedia } from '@/hooks/queries/courses'
 import {
   DndContext,
@@ -28,6 +21,13 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { useRef, useState, type ReactNode } from 'react'
+import {
+  ACCENT_PRESETS,
+  FONT_PAIRS,
+  SURFACE_MODES,
+  useEditor,
+  type EditorPanel,
+} from './EditorContext'
 
 const RAIL_ITEMS: { id: EditorPanel; label: string; icon: string }[] = [
   { id: 'design', label: 'Design', icon: '✨' },
@@ -122,7 +122,7 @@ function Toolbar({
     <div className="flex h-14 flex-shrink-0 items-center justify-between gap-3 border-b border-white/[0.06] bg-[oklch(0.18_0.01_280)] px-4 text-white">
       {/* Brand + breadcrumb */}
       <div className="flex min-w-0 items-center gap-2">
-        <span className="text-[oklch(0.78_0.16_285)]" aria-hidden>
+        <span className="text-ce-accent" aria-hidden>
           ◐
         </span>
         <span className="text-[14px] font-semibold tracking-tight">
@@ -232,7 +232,7 @@ function Toolbar({
             type="button"
             onClick={onPublish}
             disabled={!canPublish || saving}
-            className="flex items-center gap-1.5 rounded-md bg-[oklch(0.78_0.16_285)] px-3.5 py-[7px] text-[12px] font-semibold text-[oklch(0.18_0.01_280)] transition-[filter] hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
+            className="bg-ce-accent text-ce-accent-contrast flex items-center gap-1.5 rounded-md px-3.5 py-[7px] text-[12px] font-semibold transition-[filter] hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
           >
             {publishLabel} →
           </button>
@@ -257,7 +257,7 @@ function LeftRail() {
             onClick={() => ed.setPanel(it.id)}
             className={`flex w-13 flex-col items-center gap-1 rounded-md px-2 py-2.5 transition-colors ${
               on
-                ? 'bg-[oklch(0.96_0.012_265)] text-[oklch(0.45_0.18_265)]'
+                ? 'bg-ce-accent-tint text-ce-accent'
                 : 'text-gray-500 hover:bg-gray-50'
             }`}
           >
@@ -340,7 +340,7 @@ function DesignPanel() {
           <select
             value={t.fontHeading}
             onChange={(e) => ed.setTheme({ fontHeading: e.target.value })}
-            className="w-full rounded-md border border-gray-200 bg-white px-2.5 py-2 text-[12.5px] focus:border-[#0066cc] focus:outline-none"
+            className="focus:border-ce-accent focus:ring-ce-accent-ring w-full rounded-md border border-gray-200 bg-white px-2.5 py-2 text-[12.5px] focus:ring-2 focus:outline-none"
           >
             {FONT_PAIRS.map((f) => (
               <option key={f.id} value={f.id}>
@@ -353,7 +353,7 @@ function DesignPanel() {
           <select
             value={t.fontBody}
             onChange={(e) => ed.setTheme({ fontBody: e.target.value })}
-            className="w-full rounded-md border border-gray-200 bg-white px-2.5 py-2 text-[12.5px] focus:border-[#0066cc] focus:outline-none"
+            className="focus:border-ce-accent focus:ring-ce-accent-ring w-full rounded-md border border-gray-200 bg-white px-2.5 py-2 text-[12.5px] focus:ring-2 focus:outline-none"
           >
             {FONT_PAIRS.map((f) => (
               <option key={f.id} value={f.id}>
@@ -392,7 +392,7 @@ function DesignPanel() {
               onClick={() => ed.setTheme({ headingItalic: true })}
               title="Italic"
             >
-              <span className="italic font-semibold">Aa</span>
+              <span className="font-semibold italic">Aa</span>
             </ToggleBtn>
           </div>
         </Field>
@@ -464,9 +464,7 @@ function DesignPanel() {
               { v: 'comfortable', label: 'Comfy' },
               { v: 'spacious', label: 'Spacious' },
             ]}
-            onChange={(v) =>
-              ed.setTheme({ density: v as typeof t.density })
-            }
+            onChange={(v) => ed.setTheme({ density: v as typeof t.density })}
           />
         </Field>
         <Field label="Corners">
@@ -494,7 +492,7 @@ function DesignPanel() {
                 onClick={() => ed.setTheme({ surfaceId: s.id })}
                 className={`flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-[11.5px] font-medium tracking-tight transition-colors ${
                   t.surfaceId === s.id
-                    ? 'border-[oklch(0.55_0.20_265)] bg-[oklch(0.96_0.012_265)] text-[oklch(0.40_0.18_265)]'
+                    ? 'border-ce-accent bg-ce-accent-tint text-ce-accent'
                     : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
                 }`}
               >
@@ -520,7 +518,7 @@ function DesignPanel() {
                   background: `linear-gradient(135deg, ${a.accent}, ${a.accent2})`,
                   outline:
                     t.accentId === a.id
-                      ? '2px solid oklch(0.62 0.18 265)'
+                      ? '2px solid var(--color-ce-accent)'
                       : '2px solid transparent',
                   outlineOffset: 2,
                 }}
@@ -668,33 +666,101 @@ function ContentPanel() {
   return (
     <div>
       <PanelGroup title="Hero">
-        <TextField label="Eyebrow" path="hero.eyebrow" defaultValue="SPAIRE ORIGINAL" />
-        <TextField label="Series pill" path="hero.series_label" defaultValue="NEW SERIES" />
+        <TextField
+          label="Eyebrow"
+          path="hero.eyebrow"
+          defaultValue="SPAIRE ORIGINAL"
+        />
+        <TextField
+          label="Series pill"
+          path="hero.series_label"
+          defaultValue="NEW SERIES"
+        />
         <TextField label="Title" path="hero.title" defaultValue="" multiline />
-        <TextField label="Tagline" path="hero.tagline" defaultValue="" multiline />
+        <TextField
+          label="Tagline"
+          path="hero.tagline"
+          defaultValue=""
+          multiline
+        />
         <TextField label="Level" path="hero.level" defaultValue="All levels" />
         <TextField label="Rating" path="hero.rating" defaultValue="4.9" />
-        <TextField label="Rating count" path="hero.rating_count" defaultValue="2,814" />
-        <TextField label="Students" path="hero.students" defaultValue="38,200 enrolled" />
+        <TextField
+          label="Rating count"
+          path="hero.rating_count"
+          defaultValue="2,814"
+        />
+        <TextField
+          label="Students"
+          path="hero.students"
+          defaultValue="38,200 enrolled"
+        />
       </PanelGroup>
       <PanelGroup title="Curriculum">
-        <TextField path="curriculum.heading" label="Heading" defaultValue="" multiline />
-        <TextField path="curriculum.subheading" label="Subheading" defaultValue="" multiline />
+        <TextField
+          path="curriculum.heading"
+          label="Heading"
+          defaultValue=""
+          multiline
+        />
+        <TextField
+          path="curriculum.subheading"
+          label="Subheading"
+          defaultValue=""
+          multiline
+        />
       </PanelGroup>
       <PanelGroup title="Lesson list">
         <TextField path="lessons.heading" label="Heading" defaultValue="" />
-        <TextField path="lessons.subheading" label="Subheading" defaultValue="" multiline />
+        <TextField
+          path="lessons.subheading"
+          label="Subheading"
+          defaultValue=""
+          multiline
+        />
       </PanelGroup>
       <PanelGroup title="Instructor">
-        <TextField path="instructor.quote" label="Pull quote" defaultValue="" multiline />
-        <TextField path="instructor.bio" label="Bio" defaultValue="" multiline />
+        <TextField
+          path="instructor.quote"
+          label="Pull quote"
+          defaultValue=""
+          multiline
+        />
+        <TextField
+          path="instructor.bio"
+          label="Bio"
+          defaultValue=""
+          multiline
+        />
       </PanelGroup>
       <PanelGroup title="Final CTA">
-        <TextField path="finalCta.label" label="Eyebrow" defaultValue="READY WHEN YOU ARE" />
-        <TextField path="finalCta.title" label="Headline" defaultValue="" multiline />
-        <TextField path="finalCta.subtitle" label="Subhead" defaultValue="" multiline />
-        <TextField path="finalCta.primary" label="Primary CTA" defaultValue="Enroll" />
-        <TextField path="finalCta.secondary" label="Secondary CTA" defaultValue="Watch trailer" />
+        <TextField
+          path="finalCta.label"
+          label="Eyebrow"
+          defaultValue="READY WHEN YOU ARE"
+        />
+        <TextField
+          path="finalCta.title"
+          label="Headline"
+          defaultValue=""
+          multiline
+        />
+        <TextField
+          path="finalCta.subtitle"
+          label="Subhead"
+          defaultValue=""
+          multiline
+        />
+        <TextField
+          path="finalCta.primary"
+          label="Primary CTA"
+          defaultValue="Enroll"
+        />
+        <TextField
+          path="finalCta.secondary"
+          label="Secondary CTA"
+          defaultValue="Watch trailer"
+        />
       </PanelGroup>
       <div className="px-4 pt-2 pb-4 text-[11.5px] leading-relaxed text-gray-500">
         Tip — click any text on the canvas to edit it directly. The fields here
@@ -707,9 +773,17 @@ function ContentPanel() {
 // ── Media panel ────────────────────────────────────────────────────────────
 
 const MEDIA_SLOTS: { id: string; label: string; hint?: string }[] = [
-  { id: 'hero.backdrop', label: 'Hero backdrop', hint: 'Image or video for the top of the page' },
+  {
+    id: 'hero.backdrop',
+    label: 'Hero backdrop',
+    hint: 'Image or video for the top of the page',
+  },
   { id: 'trailer.video', label: 'Trailer video', hint: 'mp4 / webm / mov' },
-  { id: 'instructor.portrait', label: 'Instructor portrait', hint: '4:5 portrait' },
+  {
+    id: 'instructor.portrait',
+    label: 'Instructor portrait',
+    hint: '4:5 portrait',
+  },
   { id: 'finalCta.backdrop', label: 'Final CTA backdrop' },
   { id: 'curriculum.1', label: 'Chapter 01 cover' },
   { id: 'curriculum.2', label: 'Chapter 02 cover' },
@@ -893,8 +967,14 @@ function SectionRow({
 }) {
   const ed = useEditor()
   const visible = ed.isVisible(id)
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
-    useSortable({ id })
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id })
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
     transition,
@@ -910,7 +990,7 @@ function SectionRow({
         {...attributes}
         {...listeners}
         type="button"
-        className="cursor-grab select-none text-[14px] text-gray-300 hover:text-gray-500 active:cursor-grabbing"
+        className="cursor-grab text-[14px] text-gray-300 select-none hover:text-gray-500 active:cursor-grabbing"
         title="Drag to reorder"
         aria-label="Drag to reorder"
       >
@@ -924,7 +1004,7 @@ function SectionRow({
         type="button"
         onClick={() => ed.setVisible(id, !visible)}
         className={`relative h-[18px] w-[34px] rounded-full transition-colors ${
-          visible ? 'bg-[oklch(0.55_0.20_265)]' : 'bg-gray-200'
+          visible ? 'bg-ce-accent' : 'bg-gray-200'
         }`}
         aria-label={visible ? 'Hide section' : 'Show section'}
       >
@@ -1024,14 +1104,13 @@ function AIPanel({ organizationSlug }: { organizationSlug?: string }) {
       <div
         style={{
           padding: 14,
-          borderRadius: 12,
-          background:
-            'linear-gradient(135deg, oklch(0.96 0.04 280), oklch(0.95 0.05 320))',
-          border: '1px solid oklch(0.90 0.04 280)',
+          borderRadius: 'var(--radius-ce-md)',
+          background: 'var(--color-ce-accent-tint)',
+          border: '1px solid var(--color-ce-accent-border)',
           marginBottom: 14,
         }}
       >
-        <div className="mb-2 flex items-center gap-2 text-[12px] font-semibold text-[oklch(0.35_0.18_280)]">
+        <div className="text-ce-accent mb-2 flex items-center gap-2 text-[12px] font-semibold">
           ✦ Rewrite with AI
         </div>
 
@@ -1042,7 +1121,7 @@ function AIPanel({ organizationSlug }: { organizationSlug?: string }) {
               setTarget(e.target.value)
               setResult(null)
             }}
-            className="w-full rounded-md border border-gray-200 bg-white px-2.5 py-2 text-[12.5px] focus:border-[#0066cc] focus:outline-none"
+            className="focus:border-ce-accent focus:ring-ce-accent-ring w-full rounded-md border border-gray-200 bg-white px-2.5 py-2 text-[12.5px] focus:ring-2 focus:outline-none"
           >
             {AI_TARGETS.map((t) => (
               <option key={t.path} value={t.path}>
@@ -1053,7 +1132,7 @@ function AIPanel({ organizationSlug }: { organizationSlug?: string }) {
         </Field>
 
         <div className="mt-2 rounded-md border border-gray-200 bg-white px-2.5 py-2 text-[11.5px] leading-relaxed text-gray-600">
-          <div className="mb-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-gray-400">
+          <div className="mb-0.5 text-[10px] font-semibold tracking-[0.08em] text-gray-400 uppercase">
             Current
           </div>
           {current ? current : <span className="text-gray-400">(empty)</span>}
@@ -1065,7 +1144,7 @@ function AIPanel({ organizationSlug }: { organizationSlug?: string }) {
               value={intent}
               onChange={(e) => setIntent(e.target.value)}
               rows={3}
-              className="w-full resize-none rounded-md border border-gray-200 bg-white px-2.5 py-2 text-[12.5px] tracking-tight text-gray-900 transition-colors focus:border-[#0066cc] focus:outline-none"
+              className="focus:border-ce-accent focus:ring-ce-accent-ring w-full resize-none rounded-md border border-gray-200 bg-white px-2.5 py-2 text-[12.5px] tracking-tight text-gray-900 transition-colors focus:ring-2 focus:outline-none"
               placeholder="Make it punchier, add urgency, etc."
             />
           </Field>
@@ -1075,7 +1154,7 @@ function AIPanel({ organizationSlug }: { organizationSlug?: string }) {
           type="button"
           onClick={run}
           disabled={busy || !current}
-          className="mt-3 inline-flex items-center gap-1.5 rounded-md bg-[oklch(0.45_0.20_280)] px-3 py-2 text-[12px] font-semibold text-white transition-[filter] hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+          className="bg-ce-accent mt-3 inline-flex items-center gap-1.5 rounded-md px-3 py-2 text-[12px] font-semibold text-white transition-[filter] hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {busy ? 'Thinking…' : '✦ Generate'}
         </button>
@@ -1089,10 +1168,10 @@ function AIPanel({ organizationSlug }: { organizationSlug?: string }) {
 
       {result !== null && (
         <div className="rounded-xl border border-gray-200 bg-white p-3.5">
-          <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-gray-400">
+          <div className="mb-1.5 text-[10px] font-semibold tracking-[0.08em] text-gray-400 uppercase">
             Suggestion
           </div>
-          <div className="mb-3 whitespace-pre-wrap text-[13px] leading-relaxed text-gray-900">
+          <div className="mb-3 text-[13px] leading-relaxed whitespace-pre-wrap text-gray-900">
             {result || (busy ? '…' : '(no output)')}
           </div>
           <div className="flex gap-2">
@@ -1120,10 +1199,16 @@ function AIPanel({ organizationSlug }: { organizationSlug?: string }) {
 
 // ── Form primitives ────────────────────────────────────────────────────────
 
-function PanelGroup({ title, children }: { title: string; children: ReactNode }) {
+function PanelGroup({
+  title,
+  children,
+}: {
+  title: string
+  children: ReactNode
+}) {
   return (
     <div className="mb-4 border-b border-gray-100 pb-4 last:border-b-0">
-      <div className="mb-2.5 px-4 text-[10.5px] font-semibold uppercase tracking-[0.12em] text-gray-500">
+      <div className="mb-2.5 px-4 text-[10.5px] font-semibold tracking-[0.12em] text-gray-500 uppercase">
         {title}
       </div>
       <div className="flex flex-col gap-2.5 px-4">{children}</div>
@@ -1160,13 +1245,13 @@ function TextField({
           value={v}
           rows={3}
           onChange={(e) => ed.setText(path, e.target.value)}
-          className="w-full resize-none rounded-md border border-gray-200 bg-white px-2.5 py-2 text-[12.5px] tracking-tight text-gray-900 transition-colors focus:border-[#0066cc] focus:outline-none"
+          className="focus:border-ce-accent focus:ring-ce-accent-ring w-full resize-none rounded-md border border-gray-200 bg-white px-2.5 py-2 text-[12.5px] tracking-tight text-gray-900 transition-colors focus:ring-2 focus:outline-none"
         />
       ) : (
         <input
           value={v}
           onChange={(e) => ed.setText(path, e.target.value)}
-          className="w-full rounded-md border border-gray-200 bg-white px-2.5 py-2 text-[12.5px] tracking-tight text-gray-900 transition-colors focus:border-[#0066cc] focus:outline-none"
+          className="focus:border-ce-accent focus:ring-ce-accent-ring w-full rounded-md border border-gray-200 bg-white px-2.5 py-2 text-[12.5px] tracking-tight text-gray-900 transition-colors focus:ring-2 focus:outline-none"
         />
       )}
     </Field>

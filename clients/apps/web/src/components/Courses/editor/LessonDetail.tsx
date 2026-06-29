@@ -473,7 +473,7 @@ export function LessonDetail({
                     'w-full rounded-xl border px-3.5 py-2.5 text-sm text-gray-900 focus:ring-2 focus:outline-none',
                     titleError
                       ? 'border-red-400 focus:border-red-500 focus:ring-red-100'
-                      : 'border-gray-300 focus:border-[#0066cc] focus:ring-blue-100',
+                      : 'focus:border-ce-accent focus:ring-ce-accent-ring border-gray-300',
                   )}
                 />
                 {titleError && (
@@ -488,7 +488,7 @@ export function LessonDetail({
                   value={edits.description}
                   onChange={(e) => update('description', e.target.value)}
                   placeholder="Brief overview of this lesson (optional)"
-                  className="w-full rounded-xl border border-gray-300 px-3.5 py-2.5 text-sm text-gray-900 focus:border-[#0066cc] focus:ring-2 focus:ring-blue-100 focus:outline-none"
+                  className="focus:border-ce-accent focus:ring-ce-accent-ring w-full rounded-xl border border-gray-300 px-3.5 py-2.5 text-sm text-gray-900 focus:ring-2 focus:outline-none"
                   rows={3}
                 />
               </Field>
@@ -509,7 +509,7 @@ export function LessonDetail({
                         className={cn(
                           'flex items-center justify-center gap-2 rounded-2xl border-2 py-4 text-sm font-medium transition-colors',
                           active
-                            ? 'border-[#0066cc] bg-white text-gray-900'
+                            ? 'border-ce-accent bg-white text-gray-900'
                             : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300',
                         )}
                       >
@@ -1098,17 +1098,17 @@ function VideoUploadBar({
   const pct = indeterminate ? 100 : Math.max(0, Math.min(100, progress!))
   return (
     <div className="flex flex-col gap-1.5">
-      <div className="flex items-center justify-between text-xs text-[#0066cc]">
+      <div className="text-ce-accent flex items-center justify-between text-xs">
         <span className="flex items-center gap-2">
-          <div className="h-3 w-3 animate-spin rounded-full border-2 border-[#0066cc] border-t-transparent" />
+          <div className="border-ce-accent h-3 w-3 animate-spin rounded-full border-2 border-t-transparent" />
           {label}…
         </span>
         {!indeterminate && <span className="tabular-nums">{pct}%</span>}
       </div>
-      <div className="h-1 w-full overflow-hidden rounded-full bg-blue-100">
+      <div className="bg-ce-accent-tint-strong h-1 w-full overflow-hidden rounded-full">
         <div
           className={cn(
-            'h-full rounded-full bg-[#0066cc] transition-[width] duration-150',
+            'bg-ce-accent h-full rounded-full transition-[width] duration-150',
             indeterminate && 'animate-pulse',
           )}
           style={{ width: `${pct}%` }}

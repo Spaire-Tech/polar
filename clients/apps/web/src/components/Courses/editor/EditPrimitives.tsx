@@ -121,7 +121,7 @@ export function EditText({
         ref={ref as React.Ref<HTMLElement>}
         style={{
           ...mergedStyle,
-          outline: editing ? '2px solid #0066cc' : undefined,
+          outline: editing ? '2px solid var(--color-ce-accent)' : undefined,
           outlineOffset: 2,
           borderRadius: 3,
           cursor: editing ? 'text' : 'pointer',
@@ -188,9 +188,11 @@ function EmptyTextSlot({ onRestore }: { onRestore: () => void }) {
         alignItems: 'center',
         gap: 4,
         padding: '2px 8px',
-        background: 'rgba(99,102,241,0.08)',
-        color: 'rgba(99,102,241,0.95)',
-        border: '1px dashed rgba(99,102,241,0.4)',
+        background:
+          'color-mix(in srgb, var(--color-ce-accent) 8%, transparent)',
+        color: 'color-mix(in srgb, var(--color-ce-accent) 95%, transparent)',
+        border:
+          '1px dashed color-mix(in srgb, var(--color-ce-accent) 40%, transparent)',
         borderRadius: 999,
         fontSize: 10.5,
         fontWeight: 600,
@@ -491,7 +493,7 @@ export const EditMedia = forwardRef<
               zIndex: 5,
               pointerEvents: 'none',
               border: hover
-                ? '2px dashed rgba(99,102,241,0.85)'
+                ? '2px dashed color-mix(in srgb, var(--color-ce-accent) 85%, transparent)'
                 : '2px dashed transparent',
               borderRadius: 'inherit',
               transition: 'border-color 150ms ease',
@@ -783,7 +785,7 @@ function ReposOverlay({
           zIndex: 7,
           cursor: dragging ? 'grabbing' : 'grab',
           background:
-            'radial-gradient(circle at var(--rp-x) var(--rp-y), rgba(99,102,241,0.18) 0%, rgba(0,0,0,0.35) 60%, rgba(0,0,0,0.55) 100%)',
+            'radial-gradient(circle at var(--rp-x) var(--rp-y), color-mix(in srgb, var(--color-ce-accent) 18%, transparent) 0%, rgba(0,0,0,0.35) 60%, rgba(0,0,0,0.55) 100%)',
           // CSS custom prop for the radial highlight; updated via inline style
           ...({
             '--rp-x': `${pos.x}%`,
@@ -803,7 +805,7 @@ function ReposOverlay({
           marginTop: -7,
           borderRadius: '50%',
           background: 'rgba(255,255,255,0.95)',
-          border: '2px solid #0066cc',
+          border: '2px solid var(--color-ce-accent)',
           boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
           zIndex: 8,
           pointerEvents: 'none',
@@ -915,7 +917,7 @@ export function EditBlock({
         position: 'relative',
         outline:
           hover && !isDragging
-            ? '1px solid rgba(99,102,241,0.55)'
+            ? '1px solid color-mix(in srgb, var(--color-ce-accent) 55%, transparent)'
             : '1px solid transparent',
         borderRadius: 6,
         opacity: isDragging ? 0.45 : visible ? 1 : 0.35,

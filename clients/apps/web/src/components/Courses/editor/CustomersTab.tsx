@@ -170,7 +170,7 @@ export function CustomersTab({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search customers"
-            className="focus:border-primary w-full rounded-lg border border-transparent bg-transparent py-1.5 pr-3 pl-8 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none"
+            className="focus:border-ce-accent focus:ring-ce-accent-ring w-full rounded-lg border border-transparent bg-transparent py-1.5 pr-3 pl-8 text-sm text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:outline-none"
           />
         </div>
 

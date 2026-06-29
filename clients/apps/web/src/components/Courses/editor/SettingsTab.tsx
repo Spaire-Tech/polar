@@ -7,10 +7,10 @@ import {
   useUploadCourseThumbnail,
 } from '@/hooks/queries/courses'
 import { getQueryClient } from '@/utils/api/query'
-import { toast } from '../../Toast/use-toast'
-import Switch from '@spaire/ui/components/atoms/Switch'
 import ImageOutlined from '@mui/icons-material/ImageOutlined'
+import Switch from '@spaire/ui/components/atoms/Switch'
 import { useEffect, useRef, useState } from 'react'
+import { toast } from '../../Toast/use-toast'
 import { ThumbnailPositioner } from './ThumbnailPositioner'
 
 export type CourseSettingsEdits = {
@@ -207,7 +207,7 @@ export function SettingsTab({
                 'mt-2 w-full rounded-xl border px-3.5 py-2.5 text-sm text-gray-900 focus:ring-2 focus:outline-none ' +
                 (titleError
                   ? 'border-red-400 focus:border-red-500 focus:ring-red-100'
-                  : 'border-gray-300 focus:border-[#0066cc] focus:ring-blue-100')
+                  : 'focus:border-ce-accent focus:ring-ce-accent-ring border-gray-300')
               }
               placeholder="e.g. The Art of Persuasive Writing"
             />
@@ -228,7 +228,7 @@ export function SettingsTab({
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               rows={4}
-              className="mt-2 w-full rounded-xl border border-gray-300 px-3.5 py-2.5 text-sm text-gray-900 focus:border-[#0066cc] focus:ring-2 focus:ring-blue-100 focus:outline-none"
+              className="focus:border-ce-accent focus:ring-ce-accent-ring mt-2 w-full rounded-xl border border-gray-300 px-3.5 py-2.5 text-sm text-gray-900 focus:ring-2 focus:outline-none"
               placeholder="What learners walk away with."
             />
           </div>
@@ -252,7 +252,7 @@ export function SettingsTab({
               type="text"
               value={instructorName}
               onChange={(e) => setInstructorName(e.target.value)}
-              className="mt-2 w-full rounded-xl border border-gray-300 px-3.5 py-2.5 text-sm text-gray-900 focus:border-[#0066cc] focus:ring-2 focus:ring-blue-100 focus:outline-none"
+              className="focus:border-ce-accent focus:ring-ce-accent-ring mt-2 w-full rounded-xl border border-gray-300 px-3.5 py-2.5 text-sm text-gray-900 focus:ring-2 focus:outline-none"
               placeholder="e.g. Dr. Lena Marchetti"
             />
           </div>
@@ -265,7 +265,7 @@ export function SettingsTab({
               value={instructorBio}
               onChange={(e) => setInstructorBio(e.target.value)}
               rows={4}
-              className="mt-2 w-full rounded-xl border border-gray-300 px-3.5 py-2.5 text-sm text-gray-900 focus:border-[#0066cc] focus:ring-2 focus:ring-blue-100 focus:outline-none"
+              className="focus:border-ce-accent focus:ring-ce-accent-ring mt-2 w-full rounded-xl border border-gray-300 px-3.5 py-2.5 text-sm text-gray-900 focus:ring-2 focus:outline-none"
               placeholder="Short third-person bio."
             />
           </div>
@@ -274,7 +274,9 @@ export function SettingsTab({
 
       <section className="mb-6 rounded-2xl border border-gray-200 bg-white p-6">
         <div className="mb-4">
-          <h2 className="text-lg font-medium text-gray-900">Course thumbnail</h2>
+          <h2 className="text-lg font-medium text-gray-900">
+            Course thumbnail
+          </h2>
           <p className="mt-1 text-gray-500">
             Shown on the course card and the student portal. JPG or PNG with a
             non-transparent background. Recommended dimensions{' '}
@@ -351,7 +353,9 @@ export function SettingsTab({
 
       <section className="mb-6 rounded-2xl border border-gray-200 bg-white p-6">
         <div className="mb-4">
-          <h2 className="text-lg font-medium text-gray-900">Course assistant</h2>
+          <h2 className="text-lg font-medium text-gray-900">
+            Course assistant
+          </h2>
           <p className="mt-1 text-gray-500">
             An AI teaching assistant your students can chat with inside the
             course. It answers from your material and explains concepts on
@@ -373,7 +377,7 @@ export function SettingsTab({
             onCheckedChange={handleToggleAssistant}
             disabled={updateCourse.isPending}
             aria-label="Enable the course assistant"
-            className="data-[state=checked]:bg-[#0066cc]"
+            className="data-[state=checked]:bg-ce-accent"
           />
         </div>
 
@@ -415,18 +419,18 @@ export function SettingsTab({
                     className={
                       'flex items-start gap-3 rounded-xl border p-3.5 text-left transition-colors disabled:opacity-50 ' +
                       (active
-                        ? 'border-[#0066cc] bg-blue-50/50 ring-1 ring-blue-100'
+                        ? 'border-ce-accent bg-ce-accent-tint ring-ce-accent-ring ring-1'
                         : 'border-gray-200 hover:border-gray-300')
                     }
                   >
                     <span
                       className={
                         'mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border ' +
-                        (active ? 'border-[#0066cc]' : 'border-gray-300')
+                        (active ? 'border-ce-accent' : 'border-gray-300')
                       }
                     >
                       {active && (
-                        <span className="h-2 w-2 rounded-full bg-[#0066cc]" />
+                        <span className="bg-ce-accent h-2 w-2 rounded-full" />
                       )}
                     </span>
                     <span>

@@ -97,7 +97,9 @@ export function LessonOptionsMenu({
       />
       <MenuItem
         icon={<VisibilityOutlined sx={{ fontSize: 14 }} />}
-        label={lesson.is_free_preview ? 'Remove free preview' : 'Make free preview'}
+        label={
+          lesson.is_free_preview ? 'Remove free preview' : 'Make free preview'
+        }
         onClick={() => {
           onUpdate({ is_free_preview: !lesson.is_free_preview })
           onClose()
@@ -161,7 +163,10 @@ function SchedulePanel({
   releaseAt: string | null
   dripDays: number | null
   onBack: () => void
-  onSave: (patch: { release_at: string | null; drip_days: number | null }) => void
+  onSave: (patch: {
+    release_at: string | null
+    drip_days: number | null
+  }) => void
 }) {
   const initialMode: ScheduleMode = releaseAt
     ? 'release'
@@ -231,7 +236,7 @@ function SchedulePanel({
               min={0}
               value={daysInput}
               onChange={(e) => setDaysInput(e.target.value)}
-              className="w-16 rounded-lg border border-gray-300 px-2 py-1 text-[12.5px] focus:border-[#0066cc] focus:ring-2 focus:ring-blue-100 focus:outline-none"
+              className="focus:border-ce-accent focus:ring-ce-accent-ring w-16 rounded-lg border border-gray-300 px-2 py-1 text-[12.5px] focus:ring-2 focus:outline-none"
             />
             <span className="text-[12px] text-gray-600">
               day{daysInput === '1' ? '' : 's'} after enrollment
@@ -254,7 +259,7 @@ function SchedulePanel({
               type="date"
               value={date}
               onChange={(e) => setDate(e.target.value)}
-              className="rounded-lg border border-gray-300 px-2 py-1 text-[12.5px] focus:border-[#0066cc] focus:ring-2 focus:ring-blue-100 focus:outline-none"
+              className="focus:border-ce-accent focus:ring-ce-accent-ring rounded-lg border border-gray-300 px-2 py-1 text-[12.5px] focus:ring-2 focus:outline-none"
             />
           </div>
         )}

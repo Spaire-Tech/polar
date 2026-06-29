@@ -32,10 +32,7 @@ import ScheduleOutlined from '@mui/icons-material/ScheduleOutlined'
 import SearchOutlined from '@mui/icons-material/SearchOutlined'
 import VisibilityOutlined from '@mui/icons-material/VisibilityOutlined'
 import { useMemo, useState } from 'react'
-import {
-  LessonOptionsMenu,
-  LessonOptionsPatch,
-} from './LessonOptionsMenu'
+import { LessonOptionsMenu, LessonOptionsPatch } from './LessonOptionsMenu'
 import { LessonContentType } from './ModuleCard'
 import { PaywallRow } from './PaywallRow'
 
@@ -151,7 +148,7 @@ function LessonCard({
           position={position}
         />
         {/* Ep badge — fades out on hover so the drag handle can sit in the same spot. */}
-        <div className="absolute top-[7px] left-2 z-10 text-[9px] font-semibold tracking-[0.07em] text-white/75 uppercase [text-shadow:0_1px_3px_rgba(0,0,0,0.5)] transition-opacity group-hover:opacity-0">
+        <div className="absolute top-[7px] left-2 z-10 text-[9px] font-semibold tracking-[0.07em] text-white/75 uppercase transition-opacity [text-shadow:0_1px_3px_rgba(0,0,0,0.5)] group-hover:opacity-0">
           Ep {position}
         </div>
         {isReorderable && (
@@ -162,7 +159,10 @@ function LessonCard({
             aria-label="Drag to reorder lesson"
             className="absolute top-[7px] left-2 z-20 flex h-[18px] w-[18px] cursor-grab items-center justify-center rounded-md bg-black/45 opacity-0 backdrop-blur-sm transition-opacity group-hover:opacity-100 active:cursor-grabbing"
           >
-            <DragIndicatorOutlined sx={{ fontSize: 11 }} className="text-white" />
+            <DragIndicatorOutlined
+              sx={{ fontSize: 11 }}
+              className="text-white"
+            />
           </button>
         )}
         {locked && (
@@ -296,10 +296,7 @@ export function OutlineTab({
     module: CourseModuleRead,
     contentType: LessonContentType,
   ) => void
-  onUpdateLesson: (
-    lesson: CourseLessonRead,
-    patch: LessonOptionsPatch,
-  ) => void
+  onUpdateLesson: (lesson: CourseLessonRead, patch: LessonOptionsPatch) => void
   onDeleteLesson: (lesson: CourseLessonRead) => void
   onReorderLessons: (moduleId: string, orderedIds: string[]) => void
   onEditPaywall?: () => void
@@ -373,9 +370,9 @@ export function OutlineTab({
   // or delete them — without this, an empty new module is invisible.
   const emptyModules = useMemo(
     () =>
-      course.modules.filter((m) => m.lessons.length === 0).map(
-        (m): ModuleGroup => ({ module: m, items: [] }),
-      ),
+      course.modules
+        .filter((m) => m.lessons.length === 0)
+        .map((m): ModuleGroup => ({ module: m, items: [] })),
     [course.modules],
   )
 
@@ -386,14 +383,14 @@ export function OutlineTab({
     <div className="mx-auto w-full max-w-[880px] px-8 pt-7 pb-20">
       {/* Search + Preview */}
       <div className="flex items-center gap-3 pb-5">
-        <div className="flex flex-1 items-center gap-2 rounded-xl border border-gray-200 bg-white px-3.5 py-[9px] shadow-sm transition-colors focus-within:border-[#0066cc] focus-within:ring-2 focus-within:ring-blue-100">
+        <div className="focus-within:border-ce-accent focus-within:ring-ce-accent-ring flex flex-1 items-center gap-2 rounded-xl border border-gray-200 bg-white px-3.5 py-[9px] shadow-sm transition-colors focus-within:ring-2">
           <SearchOutlined sx={{ fontSize: 14 }} className="text-gray-400" />
           <input
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Find lesson…"
-            className="flex-1 border border-transparent bg-transparent text-[13px] tracking-tight text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-0"
+            className="flex-1 border border-transparent bg-transparent text-[13px] tracking-tight text-gray-900 placeholder:text-gray-400 focus:outline-none"
           />
         </div>
         <button
@@ -414,8 +411,8 @@ export function OutlineTab({
             No modules yet
           </p>
           <p className="max-w-[360px] text-[13px] text-gray-500">
-            Modules group your lessons. Create one to start building the
-            course outline.
+            Modules group your lessons. Create one to start building the course
+            outline.
           </p>
           {onAddModule && (
             <button
@@ -530,10 +527,7 @@ function ModuleGroups({
     module: CourseModuleRead,
     contentType: LessonContentType,
   ) => void
-  onUpdateLesson: (
-    lesson: CourseLessonRead,
-    patch: LessonOptionsPatch,
-  ) => void
+  onUpdateLesson: (lesson: CourseLessonRead, patch: LessonOptionsPatch) => void
   onDeleteLesson: (lesson: CourseLessonRead) => void
   onReorderLessons?: (moduleId: string, orderedIds: string[]) => void
   onRenameModule?: (module: CourseModuleRead, title: string) => void
@@ -705,7 +699,7 @@ function ModuleHeader({
               Math.max(draft.length, mod.title.length, 8) + 2
             }ch + 1.25rem)`,
           }}
-          className="rounded-md border border-gray-300 bg-white px-2 py-0.5 text-[11px] font-semibold tracking-[0.06em] text-gray-700 uppercase focus:border-[#0066cc] focus:ring-2 focus:ring-blue-100 focus:outline-none"
+          className="focus:border-ce-accent focus:ring-ce-accent-ring rounded-md border border-gray-300 bg-white px-2 py-0.5 text-[11px] font-semibold tracking-[0.06em] text-gray-700 uppercase focus:ring-2 focus:outline-none"
         />
       ) : (
         <button
