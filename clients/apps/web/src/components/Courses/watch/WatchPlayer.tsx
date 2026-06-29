@@ -351,7 +351,7 @@ export function WatchPlayer({
   return (
     <div
       ref={containerRef}
-      className={`sov2 player${uiVisible ? '' : 'ui-hidden'}`}
+      className={`sov2 player ${uiVisible ? '' : 'ui-hidden'}`}
       data-watch-player
       onMouseMove={revealUi}
       onMouseDown={revealUi}
