@@ -20,6 +20,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { schemas } from '@spaire/client'
 import { resolveSequenceTrigger } from './automationTrigger'
+import { deriveGoalEvent, deriveSendWindow, serializeSteps } from './flowDoc'
 import { SequenceEmailModal } from './SequenceEmailModal'
 
 /* ── step model ── */
@@ -59,8 +60,14 @@ type Send = {
 
 const WAIT_OPTS = ['1 hour', '6 hours', '1 day', '2 days', '3 days', '1 week', '2 weeks']
 const COND_OPTS = ['Opened the last email', 'Clicked the last email', 'Has tag “committed”']
-const ACTION_OPTS = ['Add tag “engaged”', 'Remove tag “at-risk”', 'Notify me by email']
-const GOAL_OPTS = ['Completes the course', 'Finishes next lesson', 'Replies to any email']
+// "Notify my team on Slack" maps to the backend's only notify channel
+// (dispatch_slack_notify, via the org's Slack webhook). Email-notify isn't
+// offered because there's no backend for it yet.
+const ACTION_OPTS = ['Add tag “engaged”', 'Remove tag “at-risk”', 'Notify my team on Slack']
+// "Replies to any email" is intentionally omitted: it needs inbound-email
+// ingestion (a Resend inbound webhook + reply parsing) that doesn't exist, so
+// offering it would be a lie. Both options below map to real course events.
+const GOAL_OPTS = ['Completes the course', 'Finishes next lesson']
 
 const STEP_META: Record<StepType, { k: string; ico: string; s: string }> = {
   email: { k: 'Email', ico: 'M3 5.5h18a0 0 0 0 1 0 0v13a0 0 0 0 1 0 0H3a0 0 0 0 1 0 0v-13a0 0 0 0 1 0 0z M4.5 8l7.5 5.5L19.5 8', s: 'Opens in your email editor' },
@@ -292,7 +299,12 @@ export function AutomationSequenceBuilder({
         // the full authored intent persists alongside the executable steps
         course_trigger: next.trigger,
         send_settings: next.send,
-        steps: next.steps,
+        // The flow engine reads the per-send frequency cap from flow_doc.send;
+        // gate it on the creator's "Respect frequency cap" toggle.
+        send: { frequencyCap: next.send.cap ? 3 : 0 },
+        // Serialize the step tree into the canonical { id, type, value } node
+        // shape the flow engine executes — NOT the builder's in-memory shape.
+        steps: serializeSteps(next.steps),
       }
 
       // Map the builder's lifecycle trigger onto the backend entry trigger that
@@ -300,9 +312,16 @@ export function AutomationSequenceBuilder({
       const wire = resolveSequenceTrigger(next.trigger, { lessonId, lessons })
       const trigger_type = wire.trigger_type
       const resolved_lesson_id = wire.lesson_id
+      // The goal node's success event, surfaced to trigger_config so the engine
+      // can exit the sequence the moment the subscriber reaches it.
+      const goal_event = deriveGoalEvent(next.steps)
       const trigger_config_extra = {
         course_trigger: next.trigger,
         send_settings: next.send,
+        // Send window / timezone / frequency cap, in the shape the engine reads
+        // (service.apply_send_window + check_frequency_cap).
+        send_window: deriveSendWindow(next.send),
+        ...(goal_event ? { goal_event } : {}),
         ...(wire.inactive_days != null
           ? { inactive_days: wire.inactive_days }
           : {}),
@@ -1256,6 +1275,13 @@ function AutomationStyles() {
       .asq .node .mini-select { margin-top: 8px; width: auto; padding-right: 28px; }
       .asq .node .mini-num { margin-top: 8px; }
       .asq .node-tools { position: absolute; top: 50%; left: calc(100% + 8px); transform: translateY(-50%); display: none; flex-direction: column; gap: 4px; }
+      /* Invisible hover-bridge across the gap between the card's right edge and
+         this detached tool strip. Without it, moving the cursor toward the
+         delete/move buttons crossed a non-hoverable gap, dropped .node:hover,
+         and the buttons vanished before you could click them — which made steps
+         feel impossible to delete or reorder. The bridge keeps the pointer over
+         a descendant of .node the whole way across, so the strip stays open. */
+      .asq .node-tools::before { content: ''; position: absolute; top: -10px; bottom: -10px; left: -16px; width: 16px; }
       .asq .node:hover .node-tools { display: flex; }
       .asq .nt-btn { width: 27px; height: 27px; border-radius: 50%; background: linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.6)); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); color: var(--text-2); display: grid; place-items: center; box-shadow: inset 0 1px 1px rgba(255, 255, 255, 1), inset 0 -1px 1px rgba(20, 22, 50, 0.05), 0 4px 10px rgba(20, 22, 50, 0.12); transition: color 0.15s, transform 0.12s; }
       .asq .nt-btn:hover { color: var(--text); transform: scale(1.08); }

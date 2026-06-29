@@ -686,6 +686,28 @@ class CourseService:
             lesson_id=lesson_id,
         )
 
+        # Goal completion: a sequence whose builder goal is "Completes the
+        # course" / "Finishes a lesson" exits the moment the subscriber hits
+        # that event — even while parked mid-wait. complete_for_goal only
+        # touches sequences whose trigger_config.goal_event.type matches, so
+        # this is a no-op for every other sequence. Run it BEFORE the enrol
+        # fan-out below so it never closes an enrolment created on this tick.
+        goal_type = {
+            "course.completed": "course_completed",
+            "course.lesson_completed": "lesson_completed",
+        }.get(event_name)
+        if goal_type is not None:
+            from polar.email_sequence.service import (
+                email_sequence as sequence_service,
+            )
+
+            await sequence_service.complete_for_goal(
+                session,
+                course.organization_id,
+                subscriber.id,
+                goal_type=goal_type,
+            )
+
         # Per-lesson automations use a dedicated "completes this lesson"
         # trigger: completing the lesson ENTERS the subscriber into any active
         # sequence scoped to it (whereas fire_event above only resumes
