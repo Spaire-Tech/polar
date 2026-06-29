@@ -20,6 +20,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { schemas } from '@spaire/client'
 import { resolveSequenceTrigger } from './automationTrigger'
+import { deriveGoalEvent, deriveSendWindow, serializeSteps } from './flowDoc'
 import { SequenceEmailModal } from './SequenceEmailModal'
 
 /* ── step model ── */
@@ -59,8 +60,14 @@ type Send = {
 
 const WAIT_OPTS = ['1 hour', '6 hours', '1 day', '2 days', '3 days', '1 week', '2 weeks']
 const COND_OPTS = ['Opened the last email', 'Clicked the last email', 'Has tag “committed”']
-const ACTION_OPTS = ['Add tag “engaged”', 'Remove tag “at-risk”', 'Notify me by email']
-const GOAL_OPTS = ['Completes the course', 'Finishes next lesson', 'Replies to any email']
+// "Notify my team on Slack" maps to the backend's only notify channel
+// (dispatch_slack_notify, via the org's Slack webhook). Email-notify isn't
+// offered because there's no backend for it yet.
+const ACTION_OPTS = ['Add tag “engaged”', 'Remove tag “at-risk”', 'Notify my team on Slack']
+// "Replies to any email" is intentionally omitted: it needs inbound-email
+// ingestion (a Resend inbound webhook + reply parsing) that doesn't exist, so
+// offering it would be a lie. Both options below map to real course events.
+const GOAL_OPTS = ['Completes the course', 'Finishes next lesson']
 
 const STEP_META: Record<StepType, { k: string; ico: string; s: string }> = {
   email: { k: 'Email', ico: 'M3 5.5h18a0 0 0 0 1 0 0v13a0 0 0 0 1 0 0H3a0 0 0 0 1 0 0v-13a0 0 0 0 1 0 0z M4.5 8l7.5 5.5L19.5 8', s: 'Opens in your email editor' },
@@ -166,22 +173,23 @@ export function AutomationSequenceBuilder({
   const createSeq = useCreateEmailSequence(organizationId ?? '')
   const updateSeq = useUpdateEmailSequence()
 
-  // The course's real lessons feed the "Lesson completed" picker; the mock
-  // names are only a fallback when the builder is opened without a course.
-  const lessonOptions = useMemo(
-    () =>
-      lessons && lessons.length > 0
-        ? lessons.map((l) => l.title)
-        : [
-            'Lesson 1 · Arrival',
-            'Lesson 2 · The Morning Block',
-            'Lesson 3 · Inputs',
-            'Lesson 4 · The Reset',
-            'Lesson 5 · Operating Cadence',
-            'Lesson 6 · The Review',
-          ],
-    [lessons],
-  )
+  // The course's real lessons feed the "Lesson completed" picker. In a real
+  // course with no lessons yet, show an honest placeholder rather than inventing
+  // fake lessons that don't exist (which the user could pick, scoping the
+  // trigger to nothing). The sample names are kept ONLY for the standalone/embed
+  // demo where there's no course attached.
+  const lessonOptions = useMemo(() => {
+    if (lessons && lessons.length > 0) return lessons.map((l) => l.title)
+    if (courseId) return ['Add a lesson to your course first']
+    return [
+      'Lesson 1 · Arrival',
+      'Lesson 2 · The Morning Block',
+      'Lesson 3 · Inputs',
+      'Lesson 4 · The Reset',
+      'Lesson 5 · Operating Cadence',
+      'Lesson 6 · The Review',
+    ]
+  }, [lessons, courseId])
 
   // When the builder is opened for one lesson (the "When a student finishes
   // this lesson" card in the lesson editor), the trigger is fixed: it can only
@@ -292,7 +300,12 @@ export function AutomationSequenceBuilder({
         // the full authored intent persists alongside the executable steps
         course_trigger: next.trigger,
         send_settings: next.send,
-        steps: next.steps,
+        // The flow engine reads the per-send frequency cap from flow_doc.send;
+        // gate it on the creator's "Respect frequency cap" toggle.
+        send: { frequencyCap: next.send.cap ? 3 : 0 },
+        // Serialize the step tree into the canonical { id, type, value } node
+        // shape the flow engine executes — NOT the builder's in-memory shape.
+        steps: serializeSteps(next.steps),
       }
 
       // Map the builder's lifecycle trigger onto the backend entry trigger that
@@ -300,9 +313,16 @@ export function AutomationSequenceBuilder({
       const wire = resolveSequenceTrigger(next.trigger, { lessonId, lessons })
       const trigger_type = wire.trigger_type
       const resolved_lesson_id = wire.lesson_id
+      // The goal node's success event, surfaced to trigger_config so the engine
+      // can exit the sequence the moment the subscriber reaches it.
+      const goal_event = deriveGoalEvent(next.steps)
       const trigger_config_extra = {
         course_trigger: next.trigger,
         send_settings: next.send,
+        // Send window / timezone / frequency cap, in the shape the engine reads
+        // (service.apply_send_window + check_frequency_cap).
+        send_window: deriveSendWindow(next.send),
+        ...(goal_event ? { goal_event } : {}),
         ...(wire.inactive_days != null
           ? { inactive_days: wire.inactive_days }
           : {}),
@@ -514,15 +534,34 @@ export function AutomationSequenceBuilder({
     setMenu({ path, index, x, y })
   }
 
+  // True when at least one email step actually has authored content. A step
+  // with an empty body would ship a blank email, so it can't make a sequence
+  // "ready to turn on".
+  const hasSendableEmail = (list: Step[]): boolean =>
+    list.some((st) =>
+      st.type === 'email'
+        ? !!(st.content_html && st.content_html.trim())
+        : st.type === 'branch'
+          ? hasSendableEmail(st.yes) || hasSendableEmail(st.no)
+          : false,
+    )
+
+  // Save edits WITHOUT changing the on/off state. This is the action that used
+  // to be missing for live sequences — the only button was "Save as draft",
+  // which silently turned a running automation OFF.
+  const saveChanges = () => {
+    void saveNow({})
+    showToast(live ? 'Changes saved' : 'Saved as draft')
+  }
+
+  const turnOff = () => {
+    void saveNow({ live: false })
+    showToast('Sequence turned off')
+  }
+
   const turnOn = () => {
-    if (live) {
-      void saveNow({ live: false })
-      showToast('Sequence turned off')
-      return
-    }
-    const hasEmail = JSON.stringify(steps).includes('"type":"email"')
-    if (!hasEmail) {
-      showToast('Add at least one email first')
+    if (!hasSendableEmail(steps)) {
+      showToast('Add an email with content first')
       return
     }
     void saveNow({ live: true })
@@ -722,25 +761,29 @@ export function AutomationSequenceBuilder({
           >
             <Svg d={dark ? IC.sun : IC.moon} s={17} w={2} />
           </button>
-          <button
-            className="btn-glass"
-            type="button"
-            onClick={() => {
-              void saveNow({ live: false })
-              showToast('Saved as draft')
-            }}
-          >
-            Save as draft
-          </button>
-          <button className={`btn-main${live ? ' live' : ''}`} type="button" onClick={turnOn}>
-            {live ? (
-              <>
-                <Svg d={IC.exit} s={14} w={2.4} /> On
-              </>
-            ) : (
-              'Turn on'
-            )}
-          </button>
+          {/* Context-aware actions. When live: Save changes (keeps it running)
+              + an explicit Turn off. When draft: Save draft + Turn on. The old
+              UI only had "Save as draft" (which silently turned a live sequence
+              off) and a dimmed "On" pill that read as disabled. */}
+          {live ? (
+            <>
+              <button className="btn-glass" type="button" onClick={turnOff}>
+                <Svg d={IC.exit} s={14} w={2.4} /> Turn off
+              </button>
+              <button className="btn-main" type="button" onClick={saveChanges}>
+                Save changes
+              </button>
+            </>
+          ) : (
+            <>
+              <button className="btn-glass" type="button" onClick={saveChanges}>
+                Save draft
+              </button>
+              <button className="btn-main" type="button" onClick={turnOn}>
+                Turn on
+              </button>
+            </>
+          )}
         </div>
       </header>
 
@@ -887,11 +930,15 @@ export function AutomationSequenceBuilder({
                   ))}
                 </div>
               </div>
+              {/* Only toggles the backend actually honours are shown. "Pause on
+                  unsubscribe" was removed because unsubscribing already stops
+                  every in-flight email unconditionally (it's not optional), and
+                  "Skip if in another active sequence" had no backend at all —
+                  showing either as a switch was a lie. Timezone + frequency cap
+                  are wired through trigger_config.send_window / flow_doc.send. */}
               {(
                 [
                   ['tz', 'Send in subscriber’s timezone', 'If we know it. Falls back to UTC otherwise.'],
-                  ['pause', 'Pause if subscriber unsubscribes', 'Stop all in-flight emails immediately on unsub.'],
-                  ['skipActive', 'Skip if in another active sequence', 'Subscriber must be enrolled in only one at a time.'],
                   ['cap', 'Respect frequency cap (3 / week)', 'Won’t send if it would exceed the workspace-wide cap.'],
                 ] as [keyof Send, string, string][]
               ).map(([k, t, s]) => (
@@ -1062,6 +1109,15 @@ export function AutomationSequenceBuilder({
               initialSubject={st.subject}
               initialContentJson={st.content_json}
               onClose={() => setEmailEditing(null)}
+              onAutosave={(v) =>
+                patchStep(st.id, {
+                  subject: v.subject,
+                  content_json: v.content_json,
+                  content_html: v.content_html,
+                  // keep the node title in sync with the subject
+                  name: v.subject || st.name,
+                } as Partial<Step>)
+              }
               onSave={(v) => {
                 patchStep(st.id, {
                   subject: v.subject,
@@ -1256,6 +1312,13 @@ function AutomationStyles() {
       .asq .node .mini-select { margin-top: 8px; width: auto; padding-right: 28px; }
       .asq .node .mini-num { margin-top: 8px; }
       .asq .node-tools { position: absolute; top: 50%; left: calc(100% + 8px); transform: translateY(-50%); display: none; flex-direction: column; gap: 4px; }
+      /* Invisible hover-bridge across the gap between the card's right edge and
+         this detached tool strip. Without it, moving the cursor toward the
+         delete/move buttons crossed a non-hoverable gap, dropped .node:hover,
+         and the buttons vanished before you could click them — which made steps
+         feel impossible to delete or reorder. The bridge keeps the pointer over
+         a descendant of .node the whole way across, so the strip stays open. */
+      .asq .node-tools::before { content: ''; position: absolute; top: -10px; bottom: -10px; left: -16px; width: 16px; }
       .asq .node:hover .node-tools { display: flex; }
       .asq .nt-btn { width: 27px; height: 27px; border-radius: 50%; background: linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.6)); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); color: var(--text-2); display: grid; place-items: center; box-shadow: inset 0 1px 1px rgba(255, 255, 255, 1), inset 0 -1px 1px rgba(20, 22, 50, 0.05), 0 4px 10px rgba(20, 22, 50, 0.12); transition: color 0.15s, transform 0.12s; }
       .asq .nt-btn:hover { color: var(--text); transform: scale(1.08); }

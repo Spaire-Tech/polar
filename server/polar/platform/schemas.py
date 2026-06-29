@@ -11,7 +11,9 @@ from polar.entitlements.schemas import (
     TransactionFee,
 )
 from polar.entitlements.tiers import TierKey
+from polar.kit.address import Address, AddressInput
 from polar.kit.schemas import Schema
+from polar.tax.tax_id import TaxID
 
 BillingInterval = Literal["month", "year"]
 
@@ -209,6 +211,49 @@ class CustomerPortalSession(Schema):
             "(view invoices, change payment method, cancel)."
         )
     )
+
+
+class PlatformBillingDetails(Schema):
+    """The billing identity used on the org's Spaire invoices — read off
+    the org's platform Customer row. Powers the dashboard "Billing address"
+    section so the creator never has to leave for the customer portal."""
+
+    billing_name: str | None = Field(description="Name shown on invoices.")
+    billing_address: Address | None = Field(
+        description="Address shown on invoices."
+    )
+    tax_id: TaxID | None = Field(description="Validated tax ID, if provided.")
+    default_payment_method_id: UUID | None = Field(
+        description="Id of the card Spaire charges by default, if any."
+    )
+
+
+class PlatformBillingDetailsUpdate(Schema):
+    billing_name: str | None = None
+    billing_address: AddressInput | None = None
+    tax_id: str | None = None
+
+
+class PlatformOrder(Schema):
+    """One past Spaire charge, trimmed to what the dashboard order-history
+    table renders (invoice number, date, description, amount, status,
+    whether an invoice PDF is downloadable)."""
+
+    id: UUID
+    created_at: datetime
+    invoice_number: str | None = Field(description="Human invoice number.")
+    description: str = Field(description="What the charge was for.")
+    total_amount: int = Field(description="Charged amount in cents.")
+    currency: str
+    status: str = Field(description="Order status (paid, pending, refunded…).")
+    refunded_amount: int = Field(description="Refunded amount in cents.")
+    is_invoice_generated: bool = Field(
+        description="Whether an invoice PDF exists to download."
+    )
+
+
+class PlatformOrderInvoice(Schema):
+    url: str = Field(description="Signed URL to download the invoice PDF.")
 
 
 class EmailSenderDomainStatus(Schema):

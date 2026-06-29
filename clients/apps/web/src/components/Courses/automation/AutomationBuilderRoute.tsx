@@ -13,13 +13,16 @@ import { useEmailSequence } from '@/hooks/queries/emailMarketing'
 import { useCourseById } from '@/hooks/queries/courses'
 import {
   AutomationSequenceBuilder,
-  type Step,
 } from '@/components/Courses/automation/AutomationSequenceBuilder'
+import { deserializeSteps } from '@/components/Courses/automation/flowDoc'
 
 type FlowDoc = {
   course_trigger?: Record<string, unknown>
   send_settings?: Record<string, unknown>
-  steps?: Step[]
+  // Stored as canonical flow nodes ({ id, type, value }) — or the legacy flat
+  // shape for sequences saved before the serializer landed. deserializeSteps
+  // handles both.
+  steps?: unknown
 }
 
 export function AutomationBuilderRoute({
@@ -99,7 +102,7 @@ export function AutomationBuilderRoute({
               desc: seq?.description ?? '',
               trigger: flow.course_trigger as never,
               send: flow.send_settings as never,
-              steps: flow.steps,
+              steps: deserializeSteps(flow.steps),
               live: seq?.status === 'active',
             }
           : { trigger: { type: 'enrol' } as never }

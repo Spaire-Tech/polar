@@ -49,6 +49,36 @@ from ..utils import get_customer, get_customer_id
 router = APIRouter(prefix="/courses", tags=["customer_portal_courses", APITag.public])
 
 
+async def _course_is_publicly_visible(session: AsyncSession, course) -> bool:
+    """Whether a course's landing may be served to a non-enrolled visitor.
+
+    Mirrors the storefront's own visibility gate: the org must have its
+    storefront enabled and not be blocked/deleted, and the product must be
+    live (not archived, not deleted). Without this the landing endpoint served
+    full landing data — title, instructor, overrides, published lessons — for
+    any course whose product was archived or whose org never opened a
+    storefront, to anyone holding the id. Enrolled customers keep access via
+    the caller's separate enrollment check (they bought it before it was
+    pulled).
+    """
+    from polar.models import Organization
+
+    statement = (
+        select(Product.id)
+        .join(Organization, Organization.id == Product.organization_id)
+        .where(
+            Product.id == course.product_id,
+            Product.deleted_at.is_(None),
+            Product.is_archived.is_(False),
+            Organization.deleted_at.is_(None),
+            Organization.blocked_at.is_(None),
+            Organization.storefront_enabled.is_(True),
+        )
+    )
+    result = await session.execute(statement)
+    return result.first() is not None
+
+
 def _serialize_lesson(
     lesson, completed_ids: set[str], *, accessible: bool = True
 ) -> dict:
@@ -725,6 +755,12 @@ async def get_course_landing(
             session, customer_id, course_id
         )
 
+    # Non-enrolled visitors only get the landing for a course that is actually
+    # public. Enrolled customers bypass this — they may keep watching a course
+    # whose product was later archived.
+    if enrollment is None and not await _course_is_publicly_visible(session, course):
+        raise HTTPException(status_code=404, detail="Course not found")
+
     # Build lesson list based on enrollment
     if enrollment:
         # Enrolled: show all accessible lessons with gating info
@@ -831,6 +867,15 @@ async def get_course_landing(
                 if str(lesson.id) == target_lesson_id:
                     if (lesson.mux_status or "").lower() == "ready":
                         playback_id = getattr(lesson, "mux_playback_id", None)
+                        # Do NOT inline a signed playback URL here. Like lesson
+                        # bodies, the sample clip's URL is minted on demand via
+                        # POST /{course_id}/sample/playback-url so the play is
+                        # counted against the org's video-view quota instead of
+                        # handing a full-episode URL to every visitor and
+                        # crawler that loads the page, unmetered. The id +
+                        # poster + window are enough for the client to render
+                        # the block and request playback when the clip is
+                        # actually scrolled into view.
                         sample_payload = {
                             "enabled": True,
                             "lesson_id": target_lesson_id,
@@ -845,11 +890,7 @@ async def get_course_landing(
                                 lesson, "thumbnail_url", None
                             ),
                             "mux_playback_id": playback_id,
-                            "mux_playback_url": (
-                                mux_client.playback_url(playback_id)
-                                if playback_id
-                                else None
-                            ),
+                            "mux_playback_url": None,
                         }
                     break
 
@@ -905,6 +946,89 @@ async def get_course_landing_by_product(
     return await get_course_landing(
         course_id=course.id, auth_subject=auth_subject, session=session
     )
+
+
+@router.post(
+    "/{course_id}/sample/playback-url",
+    summary="Mint Sample Clip Playback URL",
+)
+async def mint_sample_playback_url(
+    course_id: UUID,
+    auth_subject: auth.CustomerPortalLandingRead,
+    session: AsyncSession = Depends(get_db_session),
+) -> dict:
+    """Authorize and mint a signed Mux playback URL for the landing sample clip.
+
+    Called by the public landing when the sample is scrolled into view, so the
+    full-episode URL is never embedded in the page (where every crawler would
+    get it) and each play counts against the course owner's monthly video-view
+    quota — the same enforcement lesson playback goes through. The clip can run
+    past the free-preview boundary by design (it's a marketing slice), but it is
+    no longer unmetered or handed out up-front.
+    """
+    customer_id = (
+        get_customer_id(auth_subject)
+        if is_customer(auth_subject) or is_member(auth_subject)
+        else None
+    )
+
+    course = await course_service.get_by_id(session, course_id)
+    if course is None:
+        raise HTTPException(status_code=404, detail="Course not found")
+
+    # Same visibility gate as the landing: a non-enrolled visitor only gets the
+    # sample for a publicly visible course.
+    enrollment = None
+    if customer_id:
+        enrollment = await course_service.get_enrollment_for_customer(
+            session, customer_id, course_id
+        )
+    if enrollment is None and not await _course_is_publicly_visible(session, course):
+        raise HTTPException(status_code=404, detail="Course not found")
+
+    raw_sample = course.sample
+    if not (raw_sample and raw_sample.get("enabled") and raw_sample.get("lesson_id")):
+        raise HTTPException(status_code=404, detail="No sample configured")
+
+    target_lesson_id = str(raw_sample["lesson_id"])
+    sample_lesson = None
+    for module in course.modules:
+        for lesson in module.lessons:
+            if str(lesson.id) == target_lesson_id:
+                sample_lesson = lesson
+                break
+        if sample_lesson is not None:
+            break
+
+    if sample_lesson is None or (sample_lesson.mux_status or "").lower() != "ready":
+        raise HTTPException(status_code=404, detail="Sample is not available")
+    playback_id = getattr(sample_lesson, "mux_playback_id", None)
+    if not playback_id:
+        raise HTTPException(status_code=404, detail="Sample is not available")
+
+    # Count the play against the org's monthly video-view quota, exactly like
+    # lesson playback. When the quota is exhausted the clip stops playing (402)
+    # rather than serving unmetered views.
+    org_repo = OrganizationRepository.from_session(session)
+    organization = await org_repo.get_by_id(course.organization_id)
+    if organization is not None:
+        try:
+            await enforce(
+                session,
+                organization,
+                QuotaKey.video_views_monthly,
+                requested_storage_units=1,
+            )
+        except QuotaExceededError as exc:
+            raise HTTPException(status_code=402, detail=exc.message) from exc
+        emit_video_viewed(session, organization_id=organization.id)
+
+    return {
+        "mux_playback_id": playback_id,
+        "mux_playback_url": mux_client.playback_url(playback_id),
+        "start_seconds": int(raw_sample.get("start_seconds") or 0),
+        "duration_seconds": int(raw_sample.get("duration_seconds") or 0),
+    }
 
 
 @router.post(

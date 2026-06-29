@@ -19,9 +19,6 @@
 // what buyers get.
 
 import {
-  useUpdateCourse,
-  useUpdateCourseLesson,
-  useUpdateCourseModule,
   useUploadCourseThumbnail,
   useUploadCourseTrailer,
   useUploadLandingMedia,
@@ -30,6 +27,7 @@ import {
 } from '@/hooks/queries/courses'
 import { useProduct } from '@/hooks/queries/products'
 import type { schemas } from '@spaire/client'
+import { formatProductPrice, isRecurringProduct } from '../courseLandingPrice'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from '../../Toast/use-toast'
 import {
@@ -38,6 +36,14 @@ import {
   type GeneratedGroup,
 } from './GeneratedPortalPage'
 import { SampleSettingsPopover } from './SeriesSampleBlock'
+import type {
+  LandingEditor,
+  OverridesPatch,
+} from './useLandingEditor'
+
+// Default band badges. Single source so the editor seeds the exact chips the
+// renderer shows when no override exists (kept in sync with GeneratedPortalPage).
+const DEFAULT_BADGES = ['All Levels', 'Self-paced', 'Captions', 'Mobile & TV']
 
 function pickFile(accept: string, cb: (file: File) => void) {
   const input = document.createElement('input')
@@ -54,74 +60,47 @@ function formatPrice(product: schemas['Product'] | undefined): {
   priceLabel: string
   recurring: boolean
 } {
-  if (!product) return { priceLabel: '—', recurring: false }
-  const prices = (product.prices ?? []) as Array<{
-    amount_type?: string
-    price_amount?: number | null
-    price_currency?: string
-    type?: string
-  }>
-  const first = prices[0]
-  if (!first || first.amount_type === 'free')
-    return { priceLabel: 'Free', recurring: false }
-  const cents = first.price_amount ?? 0
-  let label: string
-  try {
-    label = new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: (first.price_currency ?? 'usd').toUpperCase(),
-      minimumFractionDigits: cents % 100 === 0 ? 0 : 2,
-    }).format(cents / 100)
-  } catch {
-    label = `$${(cents / 100).toFixed(0)}`
+  // Shared with the public landing so the editor never quotes a different
+  // price string than buyers see.
+  return {
+    priceLabel: formatProductPrice(product) || '—',
+    recurring: isRecurringProduct(product),
   }
-  return { priceLabel: label, recurring: first.type === 'recurring' }
 }
 
 export function CourseDesignEditor({
   course,
   organization,
+  editor,
   onBusyChange,
 }: {
   course: CourseRead
   organization?: schemas['Organization']
-  /** Reports in-flight saves so the host can show a status indicator. */
+  /** The shared edit pipeline (optimistic writes + undo/redo + save status). */
+  editor: LandingEditor
+  /** Reports in-flight uploads so the host status bar can show "Saving…". */
   onBusyChange?: (saving: boolean) => void
 }) {
-  const updateCourse = useUpdateCourse()
-  const updateLesson = useUpdateCourseLesson()
-  const updateModule = useUpdateCourseModule()
   const uploadThumb = useUploadCourseThumbnail()
   const uploadTrailer = useUploadCourseTrailer()
   const uploadLessonThumb = useUploadLessonThumbnail()
   const uploadLandingMedia = useUploadLandingMedia()
   const { data: product } = useProduct(course.product_id)
+  const { commit, record } = editor
 
-  // ── landing_overrides writes — ALL go through one accumulating ref.
-  // Each write builds on the latest LOCAL state (not the query-cache
-  // snapshot), so two quick edits can't clobber each other while the
-  // first PATCH is still in flight. The ref re-syncs from the server
-  // whenever the course query refreshes.
-  const overridesRef = useRef<NonNullable<CourseRead['landing_overrides']>>(
-    course.landing_overrides ?? {},
-  )
-  useEffect(() => {
-    overridesRef.current = course.landing_overrides ?? {}
-  }, [course.landing_overrides])
-  const writeOverrides = useCallback(
-    (
-      mutate: (
-        cur: NonNullable<CourseRead['landing_overrides']>,
-      ) => NonNullable<CourseRead['landing_overrides']>,
-    ) => {
-      const next = mutate(overridesRef.current)
-      overridesRef.current = next
-      updateCourse.mutate({
-        courseId: course.id,
-        body: { landing_overrides: next },
+  // Every landing_overrides edit sends only the subtree it changed; the
+  // backend deep-merges, so siblings (ai_hero / ai_instructor / ai_faq / …)
+  // are never wiped by a stale blob, and each edit carries its own inverse so
+  // it can be undone. `null` in `invert` resets a key that didn't exist before.
+  const commitOverrides = useCallback(
+    (patch: OverridesPatch, invert: OverridesPatch, label: string) => {
+      commit({
+        apply: { kind: 'overrides', patch },
+        invert: { kind: 'overrides', patch: invert },
+        label,
       })
     },
-    [course.id, updateCourse],
+    [commit],
   )
 
   const isEpisodic = course.format === 'series'
@@ -129,27 +108,40 @@ export function CourseDesignEditor({
   const unitCap = isEpisodic ? 'Episode' : 'Lesson'
   const trialMode = course.trial_mode ?? 'free_preview'
 
-  // ── theme (persisted on the course) ──────────────────────────────────────
-  const persistedDark = course.landing_overrides?.theme_mode === 'dark'
-  const [dark, setDark] = useState(persistedDark)
+  // ── theme (persisted on the course; the query cache is the single source of
+  //    truth, so the toggle can't drift from the server like the old local
+  //    useState did) ──────────────────────────────────────────────────────
+  const dark = course.landing_overrides?.theme_mode === 'dark'
   const toggleDark = useCallback(() => {
-    setDark((d) => {
-      const next = !d
-      writeOverrides((cur) => ({
-        ...cur,
-        theme_mode: next ? 'dark' : 'light',
-      }))
-      return next
-    })
-  }, [writeOverrides])
+    const prev = course.landing_overrides?.theme_mode ?? null
+    commitOverrides(
+      { theme_mode: dark ? 'light' : 'dark' },
+      { theme_mode: prev },
+      'Toggle theme',
+    )
+  }, [commitOverrides, dark, course.landing_overrides?.theme_mode])
 
   // ── cover ─────────────────────────────────────────────────────────────────
   const [coverBusy, setCoverBusy] = useState(false)
   const onAddCover = useCallback(() => {
     pickFile('image/*', async (file) => {
       setCoverBusy(true)
+      const prevUrl = course.thumbnail_url ?? null
       try {
-        await uploadThumb.mutateAsync({ courseId: course.id, file })
+        const updated = await uploadThumb.mutateAsync({
+          courseId: course.id,
+          file,
+        })
+        // The upload endpoint already persisted the new cover; record it so
+        // it can be undone back to the previous one (the old S3 object stays).
+        record({
+          apply: {
+            kind: 'course',
+            body: { thumbnail_url: updated.thumbnail_url },
+          },
+          invert: { kind: 'course', body: { thumbnail_url: prevUrl } },
+          label: 'Change cover',
+        })
         toast({ title: 'Cover updated' })
       } catch {
         toast({ title: 'Upload failed', description: 'Please try again.' })
@@ -157,21 +149,30 @@ export function CourseDesignEditor({
         setCoverBusy(false)
       }
     })
-  }, [course.id, uploadThumb])
+  }, [course.id, course.thumbnail_url, uploadThumb, record])
 
-  // ── reposition (debounced commit, same pattern the old canvas used) ──────
+  // ── reposition (debounced commit; one undo step per drag gesture) ─────────
   const repositionTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const onCoverPosition = useCallback(
     (pos: string) => {
       if (repositionTimer.current) clearTimeout(repositionTimer.current)
+      // Capture the pre-gesture value now (the cache isn't optimistically
+      // moved during the drag — livePos handles the live preview), so undo
+      // restores where the cover started.
+      const prev = course.thumbnail_object_position ?? null
       repositionTimer.current = setTimeout(() => {
-        updateCourse.mutate({
-          courseId: course.id,
-          body: { thumbnail_object_position: pos },
+        if (pos === prev) return
+        commit({
+          apply: { kind: 'course', body: { thumbnail_object_position: pos } },
+          invert: {
+            kind: 'course',
+            body: { thumbnail_object_position: prev },
+          },
+          label: 'Reposition cover',
         })
       }, 600)
     },
-    [course.id, updateCourse],
+    [course.thumbnail_object_position, commit],
   )
 
   // ── trailer ───────────────────────────────────────────────────────────────
@@ -179,8 +180,17 @@ export function CourseDesignEditor({
   const onAddTrailer = useCallback(() => {
     pickFile('video/*', async (file) => {
       setTrailerBusy(true)
+      const prevUrl = course.trailer_url ?? null
       try {
-        await uploadTrailer.mutateAsync({ courseId: course.id, file })
+        const updated = await uploadTrailer.mutateAsync({
+          courseId: course.id,
+          file,
+        })
+        record({
+          apply: { kind: 'course', body: { trailer_url: updated.trailer_url } },
+          invert: { kind: 'course', body: { trailer_url: prevUrl } },
+          label: 'Change trailer',
+        })
         toast({ title: 'Trailer updated' })
       } catch {
         toast({ title: 'Upload failed', description: 'Please try again.' })
@@ -188,7 +198,7 @@ export function CourseDesignEditor({
         setTrailerBusy(false)
       }
     })
-  }, [course.id, uploadTrailer])
+  }, [course.id, course.trailer_url, uploadTrailer, record])
 
   // ── lessons → render groups; per-lesson stills ────────────────────────────
   const flatLessons = useMemo(
@@ -269,6 +279,30 @@ export function CourseDesignEditor({
   }, [course.modules, isEpisodic, paywallEnabled, trialMode, freeCount])
 
   const [lessonImageBusy, setLessonImageBusy] = useState<number | null>(null)
+  const uploadLessonImage = useCallback(
+    async (lesson: CourseRead['modules'][number]['lessons'][number], file: File) => {
+      const prevUrl = lesson.thumbnail_url ?? null
+      const updated = await uploadLessonThumb.mutateAsync({
+        lessonId: lesson.id,
+        file,
+      })
+      record({
+        apply: {
+          kind: 'lesson',
+          lessonId: lesson.id,
+          body: { thumbnail_url: updated.thumbnail_url },
+        },
+        invert: {
+          kind: 'lesson',
+          lessonId: lesson.id,
+          body: { thumbnail_url: prevUrl },
+        },
+        label: `Change ${unit} image`,
+      })
+    },
+    [uploadLessonThumb, record, unit],
+  )
+
   const onAddLessonImage = useCallback(
     (flatIdx: number) => {
       const lesson = flatLessons[flatIdx]
@@ -276,7 +310,7 @@ export function CourseDesignEditor({
       pickFile('image/*', async (file) => {
         setLessonImageBusy(flatIdx)
         try {
-          await uploadLessonThumb.mutateAsync({ lessonId: lesson.id, file })
+          await uploadLessonImage(lesson, file)
           toast({ title: `${unitCap} image updated` })
         } catch {
           toast({ title: 'Upload failed', description: 'Please try again.' })
@@ -285,26 +319,35 @@ export function CourseDesignEditor({
         }
       })
     },
-    [flatLessons, uploadLessonThumb, unitCap],
+    [flatLessons, uploadLessonImage, unitCap],
   )
 
-  // Per-lesson still reposition — debounced commit, same 600ms pattern as the
-  // cover (onCoverPosition). One timer is enough: only one lesson is being
-  // dragged at a time (the overlay is modal).
+  // Per-lesson still reposition — debounced commit; one undo step per drag.
   const lessonReposTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const onRepositionLesson = useCallback(
     (flatIdx: number, pos: string) => {
       const lesson = flatLessons[flatIdx]
       if (!lesson) return
       if (lessonReposTimer.current) clearTimeout(lessonReposTimer.current)
+      const prev = lesson.thumbnail_object_position ?? null
       lessonReposTimer.current = setTimeout(() => {
-        updateLesson.mutate({
-          lessonId: lesson.id,
-          body: { thumbnail_object_position: pos },
+        if (pos === prev) return
+        commit({
+          apply: {
+            kind: 'lesson',
+            lessonId: lesson.id,
+            body: { thumbnail_object_position: pos },
+          },
+          invert: {
+            kind: 'lesson',
+            lessonId: lesson.id,
+            body: { thumbnail_object_position: prev },
+          },
+          label: `Reposition ${unit} image`,
         })
       }, 600)
     },
-    [flatLessons, updateLesson],
+    [flatLessons, commit, unit],
   )
 
   // Replace a still from inside the reposition overlay (it hands back a File).
@@ -314,7 +357,7 @@ export function CourseDesignEditor({
       if (!lesson) return
       setLessonImageBusy(flatIdx)
       try {
-        await uploadLessonThumb.mutateAsync({ lessonId: lesson.id, file })
+        await uploadLessonImage(lesson, file)
         toast({ title: `${unitCap} image updated` })
       } catch {
         toast({ title: 'Upload failed', description: 'Please try again.' })
@@ -322,7 +365,7 @@ export function CourseDesignEditor({
         setLessonImageBusy(null)
       }
     },
-    [flatLessons, uploadLessonThumb, unitCap],
+    [flatLessons, uploadLessonImage, unitCap],
   )
 
   // ── modules, in render order — for moduleTitle edits by groupIdx ──────────
@@ -333,35 +376,34 @@ export function CourseDesignEditor({
 
   // ── touch-to-edit text → persist to the right field ──────────────────────
   const aiHero = course.landing_overrides?.ai_hero ?? null
-  const patchAiHero = useCallback(
-    (patch: Record<string, unknown>) => {
-      writeOverrides((cur) => ({
-        ...cur,
-        ai_hero: { ...(cur.ai_hero ?? {}), ...patch },
-      }))
-    },
-    [writeOverrides],
+  const aiInstructor = course.landing_overrides?.ai_instructor ?? null
+  // Stable refs so the edit callbacks below don't rebuild every render (the
+  // `?? []` / `?? DEFAULT_BADGES` fallbacks would otherwise be fresh each time).
+  const aiFaq = useMemo(
+    () => course.landing_overrides?.ai_faq ?? [],
+    [course.landing_overrides?.ai_faq],
   )
-  const patchOverrides = useCallback(
-    (patch: Partial<NonNullable<CourseRead['landing_overrides']>>) => {
-      writeOverrides((cur) => ({ ...cur, ...patch }))
-    },
-    [writeOverrides],
+  const badgeList = useMemo(
+    () => course.landing_overrides?.badges ?? DEFAULT_BADGES,
+    [course.landing_overrides?.badges],
   )
 
   // ── instructor portrait (its own media slot, S3-backed) ──────────────────
-  const aiInstructor = course.landing_overrides?.ai_instructor ?? null
-  const aiFaq = course.landing_overrides?.ai_faq ?? []
   const [portraitBusy, setPortraitBusy] = useState(false)
   const onAddPortrait = useCallback(() => {
     pickFile('image/*', async (file) => {
       setPortraitBusy(true)
+      const prev = course.landing_overrides?.portrait_url ?? null
       try {
         const { url } = await uploadLandingMedia.mutateAsync({
           courseId: course.id,
           file,
         })
-        patchOverrides({ portrait_url: url })
+        commitOverrides(
+          { portrait_url: url },
+          { portrait_url: prev },
+          'Change portrait',
+        )
         toast({ title: 'Portrait updated' })
       } catch {
         toast({ title: 'Upload failed', description: 'Please try again.' })
@@ -369,7 +411,12 @@ export function CourseDesignEditor({
         setPortraitBusy(false)
       }
     })
-  }, [course.id, uploadLandingMedia, patchOverrides])
+  }, [
+    course.id,
+    course.landing_overrides?.portrait_url,
+    uploadLandingMedia,
+    commitOverrides,
+  ])
 
   const onEditText = useCallback(
     (
@@ -377,89 +424,153 @@ export function CourseDesignEditor({
       value: string,
       ctx?: { flatIdx?: number; groupIdx?: number; idx?: number },
     ) => {
+      const ov = course.landing_overrides ?? {}
       switch (field) {
         case 'title':
-          updateCourse.mutate({ courseId: course.id, body: { title: value } })
+          commit({
+            apply: { kind: 'course', body: { title: value } },
+            invert: { kind: 'course', body: { title: course.title ?? null } },
+            label: 'Edit title',
+          })
           break
+        case 'heroTitle': {
+          // The cover hero shows ai_hero.titleLines (the multi-line headline),
+          // so editing the hero must write THAT — not the flat course.title —
+          // or the change wouldn't show on the public page. One line per row;
+          // empty clears it back to the course title fallback.
+          const lines = value
+            .split('\n')
+            .map((l) => l.trim())
+            .filter((l) => l.length > 0)
+          const prev =
+            (ov.ai_hero as { titleLines?: string[] | null } | undefined)
+              ?.titleLines ?? null
+          commitOverrides(
+            { ai_hero: { titleLines: lines.length > 0 ? lines : null } },
+            { ai_hero: { titleLines: prev } },
+            'Edit headline',
+          )
+          break
+        }
         case 'instructorName':
-          updateCourse.mutate({
-            courseId: course.id,
-            body: { instructor_name: value },
+          commit({
+            apply: { kind: 'course', body: { instructor_name: value } },
+            invert: {
+              kind: 'course',
+              body: { instructor_name: course.instructor_name ?? null },
+            },
+            label: 'Edit instructor name',
           })
           break
         case 'desc':
-          patchAiHero({ description: value })
-          break
         case 'byline':
-          patchAiHero({ byline: value })
-          break
         case 'eyebrow':
-          patchAiHero({ eyebrow: value })
+        case 'badge': {
+          const key =
+            field === 'desc'
+              ? 'description'
+              : (field as 'byline' | 'eyebrow' | 'badge')
+          const prev =
+            (ov.ai_hero as Record<string, unknown> | undefined)?.[key] ?? null
+          commitOverrides(
+            { ai_hero: { [key]: value } },
+            { ai_hero: { [key]: prev } },
+            'Edit hero copy',
+          )
           break
-        case 'badge':
-          patchAiHero({ badge: value })
-          break
+        }
         case 'lessonTitle':
         case 'lessonDesc': {
           const lesson =
             ctx?.flatIdx != null ? flatLessons[ctx.flatIdx] : undefined
           if (!lesson) break
-          updateLesson.mutate({
-            lessonId: lesson.id,
-            body:
-              field === 'lessonTitle'
-                ? { title: value }
-                : { description: value },
-          })
+          if (field === 'lessonTitle') {
+            commit({
+              apply: {
+                kind: 'lesson',
+                lessonId: lesson.id,
+                body: { title: value },
+              },
+              invert: {
+                kind: 'lesson',
+                lessonId: lesson.id,
+                body: { title: lesson.title },
+              },
+              label: `Edit ${unit} title`,
+            })
+          } else {
+            commit({
+              apply: {
+                kind: 'lesson',
+                lessonId: lesson.id,
+                body: { description: value },
+              },
+              invert: {
+                kind: 'lesson',
+                lessonId: lesson.id,
+                body: { description: lesson.description ?? null },
+              },
+              label: `Edit ${unit} description`,
+            })
+          }
           break
         }
         case 'moduleTitle': {
           const mod =
             ctx?.groupIdx != null ? sortedModules[ctx.groupIdx] : undefined
           if (!mod) break
-          updateModule.mutate({ moduleId: mod.id, body: { title: value } })
+          commit({
+            apply: { kind: 'module', moduleId: mod.id, body: { title: value } },
+            invert: {
+              kind: 'module',
+              moduleId: mod.id,
+              body: { title: mod.title },
+            },
+            label: 'Edit module title',
+          })
           break
         }
-        case 'instructorSub':
-          writeOverrides((cur) => ({
-            ...cur,
-            ai_instructor: { ...(cur.ai_instructor ?? {}), sub: value },
-          }))
+        case 'instructorSub': {
+          const prev = aiInstructor?.sub ?? null
+          commitOverrides(
+            { ai_instructor: { sub: value } },
+            { ai_instructor: { sub: prev } },
+            'Edit instructor copy',
+          )
           break
+        }
         case 'instructorBioP': {
           if (ctx?.idx == null) break
           const i = ctx.idx
-          writeOverrides((cur) => {
-            const bio = [...(cur.ai_instructor?.bio ?? [])]
-            bio[i] = value
-            return {
-              ...cur,
-              ai_instructor: { ...(cur.ai_instructor ?? {}), bio },
-            }
-          })
+          const prevBio = aiInstructor?.bio ?? []
+          const nextBio = [...prevBio]
+          nextBio[i] = value
+          commitOverrides(
+            { ai_instructor: { bio: nextBio } },
+            { ai_instructor: { bio: prevBio } },
+            'Edit instructor bio',
+          )
           break
         }
-        case 'portraitCaption':
-          writeOverrides((cur) => ({
-            ...cur,
-            ai_instructor: { ...(cur.ai_instructor ?? {}), caption: value },
-          }))
+        case 'portraitCaption': {
+          const prev = aiInstructor?.caption ?? null
+          commitOverrides(
+            { ai_instructor: { caption: value } },
+            { ai_instructor: { caption: prev } },
+            'Edit portrait caption',
+          )
           break
+        }
         case 'bdg': {
           if (ctx?.idx == null) break
           const i = ctx.idx
-          writeOverrides((cur) => {
-            const next = [
-              ...(cur.badges ?? [
-                'All Levels',
-                'Self-paced',
-                'Captions',
-                'Mobile & TV',
-              ]),
-            ]
-            next[i] = value
-            return { ...cur, badges: next }
-          })
+          const nextBadges = [...badgeList]
+          nextBadges[i] = value
+          commitOverrides(
+            { badges: nextBadges },
+            { badges: badgeList },
+            'Edit badge',
+          )
           break
         }
         case 'faqQ':
@@ -467,26 +578,89 @@ export function CourseDesignEditor({
           if (ctx?.idx == null) break
           const i = ctx.idx
           const key = field === 'faqQ' ? 'q' : 'a'
-          writeOverrides((cur) => ({
-            ...cur,
-            ai_faq: (cur.ai_faq ?? []).map((f, j) =>
-              j === i ? { ...f, [key]: value } : f,
-            ),
-          }))
+          const nextFaq = aiFaq.map((f, j) =>
+            j === i ? { ...f, [key]: value } : f,
+          )
+          commitOverrides({ ai_faq: nextFaq }, { ai_faq: aiFaq }, 'Edit FAQ')
           break
         }
       }
     },
     [
-      course.id,
+      course.landing_overrides,
+      course.title,
+      course.instructor_name,
       flatLessons,
       sortedModules,
-      patchAiHero,
-      writeOverrides,
-      updateCourse,
-      updateLesson,
-      updateModule,
+      aiInstructor,
+      aiFaq,
+      badgeList,
+      unit,
+      commit,
+      commitOverrides,
     ],
+  )
+
+  // ── add / remove for the fixed-count lists (FAQ, badges, bio paragraphs).
+  //    Each is one overrides edit (whole array replaces) with its inverse, so
+  //    adding/removing is a single undo step. ────────────────────────────────
+  const onAddFaq = useCallback(() => {
+    const next = [...aiFaq, { q: '', a: '' }]
+    commitOverrides({ ai_faq: next }, { ai_faq: aiFaq }, 'Add FAQ')
+  }, [aiFaq, commitOverrides])
+  const onRemoveFaq = useCallback(
+    (idx: number) => {
+      const next = aiFaq.filter((_, j) => j !== idx)
+      commitOverrides({ ai_faq: next }, { ai_faq: aiFaq }, 'Remove FAQ')
+    },
+    [aiFaq, commitOverrides],
+  )
+  const onAddBadge = useCallback(() => {
+    const next = [...badgeList, 'New badge']
+    commitOverrides({ badges: next }, { badges: badgeList }, 'Add badge')
+  }, [badgeList, commitOverrides])
+  const onRemoveBadge = useCallback(
+    (idx: number) => {
+      const next = badgeList.filter((_, j) => j !== idx)
+      commitOverrides({ badges: next }, { badges: badgeList }, 'Remove badge')
+    },
+    [badgeList, commitOverrides],
+  )
+  const onAddBioParagraph = useCallback(() => {
+    const prevBio = aiInstructor?.bio ?? []
+    const next = [...prevBio, '']
+    commitOverrides(
+      { ai_instructor: { bio: next } },
+      { ai_instructor: { bio: prevBio } },
+      'Add bio paragraph',
+    )
+  }, [aiInstructor, commitOverrides])
+  const onRemoveBioParagraph = useCallback(
+    (idx: number) => {
+      const prevBio = aiInstructor?.bio ?? []
+      const next = prevBio.filter((_, j) => j !== idx)
+      commitOverrides(
+        { ai_instructor: { bio: next } },
+        { ai_instructor: { bio: prevBio } },
+        'Remove bio paragraph',
+      )
+    },
+    [aiInstructor, commitOverrides],
+  )
+
+  // ── section visibility (landing_overrides.visible). Hiding a body section
+  //    drops it from the public page and moves it to the editor's hidden bar;
+  //    one undo step, reversible. ────────────────────────────────────────────
+  const onSetSectionHidden = useCallback(
+    (id: string, hidden: boolean) => {
+      const prev = course.landing_overrides?.visible?.[id] ?? null
+      commitOverrides(
+        { visible: { [id]: !hidden } },
+        { visible: { [id]: prev } },
+        hidden ? 'Hide section' : 'Show section',
+      )
+    },
+    [course.landing_overrides?.visible, commitOverrides],
   )
 
   // ── hero copy (the AI-written hero, falling back to course fields) ────────
@@ -526,11 +700,9 @@ export function CourseDesignEditor({
     sample?.enabled && sampleLesson?.mux_playback_id,
   )
 
-  // Report in-flight saves to the host bar.
+  // Report in-flight uploads to the host bar (text/position/override saves
+  // report their own status through the editor pipeline).
   const busy =
-    updateCourse.isPending ||
-    updateLesson.isPending ||
-    updateModule.isPending ||
     uploadThumb.isPending ||
     uploadTrailer.isPending ||
     uploadLessonThumb.isPending ||
@@ -599,6 +771,14 @@ export function CourseDesignEditor({
       lessonImageBusy={lessonImageBusy}
       onConfigureSample={() => setSampleOpen(true)}
       onEditText={onEditText}
+      onAddFaq={onAddFaq}
+      onRemoveFaq={onRemoveFaq}
+      onAddBadge={onAddBadge}
+      onRemoveBadge={onRemoveBadge}
+      onAddBioParagraph={onAddBioParagraph}
+      onRemoveBioParagraph={onRemoveBioParagraph}
+      sectionVisible={course.landing_overrides?.visible}
+      onSetSectionHidden={onSetSectionHidden}
       avatarUrl={organization?.avatar_url ?? null}
       instructorSub={aiInstructor?.sub ?? ''}
       instructorBio={aiInstructor?.bio ?? []}

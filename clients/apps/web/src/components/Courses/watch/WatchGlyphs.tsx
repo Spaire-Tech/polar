@@ -10,8 +10,7 @@ export const SF = {
   bookmark:
     'M6.5 4h11a1 1 0 0 1 1 1v15.4a.5.5 0 0 1-.78.42L12 17.2l-5.72 3.62A.5.5 0 0 1 5.5 20.4V5a1 1 0 0 1 1-1Z',
   download: 'M12 3.5v11 M8 11l4 3.8 4-3.8 M5 19.5h14',
-  bubble:
-    'M21 11.5a8 8 0 0 1-11.5 7.2L4 20.5l1.35-4.5A8 8 0 1 1 21 11.5Z',
+  bubble: 'M21 11.5a8 8 0 0 1-11.5 7.2L4 20.5l1.35-4.5A8 8 0 1 1 21 11.5Z',
   heart:
     'M12 20.2s-7.2-4.4-9.4-9.2C1.2 7.8 3 4.4 6.6 4.4c2 0 3.3 1.2 3.6 1.9.3-.7 1.6-1.9 3.6-1.9 3.6 0 5.4 3.4 4 6.6C19.2 15.8 12 20.2 12 20.2Z',
   send: 'M21 3 3 11l7 2.6L13 21l8-18Z',
@@ -20,8 +19,14 @@ export const SF = {
   back: 'M15 5l-7 7 7 7',
   fullscreen:
     'M4 9V5a1 1 0 0 1 1-1h4 M20 9V5a1 1 0 0 0-1-1h-4 M4 15v4a1 1 0 0 0 1 1h4 M20 15v4a1 1 0 0 1-1 1h-4',
+  // Inverse of `fullscreen` — corner brackets pointing inward, shown while
+  // the player is already full-screen so the control reads as "collapse".
+  fullscreenExit:
+    'M9 4v3a1 1 0 0 1-1 1H5 M15 4v3a1 1 0 0 0 1 1h3 M9 20v-3a1 1 0 0 0-1-1H5 M15 20v-3a1 1 0 0 1 1-1h3',
+  // A captions "CC" badge: rounded frame with two evenly-spaced, vertically
+  // centred "C" letterforms (open to the right).
   captions:
-    'M4 5.5h16a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-11a1 1 0 0 1 1-1z M7.5 11a2 2 0 1 0 0 2 M14 11a2 2 0 1 0 0 2',
+    'M4 5.5h16a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-11a1 1 0 0 1 1-1z M10.6 10.2a2.4 2.4 0 1 0 0 3.6 M18 10.2a2.4 2.4 0 1 0 0 3.6',
   link: 'M9.5 14.5 14.5 9.5 M8 11 6.2 12.8a3.4 3.4 0 0 0 4.8 4.8L13 15.8 M16 13l1.8-1.8a3.4 3.4 0 0 0-4.8-4.8L11 8.2',
   audio: 'M11 5 6 9H3v6h3l5 4z M15.5 9a4 4 0 0 1 0 6 M18.5 6.5a8 8 0 0 1 0 11',
   videoclip:

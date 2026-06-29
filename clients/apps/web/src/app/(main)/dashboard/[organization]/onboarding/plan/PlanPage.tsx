@@ -1,47 +1,148 @@
 'use client'
 
-import { OnboardingProgressBar } from '@/components/Onboarding/OnboardingProgressBar'
 import { toast } from '@/components/Toast/use-toast'
-import {
-  BillingInterval,
-  formatTransactionFee,
-  headlinePriceForPlan,
-  PaidTierKey,
-  TierPlan,
-  tierDisplayName,
-  useSpairePlans,
-} from '@/hooks/queries/spaireTier'
+import { BillingInterval, PaidTierKey } from '@/hooks/queries/spaireTier'
 import { OrganizationContext } from '@/providers/maintainerOrganization'
 import { api } from '@/utils/client'
-import { useCallback, useContext, useMemo, useState } from 'react'
+import { ReactNode, useCallback, useContext, useEffect, useState } from 'react'
 import { twMerge } from 'tailwind-merge'
 
 /**
  * Plan + checkout step of the new-signup flow.
  *
  * Final visible step of onboarding: it sits after OrganizationStep
- * ("name + slug + logo", at /dashboard/create).
+ * ("Profile basics", at /dashboard/create).
  *
- * Visual port of the "Spaire Pricing" design: Spaire-tier plans are loaded
- * via useSpairePlans, the user picks a tier + billing interval, and clicking
- * a CTA hands off to upgrade-checkout which converts the trialing subscription
- * in place and redirects to Polar-hosted checkout. Success returns to
- * /onboarding/review, which invisibly verifies the checkout, marks onboarding
- * complete, and forwards the creator straight into the course wizard.
+ * Visual port of the "Choose your plan" design — a full-screen dark
+ * liquid-glass pricing stage with Studio as the bright recommended card.
+ * The creator picks a tier + billing interval, and clicking a card's CTA
+ * hands off to upgrade-checkout which converts the trialing subscription in
+ * place and redirects to the Polar-hosted checkout. Success returns to
+ * /onboarding/review, which invisibly verifies the checkout, marks
+ * onboarding complete, and forwards the creator into the course wizard.
  */
+
+// ── Tier copy (matches the provided design exactly) ─────────────────────────
+
+interface DesignFeature {
+  label: ReactNode
+  shield?: boolean
+}
+
+interface DesignTier {
+  tier: PaidTierKey
+  name: string
+  monthly: number
+  annual: number
+  recommended: boolean
+  includes: ReactNode
+  features: DesignFeature[]
+}
+
+const TIERS: DesignTier[] = [
+  {
+    tier: 'starter',
+    name: 'Starter',
+    monthly: 49,
+    annual: 39,
+    recommended: false,
+    includes: 'Includes',
+    features: [
+      { label: <>Merchant of Record — Spaire handles tax &amp; VAT</>, shield: true },
+      {
+        label: (
+          <>
+            <b>7% + $0.30</b> per transaction
+          </>
+        ),
+      },
+      { label: <>5 published courses</> },
+      { label: <>10K email subscribers</> },
+      { label: <>25 hours of hosted video</> },
+      { label: <>Email sequences, segments &amp; drip</> },
+      { label: <>Revenue, MRR &amp; churn analytics</> },
+    ],
+  },
+  {
+    tier: 'studio',
+    name: 'Studio',
+    monthly: 129,
+    annual: 103,
+    recommended: true,
+    includes: (
+      <>
+        Everything in Starter, <span className="from">plus</span>
+      </>
+    ),
+    features: [
+      {
+        label: (
+          <>
+            <b>5% + $0.30</b> per transaction{' '}
+            <span className="sub">(saves 2%)</span>
+          </>
+        ),
+      },
+      { label: <>25 published courses</> },
+      { label: <>50K email subscribers</> },
+      { label: <>Custom email sender domain</> },
+      { label: <>Email A/B testing</> },
+      { label: <>White-label player &amp; customer wallet</> },
+      { label: <>5 team seats</> },
+    ],
+  },
+  {
+    tier: 'scale',
+    name: 'Scale',
+    monthly: 299,
+    annual: 239,
+    recommended: false,
+    includes: (
+      <>
+        Everything in Studio, <span className="from">plus</span>
+      </>
+    ),
+    features: [
+      {
+        label: (
+          <>
+            <b>3% + $0.30</b> per transaction{' '}
+            <span className="sub">(saves 4%)</span>
+          </>
+        ),
+      },
+      { label: <>100 published courses</> },
+      { label: <>150K email subscribers</> },
+      { label: <>200 video hours · 250 GB storage</> },
+      { label: <>20 team seats · audit logs</> },
+      { label: <>Slack + dedicated AM · 4-hr SLA</> },
+      { label: <>Custom pricing above $50k/mo GMV</> },
+    ],
+  },
+]
+
+const BILLING_STORAGE_KEY = 'spaire_billing_cycle'
+
 export default function PlanPage() {
   const { organization } = useContext(OrganizationContext)
-  const plans = useSpairePlans()
   const [interval, setInterval] = useState<BillingInterval>('month')
   const [pending, setPending] = useState<PaidTierKey | null>(null)
 
-  const ordered = useMemo<TierPlan[]>(() => {
-    if (!plans.data?.items) return []
-    const map = new Map(plans.data.items.map((p) => [p.tier, p]))
-    return (['starter', 'studio', 'scale'] as const)
-      .map((t) => map.get(t))
-      .filter((p): p is TierPlan => Boolean(p))
-  }, [plans.data])
+  // Restore the creator's last-picked billing cycle (matches the design's
+  // localStorage persistence). Read after mount to avoid hydration mismatch.
+  useEffect(() => {
+    const saved = window.localStorage.getItem(BILLING_STORAGE_KEY)
+    if (saved === 'annual') setInterval('year')
+    else if (saved === 'monthly') setInterval('month')
+  }, [])
+
+  const selectInterval = useCallback((next: BillingInterval) => {
+    setInterval(next)
+    window.localStorage.setItem(
+      BILLING_STORAGE_KEY,
+      next === 'year' ? 'annual' : 'monthly',
+    )
+  }, [])
 
   const startCheckout = useCallback(
     async (tier: PaidTierKey) => {
@@ -71,7 +172,6 @@ export default function PlanPage() {
           } else if (typeof e?.detail === 'string') {
             message = e.detail
           }
-          // eslint-disable-next-line no-console
           console.error('upgrade-checkout failed', e)
           throw new Error(message)
         }
@@ -90,660 +190,509 @@ export default function PlanPage() {
     [interval, organization.id, organization.slug, pending],
   )
 
-  return (
-    <div className="spaire-pricing">
-      {/* Existing onboarding chrome — same OnboardingProgressBar the other
-          steps use, so the bar fill keeps progressing across the flow. */}
-      <div className="mx-auto mb-5 w-full max-w-lg px-4 pt-6">
-        <OnboardingProgressBar currentStep={2} totalSteps={2} />
-      </div>
+  const isAnnual = interval === 'year'
 
-      <div className="sp-stage" data-screen-label="Pricing">
-        <header className="sp-header">
-          <h1 className="sp-title">Choose your plan</h1>
-          <p className="sp-lede">
-            Every plan starts with a 14-day free trial. You won&apos;t be
+  return (
+    <div className="spaire-plan-picker">
+      <div className="stage">
+        <div className="head">
+          <h1>Choose your plan</h1>
+          <p>
+            Every plan starts with a 14-day free trial. You won&rsquo;t be
             charged during the trial — switch or cancel anytime from Settings.
           </p>
-        </header>
-
-        <div className="sp-billing">
-          <IntervalToggle interval={interval} onChange={setInterval} />
-          <span className="sp-save-badge">Save 20%</span>
         </div>
 
-        {plans.isLoading ? (
-          <div className="sp-grid sp-grid--loading">
-            {[0, 1, 2].map((i) => (
-              <div key={i} className="sp-skeleton" />
-            ))}
-          </div>
-        ) : (
-          <div className="sp-grid">
-            {ordered.map((plan, idx) => (
-              <PlanCard
-                key={plan.tier}
-                plan={plan}
-                previousPlanName={idx === 0 ? null : ordered[idx - 1].name}
-                interval={interval}
-                pending={pending}
-                onChoose={startCheckout}
-              />
-            ))}
-          </div>
-        )}
-
-        <button type="button" className="sp-compare">
-          <span>Compare all plans and features</span>
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
+        <div className="toggle-wrap">
+        <div className="seg" role="tablist" aria-label="Billing period">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={!isAnnual}
+            className={isAnnual ? '' : 'on'}
+            onClick={() => selectInterval('month')}
           >
-            <path d="M5 12h14M12 5l7 7-7 7" />
-          </svg>
-        </button>
-      </div>
-
-      <SpaireOnboardingPricingStyles />
-    </div>
-  )
-}
-
-// ── Billing toggle ──────────────────────────────────────────────────────────
-
-function IntervalToggle({
-  interval,
-  onChange,
-}: {
-  interval: BillingInterval
-  onChange: (interval: BillingInterval) => void
-}) {
-  const isAnnual = interval === 'year'
-  return (
-    <div
-      className="sp-toggle"
-      role="tablist"
-      aria-label="Billing period"
-    >
-      {/* Sliding pill — CSS handles the position via the data attribute on
-          the container, so we don't have to measure widths in JS. */}
-      <span
-        className="sp-toggle-pill"
-        data-active={isAnnual ? 'annual' : 'monthly'}
-        aria-hidden
-      />
-      <button
-        type="button"
-        role="tab"
-        aria-selected={!isAnnual}
-        onClick={() => onChange('month')}
-        className={twMerge(
-          'sp-toggle-btn',
-          !isAnnual && 'sp-toggle-btn--active',
-        )}
-      >
-        Monthly
-      </button>
-      <button
-        type="button"
-        role="tab"
-        aria-selected={isAnnual}
-        onClick={() => onChange('year')}
-        className={twMerge(
-          'sp-toggle-btn',
-          isAnnual && 'sp-toggle-btn--active',
-        )}
-      >
-        Annual
-      </button>
-    </div>
-  )
-}
-
-// ── Plan card ──────────────────────────────────────────────────────────────
-
-interface PlanCardProps {
-  plan: TierPlan
-  previousPlanName: string | null
-  interval: BillingInterval
-  pending: PaidTierKey | null
-  onChoose: (tier: PaidTierKey) => void
-}
-
-function PlanCard({
-  plan,
-  previousPlanName,
-  interval,
-  pending,
-  onChoose,
-}: PlanCardProps) {
-  const tier = plan.tier as PaidTierKey
-  const annualAvailable = plan.annual_price_cents != null
-  const effectiveInterval: BillingInterval =
-    interval === 'year' && !annualAvailable ? 'month' : interval
-  const headline = headlinePriceForPlan(plan, effectiveInterval)
-  const featureLines = featuresForTier(plan)
-  const isPending = pending === tier
-  const disabled = pending !== null && pending !== tier
-  const isRecommended = tier === 'studio'
-
-  return (
-    <article
-      className={twMerge('sp-card', isRecommended && 'sp-card--featured')}
-      data-plan={tier}
-    >
-      <div className="sp-plan-row">
-        <div className="sp-plan-name">{tierDisplayName(plan.tier)}</div>
-        {isRecommended && <span className="sp-badge">Recommended</span>}
-      </div>
-
-      <div className="sp-price">
-        <span className="sp-price-currency">$</span>
-        <span className="sp-price-amount">{headline.dollars}</span>
-      </div>
-      <div className="sp-price-sub">
-        {effectiveInterval === 'year'
-          ? 'Per month, billed annually'
-          : 'Per month, billed monthly'}
-      </div>
-
-      {previousPlanName && (
-        <div className="sp-features-intro">
-          Everything from Spaire {previousPlanName}, plus:
+            Monthly
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={isAnnual}
+            className={isAnnual ? 'on' : ''}
+            onClick={() => selectInterval('year')}
+          >
+            Annual
+          </button>
         </div>
-      )}
-      <ul className="sp-features">
-        {featureLines.map((line, i) => (
-          <li key={i}>
-            <CheckIcon />
-            <span>{line}</span>
-          </li>
-        ))}
-      </ul>
-
-      <div className="sp-cta-wrap">
-        <button
-          type="button"
-          onClick={() => onChoose(tier)}
-          disabled={disabled || isPending}
-          className={twMerge(
-            'sp-cta',
-            isRecommended && 'sp-cta--featured',
-            (disabled || isPending) && 'sp-cta--disabled',
-          )}
-        >
-          {isPending ? 'Loading…' : 'Start free trial'}
-        </button>
-        <p className="sp-fine">
-          Card required. Won&apos;t be charged during the 14-day trial.
-        </p>
+        <span className="save-note" style={{ opacity: isAnnual ? 0 : 1 }}>
+          Save <b>20%</b> with annual billing
+        </span>
       </div>
-    </article>
+
+      <div className="cards">
+        {TIERS.map((t) => {
+          const amount = isAnnual ? t.annual : t.monthly
+          const isPending = pending === t.tier
+          const disabled = pending !== null && pending !== t.tier
+          return (
+            <div
+              key={t.tier}
+              className={twMerge('card', t.recommended && 'rec')}
+              data-tier={t.name}
+            >
+              {t.recommended ? (
+                <div className="rec-label">Recommended</div>
+              ) : (
+                <div className="tier-spacer" />
+              )}
+              <div className="tier">{t.name}</div>
+
+              <div className="price">
+                <span className="cur">$</span>
+                <span className="amt">{amount}</span>
+                <span className="per">/mo</span>
+              </div>
+              <div className="bill">
+                {isAnnual ? (
+                  <>
+                    <span className="was">${t.monthly}</span>Billed annually
+                  </>
+                ) : (
+                  'Billed monthly'
+                )}
+              </div>
+
+              <button
+                type="button"
+                className="cta"
+                disabled={disabled || isPending}
+                onClick={() => startCheckout(t.tier)}
+              >
+                {isPending ? 'Starting…' : 'Start free trial'}
+              </button>
+              <div className="cta-note">
+                Card required. Won&rsquo;t be charged during the 14-day trial.
+              </div>
+
+              <div className="divider" />
+              <div className="incl">{t.includes}</div>
+              <div className="feats">
+                {t.features.map((feature, i) => (
+                  <div className="feat" key={i}>
+                    {feature.shield ? <ShieldIcon /> : <CheckIcon />}
+                    <span>{feature.label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )
+        })}
+        </div>
+      </div>
+
+      <SpairePlanPickerStyles />
+    </div>
   )
 }
 
 function CheckIcon() {
   return (
     <svg
-      className="sp-check"
+      width="15"
+      height="15"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="2.4"
+      strokeWidth="2.2"
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden
     >
-      <path d="M20 6 9 17l-5-5" />
+      <path d="M5 12.5l4.5 4.5L19 7" />
     </svg>
   )
 }
 
-// ── Tier copy ───────────────────────────────────────────────────────────────
-
-const formatCount = (n: number): string => {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`
-  if (n >= 1_000) return `${Math.round(n / 1_000)}K`
-  return String(n)
+function ShieldIcon() {
+  return (
+    <svg
+      width="15"
+      height="15"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.9"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M12 2 4 5v6c0 5 3.4 8 8 11 4.6-3 8-6 8-11V5l-8-3Z" />
+    </svg>
+  )
 }
 
-const featuresForTier = (plan: TierPlan): string[] => {
-  if (plan.tier === 'starter') {
-    return [
-      'Merchant of Record — Spaire handles tax & VAT',
-      `${formatTransactionFee(plan.transaction_fee)} per transaction`,
-      `${plan.limits.published_courses} published courses`,
-      `${formatCount(plan.limits.email_subscribers ?? 0)} email subscribers`,
-      'Unlimited email sends',
-      'Unlimited email sequences',
-      `${plan.limits.video_hours_hosted} hours of hosted video`,
-      'Sandbox / test environment',
-    ]
-  }
-  if (plan.tier === 'studio') {
-    return [
-      `${formatTransactionFee(plan.transaction_fee)} per transaction (saves 2% vs Starter)`,
-      `${plan.limits.published_courses} published courses`,
-      `${formatCount(plan.limits.email_subscribers ?? 0)} email subscribers`,
-      'Custom email sender domain',
-      'White-label course player',
-      'Customer wallet',
-      `${plan.limits.dashboard_team_seats} team seats`,
-    ]
-  }
-  if (plan.tier === 'scale') {
-    return [
-      `${formatTransactionFee(plan.transaction_fee)} per transaction (saves 4% vs Starter)`,
-      `${plan.limits.published_courses} published courses`,
-      `${formatCount(plan.limits.email_subscribers ?? 0)} email subscribers`,
-      'Unlimited email sequences',
-      `${plan.limits.storage_gb} GB storage`,
-      `${plan.limits.dashboard_team_seats} team seats`,
-      'Audit logs · dedicated support',
-    ]
-  }
-  return []
-}
+// ── Scoped styles (ported from the design, scoped under .spaire-plan-picker
+//    so the dark/full-screen rules don't leak onto the rest of the app) ──────
 
-// ── Scoped styles ──────────────────────────────────────────────────────────
-
-function SpaireOnboardingPricingStyles() {
+function SpairePlanPickerStyles() {
   return (
     <style jsx global>{`
-      .spaire-pricing {
-        --sp-bg-0: oklch(0.985 0.003 280);
-        --sp-bg-1: #ffffff;
-        --sp-line: oklch(0.92 0.003 280);
-        --sp-line-soft: oklch(0.945 0.003 280);
-        --sp-fg-0: oklch(0.18 0.008 280);
-        --sp-fg-1: oklch(0.32 0.008 280);
-        --sp-fg-2: oklch(0.52 0.008 280);
-        --sp-fg-3: oklch(0.66 0.006 280);
-        --sp-accent: #3847cc;
-        --sp-accent-hover: #2d3aab;
-        --sp-accent-soft: oklch(0.95 0.04 270);
-        color: var(--sp-fg-0);
-        font-family: var(--font-poppins), 'Poppins', system-ui, sans-serif;
-        font-size: 14px;
-        line-height: 1.5;
+      .spaire-plan-picker {
+        --ink: #1d1d1f;
+        --gray: #86868b;
+        --sf: -apple-system, BlinkMacSystemFont, 'SF Pro Display',
+          'SF Pro Text', system-ui, sans-serif;
+        --po: var(--font-poppins), 'Poppins', -apple-system,
+          BlinkMacSystemFont, system-ui, sans-serif;
+        font-family: var(--sf);
+        color: #fff;
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
-        letter-spacing: -0.005em;
-        min-height: 100vh;
-        background: #ffffff;
-        /* The onboarding layout is "flex flex-row" — without these the
-           plan page sizes to its content and pins to the left edge.
-           flex: 1 + width 100% makes us claim the full row, and the
-           internal align-items: center on .sp-stage takes over from there. */
+        letter-spacing: -0.01em;
+        /* The onboarding layout is "flex flex-row" and the dashboard shell is
+           "md:h-screen" — so we claim the full row (flex:1) and become our own
+           vertical scroll container. Centering lives on .stage via margin:auto
+           so tall content (small viewports) top-aligns and scrolls instead of
+           being clipped, while short content stays centered. */
         flex: 1;
         width: 100%;
+        min-height: 100vh;
+        overflow-y: auto;
         display: flex;
         flex-direction: column;
-        align-items: stretch;
+        background: #000;
       }
-      .spaire-pricing *,
-      .spaire-pricing *::before,
-      .spaire-pricing *::after {
-        box-sizing: border-box;
-      }
-      .spaire-pricing ::selection {
-        background: rgb(56 71 204 / 0.12);
-      }
-
-      /* Stage */
-      .sp-stage {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        padding: 8px 32px 28px;
-      }
-
-      /* Header */
-      .sp-header {
-        text-align: center;
-        max-width: 580px;
-        margin-bottom: 18px;
-      }
-      .sp-title {
-        font-size: clamp(24px, 3vw, 32px);
-        font-weight: 600;
-        letter-spacing: -0.03em;
-        line-height: 1.08;
-        margin: 0 0 8px;
-        color: var(--sp-fg-0);
-        text-wrap: balance;
-      }
-      .sp-lede {
-        font-size: 13px;
-        color: var(--sp-fg-2);
-        text-wrap: pretty;
-        line-height: 1.5;
-        max-width: 500px;
-        margin: 0 auto;
-      }
-
-      /* Billing toggle */
-      .sp-billing {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        margin-bottom: 22px;
-      }
-      .sp-toggle {
-        display: inline-flex;
-        background: var(--sp-bg-1);
-        border: 1px solid var(--sp-line);
-        border-radius: 999px;
-        padding: 3px;
-        position: relative;
-        box-shadow: 0 1px 2px oklch(0 0 0 / 0.04);
-      }
-      .sp-toggle-btn {
-        position: relative;
-        padding: 6px 18px;
-        font-size: 12px;
-        font-weight: 500;
-        color: var(--sp-fg-2);
-        border-radius: 999px;
-        transition: color 200ms ease;
-        background: none;
-        border: none;
-        cursor: pointer;
-        font-family: inherit;
-        z-index: 1;
-      }
-      .sp-toggle-btn--active {
-        color: #fff;
-      }
-      .sp-toggle-pill {
-        position: absolute;
-        top: 3px;
-        bottom: 3px;
-        width: calc(50% - 3px);
-        border-radius: 999px;
-        background: linear-gradient(
-          180deg,
-          oklch(0.28 0.008 280) 0%,
-          oklch(0.14 0.008 280) 100%
-        );
-        box-shadow:
-          inset 0 1px 0 rgba(255, 255, 255, 0.18),
-          inset 0 -1px 0 rgba(0, 0, 0, 0.4),
-          0 1px 2px rgba(0, 0, 0, 0.18);
-        transition: transform 280ms cubic-bezier(0.34, 1.3, 0.64, 1);
-        z-index: 0;
-      }
-      .sp-toggle-pill[data-active='monthly'] {
-        left: 3px;
-        transform: translateX(0);
-      }
-      .sp-toggle-pill[data-active='annual'] {
-        left: 3px;
-        transform: translateX(100%);
-      }
-      .sp-save-badge {
-        font-size: 11.5px;
-        font-weight: 600;
-        color: var(--sp-accent);
-        letter-spacing: -0.005em;
-      }
-
-      /* Card grid */
-      .sp-grid {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 16px;
+      .spaire-plan-picker .stage {
+        margin: auto;
         width: 100%;
-        max-width: 940px;
-        margin-bottom: 18px;
-        align-items: stretch;
-      }
-      .sp-grid--loading .sp-skeleton {
-        height: 380px;
-        border-radius: 18px;
-        background: oklch(0.97 0.002 280);
-        animation: spSkeleton 1.4s ease-in-out infinite;
-      }
-      @keyframes spSkeleton {
-        0%,
-        100% {
-          opacity: 0.7;
-        }
-        50% {
-          opacity: 1;
-        }
-      }
-
-      .sp-card {
-        position: relative;
-        background: var(--sp-bg-1);
-        border-radius: 18px;
-        border: 1px solid var(--sp-line);
-        overflow: hidden;
-        isolation: isolate;
-        transition:
-          transform 220ms cubic-bezier(0.34, 1.3, 0.64, 1),
-          box-shadow 220ms ease,
-          border-color 220ms ease;
-        box-shadow:
-          0 1px 2px oklch(0 0 0 / 0.04),
-          0 6px 18px oklch(0 0 0 / 0.05);
         display: flex;
         flex-direction: column;
-        padding: 20px 20px 18px;
-      }
-      .sp-card:hover {
-        transform: translateY(-2px);
-        box-shadow:
-          0 2px 4px oklch(0 0 0 / 0.05),
-          0 14px 32px oklch(0 0 0 / 0.09);
-      }
-      .sp-card--featured {
-        border-color: var(--sp-accent);
-        box-shadow:
-          0 0 0 1px var(--sp-accent),
-          0 2px 5px oklch(0 0 0 / 0.06),
-          0 18px 38px rgb(56 71 204 / 0.13);
-      }
-      .sp-card--featured:hover {
-        box-shadow:
-          0 0 0 1px var(--sp-accent),
-          0 2px 5px oklch(0 0 0 / 0.06),
-          0 22px 44px rgb(56 71 204 / 0.18);
-      }
-
-      /* Card header */
-      .sp-plan-row {
-        display: flex;
         align-items: center;
-        justify-content: space-between;
-        gap: 10px;
-        margin-bottom: 14px;
-        min-height: 22px;
+        padding: 72px 32px;
       }
-      .sp-plan-name {
-        font-size: 14px;
-        font-weight: 600;
-        letter-spacing: -0.01em;
-        color: var(--sp-fg-0);
-      }
-      .sp-badge {
-        font-size: 8.5px;
-        font-weight: 600;
-        letter-spacing: 0.16em;
-        text-transform: uppercase;
-        color: var(--sp-accent);
-        background: var(--sp-accent-soft);
-        padding: 4px 9px;
-        border-radius: 999px;
-      }
-
-      /* Price */
-      .sp-price {
-        display: flex;
-        align-items: baseline;
-        gap: 2px;
-        margin-bottom: 4px;
-      }
-      .sp-price-currency {
-        font-size: 18px;
-        font-weight: 500;
-        color: var(--sp-fg-0);
-        letter-spacing: -0.02em;
-        align-self: flex-start;
-        margin-top: 6px;
-      }
-      .sp-price-amount {
-        font-size: 42px;
-        font-weight: 600;
-        letter-spacing: -0.04em;
-        line-height: 1;
-        color: var(--sp-fg-0);
-        font-variant-numeric: tabular-nums;
-      }
-      .sp-price-sub {
-        font-size: 12px;
-        color: var(--sp-fg-2);
-        margin-bottom: 16px;
-      }
-
-      /* Features */
-      .sp-features-intro {
-        font-size: 12.5px;
-        font-weight: 600;
-        color: var(--sp-fg-0);
-        letter-spacing: -0.005em;
-        margin-bottom: 10px;
-      }
-      .sp-features {
-        list-style: none;
-        display: flex;
-        flex-direction: column;
-        gap: 7px;
-        margin: 0 0 16px;
+      .spaire-plan-picker *,
+      .spaire-plan-picker *::before,
+      .spaire-plan-picker *::after {
+        box-sizing: border-box;
+        margin: 0;
         padding: 0;
       }
-      .sp-features li {
+      .spaire-plan-picker button {
+        font-family: inherit;
+        cursor: pointer;
+        border: none;
+        background: none;
+        color: inherit;
+      }
+
+      /* ---------- header ---------- */
+      .spaire-plan-picker .head {
+        text-align: center;
+        margin-bottom: 26px;
+      }
+      .spaire-plan-picker .head h1 {
+        font-family: var(--po);
+        font-size: clamp(32px, 3.4vw, 46px);
+        font-weight: 600;
+        letter-spacing: -0.03em;
+        line-height: 1.05;
+        text-shadow: 0 1px 30px rgba(0, 0, 0, 0.3);
+      }
+      .spaire-plan-picker .head p {
+        font-size: 17px;
+        line-height: 1.5;
+        color: rgba(255, 255, 255, 0.82);
+        font-weight: 400;
+        margin-top: 14px;
+        max-width: 540px;
+        margin-left: auto;
+        margin-right: auto;
+        text-shadow: 0 1px 16px rgba(0, 0, 0, 0.3);
+      }
+
+      /* ---------- billing toggle (centered) ---------- */
+      .spaire-plan-picker .toggle-wrap {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 11px;
+        margin-bottom: 40px;
+      }
+      .spaire-plan-picker .seg {
+        display: inline-flex;
+        gap: 3px;
+        padding: 4px;
+        border-radius: 980px;
+        background: rgba(0, 0, 0, 0.32);
+        -webkit-backdrop-filter: blur(24px) saturate(160%);
+        backdrop-filter: blur(24px) saturate(160%);
+        box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.16);
+      }
+      .spaire-plan-picker .seg button {
+        height: 38px;
+        padding: 0 26px;
+        border-radius: 980px;
+        font-size: 15px;
+        font-weight: 500;
+        letter-spacing: -0.01em;
+        color: rgba(255, 255, 255, 0.72);
+        transition: color 0.2s, background 0.2s, box-shadow 0.2s;
+      }
+      .spaire-plan-picker .seg button.on {
+        color: var(--ink);
+        background: rgba(255, 255, 255, 0.96);
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.28);
+      }
+      .spaire-plan-picker .save-note {
+        font-size: 13px;
+        font-weight: 500;
+        color: rgba(255, 255, 255, 0.72);
+        text-shadow: 0 1px 12px rgba(0, 0, 0, 0.3);
+        transition: opacity 0.25s;
+      }
+      .spaire-plan-picker .save-note b {
+        color: #fff;
+        font-weight: 600;
+      }
+
+      /* ---------- cards ---------- */
+      .spaire-plan-picker .cards {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 18px;
+        width: 100%;
+        max-width: 1060px;
+        align-items: stretch;
+      }
+
+      /* base = dark liquid glass */
+      .spaire-plan-picker .card {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        border-radius: 24px;
+        padding: 32px 28px 30px;
+        background: rgba(16, 18, 22, 0.34);
+        -webkit-backdrop-filter: blur(44px) saturate(170%);
+        backdrop-filter: blur(44px) saturate(170%);
+        box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.14),
+          0 24px 50px -28px rgba(0, 0, 0, 0.5);
+        color: #fff;
+        transition: transform 0.3s cubic-bezier(0.2, 1, 0.3, 1);
+      }
+      .spaire-plan-picker .card:hover {
+        transform: translateY(-4px);
+      }
+
+      /* recommended = bright frosted-white focal card */
+      .spaire-plan-picker .card.rec {
+        background: rgba(255, 255, 255, 0.92);
+        -webkit-backdrop-filter: blur(44px) saturate(180%);
+        backdrop-filter: blur(44px) saturate(180%);
+        box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.6),
+          0 34px 70px -26px rgba(0, 0, 0, 0.55);
+        color: var(--ink);
+        transform: translateY(-12px);
+      }
+      .spaire-plan-picker .card.rec:hover {
+        transform: translateY(-16px);
+      }
+
+      .spaire-plan-picker .rec-label {
+        display: inline-flex;
+        align-items: center;
+        align-self: flex-start;
+        height: 24px;
+        padding: 0 11px;
+        border-radius: 980px;
+        margin-bottom: 12px;
+        font-size: 11.5px;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: var(--ink);
+        background: rgba(0, 0, 0, 0.08);
+      }
+      .spaire-plan-picker .tier-spacer {
+        height: 36px;
+      }
+      .spaire-plan-picker .tier {
+        font-family: var(--po);
+        font-size: 21px;
+        font-weight: 600;
+        letter-spacing: -0.02em;
+      }
+
+      /* price */
+      .spaire-plan-picker .price {
         display: flex;
         align-items: flex-start;
-        gap: 8px;
-        font-size: 12px;
-        color: var(--sp-fg-1);
-        line-height: 1.45;
-        text-wrap: pretty;
+        gap: 2px;
+        margin-top: 16px;
       }
-      .sp-check {
-        flex-shrink: 0;
-        width: 14px;
-        height: 14px;
-        margin-top: 2px;
-        color: var(--sp-fg-2);
+      .spaire-plan-picker .price .cur {
+        font-size: 20px;
+        font-weight: 500;
+        margin-top: 5px;
       }
-      .sp-card--featured .sp-check {
-        color: var(--sp-accent);
+      .spaire-plan-picker .price .amt {
+        font-size: 46px;
+        font-weight: 600;
+        line-height: 1;
+        letter-spacing: -0.03em;
+        font-variant-numeric: tabular-nums;
+      }
+      .spaire-plan-picker .price .per {
+        font-size: 14px;
+        font-weight: 400;
+        color: rgba(255, 255, 255, 0.6);
+        align-self: flex-end;
+        margin-left: 4px;
+        margin-bottom: 6px;
+      }
+      .spaire-plan-picker .card.rec .price .per {
+        color: var(--gray);
+      }
+      .spaire-plan-picker .bill {
+        font-size: 13px;
+        line-height: 1.4;
+        color: rgba(255, 255, 255, 0.62);
+        margin-top: 8px;
+        min-height: 18px;
+      }
+      .spaire-plan-picker .card.rec .bill {
+        color: var(--gray);
+      }
+      .spaire-plan-picker .bill .was {
+        text-decoration: line-through;
+        opacity: 0.65;
+        margin-right: 5px;
       }
 
       /* CTA */
-      .sp-cta-wrap {
-        margin-top: auto;
-        padding-top: 6px;
-      }
-      .sp-cta {
-        width: 100%;
-        padding: 11px 18px;
-        border-radius: 999px;
-        background: linear-gradient(
-          180deg,
-          oklch(0.28 0.008 280) 0%,
-          oklch(0.14 0.008 280) 100%
-        );
-        color: #fff;
-        font-size: 13px;
-        font-weight: 600;
-        letter-spacing: -0.005em;
-        border: none;
-        cursor: pointer;
-        font-family: inherit;
-        box-shadow:
-          inset 0 1px 0 rgba(255, 255, 255, 0.18),
-          inset 0 -1px 0 rgba(0, 0, 0, 0.4),
-          0 1px 2px rgba(0, 0, 0, 0.15),
-          0 5px 14px rgba(0, 0, 0, 0.16);
-        transition:
-          transform 150ms ease,
-          box-shadow 150ms ease,
-          opacity 150ms ease;
+      .spaire-plan-picker .cta {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        gap: 8px;
+        width: 100%;
+        height: 46px;
+        border-radius: 980px;
+        margin-top: 22px;
+        font-size: 15px;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+        background: rgba(255, 255, 255, 0.16);
+        color: #fff;
+        box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.2);
+        transition: transform 0.16s, background 0.16s, opacity 0.16s;
       }
-      .sp-cta:hover {
-        transform: translateY(-1px);
+      .spaire-plan-picker .cta:hover {
+        background: rgba(255, 255, 255, 0.26);
+        transform: scale(1.015);
       }
-      .sp-cta--featured {
-        background: linear-gradient(180deg, #4756d8 0%, #2d3aab 100%);
-        box-shadow:
-          inset 0 1px 0 rgba(255, 255, 255, 0.22),
-          inset 0 -1px 0 rgba(0, 0, 0, 0.3),
-          0 1px 2px rgba(0, 0, 0, 0.12),
-          0 6px 18px rgb(56 71 204 / 0.32);
+      .spaire-plan-picker .cta:active {
+        transform: scale(0.98);
       }
-      .sp-cta--disabled {
-        opacity: 0.55;
+      .spaire-plan-picker .card.rec .cta {
+        background: var(--ink);
+        color: #fff;
+        box-shadow: none;
+      }
+      .spaire-plan-picker .card.rec .cta:hover {
+        background: #000;
+      }
+      .spaire-plan-picker .cta:disabled {
         cursor: not-allowed;
+        opacity: 0.55;
         transform: none;
       }
-      .sp-fine {
-        font-size: 10.5px;
-        color: var(--sp-fg-3);
+
+      .spaire-plan-picker .cta-note {
+        font-size: 11.5px;
+        line-height: 1.4;
+        color: rgba(255, 255, 255, 0.5);
         text-align: center;
-        margin: 8px 0 0;
-        line-height: 1.45;
-        text-wrap: pretty;
+        margin-top: 11px;
+      }
+      .spaire-plan-picker .card.rec .cta-note {
+        color: var(--gray);
       }
 
-      /* Compare link */
-      .sp-compare {
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        font-size: 12.5px;
-        color: var(--sp-fg-2);
-        padding: 8px 14px;
-        border-radius: 999px;
-        background: none;
-        border: none;
-        cursor: pointer;
-        font-family: inherit;
-        transition:
-          color 150ms ease,
-          background 150ms ease;
+      /* feature list */
+      .spaire-plan-picker .divider {
+        height: 1px;
+        background: rgba(255, 255, 255, 0.16);
+        margin: 24px 0 18px;
       }
-      .sp-compare:hover {
-        color: var(--sp-fg-0);
-        background: oklch(0.97 0.002 280);
+      .spaire-plan-picker .card.rec .divider {
+        background: rgba(0, 0, 0, 0.1);
       }
-      .sp-compare svg {
-        transition: transform 200ms ease;
+      .spaire-plan-picker .incl {
+        font-size: 13px;
+        font-weight: 600;
+        margin-bottom: 16px;
+        color: rgba(255, 255, 255, 0.92);
       }
-      .sp-compare:hover svg {
-        transform: translateX(2px);
+      .spaire-plan-picker .card.rec .incl {
+        color: var(--ink);
+      }
+      .spaire-plan-picker .incl .from {
+        font-weight: 400;
+        color: rgba(255, 255, 255, 0.6);
+      }
+      .spaire-plan-picker .card.rec .incl .from {
+        color: var(--gray);
+      }
+      .spaire-plan-picker .feats {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .spaire-plan-picker .feat {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        font-size: 14px;
+        line-height: 1.4;
+        color: rgba(255, 255, 255, 0.92);
+      }
+      .spaire-plan-picker .card.rec .feat {
+        color: var(--ink);
+      }
+      .spaire-plan-picker .feat svg {
+        flex-shrink: 0;
+        margin-top: 2px;
+        color: #fff;
+        opacity: 0.92;
+      }
+      .spaire-plan-picker .card.rec .feat svg {
+        color: var(--ink);
+        opacity: 1;
+      }
+      .spaire-plan-picker .feat b {
+        font-weight: 600;
+      }
+      .spaire-plan-picker .feat .sub {
+        color: rgba(255, 255, 255, 0.55);
+      }
+      .spaire-plan-picker .card.rec .feat .sub {
+        color: var(--gray);
       }
 
-      @media (max-width: 980px) {
-        .sp-grid {
+      @media (max-width: 860px) {
+        .spaire-plan-picker .stage {
+          padding: 56px 22px;
+        }
+        .spaire-plan-picker .cards {
           grid-template-columns: 1fr;
           max-width: 420px;
+          gap: 16px;
         }
-        .sp-stage {
-          padding: 8px 20px 32px;
+        .spaire-plan-picker .card.rec {
+          transform: none;
+        }
+        .spaire-plan-picker .card.rec:hover {
+          transform: translateY(-4px);
         }
       }
     `}</style>

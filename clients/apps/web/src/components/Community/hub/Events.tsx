@@ -43,8 +43,10 @@ import {
 
 const { useEffect, useState } = React
 
-/* type label ↔ stored enum (uses the existing enum values) */
-const FORM_TYPES = ['Workshop', 'Q&A', 'Watch Party'] as const
+/* type label ↔ stored enum (uses the existing enum values). Keep this map in
+ * sync with PublicEventPage.tsx and emails/EventCard.tsx — all three must show
+ * the same wording for a given stored type. */
+const FORM_TYPES = ['Workshop', 'Q&A', 'Watch Party', 'Guest'] as const
 const TYPE_LABEL: Record<CommunityEventType, string> = {
   workshop: 'Workshop',
   office: 'Q&A',
@@ -52,7 +54,13 @@ const TYPE_LABEL: Record<CommunityEventType, string> = {
   guest: 'Guest',
 }
 const labelToType = (l: string): CommunityEventType =>
-  l === 'Q&A' ? 'office' : l === 'Watch Party' ? 'cohort' : 'workshop'
+  l === 'Q&A'
+    ? 'office'
+    : l === 'Watch Party'
+      ? 'cohort'
+      : l === 'Guest'
+        ? 'guest'
+        : 'workshop'
 
 const DURATIONS = [30, 45, 60, 90]
 
@@ -364,10 +372,14 @@ function EventCard({
             <>
               View recap <Glyph d="chevR" size={15} stroke={2} />
             </>
-          ) : (
+          ) : ev.meeting_url ? (
             <>
               Join with {providerOf(provider).name}{' '}
               <Glyph d="chevR" size={15} stroke={2} />
+            </>
+          ) : (
+            <>
+              View details <Glyph d="chevR" size={15} stroke={2} />
             </>
           )}
         </div>
@@ -381,6 +393,7 @@ export function EventSheet({
   ev,
   courseId,
   orgSlug,
+  memberRsvp = true,
   onClose,
   onEdit,
   onDeleted,
@@ -390,6 +403,8 @@ export function EventSheet({
   courseId?: string
   /** Org slug — enables the same-origin .ics download (Apple Calendar). */
   orgSlug?: string
+  /** Settings gate: when false, the member RSVP button is hidden. */
+  memberRsvp?: boolean
   onClose: () => void
   /** Host only: open the editor prefilled with this event. */
   onEdit?: (ev: CommunityEventRead) => void
@@ -528,7 +543,7 @@ export function EventSheet({
 
             {/* Member RSVP — confirming triggers the backend's confirmation
                 email (with .ics), reminder schedule and bell notifications. */}
-            {isMember && !ev.past && (
+            {isMember && !ev.past && memberRsvp && (
               <button
                 className={`ev-sheet-rsvp${going ? 'going' : ''}`}
                 onClick={toggleRsvp}
@@ -547,10 +562,12 @@ export function EventSheet({
               </button>
             )}
 
-            <button className="ev-sheet-join" onClick={join}>
-              <ProviderLogo k={provider} size={24} /> Join with {prov.name}
-              <Glyph d="chevR" size={16} stroke={2.2} />
-            </button>
+            {ev.meeting_url && (
+              <button className="ev-sheet-join" onClick={join}>
+                <ProviderLogo k={provider} size={24} /> Join with {prov.name}
+                <Glyph d="chevR" size={16} stroke={2.2} />
+              </button>
+            )}
 
             {/* Add to calendar — Google / Outlook deep links + Apple .ics. */}
             {!ev.past && (
@@ -617,11 +634,14 @@ export function EventsTab({
   courseId,
   orgSlug,
   defaultProvider = 'zoom',
+  memberRsvp = true,
   showToast,
 }: {
   courseId: string
   orgSlug?: string
   defaultProvider?: ProviderKey
+  /** Settings gate: when false, members can't RSVP (button hidden). */
+  memberRsvp?: boolean
   showToast: (m: string) => void
 }) {
   const { viewer, mode, token } = useHub()
@@ -746,6 +766,7 @@ export function EventsTab({
           ev={openEv}
           courseId={courseId}
           orgSlug={orgSlug}
+          memberRsvp={memberRsvp}
           onClose={() => setOpenEv(null)}
           onEdit={isHost ? startEdit : undefined}
           onDeleted={() => setOpenEv(null)}

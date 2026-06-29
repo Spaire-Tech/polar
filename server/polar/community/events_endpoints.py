@@ -90,15 +90,12 @@ def _host_from_user(
     org_avatar_fallback: str | None = None,
 ) -> CommunityEventHost:
     name = (
-        (instructor_name or "").strip()
-        or (user.public_name or "").strip()
+        (instructor_name or "").strip() or (user.public_name or "").strip()
         if hasattr(user, "public_name")
         else None
     )
     fallback = (
-        getattr(user, "username", None)
-        or getattr(user, "email", None)
-        or "Instructor"
+        getattr(user, "username", None) or getattr(user, "email", None) or "Instructor"
     )
     # Most creators host under their org brand and never set a personal
     # `user.avatar_url`. Falling back to the organization's avatar
@@ -180,9 +177,7 @@ async def _resolve_org_avatar(
     org_id = getattr(course, "organization_id", None)
     if org_id is None:
         return None
-    organization = await OrganizationRepository.from_session(session).get_by_id(
-        org_id
-    )
+    organization = await OrganizationRepository.from_session(session).get_by_id(org_id)
     return organization.avatar_url if organization is not None else None
 
 
@@ -406,7 +401,11 @@ async def rsvp_event_customer(
     await community_service.assert_enrolled(
         session, customer_id=customer_id, course_id=course_id
     )
-    await community_service.assert_community_enabled(session, course_id)
+    settings = await community_service.assert_community_enabled(session, course_id)
+    if not settings.member_rsvp:
+        raise HTTPException(
+            status_code=403, detail="RSVP is disabled for this community"
+        )
     try:
         going, count = await events_service.rsvp(
             session,
@@ -716,7 +715,9 @@ async def download_event_ics(
     Calendar" without an auth round-trip — the ICS only contains data
     already exposed by GET /events/{event_id}.
     """
-    event, _course_name, _organization_slug = await _load_public_event(session, event_id)
+    event, _course_name, _organization_slug = await _load_public_event(
+        session, event_id
+    )
 
     host_user = await session.get(User, event.host_user_id)
     host_email = getattr(host_user, "email", None) if host_user else None

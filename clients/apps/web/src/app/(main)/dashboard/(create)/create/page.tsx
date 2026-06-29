@@ -1,6 +1,6 @@
 import revalidate from '@/app/actions'
 import { getServerSideAPI } from '@/utils/client/serverside'
-import { getAuthenticatedUser, getUserOrganizations } from '@/utils/user'
+import { getAuthenticatedUser } from '@/utils/user'
 import { schemas } from '@spaire/client'
 import { Metadata } from 'next'
 import { redirect } from 'next/navigation'
@@ -17,29 +17,14 @@ export default async function Page(props: {
     slug?: string
     auto?: string
     existing_org?: boolean
-    from_welcome?: string
   }>
 }) {
   const searchParams = await props.searchParams
 
-  const { slug, auto, existing_org, from_welcome } = searchParams
+  const { slug, auto, existing_org } = searchParams
 
   let validationErrors: schemas['ValidationError'][] = []
   const error: string | undefined = undefined
-
-  // Always show welcome first for brand-new users who haven't come from it yet
-  if (!from_welcome && !existing_org) {
-    const api = await getServerSideAPI()
-    const existingOrgs = await getUserOrganizations(api, true)
-    if (existingOrgs.length === 0) {
-      // Carry slug/auto through so the welcome page can forward them back
-      const params = new URLSearchParams()
-      if (slug) params.set('slug', slug)
-      if (auto) params.set('auto', auto)
-      const qs = params.toString()
-      return redirect(`/welcome${qs ? `?${qs}` : ''}`)
-    }
-  }
 
   // Create the organization automatically if the slug is provided and auto is true
   if (auto === 'true' && slug) {

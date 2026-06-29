@@ -105,6 +105,9 @@ function EditText({
   ctx,
   editable,
   onEditText,
+  multiline = false,
+  maxLength,
+  placeholder,
 }: {
   field: EditField
   value: string
@@ -117,17 +120,38 @@ function EditText({
     value: string,
     ctx?: { flatIdx?: number; groupIdx?: number; idx?: number },
   ) => void
+  /** Allow line breaks (the hero headline). Single-line fields collapse any
+   *  pasted/typed newline to a space so the design's layout can't break. */
+  multiline?: boolean
+  /** Hard cap enforced on commit (and on paste) so a wall of text can't be
+   *  saved into a single-line field. */
+  maxLength?: number
+  /** Shown (via CSS) when the field is empty, instead of persisting the
+   *  placeholder as real content. */
+  placeholder?: string
 }) {
   const ref = useRef<HTMLElement | null>(null)
   const focusedRef = useRef(false)
+  const read = (el: HTMLElement) =>
+    multiline ? (el.innerText ?? '') : (el.textContent ?? '')
   useEffect(() => {
     const el = ref.current
-    if (el && !focusedRef.current && el.textContent !== value) {
+    if (el && !focusedRef.current && read(el) !== value) {
       el.textContent = value
     }
-  }, [value])
+    // read depends only on `multiline`, which is stable for a given element.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value, multiline])
   if (!editable || !onEditText) {
     return <Tag className={className}>{value}</Tag>
+  }
+  const normalize = (raw: string) => {
+    let next = multiline
+      ? raw.replace(/\r/g, '')
+      : raw.replace(/\s*\n\s*/g, ' ')
+    next = next.replace(/[ \t]+\n/g, '\n').trim()
+    if (maxLength && next.length > maxLength) next = next.slice(0, maxLength)
+    return next
   }
   return (
     <Tag
@@ -136,14 +160,38 @@ function EditText({
       contentEditable
       suppressContentEditableWarning
       spellCheck={false}
+      data-placeholder={placeholder || undefined}
+      style={multiline ? { whiteSpace: 'pre-line' } : undefined}
       onPointerDown={(e: React.PointerEvent) => e.stopPropagation()}
       onClick={(e: React.MouseEvent) => e.stopPropagation()}
       onFocus={() => {
         focusedRef.current = true
       }}
+      onKeyDown={(e: React.KeyboardEvent) => {
+        // Single-line fields: Enter commits instead of inserting a newline.
+        if (!multiline && e.key === 'Enter') {
+          e.preventDefault()
+          ;(e.currentTarget as HTMLElement).blur()
+        }
+      }}
+      onPaste={(e: React.ClipboardEvent) => {
+        // Always paste as PLAIN TEXT so no markup/styles ever enter the
+        // contentEditable (and so a single-line field can't gain newlines).
+        e.preventDefault()
+        const text = e.clipboardData.getData('text/plain')
+        const clean = multiline
+          ? text.replace(/\r/g, '')
+          : text.replace(/\s*\n\s*/g, ' ')
+        const sel = window.getSelection()
+        if (sel && sel.rangeCount > 0) {
+          sel.deleteFromDocument()
+          sel.getRangeAt(0).insertNode(document.createTextNode(clean))
+          sel.collapseToEnd()
+        }
+      }}
       onBlur={(e: React.FocusEvent<HTMLElement>) => {
         focusedRef.current = false
-        const next = (e.currentTarget.textContent ?? '').trim()
+        const next = normalize(read(e.currentTarget))
         if (next !== value) onEditText(field, next, ctx)
       }}
     />
@@ -151,6 +199,9 @@ function EditText({
 }
 
 export type GeneratedLesson = {
+  /** Source lesson id, when known — lets the host resolve a click to the exact
+   *  lesson instead of matching by title (which collides on duplicate titles). */
+  id?: string
   title: string
   description: string
   flatIdx: number
@@ -270,10 +321,43 @@ export type GeneratedPortalPageProps = {
   /** Enroll-sheet price sub-line ("One-time purchase · 18 lessons ·
    *  Lifetime access"). The big price is parsed from buyLabel. */
   enrollPriceSub?: string
+
+  // ── Add / remove for the fixed-count lists (editor only). When provided,
+  //    the renderer shows the design's "+ Add" affordance and a per-item
+  //    remove control. ───────────────────────────────────────────────────────
+  onAddFaq?: () => void
+  onRemoveFaq?: (idx: number) => void
+  onAddBadge?: () => void
+  onRemoveBadge?: (idx: number) => void
+  onAddBioParagraph?: () => void
+  onRemoveBioParagraph?: (idx: number) => void
+
+  /** Lazily mint the sample clip's playback URL (public page). Called the
+   *  first time the clip needs to play, so the full URL is never embedded in
+   *  the page. Returns null when unavailable (e.g. quota exhausted). */
+  onRequestSampleUrl?: () => Promise<string | null>
+
+  /** Section visibility (landing_overrides.visible). A section whose id maps
+   *  to `false` is not rendered on the public page; in the editor it moves to
+   *  the "hidden sections" bar where it can be brought back. */
+  sectionVisible?: Record<string, boolean>
+  /** Hide/show a body section (editor only). */
+  onSetSectionHidden?: (id: string, hidden: boolean) => void
 }
+
+// The body sections the live landing renders, in render order. The hero is
+// always first and isn't a hideable body section. Used for the hide control
+// and the "hidden sections" recovery bar.
+const BODY_SECTIONS: { id: string; label: string }[] = [
+  { id: 'instructor', label: 'Instructor' },
+  { id: 'sample', label: 'Free sample' },
+  { id: 'lessons', label: 'Lessons' },
+  { id: 'faq', label: 'FAQ' },
+]
 
 export type EditField =
   | 'title'
+  | 'heroTitle'
   | 'desc'
   | 'byline'
   | 'eyebrow'
@@ -350,7 +434,33 @@ export function GeneratedPortalPage({
   onConfigureSample,
   onEditText,
   enrollPriceSub,
+  onAddFaq,
+  onRemoveFaq,
+  onAddBadge,
+  onRemoveBadge,
+  onAddBioParagraph,
+  onRemoveBioParagraph,
+  onRequestSampleUrl,
+  sectionVisible,
+  onSetSectionHidden,
 }: GeneratedPortalPageProps) {
+  const isSectionHidden = (id: string) => sectionVisible?.[id] === false
+  // A small hover control rendered at the top of each editable body section.
+  // A render helper (not a nested component) so it doesn't remount each render.
+  const sectionHideControl = (id: string): React.ReactNode =>
+    onSetSectionHidden ? (
+      <button
+        type="button"
+        className="gpp-section-hide"
+        title="Hide section"
+        onClick={(e) => {
+          e.stopPropagation()
+          onSetSectionHidden(id, true)
+        }}
+      >
+        Hide section
+      </button>
+    ) : null
   const isEpisodic = structure === 'episodic'
   const unitCap = unit === 'episode' ? 'Episode' : 'Lesson'
   const year = new Date().getFullYear()
@@ -479,8 +589,18 @@ export function GeneratedPortalPage({
     const m = /([\d.]+)%\s+([\d.]+)%/.exec(pos ?? '')
     return m ? [parseFloat(m[1]), parseFloat(m[2])] : [50, 50]
   }
-  const [livePos, setLivePos] = useState<string | null>(null)
-  const effectiveCoverPos = livePos ?? coverPosition ?? null
+  // Live drag position, tagged with the committed value it was dragged from.
+  // The live override only wins while it still belongs to the current
+  // `coverPosition`; once a drag persists (or the server sends a new value),
+  // `base` no longer matches and the persisted value becomes authoritative
+  // again — so the first drag can't "stick" forever and desync from what's
+  // saved (no effect-driven reset needed).
+  const [livePos, setLivePos] = useState<{ pos: string; base: string | null } | null>(
+    null,
+  )
+  const committedCoverPos = coverPosition ?? null
+  const effectiveCoverPos =
+    livePos && livePos.base === committedCoverPos ? livePos.pos : committedCoverPos
   const onDragStart = (e: React.PointerEvent) => {
     if (!repositioning) return
     const [px, py] = parsePos(effectiveCoverPos)
@@ -507,7 +627,7 @@ export function GeneratedPortalPage({
       Math.max(0, d.posY - ((e.clientY - d.startY) / r.height) * 100),
     )
     const next = `${nx.toFixed(1)}% ${ny.toFixed(1)}%`
-    setLivePos(next)
+    setLivePos({ pos: next, base: committedCoverPos })
     onCoverPosition?.(next)
   }
   const onDragEnd = () => {
@@ -520,20 +640,45 @@ export function GeneratedPortalPage({
   const sampleScreenRef = useRef<HTMLDivElement | null>(null)
   const sampleVideoRef = useRef<HTMLVideoElement | null>(null)
   const [samplePlaying, setSamplePlaying] = useState(false)
-  const sampleSrc = samplePlaybackUrl ?? null
+  // The clip URL is minted on demand (the public payload no longer embeds it),
+  // so resolve it lazily the first time the clip needs to play and cache it.
+  const [resolvedSampleUrl, setResolvedSampleUrl] = useState<string | null>(null)
+  const sampleUrlRef = useRef<string | null>(null)
+  const ensureSampleUrl = useCallback(async (): Promise<string | null> => {
+    if (sampleUrlRef.current) return sampleUrlRef.current
+    if (samplePlaybackUrl) {
+      sampleUrlRef.current = samplePlaybackUrl
+      return samplePlaybackUrl
+    }
+    if (!onRequestSampleUrl) return null
+    try {
+      const url = await onRequestSampleUrl()
+      if (url) {
+        sampleUrlRef.current = url
+        setResolvedSampleUrl(url)
+      }
+      return url
+    } catch {
+      return null
+    }
+  }, [samplePlaybackUrl, onRequestSampleUrl])
+  const sampleSrc = resolvedSampleUrl ?? samplePlaybackUrl ?? null
   const sampleIsHls = Boolean(
     samplePlaybackId || (sampleSrc && sampleSrc.includes('.m3u8')),
   )
   const [sampleMuted, setSampleMuted] = useState(false)
   const startSample = useCallback(() => {
     if (!samplePlayable) return
-    setSampleMuted(false)
-    setSamplePlaying(true)
-    sampleScreenRef.current?.scrollIntoView({
-      behavior: 'smooth',
-      block: 'center',
+    void ensureSampleUrl().then((url) => {
+      if (!url) return
+      setSampleMuted(false)
+      setSamplePlaying(true)
+      sampleScreenRef.current?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center',
+      })
     })
-  }, [samplePlayable])
+  }, [samplePlayable, ensureSampleUrl])
   // Auto-play on scroll — the design's "plays automatically when scrolled
   // into view". Starts MUTED (browsers only allow muted autoplay) and fires
   // once per visit; the viewer can unmute via the player controls, and an
@@ -548,8 +693,11 @@ export function GeneratedPortalPage({
         for (const e of entries) {
           if (e.intersectionRatio >= 0.6 && !sampleAutoPlayedRef.current) {
             sampleAutoPlayedRef.current = true
-            setSampleMuted(true)
-            setSamplePlaying(true)
+            void ensureSampleUrl().then((url) => {
+              if (!url) return
+              setSampleMuted(true)
+              setSamplePlaying(true)
+            })
           }
         }
       },
@@ -557,7 +705,7 @@ export function GeneratedPortalPage({
     )
     io.observe(screen)
     return () => io.disconnect()
-  }, [samplePlayable, samplePlaying])
+  }, [samplePlayable, samplePlaying, ensureSampleUrl])
   const stopSample = useCallback(() => {
     sampleVideoRef.current?.pause()
     setSamplePlaying(false)
@@ -1181,18 +1329,51 @@ export function GeneratedPortalPage({
                 {metaDuration}
               </div>
               <div className="bd-badges">
-                {badges.map((b, i) => (
-                  <EditText
-                    key={i}
-                    editable={editable}
-                    onEditText={onEditText}
-                    field="bdg"
-                    value={b}
-                    className={i === 0 ? 'bdg rate' : 'bdg'}
-                    tag="span"
-                    ctx={{ idx: i }}
-                  />
-                ))}
+                {badges.map((b, i) =>
+                  editable && onRemoveBadge ? (
+                    <span key={i} className="gpp-chip-wrap">
+                      <EditText
+                        editable={editable}
+                        onEditText={onEditText}
+                        field="bdg"
+                        value={b}
+                        className={i === 0 ? 'bdg rate' : 'bdg'}
+                        tag="span"
+                        ctx={{ idx: i }}
+                        maxLength={40}
+                      />
+                      <button
+                        type="button"
+                        className="gpp-remove gpp-remove-chip"
+                        title="Remove badge"
+                        onClick={() => onRemoveBadge(i)}
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ) : (
+                    <EditText
+                      key={i}
+                      editable={editable}
+                      onEditText={onEditText}
+                      field="bdg"
+                      value={b}
+                      className={i === 0 ? 'bdg rate' : 'bdg'}
+                      tag="span"
+                      ctx={{ idx: i }}
+                      maxLength={40}
+                    />
+                  ),
+                )}
+                {editable && onAddBadge && (
+                  <button
+                    type="button"
+                    className="gpp-add gpp-add-chip"
+                    onClick={onAddBadge}
+                  >
+                    + Add
+                  </button>
+                )}
                 {trailerPrimary ? (
                   <button
                     className="bd-trailer"
@@ -1332,13 +1513,23 @@ export function GeneratedPortalPage({
             </div>
 
             {editable && onEditText ? (
+              // Edit the SAME headline the public sees: ai_hero.titleLines when
+              // present (one row per line), else the course title. Multiline so
+              // the two-line break is preserved and editable, instead of
+              // editing a flat title the public page would ignore.
               <EditText
                 editable={editable}
                 onEditText={onEditText}
-                field="title"
-                value={title}
+                field="heroTitle"
+                value={
+                  titleLines && titleLines.length > 0
+                    ? titleLines.join('\n')
+                    : title
+                }
                 className="hero-title"
                 tag="h1"
+                multiline
+                placeholder="Add a headline"
               />
             ) : (
               <h1 className="hero-title">
@@ -1366,7 +1557,12 @@ export function GeneratedPortalPage({
                   editable={editable}
                   onEditText={onEditText}
                   field="byline"
-                  value={byline || `with ${instructorName}`}
+                  // Editable: show the raw byline (empty stays empty, with the
+                  // "with <name>" hint as a placeholder) so just focusing the
+                  // field can't persist the hint as real copy. Public: keep the
+                  // "with <name>" fallback when no byline was written.
+                  value={editable ? byline : byline || `with ${instructorName}`}
+                  placeholder={`with ${instructorName}`}
                 />
               </span>
             </p>
@@ -1441,8 +1637,10 @@ export function GeneratedPortalPage({
       )}
 
       {/* ════════ INSTRUCTOR (Course Page Empty State.html) ════════ */}
-      {(instructorName || instructorSub || instructorBio.length > 0) && (
-        <section className="instructor">
+      {(instructorName || instructorSub || instructorBio.length > 0) &&
+        !isSectionHidden('instructor') && (
+        <section className={`instructor${editable ? ' gpp-section' : ''}`}>
+          {editable && sectionHideControl('instructor')}
           <div className="inst-inner">
             <div className="inst-copy">
               <div className="inst-head">
@@ -1491,18 +1689,50 @@ export function GeneratedPortalPage({
                   />
                 </div>
               </div>
-              {instructorBio.map((p, i) => (
-                <EditText
-                  editable={editable}
-                  onEditText={onEditText}
-                  key={i}
-                  field="instructorBioP"
-                  value={p}
-                  className="inst-bio"
-                  tag="p"
-                  ctx={{ idx: i }}
-                />
-              ))}
+              {instructorBio.map((p, i) =>
+                editable && onRemoveBioParagraph ? (
+                  <div key={i} className="gpp-row">
+                    <EditText
+                      editable={editable}
+                      onEditText={onEditText}
+                      field="instructorBioP"
+                      value={p}
+                      className="inst-bio"
+                      tag="p"
+                      ctx={{ idx: i }}
+                      placeholder="Add a paragraph about the instructor"
+                    />
+                    <button
+                      type="button"
+                      className="gpp-remove"
+                      title="Remove paragraph"
+                      onClick={() => onRemoveBioParagraph(i)}
+                    >
+                      ×
+                    </button>
+                  </div>
+                ) : (
+                  <EditText
+                    key={i}
+                    editable={editable}
+                    onEditText={onEditText}
+                    field="instructorBioP"
+                    value={p}
+                    className="inst-bio"
+                    tag="p"
+                    ctx={{ idx: i }}
+                  />
+                ),
+              )}
+              {editable && onAddBioParagraph && (
+                <button
+                  type="button"
+                  className="gpp-add"
+                  onClick={onAddBioParagraph}
+                >
+                  + Add paragraph
+                </button>
+              )}
             </div>
 
             <div className={`inst-media ${portraitUrl ? 'filled' : ''}`}>
@@ -1555,7 +1785,7 @@ export function GeneratedPortalPage({
                   ) : null}
                 </div>
               )}
-              {portraitCaption && (
+              {(editable || portraitCaption) && (
                 <EditText
                   editable={editable}
                   onEditText={onEditText}
@@ -1563,6 +1793,7 @@ export function GeneratedPortalPage({
                   value={portraitCaption}
                   className="inst-caption"
                   tag="div"
+                  placeholder="Add a caption"
                 />
               )}
               {editable && onAddPortrait && portraitUrl && (
@@ -1581,8 +1812,9 @@ export function GeneratedPortalPage({
       )}
 
       {/* ════════ FREE SAMPLE (Course Page Empty State.html) ════════ */}
-      {hasSampleSection && (
-        <section className="sample">
+      {hasSampleSection && !isSectionHidden('sample') && (
+        <section className={`sample${editable ? ' gpp-section' : ''}`}>
+          {editable && sectionHideControl('sample')}
           <div className="sample-eyebrow">Free Sample</div>
           <h2>Watch a free sample</h2>
           <p className="sample-sub">
@@ -1734,8 +1966,10 @@ export function GeneratedPortalPage({
       )}
 
       {/* ════════ LESSONS — module rows (CPES) or episode strip (MCP) ════════ */}
-      {isEpisodic ? (
-        <div className="lessons">
+      {!isSectionHidden('lessons') &&
+        (isEpisodic ? (
+        <div className={`lessons${editable ? ' gpp-section' : ''}`}>
+          {editable && sectionHideControl('lessons')}
           <div className="row-head strip-rh">
             {/* Desktop labels this "Episodes"; the mobile design uses
                 "Free preview". Both render, one shows per breakpoint. */}
@@ -1787,7 +2021,8 @@ export function GeneratedPortalPage({
           </div>
         </div>
       ) : (
-        <div className="lessons">
+        <div className={`lessons${editable ? ' gpp-section' : ''}`}>
+          {editable && sectionHideControl('lessons')}
           {groups.map((g, gi) => (
             <section className="row" key={gi}>
               <div className="row-head">
@@ -1804,11 +2039,13 @@ export function GeneratedPortalPage({
             </section>
           ))}
         </div>
-      )}
+        ))}
 
       {/* ════════ FAQ (Course Page Empty State.html) ════════ */}
-      {faq.length > 0 && (
-        <section className="faq">
+      {(faq.length > 0 || (editable && onAddFaq)) &&
+        !isSectionHidden('faq') && (
+        <section className={`faq${editable ? ' gpp-section' : ''}`}>
+          {editable && sectionHideControl('faq')}
           <div className="faq-inner">
             <h2>Questions? Answers.</h2>
             <div className="faq-list">
@@ -1828,6 +2065,7 @@ export function GeneratedPortalPage({
                       field="faqQ"
                       value={item.q}
                       ctx={{ idx: i }}
+                      placeholder="Add a question"
                     />
                     <svg
                       className="chev"
@@ -1863,15 +2101,50 @@ export function GeneratedPortalPage({
                         className="faq-a"
                         tag="div"
                         ctx={{ idx: i }}
+                        placeholder="Add an answer"
                       />
                     </div>
                   </div>
+                  {editable && onRemoveFaq && (
+                    <button
+                      type="button"
+                      className="gpp-add faq-remove"
+                      onClick={() => onRemoveFaq(i)}
+                    >
+                      Remove question
+                    </button>
+                  )}
                 </div>
               ))}
             </div>
+            {editable && onAddFaq && (
+              <button type="button" className="gpp-add" onClick={onAddFaq}>
+                + Add question
+              </button>
+            )}
           </div>
         </section>
       )}
+
+      {/* ════════ HIDDEN SECTIONS (editor only) — bring any hidden body
+            section back. Keeps "hide" reversible instead of destructive. ═══ */}
+      {editable &&
+        onSetSectionHidden &&
+        BODY_SECTIONS.some((s) => isSectionHidden(s.id)) && (
+          <div className="gpp-hidden-bar">
+            <span className="gpp-hidden-label">Hidden sections</span>
+            {BODY_SECTIONS.filter((s) => isSectionHidden(s.id)).map((s) => (
+              <button
+                key={s.id}
+                type="button"
+                className="gpp-add"
+                onClick={() => onSetSectionHidden(s.id, false)}
+              >
+                + Show {s.label}
+              </button>
+            ))}
+          </div>
+        )}
 
       {/* ════════ ENROLL SHEET — a locked lesson was clicked ════════ */}
       <div
@@ -2550,6 +2823,133 @@ export function GeneratedPortalPage({
         }
         .gpp .gpp-editable:focus {
           box-shadow: 0 0 0 2px var(--color-ce-accent);
+        }
+        /* Empty editable fields show their placeholder instead of persisting
+           it as real copy. */
+        .gpp .gpp-editable:empty::before {
+          content: attr(data-placeholder);
+          opacity: 0.4;
+          pointer-events: none;
+        }
+        /* ── add / remove affordances for the editable lists (FAQ, badges,
+              bio). Quiet by default, only meaningful in editable mode. ── */
+        .gpp .gpp-row {
+          position: relative;
+        }
+        .gpp .gpp-add {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          margin-top: 10px;
+          padding: 6px 12px;
+          border-radius: 980px;
+          border: 1px dashed
+            color-mix(in srgb, var(--color-ce-accent) 55%, transparent);
+          background: transparent;
+          color: var(--color-ce-accent);
+          font: inherit;
+          font-size: 13px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: background 0.15s;
+        }
+        .gpp .gpp-add:hover {
+          background: color-mix(
+            in srgb,
+            var(--color-ce-accent) 10%,
+            transparent
+          );
+        }
+        .gpp .gpp-add-chip {
+          margin-top: 0;
+          padding: 4px 10px;
+          font-size: 12px;
+        }
+        .gpp .gpp-remove {
+          margin-left: 8px;
+          width: 20px;
+          height: 20px;
+          line-height: 18px;
+          text-align: center;
+          border-radius: 999px;
+          border: none;
+          background: color-mix(in srgb, #ef4444 14%, transparent);
+          color: #ef4444;
+          font-size: 14px;
+          font-weight: 700;
+          cursor: pointer;
+          opacity: 0;
+          transition: opacity 0.15s;
+        }
+        .gpp .gpp-row:hover .gpp-remove,
+        .gpp .gpp-chip-wrap:hover .gpp-remove,
+        .gpp .faq-item:hover .gpp-remove {
+          opacity: 1;
+        }
+        .gpp .gpp-chip-wrap {
+          display: inline-flex;
+          align-items: center;
+        }
+        .gpp .gpp-remove-chip {
+          margin-left: 4px;
+          width: 16px;
+          height: 16px;
+          line-height: 14px;
+          font-size: 12px;
+        }
+        .gpp .faq-remove {
+          margin: 4px 0 0;
+          padding: 4px 10px;
+          font-size: 12px;
+          border-style: solid;
+          border-color: color-mix(in srgb, #ef4444 45%, transparent);
+          color: #ef4444;
+        }
+        .gpp .faq-remove:hover {
+          background: color-mix(in srgb, #ef4444 10%, transparent);
+        }
+        /* Per-section hide control — quiet, appears on section hover. */
+        .gpp .gpp-section {
+          position: relative;
+        }
+        .gpp .gpp-section-hide {
+          position: absolute;
+          top: 14px;
+          right: 14px;
+          z-index: 5;
+          padding: 5px 11px;
+          border-radius: 980px;
+          border: 1px solid
+            color-mix(in srgb, var(--color-ce-accent) 45%, transparent);
+          background: color-mix(in srgb, var(--bg-0, #fff) 88%, transparent);
+          -webkit-backdrop-filter: blur(12px);
+          backdrop-filter: blur(12px);
+          color: var(--color-ce-accent);
+          font: inherit;
+          font-size: 12px;
+          font-weight: 600;
+          cursor: pointer;
+          opacity: 0;
+          transition: opacity 0.15s;
+        }
+        .gpp .gpp-section:hover .gpp-section-hide {
+          opacity: 1;
+        }
+        .gpp .gpp-hidden-bar {
+          display: flex;
+          flex-wrap: wrap;
+          align-items: center;
+          gap: 10px;
+          max-width: 1080px;
+          margin: 0 auto;
+          padding: 24px 32px 48px;
+        }
+        .gpp .gpp-hidden-label {
+          font-size: 12px;
+          font-weight: 600;
+          letter-spacing: 0.04em;
+          text-transform: uppercase;
+          opacity: 0.5;
         }
 
         /* ── editor affordances (Course Page Empty State.html, verbatim) ── */

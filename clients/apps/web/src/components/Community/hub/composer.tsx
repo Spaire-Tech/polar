@@ -13,8 +13,6 @@
  *
  * GIF is intentionally omitted for now.
  */
-import data from '@emoji-mart/data'
-import Picker from '@emoji-mart/react'
 import {
   type CommunityEventRead,
   type CommunityIOMode,
@@ -23,9 +21,12 @@ import {
   useUploadPostImage,
   useUploadPostVideo,
 } from '@/hooks/queries/community'
+import data from '@emoji-mart/data'
+import Picker from '@emoji-mart/react'
 import * as React from 'react'
 import { createPortal } from 'react-dom'
 import { EventSheet } from './Events'
+import { HubAvatar } from './HubAvatar'
 import { Glyph } from './icons'
 import { fmtDateLabel, providerFromUrl, ProviderLogo } from './pickers'
 
@@ -51,7 +52,7 @@ function EventAttach({
   const provider = providerFromUrl(ev.meeting_url)
   return (
     <div
-      className={`ev-attach${onOpen ? ' tap' : ''}`}
+      className={`ev-attach${onOpen ? 'tap' : ''}`}
       onClick={onOpen}
       role={onOpen ? 'button' : undefined}
     >
@@ -345,7 +346,7 @@ export function Composer({
     return (
       <div className="card crf-composer">
         <div className="crf-comp-row">
-          {av ? <img src={av} alt="" /> : <span className="hub-av-fallback" />}
+          <HubAvatar name={name} url={av} />
           <button className="crf-comp-fake" onClick={expand}>
             {placeholder}
           </button>
@@ -382,7 +383,7 @@ export function Composer({
   return (
     <div className="card crf-composer open">
       <div className="crf-comp-head">
-        {av ? <img src={av} alt="" /> : <span className="hub-av-fallback" />}
+        <HubAvatar name={name} url={av} />
         <div className="crf-comp-who">
           <div className="n">{name}</div>
         </div>
@@ -399,7 +400,7 @@ export function Composer({
       />
 
       {images.length > 0 && (
-        <div className={`comp-atts${images.length === 1 ? ' one' : ''}`}>
+        <div className={`comp-atts${images.length === 1 ? 'one' : ''}`}>
           {images.map((im) => (
             <div className="comp-att" key={im.file_id}>
               <img src={im.url} alt="" />
@@ -505,7 +506,10 @@ export function Composer({
             </button>
             {eventPick && (
               <>
-                <div className="pop-scrim" onClick={() => setEventPick(false)} />
+                <div
+                  className="pop-scrim"
+                  onClick={() => setEventPick(false)}
+                />
                 <div className="pop pop-event">
                   <div className="pop-title">Link an event</div>
                   {events.length === 0 ? (

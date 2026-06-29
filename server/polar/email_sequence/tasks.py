@@ -414,16 +414,21 @@ async def _send_email_node(
     # even for flows with waits/branches, where the email-ordinal fallback —
     # which counts only root-level email nodes against a flow_index the tree
     # walker never advances — would otherwise always resolve to position 0.
+    # Compute the email ordinal up front so it is ALWAYS bound — the legacy
+    # analytics cursor (current_step_position) is advanced by `ordinal + 1` on a
+    # successful send below. When the step resolves via flow_next_step_id (the
+    # normal flow path) the `if step is None` block never ran, leaving `ordinal`
+    # unbound and raising UnboundLocalError *after* the email was already sent —
+    # the transaction rolled back, the cursor never advanced, and the same email
+    # re-sent on the next tick (duplicate sends / stuck enrolment).
+    cursor = enrollment.flow_index if enrollment.flow_index is not None else 0
+    ordinal = _email_ordinal_for_flow_index(flow, cursor) if flow is not None else 0
     step = None
     if enrollment.flow_next_step_id:
         step = await repository.get_step_by_flow_id(
             sequence.id, enrollment.flow_next_step_id
         )
     if step is None:
-        cursor = enrollment.flow_index if enrollment.flow_index is not None else 0
-        ordinal = (
-            _email_ordinal_for_flow_index(flow, cursor) if flow is not None else 0
-        )
         step = await repository.get_step_by_position(sequence.id, ordinal)
     if step is None:
         # Materialized step row missing — synthesise a best-effort send from

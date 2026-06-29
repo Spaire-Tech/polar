@@ -42,6 +42,7 @@ import { useHub } from './context'
 import { EventSheet } from './Events'
 import { timeAgo } from './format'
 import { HeadInfo } from './HeadInfo'
+import { HubAvatar } from './HubAvatar'
 import { Glyph } from './icons'
 import {
   fmtDateLabel,
@@ -148,14 +149,16 @@ function PostEvent({
   courseId: string
   showToast: (m: string) => void
 }) {
-  const { token, mode } = useHub()
   const [sheet, setSheet] = useState(false)
-  // Only load the full event (real RSVP count, going state, host) once the
-  // sheet is open — gating on courseId keeps the query disabled while closed.
-  const eventsQ = useCommunityEvents(token, sheet ? courseId : undefined, mode)
-  const fullEvent = eventsQ.data?.find((e) => e.id === event.id)
+  const { mode, token } = useHub()
   const provider = providerFromUrl(event.meeting_url)
   const when = new Date(event.start_at)
+  // The post embed (`CommunityPostEventRef`) is a thin reference — it has no
+  // RSVP count, host, or live/past state. Resolve the full event from the
+  // events list (only while the sheet is open) so the detail sheet shows real
+  // data and a working RSVP instead of the fabricated zeros in eventRefToRead.
+  const eventsQ = useCommunityEvents(token, sheet ? courseId : undefined, mode)
+  const full = eventsQ.data?.find((e) => e.id === event.id) ?? null
   return (
     <>
       <div
@@ -188,14 +191,16 @@ function PostEvent({
               hour: 'numeric',
               minute: '2-digit',
               timeZone: event.timezone || undefined,
-            })}{' '}
-            · Join with {providerOf(provider).name}
+            })}
+            {event.meeting_url
+              ? ` · Join with ${providerOf(provider).name}`
+              : ''}
           </div>
         </div>
       </div>
       {sheet && (
         <EventSheet
-          ev={fullEvent ?? eventRefToRead(event)}
+          ev={full ?? eventRefToRead(event)}
           courseId={courseId}
           onClose={() => setSheet(false)}
           showToast={showToast}
@@ -385,8 +390,9 @@ function PostLightbox({
                   alt={authorName(a)}
                 />
               ) : (
-                <span
-                  className={`crf-av${isHost ? 'host' : ''} hub-av-fallback`}
+                <HubAvatar
+                  name={authorName(a)}
+                  className={`crf-av${isHost ? 'host' : ''}`}
                 />
               )}
               <div className="crf-id">
@@ -534,7 +540,10 @@ function HubComment({
           alt={authorName(a)}
         />
       ) : (
-        <span className={`cmt-av${depth ? 'sm' : ''} hub-av-fallback`} />
+        <HubAvatar
+          name={authorName(a)}
+          className={`cmt-av${depth ? 'sm' : ''}`}
+        />
       )}
       <div className="cmt-main">
         <div className="cmt-bubble">
@@ -715,9 +724,13 @@ export function HubPost({
   const comments = post.comment_count
 
   const long = post.body.length > TRUNC
+  // Cut on the last word boundary before TRUNC; fall back to a hard cut when
+  // there's no space (a long URL / CJK text) so we don't collapse the whole
+  // post to a single "…".
+  const cut = post.body.lastIndexOf(' ', TRUNC)
   const shown =
     long && !expanded
-      ? post.body.slice(0, post.body.lastIndexOf(' ', TRUNC)) + '…'
+      ? post.body.slice(0, cut > 0 ? cut : TRUNC) + '…'
       : post.body
 
   const togglePin = () =>
@@ -747,7 +760,10 @@ export function HubPost({
             alt={authorName(a)}
           />
         ) : (
-          <span className={`crf-av${isHost ? 'host' : ''} hub-av-fallback`} />
+          <HubAvatar
+            name={authorName(a)}
+            className={`crf-av${isHost ? 'host' : ''}`}
+          />
         )}
         <div className="crf-id">
           <div className="crf-name">
