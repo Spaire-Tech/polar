@@ -52,7 +52,7 @@ function EventAttach({
   const provider = providerFromUrl(ev.meeting_url)
   return (
     <div
-      className={`ev-attach${onOpen ? 'tap' : ''}`}
+      className={`ev-attach ${onOpen ? 'tap' : ''}`}
       onClick={onOpen}
       role={onOpen ? 'button' : undefined}
     >
@@ -400,7 +400,7 @@ export function Composer({
       />
 
       {images.length > 0 && (
-        <div className={`comp-atts${images.length === 1 ? 'one' : ''}`}>
+        <div className={`comp-atts ${images.length === 1 ? 'one' : ''}`}>
           {images.map((im) => (
             <div className="comp-att" key={im.file_id}>
               <img src={im.url} alt="" />

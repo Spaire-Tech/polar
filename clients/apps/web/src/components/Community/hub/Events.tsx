@@ -331,7 +331,7 @@ function EventCard({
   const provider = providerFromUrl(ev.meeting_url)
   return (
     <button
-      className={`ev-card${past ? 'is-past' : ''}`}
+      className={`ev-card ${past ? 'is-past' : ''}`}
       onClick={() => onOpen(ev)}
     >
       <div
@@ -503,7 +503,7 @@ export function EventSheet({
     typeof document !== 'undefined' &&
     !!document.querySelector('.spaire-hub.dark')
   return createPortal(
-    <div className={`spaire-hub${isDark ? 'dark' : ''}`}>
+    <div className={`spaire-hub ${isDark ? 'dark' : ''}`}>
       <div className="ev-overlay" onClick={onClose}>
         <div className="ev-sheet" onClick={(e) => e.stopPropagation()}>
           <div
@@ -545,7 +545,7 @@ export function EventSheet({
                 email (with .ics), reminder schedule and bell notifications. */}
             {isMember && !ev.past && memberRsvp && (
               <button
-                className={`ev-sheet-rsvp${going ? 'going' : ''}`}
+                className={`ev-sheet-rsvp ${going ? 'going' : ''}`}
                 onClick={toggleRsvp}
                 disabled={rsvp.isPending}
               >

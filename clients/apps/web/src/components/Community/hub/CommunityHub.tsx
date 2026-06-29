@@ -182,7 +182,7 @@ export function CommunityHub({
 
   return (
     <div
-      className={`spaire-hub${dark ? 'dark' : ''}${
+      className={`spaire-hub ${dark ? 'dark' : ''} ${
         embedded ? 'is-embedded' : ''
       }`}
     >
@@ -212,7 +212,7 @@ export function CommunityHub({
               <Glyph d="back" size={16} stroke={2.4} /> Editor
             </button>
             <div className="cr-crumb">{course.title}</div>
-            <span className={`cr-state${published ? 'live' : ''}`}>
+            <span className={`cr-state ${published ? 'live' : ''}`}>
               <span className="sdot" />
               {published ? 'Published' : 'Draft'}
             </span>

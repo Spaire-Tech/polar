@@ -78,7 +78,7 @@ function PostPoll({
         return (
           <button
             key={o.id}
-            className={`poll-opt${voted ? 'voted' : ''}${mine ? 'mine' : ''}`}
+            className={`poll-opt ${voted ? 'voted' : ''} ${mine ? 'mine' : ''}`}
             disabled={voted || vote.isPending}
             onClick={() => vote.mutate({ postId: post.id, optionId: o.id })}
           >
@@ -349,7 +349,7 @@ function PostLightbox({
     !!document.querySelector('.spaire-hub')?.classList.contains('dark')
 
   return createPortal(
-    <div className={`spaire-hub${dark ? 'dark' : ''}`}>
+    <div className={`spaire-hub ${dark ? 'dark' : ''}`}>
       <div className="crf-lb" onClick={onClose}>
         <button className="crf-lb-x" onClick={onClose} aria-label="Close">
           <Glyph d="close" size={22} stroke={2.2} />
@@ -385,14 +385,14 @@ function PostLightbox({
             <header className="crf-head">
               {a.avatar_url ? (
                 <img
-                  className={`crf-av${isHost ? 'host' : ''}`}
+                  className={`crf-av ${isHost ? 'host' : ''}`}
                   src={a.avatar_url}
                   alt={authorName(a)}
                 />
               ) : (
                 <HubAvatar
                   name={authorName(a)}
-                  className={`crf-av${isHost ? 'host' : ''}`}
+                  className={`crf-av ${isHost ? 'host' : ''}`}
                 />
               )}
               <div className="crf-id">
@@ -441,7 +441,7 @@ function PostLightbox({
 
             <div className="crf-bar">
               <button
-                className={`crf-act${liked ? 'on' : ''}`}
+                className={`crf-act ${liked ? 'on' : ''}`}
                 onClick={() =>
                   reactPost.mutate({ postId: post.id, emoji: 'heart' })
                 }
@@ -535,14 +535,14 @@ function HubComment({
     <div className="cmt">
       {a.avatar_url ? (
         <img
-          className={`cmt-av${depth ? 'sm' : ''}`}
+          className={`cmt-av ${depth ? 'sm' : ''}`}
           src={a.avatar_url}
           alt={authorName(a)}
         />
       ) : (
         <HubAvatar
           name={authorName(a)}
-          className={`cmt-av${depth ? 'sm' : ''}`}
+          className={`cmt-av ${depth ? 'sm' : ''}`}
         />
       )}
       <div className="cmt-main">
@@ -755,14 +755,14 @@ export function HubPost({
       <header className="crf-head">
         {a.avatar_url ? (
           <img
-            className={`crf-av${isHost ? 'host' : ''}`}
+            className={`crf-av ${isHost ? 'host' : ''}`}
             src={a.avatar_url}
             alt={authorName(a)}
           />
         ) : (
           <HubAvatar
             name={authorName(a)}
-            className={`crf-av${isHost ? 'host' : ''}`}
+            className={`crf-av ${isHost ? 'host' : ''}`}
           />
         )}
         <div className="crf-id">
@@ -783,7 +783,7 @@ export function HubPost({
         </div>
         {canPin && (
           <button
-            className={`crf-pinbtn${pinned ? 'on' : ''}`}
+            className={`crf-pinbtn ${pinned ? 'on' : ''}`}
             onClick={togglePin}
             aria-label={pinned ? 'Unpin from feed' : 'Pin to top'}
             title={pinned ? 'Unpin from feed' : 'Pin to top'}
@@ -899,7 +899,7 @@ export function HubPost({
 
       <div className="crf-bar">
         <button
-          className={`crf-act${liked ? 'on' : ''}`}
+          className={`crf-act ${liked ? 'on' : ''}`}
           onClick={() => reactPost.mutate({ postId: post.id, emoji: 'heart' })}
         >
           <Glyph
