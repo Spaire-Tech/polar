@@ -7,7 +7,7 @@ import structlog
 from polar.auth.models import AuthSubject
 from polar.kit.pagination import PaginationParams
 from polar.models import Organization, ProductMedia, User
-from polar.models.file import File, ProductMediaFile
+from polar.models.file import File, FileServiceTypes, ProductMediaFile
 from polar.postgres import AsyncReadSession, AsyncSession, sql
 from polar.quotas.definitions import QuotaKey
 from polar.quotas.producers import emit_storage_delta, enforce
@@ -23,6 +23,20 @@ from .schemas import (
 )
 
 log = structlog.get_logger()
+
+# Branding / storefront-chrome images (profile picture, storefront banner,
+# link cover) are small, public assets required for basic profile setup. They
+# must never be gated by — or counted against — the course-content storage
+# quota. Otherwise a creator can't even set a profile picture until they pick a
+# plan: a brand-new org resolves to the `inactive` tier (storage_gb=0) during
+# onboarding, so the storage check would reject every avatar upload.
+STORAGE_EXEMPT_SERVICES: frozenset[FileServiceTypes] = frozenset(
+    {
+        FileServiceTypes.organization_avatar,
+        FileServiceTypes.storefront_header,
+        FileServiceTypes.storefront_link,
+    }
+)
 
 
 class FileService:
@@ -94,13 +108,15 @@ class FileService:
         # Block uploads that would push the org past its tier's storage cap.
         # Done before creating the S3 multipart upload to avoid leaving
         # orphaned uploads on quota failures. Best-effort under concurrent
-        # uploads — see polar/quotas/producers.py:enforce.
-        await enforce(
-            session,
-            organization,
-            QuotaKey.storage_gb,
-            requested_storage_units=create_schema.size,
-        )
+        # uploads — see polar/quotas/producers.py:enforce. Branding/storefront
+        # chrome images are exempt (see STORAGE_EXEMPT_SERVICES).
+        if create_schema.service not in STORAGE_EXEMPT_SERVICES:
+            await enforce(
+                session,
+                organization,
+                QuotaKey.storage_gb,
+                requested_storage_units=create_schema.size,
+            )
 
         s3_service = S3_SERVICES[create_schema.service]
         upload = s3_service.create_multipart_upload(
@@ -153,10 +169,13 @@ class FileService:
 
         # Record the storage usage now that the upload has succeeded.
         # Emitting only on completion (not generate_presigned_upload)
-        # avoids counting orphaned/abandoned uploads.
-        emit_storage_delta(
-            session, organization_id=file.organization_id, bytes_delta=file.size
-        )
+        # avoids counting orphaned/abandoned uploads. Branding/storefront
+        # chrome images don't count against the quota (see
+        # STORAGE_EXEMPT_SERVICES).
+        if file.service not in STORAGE_EXEMPT_SERVICES:
+            emit_storage_delta(
+                session, organization_id=file.organization_id, bytes_delta=file.size
+            )
 
         return file
 
@@ -180,8 +199,9 @@ class FileService:
 
         # Free up the storage quota the file was occupying. Only emit
         # for files that were actually uploaded — abandoned uploads
-        # never added storage in the first place.
-        if file.is_uploaded:
+        # never added storage in the first place. Branding/storefront
+        # chrome images were never counted, so don't refund them either.
+        if file.is_uploaded and file.service not in STORAGE_EXEMPT_SERVICES:
             emit_storage_delta(
                 session,
                 organization_id=file.organization_id,
