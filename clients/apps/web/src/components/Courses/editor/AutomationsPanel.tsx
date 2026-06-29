@@ -1,12 +1,11 @@
 'use client'
 
 // Automations panel — used by the course editor's Automations tab and the
-// per-lesson Automations card. Shows the "New automation" card, a small
-// template gallery scoped to course/lesson, and any existing sequences
-// linked to this course/lesson. Picking a card opens the email-sequence
-// editor inside a fullscreen iframe so the user never leaves the course
-// editor context. The iframe runs the regular /email-marketing/sequences
-// route with ?embed=1, which hides the email marketing chrome.
+// per-lesson Automations card. Shows a "New automation" action and the
+// sequences linked to this course/lesson, grouped in a single bordered card
+// that matches the rest of the course editor (see CustomersTab) rather than a
+// stack of standalone cards. Opening one launches the standalone automation
+// builder under the course and returns here when done.
 
 import {
   useDeleteEmailSequence,
@@ -75,52 +74,69 @@ export function AutomationsPanel({
     }
   }
 
-  return (
-    <div className="flex flex-col gap-6">
-      <NewCard onClick={openNew} />
+  const count = sequences.length
 
-      {sequencesQuery.isLoading ? (
-        <div className="h-16 animate-pulse rounded-xl bg-gray-100" />
-      ) : sequences.length > 0 ? (
-        <div className="flex flex-col gap-2">
-          <div className="text-xs font-semibold tracking-wide text-gray-500 uppercase">
-            Active for this {scopeLabel}
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex items-center justify-between gap-4">
+        <span className="text-sm font-medium text-gray-900">
+          {count > 0
+            ? `${count} automation${count === 1 ? '' : 's'}`
+            : `For this ${scopeLabel}`}
+        </span>
+        <button
+          type="button"
+          onClick={openNew}
+          className="inline-flex items-center gap-1.5 rounded-full bg-gray-900 px-4 py-2 text-[12.5px] font-semibold text-white transition-colors hover:bg-gray-800"
+        >
+          <AddOutlined sx={{ fontSize: 16 }} />
+          New automation
+        </button>
+      </div>
+
+      <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white">
+        {sequencesQuery.isLoading ? (
+          <div className="px-6 py-12 text-center text-sm text-gray-500">
+            Loading automations…
           </div>
-          <div className="flex flex-col gap-2">
-            {sequences.map((s) => (
-              <SequenceRowItem
-                key={s.id}
-                row={s}
-                onOpen={() => openEdit(s.id)}
-                onDelete={() => void onDelete(s)}
-              />
-            ))}
+        ) : count === 0 ? (
+          <div className="flex flex-col items-center gap-1 px-6 py-12 text-center">
+            <p className="text-sm font-medium text-gray-900">
+              No automations yet
+            </p>
+            <p className="max-w-sm text-sm text-gray-500">
+              Email students automatically on enrolment, lesson completion, and
+              other {scopeLabel} events.
+            </p>
           </div>
-        </div>
-      ) : null}
+        ) : (
+          sequences.map((s) => (
+            <SequenceRowItem
+              key={s.id}
+              row={s}
+              onOpen={() => openEdit(s.id)}
+              onDelete={() => void onDelete(s)}
+            />
+          ))
+        )}
+      </div>
     </div>
   )
 }
 
-function NewCard({ onClick }: { onClick: () => void }) {
+function StatusPill({ status }: { status: string }) {
+  const cls =
+    status === 'active'
+      ? 'bg-ce-accent-tint text-ce-accent'
+      : status === 'paused'
+        ? 'bg-amber-50 text-amber-700'
+        : 'bg-gray-100 text-gray-500'
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="group flex w-full items-center gap-4 rounded-xl border border-gray-200 bg-white p-5 text-left transition-colors hover:border-gray-300 hover:bg-gray-50"
+    <span
+      className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold tracking-wide capitalize ${cls}`}
     >
-      <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-gray-900 text-white transition-transform group-hover:scale-105">
-        <AddOutlined sx={{ fontSize: 18 }} />
-      </div>
-      <div className="flex min-w-0 flex-col">
-        <span className="text-sm font-semibold text-gray-900">
-          New automation
-        </span>
-        <span className="text-xs text-gray-500">
-          Build a sequence from a blank canvas.
-        </span>
-      </div>
-    </button>
+      {status}
+    </span>
   )
 }
 
@@ -133,12 +149,6 @@ function SequenceRowItem({
   onOpen: () => void
   onDelete: () => void
 }) {
-  const statusColor =
-    row.status === 'active'
-      ? 'bg-emerald-50 text-emerald-700'
-      : row.status === 'paused'
-        ? 'bg-amber-50 text-amber-700'
-        : 'bg-gray-100 text-gray-600'
   return (
     <div
       role="button"
@@ -147,24 +157,28 @@ function SequenceRowItem({
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') onOpen()
       }}
-      className="group flex w-full cursor-pointer items-center justify-between gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 text-left transition-colors hover:bg-gray-50"
+      className="group flex cursor-pointer items-center justify-between gap-4 border-t border-gray-100 px-6 py-4 transition-colors first:border-t-0 hover:bg-gray-50"
     >
-      <div className="flex min-w-0 flex-col">
-        <span className="truncate text-sm font-medium text-gray-900">
-          {row.name}
-        </span>
-        {row.description ? (
-          <span className="truncate text-xs text-gray-500">
-            {row.description}
+      <div className="flex min-w-0 items-center gap-3">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-500">
+          {/* Lightning bolt = the automation's trigger (matches the builder). */}
+          <svg viewBox="0 0 24 24" width={18} height={18} fill="currentColor" aria-hidden>
+            <path d="M13.2 2.8 5.5 13h5l-1.7 8.2L16.5 11h-5l1.7-8.2z" />
+          </svg>
+        </div>
+        <div className="flex min-w-0 flex-col">
+          <span className="truncate text-sm font-semibold text-gray-900">
+            {row.name}
           </span>
-        ) : null}
+          {row.description ? (
+            <span className="truncate text-xs text-gray-500">
+              {row.description}
+            </span>
+          ) : null}
+        </div>
       </div>
       <div className="flex shrink-0 items-center gap-2">
-        <span
-          className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${statusColor}`}
-        >
-          {row.status}
-        </span>
+        <StatusPill status={row.status} />
         <button
           type="button"
           aria-label="Edit automation"
@@ -173,9 +187,9 @@ function SequenceRowItem({
             e.stopPropagation()
             onOpen()
           }}
-          className="flex h-7 w-7 items-center justify-center rounded-full text-gray-400 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-gray-100 hover:text-gray-700"
+          className="flex h-8 w-8 items-center justify-center rounded-md text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700"
         >
-          <EditOutlined sx={{ fontSize: 15 }} />
+          <EditOutlined sx={{ fontSize: 16 }} />
         </button>
         <button
           type="button"
@@ -185,7 +199,7 @@ function SequenceRowItem({
             e.stopPropagation()
             onDelete()
           }}
-          className="flex h-7 w-7 items-center justify-center rounded-full text-gray-400 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-red-50 hover:text-red-600"
+          className="flex h-8 w-8 items-center justify-center rounded-md text-gray-400 transition-colors hover:bg-red-50 hover:text-red-600"
         >
           <DeleteOutlineOutlined sx={{ fontSize: 16 }} />
         </button>
