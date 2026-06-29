@@ -22,7 +22,7 @@ import { CONFIG } from '@/utils/config'
 import { schemas } from '@spaire/client'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { toast } from '../Toast/use-toast'
-import { formatProductPrice } from './editor/EditableCourseLandingView'
+import { formatProductPrice } from './courseLandingPrice'
 import {
   GeneratedPortalPage,
   type GeneratedGroup,

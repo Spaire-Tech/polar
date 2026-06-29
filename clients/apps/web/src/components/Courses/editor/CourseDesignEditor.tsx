@@ -27,6 +27,7 @@ import {
 } from '@/hooks/queries/courses'
 import { useProduct } from '@/hooks/queries/products'
 import type { schemas } from '@spaire/client'
+import { formatProductPrice, isRecurringProduct } from '../courseLandingPrice'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from '../../Toast/use-toast'
 import {
@@ -59,28 +60,12 @@ function formatPrice(product: schemas['Product'] | undefined): {
   priceLabel: string
   recurring: boolean
 } {
-  if (!product) return { priceLabel: '—', recurring: false }
-  const prices = (product.prices ?? []) as Array<{
-    amount_type?: string
-    price_amount?: number | null
-    price_currency?: string
-    type?: string
-  }>
-  const first = prices[0]
-  if (!first || first.amount_type === 'free')
-    return { priceLabel: 'Free', recurring: false }
-  const cents = first.price_amount ?? 0
-  let label: string
-  try {
-    label = new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: (first.price_currency ?? 'usd').toUpperCase(),
-      minimumFractionDigits: cents % 100 === 0 ? 0 : 2,
-    }).format(cents / 100)
-  } catch {
-    label = `$${(cents / 100).toFixed(0)}`
+  // Shared with the public landing so the editor never quotes a different
+  // price string than buyers see.
+  return {
+    priceLabel: formatProductPrice(product) || '—',
+    recurring: isRecurringProduct(product),
   }
-  return { priceLabel: label, recurring: first.type === 'recurring' }
 }
 
 export function CourseDesignEditor({
