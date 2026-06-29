@@ -742,25 +742,27 @@ async def get_course_landing(
                 if lesson.published:
                     published_lessons.append(lesson)
 
-        # Paywall always drives the free-preview slice for the storefront,
-        # even when an individual lesson has `is_free_preview=True`. The
-        # previous behaviour was: if *any* lesson had the flag set, paywall
-        # was ignored entirely and only flagged lessons appeared as free.
-        # That made setting paywall_position=3 silently regress to "only
-        # the trailer lesson is free" once a single lesson somewhere on the
-        # course had the explicit flag — confusing in the studio because
-        # the customize tab kept showing all three free-preview cards.
+        # The free-preview slice for non-enrolled visitors is driven by the
+        # paywall, with two rules that match the studio outline AND the public
+        # PublicPortalView render:
+        #   1. paywall_enabled is authoritative — when the toggle is off there
+        #      is no positional paywall, only explicitly-flagged previews.
+        #   2. The is_free_preview flag WINS — a lesson the creator marked free
+        #      is free even if it sits past the positional cutoff.
         paywall_at = (
             course.paywall_position
-            if course.paywall_position is not None and course.paywall_position > 0
+            if (
+                course.paywall_enabled
+                and course.paywall_position is not None
+                and course.paywall_position > 0
+            )
             else None
         )
 
         for idx, lesson in enumerate(published_lessons):
-            if paywall_at is not None:
-                is_free = idx < paywall_at
-            else:
-                is_free = bool(lesson.is_free_preview)
+            is_free = bool(lesson.is_free_preview) or (
+                paywall_at is not None and idx < paywall_at
+            )
 
             lesson_data = _serialize_lesson(lesson, set(), accessible=is_free)
             lesson_data["is_free_preview"] = is_free

@@ -35,34 +35,33 @@ export function PricingTab({
   // Flatten lessons from all modules
   const allLessons = course.modules.flatMap((m) => m.lessons)
 
-  // Free preview count = positional cutoff PLUS any lesson after the
-  // cutoff explicitly marked is_free_preview via the lesson options menu.
-  // The input mirrors this combined count so it stays in sync with the
-  // OutlineTab's Free Preview section.
-  const derivedFreePreviewCount = useMemo(() => {
-    const positional = Math.min(course.paywall_position ?? 0, allLessons.length)
-    const flaggedAfter = allLessons
-      .slice(positional)
-      .filter((l) => l.is_free_preview).length
-    return positional + flaggedAfter
-  }, [allLessons, course.paywall_position])
-  const flaggedAfterPaywall =
-    derivedFreePreviewCount - (course.paywall_position ?? 0)
-
+  // The paywall position is the positional free-preview cutoff. Lessons after
+  // it that are explicitly flagged "free preview" are ALSO free (the flag
+  // wins, matching the public landing) — surfaced as a note below, NOT folded
+  // into the saved position. Folding it in silently shifted the paywall every
+  // time the creator re-saved.
   const [position, setPosition] = useState<number | null>(
-    derivedFreePreviewCount,
+    course.paywall_position ?? 0,
   )
 
   useEffect(() => {
     setEnabled(course.paywall_enabled)
-    setPosition(derivedFreePreviewCount)
-  }, [course.id, course.paywall_enabled, derivedFreePreviewCount])
+    setPosition(course.paywall_position ?? 0)
+  }, [course.id, course.paywall_enabled, course.paywall_position])
+
+  const flaggedAfterPaywall = useMemo(() => {
+    const cut = Math.min(position ?? 0, allLessons.length)
+    return allLessons.slice(cut).filter((l) => l.is_free_preview).length
+  }, [allLessons, position])
 
   const dirty =
-    enabled !== course.paywall_enabled || position !== derivedFreePreviewCount
+    enabled !== course.paywall_enabled ||
+    position !== (course.paywall_position ?? 0)
 
   const lockedCount =
-    enabled && position != null ? Math.max(0, allLessons.length - position) : 0
+    enabled && position != null
+      ? Math.max(0, allLessons.length - position - flaggedAfterPaywall)
+      : 0
 
   const showPayoutBanner = paymentStatus && !paymentStatus.payment_ready
 
@@ -205,7 +204,7 @@ export function PricingTab({
             disabled={!dirty || isSaving}
             onClick={() => {
               setEnabled(course.paywall_enabled)
-              setPosition(course.paywall_position)
+              setPosition(course.paywall_position ?? 0)
             }}
             className="rounded-full border border-gray-300 px-4 py-2 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-50"
           >

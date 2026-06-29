@@ -367,6 +367,7 @@ export function OutlineTab({
 
   const showPaywall =
     !trimmed &&
+    course.paywall_enabled &&
     course.paywall_position !== null &&
     course.paywall_position !== undefined &&
     course.paywall_position >= 0
