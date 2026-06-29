@@ -20,6 +20,7 @@ from polar.models.lesson_comment_like import LessonCommentLike
 from polar.models.product_benefit import ProductBenefit
 from polar.postgres import AsyncSession
 
+from .landing import merge_landing_overrides, validate_landing_overrides
 from .repository import (
     CourseEnrollmentRepository,
     CourseLessonProgressRepository,
@@ -258,6 +259,21 @@ class CourseService:
     ) -> Course:
         repo = CourseRepository.from_session(session)
         update_dict = update_schema.model_dump(exclude_unset=True, mode="json")
+
+        # Deep-merge landing_overrides onto whatever is already stored rather
+        # than replacing the column wholesale. The editor PATCHes the whole
+        # blob, so before this a stale or partial client snapshot (e.g. a
+        # second tab, or a payload written before a concurrent AI job added
+        # ai_hero) would silently wipe sibling keys. Merging makes those edits
+        # converge instead of clobbering. An explicit `None` for a key inside
+        # the patch deletes that key; sending `landing_overrides: null` clears
+        # the whole blob (a deliberate full reset).
+        if "landing_overrides" in update_dict:
+            patch = update_dict["landing_overrides"]
+            if patch is not None:
+                update_dict["landing_overrides"] = validate_landing_overrides(
+                    merge_landing_overrides(course.landing_overrides, patch)
+                )
 
         # Validate the sample's lesson_id refers to a lesson on this course.
         # Falls back to disabling the sample silently if the lesson is gone
