@@ -7,7 +7,6 @@ import ArrowOutwardOutlined from '@mui/icons-material/ArrowOutwardOutlined'
 import { schemas } from '@spaire/client'
 import Button from '@spaire/ui/components/atoms/Button'
 import FormattedDateTime from '@spaire/ui/components/atoms/FormattedDateTime'
-import FormattedInterval from '@spaire/ui/components/atoms/FormattedInterval'
 import {
   Select,
   SelectContent,
@@ -50,6 +49,8 @@ interface MetricChartBoxProps {
   chartType?: 'line' | 'bar'
   /** Override the list of metrics shown in the dropdown. If not provided, uses metrics from data. */
   availableMetrics?: MetricOption[]
+  /** Accent color for the chart series + legend dot. Defaults to the dashboard purple. */
+  color?: string
 }
 
 const EXPERIMENTAL_METRICS: Record<string, { tooltip: string }> = {
@@ -79,6 +80,7 @@ const MetricChartBox = ({
   simple = false,
   chartType = 'line',
   availableMetrics,
+  color = '#635BFF',
 }: MetricChartBoxProps & {
   ref?: React.RefObject<HTMLDivElement>
 }) => {
@@ -149,7 +151,7 @@ const MetricChartBox = ({
     <ShadowBox
       ref={ref}
       className={twMerge(
-        ' group flex w-full flex-col justify-between bg-gray-50 p-2 shadow-xs',
+        'group flex w-full flex-col justify-between bg-gray-50 p-2 shadow-xs',
         className,
       )}
     >
@@ -170,10 +172,10 @@ const MetricChartBox = ({
           {onMetricChange ? (
             <div className="flex flex-row items-center gap-x-2">
               <Select value={metric} onValueChange={onMetricChange}>
-                <SelectTrigger className=" -mt-2 -ml-3 h-fit w-fit rounded-lg border-0 border-none bg-transparent px-3 py-2 shadow-none ring-0 transition-colors hover:bg-gray-200 focus-visible:ring-0 focus-visible:ring-offset-0">
+                <SelectTrigger className="-mt-2 -ml-3 h-fit w-fit rounded-lg border-0 border-none bg-transparent px-3 py-2 shadow-none ring-0 transition-colors hover:bg-gray-200 focus-visible:ring-0 focus-visible:ring-offset-0">
                   <SelectValue placeholder="Select a metric" />
                 </SelectTrigger>
-                <SelectContent className=" ring-1 ring-gray-200">
+                <SelectContent className="ring-1 ring-gray-200">
                   {availableMetrics
                     ? availableMetrics.map((m) => (
                         <SelectItem key={m.slug} value={m.slug}>
@@ -199,7 +201,7 @@ const MetricChartBox = ({
                     <span className="inline-flex cursor-help">
                       <Status
                         status="Experimental"
-                        className="bg-blue-100 text-xs text-blue-600 "
+                        className="bg-blue-100 text-xs text-blue-600"
                       />
                     </span>
                   </TooltipTrigger>
@@ -220,7 +222,7 @@ const MetricChartBox = ({
                     <span className="inline-flex cursor-help">
                       <Status
                         status="Experimental"
-                        className="bg-blue-100 text-xs text-blue-600 "
+                        className="bg-blue-100 text-xs text-blue-600"
                       />
                     </span>
                   </TooltipTrigger>
@@ -237,16 +239,17 @@ const MetricChartBox = ({
           {!compact && (
             <div className="flex flex-col gap-x-6 gap-y-2 md:flex-row md:items-center">
               <div className="flex flex-row items-center gap-x-2 text-sm">
-                <span className="h-2.5 w-2.5 rounded-full bg-[#635BFF]" />
+                <span
+                  className="h-2.5 w-2.5 rounded-full"
+                  style={{ backgroundColor: color }}
+                />
                 {hoveredPeriod ? (
                   <FormattedDateTime
                     datetime={hoveredPeriod.timestamp}
                     dateStyle="medium"
                   />
                 ) : (
-                  <span className=" text-gray-500">
-                    Current period
-                  </span>
+                  <span className="text-gray-500">Current period</span>
                 )}
               </div>
             </div>
@@ -273,7 +276,7 @@ const MetricChartBox = ({
       </div>
       <div
         className={twMerge(
-          ' flex w-full flex-col gap-y-2 rounded-3xl bg-white',
+          'flex w-full flex-col gap-y-2 rounded-3xl bg-white',
           compact ? 'p-2' : 'p-4',
         )}
       >
@@ -297,6 +300,7 @@ const MetricChartBox = ({
             }}
             simple={simple}
             chartType={chartType}
+            color={color}
           />
         ) : (
           <div

@@ -18,6 +18,8 @@ interface MetricChartProps {
   simple?: boolean
   showYAxis?: boolean
   chartType?: 'line' | 'bar'
+  /** Accent color for the current-period series. Defaults to the dashboard purple. */
+  color?: string
 }
 
 const MetricChart = ({
@@ -33,6 +35,7 @@ const MetricChart = ({
   simple = false,
   showYAxis = false,
   chartType = 'line',
+  color = '#635BFF',
 }: MetricChartProps) => {
   const isDark = false
 
@@ -68,10 +71,10 @@ const MetricChart = ({
       {
         key: 'current',
         label: 'Current Period',
-        color: isDark ? '#004664' : '#635BFF',
+        color: isDark ? '#004664' : color,
       },
     ],
-    [previousData, isDark],
+    [previousData, isDark, color],
   )
 
   const timestampFormatter = useMemo(

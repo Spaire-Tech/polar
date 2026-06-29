@@ -9,12 +9,19 @@ interface MetricGroupProps {
   data: ParsedMetricsResponse
   metricKeys: (keyof schemas['Metrics'])[]
   interval: schemas['TimeInterval']
+  /** Accent color forwarded to each chart. Defaults to the dashboard purple. */
+  color?: string
 }
 
-export function MetricGroup({ metricKeys, data, interval }: MetricGroupProps) {
+export function MetricGroup({
+  metricKeys,
+  data,
+  interval,
+  color,
+}: MetricGroupProps) {
   return (
     <div className="flex flex-col gap-y-6">
-      <div className=" flex flex-col overflow-hidden rounded-2xl border border-gray-200">
+      <div className="flex flex-col overflow-hidden rounded-2xl border border-gray-200">
         <div className="grid grid-cols-1 flex-col [clip-path:inset(1px_1px_1px_1px)] md:grid-cols-2 lg:grid-cols-3">
           {metricKeys.map((metricKey, index) => (
             <MetricChartBox
@@ -24,10 +31,11 @@ export function MetricGroup({ metricKeys, data, interval }: MetricGroupProps) {
               metric={metricKey}
               height={200}
               chartType="line"
+              color={color}
               className={twMerge(
                 'rounded-none! bg-transparent',
                 index === 0 && 'lg:col-span-2',
-                ' border-t-0 border-r border-b border-l-0 border-gray-200 shadow-none',
+                'border-t-0 border-r border-b border-l-0 border-gray-200 shadow-none',
               )}
             />
           ))}
