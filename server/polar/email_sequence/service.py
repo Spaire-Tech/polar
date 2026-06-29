@@ -425,9 +425,25 @@ class EmailSequenceService:
             if not isinstance(node_id, str) or not node_id:
                 continue
             seen.add(node_id)
-            subject = str(node.get("subject") or node.get("name") or "").strip()
-            content_html = node.get("content_html")
-            content_json = node.get("content_json")
+            # Email nodes may be flat (authored in the builder) or value-wrapped
+            # (backend templates) — read content from whichever is present.
+            value = node.get("value") if isinstance(node.get("value"), dict) else {}
+            subject = str(
+                node.get("subject") or value.get("subject") or node.get("name") or ""
+            ).strip()
+            content_html = node.get("content_html") or value.get("content_html")
+            content_json = node.get("content_json") or value.get("content_json")
+            # Honour the creator's authored From name instead of always falling
+            # back to the org name. The editor stores it in
+            # content_json.broadcast.from; templates put it in value.fromName.
+            authored_from = value.get("fromName")
+            if not authored_from and isinstance(content_json, dict):
+                broadcast = content_json.get("broadcast")
+                if isinstance(broadcast, dict):
+                    authored_from = broadcast.get("from")
+            sender_name = (
+                str(authored_from).strip() if authored_from else ""
+            ) or default_sender
             row = by_flow_id.get(node_id)
             if row is None:
                 session.add(
@@ -436,7 +452,7 @@ class EmailSequenceService:
                         position=position,
                         delay_hours=0,
                         subject=subject or "(no subject)",
-                        sender_name=default_sender,
+                        sender_name=sender_name,
                         content_html=content_html,
                         content_json=content_json,
                         flow_step_id=node_id,
@@ -447,7 +463,10 @@ class EmailSequenceService:
                 row.subject = subject or row.subject or "(no subject)"
                 row.content_html = content_html
                 row.content_json = content_json
-                if not row.sender_name:
+                # Keep the From name in sync when authored; otherwise seed it.
+                if authored_from:
+                    row.sender_name = sender_name
+                elif not row.sender_name:
                     row.sender_name = default_sender
 
         # Soft-delete rows whose node vanished from the flow. Only touch rows we
