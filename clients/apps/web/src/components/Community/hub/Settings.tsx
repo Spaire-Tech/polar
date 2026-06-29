@@ -12,11 +12,12 @@
 import {
   type CommunitySettingsRead,
   useCreatorCommunitySettings,
+  useDeleteCommunity,
   useUpdateCommunitySettings,
   useUploadPostImage,
 } from '@/hooks/queries/community'
 import * as React from 'react'
-import { CoverDrop, Field, Seg, Toggle } from './atoms'
+import { CoverDrop, Field, Toggle } from './atoms'
 import { HeadInfo } from './HeadInfo'
 import { ProviderSelect, type ProviderKey } from './pickers'
 
@@ -92,6 +93,7 @@ export function SettingsTab({
   defaultTagline,
   lessonsCount,
   onViewCourse,
+  onDeleted,
   showToast,
 }: {
   courseId: string
@@ -101,17 +103,22 @@ export function SettingsTab({
   defaultTagline: string
   lessonsCount: number
   onViewCourse: () => void
+  /** Called after the community is deleted, so the host leaves this surface. */
+  onDeleted: () => void
   showToast: (m: string) => void
 }) {
   const settingsQ = useCreatorCommunitySettings(courseId)
   const update = useUpdateCommunitySettings(courseId)
   const uploadImg = useUploadPostImage(null, courseId, 'creator')
+  const del = useDeleteCommunity(courseId)
   const s = settingsQ.data
 
   const [coverOverride, setCoverOverride] = useState<{
     url?: string
     pos?: string
   }>({})
+  const [delOpen, setDelOpen] = useState(false)
+  const [delName, setDelName] = useState('')
 
   if (!s) {
     return (
@@ -227,27 +234,6 @@ export function SettingsTab({
       {/* Posting & moderation */}
       <div className="glist-label">Posting &amp; moderation</div>
       <div className="card glist" style={{ marginBottom: 26 }}>
-        <div className="grow">
-          <div className="grow-main">
-            <div className="gl">Who can post</div>
-            <div className="gs">Who can start a submission or thread</div>
-          </div>
-          <div className="grow-ctl">
-            <Seg
-              value={s.who_can_post === 'approved' ? 'Approved' : 'Everyone'}
-              options={['Everyone', 'Approved']}
-              onChange={(v) =>
-                patch({ who_can_post: v === 'Approved' ? 'approved' : 'everyone' })
-              }
-            />
-          </div>
-        </div>
-        <ToggleRow
-          label="Review first post from new members"
-          hint="Catch spam before it reaches the feed"
-          on={s.moderate_new_members}
-          onToggle={() => patch({ moderate_new_members: !s.moderate_new_members })}
-        />
         <ToggleRow
           label="Members can comment on work"
           hint="Critique stays attached to each submission"
@@ -263,12 +249,6 @@ export function SettingsTab({
           hint="Let members like and react to each other’s work"
           on={s.reactions_enabled}
           onToggle={() => patch({ reactions_enabled: !s.reactions_enabled })}
-        />
-        <ToggleRow
-          label="Profanity filter"
-          hint="Automatically hide flagged language"
-          on={s.profanity_filter}
-          onToggle={() => patch({ profanity_filter: !s.profanity_filter })}
         />
       </div>
 
@@ -295,31 +275,6 @@ export function SettingsTab({
           hint="Show who’s coming and send reminders"
           on={s.member_rsvp}
           onToggle={() => patch({ member_rsvp: !s.member_rsvp })}
-        />
-      </div>
-
-      {/* Notifications */}
-      <div className="glist-label">Notifications</div>
-      <div className="card glist" style={{ marginBottom: 26 }}>
-        <ToggleRow
-          label="Email me new submissions"
-          hint="A note whenever a member posts work"
-          on={s.notify_new_submissions}
-          onToggle={() =>
-            patch({ notify_new_submissions: !s.notify_new_submissions })
-          }
-        />
-        <ToggleRow
-          label="Email me new comments"
-          hint="Stay on top of the conversation"
-          on={s.notify_new_comments}
-          onToggle={() => patch({ notify_new_comments: !s.notify_new_comments })}
-        />
-        <ToggleRow
-          label="Weekly digest to members"
-          hint="A Monday recap of the best work and what’s coming"
-          on={s.weekly_digest}
-          onToggle={() => patch({ weekly_digest: !s.weekly_digest })}
         />
       </div>
 
@@ -357,13 +312,89 @@ export function SettingsTab({
           <div className="grow-ctl">
             <button
               className="btn btn-danger btn-sm"
-              onClick={() => showToast('Type the name to confirm deletion')}
+              onClick={() => {
+                setDelName('')
+                setDelOpen(true)
+              }}
             >
               Delete
             </button>
           </div>
         </div>
       </div>
+
+      {delOpen && (
+        <div
+          onClick={() => !del.isPending && setDelOpen(false)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 60,
+            background: 'rgba(0,0,0,0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 20,
+          }}
+        >
+          <div
+            className="card"
+            onClick={(e) => e.stopPropagation()}
+            style={{ maxWidth: 440, width: '100%', padding: 22 }}
+          >
+            <div className="form-title">Delete community</div>
+            <p style={{ margin: '10px 0', fontSize: 14, lineHeight: 1.5 }}>
+              This permanently removes the room and everything in it — posts,
+              comments, events, and members. This can’t be undone.
+            </p>
+            <p style={{ margin: '0 0 8px', fontSize: 14 }}>
+              Type <b>{s.feed_title_override || courseTitle}</b> to confirm.
+            </p>
+            <input
+              className="input"
+              value={delName}
+              onChange={(e) => setDelName(e.target.value)}
+              placeholder={s.feed_title_override || courseTitle}
+              autoFocus
+            />
+            <div
+              style={{
+                display: 'flex',
+                gap: 8,
+                justifyContent: 'flex-end',
+                marginTop: 16,
+              }}
+            >
+              <button
+                className="btn btn-quiet btn-sm"
+                onClick={() => setDelOpen(false)}
+                disabled={del.isPending}
+              >
+                Cancel
+              </button>
+              <button
+                className="btn btn-danger btn-sm"
+                disabled={
+                  del.isPending ||
+                  delName.trim() !==
+                    (s.feed_title_override || courseTitle).trim()
+                }
+                onClick={async () => {
+                  try {
+                    await del.mutateAsync()
+                    showToast('Community deleted')
+                    onDeleted()
+                  } catch {
+                    showToast('Could not delete the community')
+                  }
+                }}
+              >
+                {del.isPending ? 'Deleting…' : 'Delete forever'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   )
 }

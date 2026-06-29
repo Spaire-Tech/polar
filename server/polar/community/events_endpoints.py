@@ -406,7 +406,11 @@ async def rsvp_event_customer(
     await community_service.assert_enrolled(
         session, customer_id=customer_id, course_id=course_id
     )
-    await community_service.assert_community_enabled(session, course_id)
+    settings = await community_service.assert_community_enabled(session, course_id)
+    if not settings.member_rsvp:
+        raise HTTPException(
+            status_code=403, detail="RSVP is disabled for this community"
+        )
     try:
         going, count = await events_service.rsvp(
             session,

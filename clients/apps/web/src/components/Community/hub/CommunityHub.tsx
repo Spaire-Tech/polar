@@ -304,6 +304,8 @@ export function CommunityHub({
           <EventsTab
             courseId={courseId}
             orgSlug={organization.slug}
+            defaultProvider={settings?.default_meeting_provider ?? 'zoom'}
+            memberRsvp={settings?.member_rsvp ?? true}
             showToast={showToast}
           />
         ) : tab === 'brief' ? (
@@ -328,6 +330,7 @@ export function CommunityHub({
               '_blank',
             )
           }
+            onDeleted={backToEditor}
             showToast={showToast}
           />
         ) : (

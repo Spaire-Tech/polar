@@ -196,6 +196,7 @@ export function CommunityHubStudent({
               courseId={courseId}
               orgSlug={organizationSlug}
               defaultProvider={settings?.default_meeting_provider ?? 'zoom'}
+              memberRsvp={settings?.member_rsvp ?? true}
               showToast={showToast}
             />
           ) : tab === 'members' ? (

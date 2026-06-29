@@ -385,6 +385,7 @@ export function EventSheet({
   ev,
   courseId,
   orgSlug,
+  memberRsvp = true,
   onClose,
   onEdit,
   onDeleted,
@@ -394,6 +395,8 @@ export function EventSheet({
   courseId?: string
   /** Org slug — enables the same-origin .ics download (Apple Calendar). */
   orgSlug?: string
+  /** Settings gate: when false, the member RSVP button is hidden. */
+  memberRsvp?: boolean
   onClose: () => void
   /** Host only: open the editor prefilled with this event. */
   onEdit?: (ev: CommunityEventRead) => void
@@ -528,7 +531,7 @@ export function EventSheet({
 
             {/* Member RSVP — confirming triggers the backend's confirmation
                 email (with .ics), reminder schedule and bell notifications. */}
-            {isMember && !ev.past && (
+            {isMember && !ev.past && memberRsvp && (
               <button
                 className={`ev-sheet-rsvp${going ? ' going' : ''}`}
                 onClick={toggleRsvp}
@@ -619,11 +622,14 @@ export function EventsTab({
   courseId,
   orgSlug,
   defaultProvider = 'zoom',
+  memberRsvp = true,
   showToast,
 }: {
   courseId: string
   orgSlug?: string
   defaultProvider?: ProviderKey
+  /** Settings gate: when false, members can't RSVP (button hidden). */
+  memberRsvp?: boolean
   showToast: (m: string) => void
 }) {
   const { viewer, mode, token } = useHub()
@@ -742,6 +748,7 @@ export function EventsTab({
           ev={openEv}
           courseId={courseId}
           orgSlug={orgSlug}
+          memberRsvp={memberRsvp}
           onClose={() => setOpenEv(null)}
           onEdit={isHost ? startEdit : undefined}
           onDeleted={() => setOpenEv(null)}

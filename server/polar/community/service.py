@@ -350,12 +350,26 @@ class CommunityService:
         session: AsyncSession,
         course_id: UUID,
     ) -> CommunitySettings:
-        """Settings exist + `enabled` is true. Customer-portal routes
-        call this so disabled courses 403 instead of returning empty."""
+        """Settings exist, `enabled` is true, and the community is not
+        archived. Customer-portal routes call this so disabled or archived
+        courses 403 instead of returning empty (the creator manages the
+        community through ownership-checked routes, not this gate)."""
         settings = await self.get_settings(session, course_id)
-        if settings is None or not settings.enabled:
+        if settings is None or not settings.enabled or settings.archived:
             raise CommunityDisabled()
         return settings
+
+    async def delete_community(
+        self,
+        session: AsyncSession,
+        course_id: UUID,
+    ) -> None:
+        """Permanently remove a course's community — the settings row and
+        all of its content (posts, comments, reactions, events, RSVPs,
+        activities, submissions, tags). Safe to call when no community was
+        ever set up (deletes nothing). The course itself is untouched."""
+        repo = CommunitySettingsRepository.from_session(session)
+        await repo.delete_community_for_course(course_id)
 
     # ------------------------------------------------------------------
     # Posts

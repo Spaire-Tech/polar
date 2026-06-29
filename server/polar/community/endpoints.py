@@ -383,6 +383,20 @@ async def update_settings_creator(
     return CommunitySettingsRead.model_validate(settings, from_attributes=True)
 
 
+@creator_router.delete(
+    "/{course_id}",
+    status_code=204,
+    summary="Delete Community",
+)
+async def delete_community_creator(
+    course_id: CourseID,
+    auth_subject: CommunityCreatorWrite,
+    session: AsyncSession = Depends(get_db_session),
+) -> None:
+    await _require_creator_owns_course(session, course_id, auth_subject)
+    await community_service.delete_community(session, course_id)
+
+
 @creator_router.get(
     "/{course_id}/posts",
     response_model=ListResourceWithCursorPagination[CommunityPostRead],

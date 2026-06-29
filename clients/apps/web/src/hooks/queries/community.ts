@@ -887,6 +887,18 @@ export const useUpdateCommunitySettings = (courseId: string | undefined) =>
     },
   })
 
+export const useDeleteCommunity = (courseId: string | undefined) =>
+  useMutation({
+    mutationFn: () =>
+      creatorFetch<void>(`/v1/community/${courseId}`, { method: 'DELETE' }),
+    onSuccess: () => {
+      if (!courseId) return
+      getQueryClient().invalidateQueries({
+        queryKey: creatorSettingsKey(courseId),
+      })
+    },
+  })
+
 // ----- Creator tag editor -----
 
 const creatorTagsKey = (courseId: string) =>

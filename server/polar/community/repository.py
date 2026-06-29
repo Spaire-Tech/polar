@@ -37,7 +37,9 @@ from polar.kit.repository import (
     RepositorySoftDeletionMixin,
 )
 from polar.kit.utils import utc_now
+from polar.models.community_activity import CommunityActivity
 from polar.models.community_comment import CommunityComment
+from polar.models.community_event import CommunityEvent
 from polar.models.community_post import CommunityPost
 from polar.models.community_post_media import CommunityPostMedia
 from polar.models.community_reaction import CommunityReaction
@@ -64,6 +66,58 @@ class CommunitySettingsRepository(
             CommunitySettings.course_id == course_id
         )
         return await self.get_one_or_none(statement)
+
+    async def delete_community_for_course(self, course_id: UUID) -> None:
+        """Hard-delete every row that makes up a course's community: posts
+        (+ media and comments via FK cascade), events (+ rsvps and
+        announcements), activities (+ submissions), tags, and the settings
+        row itself.
+
+        Reactions are polymorphic (`target_type`/`target_id`, no foreign
+        key) so they're removed explicitly first — before their posts and
+        comments disappear — otherwise they'd be orphaned. Everything else
+        is removed by the parent rows' `ondelete="cascade"`. This is a hard
+        delete: it also clears any already soft-deleted rows.
+        """
+        session = self.session
+        post_ids = select(CommunityPost.id).where(
+            CommunityPost.course_id == course_id
+        )
+        comment_ids = select(CommunityComment.id).where(
+            CommunityComment.post_id.in_(post_ids)
+        )
+        await session.execute(
+            delete(CommunityReaction).where(
+                CommunityReaction.target_type == "comment",
+                CommunityReaction.target_id.in_(comment_ids),
+            )
+        )
+        await session.execute(
+            delete(CommunityReaction).where(
+                CommunityReaction.target_type == "post",
+                CommunityReaction.target_id.in_(post_ids),
+            )
+        )
+        await session.execute(
+            delete(CommunityPost).where(CommunityPost.course_id == course_id)
+        )
+        await session.execute(
+            delete(CommunityEvent).where(CommunityEvent.course_id == course_id)
+        )
+        await session.execute(
+            delete(CommunityActivity).where(
+                CommunityActivity.course_id == course_id
+            )
+        )
+        await session.execute(
+            delete(CommunityTag).where(CommunityTag.course_id == course_id)
+        )
+        await session.execute(
+            delete(CommunitySettings).where(
+                CommunitySettings.course_id == course_id
+            )
+        )
+        await session.flush()
 
     async def list_for_auto_blurb(self) -> Sequence[CommunitySettings]:
         """Communities where the cron should consider writing an
