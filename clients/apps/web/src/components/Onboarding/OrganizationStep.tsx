@@ -27,16 +27,15 @@ import {
 } from '@spaire/ui/components/ui/form'
 import { Label } from '@spaire/ui/components/ui/label'
 import AddPhotoAlternateOutlined from '@mui/icons-material/AddPhotoAlternateOutlined'
-import { motion } from 'framer-motion'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import slugify from 'slugify'
 import { Upload } from '../FileUpload/Upload'
-import { FadeUp } from '../Animated/FadeUp'
 import LogoIcon from '../Brand/LogoIcon'
 import { CURRENCIES } from '../Settings/currencies'
+import { toast } from '../Toast/use-toast'
 import { getStatusRedirect } from '../Toast/utils'
 import { OnboardingProgressBar } from './OnboardingProgressBar'
 
@@ -64,12 +63,10 @@ export const OrganizationStep = ({
   const form = useForm<{
     name: string
     slug: string
-    description: string
   }>({
     defaultValues: {
       name: initialSlug || '',
       slug: initialSlug || '',
-      description: '',
     },
   })
 
@@ -93,64 +90,6 @@ export const OrganizationStep = ({
   const [logoFile, setLogoFile] = useState<File | null>(null)
   const [logoPreview, setLogoPreview] = useState<string>('')
   const logoInputRef = useRef<HTMLInputElement>(null)
-
-  // Cover image upload
-  const [coverFile, setCoverFile] = useState<File | null>(null)
-  const [coverPreview, setCoverPreview] = useState<string>('')
-  const coverInputRef = useRef<HTMLInputElement>(null)
-
-  // Cover focal point (drag-to-reposition)
-  const [coverPos, setCoverPos] = useState<{ x: number; y: number }>({
-    x: 50,
-    y: 50,
-  })
-  const [isDraggingCover, setIsDraggingCover] = useState(false)
-  const coverDragRef = useRef<{
-    startX: number
-    startY: number
-    posX: number
-    posY: number
-    width: number
-    height: number
-    pointerId: number
-  } | null>(null)
-
-  const onCoverPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!coverPreview) return
-    if ((e.target as HTMLElement).closest('[data-cover-replace]')) return
-    const rect = e.currentTarget.getBoundingClientRect()
-    if (rect.width === 0 || rect.height === 0) return
-    e.currentTarget.setPointerCapture(e.pointerId)
-    setIsDraggingCover(true)
-    coverDragRef.current = {
-      startX: e.clientX,
-      startY: e.clientY,
-      posX: coverPos.x,
-      posY: coverPos.y,
-      width: rect.width,
-      height: rect.height,
-      pointerId: e.pointerId,
-    }
-  }
-
-  const onCoverPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    const drag = coverDragRef.current
-    if (!drag || drag.pointerId !== e.pointerId || !isDraggingCover) return
-    const dxPct = ((e.clientX - drag.startX) / drag.width) * 100
-    const dyPct = ((e.clientY - drag.startY) / drag.height) * 100
-    const newX = Math.max(0, Math.min(100, drag.posX - dxPct))
-    const newY = Math.max(0, Math.min(100, drag.posY - dyPct))
-    setCoverPos({ x: newX, y: newY })
-  }
-
-  const onCoverPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
-    const drag = coverDragRef.current
-    if (drag && e.currentTarget.hasPointerCapture(drag.pointerId)) {
-      e.currentTarget.releasePointerCapture(drag.pointerId)
-    }
-    setIsDraggingCover(false)
-    coverDragRef.current = null
-  }
 
   const router = useRouter()
 
@@ -183,7 +122,6 @@ export const OrganizationStep = ({
 
   const name = watch('name')
   const slug = watch('slug')
-  const description = watch('description')
 
   useEffect(() => {
     if (!editedSlug && name) {
@@ -214,14 +152,14 @@ export const OrganizationStep = ({
         },
         onFileError: (_id, err) => reject(err),
       })
-      upload.run()
+      // `run()` resolves the upload through the callbacks above. If it throws
+      // before any callback fires (e.g. a network error while creating the
+      // file record), the promise would otherwise hang forever and block the
+      // whole onboarding submit — so forward that rejection explicitly.
+      upload.run().catch(reject)
     })
 
-  const onSubmit = async (data: {
-    name: string
-    slug: string
-    description: string
-  }) => {
+  const onSubmit = async (data: { name: string; slug: string }) => {
     if (submitting) return
     setSubmitting(true)
 
@@ -243,9 +181,8 @@ export const OrganizationStep = ({
       return
     }
 
-    // Kick off the users revalidation in parallel with the file
-    // uploads — it only needs the new org to exist, not the uploads
-    // to finish.
+    // Kick off the users revalidation in parallel with the avatar upload —
+    // it only needs the new org to exist, not the upload to finish.
     const usersRevalidate = revalidate(
       `users:${currentUser?.id}:organizations`,
       { expire: 0 },
@@ -253,29 +190,24 @@ export const OrganizationStep = ({
     setUserOrganizations((orgs) => [...orgs, organization])
 
     if (!hasExistingOrg) {
-      // Run avatar + cover uploads concurrently. Each failure
-      // collapses to `undefined` so the rest of the flow proceeds.
-      const [uploadedAvatarUrl, uploadedCoverUrl] = await Promise.all([
-        logoFile
-          ? uploadFile(organization, 'organization_avatar', logoFile).catch(
-              () => undefined,
-            )
-          : Promise.resolve(undefined),
-        coverFile
-          ? uploadFile(organization, 'storefront_header', coverFile).catch(
-              () => undefined,
-            )
-          : Promise.resolve(undefined),
-      ])
-
-      const storefrontSettings = {
-        ...(data.description ? { description: data.description } : {}),
-        ...(uploadedCoverUrl ? { header_image_url: uploadedCoverUrl } : {}),
-        ...(uploadedCoverUrl
-          ? {
-              header_focal_point: `${coverPos.x.toFixed(1)}% ${coverPos.y.toFixed(1)}%`,
-            }
-          : {}),
+      // Upload the avatar (if one was picked) now that the org exists. On
+      // failure we surface a toast instead of silently dropping the photo,
+      // and let the rest of onboarding proceed.
+      let uploadedAvatarUrl: string | undefined
+      if (logoFile) {
+        try {
+          uploadedAvatarUrl = await uploadFile(
+            organization,
+            'organization_avatar',
+            logoFile,
+          )
+        } catch {
+          toast({
+            title: 'Profile picture upload failed',
+            description:
+              'We couldn’t upload your photo. You can add it later from Settings.',
+          })
+        }
       }
 
       await updateOrganization.mutateAsync({
@@ -283,17 +215,15 @@ export const OrganizationStep = ({
         body: {
           default_presentment_currency: currency,
           ...(uploadedAvatarUrl ? { avatar_url: uploadedAvatarUrl } : {}),
-          ...(Object.keys(storefrontSettings).length > 0
-            ? { storefront_settings: storefrontSettings }
-            : {}),
         },
         userId: currentUser?.id,
       })
 
       if (uploadedAvatarUrl) {
+        const avatarUrl = uploadedAvatarUrl
         setUserOrganizations((orgs) =>
           orgs.map((o) =>
-            o.id === organization.id ? { ...o, avatar_url: uploadedAvatarUrl } : o,
+            o.id === organization.id ? { ...o, avatar_url: avatarUrl } : o,
           ),
         )
       }
@@ -334,106 +264,33 @@ export const OrganizationStep = ({
         </div>
       )}
 
-      <motion.div
-        initial="hidden"
-        animate="visible"
-        transition={{ duration: 0.8, staggerChildren: 0.15 }}
-        className="flex w-full max-w-lg flex-col gap-8"
-      >
+      <div className="flex w-full max-w-lg flex-col gap-8">
         {/* Logo — mobile only on new-user flow */}
         {!hasExistingOrg && (
-          <FadeUp className="flex justify-center md:hidden">
+          <div className="flex justify-center md:hidden">
             <LogoIcon size={32} />
-          </FadeUp>
+          </div>
         )}
 
         {/* Heading */}
-        <FadeUp className="flex flex-col gap-y-2 text-center">
+        <div className="flex flex-col gap-y-2 text-center">
           <h1 className="text-2xl font-bold tracking-tight text-gray-900">
             {hasExistingOrg ? 'Add a new organization' : 'Profile basics'}
           </h1>
           <p className="text-sm text-gray-500">
             {hasExistingOrg
               ? 'Set up a new workspace for your team or project.'
-              : 'Add a photo, name, and bio to get started.'}
+              : 'Add a profile picture and name to get started.'}
           </p>
-        </FadeUp>
+        </div>
 
         <Form {...form}>
           <form
             onSubmit={handleSubmit(onSubmit)}
             className="flex flex-col gap-6"
           >
-            {/* Cover image upload */}
-            {!hasExistingOrg && (
-              <FadeUp className="flex flex-col gap-3">
-                <div>
-                  <Label>Cover Image</Label>
-                  <p className="mt-0.5 text-xs text-gray-400">
-                    {coverPreview
-                      ? 'Drag to reposition. Click Replace to change.'
-                      : 'Shown as the banner on your Space Card.'}
-                  </p>
-                </div>
-                {coverPreview ? (
-                  <div
-                    onPointerDown={onCoverPointerDown}
-                    onPointerMove={onCoverPointerMove}
-                    onPointerUp={onCoverPointerUp}
-                    onPointerCancel={onCoverPointerUp}
-                    className="relative h-28 w-full select-none overflow-hidden rounded-xl border border-gray-200 bg-gray-50"
-                    style={{ cursor: isDraggingCover ? 'grabbing' : 'grab' }}
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={coverPreview}
-                      alt="Cover"
-                      draggable={false}
-                      className="h-full w-full object-cover"
-                      style={{
-                        objectPosition: `${coverPos.x.toFixed(1)}% ${coverPos.y.toFixed(1)}%`,
-                      }}
-                    />
-                    <button
-                      type="button"
-                      data-cover-replace
-                      onClick={() => coverInputRef.current?.click()}
-                      className="absolute right-2 top-2 rounded-lg bg-black/60 px-2.5 py-1 text-xs font-medium text-white backdrop-blur-sm transition-colors hover:bg-black/75"
-                    >
-                      Replace
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => coverInputRef.current?.click()}
-                    className="relative flex h-28 w-full cursor-pointer items-center justify-center overflow-hidden rounded-xl border-2 border-dashed border-gray-200 bg-gray-50 transition-colors hover:border-gray-300 hover:bg-gray-100"
-                  >
-                    <div className="flex flex-col items-center gap-1 text-gray-400">
-                      <AddPhotoAlternateOutlined fontSize="medium" />
-                      <span className="text-xs">Upload cover image</span>
-                    </div>
-                  </button>
-                )}
-                <input
-                  ref={coverInputRef}
-                  type="file"
-                  accept="image/jpeg,image/png,image/gif,image/webp"
-                  className="hidden"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0]
-                    if (file) {
-                      setCoverFile(file)
-                      setCoverPreview(URL.createObjectURL(file))
-                      setCoverPos({ x: 50, y: 50 })
-                    }
-                  }}
-                />
-              </FadeUp>
-            )}
-
             {/* Profile picture + Name + Slug */}
-            <FadeUp className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+            <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
               <div className="flex flex-col gap-5">
                 {/* Avatar upload */}
                 <div className="flex flex-col gap-2">
@@ -517,37 +374,12 @@ export const OrganizationStep = ({
                     </FormItem>
                   )}
                 />
-
-                {/* Description */}
-                <FormField
-                  control={control}
-                  name="description"
-                  render={({ field }) => (
-                    <FormItem className="w-full">
-                      <FormControl className="flex w-full flex-col gap-y-1.5">
-                        <Label htmlFor="description">Bio</Label>
-                        <textarea
-                          {...field}
-                          id="description"
-                          placeholder="A short bio about yourself..."
-                          rows={3}
-                          maxLength={160}
-                          className="w-full resize-none rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm shadow-xs outline-none transition-all focus:z-10 focus:border-blue-300 focus:ring-[3px] focus:ring-blue-100"
-                        />
-                        <p className="text-right text-xs text-gray-400">
-                          {description.length}/160
-                        </p>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
               </div>
-            </FadeUp>
+            </div>
 
             {/* Currency — only for new orgs */}
             {!hasExistingOrg && (
-              <FadeUp className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+              <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
                 <div className="flex flex-col gap-3">
                   <div>
                     <Label className="text-sm font-medium">Default Currency</Label>
@@ -576,14 +408,14 @@ export const OrganizationStep = ({
                     </SelectContent>
                   </Select>
                 </div>
-              </FadeUp>
+              </div>
             )}
 
             {errors.root && (
               <p className="text-sm text-red-500">{errors.root.message}</p>
             )}
 
-            <FadeUp className="flex flex-col gap-3 pt-2">
+            <div className="flex flex-col gap-3 pt-2">
               <button
                 type="submit"
                 disabled={
@@ -612,10 +444,10 @@ export const OrganizationStep = ({
                   </Button>
                 </Link>
               )}
-            </FadeUp>
+            </div>
           </form>
         </Form>
-      </motion.div>
+      </div>
     </div>
   )
 }
