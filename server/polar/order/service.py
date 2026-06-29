@@ -6,7 +6,6 @@ from urllib.parse import urlencode
 
 import stripe as stripe_lib
 import structlog
-from babel.dates import format_date
 from sqlalchemy import func, select
 from sqlalchemy.orm import contains_eager, joinedload
 
@@ -1511,24 +1510,17 @@ class OrderService:
 
         attachments: list[Attachment] = []
         if is_trial_start:
-            trial_end_date: str | None = None
-            if subscription is not None and subscription.trial_end is not None:
-                trial_end_date = format_date(
-                    subscription.trial_end.date(), format="long", locale="en_US"
-                )
-            url = settings.generate_frontend_url("/dashboard")
+            # The founder welcome (Bass). It fires reliably HERE, at trial
+            # start, riding the same order-confirmation path that already
+            # delivers platform emails — the separate signup-time trigger
+            # never reliably fired. No invoice (it's a free trial).
             email = EmailAdapter.validate_python(
                 {
-                    "template": "platform_welcome",
-                    "props": {
-                        "email": customer.email,
-                        "plan_name": plan_name,
-                        "trial_end_date": trial_end_date,
-                        "url": url,
-                    },
+                    "template": "user_welcome",
+                    "props": {"email": customer.email},
                 }
             )
-            subject = f"Welcome to Spaire — your {plan_name} trial is active"
+            subject = "Welcome to Spaire"
         else:
             token, _ = await customer_session_service.create_customer_session(
                 session, customer
@@ -1857,7 +1849,8 @@ class OrderService:
         # starting a Spaire plan must NOT be enrolled into Spaire's own
         # marketing automation — that is what produced the empty, marketing-
         # styled "welcome" with an unsubscribe footer. Their welcome is the
-        # transactional platform_welcome email sent from the confirmation path.
+        # transactional founder email (user_welcome) sent from the
+        # confirmation path at trial start.
         if not platform_service.is_platform_organization(order.organization.id):
             is_subscription_start = (
                 order.subscription_id is not None

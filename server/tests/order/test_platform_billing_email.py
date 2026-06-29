@@ -135,8 +135,8 @@ class TestPlatformConfirmationEmail:
 
         await order_service.send_confirmation_email(session, order)
 
-        # Spaire-branded welcome; no invoice generated or attached for a $0 trial.
-        assert render.call_args.args[0].template == "platform_welcome"
+        # The founder welcome (user_welcome); no invoice for a $0 trial.
+        assert render.call_args.args[0].template == "user_welcome"
         generate_invoice.assert_not_called()
         enqueue_email.assert_called_once()
         assert enqueue_email.call_args.kwargs["attachments"] == []

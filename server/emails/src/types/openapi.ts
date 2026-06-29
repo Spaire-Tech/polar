@@ -2131,30 +2131,6 @@ export interface components {
       /** Url */
       url: string
     }
-    /** PlatformWelcomeEmail */
-    PlatformWelcomeEmail: {
-      /**
-       * Template
-       * @default platform_welcome
-       * @constant
-       */
-      template: 'platform_welcome'
-      props: components['schemas']['PlatformWelcomeProps']
-    }
-    /** PlatformWelcomeProps */
-    PlatformWelcomeProps: {
-      /** Email */
-      email: string
-      /** Plan Name */
-      plan_name: string
-      /**
-       * Trial End Date
-       * @default null
-       */
-      trial_end_date: string | null
-      /** Url */
-      url: string
-    }
     /**
      * PresentmentCurrency
      * @enum {string}

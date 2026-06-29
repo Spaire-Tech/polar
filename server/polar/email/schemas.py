@@ -41,7 +41,6 @@ class EmailTemplate(StrEnum):
     subscription_uncanceled = "subscription_uncanceled"
     subscription_updated = "subscription_updated"
     user_welcome = "user_welcome"
-    platform_welcome = "platform_welcome"
     platform_receipt = "platform_receipt"
     webhook_endpoint_disabled = "webhook_endpoint_disabled"
     notification_new_sale = "notification_new_sale"
@@ -353,25 +352,14 @@ class UserWelcomeEmail(BaseModel):
 # ----------------------------------------------------------------------
 # Spaire platform billing (self-billing: Spaire bills the creator)
 #
-# Transactional, Spaire-branded emails for the platform's OWN billing of a
+# Transactional, Spaire-branded receipt for the platform's OWN billing of a
 # creator org. Distinct from the creator-commerce templates above — those
 # render the *selling* org's header + "Merchant of Record … by Spaire" and
 # are for a creator billing THEIR customers. On a Spaire plan the seller IS
-# the platform org, so those templates render "Spaire / Spaire" nonsense and
-# (for a $0 trial) an invoice nobody asked for. These use the Spaire logo
-# (WrapperPolar) and a transactional footer (no unsubscribe).
+# the platform org, so those templates render "Spaire / Spaire" nonsense.
+# Uses the Spaire logo (WrapperPolar) and a transactional footer (no
+# unsubscribe). The trial-start welcome reuses the founder `user_welcome`.
 # ----------------------------------------------------------------------
-
-
-class PlatformWelcomeProps(EmailProps):
-    plan_name: str
-    trial_end_date: str | None = None
-    url: str
-
-
-class PlatformWelcomeEmail(BaseModel):
-    template: Literal[EmailTemplate.platform_welcome] = EmailTemplate.platform_welcome
-    props: PlatformWelcomeProps
 
 
 class PlatformReceiptProps(EmailProps):
@@ -568,7 +556,6 @@ Email = Annotated[
     | SubscriptionUncanceledEmail
     | SubscriptionUpdatedEmail
     | UserWelcomeEmail
-    | PlatformWelcomeEmail
     | PlatformReceiptEmail
     | WebhookEndpointDisabledEmail
     | NotificationNewSaleEmail
