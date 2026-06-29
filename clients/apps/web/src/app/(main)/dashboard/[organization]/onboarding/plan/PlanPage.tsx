@@ -194,15 +194,16 @@ export default function PlanPage() {
 
   return (
     <div className="spaire-plan-picker">
-      <div className="head">
-        <h1>Choose your plan</h1>
-        <p>
-          Every plan starts with a 14-day free trial. You won&rsquo;t be charged
-          during the trial — switch or cancel anytime from Settings.
-        </p>
-      </div>
+      <div className="stage">
+        <div className="head">
+          <h1>Choose your plan</h1>
+          <p>
+            Every plan starts with a 14-day free trial. You won&rsquo;t be
+            charged during the trial — switch or cancel anytime from Settings.
+          </p>
+        </div>
 
-      <div className="toggle-wrap">
+        <div className="toggle-wrap">
         <div className="seg" role="tablist" aria-label="Billing period">
           <button
             type="button"
@@ -286,6 +287,7 @@ export default function PlanPage() {
             </div>
           )
         })}
+        </div>
       </div>
 
       <SpairePlanPickerStyles />
@@ -347,17 +349,26 @@ function SpairePlanPickerStyles() {
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
         letter-spacing: -0.01em;
-        /* The onboarding layout is "flex flex-row" — flex:1 + width:100%
-           makes us claim the full row, then the internal centering takes over. */
+        /* The onboarding layout is "flex flex-row" and the dashboard shell is
+           "md:h-screen" — so we claim the full row (flex:1) and become our own
+           vertical scroll container. Centering lives on .stage via margin:auto
+           so tall content (small viewports) top-aligns and scrolls instead of
+           being clipped, while short content stays centered. */
         flex: 1;
         width: 100%;
         min-height: 100vh;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        background: #000;
+      }
+      .spaire-plan-picker .stage {
+        margin: auto;
+        width: 100%;
         display: flex;
         flex-direction: column;
         align-items: center;
-        justify-content: center;
         padding: 72px 32px;
-        background: #000;
       }
       .spaire-plan-picker *,
       .spaire-plan-picker *::before,
@@ -669,7 +680,7 @@ function SpairePlanPickerStyles() {
       }
 
       @media (max-width: 860px) {
-        .spaire-plan-picker {
+        .spaire-plan-picker .stage {
           padding: 56px 22px;
         }
         .spaire-plan-picker .cards {
