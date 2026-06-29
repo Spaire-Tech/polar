@@ -1,5 +1,5 @@
 from collections.abc import Sequence
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 from sqlalchemy import select
@@ -1044,6 +1044,21 @@ class CourseService:
         )
         return await lesson_repo.get_one_or_none(statement)
 
+    @staticmethod
+    def _drip_unlock_at(
+        release_at: datetime | None,
+        drip_days: int | None,
+        enrolled_at: datetime,
+    ) -> datetime | None:
+        """The moment a drip / scheduled-release gate opens, or None when
+        there is no gate. A fixed ``release_at`` takes precedence over a
+        relative ``drip_days``."""
+        if release_at is not None:
+            return release_at
+        if drip_days is not None:
+            return enrolled_at + timedelta(days=drip_days)
+        return None
+
     def calculate_lesson_accessibility(
         self,
         lesson: CourseLesson,
@@ -1052,6 +1067,7 @@ class CourseService:
         now: datetime,
         *,
         global_lesson_index: int | None = None,
+        module: CourseModule | None = None,
     ) -> tuple[bool, datetime | None]:
         """Calculate if a lesson is accessible for an enrolled customer.
 
@@ -1060,7 +1076,11 @@ class CourseService:
         Paywall is intentionally NOT considered here: once a customer is
         enrolled, every lesson past the paywall is theirs. The
         ``paywall_position`` parameter is kept for call-site compatibility.
-        The only gating left is drip schedule (release_at / drip_days).
+        The only gating left is the drip schedule (release_at / drip_days),
+        which may be set on the LESSON and/or on its MODULE. The lesson is
+        locked until BOTH gates have opened, so ``locked_until`` is the later
+        of the two active unlock times. (When ``module`` is omitted only the
+        lesson's own schedule is considered.)
 
         Free previews are always accessible regardless of drip.
         """
@@ -1069,14 +1089,23 @@ class CourseService:
         if lesson.is_free_preview:
             return True, None
 
-        if lesson.release_at and now < lesson.release_at:
-            return False, lesson.release_at
-        if lesson.drip_days is not None:
-            from datetime import timedelta
-            unlock_at = enrolled_at + timedelta(days=lesson.drip_days)
-            if now < unlock_at:
-                return False, unlock_at
+        locks: list[datetime] = []
+        lesson_unlock = self._drip_unlock_at(
+            lesson.release_at, lesson.drip_days, enrolled_at
+        )
+        if lesson_unlock is not None and now < lesson_unlock:
+            locks.append(lesson_unlock)
+        if module is not None:
+            module_unlock = self._drip_unlock_at(
+                getattr(module, "release_at", None),
+                getattr(module, "drip_days", None),
+                enrolled_at,
+            )
+            if module_unlock is not None and now < module_unlock:
+                locks.append(module_unlock)
 
+        if locks:
+            return False, max(locks)
         return True, None
 
 

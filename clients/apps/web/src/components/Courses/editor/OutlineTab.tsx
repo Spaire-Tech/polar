@@ -33,8 +33,12 @@ import SearchOutlined from '@mui/icons-material/SearchOutlined'
 import VisibilityOutlined from '@mui/icons-material/VisibilityOutlined'
 import { useMemo, useState } from 'react'
 import { LessonOptionsMenu, LessonOptionsPatch } from './LessonOptionsMenu'
-import { LessonContentType } from './ModuleCard'
 import { PaywallRow } from './PaywallRow'
+import { ScheduleEdits, ScheduleMenu } from './ScheduleMenu'
+
+// The kinds of lesson the outline can create. Lives here (the live outline)
+// now that the old ModuleCard that used to own it has been removed.
+export type LessonContentType = 'text' | 'video' | 'quiz'
 
 const THUMB_GRADIENTS: [string, string][] = [
   ['#1c1c2e', '#2d1b69'],
@@ -107,6 +111,8 @@ function LessonCard({
   locked,
   isSelected,
   isReorderable,
+  canSchedule = true,
+  scheduleUpgradeTier,
   onSelect,
   onUpdate,
   onDelete,
@@ -116,6 +122,8 @@ function LessonCard({
   locked: boolean
   isSelected: boolean
   isReorderable: boolean
+  canSchedule?: boolean
+  scheduleUpgradeTier?: string
   onSelect: () => void
   onUpdate: (patch: LessonOptionsPatch) => void
   onDelete: () => void
@@ -165,16 +173,23 @@ function LessonCard({
             />
           </button>
         )}
-        {locked && (
-          <div className="absolute top-[7px] right-2 flex h-[18px] w-[18px] items-center justify-center rounded-full bg-black/45 backdrop-blur-sm">
-            <LockOutlined sx={{ fontSize: 10 }} className="text-white" />
+        {/* Lock + Live share the top-right corner — render them in one flex
+            row so a published lesson sitting behind the paywall doesn't stack
+            the green "Live" pill on top of the lock glyph. */}
+        {(locked || lesson.published) && (
+          <div className="absolute top-[7px] right-2 z-10 flex items-center gap-1">
+            {locked && (
+              <span className="flex h-[18px] w-[18px] items-center justify-center rounded-full bg-black/45 backdrop-blur-sm">
+                <LockOutlined sx={{ fontSize: 10 }} className="text-white" />
+              </span>
+            )}
+            {lesson.published && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-1.5 py-0.5 text-[9px] font-semibold tracking-[0.05em] text-green-700 uppercase">
+                <span className="h-1 w-1 rounded-full bg-green-500" />
+                Live
+              </span>
+            )}
           </div>
-        )}
-        {lesson.published && (
-          <span className="absolute top-[7px] right-2 inline-flex items-center gap-1 rounded-full bg-green-100 px-1.5 py-0.5 text-[9px] font-semibold tracking-[0.05em] text-green-700 uppercase">
-            <span className="h-1 w-1 rounded-full bg-green-500" />
-            Live
-          </span>
         )}
         {(lesson.drip_days != null || lesson.release_at) && (
           <div className="absolute bottom-[7px] left-2 z-10 flex items-center gap-1">
@@ -222,6 +237,8 @@ function LessonCard({
                 onUpdate={onUpdate}
                 onDelete={onDelete}
                 onClose={() => setMenuOpen(false)}
+                canSchedule={canSchedule}
+                upgradeTier={scheduleUpgradeTier}
               />
             )}
           </div>
@@ -287,6 +304,9 @@ export function OutlineTab({
   onAddModule,
   onRenameModule,
   onDeleteModule,
+  canSchedule = true,
+  scheduleUpgradeTier,
+  onUpdateModuleSchedule,
 }: {
   course: CourseRead
   organizationSlug?: string
@@ -303,6 +323,15 @@ export function OutlineTab({
   onAddModule?: () => void
   onRenameModule?: (module: CourseModuleRead, title: string) => void
   onDeleteModule?: (module: CourseModuleRead) => void
+  // Drip scheduling entitlement, threaded down to the per-lesson and
+  // per-module schedule controls so they can show an upgrade hint instead of
+  // silently failing the save.
+  canSchedule?: boolean
+  scheduleUpgradeTier?: string
+  onUpdateModuleSchedule?: (
+    module: CourseModuleRead,
+    edits: ScheduleEdits,
+  ) => void
 }) {
   const [query, setQuery] = useState('')
   const previewAccess = usePreviewAccess()
@@ -341,6 +370,7 @@ export function OutlineTab({
 
   const showPaywall =
     !trimmed &&
+    course.paywall_enabled &&
     course.paywall_position !== null &&
     course.paywall_position !== undefined &&
     course.paywall_position >= 0
@@ -434,6 +464,9 @@ export function OutlineTab({
           />
           <ModuleGroups
             groups={freeGroups}
+            canSchedule={canSchedule}
+            scheduleUpgradeTier={scheduleUpgradeTier}
+            onUpdateModuleSchedule={onUpdateModuleSchedule}
             locked={false}
             isReorderable={!trimmed}
             selectedLessonId={selectedLessonId}
@@ -453,6 +486,9 @@ export function OutlineTab({
               <SectionPill text="Members Only" count={paidItems.length} />
               <ModuleGroups
                 groups={paidGroups}
+                canSchedule={canSchedule}
+                scheduleUpgradeTier={scheduleUpgradeTier}
+                onUpdateModuleSchedule={onUpdateModuleSchedule}
                 locked
                 isReorderable={!trimmed}
                 selectedLessonId={selectedLessonId}
@@ -471,6 +507,9 @@ export function OutlineTab({
           {!trimmed && emptyModules.length > 0 && (
             <ModuleGroups
               groups={emptyModules}
+              canSchedule={canSchedule}
+              scheduleUpgradeTier={scheduleUpgradeTier}
+              onUpdateModuleSchedule={onUpdateModuleSchedule}
               locked={false}
               isReorderable={false}
               selectedLessonId={selectedLessonId}
@@ -517,6 +556,9 @@ function ModuleGroups({
   onReorderLessons,
   onRenameModule,
   onDeleteModule,
+  canSchedule = true,
+  scheduleUpgradeTier,
+  onUpdateModuleSchedule,
 }: {
   groups: ModuleGroup[]
   locked: boolean
@@ -532,6 +574,12 @@ function ModuleGroups({
   onReorderLessons?: (moduleId: string, orderedIds: string[]) => void
   onRenameModule?: (module: CourseModuleRead, title: string) => void
   onDeleteModule?: (module: CourseModuleRead) => void
+  canSchedule?: boolean
+  scheduleUpgradeTier?: string
+  onUpdateModuleSchedule?: (
+    module: CourseModuleRead,
+    edits: ScheduleEdits,
+  ) => void
 }) {
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -575,6 +623,8 @@ function ModuleGroups({
                 locked={locked}
                 isReorderable={canReorder && group.items.length > 1}
                 isSelected={selectedLessonId === lesson.id}
+                canSchedule={canSchedule}
+                scheduleUpgradeTier={scheduleUpgradeTier}
                 onSelect={() => onSelectLesson(lesson.id)}
                 onUpdate={(patch) => onUpdateLesson(lesson, patch)}
                 onDelete={() => onDeleteLesson(lesson)}
@@ -600,6 +650,13 @@ function ModuleGroups({
               }
               onDelete={
                 onDeleteModule ? () => onDeleteModule(group.module) : undefined
+              }
+              canSchedule={canSchedule}
+              scheduleUpgradeTier={scheduleUpgradeTier}
+              onUpdateSchedule={
+                onUpdateModuleSchedule
+                  ? (edits) => onUpdateModuleSchedule(group.module, edits)
+                  : undefined
               }
             />
             {canReorder && group.items.length > 1 ? (
@@ -648,12 +705,18 @@ function ModuleHeader({
   onAddLesson,
   onRename,
   onDelete,
+  onUpdateSchedule,
+  canSchedule = true,
+  scheduleUpgradeTier,
 }: {
   module: CourseModuleRead
   count: number
   onAddLesson?: () => void
   onRename?: (title: string) => void
   onDelete?: () => void
+  onUpdateSchedule?: (edits: ScheduleEdits) => void
+  canSchedule?: boolean
+  scheduleUpgradeTier?: string
 }) {
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(mod.title)
@@ -732,6 +795,14 @@ function ModuleHeader({
             <AddOutlined sx={{ fontSize: 12 }} />
             Lesson
           </button>
+        )}
+        {onUpdateSchedule && (
+          <ScheduleMenu
+            module={mod}
+            onSave={onUpdateSchedule}
+            canSchedule={canSchedule}
+            upgradeTier={scheduleUpgradeTier}
+          />
         )}
         {onDelete && (
           <button

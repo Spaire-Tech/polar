@@ -5,6 +5,7 @@ import ArrowBackOutlined from '@mui/icons-material/ArrowBackOutlined'
 import CalendarTodayOutlined from '@mui/icons-material/CalendarTodayOutlined'
 import CheckCircleOutlined from '@mui/icons-material/CheckCircleOutlined'
 import DeleteOutlineOutlined from '@mui/icons-material/DeleteOutlineOutlined'
+import LockOutlined from '@mui/icons-material/LockOutlined'
 import ScheduleOutlined from '@mui/icons-material/ScheduleOutlined'
 import VisibilityOutlined from '@mui/icons-material/VisibilityOutlined'
 import { cn } from '@spaire/ui/lib/utils'
@@ -39,11 +40,16 @@ export function LessonOptionsMenu({
   onUpdate,
   onDelete,
   onClose,
+  canSchedule = true,
+  upgradeTier,
 }: {
   lesson: CourseLessonRead
   onUpdate: (patch: LessonOptionsPatch) => void
   onDelete: () => void
   onClose: () => void
+  // Drip scheduling is a paid feature; gate the schedule view behind it.
+  canSchedule?: boolean
+  upgradeTier?: string
 }) {
   const ref = useRef<HTMLDivElement>(null)
   const [view, setView] = useState<View>('main')
@@ -66,6 +72,8 @@ export function LessonOptionsMenu({
         <SchedulePanel
           releaseAt={lesson.release_at ?? null}
           dripDays={lesson.drip_days ?? null}
+          canSchedule={canSchedule}
+          upgradeTier={upgradeTier}
           onBack={() => setView('main')}
           onSave={(patch) => {
             onUpdate(patch)
@@ -91,8 +99,18 @@ export function LessonOptionsMenu({
         }}
       />
       <MenuItem
-        icon={<ScheduleOutlined sx={{ fontSize: 14 }} />}
-        label={describeLessonSchedule(lesson)}
+        icon={
+          canSchedule ? (
+            <ScheduleOutlined sx={{ fontSize: 14 }} />
+          ) : (
+            <LockOutlined sx={{ fontSize: 14 }} />
+          )
+        }
+        label={
+          canSchedule
+            ? describeLessonSchedule(lesson)
+            : `Drip & scheduling · ${upgradeTier ?? 'paid plan'}`
+        }
         onClick={() => setView('schedule')}
       />
       <MenuItem
@@ -157,11 +175,15 @@ function MenuItem({
 function SchedulePanel({
   releaseAt,
   dripDays,
+  canSchedule = true,
+  upgradeTier,
   onBack,
   onSave,
 }: {
   releaseAt: string | null
   dripDays: number | null
+  canSchedule?: boolean
+  upgradeTier?: string
   onBack: () => void
   onSave: (patch: {
     release_at: string | null
@@ -216,71 +238,92 @@ function SchedulePanel({
         </span>
       </div>
 
-      <div className="flex flex-col gap-1">
-        <ModeRow
-          selected={mode === 'always'}
-          onSelect={() => setMode('always')}
-          label="Available immediately"
-          description="Visible as soon as the student enrolls."
-        />
-        <ModeRow
-          selected={mode === 'drip'}
-          onSelect={() => setMode('drip')}
-          label="Drip after enrollment"
-          description="Unlock N days after the student enrolls."
-        />
-        {mode === 'drip' && (
-          <div className="mt-1 ml-7 flex items-center gap-2">
-            <input
-              type="number"
-              min={0}
-              value={daysInput}
-              onChange={(e) => setDaysInput(e.target.value)}
-              className="focus:border-ce-accent focus:ring-ce-accent-ring w-16 rounded-lg border border-gray-300 px-2 py-1 text-[12.5px] focus:ring-2 focus:outline-none"
-            />
-            <span className="text-[12px] text-gray-600">
-              day{daysInput === '1' ? '' : 's'} after enrollment
-            </span>
+      {!canSchedule ? (
+        <div className="flex flex-col gap-2.5">
+          <div className="rounded-lg bg-amber-50 p-2.5 text-[11px] leading-relaxed text-amber-800">
+            Drip and scheduled release are on the {upgradeTier ?? 'paid'} plan
+            and up. Upgrade to unlock this lesson on a delay after enrollment or
+            on a fixed date.
           </div>
-        )}
-        <ModeRow
-          selected={mode === 'release'}
-          onSelect={() => setMode('release')}
-          label="Release on a date"
-          description="Unlock for everyone on a fixed date."
-        />
-        {mode === 'release' && (
-          <div className="mt-1 ml-7 flex items-center gap-2">
-            <CalendarTodayOutlined
-              sx={{ fontSize: 13 }}
-              className="text-gray-400"
-            />
-            <input
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              className="focus:border-ce-accent focus:ring-ce-accent-ring rounded-lg border border-gray-300 px-2 py-1 text-[12.5px] focus:ring-2 focus:outline-none"
-            />
+          <div className="flex justify-end">
+            <button
+              type="button"
+              onClick={onBack}
+              className="rounded-full border border-gray-300 px-3 py-1 text-[11px] font-medium text-gray-700 hover:bg-gray-50"
+            >
+              Close
+            </button>
           </div>
-        )}
-      </div>
+        </div>
+      ) : (
+        <>
+          <div className="flex flex-col gap-1">
+            <ModeRow
+              selected={mode === 'always'}
+              onSelect={() => setMode('always')}
+              label="Available immediately"
+              description="Visible as soon as the student enrolls."
+            />
+            <ModeRow
+              selected={mode === 'drip'}
+              onSelect={() => setMode('drip')}
+              label="Drip after enrollment"
+              description="Unlock N days after the student enrolls."
+            />
+            {mode === 'drip' && (
+              <div className="mt-1 ml-7 flex items-center gap-2">
+                <input
+                  type="number"
+                  min={0}
+                  value={daysInput}
+                  onChange={(e) => setDaysInput(e.target.value)}
+                  className="focus:border-ce-accent focus:ring-ce-accent-ring w-16 rounded-lg border border-gray-300 px-2 py-1 text-[12.5px] focus:ring-2 focus:outline-none"
+                />
+                <span className="text-[12px] text-gray-600">
+                  day{daysInput === '1' ? '' : 's'} after enrollment
+                </span>
+              </div>
+            )}
+            <ModeRow
+              selected={mode === 'release'}
+              onSelect={() => setMode('release')}
+              label="Release on a date"
+              description="Unlock for everyone on a fixed date."
+            />
+            {mode === 'release' && (
+              <div className="mt-1 ml-7 flex items-center gap-2">
+                <CalendarTodayOutlined
+                  sx={{ fontSize: 13 }}
+                  className="text-gray-400"
+                />
+                <input
+                  type="date"
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                  className="focus:border-ce-accent focus:ring-ce-accent-ring rounded-lg border border-gray-300 px-2 py-1 text-[12.5px] focus:ring-2 focus:outline-none"
+                />
+              </div>
+            )}
+          </div>
 
-      <div className="mt-3 flex justify-end gap-2 border-t border-gray-100 pt-2.5">
-        <button
-          type="button"
-          onClick={onBack}
-          className="rounded-full border border-gray-300 px-3 py-1 text-[11px] font-medium text-gray-700 hover:bg-gray-50"
-        >
-          Cancel
-        </button>
-        <button
-          type="button"
-          onClick={save}
-          className="rounded-full bg-gray-900 px-3 py-1 text-[11px] font-semibold text-white hover:bg-gray-800"
-        >
-          Save
-        </button>
-      </div>
+          <div className="mt-3 flex justify-end gap-2 border-t border-gray-100 pt-2.5">
+            <button
+              type="button"
+              onClick={onBack}
+              className="rounded-full border border-gray-300 px-3 py-1 text-[11px] font-medium text-gray-700 hover:bg-gray-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={save}
+              className="rounded-full bg-gray-900 px-3 py-1 text-[11px] font-semibold text-white hover:bg-gray-800"
+            >
+              Save
+            </button>
+          </div>
+        </>
+      )}
     </div>
   )
 }

@@ -212,7 +212,11 @@ export default function CourseWizard({
     const recurringInterval = form.getValues('recurring_interval')
     const prices = form.getValues('prices') ?? []
     const first = prices[0] as
-      | { amount_type?: string; price_amount?: number | null; price_currency?: string }
+      | {
+          amount_type?: string
+          price_amount?: number | null
+          price_currency?: string
+        }
       | undefined
     const isFree = first?.amount_type === 'free' || !paywall.paywallEnabled
     const currency = (first?.price_currency ?? defaultCurrency).toUpperCase()
@@ -335,7 +339,11 @@ export default function CourseWizard({
       // doesn't wipe a slot the renderer can fall back on.
       const h = outline.hero ?? {}
       const heroCopy =
-        h.eyebrow || h.description || h.byline || h.badge || h.titleLines?.length
+        h.eyebrow ||
+        h.description ||
+        h.byline ||
+        h.badge ||
+        h.titleLines?.length
           ? {
               eyebrow: h.eyebrow ?? null,
               badge: h.badge ?? null,
@@ -402,9 +410,8 @@ export default function CourseWizard({
           ...((outline.faq ?? []).filter((f) => f?.q && f?.a).length
             ? {
                 ai_faq: (outline.faq ?? [])
-                  .filter(
-                    (f): f is { q: string; a: string } =>
-                      Boolean(f?.q && f?.a),
+                  .filter((f): f is { q: string; a: string } =>
+                    Boolean(f?.q && f?.a),
                   )
                   .map((f) => ({ q: f.q, a: f.a })),
               }
@@ -469,10 +476,21 @@ export default function CourseWizard({
     // raw course.desc blob — show the synthesised line, else nothing.
     const o = partialOutline as PartialOutline | undefined
     const aiHero = o?.hero ?? {}
+    // Clamp the advertised free-preview count to the lessons that actually
+    // exist, matching what finalizeCourse persists — otherwise the preview can
+    // claim "5 lessons free" when the outline only has 3.
+    const totalOutlineLessons = (o?.modules ?? []).reduce(
+      (n, m) => n + (m?.lessons?.length ?? 0),
+      0,
+    )
+    const freePreviewClamped = Math.max(
+      0,
+      Math.min(totalOutlineLessons, paywall.freePreviewLessons),
+    )
     return {
       instructorSub: o?.instructor?.sub ?? '',
-      instructorBioParas: (o?.instructor?.bio ?? []).filter(
-        (b): b is string => Boolean(b),
+      instructorBioParas: (o?.instructor?.bio ?? []).filter((b): b is string =>
+        Boolean(b),
       ),
       portraitCaption:
         [instructor.name, course.title].filter(Boolean).join(' · ') || '',
@@ -491,7 +509,7 @@ export default function CourseWizard({
       cardVariant,
       structure: format === 'series' ? 'episodic' : 'modules',
       trialMode,
-      freeLessons: paywall.freePreviewLessons,
+      freeLessons: freePreviewClamped,
       paywallEnabled: paywall.paywallEnabled && !isFree,
       priceLabel,
       buyLabel: isFree
@@ -507,8 +525,8 @@ export default function CourseWizard({
       freeLine: isFree
         ? 'Free for everyone'
         : trialMode === 'free_preview'
-          ? `${paywall.freePreviewLessons} ${unit}${
-              paywall.freePreviewLessons === 1 ? '' : 's'
+          ? `${freePreviewClamped} ${unit}${
+              freePreviewClamped === 1 ? '' : 's'
             } free · ${cadence}`
           : `Sample clip free · ${cadence}`,
       // No hero cover by default — the generated page is the empty state
@@ -527,7 +545,10 @@ export default function CourseWizard({
         <SpaireOnboardingStyles />
         <div className="spaire-shell">
           {screen === 'intro' && (
-            <Intro onNext={() => setScreen('structure')} onClose={handleClose} />
+            <Intro
+              onNext={() => setScreen('structure')}
+              onClose={handleClose}
+            />
           )}
           {screen === 'structure' && (
             <StructurePicker

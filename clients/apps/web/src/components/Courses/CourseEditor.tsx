@@ -14,55 +14,24 @@ import {
   useUpdateCourseLesson,
   useUpdateCourseModule,
 } from '@/hooks/queries/courses'
+import { useEntitlements } from '@/hooks/queries/entitlements'
+import '@/styles/editor-dark.css'
 import { getQueryClient } from '@/utils/api/query'
 import { schemas } from '@spaire/client'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { toast } from '../Toast/use-toast'
-import '@/styles/editor-dark.css'
 import { AuthTab } from './editor/AuthTab'
 import { AutomationsPanel } from './editor/AutomationsPanel'
 import { CommunityTab } from './editor/CommunityTab'
 import { CourseHeader, TabId } from './editor/CourseHeader'
 import { CustomersTab } from './editor/CustomersTab'
 import { CustomizeTab } from './editor/CustomizeTab'
-import { LessonEdits } from './editor/LessonDetail'
 import { LessonEditorV2 } from './editor/LessonEditorV2'
-import { LessonContentType } from './editor/ModuleCard'
-import { OutlineTab } from './editor/OutlineTab'
+import { LessonContentType, OutlineTab } from './editor/OutlineTab'
 import { PricingTab } from './editor/PricingTab'
 import { QuizDetail, QuizSaveBody } from './editor/QuizDetail'
 import { CourseSettingsEdits, SettingsTab } from './editor/SettingsTab'
-
-async function streamLessonContent(
-  organizationSlug: string,
-  params: {
-    courseTitle: string | null
-    moduleTitle: string
-    lessonTitle: string
-    contentType: string
-  },
-  onChunk: (chunk: string) => void,
-  signal?: AbortSignal,
-): Promise<void> {
-  const res = await fetch(
-    `/dashboard/${organizationSlug}/courses/lesson-content`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(params),
-      signal,
-    },
-  )
-  if (!res.ok || !res.body) throw new Error(`Generation failed (${res.status})`)
-  const reader = res.body.getReader()
-  const decoder = new TextDecoder()
-  while (true) {
-    const { done, value } = await reader.read()
-    if (done) break
-    onChunk(decoder.decode(value, { stream: true }))
-  }
-}
 
 export default function CourseEditor({
   organization,
@@ -133,13 +102,13 @@ export default function CourseEditor({
       overview?: string
       takeaways?: string[]
       attachments?: unknown[]
-      textContent?: string
+      text?: string
     }
     const hasContent =
       !!(c.overview && c.overview.trim()) ||
       !!(c.takeaways && c.takeaways.some((t) => t && t.trim())) ||
       !!(c.attachments && c.attachments.length > 0) ||
-      !!(c.textContent && c.textContent.trim())
+      !!(c.text && c.text.trim())
     return (
       DEFAULT_LESSON_TITLES.has((l.title ?? '').trim()) &&
       !(l.description ?? '').trim() &&
@@ -179,8 +148,6 @@ export default function CourseEditor({
     setSelectedLessonId(next)
   }
   const [isSaving, setIsSaving] = useState(false)
-  const [isGenerating, setIsGenerating] = useState(false)
-  const abortRef = useRef<AbortController | null>(null)
 
   // Universal editor theme. Persisted under one key shared with the community
   // hub so a single toggle drives both surfaces (and the dark matches the
@@ -205,6 +172,13 @@ export default function CourseEditor({
   const addModule = useAddCourseModule()
   const updateModule = useUpdateCourseModule()
   const deleteModule = useDeleteCourseModule()
+
+  // Drip scheduling is a paid feature; gate the per-lesson and per-module
+  // schedule controls and surface the tier needed to unlock them instead of
+  // letting the save 403 with a generic failure toast.
+  const entitlements = useEntitlements(organization.id)
+  const canSchedule = entitlements.hasFeature('drip_scheduling')
+  const scheduleUpgradeTier = entitlements.requiredTierFor('drip_scheduling')
 
   const invalidateCourse = useCallback(() => {
     getQueryClient().invalidateQueries({ queryKey: ['courses', { courseId }] })
@@ -284,6 +258,19 @@ export default function CourseEditor({
     }
   }
 
+  const handleUpdateModuleSchedule = async (
+    mod: CourseModuleRead,
+    edits: { drip_days: number | null; release_at: string | null },
+  ) => {
+    try {
+      await updateModule.mutateAsync({ moduleId: mod.id, body: edits })
+      invalidateCourse()
+      toast({ title: 'Schedule saved' })
+    } catch {
+      toast({ title: 'Failed to update schedule' })
+    }
+  }
+
   const handleDeleteModule = async (mod: CourseModuleRead) => {
     try {
       await deleteModule.mutateAsync(mod.id)
@@ -336,43 +323,6 @@ export default function CourseEditor({
     }
   }
 
-  const handleSaveLesson = async (edits: LessonEdits) => {
-    if (!selectedLessonInfo) return
-    setIsSaving(true)
-    try {
-      const isQuiz = selectedLessonInfo.lesson.content_type === 'quiz'
-      const contentType = isQuiz
-        ? 'quiz'
-        : edits.media === 'video'
-          ? 'video'
-          : 'text'
-      const existingContent = (selectedLessonInfo.lesson.content ??
-        {}) as Record<string, unknown>
-      const nextContent: Record<string, unknown> = { ...existingContent }
-      if (!isQuiz) {
-        if (edits.textContent) nextContent.text = edits.textContent
-        else delete nextContent.text
-      }
-      await updateLesson.mutateAsync({
-        lessonId: selectedLessonInfo.lesson.id,
-        body: {
-          title: edits.title,
-          description: edits.description || null,
-          content_type: contentType,
-          content: Object.keys(nextContent).length > 0 ? nextContent : null,
-          published: edits.published,
-          comments_mode: edits.commentsMode,
-        },
-      })
-      invalidateCourse()
-      toast({ title: 'Lesson saved' })
-    } catch {
-      toast({ title: 'Failed to save lesson' })
-    } finally {
-      setIsSaving(false)
-    }
-  }
-
   const handleSaveQuiz = async (body: QuizSaveBody) => {
     if (!selectedLessonInfo) return
     setIsSaving(true)
@@ -420,41 +370,6 @@ export default function CourseEditor({
     } catch {
       toast({ title: 'Failed to update lesson' })
     }
-  }
-
-  const handleGenerateAI = async (
-    edits: LessonEdits,
-    onChunk: (chunk: string) => void,
-  ) => {
-    if (!selectedLessonInfo) return
-    const controller = new AbortController()
-    abortRef.current = controller
-    setIsGenerating(true)
-    try {
-      await streamLessonContent(
-        organization.slug,
-        {
-          courseTitle: course.title,
-          moduleTitle: selectedLessonInfo.module.title,
-          lessonTitle: edits.title,
-          contentType: edits.media === 'none' ? 'text' : edits.media,
-        },
-        onChunk,
-        controller.signal,
-      )
-    } catch (err) {
-      if ((err as Error).name !== 'AbortError') {
-        toast({ title: 'Failed to generate content' })
-      }
-    } finally {
-      setIsGenerating(false)
-      abortRef.current = null
-    }
-  }
-
-  const handleStopAI = () => {
-    abortRef.current?.abort()
-    setIsGenerating(false)
   }
 
   const handleTabChange = (tab: TabId) => {
@@ -528,6 +443,9 @@ export default function CourseEditor({
           onAddModule={handleAddModule}
           onRenameModule={handleRenameModule}
           onDeleteModule={handleDeleteModule}
+          canSchedule={canSchedule}
+          scheduleUpgradeTier={scheduleUpgradeTier}
+          onUpdateModuleSchedule={handleUpdateModuleSchedule}
         />
       )
     }

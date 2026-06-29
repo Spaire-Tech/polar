@@ -142,6 +142,7 @@ def _build_module_list(course, paywall_position, enrolled_at, now, completed_ids
     modules = []
     accessible_ids: set[str] = set()
     for m in course.modules:
+        # Module-level lock drives the section-header "locked until" badge.
         drip_locked = False
         locked_until = None
         if m.release_at and now < m.release_at:
@@ -155,12 +156,19 @@ def _build_module_list(course, paywall_position, enrolled_at, now, completed_ids
 
         published_lessons = [lesson for lesson in m.lessons if lesson.published]
 
-        if drip_locked:
-            visible = [
-                lesson for lesson in published_lessons if lesson.is_free_preview
-            ]
-        else:
-            visible = published_lessons
+        # Per-lesson visibility goes through the unified accessibility check so
+        # BOTH module- and lesson-level drip are honoured (free previews stay
+        # visible even inside a dripped module). A lesson the customer can't
+        # access yet is omitted entirely — this `accessible_ids` set is the
+        # authority the playback / complete / comments gate
+        # (_verify_lesson_in_enrolled_course) relies on.
+        visible = [
+            lesson
+            for lesson in published_lessons
+            if course_service.calculate_lesson_accessibility(
+                lesson, None, enrolled_at, now, module=m
+            )[0]
+        ]
 
         lessons = []
         for lesson in visible:
@@ -216,14 +224,14 @@ def _build_flat_lesson_list(course, paywall_position, enrolled_at, now, complete
 
     # Flatten lessons in module order, then by within-module position so the
     # global index matches what the studio outline shows.
-    ordered_lessons: list[tuple[int, object]] = []
+    ordered_lessons: list[tuple[int, object, object]] = []
     for module in course.modules:
         for lesson in sorted(module.lessons, key=lambda x: x.position):
-            ordered_lessons.append((module.position, lesson))
-    ordered_lessons.sort(key=lambda pair: (pair[0], pair[1].position))
+            ordered_lessons.append((module.position, module, lesson))
+    ordered_lessons.sort(key=lambda triple: (triple[0], triple[2].position))
 
     global_idx = -1
-    for _module_pos, lesson in ordered_lessons:
+    for _module_pos, module, lesson in ordered_lessons:
         # Only published lessons are visible
         if not lesson.published:
             continue
@@ -236,6 +244,7 @@ def _build_flat_lesson_list(course, paywall_position, enrolled_at, now, complete
             enrolled_at,
             now,
             global_lesson_index=global_idx,
+            module=module,
         )
 
         locked = not is_accessible
@@ -789,25 +798,27 @@ async def get_course_landing(
                 if lesson.published:
                     published_lessons.append(lesson)
 
-        # Paywall always drives the free-preview slice for the storefront,
-        # even when an individual lesson has `is_free_preview=True`. The
-        # previous behaviour was: if *any* lesson had the flag set, paywall
-        # was ignored entirely and only flagged lessons appeared as free.
-        # That made setting paywall_position=3 silently regress to "only
-        # the trailer lesson is free" once a single lesson somewhere on the
-        # course had the explicit flag — confusing in the studio because
-        # the customize tab kept showing all three free-preview cards.
+        # The free-preview slice for non-enrolled visitors is driven by the
+        # paywall, with two rules that match the studio outline AND the public
+        # PublicPortalView render:
+        #   1. paywall_enabled is authoritative — when the toggle is off there
+        #      is no positional paywall, only explicitly-flagged previews.
+        #   2. The is_free_preview flag WINS — a lesson the creator marked free
+        #      is free even if it sits past the positional cutoff.
         paywall_at = (
             course.paywall_position
-            if course.paywall_position is not None and course.paywall_position > 0
+            if (
+                course.paywall_enabled
+                and course.paywall_position is not None
+                and course.paywall_position > 0
+            )
             else None
         )
 
         for idx, lesson in enumerate(published_lessons):
-            if paywall_at is not None:
-                is_free = idx < paywall_at
-            else:
-                is_free = bool(lesson.is_free_preview)
+            is_free = bool(lesson.is_free_preview) or (
+                paywall_at is not None and idx < paywall_at
+            )
 
             lesson_data = _serialize_lesson(lesson, set(), accessible=is_free)
             lesson_data["is_free_preview"] = is_free
@@ -1060,10 +1071,12 @@ async def check_lesson_access(
     if course is None:
         raise HTTPException(status_code=404, detail="Course not found")
 
-    # Reject if the lesson belongs to a different course (prevents probing
-    # other courses' lesson ids through this endpoint).
-    module_course_id = getattr(getattr(lesson, "module", None), "course_id", None)
-    if module_course_id is None or module_course_id != course.id:
+    # Resolve the lesson's module from the course tree (course.modules is
+    # selectin-loaded, unlike lesson.module which is lazy="raise"). Reject if
+    # the lesson belongs to a different course — prevents probing other
+    # courses' lesson ids through this endpoint.
+    module = next((m for m in course.modules if m.id == lesson.module_id), None)
+    if module is None:
         raise HTTPException(status_code=404, detail="Lesson not found")
 
     # Check if lesson is published
@@ -1084,25 +1097,28 @@ async def check_lesson_access(
     if not enrollment:
         return {"can_access": False, "reason": "paywall", "locked_until": None}
 
-    # User is enrolled, check drip/paywall gating
+    # User is enrolled — the only remaining gate is the drip schedule, on the
+    # lesson and/or its module.
     is_accessible, locked_until = course_service.calculate_lesson_accessibility(
-        lesson, course.paywall_position, enrollment.enrolled_at, now
+        lesson,
+        course.paywall_position,
+        enrollment.enrolled_at,
+        now,
+        module=module,
     )
 
     if is_accessible:
         return {"can_access": True, "reason": "enrolled", "locked_until": None}
-    elif locked_until:
-        if lesson.drip_days is not None:
-            reason = "drip"
-        else:
-            reason = "paywall"
+    if locked_until:
+        # A locked enrolled lesson is always a drip / scheduled-release lock
+        # (release_at or drip_days, on the lesson or its module) — never a
+        # paywall, which only gates non-enrolled visitors.
         return {
             "can_access": False,
-            "reason": reason,
+            "reason": "drip",
             "locked_until": locked_until.isoformat(),
         }
-    else:
-        return {"can_access": False, "reason": "paywall", "locked_until": None}
+    return {"can_access": False, "reason": "paywall", "locked_until": None}
 
 
 # --- Lesson comments ---
