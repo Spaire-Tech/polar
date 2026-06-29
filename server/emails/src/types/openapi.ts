@@ -299,6 +299,76 @@ export interface components {
       | components['schemas']['BenefitDownloadables']
       | components['schemas']['BenefitLicenseKeys']
       | components['schemas']['BenefitMeterCredit']
+      | components['schemas']['BenefitCourseAccess']
+    /**
+     * BenefitCourseAccess
+     * @description A benefit of type `course_access`.
+     *
+     *     Created by the courses module on course publish so that purchasing
+     *     the underlying product triggers a CourseEnrollment via the standard
+     *     benefit-grant pipeline. Not user-managed: `selectable=false`,
+     *     `deletable=false`.
+     */
+    BenefitCourseAccess: {
+      /**
+       * Id
+       * Format: uuid4
+       * @description The ID of the benefit.
+       */
+      id: string
+      /**
+       * Created At
+       * Format: date-time
+       * @description Creation timestamp of the object.
+       */
+      created_at: string
+      /**
+       * Modified At
+       * @description Last modification timestamp of the object.
+       */
+      modified_at: string | null
+      /**
+       * Type
+       * @constant
+       */
+      type: 'course_access'
+      /**
+       * Description
+       * @description The description of the benefit.
+       */
+      description: string
+      /**
+       * Selectable
+       * @description Whether the benefit is selectable when creating a product.
+       */
+      selectable: boolean
+      /**
+       * Deletable
+       * @description Whether the benefit is deletable.
+       */
+      deletable: boolean
+      /**
+       * Organization Id
+       * Format: uuid4
+       * @description The ID of the organization owning the benefit.
+       */
+      organization_id: string
+      metadata: components['schemas']['MetadataOutputType']
+      properties: components['schemas']['BenefitCourseAccessProperties']
+    }
+    /**
+     * BenefitCourseAccessProperties
+     * @description Properties for a benefit of type `course_access`.
+     *
+     *     The benefit is internal plumbing — it's created automatically when a
+     *     course is published, and its grant handler enrolls the buying
+     *     customer in the course. The only configuration is which course it
+     *     points at.
+     */
+    BenefitCourseAccessProperties: {
+      /** Course Id */
+      course_id: string
+    }
     /**
      * BenefitCustom
      * @description A benefit of type `custom`.
@@ -349,10 +419,7 @@ export interface components {
        * @description The ID of the organization owning the benefit.
        */
       organization_id: string
-      /** Metadata */
-      metadata: {
-        [key: string]: string | number | boolean
-      }
+      metadata: components['schemas']['MetadataOutputType']
       properties: components['schemas']['BenefitCustomProperties']
     }
     /**
@@ -413,10 +480,7 @@ export interface components {
        * @description The ID of the organization owning the benefit.
        */
       organization_id: string
-      /** Metadata */
-      metadata: {
-        [key: string]: string | number | boolean
-      }
+      metadata: components['schemas']['MetadataOutputType']
       properties: components['schemas']['BenefitDiscordProperties']
     }
     /**
@@ -487,10 +551,7 @@ export interface components {
        * @description The ID of the organization owning the benefit.
        */
       organization_id: string
-      /** Metadata */
-      metadata: {
-        [key: string]: string | number | boolean
-      }
+      metadata: components['schemas']['MetadataOutputType']
       properties: components['schemas']['BenefitDownloadablesProperties']
     }
     /** BenefitDownloadablesProperties */
@@ -552,10 +613,7 @@ export interface components {
        * @description The ID of the organization owning the benefit.
        */
       organization_id: string
-      /** Metadata */
-      metadata: {
-        [key: string]: string | number | boolean
-      }
+      metadata: components['schemas']['MetadataOutputType']
       properties: components['schemas']['BenefitGitHubRepositoryProperties']
     }
     /**
@@ -644,10 +702,7 @@ export interface components {
        * @description The ID of the organization owning the benefit.
        */
       organization_id: string
-      /** Metadata */
-      metadata: {
-        [key: string]: string | number | boolean
-      }
+      metadata: components['schemas']['MetadataOutputType']
       properties: components['schemas']['BenefitLicenseKeysProperties']
     }
     /** BenefitLicenseKeysProperties */
@@ -713,10 +768,7 @@ export interface components {
        * @description The ID of the organization owning the benefit.
        */
       organization_id: string
-      /** Metadata */
-      metadata: {
-        [key: string]: string | number | boolean
-      }
+      metadata: components['schemas']['MetadataOutputType']
       properties: components['schemas']['BenefitMeterCreditProperties']
     }
     /**
@@ -734,19 +786,6 @@ export interface components {
        */
       meter_id: string
     }
-    /**
-     * CustomerCancellationReason
-     * @enum {string}
-     */
-    CustomerCancellationReason:
-      | 'customer_service'
-      | 'low_quality'
-      | 'missing_features'
-      | 'switched_service'
-      | 'too_complex'
-      | 'too_expensive'
-      | 'unused'
-      | 'other'
     /** ClientInvoiceEmail */
     ClientInvoiceEmail: {
       /**
@@ -781,10 +820,7 @@ export interface components {
       customer_name: string
       /** Invoice Id */
       invoice_id: string
-      /**
-       * Due Date
-       * @default null
-       */
+      /** Due Date */
       due_date: string | null
       /** Currency */
       currency: string
@@ -794,27 +830,26 @@ export interface components {
       subtotal_amount: number
       /** Discount Amount */
       discount_amount: number
-      /**
-       * Discount Label
-       * @default null
-       */
+      /** Discount Label */
       discount_label: string | null
       /** Tax Amount */
       tax_amount: number
       /** Total Amount */
       total_amount: number
-      /**
-       * Checkout Link
-       * @default null
-       */
+      /** Checkout Link */
       checkout_link: string | null
-      /**
-       * Memo
-       * @default null
-       */
+      /** Memo */
       memo: string | null
     }
-    /** CommunityEmailOrgInfo */
+    /**
+     * CommunityEmailOrgInfo
+     * @description Subset of Organization the event emails actually render.
+     *
+     *     Stays flat + small so the customer_notifications payload (which
+     *     persists with the bell row) doesn't carry the full ~30-field
+     *     Organization schema. The header/footer components on the email
+     *     side only consume name/slug/avatar/website.
+     */
     CommunityEmailOrgInfo: {
       /** Id */
       id: string
@@ -843,7 +878,14 @@ export interface components {
       template: 'community_event_announcement'
       props: components['schemas']['CommunityEventAnnouncementProps']
     }
-    /** CommunityEventAnnouncementProps */
+    /**
+     * CommunityEventAnnouncementProps
+     * @description Host-composed announcement on top of the standard event card.
+     *
+     *     Subject + body come straight from the composer modal; everything
+     *     else (org, event, course_name, event_url) is identical to the
+     *     auto-fired event emails so the recipient gets a consistent look.
+     */
     CommunityEventAnnouncementProps: {
       /** Email */
       email: string
@@ -860,7 +902,13 @@ export interface components {
       /** Host Name */
       host_name: string
     }
-    /** CommunityEventCardData */
+    /**
+     * CommunityEventCardData
+     * @description Presentational data the EventCard React Email component renders.
+     *     Kept flat (no nested Event model) so the template can be invoked
+     *     from any context — including bell rows whose stored payload doesn't
+     *     have access to a live SQLAlchemy session.
+     */
     CommunityEventCardData: {
       /** Title */
       title: string
@@ -989,6 +1037,31 @@ export interface components {
       event_url: string
       event: components['schemas']['CommunityEventCardData']
     }
+    /**
+     * CustomerCancellationReason
+     * @enum {string}
+     */
+    CustomerCancellationReason:
+      | 'customer_service'
+      | 'low_quality'
+      | 'missing_features'
+      | 'switched_service'
+      | 'too_complex'
+      | 'too_expensive'
+      | 'unused'
+      | 'other'
+    /** CustomerPortalSubscriptionSettings */
+    CustomerPortalSubscriptionSettings: {
+      /** Update Seats */
+      update_seats: boolean
+      /** Update Plan */
+      update_plan: boolean
+    }
+    /** CustomerPortalUsageSettings */
+    CustomerPortalUsageSettings: {
+      /** Show */
+      show: boolean
+    }
     /** CustomerSessionCodeEmail */
     CustomerSessionCodeEmail: {
       /**
@@ -1049,6 +1122,15 @@ export interface components {
       /** Code Lifetime Minutes */
       code_lifetime_minutes: number
     }
+    /** MaintainerAccountCreditsGrantedNotificationPayload */
+    MaintainerAccountCreditsGrantedNotificationPayload: {
+      /** Organization Name */
+      organization_name: string
+      /** Amount */
+      amount: number
+      /** Formatted Amount */
+      readonly formatted_amount: string
+    }
     /** MaintainerCreateAccountNotificationPayload */
     MaintainerCreateAccountNotificationPayload: {
       /** Organization Name */
@@ -1068,6 +1150,16 @@ export interface components {
       tier_price_recurring_interval: string
       /** Tier Organization Name */
       tier_organization_name: string
+      /**
+       * Tier Organization Slug
+       * @default null
+       */
+      tier_organization_slug: string | null
+      /**
+       * Subscription Id
+       * @default null
+       */
+      subscription_id: string | null
       /** Formatted Price Amount */
       readonly formatted_price_amount: string
     }
@@ -1079,7 +1171,7 @@ export interface components {
       product_price_amount: number
       /**
        * Customer Name
-       * @default A customer
+       * @default
        */
       customer_name: string
       /**
@@ -1127,25 +1219,53 @@ export interface components {
        * @default null
        */
       organization_slug: string | null
-      /**
-       * Billing Reason
-       * @default null
-       */
+      /** @default null */
       billing_reason: components['schemas']['OrderBillingReasonInternal'] | null
       /** Formatted Price Amount */
       readonly formatted_price_amount: string
-      /**
-       * Formatted Billing Reason
-       * @default null
-       */
+      /** Formatted Billing Reason */
       readonly formatted_billing_reason: string | null
       /** Formatted Address Country */
       readonly formatted_address_country: string | null
+      /** Order Url */
+      readonly order_url: string | null
+    }
+    /** MarketingEmail */
+    MarketingEmail: {
       /**
-       * Order Url
+       * Template
+       * @default marketing_email
+       * @constant
+       */
+      template: 'marketing_email'
+      props: components['schemas']['MarketingEmailProps']
+    }
+    /** MarketingEmailProps */
+    MarketingEmailProps: {
+      /** Organization Name */
+      organization_name: string
+      /**
+       * Organization Logo Url
        * @default null
        */
-      readonly order_url: string | null
+      organization_logo_url: string | null
+      /**
+       * Organization Website
+       * @default null
+       */
+      organization_website: string | null
+      /** Html Content */
+      html_content: string
+      /** Unsubscribe Url */
+      unsubscribe_url: string
+      /**
+       * Preview Text
+       * @default null
+       */
+      preview_text: string | null
+    }
+    MetadataOutputType: {
+      [key: string]: string | number | boolean
     }
     /** NotificationCreateAccountEmail */
     NotificationCreateAccountEmail: {
@@ -1156,6 +1276,16 @@ export interface components {
        */
       template: 'notification_create_account'
       props: components['schemas']['MaintainerCreateAccountNotificationPayload']
+    }
+    /** NotificationCreditsGrantedEmail */
+    NotificationCreditsGrantedEmail: {
+      /**
+       * Template
+       * @default notification_credits_granted
+       * @constant
+       */
+      template: 'notification_credits_granted'
+      props: components['schemas']['MaintainerAccountCreditsGrantedNotificationPayload']
     }
     /** NotificationNewSaleEmail */
     NotificationNewSaleEmail: {
@@ -1230,6 +1360,7 @@ export interface components {
       | 'subscription_create'
       | 'subscription_cycle'
       | 'subscription_update'
+      | 'client_invoice'
     /**
      * OrderBillingReasonInternal
      * @description Internal billing reasons with additional granularity.
@@ -1241,6 +1372,7 @@ export interface components {
       | 'subscription_cycle'
       | 'subscription_cycle_after_trial'
       | 'subscription_update'
+      | 'client_invoice'
     /** OrderConfirmationEmail */
     OrderConfirmationEmail: {
       /**
@@ -1479,6 +1611,24 @@ export interface components {
        * @description Avatar URL shown in checkout, customer portal, emails etc.
        */
       avatar_url: string | null
+      /**
+       * Customer Portal Sign In Image Url
+       * @description Image shown on the left panel of the customer portal sign-in screen. Configured from the course builder's Auth tab and applies to the whole organization's portal sign-in. When unset, the portal falls back to the organization's most recent course thumbnail.
+       * @default null
+       */
+      customer_portal_sign_in_image_url: string | null
+      /**
+       * Customer Portal Sign In Image Position
+       * @description CSS object-position (e.g. '50% 30%') for the customer portal sign-in image, set by dragging to reposition in the Auth tab.
+       * @default null
+       */
+      customer_portal_sign_in_image_position: string | null
+      /**
+       * Customer Portal Sign In Theme
+       * @description Creator-chosen appearance for the customer portal sign-in screen: 'light' or 'dark'. Null is treated as 'light'.
+       * @default null
+       */
+      customer_portal_sign_in_theme: string | null
       /** @description Proration behavior applied when customer updates their subscription from the portal. */
       proration_behavior: components['schemas']['SubscriptionProrationBehavior']
       /**
@@ -1508,6 +1658,16 @@ export interface components {
        * @description When the business details were submitted.
        */
       details_submitted_at: string | null
+      /**
+       * Ai Onboarding Completed At
+       * @description When the creator finished the onboarding flow (plan + review + assistant). Until this is set, the dashboard layout redirects the creator back to /onboarding/plan to prevent skipping the plan-selection step.
+       * @default null
+       */
+      ai_onboarding_completed_at: string | null
+      /** @description Default presentment currency. Used as fallback in checkout and customer portal, if the customer's local currency is not available. */
+      default_presentment_currency: components['schemas']['PresentmentCurrency']
+      /** @description Default tax behavior applied on products. */
+      default_tax_behavior: components['schemas']['TaxBehaviorOption']
       /** @description Organization feature settings */
       feature_settings:
         | components['schemas']['OrganizationFeatureSettings']
@@ -1518,6 +1678,15 @@ export interface components {
       notification_settings: components['schemas']['OrganizationNotificationSettings']
       /** @description Settings related to customer emails */
       customer_email_settings: components['schemas']['OrganizationCustomerEmailSettings']
+      /** @description Settings related to the customer portal */
+      customer_portal_settings: components['schemas']['OrganizationCustomerPortalSettings']
+      /**
+       * @description Storefront settings
+       * @default null
+       */
+      storefront_settings:
+        | components['schemas']['OrganizationStorefrontSettings']
+        | null
     }
     /** OrganizationAccessTokenLeakedEmail */
     OrganizationAccessTokenLeakedEmail: {
@@ -1578,6 +1747,11 @@ export interface components {
       /** Subscription Updated */
       subscription_updated: boolean
     }
+    /** OrganizationCustomerPortalSettings */
+    OrganizationCustomerPortalSettings: {
+      usage: components['schemas']['CustomerPortalUsageSettings']
+      subscription: components['schemas']['CustomerPortalSubscriptionSettings']
+    }
     /** OrganizationFeatureSettings */
     OrganizationFeatureSettings: {
       /**
@@ -1592,6 +1766,12 @@ export interface components {
        * @default false
        */
       seat_based_pricing_enabled: boolean
+      /**
+       * Course Player White Label
+       * @description When true, the course lesson player hides Spaire branding. Requires the white_label_course_player tier feature (Scale).
+       * @default false
+       */
+      course_player_white_label: boolean
       /**
        * Revops Enabled
        * @description If this organization has RevOps enabled
@@ -1610,6 +1790,24 @@ export interface components {
        * @default false
        */
       member_model_enabled: boolean
+      /**
+       * Tinybird Read
+       * @description If this organization reads from Tinybird
+       * @default false
+       */
+      tinybird_read: boolean
+      /**
+       * Tinybird Compare
+       * @description If this organization compares Tinybird results with database
+       * @default false
+       */
+      tinybird_compare: boolean
+      /**
+       * Perks Unlocked
+       * @description If this organization has unlocked the Startup Stack perks by completing their first sale
+       * @default false
+       */
+      perks_unlocked: boolean
     }
     /** OrganizationInviteEmail */
     OrganizationInviteEmail: {
@@ -1678,6 +1876,16 @@ export interface components {
       | 'youtube'
       | 'tiktok'
       | 'linkedin'
+      | 'whatsapp'
+      | 'spotify'
+      | 'threads'
+      | 'soundcloud'
+      | 'snapchat'
+      | 'pinterest'
+      | 'patreon'
+      | 'twitch'
+      | 'apple_music'
+      | 'website'
       | 'other'
     /**
      * OrganizationStatus
@@ -1690,6 +1898,170 @@ export interface components {
       | 'ongoing_review'
       | 'denied'
       | 'active'
+    /** OrganizationStorefrontSettings */
+    OrganizationStorefrontSettings: {
+      /**
+       * Enabled
+       * @description Whether the storefront is enabled
+       * @default false
+       */
+      enabled: boolean
+      /**
+       * Theme
+       * @description Color theme for the public storefront
+       * @default light
+       * @enum {string}
+       */
+      theme: 'light' | 'dark'
+      /**
+       * Show Header
+       * @description Show the storefront header/banner
+       * @default true
+       */
+      show_header: boolean
+      /**
+       * Header Image Url
+       * @description URL of the storefront header/banner image
+       * @default null
+       */
+      header_image_url: string | null
+      /**
+       * Show Logo
+       * @description Show the organization logo
+       * @default true
+       */
+      show_logo: boolean
+      /**
+       * Show Name
+       * @description Show the organization name
+       * @default true
+       */
+      show_name: boolean
+      /**
+       * Show Description
+       * @description Show the storefront description
+       * @default true
+       */
+      show_description: boolean
+      /**
+       * Description
+       * @description Storefront description
+       * @default null
+       */
+      description: string | null
+      /**
+       * Meta Title
+       * @description SEO title for the storefront — used as the page <title> and social card title. Falls back to the organization name.
+       * @default null
+       */
+      meta_title: string | null
+      /**
+       * Meta Description
+       * @description SEO meta description / social card summary. Falls back to the storefront description.
+       * @default null
+       */
+      meta_description: string | null
+      /**
+       * Index
+       * @description Allow search engines to index the storefront
+       * @default true
+       */
+      index: boolean
+      /**
+       * Thumbnail Size
+       * @description Product thumbnail size
+       * @default large
+       * @enum {string}
+       */
+      thumbnail_size: 'small' | 'medium' | 'large'
+      /**
+       * Show Product Details
+       * @description Show product details (name, price)
+       * @default true
+       */
+      show_product_details: boolean
+      /**
+       * Profile Title
+       * @description Profile title (e.g. Designer, 3D Artist)
+       * @default null
+       */
+      profile_title: string | null
+      /**
+       * Skills
+       * @description Skill/expertise tags displayed on the profile
+       */
+      skills?: string[]
+      /**
+       * Languages
+       * @description Languages spoken
+       */
+      languages?: string[]
+      /**
+       * Available For Work
+       * @description Show 'Available for work' badge on the profile
+       * @default false
+       */
+      available_for_work: boolean
+      /**
+       * Contact Url
+       * @description Where the 'Available for work' badge sends visitors. Accepts an https:// URL (e.g. a contact form, calendar booking link) or a mailto: URL. When unset, the badge is non-interactive.
+       * @default null
+       */
+      contact_url: string | null
+      /**
+       * Featured Mode
+       * @description How to choose which products appear on the storefront. 'curated' (default) shows only the products the creator explicitly added via featured_product_ids. 'all' is a legacy mode that auto-shows every active product; kept so existing rows still validate.
+       * @default curated
+       * @enum {string}
+       */
+      featured_mode: 'all' | 'curated'
+      /**
+       * Featured Product Ids
+       * @description Product IDs to feature on the storefront when featured_mode is 'curated'. Ignored when featured_mode is 'all'.
+       */
+      featured_product_ids?: string[]
+      /**
+       * Show Card Products
+       * @description Show product images in the profile card
+       * @default true
+       */
+      show_card_products: boolean
+      /**
+       * Storefront Links
+       * @description Links displayed in a carousel on the storefront
+       */
+      storefront_links?: components['schemas']['StorefrontLink'][]
+      /**
+       * Links Position
+       * @description DEPRECATED — use block_order. Where to show the links section relative to products. Kept so existing rows still validate.
+       * @default after_products
+       * @enum {string}
+       */
+      links_position: 'before_products' | 'after_products'
+      /**
+       * Block Order
+       * @description Explicit ordering for the storefront's content blocks. The renderer iterates this list top-to-bottom, so creators can drag-reorder Products / Links / Forms freely. Backfilled from links_position for existing rows.
+       */
+      block_order?: ('products' | 'links' | 'forms')[]
+      /**
+       * Links Layout
+       * @description Visual layout for the links section (default per-link layout)
+       * @default classic
+       * @enum {string}
+       */
+      links_layout: 'classic' | 'carousel' | 'image_grid' | 'card'
+      /**
+       * Header Focal Point
+       * @description CSS object-position value for the cover image focal point (e.g. '50% 30%')
+       * @default null
+       */
+      header_focal_point: string | null
+      /**
+       * Space Items
+       * @description Flat ordered list of everything on the Space. When non-empty this is the single source of truth for the Space's render order — products and links interleave freely. When empty, the renderer falls back to deriving order from featured_product_ids + storefront_links + block_order for backwards compatibility with Spaces created before this model existed.
+       */
+      space_items?: components['schemas']['SpaceItem'][]
+    }
     /** OrganizationSubscriptionSettings */
     OrganizationSubscriptionSettings: {
       /** Allow Multiple Subscriptions */
@@ -1739,6 +2111,174 @@ export interface components {
       /** Url */
       url: string
     }
+    /** PlatformReceiptEmail */
+    PlatformReceiptEmail: {
+      /**
+       * Template
+       * @default platform_receipt
+       * @constant
+       */
+      template: 'platform_receipt'
+      props: components['schemas']['PlatformReceiptProps']
+    }
+    /** PlatformReceiptProps */
+    PlatformReceiptProps: {
+      /** Email */
+      email: string
+      /** Plan Name */
+      plan_name: string
+      order: components['schemas']['OrderEmail']
+      /** Url */
+      url: string
+    }
+    /**
+     * PresentmentCurrency
+     * @enum {string}
+     */
+    PresentmentCurrency:
+      | 'aed'
+      | 'all'
+      | 'amd'
+      | 'aoa'
+      | 'ars'
+      | 'aud'
+      | 'awg'
+      | 'azn'
+      | 'bam'
+      | 'bbd'
+      | 'bdt'
+      | 'bif'
+      | 'bmd'
+      | 'bnd'
+      | 'bob'
+      | 'brl'
+      | 'bsd'
+      | 'bwp'
+      | 'bzd'
+      | 'cad'
+      | 'cdf'
+      | 'chf'
+      | 'clp'
+      | 'cny'
+      | 'cop'
+      | 'crc'
+      | 'cve'
+      | 'czk'
+      | 'djf'
+      | 'dkk'
+      | 'dop'
+      | 'dzd'
+      | 'egp'
+      | 'etb'
+      | 'eur'
+      | 'fjd'
+      | 'fkp'
+      | 'gbp'
+      | 'gel'
+      | 'gip'
+      | 'gmd'
+      | 'gnf'
+      | 'gtq'
+      | 'gyd'
+      | 'hkd'
+      | 'hnl'
+      | 'htg'
+      | 'huf'
+      | 'idr'
+      | 'ils'
+      | 'inr'
+      | 'isk'
+      | 'jmd'
+      | 'jpy'
+      | 'kes'
+      | 'kgs'
+      | 'khr'
+      | 'kmf'
+      | 'krw'
+      | 'kyd'
+      | 'kzt'
+      | 'lak'
+      | 'lkr'
+      | 'lrd'
+      | 'lsl'
+      | 'mad'
+      | 'mdl'
+      | 'mga'
+      | 'mkd'
+      | 'mnt'
+      | 'mop'
+      | 'mur'
+      | 'mvr'
+      | 'mwk'
+      | 'mxn'
+      | 'myr'
+      | 'mzn'
+      | 'nad'
+      | 'ngn'
+      | 'nio'
+      | 'nok'
+      | 'npr'
+      | 'nzd'
+      | 'pab'
+      | 'pen'
+      | 'pgk'
+      | 'php'
+      | 'pkr'
+      | 'pln'
+      | 'pyg'
+      | 'qar'
+      | 'ron'
+      | 'rsd'
+      | 'rwf'
+      | 'sar'
+      | 'sbd'
+      | 'scr'
+      | 'sek'
+      | 'sgd'
+      | 'shp'
+      | 'sos'
+      | 'srd'
+      | 'szl'
+      | 'thb'
+      | 'tjs'
+      | 'top'
+      | 'try'
+      | 'ttd'
+      | 'twd'
+      | 'tzs'
+      | 'uah'
+      | 'ugx'
+      | 'usd'
+      | 'uyu'
+      | 'uzs'
+      | 'vnd'
+      | 'vuv'
+      | 'wst'
+      | 'xaf'
+      | 'xcd'
+      | 'xcg'
+      | 'xof'
+      | 'xpf'
+      | 'yer'
+      | 'zar'
+      | 'zmw'
+    /**
+     * ProductCategory
+     * @enum {string}
+     */
+    ProductCategory:
+      | 'ebook'
+      | 'template'
+      | 'assets'
+      | 'course'
+      | 'guide'
+      | 'music'
+      | 'video'
+      | 'photo'
+      | 'software'
+      | 'coaching'
+      | 'membership'
+      | 'other'
     /** ProductEmail */
     ProductEmail: {
       /**
@@ -1775,6 +2315,13 @@ export interface components {
        * @description The description of the product.
        */
       description: string | null
+      /**
+       * @description The digital product category.
+       * @default null
+       */
+      category: components['schemas']['ProductCategory'] | null
+      /** @description The visibility of the product. */
+      visibility: components['schemas']['ProductVisibility']
       /** @description The recurring interval of the product. If `None`, the product is a one-time purchase. */
       recurring_interval:
         | components['schemas']['SubscriptionRecurringInterval']
@@ -1795,6 +2342,12 @@ export interface components {
        */
       is_archived: boolean
       /**
+       * Product Type
+       * @description The type of product (e.g. 'digital', 'course').
+       * @default digital
+       */
+      product_type: string
+      /**
        * Organization Id
        * Format: uuid4
        * @description The ID of the organization owning the product.
@@ -1806,6 +2359,11 @@ export interface components {
        */
       benefits: components['schemas']['Benefit'][]
     }
+    /**
+     * ProductVisibility
+     * @enum {string}
+     */
+    ProductVisibility: 'draft' | 'private' | 'public'
     /** SeatInvitationEmail */
     SeatInvitationEmail: {
       /**
@@ -1827,6 +2385,87 @@ export interface components {
       billing_manager_email: string
       /** Claim Url */
       claim_url: string
+    }
+    /**
+     * SpaceItem
+     * @description A single entry in the Space's ordered list. The Space renders
+     *     items in the order they appear in `space_items`; products and links
+     *     can interleave freely (e.g. link → product → link → course → link).
+     *     `kind` discriminates against ProductStorefront (`product`) vs a
+     *     StorefrontLink already stored in `storefront_links` (`link`).
+     *     `hidden` lets creators take an item off the Space without losing
+     *     the item itself — products restore via the picker, links by
+     *     flipping the flag.
+     */
+    SpaceItem: {
+      /**
+       * Kind
+       * @description What `id` refers to: a product, a storefront_links entry, or a form.
+       * @enum {string}
+       */
+      kind: 'product' | 'link' | 'form'
+      /**
+       * Id
+       * @description Identifier of the referenced product or link.
+       */
+      id: string
+      /**
+       * Hidden
+       * @description If true, the renderer skips this item. Lets creators hide an item without removing it from the Space's order or deleting it outright.
+       * @default false
+       */
+      hidden: boolean
+    }
+    /** StorefrontLink */
+    StorefrontLink: {
+      /**
+       * Id
+       * @description Unique identifier for the link
+       */
+      id: string
+      /**
+       * Url
+       * Format: uri
+       * @description The URL of the link
+       */
+      url: string
+      /**
+       * Title
+       * @description Display title for the link
+       * @default null
+       */
+      title: string | null
+      /**
+       * Description
+       * @description Short description shown on the card
+       * @default null
+       */
+      description: string | null
+      /**
+       * Image Url
+       * @description Thumbnail image URL for the link card
+       * @default null
+       */
+      image_url: string | null
+      /**
+       * Type
+       * @description Link type
+       * @default standard
+       * @enum {string}
+       */
+      type: 'standard' | 'embedded'
+      /**
+       * Platform
+       * @description Detected platform (youtube, spotify, tiktok, soundcloud, instagram)
+       * @default null
+       */
+      platform: string | null
+      /**
+       * Layout
+       * @description Per-link visual layout (list / cards / grid / carousel). Embeds ignore this — they always render full-width. When unset, the link falls back to the section's links_layout.
+       * @default null
+       */
+      layout: ('classic' | 'carousel' | 'image_grid' | 'card') | null
     }
     /** SubscriptionCancellationEmail */
     SubscriptionCancellationEmail: {
@@ -2122,10 +2761,30 @@ export interface components {
       order: components['schemas']['OrderEmail'] | null
     }
     /**
+     * TaxBehaviorOption
+     * @enum {string}
+     */
+    TaxBehaviorOption: 'location' | 'inclusive' | 'exclusive'
+    /**
      * TrialInterval
      * @enum {string}
      */
     TrialInterval: 'day' | 'week' | 'month' | 'year'
+    /** UserWelcomeEmail */
+    UserWelcomeEmail: {
+      /**
+       * Template
+       * @default user_welcome
+       * @constant
+       */
+      template: 'user_welcome'
+      props: components['schemas']['UserWelcomeProps']
+    }
+    /** UserWelcomeProps */
+    UserWelcomeProps: {
+      /** Email */
+      email: string
+    }
     /** WebhookEndpointDisabledEmail */
     WebhookEndpointDisabledEmail: {
       /**

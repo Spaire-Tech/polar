@@ -1,8 +1,5 @@
 import uuid
 
-from polar.email.react import render_email_template
-from polar.email.schemas import UserWelcomeEmail, UserWelcomeProps
-from polar.email.sender import DEFAULT_FROM_EMAIL_ADDRESS, DEFAULT_FROM_NAME, enqueue_email
 from polar.exceptions import PolarTaskError
 from polar.worker import AsyncSessionMaker, TaskPriority, actor
 
@@ -21,21 +18,18 @@ class UserDoesNotExist(UserTaskError):
 
 @actor(actor_name="user.on_after_signup", priority=TaskPriority.LOW)
 async def user_on_after_signup(user_id: uuid.UUID) -> None:
+    # The founder welcome email is keyed to "starting your trial" — which is
+    # not yet true at account signup (the 14-day trial begins when the creator
+    # picks a plan in onboarding). It now fires there, at plan-trial-start,
+    # from the order-confirmation path, so there is nothing to send at signup.
+    #
+    # The actor is kept (a no-op beyond verifying the user) so the existing
+    # signup enqueue sites — email, Apple, Google, GitHub — stay valid without
+    # touching those auth paths. Previously this rendered `user_welcome`, but
+    # that template was never registered in the email renderer, so the send
+    # errored and the welcome never went out at all.
     async with AsyncSessionMaker() as session:
         repository = UserRepository.from_session(session)
         user = await repository.get_by_id(user_id)
         if user is None:
             raise UserDoesNotExist(user_id)
-
-        body = render_email_template(
-            UserWelcomeEmail(props=UserWelcomeProps(email=user.email))
-        )
-        enqueue_email(
-            to_email_addr=user.email,
-            subject="welcome to Spaire",
-            html_content=body,
-            from_name=DEFAULT_FROM_NAME,
-            from_email_addr=DEFAULT_FROM_EMAIL_ADDRESS,
-            reply_to_name="Spaire Support",
-            reply_to_email_addr="support@spairehq.com",
-        )

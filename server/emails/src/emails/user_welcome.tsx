@@ -10,37 +10,34 @@ export function UserWelcome({ email }: schemas['UserWelcomeProps']) {
     <WrapperPolar>
       <Preview>Welcome to Spaire — a quick note from Bass</Preview>
       <IntroWithHi hiMsg="Hey,">
-        Thanks for starting your trial with Spaire — really glad you&apos;re
-        here.
+        Thank you for starting your trial — really glad you&apos;re here.
       </IntroWithHi>
       <Section>
         <BodyText>
-          I&apos;m Bass, founder and CEO. I started Spaire because I kept
-          watching talented creators hand over a huge cut of what they earn to
-          platforms that didn&apos;t really care whether they succeeded. Spaire
-          exists to flip that: give you the tools to actually monetize your
-          creativity, and get out of your way.
+          Nobody ever learned to do anything wonderful from a list of
+          instructions. We learn the way we always have — by watching someone a
+          little further along, catching the small unteachable things they do
+          without thinking. That&apos;s all a masterclass really is. Not a course
+          to be completed, but a master to be sat beside.
         </BodyText>
         <BodyText>
-          Over the next 14 days you&apos;ve got the full run of the product. A
-          few things I&apos;d suggest trying first:
+          Spaire is meant to make that kind of thing as easy to build as it is
+          lovely to land on, and the next 14 days are yours to test the claim.
+          Put up a lesson or two and a sample people can watch before they
+          decide anything. The aim is for someone to land on what you&apos;ve
+          made and feel, before they&apos;ve committed to anything, that
+          they&apos;re in good hands.
         </BodyText>
         <BodyText>
-          – Set up your first offer (course, newsletter, digital product —
-          whatever fits)
-          <br />– Connect your payouts so you can start taking real payments
-          <br />– Customize your storefront so it feels like yours
+          If anything comes up, hit reply. This inbox comes to me — I read
+          everything, and there&apos;s nothing I&apos;d rather hear about than
+          what you&apos;re teaching and how it&apos;s going.
         </BodyText>
-        <BodyText>
-          If you get stuck, hit reply. This inbox comes to me. I read
-          everything, and especially in these early days, the fastest way to
-          make Spaire better for you is to tell me what&apos;s not working.
-        </BodyText>
-        <BodyText>Excited to see what you build.</BodyText>
+        <BodyText>Thank you again,</BodyText>
         <BodyText>
           Bass
           <br />
-          Founder &amp; CEO, Spaire
+          Co-Founder &amp; CEO @ Spaire
         </BodyText>
       </Section>
       <Footer email={email} />
