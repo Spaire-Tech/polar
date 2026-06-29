@@ -237,10 +237,10 @@ export function CourseEmptyState() {
     })
 
   return (
-    <div className={`ces-root${dark ? 'dark' : ''}`}>
+    <div className={`ces-root ${dark ? 'dark' : ''}`}>
       {/* ════════ HERO — cover not added yet ════════ */}
       <section
-        className={`hero${cover ? 'filled' : ''}`}
+        className={`hero ${cover ? 'filled' : ''}`}
         data-screen-label="Hero (awaiting cover)"
       >
         <div className="ph-ambient" />
@@ -427,7 +427,7 @@ export function CourseEmptyState() {
         >
           A few minutes inside the course.
         </p>
-        <div className={`sample-screen${sample ? 'filled' : ''}`}>
+        <div className={`sample-screen ${sample ? 'filled' : ''}`}>
           <div className="ph-ambient" />
           <div className="glass-tint" />
           <div
@@ -490,7 +490,7 @@ export function CourseEmptyState() {
               {mod.lessons.map(([n, title, desc]) => {
                 const img = lessonImgs[n]
                 return (
-                  <div className={`card${img ? 'filled' : ''}`} key={n}>
+                  <div className={`card ${img ? 'filled' : ''}`} key={n}>
                     <div className="ph-ambient" />
                     <div className="glass-tint" />
                     <div

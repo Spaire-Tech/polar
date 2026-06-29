@@ -229,10 +229,10 @@ export function MarqueeEmptyState() {
   }
 
   return (
-    <div className={`mes-root${dark ? 'dark' : ''}`}>
+    <div className={`mes-root ${dark ? 'dark' : ''}`}>
       {/* ════════ MARQUEE HERO ════════ */}
       <header
-        className={`panel${cover ? 'filled' : ''}`}
+        className={`panel ${cover ? 'filled' : ''}`}
         data-screen-label="Marquee Hero (awaiting cover)"
       >
         <div className="ph-ambient" />
@@ -402,7 +402,7 @@ export function MarqueeEmptyState() {
         </div>
         <div className="strip-wrap">
           <button
-            className={`arrow prev${showPrev ? 'show' : ''}`}
+            className={`arrow prev ${showPrev ? 'show' : ''}`}
             aria-label="Previous"
             type="button"
             onClick={() => scrollBy(-1)}
@@ -421,7 +421,7 @@ export function MarqueeEmptyState() {
             </svg>
           </button>
           <button
-            className={`arrow next${showNext ? 'show' : ''}`}
+            className={`arrow next ${showNext ? 'show' : ''}`}
             aria-label="Next"
             type="button"
             onClick={() => scrollBy(1)}
@@ -446,7 +446,7 @@ export function MarqueeEmptyState() {
               return (
                 <div className="lc-catalog" key={n}>
                   <div className="lc-card">
-                    <div className={`lc-thumb ph${img ? 'filled' : ''}`}>
+                    <div className={`lc-thumb ph ${img ? 'filled' : ''}`}>
                       <div className="ph-ambient" />
                       <div className="glass-tint" />
                       <div
