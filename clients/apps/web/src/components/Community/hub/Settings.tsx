@@ -10,11 +10,11 @@
  * hub.
  */
 import {
-  type CommunitySettingsRead,
   useCreatorCommunitySettings,
   useDeleteCommunity,
   useUpdateCommunitySettings,
   useUploadPostImage,
+  type CommunitySettingsRead,
 } from '@/hooks/queries/community'
 import * as React from 'react'
 import { CoverDrop, Field, Toggle } from './atoms'
@@ -240,7 +240,8 @@ export function SettingsTab({
           on={s.comments_mode !== 'locked'}
           onToggle={() =>
             patch({
-              comments_mode: s.comments_mode === 'locked' ? 'visible' : 'locked',
+              comments_mode:
+                s.comments_mode === 'locked' ? 'visible' : 'locked',
             })
           }
         />
@@ -256,12 +257,19 @@ export function SettingsTab({
       <div className="glist-label">Events</div>
       <div
         className="card glist"
-        style={{ marginBottom: 26, overflow: 'visible', position: 'relative', zIndex: 5 }}
+        style={{
+          marginBottom: 26,
+          overflow: 'visible',
+          position: 'relative',
+          zIndex: 5,
+        }}
       >
         <div className="grow">
           <div className="grow-main">
             <div className="gl">Default meeting provider</div>
-            <div className="gs">Pre-selected when you schedule a live moment</div>
+            <div className="gs">
+              Pre-selected when you schedule a live moment
+            </div>
           </div>
           <div className="grow-ctl">
             <ProviderSelect
@@ -283,7 +291,9 @@ export function SettingsTab({
       <div className="card glist danger-zone">
         <div className="grow">
           <div className="grow-main">
-            <div className="gl">{s.archived ? 'Restore community' : 'Archive community'}</div>
+            <div className="gl">
+              {s.archived ? 'Restore community' : 'Archive community'}
+            </div>
             <div className="gs">
               Hide it from members and pause all activity — you can restore it
               later
@@ -294,7 +304,9 @@ export function SettingsTab({
               className="btn btn-quiet btn-sm"
               onClick={() => {
                 patch({ archived: !s.archived })
-                showToast(s.archived ? 'Community restored' : 'Community archived')
+                showToast(
+                  s.archived ? 'Community restored' : 'Community archived',
+                )
               }}
             >
               {s.archived ? 'Restore' : 'Archive'}

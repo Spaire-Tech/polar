@@ -9,14 +9,13 @@
  * existing backend unchanged we map the design's 3 type labels onto the stored
  * enum and infer the meeting provider from the saved URL.
  */
-import { calendarLinksFor } from '../calendarLinks'
 import {
   type CommunityEventCreateBody,
   type CommunityEventRead,
   type CommunityEventType,
   type CommunityEventUpdateBody,
-  useCreateCommunityEvent,
   useCommunityEvents,
+  useCreateCommunityEvent,
   useDeleteCommunityEvent,
   useRsvpCommunityEvent,
   useUpdateCommunityEvent,
@@ -24,6 +23,7 @@ import {
 } from '@/hooks/queries/community'
 import * as React from 'react'
 import { createPortal } from 'react-dom'
+import { calendarLinksFor } from '../calendarLinks'
 import { CoverDrop, Field, Seg } from './atoms'
 import { useHub } from './context'
 import { HeadInfo } from './HeadInfo'
@@ -31,12 +31,12 @@ import { Glyph } from './icons'
 import {
   browserTz,
   DatePicker,
+  providerFromUrl,
   type ProviderKey,
   ProviderLogo,
-  ProviderSelect,
-  providerFromUrl,
   providerOf,
   providerPlaceholder,
+  ProviderSelect,
   TimePicker,
   toStartAtISO,
 } from './pickers'
@@ -155,7 +155,9 @@ function EventForm({
   showToast: (m: string) => void
 }) {
   const [form, setForm] = useState<FormState>(() =>
-    editing ? formFromEvent(editing, defaultProvider) : emptyForm(defaultProvider),
+    editing
+      ? formFromEvent(editing, defaultProvider)
+      : emptyForm(defaultProvider),
   )
   const set = (p: Partial<FormState>) => setForm((f) => ({ ...f, ...p }))
   const [busy, setBusy] = useState(false)
@@ -209,7 +211,9 @@ function EventForm({
       onCreated()
     } catch {
       showToast(
-        editing ? 'Could not update that event' : 'Could not schedule that event',
+        editing
+          ? 'Could not update that event'
+          : 'Could not schedule that event',
       )
     } finally {
       setBusy(false)
@@ -326,7 +330,10 @@ function EventCard({
   const when = eventWhen(ev)
   const provider = providerFromUrl(ev.meeting_url)
   return (
-    <button className={`ev-card${past ? ' is-past' : ''}`} onClick={() => onOpen(ev)}>
+    <button
+      className={`ev-card${past ? 'is-past' : ''}`}
+      onClick={() => onOpen(ev)}
+    >
       <div
         className="ev-card-cover"
         style={{
@@ -342,7 +349,8 @@ function EventCard({
       </div>
       <div className="ev-card-body">
         <div className="ev-card-when">
-          <Glyph d="calendar" size={14} stroke={1.9} /> {when.short} · {when.time}
+          <Glyph d="calendar" size={14} stroke={1.9} /> {when.short} ·{' '}
+          {when.time}
         </div>
         <div className="ev-card-title">{ev.title || 'Untitled event'}</div>
         {(ev.going || ev.rsvp_count > 0) && (
@@ -495,13 +503,15 @@ export function EventSheet({
     typeof document !== 'undefined' &&
     !!document.querySelector('.spaire-hub.dark')
   return createPortal(
-    <div className={`spaire-hub${isDark ? ' dark' : ''}`}>
+    <div className={`spaire-hub${isDark ? 'dark' : ''}`}>
       <div className="ev-overlay" onClick={onClose}>
         <div className="ev-sheet" onClick={(e) => e.stopPropagation()}>
           <div
             className="ev-sheet-cover"
             style={{
-              backgroundImage: ev.cover_url ? `url(${ev.cover_url})` : undefined,
+              backgroundImage: ev.cover_url
+                ? `url(${ev.cover_url})`
+                : undefined,
               backgroundPosition: ev.cover_object_position || 'center',
             }}
           >
@@ -527,13 +537,15 @@ export function EventSheet({
                 {count === 1 ? 'person going' : 'people going'}
               </div>
             )}
-            {ev.description && <p className="ev-sheet-desc">{ev.description}</p>}
+            {ev.description && (
+              <p className="ev-sheet-desc">{ev.description}</p>
+            )}
 
             {/* Member RSVP — confirming triggers the backend's confirmation
                 email (with .ics), reminder schedule and bell notifications. */}
             {isMember && !ev.past && memberRsvp && (
               <button
-                className={`ev-sheet-rsvp${going ? ' going' : ''}`}
+                className={`ev-sheet-rsvp${going ? 'going' : ''}`}
                 onClick={toggleRsvp}
                 disabled={rsvp.isPending}
               >
@@ -689,9 +701,7 @@ export function EventsTab({
           courseId={courseId}
           defaultProvider={defaultProvider}
           editing={editing}
-          onCancel={
-            editing || events.length > 0 ? () => closeForm() : null
-          }
+          onCancel={editing || events.length > 0 ? () => closeForm() : null}
           onCreated={closeForm}
           showToast={showToast}
         />

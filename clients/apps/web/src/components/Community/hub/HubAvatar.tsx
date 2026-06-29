@@ -53,7 +53,9 @@ export function HubAvatar({
   style?: React.CSSProperties
 }) {
   if (url) {
-    return <img className={className} src={url} alt={name ?? ''} style={style} />
+    return (
+      <img className={className} src={url} alt={name ?? ''} style={style} />
+    )
   }
   const tint = tintFor(name || '·')
   // Scale the glyph to the avatar when an explicit pixel size is given;

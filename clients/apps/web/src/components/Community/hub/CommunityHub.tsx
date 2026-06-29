@@ -105,9 +105,7 @@ export function CommunityHub({
   const cover =
     coverOverride.url ?? settings?.hero_thumbnail_url ?? course.thumbnail_url
   const coverPos =
-    coverOverride.pos ??
-    settings?.hero_thumbnail_object_position ??
-    '50% 36%'
+    coverOverride.pos ?? settings?.hero_thumbnail_object_position ?? '50% 36%'
 
   const patch = useCallback(
     (p: Partial<CommunitySettingsRead>) => updateSettings.mutate(p),
@@ -184,8 +182,8 @@ export function CommunityHub({
 
   return (
     <div
-      className={`spaire-hub${dark ? ' dark' : ''}${
-        embedded ? ' is-embedded' : ''
+      className={`spaire-hub${dark ? 'dark' : ''}${
+        embedded ? 'is-embedded' : ''
       }`}
     >
       {embedded ? (
@@ -214,7 +212,7 @@ export function CommunityHub({
               <Glyph d="back" size={16} stroke={2.4} /> Editor
             </button>
             <div className="cr-crumb">{course.title}</div>
-            <span className={`cr-state${published ? ' live' : ''}`}>
+            <span className={`cr-state${published ? 'live' : ''}`}>
               <span className="sdot" />
               {published ? 'Published' : 'Draft'}
             </span>
@@ -325,11 +323,11 @@ export function CommunityHub({
             defaultTagline={defaultTagline}
             lessonsCount={lessonsCount}
             onViewCourse={() =>
-            window.open(
-              `/${organization.slug}/portal/courses/${courseId}`,
-              '_blank',
-            )
-          }
+              window.open(
+                `/${organization.slug}/portal/courses/${courseId}`,
+                '_blank',
+              )
+            }
             onDeleted={backToEditor}
             showToast={showToast}
           />

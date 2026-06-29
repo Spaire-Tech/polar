@@ -14,8 +14,8 @@ import {
   type CommunityAuthor,
   type CommunityCommentRead,
   type CommunityEventRead,
-  type CommunityPostCreateBody,
   type CommunityPollRead,
+  type CommunityPostCreateBody,
   type CommunityPostEventRef,
   type CommunityPostMediaRead,
   type CommunityPostRead,
@@ -41,10 +41,15 @@ import { Composer } from './composer'
 import { useHub } from './context'
 import { EventSheet } from './Events'
 import { timeAgo } from './format'
-import { HubAvatar } from './HubAvatar'
 import { HeadInfo } from './HeadInfo'
+import { HubAvatar } from './HubAvatar'
 import { Glyph } from './icons'
-import { fmtDateLabel, providerFromUrl, ProviderLogo, providerOf } from './pickers'
+import {
+  fmtDateLabel,
+  providerFromUrl,
+  ProviderLogo,
+  providerOf,
+} from './pickers'
 
 const TYPE_LABEL: Record<string, string> = {
   workshop: 'Workshop',
@@ -54,7 +59,13 @@ const TYPE_LABEL: Record<string, string> = {
 }
 
 /* ---------- poll ---------- */
-function PostPoll({ courseId, post }: { courseId: string; post: CommunityPostRead }) {
+function PostPoll({
+  courseId,
+  post,
+}: {
+  courseId: string
+  post: CommunityPostRead
+}) {
   const poll = post.poll as CommunityPollRead
   const { mode, token } = useHub()
   const vote = useVotePostPoll(token, courseId, mode)
@@ -67,7 +78,7 @@ function PostPoll({ courseId, post }: { courseId: string; post: CommunityPostRea
         return (
           <button
             key={o.id}
-            className={`poll-opt${voted ? ' voted' : ''}${mine ? ' mine' : ''}`}
+            className={`poll-opt${voted ? 'voted' : ''}${mine ? 'mine' : ''}`}
             disabled={voted || vote.isPending}
             onClick={() => vote.mutate({ postId: post.id, optionId: o.id })}
           >
@@ -140,7 +151,11 @@ function PostEvent({
   const full = eventsQ.data?.find((e) => e.id === event.id) ?? null
   return (
     <>
-      <div className="ev-attach tap" onClick={() => setSheet(true)} role="button">
+      <div
+        className="ev-attach tap"
+        onClick={() => setSheet(true)}
+        role="button"
+      >
         <div
           className="ev-attach-cover"
           style={{
@@ -167,7 +182,9 @@ function PostEvent({
               minute: '2-digit',
               timeZone: event.timezone || undefined,
             })}
-            {event.meeting_url ? ` · Join with ${providerOf(provider).name}` : ''}
+            {event.meeting_url
+              ? ` · Join with ${providerOf(provider).name}`
+              : ''}
           </div>
         </div>
       </div>
@@ -229,8 +246,7 @@ function PostMedia({
   const images = media.filter((m) => m.media_type === 'image')
   const gifs = media.filter((m) => m.media_type === 'gif')
   const n = images.length
-  const layout =
-    n === 1 ? 'one' : n === 2 ? 'two' : n === 3 ? 'three' : 'four'
+  const layout = n === 1 ? 'one' : n === 2 ? 'two' : n === 3 ? 'three' : 'four'
   return (
     <>
       {gifs.map((g) =>
@@ -323,7 +339,7 @@ function PostLightbox({
     !!document.querySelector('.spaire-hub')?.classList.contains('dark')
 
   return createPortal(
-    <div className={`spaire-hub${dark ? ' dark' : ''}`}>
+    <div className={`spaire-hub${dark ? 'dark' : ''}`}>
       <div className="crf-lb" onClick={onClose}>
         <button className="crf-lb-x" onClick={onClose} aria-label="Close">
           <Glyph d="close" size={22} stroke={2.2} />
@@ -359,14 +375,14 @@ function PostLightbox({
             <header className="crf-head">
               {a.avatar_url ? (
                 <img
-                  className={`crf-av${isHost ? ' host' : ''}`}
+                  className={`crf-av${isHost ? 'host' : ''}`}
                   src={a.avatar_url}
                   alt={authorName(a)}
                 />
               ) : (
                 <HubAvatar
                   name={authorName(a)}
-                  className={`crf-av${isHost ? ' host' : ''}`}
+                  className={`crf-av${isHost ? 'host' : ''}`}
                 />
               )}
               <div className="crf-id">
@@ -415,7 +431,7 @@ function PostLightbox({
 
             <div className="crf-bar">
               <button
-                className={`crf-act${liked ? ' on' : ''}`}
+                className={`crf-act${liked ? 'on' : ''}`}
                 onClick={() =>
                   reactPost.mutate({ postId: post.id, emoji: 'heart' })
                 }
@@ -509,12 +525,15 @@ function HubComment({
     <div className="cmt">
       {a.avatar_url ? (
         <img
-          className={`cmt-av${depth ? ' sm' : ''}`}
+          className={`cmt-av${depth ? 'sm' : ''}`}
           src={a.avatar_url}
           alt={authorName(a)}
         />
       ) : (
-        <HubAvatar name={authorName(a)} className={`cmt-av${depth ? ' sm' : ''}`} />
+        <HubAvatar
+          name={authorName(a)}
+          className={`cmt-av${depth ? 'sm' : ''}`}
+        />
       )}
       <div className="cmt-main">
         <div className="cmt-bubble">
@@ -528,9 +547,7 @@ function HubComment({
           <span className="t">{timeAgo(c.created_at)}</span>
           <button
             className={liked ? 'on' : ''}
-            onClick={() =>
-              react.mutate({ commentId: c.id, emoji: 'heart' })
-            }
+            onClick={() => react.mutate({ commentId: c.id, emoji: 'heart' })}
           >
             {liked ? 'Liked' : 'Like'}
             {likes > 0 ? ` · ${likes}` : ''}
@@ -538,9 +555,7 @@ function HubComment({
           {depth === 0 && (
             <button onClick={() => setReplying((r) => !r)}>Reply</button>
           )}
-          {c.is_own && (
-            <button onClick={() => del.mutate(c.id)}>Delete</button>
-          )}
+          {c.is_own && <button onClick={() => del.mutate(c.id)}>Delete</button>}
         </div>
         {replying && (
           <div className="cmt-compose" style={{ marginTop: 10 }}>
@@ -558,7 +573,11 @@ function HubComment({
               }}
               placeholder={`Reply to ${authorName(a).split(' ')[0]}…`}
             />
-            <button className="cmt-send" disabled={!text.trim()} onClick={submit}>
+            <button
+              className="cmt-send"
+              disabled={!text.trim()}
+              onClick={submit}
+            >
               Reply
             </button>
           </div>
@@ -682,7 +701,9 @@ export function HubPost({
   const isHost = a.kind === 'instructor'
   // Host moderates everything; a member may remove only their OWN post.
   const ownPost =
-    a.kind === 'student' && !!selfEnrollmentId && a.enrollment_id === selfEnrollmentId
+    a.kind === 'student' &&
+    !!selfEnrollmentId &&
+    a.enrollment_id === selfEnrollmentId
   const canPin = viewer === 'host'
   const canRemove = viewer === 'host' || ownPost
   const pinned = !!post.pinned_at
@@ -701,7 +722,9 @@ export function HubPost({
       : post.body
 
   const togglePin = () =>
-    pinned ? unpin.mutate(post.id) : pin.mutate({ postId: post.id, pinType: 'announcement' })
+    pinned
+      ? unpin.mutate(post.id)
+      : pin.mutate({ postId: post.id, pinType: 'announcement' })
 
   const copyLink = () => {
     const base =
@@ -720,12 +743,15 @@ export function HubPost({
       <header className="crf-head">
         {a.avatar_url ? (
           <img
-            className={`crf-av${isHost ? ' host' : ''}`}
+            className={`crf-av${isHost ? 'host' : ''}`}
             src={a.avatar_url}
             alt={authorName(a)}
           />
         ) : (
-          <HubAvatar name={authorName(a)} className={`crf-av${isHost ? ' host' : ''}`} />
+          <HubAvatar
+            name={authorName(a)}
+            className={`crf-av${isHost ? 'host' : ''}`}
+          />
         )}
         <div className="crf-id">
           <div className="crf-name">
@@ -745,7 +771,7 @@ export function HubPost({
         </div>
         {canPin && (
           <button
-            className={`crf-pinbtn${pinned ? ' on' : ''}`}
+            className={`crf-pinbtn${pinned ? 'on' : ''}`}
             onClick={togglePin}
             aria-label={pinned ? 'Unpin from feed' : 'Pin to top'}
             title={pinned ? 'Unpin from feed' : 'Pin to top'}
@@ -855,7 +881,7 @@ export function HubPost({
 
       <div className="crf-bar">
         <button
-          className={`crf-act${liked ? ' on' : ''}`}
+          className={`crf-act${liked ? 'on' : ''}`}
           onClick={() => reactPost.mutate({ postId: post.id, emoji: 'heart' })}
         >
           <Glyph
@@ -1077,8 +1103,9 @@ export function StudentFeedTab({
           <div className="h">
             Feed
             <HeadInfo>
-              The running conversation of the room. Share your reps and wins, ask
-              the question you think is too basic, and reply right in the thread.
+              The running conversation of the room. Share your reps and wins,
+              ask the question you think is too basic, and reply right in the
+              thread.
             </HeadInfo>
           </div>
         </div>

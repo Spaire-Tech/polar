@@ -101,10 +101,7 @@ export function CommunityHubStudent({
 
   const lessonsCount = useMemo(
     () =>
-      (course?.modules ?? []).reduce(
-        (n, m) => n + (m.lessons?.length ?? 0),
-        0,
-      ),
+      (course?.modules ?? []).reduce((n, m) => n + (m.lessons?.length ?? 0), 0),
     [course?.modules],
   )
 
@@ -122,21 +119,22 @@ export function CommunityHubStudent({
     router.push(`/${organizationSlug}/portal/courses/${courseId}`)
 
   const ctx = useMemo(
-    () =>
-      ({
-        mode: 'customer' as const,
-        token,
-        viewer: 'member' as const,
-        selfEnrollmentId,
-      }),
+    () => ({
+      mode: 'customer' as const,
+      token,
+      viewer: 'member' as const,
+      selfEnrollmentId,
+    }),
     [token, selfEnrollmentId],
   )
 
   return (
     <HubProvider value={ctx}>
-      <div className={`spaire-hub${dark ? ' dark' : ''}`}>
+      <div className={`spaire-hub${dark ? 'dark' : ''}`}>
         <div className="mh-cover is-static">
-          {cover && <img src={cover} alt="" style={{ objectPosition: coverPos }} />}
+          {cover && (
+            <img src={cover} alt="" style={{ objectPosition: coverPos }} />
+          )}
           <div className="wrap mh-brand">{brand}</div>
           <div className="wrap mh-head">
             <h1 className="mh-title">{title}</h1>

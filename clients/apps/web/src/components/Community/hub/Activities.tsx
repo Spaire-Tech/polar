@@ -30,8 +30,8 @@ import {
 import * as React from 'react'
 import { CoverDrop, Field, Seg } from './atoms'
 import { useHub } from './context'
-import { HeadInfo } from './HeadInfo'
 import { timeAgo } from './format'
+import { HeadInfo } from './HeadInfo'
 import { HubAvatar } from './HubAvatar'
 import { Glyph } from './icons'
 import { type ChannelOption, EpisodeSelect } from './pickers'
@@ -39,14 +39,24 @@ import { type ChannelOption, EpisodeSelect } from './pickers'
 const { useMemo, useRef, useState } = React
 
 /* format label ↔ stored submission_type */
-const FORMATS: { label: string; type: ActivitySubmissionType; sub: string }[] = [
-  { label: 'Video', type: 'video', sub: 'Members upload a clip they filmed.' },
-  { label: 'Photo', type: 'photo', sub: 'Members add a single image.' },
-  { label: 'Photo + note', type: 'photo', sub: 'Members add an image with a short caption.' },
-  { label: 'Text', type: 'text', sub: 'Members write a passage.' },
-  { label: 'Link', type: 'link', sub: 'Members paste a link to their work.' },
-]
-const formatByLabel = (l: string) => FORMATS.find((f) => f.label === l) || FORMATS[0]
+const FORMATS: { label: string; type: ActivitySubmissionType; sub: string }[] =
+  [
+    {
+      label: 'Video',
+      type: 'video',
+      sub: 'Members upload a clip they filmed.',
+    },
+    { label: 'Photo', type: 'photo', sub: 'Members add a single image.' },
+    {
+      label: 'Photo + note',
+      type: 'photo',
+      sub: 'Members add an image with a short caption.',
+    },
+    { label: 'Text', type: 'text', sub: 'Members write a passage.' },
+    { label: 'Link', type: 'link', sub: 'Members paste a link to their work.' },
+  ]
+const formatByLabel = (l: string) =>
+  FORMATS.find((f) => f.label === l) || FORMATS[0]
 const labelForType = (t: ActivitySubmissionType) =>
   ({ video: 'Video', photo: 'Photo', text: 'Text', link: 'Link' })[t]
 
@@ -131,7 +141,12 @@ function ActivityForm({
     <div className="card form-card">
       <div className="form-title">Create an activity</div>
       <Field label="Cover image">
-        <CoverDrop src={cover} onFile={onCover} pos={coverPos} onPos={setCoverPos} />
+        <CoverDrop
+          src={cover}
+          onFile={onCover}
+          pos={coverPos}
+          onPos={setCoverPos}
+        />
       </Field>
       <Field label="What you’re asking members to do">
         <textarea
@@ -195,7 +210,9 @@ function ActivityCard({
           backgroundPosition: act.cover_object_position || 'center',
         }}
       >
-        <span className="ev-card-type">{labelForType(act.submission_type)}</span>
+        <span className="ev-card-type">
+          {labelForType(act.submission_type)}
+        </span>
         {act.channel_label && (
           <span className="act-ep-tag">{act.channel_label}</span>
         )}
@@ -350,7 +367,11 @@ function SubmissionCard({
               }}
               placeholder={`Reply as ${selfName.split(' ')[0]}…`}
             />
-            <button className="cmt-send" disabled={!text.trim()} onClick={submit}>
+            <button
+              className="cmt-send"
+              disabled={!text.trim()}
+              onClick={submit}
+            >
               Post
             </button>
           </div>
@@ -551,7 +572,11 @@ function SubmissionComposer({
       )}
 
       <div className="sub-compose-foot">
-        <button className="btn btn-primary btn-sm" disabled={!ready} onClick={send}>
+        <button
+          className="btn btn-primary btn-sm"
+          disabled={!ready}
+          onClick={send}
+        >
           {busy ? 'Working…' : 'Submit'}
         </button>
       </div>
@@ -586,13 +611,17 @@ function ActivityPage({
         <div
           className="act-hero-cover"
           style={{
-            backgroundImage: act.cover_url ? `url(${act.cover_url})` : undefined,
+            backgroundImage: act.cover_url
+              ? `url(${act.cover_url})`
+              : undefined,
             backgroundPosition: act.cover_object_position || 'center',
           }}
         />
         <div className="act-hero-body">
           <div className="act-hero-tags">
-            <span className="act-fmt-tag">{labelForType(act.submission_type)}</span>
+            <span className="act-fmt-tag">
+              {labelForType(act.submission_type)}
+            </span>
             {act.channel_label && (
               <span className="act-ep-chip">
                 <Glyph d="doc" size={13} stroke={1.8} /> {act.channel_label}

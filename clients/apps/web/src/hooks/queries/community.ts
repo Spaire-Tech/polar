@@ -701,7 +701,11 @@ const applyOptimisticReaction = (
     // Drop the user from their previous emoji row.
     const idx = reactions.findIndex((r) => r.emoji === currentMine.emoji)
     if (idx >= 0) {
-      const next = { ...reactions[idx], mine: false, count: Math.max(reactions[idx].count - 1, 0) }
+      const next = {
+        ...reactions[idx],
+        mine: false,
+        count: Math.max(reactions[idx].count - 1, 0),
+      }
       if (next.count === 0) reactions.splice(idx, 1)
       else reactions[idx] = next
     }
@@ -711,7 +715,11 @@ const applyOptimisticReaction = (
     // Add the user to the clicked emoji row.
     const idx = reactions.findIndex((r) => r.emoji === emoji)
     if (idx >= 0) {
-      reactions[idx] = { ...reactions[idx], mine: true, count: reactions[idx].count + 1 }
+      reactions[idx] = {
+        ...reactions[idx],
+        mine: true,
+        count: reactions[idx].count + 1,
+      }
     } else {
       reactions.push({ emoji, mine: true, count: 1 })
     }
@@ -1190,13 +1198,7 @@ export const useVotePostPoll = (
   mode: CommunityIOMode = 'creator',
 ) =>
   useMutation({
-    mutationFn: ({
-      postId,
-      optionId,
-    }: {
-      postId: string
-      optionId: string
-    }) =>
+    mutationFn: ({ postId, optionId }: { postId: string; optionId: string }) =>
       communityFetch<CommunityPollRead>(
         mode,
         token,
@@ -1842,11 +1844,14 @@ export type CustomerNotificationPreferences = {
 export const useUpdateCommunityProfile = (token: string | null | undefined) =>
   useMutation({
     mutationFn: (body: { name: string | null; avatar_url: string | null }) =>
-      portalFetch<{ id: string; name: string | null; avatar_url: string | null }>(
-        '/v1/customer-portal/customers/me/profile',
-        token!,
-        { method: 'PATCH', body: JSON.stringify(body) },
-      ),
+      portalFetch<{
+        id: string
+        name: string | null
+        avatar_url: string | null
+      }>('/v1/customer-portal/customers/me/profile', token!, {
+        method: 'PATCH',
+        body: JSON.stringify(body),
+      }),
     onSuccess: () => {
       const qc = getQueryClient()
       qc.invalidateQueries({ queryKey: ['customer'] })

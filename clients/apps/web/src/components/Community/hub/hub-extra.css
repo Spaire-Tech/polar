@@ -772,7 +772,10 @@
   font-weight: 600;
   color: #fff;
   background: var(--accent);
-  transition: opacity 0.16s, transform 0.16s, background 0.16s;
+  transition:
+    opacity 0.16s,
+    transform 0.16s,
+    background 0.16s;
 }
 .spaire-hub .ev-sheet-rsvp:hover {
   opacity: 0.9;

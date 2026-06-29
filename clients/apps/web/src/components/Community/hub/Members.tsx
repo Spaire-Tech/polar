@@ -93,7 +93,9 @@ export function MembersTab({
                     )}
                   </div>
                   <div className="mr">
-                    {isHost ? 'Host of this community' : joinedLabel(m.joined_at)}
+                    {isHost
+                      ? 'Host of this community'
+                      : joinedLabel(m.joined_at)}
                   </div>
                 </div>
               </div>
