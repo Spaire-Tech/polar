@@ -16,6 +16,8 @@ export type TabId =
   | 'auth'
   | 'pricing'
   | 'customers'
+  | 'sales'
+  | 'analytics'
 
 // The Course Assistant is configured from the Settings tab (a toggle), not a
 // top-level tab of its own.
@@ -28,6 +30,8 @@ const TABS: { id: TabId; label: string }[] = [
   { id: 'auth', label: 'Auth' },
   { id: 'pricing', label: 'Pricing' },
   { id: 'customers', label: 'Customers' },
+  { id: 'sales', label: 'Sales' },
+  { id: 'analytics', label: 'Analytics' },
 ]
 
 export function CourseHeader({

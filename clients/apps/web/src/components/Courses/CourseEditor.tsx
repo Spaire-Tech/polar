@@ -20,11 +20,13 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { toast } from '../Toast/use-toast'
 import '@/styles/editor-dark.css'
+import { AnalyticsTab } from './editor/AnalyticsTab'
 import { AuthTab } from './editor/AuthTab'
 import { AutomationsPanel } from './editor/AutomationsPanel'
 import { CommunityTab } from './editor/CommunityTab'
 import { CourseHeader, TabId } from './editor/CourseHeader'
 import { CustomersTab } from './editor/CustomersTab'
+import { SalesTab } from './editor/SalesTab'
 import { CustomizeTab } from './editor/CustomizeTab'
 import { LessonEdits } from './editor/LessonDetail'
 import { LessonEditorV2 } from './editor/LessonEditorV2'
@@ -87,6 +89,8 @@ export default function CourseEditor({
     'auth',
     'pricing',
     'customers',
+    'sales',
+    'analytics',
   ])
   const initialTab: TabId =
     tabFromQs && KNOWN_TABS.has(tabFromQs) ? tabFromQs : 'outline'
@@ -573,6 +577,10 @@ export default function CourseEditor({
         isSaving={updateCourse.isPending}
       />
     )
+  } else if (activeTab === 'sales') {
+    mainContent = <SalesTab organization={organization} course={course} />
+  } else if (activeTab === 'analytics') {
+    mainContent = <AnalyticsTab organization={organization} course={course} />
   } else {
     mainContent = (
       <CustomersTab organization={organization} courseId={course.id} />
