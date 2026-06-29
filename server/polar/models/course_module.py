@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from sqlalchemy import TIMESTAMP, ForeignKey, Integer, String, Text, Uuid
+from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, Uuid
 from sqlalchemy.orm import Mapped, declared_attr, mapped_column, relationship
 
 from polar.kit.db.models import RecordModel
@@ -30,8 +30,11 @@ class CourseModule(RecordModel):
 
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="draft")
 
+    # DateTime(timezone=True) → Postgres timestamptz, same as the column the
+    # migration created; matches course_lesson.release_at and the rest of the
+    # models (RecordModel uses DateTime), so the two drip columns line up.
     release_at: Mapped[datetime | None] = mapped_column(
-        TIMESTAMP(timezone=True), nullable=True, default=None
+        DateTime(timezone=True), nullable=True, default=None
     )
 
     drip_days: Mapped[int | None] = mapped_column(Integer, nullable=True, default=None)
