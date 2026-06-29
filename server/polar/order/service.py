@@ -6,6 +6,7 @@ from urllib.parse import urlencode
 
 import stripe as stripe_lib
 import structlog
+from babel.dates import format_date
 from sqlalchemy import func, select
 from sqlalchemy.orm import contains_eager, joinedload
 
@@ -78,6 +79,7 @@ from polar.organization.service import organization as organization_service
 from polar.payment.repository import PaymentRepository
 from polar.payment_method.repository import PaymentMethodRepository
 from polar.payment_method.service import payment_method as payment_method_service
+from polar.platform.service import platform as platform_service
 from polar.product.guard import is_custom_price, is_seat_price, is_static_price
 from polar.product.price_set import PriceSet
 from polar.subscription.service import subscription as subscription_service
@@ -1360,6 +1362,16 @@ class OrderService:
         organization_repository = OrganizationRepository.from_session(session)
         organization = await organization_repository.get_by_customer(order.customer_id)
 
+        # Spaire self-billing: when the seller IS the platform org, this order
+        # is Spaire billing a creator for their plan — not a creator billing
+        # their own customer. The creator-commerce templates below would
+        # render the platform org's own header ("Spaire / Spaire"), the
+        # "Merchant of Record … by Spaire" footer, and a $0 invoice for a free
+        # trial. Send the Spaire-branded transactional emails instead.
+        if platform_service.is_platform_organization(organization.id):
+            await self._send_platform_billing_email(session, order, organization)
+            return
+
         template_name: Literal[
             "order_confirmation",
             "subscription_confirmation",
@@ -1465,6 +1477,97 @@ class OrderService:
             attachments = [
                 {"remote_url": invoice.url, "filename": order.invoice_filename}
             ]
+
+        body = render_email_template(email)
+        enqueue_email(
+            **organization.email_from_reply,
+            to_email_addr=customer.email,
+            subject=subject,
+            html_content=body,
+            attachments=attachments,
+        )
+
+    async def _send_platform_billing_email(
+        self, session: AsyncSession, order: Order, organization: Organization
+    ) -> None:
+        """Spaire-branded transactional email for a platform (self-billing)
+        order — Spaire billing a creator for their plan.
+
+        A $0 trial-start order gets a welcome email and NO invoice (we don't
+        invoice a free trial). Any real charge — trial conversion, renewal,
+        or an immediate paid signup — gets a receipt with the invoice
+        attached. Both use the Spaire logo + transactional footer, never the
+        creator-commerce wrapper.
+        """
+        customer = order.customer
+        product = order.product
+        subscription = order.subscription
+        plan_name = product.name if product is not None else order.description
+
+        is_trial_start = (
+            order.billing_reason == OrderBillingReasonInternal.subscription_create
+            and order.total_amount == 0
+        )
+
+        attachments: list[Attachment] = []
+        if is_trial_start:
+            trial_end_date: str | None = None
+            if subscription is not None and subscription.trial_end is not None:
+                trial_end_date = format_date(
+                    subscription.trial_end.date(), format="long", locale="en_US"
+                )
+            url = settings.generate_frontend_url("/dashboard")
+            email = EmailAdapter.validate_python(
+                {
+                    "template": "platform_welcome",
+                    "props": {
+                        "email": customer.email,
+                        "plan_name": plan_name,
+                        "trial_end_date": trial_end_date,
+                        "url": url,
+                    },
+                }
+            )
+            subject = f"Welcome to Spaire — your {plan_name} trial is active"
+        else:
+            token, _ = await customer_session_service.create_customer_session(
+                session, customer
+            )
+            params = {
+                "customer_session_token": token,
+                "id": str(subscription.id) if subscription is not None else "",
+                "email": customer.email,
+            }
+            url = settings.generate_frontend_url(
+                f"/{organization.slug}/portal?{urlencode(params)}"
+            )
+            email = EmailAdapter.validate_python(
+                {
+                    "template": "platform_receipt",
+                    "props": {
+                        "email": customer.email,
+                        "plan_name": plan_name,
+                        "order": order,
+                        "url": url,
+                    },
+                }
+            )
+            subject = f"Your Spaire {plan_name} receipt"
+
+            invoice_path: str | None = None
+            if order.billing_name is None or order.billing_address is None:
+                log.warning(
+                    "Cannot generate platform invoice, missing billing info",
+                    order_id=order.id,
+                )
+            else:
+                order = await self.generate_invoice(session, order)
+                invoice_path = order.invoice_path
+            if invoice_path is not None:
+                invoice = await self.get_order_invoice(order)
+                attachments = [
+                    {"remote_url": invoice.url, "filename": order.invoice_filename}
+                ]
 
         body = render_email_template(email)
         enqueue_email(
@@ -1749,26 +1852,33 @@ class OrderService:
         # product so the task also fires the "Subscription started"
         # automations. Renewal cycles and one-time purchases pass neither, so
         # they never re-trigger that welcome.
-        is_subscription_start = (
-            order.subscription_id is not None
-            and order.billing_reason
-            == OrderBillingReasonInternal.subscription_create
-        )
-        enqueue_job(
-            "email_subscriber.subscribe_from_order",
-            organization_id=order.organization.id,
-            email=order.customer.email,
-            name=order.customer.name,
-            customer_id=order.customer_id,
-            subscription_id=(
-                str(order.subscription_id) if is_subscription_start else None
-            ),
-            product_id=(
-                str(order.product_id)
-                if is_subscription_start and order.product_id is not None
-                else None
-            ),
-        )
+        #
+        # Skip entirely for platform (Spaire self-billing) orders: a creator
+        # starting a Spaire plan must NOT be enrolled into Spaire's own
+        # marketing automation — that is what produced the empty, marketing-
+        # styled "welcome" with an unsubscribe footer. Their welcome is the
+        # transactional platform_welcome email sent from the confirmation path.
+        if not platform_service.is_platform_organization(order.organization.id):
+            is_subscription_start = (
+                order.subscription_id is not None
+                and order.billing_reason
+                == OrderBillingReasonInternal.subscription_create
+            )
+            enqueue_job(
+                "email_subscriber.subscribe_from_order",
+                organization_id=order.organization.id,
+                email=order.customer.email,
+                name=order.customer.name,
+                customer_id=order.customer_id,
+                subscription_id=(
+                    str(order.subscription_id) if is_subscription_start else None
+                ),
+                product_id=(
+                    str(order.product_id)
+                    if is_subscription_start and order.product_id is not None
+                    else None
+                ),
+            )
 
         if order.subscription_id is not None and order.billing_reason in (
             OrderBillingReasonInternal.subscription_cycle,
