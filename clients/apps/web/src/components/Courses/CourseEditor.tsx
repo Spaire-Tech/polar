@@ -134,13 +134,13 @@ export default function CourseEditor({
       overview?: string
       takeaways?: string[]
       attachments?: unknown[]
-      textContent?: string
+      text?: string
     }
     const hasContent =
       !!(c.overview && c.overview.trim()) ||
       !!(c.takeaways && c.takeaways.some((t) => t && t.trim())) ||
       !!(c.attachments && c.attachments.length > 0) ||
-      !!(c.textContent && c.textContent.trim())
+      !!(c.text && c.text.trim())
     return (
       DEFAULT_LESSON_TITLES.has((l.title ?? '').trim()) &&
       !(l.description ?? '').trim() &&

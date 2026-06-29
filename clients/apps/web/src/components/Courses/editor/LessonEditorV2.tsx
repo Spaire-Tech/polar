@@ -53,7 +53,10 @@ function fmtDur(secs?: number | null): string {
 // with fallbacks and always merge (never clobber attachments / textContent).
 type LessonContent = {
   attachments?: LessonAttachment[]
-  textContent?: string
+  // `text` is the long-form lesson body (Markdown). The lesson page
+  // (MasterClassLessonViewer) renders it — so a text lesson authored here
+  // actually shows up. (The legacy `textContent` key is unused.)
+  text?: string
   overview?: string
   takeaways?: string[]
   captions?: boolean
@@ -117,6 +120,7 @@ export function LessonEditorV2({
   const [title, setTitle] = useState(lesson.title ?? '')
   const [desc, setDesc] = useState(lesson.description ?? '')
   const [overview, setOverview] = useState(content.overview ?? '')
+  const [body, setBody] = useState(content.text ?? '')
   const [takeaways, setTakeaways] = useState<string[]>(
     content.takeaways && content.takeaways.length > 0
       ? content.takeaways
@@ -210,6 +214,10 @@ export function LessonEditorV2({
   const onOverview = (v: string) => {
     setOverview(v)
     saveContent({ overview: v })
+  }
+  const onBody = (v: string) => {
+    setBody(v)
+    saveContent({ text: v })
   }
   const setTakeaway = (i: number, v: string) => {
     const next = [...takeaways]
@@ -682,6 +690,25 @@ export function LessonEditorV2({
           <p className="sec-sub">
             Students see this before pressing play. Three or four takeaways is
             plenty.
+          </p>
+        </section>
+
+        {/* ════════ LESSON CONTENT (body) ════════ */}
+        <section className="sec">
+          <div className="sec-h">{unitCap} content</div>
+          <div className="card">
+            <div className="field">
+              <Autosize
+                className="f-area"
+                value={body}
+                onChange={onBody}
+                placeholder="Write the lesson here. Markdown is supported — this is shown on the lesson page."
+              />
+            </div>
+          </div>
+          <p className="sec-sub">
+            Long-form text shown on the {unitCap.toLowerCase()} page. For a
+            text-only {unitCap.toLowerCase()}, this is the lesson body.
           </p>
         </section>
 
