@@ -5,9 +5,9 @@ import {
   BillingInterval,
   breakevenGmvDollars,
   CurrentSpaireSubscription,
-  formatTransactionFee,
   headlinePriceForPlan,
   PaidTierKey,
+  planFeatureLines,
   renewalSentence,
   TierPlan,
   tierDisplayName,
@@ -344,7 +344,7 @@ const PlanCard = ({
     interval === 'year' && !annualAvailable ? 'month' : interval
 
   const headline = headlinePriceForPlan(plan, effectiveInterval)
-  const featureLines = buildFeatureLines(plan)
+  const featureLines = planFeatureLines(plan)
   const cta = resolveCta({
     plan,
     interval: effectiveInterval,
@@ -638,58 +638,9 @@ const PrimaryBlackButton = ({
   </Button>
 )
 
-// -----------------------------------------------------------------------------
-// Feature copy — picks the lines that best differentiate each tier
-// -----------------------------------------------------------------------------
-
-const buildFeatureLines = (plan: TierPlan): string[] => {
-  if (plan.tier === 'starter') return starterLines(plan)
-  if (plan.tier === 'studio') return studioLines(plan)
-  if (plan.tier === 'scale') return scaleLines(plan)
-  // Defensive — Legacy isn't in the card grid.
-  return []
-}
-
-const formatCount = (n: number): string => {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`
-  if (n >= 1_000) return `${Math.round(n / 1_000)}K`
-  return String(n)
-}
-
-// Starter lists the full baseline. Studio and Scale list only the
-// incremental delta — the "Everything from X, plus:" header above them
-// in the card carries the inheritance, so re-listing identical rows
-// would just inflate the cards.
-const starterLines = (plan: TierPlan): string[] => [
-  'Merchant of Record — Spaire handles tax & VAT',
-  `${formatTransactionFee(plan.transaction_fee)} per transaction`,
-  `${plan.limits.published_courses} published courses`,
-  `${formatCount(plan.limits.email_subscribers ?? 0)} email subscribers`,
-  'Unlimited email sends',
-  'Unlimited email sequences',
-  `${plan.limits.video_hours_hosted} hours of hosted video`,
-  'Sandbox / test environment',
-]
-
-const studioLines = (plan: TierPlan): string[] => [
-  `${formatTransactionFee(plan.transaction_fee)} per transaction (saves 2% vs Starter)`,
-  `${plan.limits.published_courses} published courses`,
-  `${formatCount(plan.limits.email_subscribers ?? 0)} email subscribers`,
-  'Custom email sender domain',
-  'White-label course player',
-  'Customer wallet',
-  `${plan.limits.dashboard_team_seats} team seats`,
-]
-
-const scaleLines = (plan: TierPlan): string[] => [
-  `${formatTransactionFee(plan.transaction_fee)} per transaction (saves 4% vs Starter)`,
-  `${plan.limits.published_courses} published courses`,
-  `${formatCount(plan.limits.email_subscribers ?? 0)} email subscribers`,
-  'Unlimited email sequences',
-  `${plan.limits.storage_gb} GB storage`,
-  `${plan.limits.dashboard_team_seats} team seats`,
-  'Audit logs',
-  'Dedicated support · 4-hour SLA',
-]
+// Feature bullets come from the shared planFeatureLines() in
+// hooks/queries/spaireTier, so this settings grid and the onboarding plan step
+// always show the same offering. Starter lists the full baseline; Studio and
+// Scale list only their delta under the "Everything from X, plus:" header.
 
 export default SpairePlanCards
