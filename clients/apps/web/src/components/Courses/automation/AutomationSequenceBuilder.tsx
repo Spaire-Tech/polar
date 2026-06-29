@@ -173,22 +173,23 @@ export function AutomationSequenceBuilder({
   const createSeq = useCreateEmailSequence(organizationId ?? '')
   const updateSeq = useUpdateEmailSequence()
 
-  // The course's real lessons feed the "Lesson completed" picker; the mock
-  // names are only a fallback when the builder is opened without a course.
-  const lessonOptions = useMemo(
-    () =>
-      lessons && lessons.length > 0
-        ? lessons.map((l) => l.title)
-        : [
-            'Lesson 1 · Arrival',
-            'Lesson 2 · The Morning Block',
-            'Lesson 3 · Inputs',
-            'Lesson 4 · The Reset',
-            'Lesson 5 · Operating Cadence',
-            'Lesson 6 · The Review',
-          ],
-    [lessons],
-  )
+  // The course's real lessons feed the "Lesson completed" picker. In a real
+  // course with no lessons yet, show an honest placeholder rather than inventing
+  // fake lessons that don't exist (which the user could pick, scoping the
+  // trigger to nothing). The sample names are kept ONLY for the standalone/embed
+  // demo where there's no course attached.
+  const lessonOptions = useMemo(() => {
+    if (lessons && lessons.length > 0) return lessons.map((l) => l.title)
+    if (courseId) return ['Add a lesson to your course first']
+    return [
+      'Lesson 1 · Arrival',
+      'Lesson 2 · The Morning Block',
+      'Lesson 3 · Inputs',
+      'Lesson 4 · The Reset',
+      'Lesson 5 · Operating Cadence',
+      'Lesson 6 · The Review',
+    ]
+  }, [lessons, courseId])
 
   // When the builder is opened for one lesson (the "When a student finishes
   // this lesson" card in the lesson editor), the trigger is fixed: it can only
@@ -533,15 +534,34 @@ export function AutomationSequenceBuilder({
     setMenu({ path, index, x, y })
   }
 
+  // True when at least one email step actually has authored content. A step
+  // with an empty body would ship a blank email, so it can't make a sequence
+  // "ready to turn on".
+  const hasSendableEmail = (list: Step[]): boolean =>
+    list.some((st) =>
+      st.type === 'email'
+        ? !!(st.content_html && st.content_html.trim())
+        : st.type === 'branch'
+          ? hasSendableEmail(st.yes) || hasSendableEmail(st.no)
+          : false,
+    )
+
+  // Save edits WITHOUT changing the on/off state. This is the action that used
+  // to be missing for live sequences — the only button was "Save as draft",
+  // which silently turned a running automation OFF.
+  const saveChanges = () => {
+    void saveNow({})
+    showToast(live ? 'Changes saved' : 'Saved as draft')
+  }
+
+  const turnOff = () => {
+    void saveNow({ live: false })
+    showToast('Sequence turned off')
+  }
+
   const turnOn = () => {
-    if (live) {
-      void saveNow({ live: false })
-      showToast('Sequence turned off')
-      return
-    }
-    const hasEmail = JSON.stringify(steps).includes('"type":"email"')
-    if (!hasEmail) {
-      showToast('Add at least one email first')
+    if (!hasSendableEmail(steps)) {
+      showToast('Add an email with content first')
       return
     }
     void saveNow({ live: true })
@@ -741,25 +761,29 @@ export function AutomationSequenceBuilder({
           >
             <Svg d={dark ? IC.sun : IC.moon} s={17} w={2} />
           </button>
-          <button
-            className="btn-glass"
-            type="button"
-            onClick={() => {
-              void saveNow({ live: false })
-              showToast('Saved as draft')
-            }}
-          >
-            Save as draft
-          </button>
-          <button className={`btn-main${live ? ' live' : ''}`} type="button" onClick={turnOn}>
-            {live ? (
-              <>
-                <Svg d={IC.exit} s={14} w={2.4} /> On
-              </>
-            ) : (
-              'Turn on'
-            )}
-          </button>
+          {/* Context-aware actions. When live: Save changes (keeps it running)
+              + an explicit Turn off. When draft: Save draft + Turn on. The old
+              UI only had "Save as draft" (which silently turned a live sequence
+              off) and a dimmed "On" pill that read as disabled. */}
+          {live ? (
+            <>
+              <button className="btn-glass" type="button" onClick={turnOff}>
+                <Svg d={IC.exit} s={14} w={2.4} /> Turn off
+              </button>
+              <button className="btn-main" type="button" onClick={saveChanges}>
+                Save changes
+              </button>
+            </>
+          ) : (
+            <>
+              <button className="btn-glass" type="button" onClick={saveChanges}>
+                Save draft
+              </button>
+              <button className="btn-main" type="button" onClick={turnOn}>
+                Turn on
+              </button>
+            </>
+          )}
         </div>
       </header>
 
