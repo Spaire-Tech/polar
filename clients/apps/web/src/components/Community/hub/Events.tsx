@@ -43,8 +43,10 @@ import {
 
 const { useEffect, useState } = React
 
-/* type label ↔ stored enum (uses the existing enum values) */
-const FORM_TYPES = ['Workshop', 'Q&A', 'Watch Party'] as const
+/* type label ↔ stored enum (uses the existing enum values). Keep this map in
+ * sync with PublicEventPage.tsx and emails/EventCard.tsx — all three must show
+ * the same wording for a given stored type. */
+const FORM_TYPES = ['Workshop', 'Q&A', 'Watch Party', 'Guest'] as const
 const TYPE_LABEL: Record<CommunityEventType, string> = {
   workshop: 'Workshop',
   office: 'Q&A',
@@ -52,7 +54,13 @@ const TYPE_LABEL: Record<CommunityEventType, string> = {
   guest: 'Guest',
 }
 const labelToType = (l: string): CommunityEventType =>
-  l === 'Q&A' ? 'office' : l === 'Watch Party' ? 'cohort' : 'workshop'
+  l === 'Q&A'
+    ? 'office'
+    : l === 'Watch Party'
+      ? 'cohort'
+      : l === 'Guest'
+        ? 'guest'
+        : 'workshop'
 
 const DURATIONS = [30, 45, 60, 90]
 
