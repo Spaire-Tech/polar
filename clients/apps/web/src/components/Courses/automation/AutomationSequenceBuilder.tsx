@@ -930,11 +930,15 @@ export function AutomationSequenceBuilder({
                   ))}
                 </div>
               </div>
+              {/* Only toggles the backend actually honours are shown. "Pause on
+                  unsubscribe" was removed because unsubscribing already stops
+                  every in-flight email unconditionally (it's not optional), and
+                  "Skip if in another active sequence" had no backend at all —
+                  showing either as a switch was a lie. Timezone + frequency cap
+                  are wired through trigger_config.send_window / flow_doc.send. */}
               {(
                 [
                   ['tz', 'Send in subscriber’s timezone', 'If we know it. Falls back to UTC otherwise.'],
-                  ['pause', 'Pause if subscriber unsubscribes', 'Stop all in-flight emails immediately on unsub.'],
-                  ['skipActive', 'Skip if in another active sequence', 'Subscriber must be enrolled in only one at a time.'],
                   ['cap', 'Respect frequency cap (3 / week)', 'Won’t send if it would exceed the workspace-wide cap.'],
                 ] as [keyof Send, string, string][]
               ).map(([k, t, s]) => (
