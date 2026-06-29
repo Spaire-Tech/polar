@@ -206,6 +206,65 @@ class TestCalculateLessonAccessibility:
         )
         assert ok is True
 
+    def test_module_drip_locks_lesson_with_no_own_drip(self) -> None:
+        # Chapter-level drip must lock a lesson even when the lesson itself
+        # has no schedule.
+        enrolled = datetime.now(UTC) - timedelta(days=1)
+        lesson = _lesson()
+        module = _module(drip_days=3)
+        ok, until = course_service.calculate_lesson_accessibility(
+            lesson,
+            paywall_position=None,
+            enrolled_at=enrolled,
+            now=datetime.now(UTC),
+            module=module,
+        )
+        assert ok is False
+        assert until == enrolled + timedelta(days=3)
+
+    def test_locked_until_is_later_of_lesson_and_module(self) -> None:
+        # A lesson is accessible only once BOTH gates open, so locked_until is
+        # the later of the two — here the module's +10d beats the lesson's +3d.
+        enrolled = datetime.now(UTC) - timedelta(days=1)
+        lesson = _lesson(drip_days=3)
+        module = _module(drip_days=10)
+        ok, until = course_service.calculate_lesson_accessibility(
+            lesson,
+            paywall_position=None,
+            enrolled_at=enrolled,
+            now=datetime.now(UTC),
+            module=module,
+        )
+        assert ok is False
+        assert until == enrolled + timedelta(days=10)
+
+    def test_free_preview_bypasses_module_drip(self) -> None:
+        lesson = _lesson(is_free_preview=True)
+        module = _module(drip_days=30)
+        ok, until = course_service.calculate_lesson_accessibility(
+            lesson,
+            paywall_position=None,
+            enrolled_at=datetime.now(UTC),
+            now=datetime.now(UTC),
+            module=module,
+        )
+        assert ok is True
+        assert until is None
+
+    def test_accessible_once_both_gates_open(self) -> None:
+        enrolled = datetime.now(UTC) - timedelta(days=20)
+        lesson = _lesson(drip_days=3)
+        module = _module(drip_days=10)
+        ok, until = course_service.calculate_lesson_accessibility(
+            lesson,
+            paywall_position=None,
+            enrolled_at=enrolled,
+            now=datetime.now(UTC),
+            module=module,
+        )
+        assert ok is True
+        assert until is None
+
 
 # ──────────────────────────────────────────────────────────────────────────
 # _build_module_list — enrolled customers see everything past the paywall;
@@ -285,6 +344,33 @@ class TestBuildModuleList:
         assert len(result[0]["lessons"]) == 1
         assert len(accessible) == 1
 
+    def test_lesson_level_drip_is_hidden_in_module_list(self) -> None:
+        # A lesson with its OWN drip inside a NON-dripped module must be
+        # omitted and absent from accessible_ids — accessible_ids is the
+        # authority the playback / complete / comments gate trusts, so a
+        # lesson-level drip that only showed in the flat list (and was
+        # bypassable on the gate) is now enforced here too.
+        modules = [
+            _module(
+                position=0,
+                lessons=[
+                    _lesson(position=0),
+                    _lesson(position=1, drip_days=7),
+                ],
+            ),
+        ]
+        course = _course(modules=modules)
+        result, accessible = _build_module_list(
+            course,
+            paywall_position=None,
+            enrolled_at=datetime.now(UTC),
+            now=datetime.now(UTC),
+            completed_ids=set(),
+        )
+        assert result[0]["locked"] is False  # the module itself isn't dripped
+        assert len(result[0]["lessons"]) == 1  # the dripped lesson is hidden
+        assert len(accessible) == 1
+
 
 # ──────────────────────────────────────────────────────────────────────────
 # _build_flat_lesson_list — enrolled customers see content past the paywall;
@@ -344,4 +430,52 @@ class TestBuildFlatLessonList:
         assert flat[1]["content"] is None
         assert flat[1]["mux_playback_id"] is None
         assert flat[1]["mux_playback_url"] is None
+        assert len(accessible) == 1
+
+    def test_module_drip_locks_flat_lesson(self) -> None:
+        # The watch UI reads the flat list, so module-level drip must lock the
+        # lesson there too — even when the lesson has no schedule of its own.
+        modules = [
+            _module(
+                position=0,
+                drip_days=7,
+                lessons=[_lesson(position=0, content="dripped")],
+            ),
+        ]
+        course = _course(modules=modules)
+        flat, accessible = _build_flat_lesson_list(
+            course,
+            paywall_position=None,
+            enrolled_at=datetime.now(UTC),
+            now=datetime.now(UTC),
+            completed_ids=set(),
+        )
+        assert len(flat) == 1
+        assert flat[0]["locked"] is True
+        assert flat[0]["content"] is None
+        assert len(accessible) == 0
+
+    def test_module_drip_keeps_free_preview_visible_in_flat_list(self) -> None:
+        # A free-preview lesson inside a dripped module stays accessible — the
+        # flag wins over the schedule.
+        modules = [
+            _module(
+                position=0,
+                drip_days=7,
+                lessons=[
+                    _lesson(position=0, is_free_preview=True, content="teaser"),
+                ],
+            ),
+        ]
+        course = _course(modules=modules)
+        flat, accessible = _build_flat_lesson_list(
+            course,
+            paywall_position=None,
+            enrolled_at=datetime.now(UTC),
+            now=datetime.now(UTC),
+            completed_ids=set(),
+        )
+        assert len(flat) == 1
+        assert flat[0]["locked"] is False
+        assert flat[0]["content"] == "teaser"
         assert len(accessible) == 1

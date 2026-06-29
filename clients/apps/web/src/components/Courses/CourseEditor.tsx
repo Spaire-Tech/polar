@@ -14,12 +14,13 @@ import {
   useUpdateCourseLesson,
   useUpdateCourseModule,
 } from '@/hooks/queries/courses'
+import { useEntitlements } from '@/hooks/queries/entitlements'
+import '@/styles/editor-dark.css'
 import { getQueryClient } from '@/utils/api/query'
 import { schemas } from '@spaire/client'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { toast } from '../Toast/use-toast'
-import '@/styles/editor-dark.css'
 import { AuthTab } from './editor/AuthTab'
 import { AutomationsPanel } from './editor/AutomationsPanel'
 import { CommunityTab } from './editor/CommunityTab'
@@ -206,6 +207,13 @@ export default function CourseEditor({
   const updateModule = useUpdateCourseModule()
   const deleteModule = useDeleteCourseModule()
 
+  // Drip scheduling is a paid feature; gate the per-lesson and per-module
+  // schedule controls and surface the tier needed to unlock them instead of
+  // letting the save 403 with a generic failure toast.
+  const entitlements = useEntitlements(organization.id)
+  const canSchedule = entitlements.hasFeature('drip_scheduling')
+  const scheduleUpgradeTier = entitlements.requiredTierFor('drip_scheduling')
+
   const invalidateCourse = useCallback(() => {
     getQueryClient().invalidateQueries({ queryKey: ['courses', { courseId }] })
   }, [courseId])
@@ -281,6 +289,19 @@ export default function CourseEditor({
       invalidateCourse()
     } catch {
       toast({ title: 'Failed to rename module' })
+    }
+  }
+
+  const handleUpdateModuleSchedule = async (
+    mod: CourseModuleRead,
+    edits: { drip_days: number | null; release_at: string | null },
+  ) => {
+    try {
+      await updateModule.mutateAsync({ moduleId: mod.id, body: edits })
+      invalidateCourse()
+      toast({ title: 'Schedule saved' })
+    } catch {
+      toast({ title: 'Failed to update schedule' })
     }
   }
 
@@ -528,6 +549,9 @@ export default function CourseEditor({
           onAddModule={handleAddModule}
           onRenameModule={handleRenameModule}
           onDeleteModule={handleDeleteModule}
+          canSchedule={canSchedule}
+          scheduleUpgradeTier={scheduleUpgradeTier}
+          onUpdateModuleSchedule={handleUpdateModuleSchedule}
         />
       )
     }

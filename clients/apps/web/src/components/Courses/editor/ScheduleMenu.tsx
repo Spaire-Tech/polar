@@ -17,9 +17,16 @@ export type ScheduleEdits = {
 export function ScheduleMenu({
   module,
   onSave,
+  canSchedule = true,
+  upgradeTier,
 }: {
   module: CourseModuleRead
   onSave: (edits: ScheduleEdits) => void
+  // Drip scheduling is a paid feature. When the org's plan doesn't include it
+  // the panel shows an upgrade notice instead of letting the creator save a
+  // schedule the backend would reject.
+  canSchedule?: boolean
+  upgradeTier?: string
 }) {
   const [open, setOpen] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -55,6 +62,8 @@ export function ScheduleMenu({
       {open && (
         <SchedulePanel
           module={module}
+          canSchedule={canSchedule}
+          upgradeTier={upgradeTier}
           onClose={() => setOpen(false)}
           onSave={(edits) => {
             onSave(edits)
@@ -68,10 +77,14 @@ export function ScheduleMenu({
 
 function SchedulePanel({
   module,
+  canSchedule = true,
+  upgradeTier,
   onClose,
   onSave,
 }: {
   module: CourseModuleRead
+  canSchedule?: boolean
+  upgradeTier?: string
   onClose: () => void
   onSave: (edits: ScheduleEdits) => void
 }) {
@@ -113,69 +126,89 @@ function SchedulePanel({
         </button>
       </div>
 
-      <div className="flex flex-col gap-2">
-        <ModeRow
-          selected={mode === 'always'}
-          onSelect={() => setMode('always')}
-          label="Available immediately"
-          description="Students see this module as soon as they enroll."
-        />
-        <ModeRow
-          selected={mode === 'drip'}
-          onSelect={() => setMode('drip')}
-          label="Drip after enrollment"
-          description="Unlock N days after the student enrolls."
-        />
-        {mode === 'drip' && (
-          <div className="mt-1 ml-7 flex items-center gap-2">
-            <input
-              type="number"
-              min={0}
-              value={dripDays}
-              onChange={(e) => setDripDays(parseInt(e.target.value || '0'))}
-              className="focus:border-ce-accent focus:ring-ce-accent-ring w-20 rounded-lg border border-gray-300 px-2 py-1.5 text-sm focus:ring-2 focus:outline-none"
-            />
-            <span className="text-sm text-gray-600">
-              day{dripDays === 1 ? '' : 's'} after enrollment
-            </span>
+      {!canSchedule ? (
+        <div className="flex flex-col gap-3">
+          <div className="rounded-xl bg-amber-50 p-3 text-xs leading-relaxed text-amber-800">
+            Drip and scheduled release are available on the{' '}
+            {upgradeTier ?? 'paid'} plan and up. Upgrade to unlock a module on a
+            delay after enrollment or on a fixed date.
           </div>
-        )}
-        <ModeRow
-          selected={mode === 'release'}
-          onSelect={() => setMode('release')}
-          label="Release on a specific date"
-          description="Unlock for everyone on a fixed date."
-        />
-        {mode === 'release' && (
-          <div className="mt-1 ml-7 flex items-center gap-2">
-            <CalendarTodayOutlined
-              sx={{ fontSize: 14 }}
-              className="text-gray-400"
-            />
-            <input
-              type="date"
-              value={releaseAt}
-              onChange={(e) => setReleaseAt(e.target.value)}
-              className="focus:border-ce-accent focus:ring-ce-accent-ring rounded-lg border border-gray-300 px-2 py-1.5 text-sm focus:ring-2 focus:outline-none"
-            />
+          <div className="flex justify-end">
+            <button
+              onClick={onClose}
+              className="rounded-full border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+            >
+              Close
+            </button>
           </div>
-        )}
-      </div>
+        </div>
+      ) : (
+        <>
+          <div className="flex flex-col gap-2">
+            <ModeRow
+              selected={mode === 'always'}
+              onSelect={() => setMode('always')}
+              label="Available immediately"
+              description="Students see this module as soon as they enroll."
+            />
+            <ModeRow
+              selected={mode === 'drip'}
+              onSelect={() => setMode('drip')}
+              label="Drip after enrollment"
+              description="Unlock N days after the student enrolls."
+            />
+            {mode === 'drip' && (
+              <div className="mt-1 ml-7 flex items-center gap-2">
+                <input
+                  type="number"
+                  min={0}
+                  value={dripDays}
+                  onChange={(e) => setDripDays(parseInt(e.target.value || '0'))}
+                  className="focus:border-ce-accent focus:ring-ce-accent-ring w-20 rounded-lg border border-gray-300 px-2 py-1.5 text-sm focus:ring-2 focus:outline-none"
+                />
+                <span className="text-sm text-gray-600">
+                  day{dripDays === 1 ? '' : 's'} after enrollment
+                </span>
+              </div>
+            )}
+            <ModeRow
+              selected={mode === 'release'}
+              onSelect={() => setMode('release')}
+              label="Release on a specific date"
+              description="Unlock for everyone on a fixed date."
+            />
+            {mode === 'release' && (
+              <div className="mt-1 ml-7 flex items-center gap-2">
+                <CalendarTodayOutlined
+                  sx={{ fontSize: 14 }}
+                  className="text-gray-400"
+                />
+                <input
+                  type="date"
+                  value={releaseAt}
+                  onChange={(e) => setReleaseAt(e.target.value)}
+                  className="focus:border-ce-accent focus:ring-ce-accent-ring rounded-lg border border-gray-300 px-2 py-1.5 text-sm focus:ring-2 focus:outline-none"
+                />
+              </div>
+            )}
+          </div>
 
-      <div className="mt-4 flex justify-end gap-2 border-t border-gray-100 pt-3">
-        <button
-          onClick={onClose}
-          className="rounded-full border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
-        >
-          Cancel
-        </button>
-        <button
-          onClick={save}
-          className="rounded-full bg-gray-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-gray-800"
-        >
-          Save schedule
-        </button>
-      </div>
+          <div className="mt-4 flex justify-end gap-2 border-t border-gray-100 pt-3">
+            <button
+              onClick={onClose}
+              className="rounded-full border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={save}
+              className="rounded-full bg-gray-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-gray-800"
+            >
+              Save schedule
+            </button>
+          </div>
+        </>
+      )}
     </div>
   )
 }
