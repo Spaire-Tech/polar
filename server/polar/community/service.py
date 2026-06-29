@@ -236,15 +236,11 @@ class CommunityService:
             # bare "Instructor" fallback. (The org name would be more
             # canonical but it's not joined here — the instructor_name
             # column is already the editor's intended display name.)
-            speaker = (
-                (course.instructor_name or "").strip() or "The instructor"
-            )
+            speaker = (course.instructor_name or "").strip() or "The instructor"
             verb = "time" if reply_count == 1 else "times"
             blurb = f"{speaker} replied {reply_count} {verb} this week."
 
-            await settings_repo.update(
-                settings, update_dict={"presence_blurb": blurb}
-            )
+            await settings_repo.update(settings, update_dict={"presence_blurb": blurb})
             updated_count += 1
 
         return updated_count
@@ -540,8 +536,7 @@ class CommunityService:
             }.get(mime_type, "bin")
 
         path = (
-            f"community-posts/{course.organization_id}/{course_id}/"
-            f"{uuid4().hex}.{ext}"
+            f"community-posts/{course.organization_id}/{course_id}/{uuid4().hex}.{ext}"
         )
         s3 = S3_SERVICES[FileServiceTypes.community_post_image]
         s3.upload(data, path, mime_type)
@@ -956,12 +951,9 @@ class CommunityService:
             # statement builder, NOT a coroutine. The await on it was a
             # bug: it raised TypeError("'Select' object can't be
             # awaited") the moment a feed request carried module_id.
-            module_lessons_stmt = lesson_repo.get_by_module_statement(
-                module_id
-            )
+            module_lessons_stmt = lesson_repo.get_by_module_statement(module_id)
             module_lesson_ids = {
-                lesson.id
-                for lesson in await lesson_repo.get_all(module_lessons_stmt)
+                lesson.id for lesson in await lesson_repo.get_all(module_lessons_stmt)
             }
 
         rows, has_next = await post_repo.list_feed(
@@ -1337,10 +1329,7 @@ class CommunityService:
         enrollment_id: UUID | None,
         user_id: UUID | None,
     ) -> bool:
-        if (
-            enrollment_id is not None
-            and comment.author_enrollment_id == enrollment_id
-        ):
+        if enrollment_id is not None and comment.author_enrollment_id == enrollment_id:
             return True
         if user_id is not None and comment.author_user_id == user_id:
             return True
@@ -1440,9 +1429,8 @@ class CommunityService:
             org_avatar,
             _org_id,
         ) in await post_repo.list_student_author_rows(enrollment_ids):
-            is_preview = (
-                isinstance(email, str)
-                and email.endswith("@course-preview.invalid")
+            is_preview = isinstance(email, str) and email.endswith(
+                "@course-preview.invalid"
             )
             if is_preview and instructor_name_override:
                 resolved_name: str | None = instructor_name_override
@@ -1458,8 +1446,7 @@ class CommunityService:
                 # Only the admin's preview customer borrows the org logo
                 # — real students stay at None so they render initials,
                 # never with another author's brand on their face.
-                avatar_url=customer_avatar
-                or (org_avatar if is_preview else None),
+                avatar_url=customer_avatar or (org_avatar if is_preview else None),
             )
 
         # Instructor authors. The User table has no display name distinct
@@ -1487,8 +1474,7 @@ class CommunityService:
         ):
             out[("user", user_id)] = CommunityAuthorInstructor(
                 user_id=user_id,
-                name=instructor_name_override
-                or _resolve_display_name(None, email),
+                name=instructor_name_override or _resolve_display_name(None, email),
                 avatar_url=avatar_url or instructor_avatar_fallback,
             )
 
@@ -1507,9 +1493,7 @@ class CommunityService:
             return {}
         lesson_repo = CourseLessonRepository.from_session(session)
         lessons = await lesson_repo.get_all(
-            lesson_repo.get_base_statement().where(
-                lesson_repo.model.id.in_(lesson_ids)
-            )
+            lesson_repo.get_base_statement().where(lesson_repo.model.id.in_(lesson_ids))
         )
         out: dict[UUID, CommunityLessonChip] = {}
         for lesson in lessons:
@@ -1642,9 +1626,7 @@ class CommunityService:
 
         activity_post_ids = {p.id for p in posts if p.pin_type == "activity"}
         activity_repo = CommunityActivityRepository.from_session(session)
-        activity_by_post = await activity_repo.map_by_pinned_post_ids(
-            activity_post_ids
-        )
+        activity_by_post = await activity_repo.map_by_pinned_post_ids(activity_post_ids)
         # Richer summary for the inline activity-CTA panel (submission
         # type + count). Kept separate from the legacy `activities`
         # map so the existing `activity_id` field on CommunityPostRead
