@@ -10,7 +10,6 @@
 @plugin 'tailwindcss-radix';
 @plugin '@tailwindcss/typography';
 
-
 @theme {
   --shadow-md: 0 0px 15px rgba(0 0 0 / 0.04), 0 0px 2px rgba(0 0 0 / 0.06);
   --shadow-lg: 0 0px 20px rgba(0 0 0 / 0.04), 0 0px 5px rgba(0 0 0 / 0.06);
@@ -22,17 +21,17 @@
 
   --text-xxs: 0.65rem;
 
-  --color-blue-50: oklch(0.970 0.014 235.243);
+  --color-blue-50: oklch(0.97 0.014 235.243);
   --color-blue-100: oklch(0.932 0.032 235.243);
   --color-blue-200: oklch(0.882 0.059 235.243);
   --color-blue-300: oklch(0.809 0.095 235.243);
-  --color-blue-400: oklch(0.707 0.130 235.243);
-  --color-blue-500: oklch(0.580 0.140 235.243);
+  --color-blue-400: oklch(0.707 0.13 235.243);
+  --color-blue-500: oklch(0.58 0.14 235.243);
   --color-blue-600: oklch(0.372 0.079 235.243);
-  --color-blue-700: oklch(0.350 0.090 235.243);
-  --color-blue-800: oklch(0.300 0.075 235.243);
-  --color-blue-900: oklch(0.265 0.060 235.243);
-  --color-blue-950: oklch(0.200 0.040 235.243);
+  --color-blue-700: oklch(0.35 0.09 235.243);
+  --color-blue-800: oklch(0.3 0.075 235.243);
+  --color-blue-900: oklch(0.265 0.06 235.243);
+  --color-blue-950: oklch(0.2 0.04 235.243);
   --color-blue: var(--color-blue-600);
 
   --color-green-50: oklch(0.979 0.021 166.113);
@@ -117,14 +116,71 @@
   --radius-sm: calc(var(--radius) - 4px);
   --radius-4xl: 2rem;
 
+  /* ──────────────────────────────────────────────────────────────────
+     Course editor design tokens — SINGLE SOURCE OF TRUTH.
+
+     Every surface of the course editor (dashboard chrome, tabs, lesson
+     editor, menus, sheets, pickers, assistant) derives its accent, focus
+     ring, radii, font and type scale from the `--*-ce-*` tokens below.
+     Change a value here and it propagates everywhere.
+
+     Tailwind v4 emits each of these as BOTH a `:root` custom property and
+     a utility class, so the same token serves className components
+     (`bg-ce-accent`, `text-ce-accent`, `rounded-ce-md`, `text-ce-sm`),
+     styled-jsx / inline styles (`var(--color-ce-accent)`,
+     `var(--radius-ce-pill)`) and portaled popovers alike.
+
+     The accent is the community blue (#0066cc) the editor was built
+     around — NOT the app's darker `blue-600`. Deliberately Apple-styled
+     surfaces (landing canvas, pickers) keep their typeface/geometry but
+     still pull their blue + focus from these tokens.
+     ────────────────────────────────────────────────────────────────── */
+
+  /* Accent + focus */
+  --color-ce-accent: #0066cc;
+  --color-ce-accent-hover: #0058b0;
+  --color-ce-accent-contrast: #ffffff;
+  --color-ce-accent-ring: #bfdcf5; /* focus halo (≈ blue-100) */
+  --color-ce-accent-tint: #eef5fc; /* subtle fill (≈ blue-50) */
+  --color-ce-accent-tint-strong: #d6e8fb;
+  --color-ce-accent-border: #aacdf3; /* tinted borders (≈ blue-200) */
+
+  /* Radius scale */
+  --radius-ce-sm: 8px;
+  --radius-ce-md: 12px;
+  --radius-ce-lg: 16px;
+  --radius-ce-xl: 18px;
+  --radius-ce-pill: 9999px;
+
+  /* Font — the app sans (Geist) for the dashboard chrome surfaces */
+  --font-ce:
+    var(--font-geist-sans), -apple-system, BlinkMacSystemFont, system-ui,
+    sans-serif;
+
+  /* Type scale */
+  --text-ce-2xs: 11px;
+  --text-ce-xs: 12px;
+  --text-ce-sm: 13px;
+  --text-ce-base: 15px;
+  --text-ce-lg: 18px;
+  --text-ce-xl: 21px;
+
   @keyframes accordion-down {
-    0% { height: 0; }
-    100% { height: var(--radix-accordion-content-height); }
+    0% {
+      height: 0;
+    }
+    100% {
+      height: var(--radix-accordion-content-height);
+    }
   }
 
   @keyframes accordion-up {
-    0% { height: var(--radix-accordion-content-height); }
-    100% { height: 0; }
+    0% {
+      height: var(--radix-accordion-content-height);
+    }
+    100% {
+      height: 0;
+    }
   }
 
   --animate-accordion-down: accordion-down 0.2s ease-out;
@@ -136,7 +192,7 @@
     @apply text-gray-900;
   }
 
-*,
+  *,
   ::after,
   ::before,
   ::backdrop,
@@ -159,17 +215,17 @@
 
 /* Light mode: remap blue → purple (Stripe-style, shifted more purple) */
 :root {
-  --color-blue-50:  oklch(0.970 0.020 272.0);
-  --color-blue-100: oklch(0.940 0.042 272.0);
-  --color-blue-200: oklch(0.895 0.080 272.0);
-  --color-blue-300: oklch(0.825 0.135 272.0);
-  --color-blue-400: oklch(0.730 0.185 272.0);
-  --color-blue-500: oklch(0.558 0.225 272.0);
-  --color-blue-600: oklch(0.480 0.195 272.0);
-  --color-blue-700: oklch(0.405 0.165 272.0);
-  --color-blue-800: oklch(0.335 0.135 272.0);
-  --color-blue-900: oklch(0.272 0.105 272.0);
-  --color-blue-950: oklch(0.205 0.078 272.0);
+  --color-blue-50: oklch(0.97 0.02 272);
+  --color-blue-100: oklch(0.94 0.042 272);
+  --color-blue-200: oklch(0.895 0.08 272);
+  --color-blue-300: oklch(0.825 0.135 272);
+  --color-blue-400: oklch(0.73 0.185 272);
+  --color-blue-500: oklch(0.558 0.225 272);
+  --color-blue-600: oklch(0.48 0.195 272);
+  --color-blue-700: oklch(0.405 0.165 272);
+  --color-blue-800: oklch(0.335 0.135 272);
+  --color-blue-900: oklch(0.272 0.105 272);
+  --color-blue-950: oklch(0.205 0.078 272);
   --color-blue: var(--color-blue-500);
 }
 
@@ -206,7 +262,6 @@
     --ring: var(--color-blue);
     --radius: 0.6rem;
   }
-
 }
 
 pre.shiki {

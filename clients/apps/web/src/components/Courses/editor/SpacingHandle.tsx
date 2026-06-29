@@ -205,8 +205,8 @@ function SpacingHandleChrome({
           right: 16,
           height: 1,
           background: dragging
-            ? 'rgba(99,102,241,0.95)'
-            : 'rgba(99,102,241,0.55)',
+            ? 'color-mix(in srgb, var(--color-ce-accent) 95%, transparent)'
+            : 'color-mix(in srgb, var(--color-ce-accent) 55%, transparent)',
           transition: 'background-color 100ms ease',
         }}
       />
@@ -247,7 +247,8 @@ function Dot() {
         width: 5,
         height: 5,
         borderRadius: '50%',
-        background: 'rgba(99,102,241,0.9)',
+        background:
+          'color-mix(in srgb, var(--color-ce-accent) 90%, transparent)',
         boxShadow: '0 0 0 2px rgba(255,255,255,0.7)',
       }}
     />

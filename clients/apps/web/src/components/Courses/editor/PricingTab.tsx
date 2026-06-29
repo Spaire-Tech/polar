@@ -12,8 +12,8 @@ import { schemas } from '@spaire/client'
 import Button from '@spaire/ui/components/atoms/Button'
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
-import { CourseSettingsEdits } from './SettingsTab'
 import { EditPricingModal } from './EditPricingModal'
+import { CourseSettingsEdits } from './SettingsTab'
 
 export function PricingTab({
   organization,
@@ -40,10 +40,7 @@ export function PricingTab({
   // The input mirrors this combined count so it stays in sync with the
   // OutlineTab's Free Preview section.
   const derivedFreePreviewCount = useMemo(() => {
-    const positional = Math.min(
-      course.paywall_position ?? 0,
-      allLessons.length,
-    )
+    const positional = Math.min(course.paywall_position ?? 0, allLessons.length)
     const flaggedAfter = allLessons
       .slice(positional)
       .filter((l) => l.is_free_preview).length
@@ -65,16 +62,14 @@ export function PricingTab({
     enabled !== course.paywall_enabled || position !== derivedFreePreviewCount
 
   const lockedCount =
-    enabled && position != null
-      ? Math.max(0, allLessons.length - position)
-      : 0
+    enabled && position != null ? Math.max(0, allLessons.length - position) : 0
 
   const showPayoutBanner = paymentStatus && !paymentStatus.payment_ready
 
   return (
     <div className="mx-auto w-full max-w-3xl px-8 py-8">
       {showPayoutBanner && (
-        <div className="mb-6 flex flex-col gap-4 rounded-2xl border border-blue-100 bg-blue-50/50 p-6 sm:flex-row sm:items-center sm:justify-between">
+        <div className="border-ce-accent-border bg-ce-accent-tint mb-6 flex flex-col gap-4 rounded-2xl border p-6 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex flex-col gap-y-1">
             <h3 className="text-sm font-medium text-gray-900">
               Complete your profile to start receiving payouts
@@ -182,7 +177,7 @@ export function PricingTab({
                 onBlur={() => {
                   if (position == null) setPosition(0)
                 }}
-                className="w-24 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#0066cc] focus:ring-2 focus:ring-blue-100 focus:outline-none"
+                className="focus:border-ce-accent focus:ring-ce-accent-ring w-24 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:outline-none"
               />
               <span className="text-sm text-gray-600">
                 of {allLessons.length} lessons visible
@@ -256,7 +251,7 @@ function Toggle({
       aria-checked={checked}
       onClick={() => onChange(!checked)}
       className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none ${
-        checked ? 'bg-[#0066cc]' : 'bg-gray-200'
+        checked ? 'bg-ce-accent' : 'bg-gray-200'
       }`}
     >
       <span

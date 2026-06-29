@@ -14,6 +14,20 @@
   background: #141416 !important;
   color: #f5f5f7;
   color-scheme: dark;
+
+  /* Re-tint the editor accent token for dark mode. The editor's light accent
+     (#0066cc) reads muddy on a dark canvas, so lift it to the community dark
+     accent (#2997ff). Because every editor surface now derives its blue from
+     `--color-ce-accent` (the single source of truth in globals.css), this one
+     override re-colours active tabs, focus borders, primary buttons, links,
+     toggles, sliders, sheets and styled-jsx alike — no per-class remaps. */
+  --color-ce-accent: #2997ff;
+  --color-ce-accent-hover: #1a85f0;
+  --color-ce-accent-contrast: #0b1220;
+  --color-ce-accent-ring: rgba(41, 151, 255, 0.45);
+  --color-ce-accent-tint: rgba(41, 151, 255, 0.14);
+  --color-ce-accent-tint-strong: rgba(41, 151, 255, 0.22);
+  --color-ce-accent-border: rgba(41, 151, 255, 0.4);
 }
 
 /* ---- surfaces (light → dark) ---- */
@@ -113,9 +127,8 @@
    utility class to remap), so give them an explicit dark fill. Inputs that
    carry an explicit bg-* class are handled by the surface rules above (higher
    specificity wins). */
-.editor-dark input:not([type='checkbox']):not([type='radio']):not(
-    [type='range']
-  ),
+.editor-dark
+  input:not([type='checkbox']):not([type='radio']):not([type='range']),
 .editor-dark textarea,
 .editor-dark select {
   background-color: #1c1c1e !important;

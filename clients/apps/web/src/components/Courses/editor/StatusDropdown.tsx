@@ -9,7 +9,12 @@ import WaterDropOutlined from '@mui/icons-material/WaterDropOutlined'
 import { cn } from '@spaire/ui/lib/utils'
 import { useEffect, useRef, useState } from 'react'
 
-export type ModuleStatus = 'draft' | 'published' | 'scheduled' | 'drip' | 'locked'
+export type ModuleStatus =
+  | 'draft'
+  | 'published'
+  | 'scheduled'
+  | 'drip'
+  | 'locked'
 
 const STATUS_OPTIONS: {
   value: ModuleStatus
@@ -17,11 +22,36 @@ const STATUS_OPTIONS: {
   Icon: typeof DescriptionOutlined
   tone: string
 }[] = [
-  { value: 'draft', label: 'Draft', Icon: DescriptionOutlined, tone: 'bg-gray-100 text-gray-700' },
-  { value: 'published', label: 'Publish', Icon: CheckCircleOutlined, tone: 'bg-green-100 text-green-700' },
-  { value: 'scheduled', label: 'Schedule', Icon: CalendarTodayOutlined, tone: 'bg-blue-100 text-blue-700' },
-  { value: 'drip', label: 'Drip', Icon: WaterDropOutlined, tone: 'bg-blue-100 text-[#0066cc]' },
-  { value: 'locked', label: 'Lock', Icon: LockOutlined, tone: 'bg-gray-900 text-white' },
+  {
+    value: 'draft',
+    label: 'Draft',
+    Icon: DescriptionOutlined,
+    tone: 'bg-gray-100 text-gray-700',
+  },
+  {
+    value: 'published',
+    label: 'Publish',
+    Icon: CheckCircleOutlined,
+    tone: 'bg-green-100 text-green-700',
+  },
+  {
+    value: 'scheduled',
+    label: 'Schedule',
+    Icon: CalendarTodayOutlined,
+    tone: 'bg-ce-accent-tint-strong text-ce-accent',
+  },
+  {
+    value: 'drip',
+    label: 'Drip',
+    Icon: WaterDropOutlined,
+    tone: 'bg-ce-accent-tint-strong text-ce-accent',
+  },
+  {
+    value: 'locked',
+    label: 'Lock',
+    Icon: LockOutlined,
+    tone: 'bg-gray-900 text-white',
+  },
 ]
 
 export function StatusDropdown({
@@ -66,7 +96,7 @@ export function StatusDropdown({
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full z-20 mt-1 flex w-44 flex-col gap-1 rounded-2xl border border-gray-200 bg-white p-2 shadow-xl">
+        <div className="absolute top-full right-0 z-20 mt-1 flex w-44 flex-col gap-1 rounded-2xl border border-gray-200 bg-white p-2 shadow-xl">
           {STATUS_OPTIONS.map(({ value, label, Icon, tone }) => (
             <button
               key={value}
@@ -82,7 +112,7 @@ export function StatusDropdown({
                 className={cn(
                   'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium',
                   tone,
-                  status === value && 'ring-2 ring-offset-1 ring-gray-300',
+                  status === value && 'ring-2 ring-gray-300 ring-offset-1',
                 )}
               >
                 <Icon sx={{ fontSize: 14 }} />

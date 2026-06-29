@@ -65,7 +65,7 @@ export function CourseHeader({
           <button
             type="button"
             onClick={onBack}
-            className="flex items-center gap-0.5 py-1 text-[13px] tracking-tight text-[#0066cc] transition-opacity hover:opacity-70"
+            className="text-ce-accent flex items-center gap-0.5 py-1 text-[13px] tracking-tight transition-opacity hover:opacity-70"
           >
             <ChevronLeftOutlined sx={{ fontSize: 16 }} />
             Courses
@@ -98,7 +98,7 @@ export function CourseHeader({
           {activeTab === 'outline' && (
             <button
               onClick={onAddContent}
-              className="flex items-center gap-1 rounded-full bg-[#0066cc] px-3.5 py-[5px] text-xs font-medium tracking-tight text-white transition-[filter] hover:brightness-110"
+              className="bg-ce-accent flex items-center gap-1 rounded-full px-3.5 py-[5px] text-xs font-medium tracking-tight text-white transition-[filter] hover:brightness-110"
             >
               <AddOutlined sx={{ fontSize: 12 }} />
               Add lesson
@@ -118,7 +118,7 @@ export function CourseHeader({
               className={cn(
                 '-mb-px border-b-2 px-4 py-2.5 text-[13px] tracking-tight transition-colors',
                 active
-                  ? 'border-[#0066cc] font-medium text-[#0066cc]'
+                  ? 'border-ce-accent text-ce-accent font-medium'
                   : 'border-transparent text-gray-500 hover:text-gray-900',
               )}
             >

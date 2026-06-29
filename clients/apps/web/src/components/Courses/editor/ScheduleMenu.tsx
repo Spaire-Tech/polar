@@ -105,13 +105,10 @@ function SchedulePanel({
   }
 
   return (
-    <div className="absolute right-0 top-full z-30 mt-2 w-80 rounded-2xl border border-gray-200 bg-white p-4 shadow-xl">
+    <div className="absolute top-full right-0 z-30 mt-2 w-80 rounded-2xl border border-gray-200 bg-white p-4 shadow-xl">
       <div className="mb-3 flex items-center justify-between">
         <h4 className="text-sm font-bold text-gray-900">Module schedule</h4>
-        <button
-          onClick={onClose}
-          className="text-gray-400 hover:text-gray-700"
-        >
+        <button onClick={onClose} className="text-gray-400 hover:text-gray-700">
           <CloseOutlined sx={{ fontSize: 16 }} />
         </button>
       </div>
@@ -130,13 +127,13 @@ function SchedulePanel({
           description="Unlock N days after the student enrolls."
         />
         {mode === 'drip' && (
-          <div className="ml-7 mt-1 flex items-center gap-2">
+          <div className="mt-1 ml-7 flex items-center gap-2">
             <input
               type="number"
               min={0}
               value={dripDays}
               onChange={(e) => setDripDays(parseInt(e.target.value || '0'))}
-              className="w-20 rounded-lg border border-gray-300 px-2 py-1.5 text-sm focus:border-[#0066cc] focus:ring-2 focus:ring-blue-100 focus:outline-none"
+              className="focus:border-ce-accent focus:ring-ce-accent-ring w-20 rounded-lg border border-gray-300 px-2 py-1.5 text-sm focus:ring-2 focus:outline-none"
             />
             <span className="text-sm text-gray-600">
               day{dripDays === 1 ? '' : 's'} after enrollment
@@ -150,7 +147,7 @@ function SchedulePanel({
           description="Unlock for everyone on a fixed date."
         />
         {mode === 'release' && (
-          <div className="ml-7 mt-1 flex items-center gap-2">
+          <div className="mt-1 ml-7 flex items-center gap-2">
             <CalendarTodayOutlined
               sx={{ fontSize: 14 }}
               className="text-gray-400"
@@ -159,7 +156,7 @@ function SchedulePanel({
               type="date"
               value={releaseAt}
               onChange={(e) => setReleaseAt(e.target.value)}
-              className="rounded-lg border border-gray-300 px-2 py-1.5 text-sm focus:border-[#0066cc] focus:ring-2 focus:ring-blue-100 focus:outline-none"
+              className="focus:border-ce-accent focus:ring-ce-accent-ring rounded-lg border border-gray-300 px-2 py-1.5 text-sm focus:ring-2 focus:outline-none"
             />
           </div>
         )}

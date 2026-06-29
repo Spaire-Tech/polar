@@ -7,7 +7,7 @@
 
 .spaire-editor {
   /* Tokens scoped to the editor; popovers + drag overlay re-use them. */
-  --accent: #0066cc;
+  --accent: var(--color-ce-accent);
   --accent-soft: color-mix(in oklab, var(--accent) 12%, white);
   --accent-ink: color-mix(in oklab, var(--accent) 78%, black);
   --canvas: #ffffff;
@@ -23,8 +23,13 @@
   --r-sm: 10px;
   --r-md: 14px;
   --r-lg: 20px;
-  font-family: var(--font-inter), 'Inter', ui-sans-serif, system-ui,
-    -apple-system, sans-serif;
+  font-family:
+    var(--font-inter),
+    'Inter',
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    sans-serif;
   font-size: 14px;
   color: var(--ink);
   letter-spacing: -0.005em;
@@ -747,8 +752,8 @@ body:has(.edit-pop-backdrop) .spaire-editor-root {
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
   transform: translate3d(0, 0, 0);
-  animation: profile-card-marquee-scroll
-    var(--marquee-duration, 30s) linear infinite;
+  animation: profile-card-marquee-scroll var(--marquee-duration, 30s) linear
+    infinite;
 }
 
 /* Pause on hover (desktop only — hover doesn't fire on touch). */
@@ -1158,7 +1163,6 @@ body:has(.edit-pop-backdrop) .spaire-editor-root {
   box-shadow: none;
 }
 
-
 /* ── Arrange panel ─────────────────────────────────────────────────
    Floating side panel for reordering Space contents in one place. */
 .spaire-editor .arrange-panel {
@@ -1444,7 +1448,10 @@ body:has(.edit-pop-backdrop) .spaire-editor-root {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  transition: background 0.12s, border-color 0.12s, color 0.12s;
+  transition:
+    background 0.12s,
+    border-color 0.12s,
+    color 0.12s;
 }
 
 .spaire-editor .arrange-panel .ap-arrow:hover:not(:disabled) {

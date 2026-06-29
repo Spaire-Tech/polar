@@ -28,34 +28,106 @@ const MODULES: { title: string; lessons: Lesson[] }[] = [
   {
     title: 'Foundations',
     lessons: [
-      [1, 'Grip & Setup', 'Where every swing begins. The neutral grip, pressure points, and a setup you can repeat under pressure.'],
-      [2, 'Stance & Alignment', 'Aim is a skill. Building a stance that points the body and the clubface at the same target.'],
-      [3, 'Ball Position', 'One variable, every club. How ball position changes strike, flight, and why most players get it wrong.'],
-      [4, 'Posture & Balance', 'The athletic base. Spine angle, knee flex, and weight that stays centered through the swing.'],
-      [5, 'Pre-Shot Routine', 'The same 20 seconds before every shot. Building a routine that quiets the mind.'],
-      [6, 'Equipment Essentials', 'What actually matters in the bag. Lofts, lies, and a setup that fits your swing.'],
+      [
+        1,
+        'Grip & Setup',
+        'Where every swing begins. The neutral grip, pressure points, and a setup you can repeat under pressure.',
+      ],
+      [
+        2,
+        'Stance & Alignment',
+        'Aim is a skill. Building a stance that points the body and the clubface at the same target.',
+      ],
+      [
+        3,
+        'Ball Position',
+        'One variable, every club. How ball position changes strike, flight, and why most players get it wrong.',
+      ],
+      [
+        4,
+        'Posture & Balance',
+        'The athletic base. Spine angle, knee flex, and weight that stays centered through the swing.',
+      ],
+      [
+        5,
+        'Pre-Shot Routine',
+        'The same 20 seconds before every shot. Building a routine that quiets the mind.',
+      ],
+      [
+        6,
+        'Equipment Essentials',
+        'What actually matters in the bag. Lofts, lies, and a setup that fits your swing.',
+      ],
     ],
   },
   {
     title: 'The Swing',
     lessons: [
-      [7, 'The Takeaway', 'The first 18 inches decide the rest. Starting the club back on plane, every time.'],
-      [8, 'The Backswing', 'Width, turn, and the top position. Loading power without losing the clubface.'],
-      [9, 'Downswing & Impact', 'Sequencing from the ground up. Why impact is a position you arrive at, not one you force.'],
-      [10, 'Tempo & Rhythm', 'Smooth is fast. Training a swing that holds together on the first tee and the last hole.'],
-      [11, 'Driver Off the Tee', 'Width and launch. Hitting up on the ball and finding more fairways with more speed.'],
-      [12, 'Iron Striking', 'Ball first, turf second. Compressing irons and controlling your landing distances.'],
+      [
+        7,
+        'The Takeaway',
+        'The first 18 inches decide the rest. Starting the club back on plane, every time.',
+      ],
+      [
+        8,
+        'The Backswing',
+        'Width, turn, and the top position. Loading power without losing the clubface.',
+      ],
+      [
+        9,
+        'Downswing & Impact',
+        'Sequencing from the ground up. Why impact is a position you arrive at, not one you force.',
+      ],
+      [
+        10,
+        'Tempo & Rhythm',
+        'Smooth is fast. Training a swing that holds together on the first tee and the last hole.',
+      ],
+      [
+        11,
+        'Driver Off the Tee',
+        'Width and launch. Hitting up on the ball and finding more fairways with more speed.',
+      ],
+      [
+        12,
+        'Iron Striking',
+        'Ball first, turf second. Compressing irons and controlling your landing distances.',
+      ],
     ],
   },
   {
     title: 'Scoring',
     lessons: [
-      [13, 'Chipping & Pitching', 'One technique, many distances. Landing spots, trajectory, and touch around the green.'],
-      [14, 'Bunker Play', 'The shot that scares everyone, simplified. Using the bounce and committing through the sand.'],
-      [15, 'Reading the Green', 'Slope, grain, and speed. Seeing the line before you ever stand over the ball.'],
-      [16, 'Putting Under Pressure', 'A routine that survives nerves. Short putts, long lags, and the discipline of pace.'],
-      [17, 'Wedge Distance Control', 'The clock system. Three swings per wedge for a number you can trust inside 100 yards.'],
-      [18, 'Course Strategy', 'Playing the percentages. Picking targets that fit your shot, not the one you wish you had.'],
+      [
+        13,
+        'Chipping & Pitching',
+        'One technique, many distances. Landing spots, trajectory, and touch around the green.',
+      ],
+      [
+        14,
+        'Bunker Play',
+        'The shot that scares everyone, simplified. Using the bounce and committing through the sand.',
+      ],
+      [
+        15,
+        'Reading the Green',
+        'Slope, grain, and speed. Seeing the line before you ever stand over the ball.',
+      ],
+      [
+        16,
+        'Putting Under Pressure',
+        'A routine that survives nerves. Short putts, long lags, and the discipline of pace.',
+      ],
+      [
+        17,
+        'Wedge Distance Control',
+        'The clock system. Three swings per wedge for a number you can trust inside 100 yards.',
+      ],
+      [
+        18,
+        'Course Strategy',
+        'Playing the percentages. Picking targets that fit your shot, not the one you wish you had.',
+      ],
     ],
   },
 ]
@@ -165,10 +237,10 @@ export function CourseEmptyState() {
     })
 
   return (
-    <div className={`ces-root${dark ? ' dark' : ''}`}>
+    <div className={`ces-root ${dark ? 'dark' : ''}`}>
       {/* ════════ HERO — cover not added yet ════════ */}
       <section
-        className={`hero${cover ? ' filled' : ''}`}
+        className={`hero ${cover ? 'filled' : ''}`}
         data-screen-label="Hero (awaiting cover)"
       >
         <div className="ph-ambient" />
@@ -186,7 +258,11 @@ export function CourseEmptyState() {
 
         <div className="hero-eyebrow">
           <span className="dot" />
-          <span contentEditable suppressContentEditableWarning spellCheck={false}>
+          <span
+            contentEditable
+            suppressContentEditableWarning
+            spellCheck={false}
+          >
             Spaire Original
           </span>
         </div>
@@ -253,7 +329,11 @@ export function CourseEmptyState() {
               <span className="sep">·</span>
               <span>0 min</span>
               <span className="sep">·</span>
-              <span contentEditable suppressContentEditableWarning spellCheck={false}>
+              <span
+                contentEditable
+                suppressContentEditableWarning
+                spellCheck={false}
+              >
                 All levels
               </span>
             </div>
@@ -271,7 +351,11 @@ export function CourseEmptyState() {
           </h1>
 
           <p className="hero-desc">
-            <span contentEditable suppressContentEditableWarning spellCheck={false}>
+            <span
+              contentEditable
+              suppressContentEditableWarning
+              spellCheck={false}
+            >
               A two-time major champion takes you inside the scoring game — the
               swing, the short game, and the mind that wins the shots that
               matter. Shot like a film, taught like a private lesson.
@@ -289,7 +373,12 @@ export function CourseEmptyState() {
           <div className="hero-actions">
             <button className="btn-trailer" type="button">
               <span className="play">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                <svg
+                  width="12"
+                  height="12"
+                  viewBox="0 0 24 24"
+                  fill="currentColor"
+                >
                   <path d={PLAY_PATH} />
                 </svg>
               </span>
@@ -315,7 +404,10 @@ export function CourseEmptyState() {
       </section>
 
       {/* ════════ FREE SAMPLE — clip not added yet ════════ */}
-      <section className="sample" data-screen-label="Free Sample (awaiting clip)">
+      <section
+        className="sample"
+        data-screen-label="Free Sample (awaiting clip)"
+      >
         <div
           className="sample-eyebrow"
           contentEditable
@@ -335,7 +427,7 @@ export function CourseEmptyState() {
         >
           A few minutes inside the course.
         </p>
-        <div className={`sample-screen${sample ? ' filled' : ''}`}>
+        <div className={`sample-screen ${sample ? 'filled' : ''}`}>
           <div className="ph-ambient" />
           <div className="glass-tint" />
           <div
@@ -379,10 +471,18 @@ export function CourseEmptyState() {
       {/* ════════ LESSONS — stills not added yet ════════ */}
       <div className="lessons" data-screen-label="Lessons (awaiting stills)">
         {MODULES.map((mod, mi) => (
-          <section className="row" key={mi} data-screen-label={`Module ${mi + 1}`}>
+          <section
+            className="row"
+            key={mi}
+            data-screen-label={`Module ${mi + 1}`}
+          >
             <div className="row-head">
               <span className="mod">Module {mi + 1}</span>
-              <span contentEditable suppressContentEditableWarning spellCheck={false}>
+              <span
+                contentEditable
+                suppressContentEditableWarning
+                spellCheck={false}
+              >
                 {mod.title}
               </span>
             </div>
@@ -390,7 +490,7 @@ export function CourseEmptyState() {
               {mod.lessons.map(([n, title, desc]) => {
                 const img = lessonImgs[n]
                 return (
-                  <div className={`card${img ? ' filled' : ''}`} key={n}>
+                  <div className={`card ${img ? 'filled' : ''}`} key={n}>
                     <div className="ph-ambient" />
                     <div className="glass-tint" />
                     <div
@@ -441,7 +541,11 @@ export function CourseEmptyState() {
                           </svg>
                           0m
                         </span>
-                        <button className="dots" aria-label="More" type="button">
+                        <button
+                          className="dots"
+                          aria-label="More"
+                          type="button"
+                        >
                           <span />
                           <span />
                           <span />
@@ -464,11 +568,13 @@ export function CourseEmptyState() {
           --bg: #ffffff;
           --text: #1d1d1f;
           --text-2: #86868b;
-          --blue: #0071e3;
-          --sf: -apple-system, BlinkMacSystemFont, 'SF Pro Display',
-            'SF Pro Text', system-ui, sans-serif;
-          --po: 'Poppins', var(--font-poppins), -apple-system,
-            BlinkMacSystemFont, system-ui, sans-serif;
+          --blue: var(--color-ce-accent);
+          --sf:
+            -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text',
+            system-ui, sans-serif;
+          --po:
+            'Poppins', var(--font-poppins), -apple-system, BlinkMacSystemFont,
+            system-ui, sans-serif;
           font-family: var(--sf);
           background: var(--bg);
           color: var(--text);
@@ -494,7 +600,8 @@ export function CourseEmptyState() {
           cursor: text;
         }
         .ces-root :global([contenteditable]:hover) {
-          box-shadow: 0 0 0 1.5px rgba(0, 113, 227, 0.35);
+          box-shadow: 0 0 0 1.5px
+            color-mix(in srgb, var(--color-ce-accent) 35%, transparent);
         }
         .ces-root :global([contenteditable]:focus) {
           box-shadow: 0 0 0 2px var(--blue);
@@ -517,11 +624,8 @@ export function CourseEmptyState() {
         .ph-ambient {
           position: absolute;
           inset: -15%;
-          background: radial-gradient(
-              42% 52% at 20% 28%,
-              #6e7a5e 0%,
-              transparent 70%
-            ),
+          background:
+            radial-gradient(42% 52% at 20% 28%, #6e7a5e 0%, transparent 70%),
             radial-gradient(46% 56% at 76% 22%, #8a7565 0%, transparent 70%),
             radial-gradient(52% 62% at 62% 82%, #46464c 0%, transparent 72%),
             radial-gradient(36% 46% at 28% 78%, #5d6e6a 0%, transparent 70%),
@@ -597,7 +701,9 @@ export function CourseEmptyState() {
         .card.filled .card-add {
           opacity: 0;
           pointer-events: none;
-          transition: opacity 0.2s, background 0.18s;
+          transition:
+            opacity 0.2s,
+            background 0.18s;
         }
         .card.filled:hover .card-add {
           opacity: 1;
@@ -624,7 +730,9 @@ export function CourseEmptyState() {
           font-weight: 600;
           cursor: pointer;
           opacity: 0;
-          transition: opacity 0.2s, background 0.18s;
+          transition:
+            opacity 0.2s,
+            background 0.18s;
         }
         .sample-screen.filled .change-pill {
           display: inline-flex;
@@ -729,7 +837,9 @@ export function CourseEmptyState() {
           font-size: 14px;
           font-weight: 600;
           letter-spacing: -0.01em;
-          transition: background 0.2s, transform 0.16s;
+          transition:
+            background 0.2s,
+            transform 0.16s;
         }
         .add-pill:hover {
           background: rgba(255, 255, 255, 0.28);
@@ -749,7 +859,9 @@ export function CourseEmptyState() {
           box-shadow: none;
           display: grid;
           place-items: center;
-          transition: background 0.2s, transform 0.16s;
+          transition:
+            background 0.2s,
+            transform 0.16s;
         }
         .theme-toggle:hover {
           background: rgba(255, 255, 255, 0.28);
@@ -875,7 +987,9 @@ export function CourseEmptyState() {
           padding: 15px 26px;
           border-radius: 980px;
           font-family: var(--sf);
-          transition: background 0.18s, transform 0.16s ease;
+          transition:
+            background 0.18s,
+            transform 0.16s ease;
         }
         .btn-enroll:hover {
           background: rgba(255, 255, 255, 0.28);
@@ -944,7 +1058,9 @@ export function CourseEmptyState() {
           display: grid;
           place-items: center;
           cursor: pointer;
-          transition: background 0.2s, transform 0.18s;
+          transition:
+            background 0.2s,
+            transform 0.18s;
         }
         .ph-cta .ph-ic:hover {
           background: rgba(255, 255, 255, 0.28);
@@ -1027,7 +1143,9 @@ export function CourseEmptyState() {
           letter-spacing: -0.005em;
           white-space: nowrap;
           cursor: pointer;
-          transition: background 0.18s, transform 0.18s;
+          transition:
+            background 0.18s,
+            transform 0.18s;
         }
         .card-add:hover {
           background: rgba(255, 255, 255, 0.28);

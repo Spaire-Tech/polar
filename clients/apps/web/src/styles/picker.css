@@ -8,7 +8,7 @@
 .pk-library {
   /* Tokens scoped to the picker so they don't leak into the rest of
      the app. Community blue accent (matches the editor + community hub). */
-  --accent: #0066cc;
+  --accent: var(--color-ce-accent);
   --accent-soft: color-mix(in oklab, var(--accent) 12%, white);
   --accent-ink: color-mix(in oklab, var(--accent) 78%, black);
   --bg: #f4f4f6;
@@ -24,8 +24,13 @@
   --r-md: 14px;
   --r-lg: 20px;
   /* Inter for the picker (loaded via next/font/google in layout.tsx). */
-  font-family: var(--font-inter), 'Inter', ui-sans-serif, system-ui,
-    -apple-system, sans-serif;
+  font-family:
+    var(--font-inter),
+    'Inter',
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    sans-serif;
   font-size: 14px;
   color: var(--ink);
   letter-spacing: -0.005em;
@@ -689,11 +694,7 @@
   width: 56px;
   height: 56px;
   border-radius: 18px;
-  background: linear-gradient(
-    135deg,
-    rgba(0, 0, 0, 0.04),
-    rgba(0, 0, 0, 0.08)
-  );
+  background: linear-gradient(135deg, rgba(0, 0, 0, 0.04), rgba(0, 0, 0, 0.08));
   box-shadow: 0 1px 0 rgba(255, 255, 255, 0.7) inset;
 }
 

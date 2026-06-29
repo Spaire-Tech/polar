@@ -418,7 +418,7 @@ export function LessonEditorV2({
         <section className="sec">
           <div className="sec-h">Video</div>
           <div className="card">
-            <div className={`media-zone${hasVideo ? ' filled' : ''}`}>
+            <div className={`media-zone ${hasVideo ? 'filled' : ''}`}>
               <div className="ph-ambient" />
               <div className="glass-tint" />
               <div
@@ -498,7 +498,7 @@ export function LessonEditorV2({
                   Shown on the {unitCap.toLowerCase()} card and in the rail.
                 </span>
                 <button
-                  className={`thumb-clear${thumbUrl ? ' show' : ''}`}
+                  className={`thumb-clear ${thumbUrl ? 'show' : ''}`}
                   type="button"
                   onClick={clearThumbnail}
                 >
@@ -507,7 +507,7 @@ export function LessonEditorV2({
               </div>
               <div
                 ref={thumbTileRef}
-                className={`thumb-tile${thumbUrl ? ' filled' : ''}`}
+                className={`thumb-tile ${thumbUrl ? 'filled' : ''}`}
                 role="button"
                 aria-label={
                   thumbUrl ? 'Reposition thumbnail in portal' : 'Add thumbnail'
@@ -900,7 +900,7 @@ function QRow({
         <div className="q-s">{s}</div>
       </div>
       <button
-        className={`sw${on ? ' on' : ''}`}
+        className={`sw ${on ? 'on' : ''}`}
         type="button"
         aria-label={t}
         onClick={onClick}
@@ -926,7 +926,7 @@ function AutoRow({
         <div className="ar-t">{label}</div>
         <div className="ar-s">{sub}</div>
       </div>
-      <span className={`ar-state${ready ? ' ready' : ''}`}>
+      <span className={`ar-state ${ready ? 'ready' : ''}`}>
         {busy ? (
           <>
             <span className="spin" />
@@ -994,7 +994,7 @@ function LessonEditorStyles() {
         --card: #ffffff;
         --text: #1d1d1f;
         --text-2: #86868b;
-        --blue: #0066cc;
+        --blue: var(--color-ce-accent);
         --hair: rgba(0, 0, 0, 0.1);
         --ans: #4a4a4f;
         --band: 255, 255, 255;

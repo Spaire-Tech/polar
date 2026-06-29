@@ -243,7 +243,9 @@ function ToolButton({
         width: 28,
         height: 26,
         borderRadius: 4,
-        background: active ? 'rgba(99,102,241,0.85)' : 'transparent',
+        background: active
+          ? 'color-mix(in srgb, var(--color-ce-accent) 85%, transparent)'
+          : 'transparent',
         color: 'white',
         border: 'none',
         cursor: disabled ? 'not-allowed' : 'pointer',

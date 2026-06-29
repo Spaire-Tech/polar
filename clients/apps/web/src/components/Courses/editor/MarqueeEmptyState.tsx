@@ -27,18 +27,66 @@ type Episode = [number, string, string]
 // copy contract: narrative titles (2-4 words, no "How to"), story-driven
 // 1-2 sentence descriptions with named places/moments.
 const EPISODES: Episode[] = [
-  [1, 'The Wager', 'Pebble Beach, dawn. Jack bets a stranger he can fix any swing in one round — and explains why he always wins.'],
-  [2, 'The Grip Is a Lie', 'Everything you were taught about holding a club, unlearned. Shot in the workshop where Jack rebuilds grips.'],
-  [3, 'Eighteen Inches', 'The takeaway, filmed at 1,000 frames a second. The first move that decides every shot.'],
-  [4, 'The Lake at Sawgrass', 'Why great players aim at trouble. A walk through the most feared par 3 in golf.'],
-  [5, 'Smooth Is Fast', 'Tempo, filmed with orchestra conductors and tour pros side by side.'],
-  [6, 'The Short Game Heist', 'Inside 100 yards, where rounds are stolen. Wedges, spin, and nerve.'],
-  [7, 'Sand', 'One bunker, fifty shots, every lie. The shot that stops scaring you tonight.'],
-  [8, 'Reading Grass', 'Greens like a caddie reads them — slope, grain, and the line you can’t see from the book.'],
-  [9, 'The Yips', 'The putt that ended a career, and the routine that brought it back.'],
-  [10, 'Playing Ugly', 'Scoring when nothing works. Jack shoots 74 using only his bad swing.'],
-  [11, 'Course Management', 'The percentages tour pros play — and the targets amateurs should steal from them.'],
-  [12, 'The Rematch', 'Back to Pebble Beach. The stranger from Episode 1 plays Jack for the bet — with his new swing.'],
+  [
+    1,
+    'The Wager',
+    'Pebble Beach, dawn. Jack bets a stranger he can fix any swing in one round — and explains why he always wins.',
+  ],
+  [
+    2,
+    'The Grip Is a Lie',
+    'Everything you were taught about holding a club, unlearned. Shot in the workshop where Jack rebuilds grips.',
+  ],
+  [
+    3,
+    'Eighteen Inches',
+    'The takeaway, filmed at 1,000 frames a second. The first move that decides every shot.',
+  ],
+  [
+    4,
+    'The Lake at Sawgrass',
+    'Why great players aim at trouble. A walk through the most feared par 3 in golf.',
+  ],
+  [
+    5,
+    'Smooth Is Fast',
+    'Tempo, filmed with orchestra conductors and tour pros side by side.',
+  ],
+  [
+    6,
+    'The Short Game Heist',
+    'Inside 100 yards, where rounds are stolen. Wedges, spin, and nerve.',
+  ],
+  [
+    7,
+    'Sand',
+    'One bunker, fifty shots, every lie. The shot that stops scaring you tonight.',
+  ],
+  [
+    8,
+    'Reading Grass',
+    'Greens like a caddie reads them — slope, grain, and the line you can’t see from the book.',
+  ],
+  [
+    9,
+    'The Yips',
+    'The putt that ended a career, and the routine that brought it back.',
+  ],
+  [
+    10,
+    'Playing Ugly',
+    'Scoring when nothing works. Jack shoots 74 using only his bad swing.',
+  ],
+  [
+    11,
+    'Course Management',
+    'The percentages tour pros play — and the targets amateurs should steal from them.',
+  ],
+  [
+    12,
+    'The Rematch',
+    'Back to Pebble Beach. The stranger from Episode 1 plays Jack for the bet — with his new swing.',
+  ],
 ]
 
 const PLAY_PATH =
@@ -181,10 +229,10 @@ export function MarqueeEmptyState() {
   }
 
   return (
-    <div className={`mes-root${dark ? ' dark' : ''}`}>
+    <div className={`mes-root ${dark ? 'dark' : ''}`}>
       {/* ════════ MARQUEE HERO ════════ */}
       <header
-        className={`panel${cover ? ' filled' : ''}`}
+        className={`panel ${cover ? 'filled' : ''}`}
         data-screen-label="Marquee Hero (awaiting cover)"
       >
         <div className="ph-ambient" />
@@ -269,7 +317,12 @@ export function MarqueeEmptyState() {
         <div className="band rise d2">
           <div className="band-actions">
             <button className="abtn play" type="button">
-              <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor">
+              <svg
+                width="17"
+                height="17"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+              >
                 <path d={PLAY_PATH} />
               </svg>
               Play Episode 1 Free
@@ -277,7 +330,9 @@ export function MarqueeEmptyState() {
             <button className="abtn buy" type="button">
               Subscribe — $89
             </button>
-            <div className="band-free">First 3 episodes free · cancel anytime</div>
+            <div className="band-free">
+              First 3 episodes free · cancel anytime
+            </div>
           </div>
 
           <div className="band-desc">
@@ -292,7 +347,8 @@ export function MarqueeEmptyState() {
               matter. Shot like a film, taught like a private lesson.
             </p>
             <div className="bd-meta">
-              Documentary Series · Golf&nbsp;&nbsp;·&nbsp;&nbsp;2026&nbsp;&nbsp;·&nbsp;&nbsp;0
+              Documentary Series ·
+              Golf&nbsp;&nbsp;·&nbsp;&nbsp;2026&nbsp;&nbsp;·&nbsp;&nbsp;0
               Episodes&nbsp;&nbsp;·&nbsp;&nbsp;0m
             </div>
             <div className="bd-badges">
@@ -301,7 +357,12 @@ export function MarqueeEmptyState() {
               <span className="bdg">Captions</span>
               <span className="bdg">Mobile &amp; TV</span>
               <button className="bd-trailer" type="button">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                <svg
+                  width="12"
+                  height="12"
+                  viewBox="0 0 24 24"
+                  fill="currentColor"
+                >
                   <path d={PLAY_PATH} />
                 </svg>
                 Trailer
@@ -335,11 +396,13 @@ export function MarqueeEmptyState() {
       <div className="lessons" data-screen-label="Episodes">
         <div className="row-head">
           <span className="rh">Episodes</span>
-          <span className="rh-meta">12 episodes · first 3 free · add stills</span>
+          <span className="rh-meta">
+            12 episodes · first 3 free · add stills
+          </span>
         </div>
         <div className="strip-wrap">
           <button
-            className={`arrow prev${showPrev ? ' show' : ''}`}
+            className={`arrow prev ${showPrev ? 'show' : ''}`}
             aria-label="Previous"
             type="button"
             onClick={() => scrollBy(-1)}
@@ -358,7 +421,7 @@ export function MarqueeEmptyState() {
             </svg>
           </button>
           <button
-            className={`arrow next${showNext ? ' show' : ''}`}
+            className={`arrow next ${showNext ? 'show' : ''}`}
             aria-label="Next"
             type="button"
             onClick={() => scrollBy(1)}
@@ -383,7 +446,7 @@ export function MarqueeEmptyState() {
               return (
                 <div className="lc-catalog" key={n}>
                   <div className="lc-card">
-                    <div className={`lc-thumb ph${img ? ' filled' : ''}`}>
+                    <div className={`lc-thumb ph ${img ? 'filled' : ''}`}>
                       <div className="ph-ambient" />
                       <div className="glass-tint" />
                       <div
@@ -416,7 +479,13 @@ export function MarqueeEmptyState() {
                             strokeLinecap="round"
                             strokeLinejoin="round"
                           >
-                            <rect x="4.5" y="10.5" width="15" height="10" rx="2.5" />
+                            <rect
+                              x="4.5"
+                              y="10.5"
+                              width="15"
+                              height="10"
+                              rx="2.5"
+                            />
                             <path d="M8 10.5V7.8a4 4 0 0 1 8 0v2.7" />
                           </svg>
                         </div>
@@ -478,8 +547,9 @@ export function MarqueeEmptyState() {
           --text: #1d1d1f;
           --text-2: #86868b;
           --ink: #07080a;
-          --sf: -apple-system, BlinkMacSystemFont, 'SF Pro Display',
-            'SF Pro Text', system-ui, sans-serif;
+          --sf:
+            -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text',
+            system-ui, sans-serif;
           --gut: 64px;
           font-family: var(--sf);
           background: var(--bg);
@@ -548,7 +618,9 @@ export function MarqueeEmptyState() {
           box-shadow: none;
           display: grid;
           place-items: center;
-          transition: background 0.2s, transform 0.16s;
+          transition:
+            background 0.2s,
+            transform 0.16s;
         }
         .theme-toggle:hover {
           background: rgba(40, 40, 46, 0.6);
@@ -633,8 +705,10 @@ export function MarqueeEmptyState() {
           font-size: 15px;
           font-weight: 600;
           letter-spacing: -0.01em;
-          transition: transform 0.16s cubic-bezier(0.2, 1.2, 0.3, 1),
-            background 0.16s, box-shadow 0.16s;
+          transition:
+            transform 0.16s cubic-bezier(0.2, 1.2, 0.3, 1),
+            background 0.16s,
+            box-shadow 0.16s;
         }
         .abtn:active {
           transform: scale(0.975);
@@ -784,21 +858,19 @@ export function MarqueeEmptyState() {
           cursor: text;
         }
         .mes-root :global([contenteditable]:hover) {
-          box-shadow: 0 0 0 1.5px rgba(0, 113, 227, 0.35);
+          box-shadow: 0 0 0 1.5px
+            color-mix(in srgb, var(--color-ce-accent) 35%, transparent);
         }
         .mes-root :global([contenteditable]:focus) {
-          box-shadow: 0 0 0 2px #0071e3;
+          box-shadow: 0 0 0 2px var(--color-ce-accent);
         }
 
         /* ── liquid glass placeholder: blurred ambient under glass tint ── */
         .ph-ambient {
           position: absolute;
           inset: -15%;
-          background: radial-gradient(
-              42% 52% at 20% 28%,
-              #6e7a5e 0%,
-              transparent 70%
-            ),
+          background:
+            radial-gradient(42% 52% at 20% 28%, #6e7a5e 0%, transparent 70%),
             radial-gradient(46% 56% at 76% 22%, #8a7565 0%, transparent 70%),
             radial-gradient(52% 62% at 62% 82%, #46464c 0%, transparent 72%),
             radial-gradient(36% 46% at 28% 78%, #5d6e6a 0%, transparent 70%),
@@ -847,7 +919,9 @@ export function MarqueeEmptyState() {
           font-size: 14px;
           font-weight: 600;
           letter-spacing: -0.01em;
-          transition: background 0.2s, transform 0.16s;
+          transition:
+            background 0.2s,
+            transform 0.16s;
         }
         .add-pill:hover {
           background: rgba(255, 255, 255, 0.28);
@@ -899,7 +973,9 @@ export function MarqueeEmptyState() {
           letter-spacing: -0.005em;
           white-space: nowrap;
           cursor: pointer;
-          transition: background 0.18s, transform 0.18s;
+          transition:
+            background 0.18s,
+            transform 0.18s;
         }
         .lc-thumb .thumb-add:hover {
           background: rgba(255, 255, 255, 0.28);
@@ -972,7 +1048,9 @@ export function MarqueeEmptyState() {
           place-items: center;
           opacity: 0;
           pointer-events: none;
-          transition: opacity 0.2s, color 0.15s;
+          transition:
+            opacity 0.2s,
+            color 0.15s;
         }
         .arrow:hover {
           color: #000;
@@ -1015,13 +1093,18 @@ export function MarqueeEmptyState() {
           border: 1px solid #e6e6e9;
           display: flex;
           flex-direction: column;
-          box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 4px 16px rgba(0, 0, 0, 0.05);
-          transition: transform 0.26s cubic-bezier(0.34, 1.3, 0.64, 1),
+          box-shadow:
+            0 1px 2px rgba(0, 0, 0, 0.04),
+            0 4px 16px rgba(0, 0, 0, 0.05);
+          transition:
+            transform 0.26s cubic-bezier(0.34, 1.3, 0.64, 1),
             box-shadow 0.26s;
         }
         .lc-catalog:hover .lc-card {
           transform: translateY(-5px);
-          box-shadow: 0 16px 48px rgba(0, 0, 0, 0.14), 0 2px 8px rgba(0, 0, 0, 0.06);
+          box-shadow:
+            0 16px 48px rgba(0, 0, 0, 0.14),
+            0 2px 8px rgba(0, 0, 0, 0.06);
         }
 
         .lc-thumb {

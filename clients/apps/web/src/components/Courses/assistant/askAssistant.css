@@ -14,7 +14,7 @@
   --text: #1d1d1f;
   --text-2: #86868b;
   --ink: #07080a;
-  --blue: #0071e3;
+  --blue: var(--color-ce-accent);
   --hair: rgba(0, 0, 0, 0.12);
   --ans: #4a4a4f;
   --card-bg: #ffffff;
@@ -27,8 +27,8 @@
     system-ui, sans-serif;
   /* Headings: the design used Poppins, but the app CSP blocks external fonts,
      so fall back to the system stack rather than fetch (and get blocked). */
-  --po: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui,
-    sans-serif;
+  --po:
+    -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
 }
 .ta-widget.dark {
   --bg: #141416;
