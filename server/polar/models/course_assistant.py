@@ -23,19 +23,23 @@ if TYPE_CHECKING:
 class CourseAssistant(RecordModel):
     """The AI teaching assistant ("Office Hours" TA) for a single course.
 
-    Lifecycle / snapshot model
-    --------------------------
-    Every build writes its output to the ``draft_*`` columns and leaves the
-    course in ``ready_for_review``. Nothing the build produces is served to
-    students until a creator approves it, at which point the draft snapshot is
-    copied into the serving columns (``knowledge_base`` / ``voice_card`` /
-    ``sample_questions`` / ...) and ``live`` is set.
+    Lifecycle / snapshot model (v1 — creator preview only)
+    ------------------------------------------------------
+    The ``draft_*`` / ``live`` snapshot columns and the ``ready_for_review`` →
+    approve flow described below belong to the original approval-gated design.
+    In that model every build writes to the ``draft_*`` columns, leaves the
+    course in ``ready_for_review``, and nothing is served until a creator
+    approves it (copying the draft into the serving columns and setting
+    ``live``).
 
-    This split is deliberate: when a creator edits the course *after* approving
-    the assistant, the next build refreshes only the ``draft_*`` snapshot and
-    flips the status back to ``ready_for_review`` while ``live`` stays true —
-    so students keep getting the previously-approved answers until the creator
-    re-reviews, rather than silently getting un-reviewed content.
+    NOTE: this approval gate is no longer on the student path. Students are
+    served by the v2 stateless flow, which answers live from the current course
+    content gated only by the course's ``assistant_enabled`` setting and an
+    active enrollment (see ``course_assistant`` service / endpoints). The
+    snapshot/approval columns and methods here are now exercised only by the
+    creator-facing *preview* endpoint. They are retained (not deleted) so the
+    approval workflow can be reinstated, but do not assume student answers pass
+    through them.
     """
 
     __tablename__ = "course_assistants"

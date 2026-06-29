@@ -68,6 +68,14 @@ export function MembersTab({
             </div>
           ))}
         </div>
+      ) : membersQ.isError ? (
+        <div className="card crf-empty">
+          <span className="crf-empty-ic">
+            <Glyph d="users" size={26} stroke={1.7} />
+          </span>
+          <h3>Couldn&apos;t load members</h3>
+          <p>Something went wrong. Please refresh to try again.</p>
+        </div>
       ) : ordered.length === 0 ? (
         <div className="card crf-empty">
           <span className="crf-empty-ic">
@@ -97,7 +105,9 @@ export function MembersTab({
                     )}
                   </div>
                   <div className="mr">
-                    {isHost ? 'Host of this community' : joinedLabel(m.joined_at)}
+                    {isHost
+                      ? 'Host of this community'
+                      : joinedLabel(m.joined_at)}
                   </div>
                 </div>
               </div>

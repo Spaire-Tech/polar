@@ -53,12 +53,11 @@ function usePortalDark(slug: string): boolean {
 }
 
 type StudentTab = 'feed' | 'brief' | 'events' | 'members' | 'profile'
-// The design's tab bar is Feed · Activities · Events · Profile. Members stays
-// reachable in the switch below (and via direct state) but is not a visible tab.
 const TABS: { k: StudentTab; label: string }[] = [
   { k: 'feed', label: 'Feed' },
   { k: 'brief', label: 'Activities' },
   { k: 'events', label: 'Events' },
+  { k: 'members', label: 'Members' },
   { k: 'profile', label: 'Profile' },
 ]
 
@@ -100,10 +99,7 @@ export function CommunityHubStudent({
 
   const lessonsCount = useMemo(
     () =>
-      (course?.modules ?? []).reduce(
-        (n, m) => n + (m.lessons?.length ?? 0),
-        0,
-      ),
+      (course?.modules ?? []).reduce((n, m) => n + (m.lessons?.length ?? 0), 0),
     [course?.modules],
   )
 
@@ -121,21 +117,22 @@ export function CommunityHubStudent({
     router.push(`/${organizationSlug}/portal/courses/${courseId}`)
 
   const ctx = useMemo(
-    () =>
-      ({
-        mode: 'customer' as const,
-        token,
-        viewer: 'member' as const,
-        selfEnrollmentId,
-      }),
+    () => ({
+      mode: 'customer' as const,
+      token,
+      viewer: 'member' as const,
+      selfEnrollmentId,
+    }),
     [token, selfEnrollmentId],
   )
 
   return (
     <HubProvider value={ctx}>
-      <div className={`spaire-hub${dark ? ' dark' : ''}`}>
+      <div className={`spaire-hub${dark ? 'dark' : ''}`}>
         <div className="mh-cover" style={{ cursor: 'default' }}>
-          {cover && <img src={cover} alt="" style={{ objectPosition: coverPos }} />}
+          {cover && (
+            <img src={cover} alt="" style={{ objectPosition: coverPos }} />
+          )}
           <div className="wrap mh-brand">{brand}</div>
           <div className="wrap mh-head">
             <h1 className="mh-title">{title}</h1>
@@ -153,7 +150,10 @@ export function CommunityHubStudent({
               {selfAvatar ? (
                 <img src={selfAvatar} alt="" />
               ) : (
-                <span className="hub-av-fallback" style={{ width: 28, height: 28 }} />
+                <span
+                  className="hub-av-fallback"
+                  style={{ width: 28, height: 28 }}
+                />
               )}
               {selfName}
             </span>

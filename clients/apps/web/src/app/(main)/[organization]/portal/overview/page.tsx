@@ -64,7 +64,7 @@ export default async function Page(props: {
   const params = await props.params
   const token = customer_session_token ?? member_session_token
   const api = await getServerSideAPI(token)
-  const { organization, products } = await getOrganizationOrNotFound(
+  const { organization } = await getOrganizationOrNotFound(
     api,
     params.organization,
     searchParams,
@@ -116,7 +116,6 @@ export default async function Page(props: {
   return (
     <OverviewPage
       organization={organization}
-      products={products}
       subscriptions={subscriptions}
       claimedSubscriptions={claimedSubscriptions ?? []}
       customerSessionToken={token as string}

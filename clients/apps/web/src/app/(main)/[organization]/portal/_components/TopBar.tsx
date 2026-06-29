@@ -19,8 +19,8 @@ import { useQueryClient } from '@tanstack/react-query'
 import Link from 'next/link'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import * as React from 'react'
-import { BellIcon, BookmarkIcon, SearchIcon } from './icons'
 import { usePortalTheme } from '../usePortalTheme'
+import { BellIcon, BookmarkIcon } from './icons'
 import {
   type CustomerWithProfile,
   OnboardingModal,
@@ -58,7 +58,8 @@ const buildTabs = (
       // Don't light up Courses while inside a course's community sub-route —
       // that path belongs to the Community tab (matched below).
       matches: (p) =>
-        p.includes('/portal/courses') && !/\/portal\/courses\/[^/]+\/community/.test(p),
+        p.includes('/portal/courses') &&
+        !/\/portal\/courses\/[^/]+\/community/.test(p),
     },
     {
       href: `/${slug}/portal/community`,
@@ -82,11 +83,9 @@ const buildTabs = (
       matches: (p) => p.includes('/portal/orders'),
     })
   }
-  // Phase 4d: Team tab hidden from the student portal nav. Route file is kept;
-  // flip SHOW_TEAM_TAB back to true to restore the tab (it then falls back to
-  // the original `showTeam` permission gate).
-  const SHOW_TEAM_TAB = false
-  if (SHOW_TEAM_TAB && showTeam) {
+  // Team management is shown to team customers whose billing-capable members
+  // can manage seats (member model orgs only).
+  if (showTeam) {
     tabs.push({
       href: `/${slug}/portal/team`,
       label: 'Team',
@@ -173,25 +172,6 @@ export const TopBar = ({
           ))}
         </nav>
         <div className="sp-right">
-          <label className="sp-search">
-            <SearchIcon size={15} />
-            <input
-              type="search"
-              placeholder="Search courses, orders…"
-              aria-label="Search"
-            />
-          </label>
-          {/* Mobile-only — the desktop label above turns into a compact
-              icon button on narrow viewports (where the long search
-              input would crowd the brand + tab row). */}
-          <button
-            type="button"
-            className="sp-iconbtn sp-iconbtn--mobile"
-            aria-label="Search"
-            title="Search"
-          >
-            <SearchIcon size={18} />
-          </button>
           <ThemeToggle slug={organization.slug} token={token ?? ''} />
           <NotificationsBell token={token} />
           <Link
@@ -471,6 +451,17 @@ function NotificationsBell({ token }: { token: string | null }) {
   const unread = unreadQ.data?.unread ?? 0
   const list = listQ.data ?? []
 
+  // If a mark-read mutation fails, re-sync from the server so the unread count
+  // and list reflect reality instead of a stale (optimistic) state.
+  const resyncNotifications = React.useCallback(() => {
+    queryClient.invalidateQueries({
+      queryKey: ['customer-notifications-unread', token],
+    })
+    queryClient.invalidateQueries({
+      queryKey: ['customer-notifications', token],
+    })
+  }, [queryClient, token])
+
   return (
     <div className="sp-account" style={{ position: 'relative' }}>
       <button
@@ -507,7 +498,11 @@ function NotificationsBell({ token }: { token: string | null }) {
                 type="button"
                 className="sp-account-menu-item"
                 style={{ padding: '4px 8px', fontSize: 12 }}
-                onClick={() => markAllRead.mutate()}
+                onClick={() =>
+                  markAllRead.mutate(undefined, {
+                    onError: resyncNotifications,
+                  })
+                }
               >
                 Mark all read
               </button>
@@ -517,7 +512,7 @@ function NotificationsBell({ token }: { token: string | null }) {
             <div
               style={{
                 padding: 16,
-                color: 'var(--c-muted, #6b7280)',
+                color: 'var(--sp-muted)',
                 fontSize: 13,
               }}
             >
@@ -527,7 +522,7 @@ function NotificationsBell({ token }: { token: string | null }) {
             <div
               style={{
                 padding: 16,
-                color: 'var(--c-muted, #6b7280)',
+                color: 'var(--sp-muted)',
                 fontSize: 13,
               }}
             >
@@ -538,7 +533,9 @@ function NotificationsBell({ token }: { token: string | null }) {
               <NotificationRow
                 key={n.id}
                 notif={n}
-                onMarkRead={() => markRead.mutate(n.id)}
+                onMarkRead={() =>
+                  markRead.mutate(n.id, { onError: resyncNotifications })
+                }
               />
             ))
           )}
@@ -574,15 +571,13 @@ function NotificationRow({
         textAlign: 'left',
         width: '100%',
         padding: '10px 12px',
-        background: unread ? 'var(--c-panel-hover, #f9fafb)' : 'transparent',
+        background: unread ? 'var(--sp-surface-2)' : 'transparent',
       }}
     >
       <div style={{ fontWeight: unread ? 600 : 400, fontSize: 13 }}>
         {title}
       </div>
-      <div style={{ fontSize: 12, color: 'var(--c-muted, #6b7280)' }}>
-        {subtitle}
-      </div>
+      <div style={{ fontSize: 12, color: 'var(--sp-muted)' }}>{subtitle}</div>
     </button>
   )
 }

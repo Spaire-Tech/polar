@@ -4,6 +4,7 @@ import CustomerPortalOrder from '@/components/CustomerPortal/CustomerPortalOrder
 import { createClientSideAPI } from '@/utils/client'
 import { schemas } from '@spaire/client'
 import { getThemePreset } from '@spaire/ui/hooks/theming'
+import { usePortalTheme } from '../../usePortalTheme'
 
 const ClientPage = ({
   organization,
@@ -14,9 +15,11 @@ const ClientPage = ({
   order: schemas['CustomerOrder']
   customerSessionToken: string
 }) => {
+  // Match the embedded Stripe payment-retry form to the portal's theme.
+  const { dark } = usePortalTheme(organization.slug, customerSessionToken)
   const themingPreset = getThemePreset(
     organization.slug,
-    'light',
+    dark ? 'dark' : 'light',
   )
   const api = createClientSideAPI(customerSessionToken)
 

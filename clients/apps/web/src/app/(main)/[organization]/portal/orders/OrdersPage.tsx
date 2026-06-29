@@ -1,11 +1,14 @@
 'use client'
 
+import { Pagination } from '@/components/CustomerPortal/Pagination'
 import { schemas } from '@spaire/client'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { NuqsAdapter } from 'nuqs/adapters/next/app'
 import * as React from 'react'
 import { ChevronIcon, DownloadIcon, ExternalIcon } from '../_components/icons'
+
+const PAGE_SIZE = 20
 
 type StatusKind = 'paid' | 'refunded' | 'pending' | 'canceled'
 
@@ -288,6 +291,10 @@ const OrdersBody = ({
   const [openId, setOpenId] = React.useState<string | null>(
     orders[0]?.id ?? null,
   )
+  const [page, setPage] = React.useState(1)
+
+  const totalPages = Math.max(1, Math.ceil(orders.length / PAGE_SIZE))
+  const pageOrders = orders.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
   const lifetime = orders
     .filter((o) => o.status === 'paid')
@@ -316,7 +323,7 @@ const OrdersBody = ({
         </div>
       ) : (
         <div className="sp-orders">
-          {orders.map((order) => (
+          {pageOrders.map((order) => (
             <OrderRow
               key={order.id}
               order={order}
@@ -326,6 +333,21 @@ const OrdersBody = ({
               onToggle={() => setOpenId(openId === order.id ? null : order.id)}
             />
           ))}
+          {totalPages > 1 && (
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'flex-end',
+                marginTop: 16,
+              }}
+            >
+              <Pagination
+                page={page}
+                totalPages={totalPages}
+                onPageChange={setPage}
+              />
+            </div>
+          )}
         </div>
       )}
     </div>

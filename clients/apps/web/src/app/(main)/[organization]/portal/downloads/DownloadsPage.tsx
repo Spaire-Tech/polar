@@ -323,8 +323,18 @@ const DownloadsBody = ({
             className="sp-btn is-ghost"
             onClick={(e) => {
               e.preventDefault()
+              // Trigger a real <a download> per file within this user gesture
+              // (same mechanism as the per-row Download button). Looping
+              // window.open() instead got every file after the first
+              // suppressed by the popup blocker.
               for (const item of filtered) {
-                window.open(item.file.download.url, '_blank', 'noopener')
+                const a = document.createElement('a')
+                a.href = item.file.download.url
+                a.download = item.file.name
+                a.rel = 'noopener'
+                document.body.appendChild(a)
+                a.click()
+                a.remove()
               }
               setTimeout(() => refetch(), 1500)
             }}

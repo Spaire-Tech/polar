@@ -61,10 +61,19 @@ export default async function Page(props: {
     setup_intent?: string
   }>
 }) {
-  const { customer_session_token, member_session_token, ...searchParams } =
-    await props.searchParams
+  const {
+    customer_session_token,
+    member_session_token,
+    setup_intent_client_secret,
+    setup_intent,
+    ...searchParams
+  } = await props.searchParams
   const params = await props.params
   const token = customer_session_token ?? member_session_token
+  const setupIntentParams =
+    setup_intent_client_secret && setup_intent
+      ? { setup_intent_client_secret, setup_intent }
+      : undefined
   const api = await getServerSideAPI(token)
   const { organization } = await getOrganizationOrNotFound(
     api,
@@ -121,6 +130,7 @@ export default async function Page(props: {
       customer={customer ?? null}
       subscriptions={subscriptions?.items ?? []}
       orders={orders?.items ?? []}
+      setupIntentParams={setupIntentParams}
     />
   )
 }
