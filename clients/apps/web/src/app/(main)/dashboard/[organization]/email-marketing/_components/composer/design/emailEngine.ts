@@ -59,6 +59,11 @@ export interface CreateEditorOpts {
   courseName?: string
   /** Lifecycle trigger to open on (enrolment, firstLesson, …). */
   initialTrigger?: string
+  /** When true, the top-bar template/trigger switcher is disabled. In an
+   *  automation the sequence's trigger governs the moment, and switching
+   *  templates here would wipe the authored blocks and desync the email from
+   *  what actually sends. */
+  lockTrigger?: boolean
   /** Real number of students enrolled in the course (replaces the placeholder). */
   enrolledCount?: number
   /** Default "from" name — the course instructor or the creator/organization. */
@@ -73,6 +78,10 @@ export interface CreateEditorOpts {
   onUploadImage?: (file: File) => Promise<string>
   /** Persist: subject + inbox HTML + serialisable JSON + trigger. */
   onSave?: (v: { subject: string; preview: string; html: string; json: EditorState; trigger: string }) => void
+  /** Persist edits in the background WITHOUT closing the editor. When wired,
+   *  the engine autosaves on a debounce after every edit (and flushes on close)
+   *  so the "Saved" status is truthful and work is never lost on Back. */
+  onAutosave?: (v: { subject: string; preview: string; html: string; json: EditorState; trigger: string }) => void
   /** Back / close. */
   onClose?: () => void
   /** Fired on every content/structure change (autosave hint). */
@@ -184,9 +193,41 @@ export function createEditor(root: HTMLElement, opts: CreateEditorOpts = {}): Ed
   }
 
   let saveTimer: any
-  function flagSaving() {
+  let dirty = false
+  function setStatus(html: string) {
     const s = q('#saveStatus')
-    if (s) { s.innerHTML = 'Saving…'; clearTimeout(saveTimer); saveTimer = setTimeout(() => { s.innerHTML = '<span class="saved-dot"></span>Saved' }, 700) }
+    if (s) s.innerHTML = html
+  }
+  // Persist the current email in the background, without closing the editor.
+  // Until this landed the "Saved" status was a pure 700ms animation that fired
+  // on every keystroke while nothing was actually stored — so hitting Back lost
+  // every edit since the last explicit Save. Now edits really persist, and the
+  // status reflects it.
+  function runAutosave() {
+    if (!dirty) return
+    dirty = false
+    if (opts.onAutosave) {
+      opts.onAutosave({
+        subject: broadcast.subject,
+        preview: broadcast.preview,
+        html: buildHTML(),
+        json: getState(),
+        trigger: currentTrigger,
+      })
+    }
+    setStatus('<span class="saved-dot"></span>Saved')
+  }
+  // Force any pending autosave to run now (on Back / unmount) so the last edit
+  // is never dropped by the debounce.
+  function flushAutosave() {
+    clearTimeout(saveTimer)
+    runAutosave()
+  }
+  function flagSaving() {
+    dirty = true
+    setStatus('Saving…')
+    clearTimeout(saveTimer)
+    saveTimer = setTimeout(runAutosave, 900)
     if (opts.onChange) opts.onChange()
   }
   let toastTimer: any
@@ -235,7 +276,12 @@ export function createEditor(root: HTMLElement, opts: CreateEditorOpts = {}): Ed
   function commitSave() {
     closeSave()
     if (opts.onSave) opts.onSave({ subject: broadcast.subject, preview: broadcast.preview, html: buildHTML(), json: getState(), trigger: currentTrigger })
-    toast('Saved to the sequence'); flagSaving()
+    // The explicit save already persisted everything — cancel any pending
+    // autosave and mark clean (don't call flagSaving, which would re-dirty it).
+    dirty = false
+    clearTimeout(saveTimer)
+    setStatus('<span class="saved-dot"></span>Saved')
+    toast('Saved to the sequence')
   }
   function openSaveConfirm() {
     closeSave()
@@ -321,6 +367,10 @@ export function createEditor(root: HTMLElement, opts: CreateEditorOpts = {}): Ed
 
   /* ---------- trigger switcher (top-bar crumb dropdown) ---------- */
   function openTriggerMenu() {
+    if (opts.lockTrigger) {
+      toast('This email’s moment is set by the automation')
+      return
+    }
     if (floatEl && (floatEl as any)._trig) { closeFloat(); return }
     const m = el('div', 'float-pop trig-menu'); (m as any)._trig = true
     TRIGGERS.forEach((t) => {
@@ -815,7 +865,10 @@ export function createEditor(root: HTMLElement, opts: CreateEditorOpts = {}): Ed
     })
   }
 
-  const MERGE: [string, string][] = [['First name', 'first_name'], ['Last name', 'last_name'], ['Email', 'email'], ['Company', 'company']]
+  // First name / Last name / Email are substituted per recipient at send time
+  // by polar.email.personalize. "Company" was dropped: there is no `company`
+  // variable in build_variables, so {{company}} rendered blank for everyone.
+  const MERGE: [string, string][] = [['First name', 'first_name'], ['Last name', 'last_name'], ['Email', 'email']]
   let lastEditEl: HTMLElement | null = null
   function buildMerge() {
     const w = q('#mergeWrap'); if (!w) return
@@ -995,11 +1048,12 @@ export function createEditor(root: HTMLElement, opts: CreateEditorOpts = {}): Ed
         ? Object.assign({}, REG[s.type].defaults(theme()), s.props || {})
         : s.props || {},
     }))
-    // Re-bind the live course onto the saved blocks so course-derived fields
-    // (instructor, lessons, cover, facts) refresh to the real course instead of
-    // showing whatever was saved earlier — e.g. a stale "Adaeze Bello". Authored
-    // copy (note bodies, headings, CTA text) isn't touched by the binding.
-    if (opts.applyCourse) blocks = opts.applyCourse(blocks, currentTrigger)
+    // Do NOT re-bind the live course onto saved blocks here. Re-binding
+    // overwrote course-derived fields the creator had hand-edited (lesson
+    // titles, instructor name/role/bio, the facts row) every time they reopened
+    // the email — a silent, surprising data loss. A reopened email now shows
+    // exactly what was saved. (Fresh templates still bind on first load via
+    // loadTemplate; a future explicit "Sync from course" can re-pull on demand.)
     applyTheme(); updateCrumb(); renderCanvas(); deselect()
   }
 
@@ -1008,6 +1062,9 @@ export function createEditor(root: HTMLElement, opts: CreateEditorOpts = {}): Ed
   else loadTemplate(opts.initialTrigger || 'enrolment')
 
   const crumbBtn = q('#crumbBtn'); if (crumbBtn) on(crumbBtn, 'click', openTriggerMenu)
+  // When the trigger is locked (automation context), the crumb can't switch
+  // templates — hide its dropdown caret so it doesn't read as actionable.
+  if (opts.lockTrigger) { const caret = q('.tb-caret'); if (caret) caret.style.display = 'none' }
 
   // Format bubble: reactive on selection within the email, reposition on scroll.
   on(document, 'selectionchange', () => { if (fmtLinkMode) return; clearTimeout(fmtTimer); fmtTimer = setTimeout(updateFmtBubble, 14) })
@@ -1035,7 +1092,7 @@ export function createEditor(root: HTMLElement, opts: CreateEditorOpts = {}): Ed
 
   const sendBtn = q('#sendBtn'); if (sendBtn) on(sendBtn, 'click', openSaveConfirm)
   const sendCaret = q('#sendCaret'); if (sendCaret) on(sendCaret, 'click', openSendMenu)
-  const backBtn = q('.tb-back'); if (backBtn) on(backBtn, 'click', () => opts.onClose && opts.onClose())
+  const backBtn = q('.tb-back'); if (backBtn) on(backBtn, 'click', () => { flushAutosave(); opts.onClose && opts.onClose() })
 
   on(root, 'keydown', (e: KeyboardEvent) => {
     if (e.key === 'Escape') { closeFloat(); closeSave(); closePicker(); hideFmtBubble(); deselect() }
@@ -1080,6 +1137,9 @@ export function createEditor(root: HTMLElement, opts: CreateEditorOpts = {}): Ed
     getState,
     getHTML: buildHTML,
     destroy() {
+      // Persist any debounced-but-unsent edit before tearing down, so an
+      // unmount (route change, parent close) never drops the last change.
+      flushAutosave()
       closeFloat(); closeSave(); closePicker()
       if (fmtBubble) { fmtBubble.remove(); fmtBubble = null }
       trailerHls.forEach((h) => { try { h.destroy() } catch { /* ignore */ } })

@@ -21,6 +21,9 @@ export interface BroadcastEditorDesignProps {
   course?: CourseData
   /** Lifecycle trigger to open on (enrolment, firstLesson, halfway, …). */
   initialTrigger?: string
+  /** Disable the top-bar template/trigger switcher (automation context, where
+   *  the sequence owns the trigger and switching would wipe the email). */
+  lockTrigger?: boolean
   /** Real number of students enrolled (replaces the placeholder count). */
   enrolledCount?: number
   /** Creator/organization name — the fallback instructor + default "from" name
@@ -36,6 +39,9 @@ export interface BroadcastEditorDesignProps {
   onSendTest?: (v: { subject: string; preview: string; html: string }) => Promise<void>
   /** Persist the authored email. */
   onSave?: (v: { subject: string; preview: string; html: string; json: EditorState }) => void
+  /** Persist edits in the background (debounced) without closing — makes the
+   *  "Saved" status truthful and prevents losing work on Back. */
+  onAutosave?: (v: { subject: string; preview: string; html: string; json: EditorState }) => void
   /** Back / close. */
   onClose?: () => void
 }
@@ -44,6 +50,7 @@ export function BroadcastEditorDesign({
   courseName,
   course,
   initialTrigger,
+  lockTrigger,
   enrolledCount,
   creatorName,
   initialSubject,
@@ -51,14 +58,15 @@ export function BroadcastEditorDesign({
   onUploadImage,
   onSendTest,
   onSave,
+  onAutosave,
   onClose,
 }: BroadcastEditorDesignProps) {
   const ref = useRef<HTMLDivElement>(null)
   const handleRef = useRef<EditorHandle | null>(null)
 
   // Keep the latest callbacks/data without re-mounting the imperative engine.
-  const cbRef = useRef({ onUploadImage, onSendTest, onSave, onClose, course, creatorName })
-  cbRef.current = { onUploadImage, onSendTest, onSave, onClose, course, creatorName }
+  const cbRef = useRef({ onUploadImage, onSendTest, onSave, onAutosave, onClose, course, creatorName })
+  cbRef.current = { onUploadImage, onSendTest, onSave, onAutosave, onClose, course, creatorName }
 
   // Re-mount the engine only when the bound course identity changes (e.g. the
   // async course query resolves once). Edits haven't begun at that point.
@@ -79,6 +87,7 @@ export function BroadcastEditorDesign({
     const handle = createEditor(rootEl, {
       courseName,
       initialTrigger,
+      lockTrigger,
       enrolledCount,
       fromName: creatorName,
       initialState: seededState,
@@ -91,6 +100,9 @@ export function BroadcastEditorDesign({
       onSave: (v) =>
         cbRef.current.onSave &&
         cbRef.current.onSave({ subject: v.subject, preview: v.preview, html: v.html, json: v.json }),
+      onAutosave: (v) =>
+        cbRef.current.onAutosave &&
+        cbRef.current.onAutosave({ subject: v.subject, preview: v.preview, html: v.html, json: v.json }),
       onClose: () => cbRef.current.onClose && cbRef.current.onClose(),
     })
     handleRef.current = handle
@@ -99,7 +111,7 @@ export function BroadcastEditorDesign({
       handleRef.current = null
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [courseKey, courseName, initialTrigger, enrolledCount, creatorName])
+  }, [courseKey, courseName, initialTrigger, lockTrigger, enrolledCount, creatorName])
 
   return <div className="bedesign" ref={ref} />
 }

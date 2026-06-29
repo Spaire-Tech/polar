@@ -1081,6 +1081,15 @@ export function AutomationSequenceBuilder({
               initialSubject={st.subject}
               initialContentJson={st.content_json}
               onClose={() => setEmailEditing(null)}
+              onAutosave={(v) =>
+                patchStep(st.id, {
+                  subject: v.subject,
+                  content_json: v.content_json,
+                  content_html: v.content_html,
+                  // keep the node title in sync with the subject
+                  name: v.subject || st.name,
+                } as Partial<Step>)
+              }
               onSave={(v) => {
                 patchStep(st.id, {
                   subject: v.subject,

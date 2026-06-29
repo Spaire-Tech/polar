@@ -42,6 +42,7 @@ export function SequenceEmailModal({
   initialSubject,
   initialContentJson,
   onSave,
+  onAutosave,
   onClose,
 }: {
   organization: schemas['Organization']
@@ -51,6 +52,12 @@ export function SequenceEmailModal({
   initialSubject?: string
   initialContentJson?: Record<string, unknown> | null
   onSave: (v: {
+    subject: string
+    content_html: string
+    content_json: Record<string, unknown>
+  }) => void
+  /** Silently persist edits into the step as the creator types (no close). */
+  onAutosave?: (v: {
     subject: string
     content_html: string
     content_json: Record<string, unknown>
@@ -100,12 +107,28 @@ export function SequenceEmailModal({
   // 'use client' + mounted only on user interaction ⇒ always client-side here.
   if (typeof document === 'undefined') return null
 
+  // Don't mount the editor with the design's placeholder course (Southern
+  // Cooking / Adaeze Bello) before the real course resolves — a slow query
+  // could otherwise let placeholder content get authored and shipped. Hold on
+  // a loading overlay until the course is in hand.
+  if (courseId && !courseRead) {
+    return createPortal(
+      <div
+        className={`fixed inset-0 z-50 grid place-items-center bg-black text-sm text-white/60${dark ? ' dark' : ''}`}
+      >
+        Loading course…
+      </div>,
+      document.body,
+    )
+  }
+
   return createPortal(
     <div className={`fixed inset-0 z-50 bg-black${dark ? ' dark' : ''}`}>
       <BroadcastEditorDesign
         courseName={courseRead?.title ?? course?.title ?? 'Course'}
         course={course}
         initialTrigger={initialTrigger}
+        lockTrigger
         enrolledCount={enrolledCount}
         creatorName={
           courseRead?.instructor_name || organization.name || organization.slug
@@ -120,6 +143,13 @@ export function SequenceEmailModal({
             preview_text: v.preview,
           })
         }}
+        onAutosave={(p) =>
+          onAutosave?.({
+            subject: p.subject,
+            content_html: p.html,
+            content_json: p.json as unknown as Record<string, unknown>,
+          })
+        }
         onSave={(p) => {
           onSave({
             subject: p.subject,
