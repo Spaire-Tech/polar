@@ -22,10 +22,15 @@ const HLS_CONFIG = {
   backBufferLength: 30,
   maxBufferLength: 30,
   maxMaxBufferLength: 60,
-  // Don't start playback the instant the first fragment lands — wait
-  // for a real buffer cushion so audio + video have aligned samples
-  // before frames hit the screen.
+  // Prefetch the first fragment before media is attached so playback can
+  // begin a little sooner once the element is ready.
   startFragPrefetch: true,
+  // Never auto-display a subtitle/caption track. hls.js defaults this to
+  // `true`, which turns captions on as soon as the manifest loads — the
+  // player owns caption state explicitly, so leave them hidden until the
+  // viewer asks for them. Otherwise the on-screen captions and the toggle
+  // button disagree about whether captions are on.
+  subtitleDisplay: false,
 }
 
 export const HlsVideo = ({
