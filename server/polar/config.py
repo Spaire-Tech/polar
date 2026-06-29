@@ -544,16 +544,19 @@ class Settings(BaseSettings):
         with a forgeable secret.
         """
         if self.ENV == Environment.production:
+            # Report the exact environment-variable names (with the configured
+            # prefix, e.g. SPAIRE_SECRET) so the fix is unambiguous.
+            prefix = str(self.model_config.get("env_prefix", "")).upper()
             insecure: list[str] = []
             if self.SECRET == "super secret jwt secret":
-                insecure.append("SECRET")
+                insecure.append(f"{prefix}SECRET")
             if self.S3_FILES_DOWNLOAD_SECRET == "supersecret":
-                insecure.append("S3_FILES_DOWNLOAD_SECRET")
+                insecure.append(f"{prefix}S3_FILES_DOWNLOAD_SECRET")
             if insecure:
                 raise ValueError(
-                    f"Insecure default value(s) for {', '.join(insecure)} are "
-                    "not allowed in production; set them to strong, unique "
-                    "secrets via the environment."
+                    "Insecure default secret(s) detected in production. Set "
+                    f"{', '.join(insecure)} to strong, unique values in the "
+                    "environment."
                 )
         return self
 
