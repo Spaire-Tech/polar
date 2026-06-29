@@ -31,9 +31,9 @@ import type { PublicEventData } from './page'
 
 const TYPE_LABEL: Record<string, string> = {
   workshop: 'Workshop',
-  office: 'Office hours',
-  cohort: 'Cohort meetup',
-  guest: 'Guest session',
+  office: 'Q&A',
+  cohort: 'Watch Party',
+  guest: 'Guest',
 }
 
 type Props = {
@@ -118,7 +118,16 @@ export function PublicEventPage({ event, organizationSlug }: Props) {
     // Outer wrapper mimics the modal's `.eventIframe` interior
     // (without the faux browser chrome — this IS the real URL). We
     // pad top/bottom so the hero doesn't collide with the org header.
-    <div style={{ paddingTop: 8, paddingBottom: 80 }}>
+    //
+    // `styles.root` is required: it defines the `--c-*` color tokens the
+    // `.ev*` classes below consume. Without it the card text/panels/borders
+    // fall back to the (dark-Space) inherited color — white text on the
+    // white card. We keep the page background transparent so the wrapper
+    // still sits on the org layout's surface, not the token's grey.
+    <div
+      className={styles.root}
+      style={{ paddingTop: 8, paddingBottom: 80, background: 'transparent' }}
+    >
       <article
         style={{
           maxWidth: 760,

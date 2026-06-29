@@ -37,7 +37,9 @@ from polar.kit.repository import (
     RepositorySoftDeletionMixin,
 )
 from polar.kit.utils import utc_now
+from polar.models.community_activity import CommunityActivity
 from polar.models.community_comment import CommunityComment
+from polar.models.community_event import CommunityEvent
 from polar.models.community_post import CommunityPost
 from polar.models.community_post_media import CommunityPostMedia
 from polar.models.community_reaction import CommunityReaction
@@ -64,6 +66,52 @@ class CommunitySettingsRepository(
             CommunitySettings.course_id == course_id
         )
         return await self.get_one_or_none(statement)
+
+    async def delete_community_for_course(self, course_id: UUID) -> None:
+        """Hard-delete every row that makes up a course's community: posts
+        (+ media and comments via FK cascade), events (+ rsvps and
+        announcements), activities (+ submissions), tags, and the settings
+        row itself.
+
+        Reactions are polymorphic (`target_type`/`target_id`, no foreign
+        key) so they're removed explicitly first — before their posts and
+        comments disappear — otherwise they'd be orphaned. Everything else
+        is removed by the parent rows' `ondelete="cascade"`. This is a hard
+        delete: it also clears any already soft-deleted rows.
+        """
+        session = self.session
+        post_ids = select(CommunityPost.id).where(CommunityPost.course_id == course_id)
+        comment_ids = select(CommunityComment.id).where(
+            CommunityComment.post_id.in_(post_ids)
+        )
+        await session.execute(
+            delete(CommunityReaction).where(
+                CommunityReaction.target_type == "comment",
+                CommunityReaction.target_id.in_(comment_ids),
+            )
+        )
+        await session.execute(
+            delete(CommunityReaction).where(
+                CommunityReaction.target_type == "post",
+                CommunityReaction.target_id.in_(post_ids),
+            )
+        )
+        await session.execute(
+            delete(CommunityPost).where(CommunityPost.course_id == course_id)
+        )
+        await session.execute(
+            delete(CommunityEvent).where(CommunityEvent.course_id == course_id)
+        )
+        await session.execute(
+            delete(CommunityActivity).where(CommunityActivity.course_id == course_id)
+        )
+        await session.execute(
+            delete(CommunityTag).where(CommunityTag.course_id == course_id)
+        )
+        await session.execute(
+            delete(CommunitySettings).where(CommunitySettings.course_id == course_id)
+        )
+        await session.flush()
 
     async def list_for_auto_blurb(self) -> Sequence[CommunitySettings]:
         """Communities where the cron should consider writing an
@@ -95,9 +143,7 @@ class CommunitySettingsRepository(
                 Course.title,
                 Course.thumbnail_url,
                 Course.thumbnail_object_position,
-                func.coalesce(CommunitySettings.enabled, False).label(
-                    "enabled"
-                ),
+                func.coalesce(CommunitySettings.enabled, False).label("enabled"),
             )
             .join(CourseEnrollment, CourseEnrollment.course_id == Course.id)
             .join(
@@ -161,9 +207,7 @@ class CommunityTagRepository(
         result = await self.session.execute(statement)
         return int(result.scalar_one())
 
-    async def reorder(
-        self, course_id: UUID, ordered_ids: list[UUID]
-    ) -> None:
+    async def reorder(self, course_id: UUID, ordered_ids: list[UUID]) -> None:
         """Set each tag's `position` to its index in `ordered_ids`. Tags
         not in the list keep their existing position. Server-side
         transactional so the partial-unique index never sees a
@@ -196,9 +240,7 @@ class CommunityTagRepository(
         )
         await self.session.execute(statement)
 
-    async def get_by_slug(
-        self, course_id: UUID, slug: str
-    ) -> CommunityTag | None:
+    async def get_by_slug(self, course_id: UUID, slug: str) -> CommunityTag | None:
         statement = self.get_base_statement().where(
             CommunityTag.course_id == course_id,
             CommunityTag.slug == slug,
@@ -250,17 +292,14 @@ class CommunityPostRepository(
         creator's moderation list (creator-side can extend with
         include_deleted to see hidden rows)."""
         now = utc_now()
-        return (
-            self.get_base_statement()
-            .where(
-                CommunityPost.course_id == course_id,
-                or_(
-                    CommunityPost.published_at.is_(None).is_(False),
-                    # Drafts (published_at IS NULL) are excluded; pinned
-                    # rows always have published_at set.
-                ),
-                CommunityPost.published_at <= now,
-            )
+        return self.get_base_statement().where(
+            CommunityPost.course_id == course_id,
+            or_(
+                CommunityPost.published_at.is_(None).is_(False),
+                # Drafts (published_at IS NULL) are excluded; pinned
+                # rows always have published_at set.
+            ),
+            CommunityPost.published_at <= now,
         )
 
     def get_creator_listing_statement(
@@ -269,9 +308,7 @@ class CommunityPostRepository(
         """Creator-side listing — includes drafts (published_at IS NULL)
         so the editor moderation surface can show scheduled and
         unpublished posts."""
-        return self.get_base_statement().where(
-            CommunityPost.course_id == course_id
-        )
+        return self.get_base_statement().where(CommunityPost.course_id == course_id)
 
     async def milestone_exists_for_enrollment_lesson(
         self,
@@ -357,9 +394,7 @@ class CommunityPostRepository(
             if not module_lesson_ids:
                 # Empty filter == empty result, not "no filter applied".
                 return [], False
-            statement = statement.where(
-                CommunityPost.lesson_id.in_(module_lesson_ids)
-            )
+            statement = statement.where(CommunityPost.lesson_id.in_(module_lesson_ids))
         else:
             # No lesson/module filter — hide lesson-scoped activity-pin
             # posts from the global "All" feed. They surface in the
@@ -385,9 +420,7 @@ class CommunityPostRepository(
             sort_key = func.coalesce(
                 CommunityPost.pinned_at, CommunityPost.published_at
             )
-            statement = statement.order_by(
-                sort_key.desc(), CommunityPost.id.desc()
-            )
+            statement = statement.order_by(sort_key.desc(), CommunityPost.id.desc())
             if cursor is not None:
                 cursor_ts, cursor_id = cursor
                 statement = statement.where(
@@ -480,9 +513,7 @@ class CommunityPostRepository(
 
     async def list_student_author_rows(
         self, enrollment_ids: set[UUID]
-    ) -> Sequence[
-        tuple[UUID, str | None, str, str | None, str | None, UUID]
-    ]:
+    ) -> Sequence[tuple[UUID, str | None, str, str | None, str | None, UUID]]:
         """Return (enrollment_id, customer_name, customer_email,
         customer_avatar_url, org_avatar_url, org_id) for each requested
         enrollment. Customer has no native avatar column; we join the
@@ -523,9 +554,7 @@ class CommunityPostRepository(
                 select(Organization).where(Organization.id.in_(org_ids))
             )
         ).scalars()
-        org_avatars: dict[UUID, str | None] = {
-            org.id: org.avatar_url for org in orgs
-        }
+        org_avatars: dict[UUID, str | None] = {org.id: org.avatar_url for org in orgs}
         return [
             (
                 row.id,
@@ -546,9 +575,9 @@ class CommunityPostRepository(
         the service falls back to the email local-part."""
         if not user_ids:
             return []
-        statement = select(
-            UserModel.id, UserModel.email, UserModel.avatar_url
-        ).where(UserModel.id.in_(user_ids))
+        statement = select(UserModel.id, UserModel.email, UserModel.avatar_url).where(
+            UserModel.id.in_(user_ids)
+        )
         result = await self.session.execute(statement)
         return [(row.id, row.email, row.avatar_url) for row in result]
 
@@ -593,9 +622,7 @@ class CommunityPostMediaRepository(
 ):
     model = CommunityPostMedia
 
-    async def list_for_posts(
-        self, post_ids: set[UUID]
-    ) -> Sequence[CommunityPostMedia]:
+    async def list_for_posts(self, post_ids: set[UUID]) -> Sequence[CommunityPostMedia]:
         """Bulk-load media for a feed page so we don't N+1 per post."""
         if not post_ids:
             return []
@@ -630,9 +657,7 @@ class CommunityCommentRepository(
 ):
     model = CommunityComment
 
-    def get_by_post_statement(
-        self, post_id: UUID
-    ) -> Select[tuple[CommunityComment]]:
+    def get_by_post_statement(self, post_id: UUID) -> Select[tuple[CommunityComment]]:
         return (
             self.get_base_statement()
             .where(CommunityComment.post_id == post_id)
@@ -735,25 +760,19 @@ class CommunityReactionRepository(
             else CommunityReaction.actor_user_id == actor_user_id
         )
 
-        existing_stmt = select(
-            CommunityReaction.id, CommunityReaction.emoji
-        ).where(
+        existing_stmt = select(CommunityReaction.id, CommunityReaction.emoji).where(
             CommunityReaction.target_type == target_type,
             CommunityReaction.target_id == target_id,
             actor_clause,
         )
-        existing = (
-            await self.session.execute(existing_stmt)
-        ).one_or_none()
+        existing = (await self.session.execute(existing_stmt)).one_or_none()
 
         if existing is not None:
             existing_id, existing_emoji = existing
             if existing_emoji == emoji:
                 # Same emoji clicked again — toggle off.
                 await self.session.execute(
-                    delete(CommunityReaction).where(
-                        CommunityReaction.id == existing_id
-                    )
+                    delete(CommunityReaction).where(CommunityReaction.id == existing_id)
                 )
                 return False
             # Switch: update the emoji on the existing row in place so
@@ -817,9 +836,7 @@ class CommunityReactionRepository(
                 CommunityReaction.actor_enrollment_id == viewer_enrollment_id
             )
         if viewer_user_id is not None:
-            viewer_clauses.append(
-                CommunityReaction.actor_user_id == viewer_user_id
-            )
+            viewer_clauses.append(CommunityReaction.actor_user_id == viewer_user_id)
         if viewer_clauses:
             mine_expr = case((or_(*viewer_clauses), True), else_=False)
         else:

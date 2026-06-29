@@ -23,6 +23,7 @@ import { EventsTab } from './Events'
 import { StudentFeedTab } from './Feed'
 import './hub-extra.css'
 import './hub.css'
+import { HubAvatar } from './HubAvatar'
 import { MembersTab } from './Members'
 import { ProfileTab } from './Profile'
 
@@ -100,10 +101,7 @@ export function CommunityHubStudent({
 
   const lessonsCount = useMemo(
     () =>
-      (course?.modules ?? []).reduce(
-        (n, m) => n + (m.lessons?.length ?? 0),
-        0,
-      ),
+      (course?.modules ?? []).reduce((n, m) => n + (m.lessons?.length ?? 0), 0),
     [course?.modules],
   )
 
@@ -121,21 +119,22 @@ export function CommunityHubStudent({
     router.push(`/${organizationSlug}/portal/courses/${courseId}`)
 
   const ctx = useMemo(
-    () =>
-      ({
-        mode: 'customer' as const,
-        token,
-        viewer: 'member' as const,
-        selfEnrollmentId,
-      }),
+    () => ({
+      mode: 'customer' as const,
+      token,
+      viewer: 'member' as const,
+      selfEnrollmentId,
+    }),
     [token, selfEnrollmentId],
   )
 
   return (
     <HubProvider value={ctx}>
-      <div className={`spaire-hub${dark ? ' dark' : ''}`}>
-        <div className="mh-cover" style={{ cursor: 'default' }}>
-          {cover && <img src={cover} alt="" style={{ objectPosition: coverPos }} />}
+      <div className={`spaire-hub${dark ? 'dark' : ''}`}>
+        <div className="mh-cover is-static">
+          {cover && (
+            <img src={cover} alt="" style={{ objectPosition: coverPos }} />
+          )}
           <div className="wrap mh-brand">{brand}</div>
           <div className="wrap mh-head">
             <h1 className="mh-title">{title}</h1>
@@ -150,11 +149,11 @@ export function CommunityHubStudent({
             </div>
             <span className="spacer" />
             <span className="who">
-              {selfAvatar ? (
-                <img src={selfAvatar} alt="" />
-              ) : (
-                <span className="hub-av-fallback" style={{ width: 28, height: 28 }} />
-              )}
+              <HubAvatar
+                name={selfName}
+                url={selfAvatar}
+                style={{ width: 28, height: 28 }}
+              />
               {selfName}
             </span>
           </div>
@@ -195,6 +194,7 @@ export function CommunityHubStudent({
               courseId={courseId}
               orgSlug={organizationSlug}
               defaultProvider={settings?.default_meeting_provider ?? 'zoom'}
+              memberRsvp={settings?.member_rsvp ?? true}
               showToast={showToast}
             />
           ) : tab === 'members' ? (

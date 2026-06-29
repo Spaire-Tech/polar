@@ -33,9 +33,9 @@ export interface EventCardData {
 
 const TYPE_LABEL: Record<string, string> = {
   workshop: 'Workshop',
-  office: 'Office hours',
-  cohort: 'Cohort meetup',
-  guest: 'Guest session',
+  office: 'Q&A',
+  cohort: 'Watch Party',
+  guest: 'Guest',
 }
 
 const formatDate = (iso: string, tz: string): string =>

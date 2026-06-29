@@ -9,14 +9,13 @@
  * existing backend unchanged we map the design's 3 type labels onto the stored
  * enum and infer the meeting provider from the saved URL.
  */
-import { calendarLinksFor } from '../calendarLinks'
 import {
   type CommunityEventCreateBody,
   type CommunityEventRead,
   type CommunityEventType,
   type CommunityEventUpdateBody,
-  useCreateCommunityEvent,
   useCommunityEvents,
+  useCreateCommunityEvent,
   useDeleteCommunityEvent,
   useRsvpCommunityEvent,
   useUpdateCommunityEvent,
@@ -24,6 +23,7 @@ import {
 } from '@/hooks/queries/community'
 import * as React from 'react'
 import { createPortal } from 'react-dom'
+import { calendarLinksFor } from '../calendarLinks'
 import { CoverDrop, Field, Seg } from './atoms'
 import { useHub } from './context'
 import { HeadInfo } from './HeadInfo'
@@ -31,20 +31,22 @@ import { Glyph } from './icons'
 import {
   browserTz,
   DatePicker,
+  providerFromUrl,
   type ProviderKey,
   ProviderLogo,
-  ProviderSelect,
-  providerFromUrl,
   providerOf,
   providerPlaceholder,
+  ProviderSelect,
   TimePicker,
   toStartAtISO,
 } from './pickers'
 
 const { useEffect, useState } = React
 
-/* type label ↔ stored enum (uses the existing enum values) */
-const FORM_TYPES = ['Workshop', 'Q&A', 'Watch Party'] as const
+/* type label ↔ stored enum (uses the existing enum values). Keep this map in
+ * sync with PublicEventPage.tsx and emails/EventCard.tsx — all three must show
+ * the same wording for a given stored type. */
+const FORM_TYPES = ['Workshop', 'Q&A', 'Watch Party', 'Guest'] as const
 const TYPE_LABEL: Record<CommunityEventType, string> = {
   workshop: 'Workshop',
   office: 'Q&A',
@@ -52,7 +54,13 @@ const TYPE_LABEL: Record<CommunityEventType, string> = {
   guest: 'Guest',
 }
 const labelToType = (l: string): CommunityEventType =>
-  l === 'Q&A' ? 'office' : l === 'Watch Party' ? 'cohort' : 'workshop'
+  l === 'Q&A'
+    ? 'office'
+    : l === 'Watch Party'
+      ? 'cohort'
+      : l === 'Guest'
+        ? 'guest'
+        : 'workshop'
 
 const DURATIONS = [30, 45, 60, 90]
 
@@ -147,7 +155,9 @@ function EventForm({
   showToast: (m: string) => void
 }) {
   const [form, setForm] = useState<FormState>(() =>
-    editing ? formFromEvent(editing, defaultProvider) : emptyForm(defaultProvider),
+    editing
+      ? formFromEvent(editing, defaultProvider)
+      : emptyForm(defaultProvider),
   )
   const set = (p: Partial<FormState>) => setForm((f) => ({ ...f, ...p }))
   const [busy, setBusy] = useState(false)
@@ -201,7 +211,9 @@ function EventForm({
       onCreated()
     } catch {
       showToast(
-        editing ? 'Could not update that event' : 'Could not schedule that event',
+        editing
+          ? 'Could not update that event'
+          : 'Could not schedule that event',
       )
     } finally {
       setBusy(false)
@@ -318,7 +330,10 @@ function EventCard({
   const when = eventWhen(ev)
   const provider = providerFromUrl(ev.meeting_url)
   return (
-    <button className={`ev-card${past ? ' is-past' : ''}`} onClick={() => onOpen(ev)}>
+    <button
+      className={`ev-card${past ? 'is-past' : ''}`}
+      onClick={() => onOpen(ev)}
+    >
       <div
         className="ev-card-cover"
         style={{
@@ -334,7 +349,8 @@ function EventCard({
       </div>
       <div className="ev-card-body">
         <div className="ev-card-when">
-          <Glyph d="calendar" size={14} stroke={1.9} /> {when.short} · {when.time}
+          <Glyph d="calendar" size={14} stroke={1.9} /> {when.short} ·{' '}
+          {when.time}
         </div>
         <div className="ev-card-title">{ev.title || 'Untitled event'}</div>
         {(ev.going || ev.rsvp_count > 0) && (
@@ -356,10 +372,14 @@ function EventCard({
             <>
               View recap <Glyph d="chevR" size={15} stroke={2} />
             </>
-          ) : (
+          ) : ev.meeting_url ? (
             <>
               Join with {providerOf(provider).name}{' '}
               <Glyph d="chevR" size={15} stroke={2} />
+            </>
+          ) : (
+            <>
+              View details <Glyph d="chevR" size={15} stroke={2} />
             </>
           )}
         </div>
@@ -373,6 +393,7 @@ export function EventSheet({
   ev,
   courseId,
   orgSlug,
+  memberRsvp = true,
   onClose,
   onEdit,
   onDeleted,
@@ -382,6 +403,8 @@ export function EventSheet({
   courseId?: string
   /** Org slug — enables the same-origin .ics download (Apple Calendar). */
   orgSlug?: string
+  /** Settings gate: when false, the member RSVP button is hidden. */
+  memberRsvp?: boolean
   onClose: () => void
   /** Host only: open the editor prefilled with this event. */
   onEdit?: (ev: CommunityEventRead) => void
@@ -480,13 +503,15 @@ export function EventSheet({
     typeof document !== 'undefined' &&
     !!document.querySelector('.spaire-hub.dark')
   return createPortal(
-    <div className={`spaire-hub${isDark ? ' dark' : ''}`}>
+    <div className={`spaire-hub${isDark ? 'dark' : ''}`}>
       <div className="ev-overlay" onClick={onClose}>
         <div className="ev-sheet" onClick={(e) => e.stopPropagation()}>
           <div
             className="ev-sheet-cover"
             style={{
-              backgroundImage: ev.cover_url ? `url(${ev.cover_url})` : undefined,
+              backgroundImage: ev.cover_url
+                ? `url(${ev.cover_url})`
+                : undefined,
               backgroundPosition: ev.cover_object_position || 'center',
             }}
           >
@@ -512,13 +537,15 @@ export function EventSheet({
                 {count === 1 ? 'person going' : 'people going'}
               </div>
             )}
-            {ev.description && <p className="ev-sheet-desc">{ev.description}</p>}
+            {ev.description && (
+              <p className="ev-sheet-desc">{ev.description}</p>
+            )}
 
             {/* Member RSVP — confirming triggers the backend's confirmation
                 email (with .ics), reminder schedule and bell notifications. */}
-            {isMember && !ev.past && (
+            {isMember && !ev.past && memberRsvp && (
               <button
-                className={`ev-sheet-rsvp${going ? ' going' : ''}`}
+                className={`ev-sheet-rsvp${going ? 'going' : ''}`}
                 onClick={toggleRsvp}
                 disabled={rsvp.isPending}
               >
@@ -535,10 +562,12 @@ export function EventSheet({
               </button>
             )}
 
-            <button className="ev-sheet-join" onClick={join}>
-              <ProviderLogo k={provider} size={24} /> Join with {prov.name}
-              <Glyph d="chevR" size={16} stroke={2.2} />
-            </button>
+            {ev.meeting_url && (
+              <button className="ev-sheet-join" onClick={join}>
+                <ProviderLogo k={provider} size={24} /> Join with {prov.name}
+                <Glyph d="chevR" size={16} stroke={2.2} />
+              </button>
+            )}
 
             {/* Add to calendar — Google / Outlook deep links + Apple .ics. */}
             {!ev.past && (
@@ -605,11 +634,14 @@ export function EventsTab({
   courseId,
   orgSlug,
   defaultProvider = 'zoom',
+  memberRsvp = true,
   showToast,
 }: {
   courseId: string
   orgSlug?: string
   defaultProvider?: ProviderKey
+  /** Settings gate: when false, members can't RSVP (button hidden). */
+  memberRsvp?: boolean
   showToast: (m: string) => void
 }) {
   const { viewer, mode, token } = useHub()
@@ -669,9 +701,7 @@ export function EventsTab({
           courseId={courseId}
           defaultProvider={defaultProvider}
           editing={editing}
-          onCancel={
-            editing || events.length > 0 ? () => closeForm() : null
-          }
+          onCancel={editing || events.length > 0 ? () => closeForm() : null}
           onCreated={closeForm}
           showToast={showToast}
         />
@@ -728,6 +758,7 @@ export function EventsTab({
           ev={openEv}
           courseId={courseId}
           orgSlug={orgSlug}
+          memberRsvp={memberRsvp}
           onClose={() => setOpenEv(null)}
           onEdit={isHost ? startEdit : undefined}
           onDeleted={() => setOpenEv(null)}

@@ -205,9 +205,7 @@ def _media_to_read(post: CommunityPost) -> list[CommunityPostMediaRead]:
     return out
 
 
-def _module_chip_from_ctx(
-    post: CommunityPost, ctx: dict
-) -> CommunityModuleChip | None:
+def _module_chip_from_ctx(post: CommunityPost, ctx: dict) -> CommunityModuleChip | None:
     """Resolve a CommunityModuleChip for activity-pin posts whose
     underlying activity is module-scoped. Returns None for posts that
     aren't activity pins or are lesson-scoped (those use lesson_chip)."""
@@ -383,6 +381,20 @@ async def update_settings_creator(
     return CommunitySettingsRead.model_validate(settings, from_attributes=True)
 
 
+@creator_router.delete(
+    "/{course_id}",
+    status_code=204,
+    summary="Delete Community",
+)
+async def delete_community_creator(
+    course_id: CourseID,
+    auth_subject: CommunityCreatorWrite,
+    session: AsyncSession = Depends(get_db_session),
+) -> None:
+    await _require_creator_owns_course(session, course_id, auth_subject)
+    await community_service.delete_community(session, course_id)
+
+
 @creator_router.get(
     "/{course_id}/posts",
     response_model=ListResourceWithCursorPagination[CommunityPostRead],
@@ -413,9 +425,7 @@ async def list_posts_creator(
         )
         for p in posts
     ]
-    return ListResourceWithCursorPagination.from_results(
-        items, has_next_page=has_next
-    )
+    return ListResourceWithCursorPagination.from_results(items, has_next_page=has_next)
 
 
 @creator_router.get(
@@ -441,9 +451,7 @@ async def preview_feed_creator(
     actually see right now, not what the creator could see if they
     were an admin."""
     await _require_creator_owns_course(session, course_id, auth_subject)
-    viewer_user_id = (
-        auth_subject.subject.id if is_user(auth_subject) else None
-    )
+    viewer_user_id = auth_subject.subject.id if is_user(auth_subject) else None
     posts, has_next, ctx = await community_service.list_feed(
         session,
         course_id=course_id,
@@ -470,9 +478,7 @@ async def preview_feed_creator(
         )
         for p in posts
     ]
-    return ListResourceWithCursorPagination.from_results(
-        items, has_next_page=has_next
-    )
+    return ListResourceWithCursorPagination.from_results(items, has_next_page=has_next)
 
 
 @creator_router.get(
@@ -606,12 +612,8 @@ async def pin_post(
     post = await community_service.get_post(session, post_id)
     if post is None or post.course_id != course_id:
         raise HTTPException(status_code=404, detail="Post not found")
-    updated = await community_service.pin_post(
-        session, post=post, payload=payload
-    )
-    viewer_user_id = (
-        auth_subject.subject.id if is_user(auth_subject) else None
-    )
+    updated = await community_service.pin_post(session, post=post, payload=payload)
+    viewer_user_id = auth_subject.subject.id if is_user(auth_subject) else None
     return await _render_single_post(
         session,
         updated,
@@ -636,9 +638,7 @@ async def unpin_post(
     if post is None or post.course_id != course_id:
         raise HTTPException(status_code=404, detail="Post not found")
     updated = await community_service.unpin_post(session, post)
-    viewer_user_id = (
-        auth_subject.subject.id if is_user(auth_subject) else None
-    )
+    viewer_user_id = auth_subject.subject.id if is_user(auth_subject) else None
     return await _render_single_post(
         session,
         updated,
@@ -809,9 +809,7 @@ async def list_comments_creator(
     session: AsyncSession = Depends(get_db_session),
 ) -> list[CommunityCommentRead]:
     await _require_creator_owns_course(session, course_id, auth_subject)
-    viewer_user_id = (
-        auth_subject.subject.id if is_user(auth_subject) else None
-    )
+    viewer_user_id = auth_subject.subject.id if is_user(auth_subject) else None
     post = await community_service.get_post(session, post_id)
     if post is None or post.course_id != course_id:
         raise HTTPException(status_code=404, detail="Post not found")
@@ -972,9 +970,7 @@ async def get_self_creator(
     )
     resolved = authors.get(("user", user_id))
     if resolved is None:
-        return CommunityAuthorInstructor(
-            user_id=user_id, name=None, avatar_url=None
-        )
+        return CommunityAuthorInstructor(user_id=user_id, name=None, avatar_url=None)
     return resolved
 
 
@@ -1022,9 +1018,7 @@ async def get_settings_customer(
     # "disabled" banner — not a 403 the frontend has no path for. The
     # row defaults to `enabled=False`, so this is a no-op from the
     # student's perspective until the creator flips the toggle.
-    settings = await community_service.get_or_create_settings(
-        session, course_id
-    )
+    settings = await community_service.get_or_create_settings(session, course_id)
     return CommunitySettingsRead.model_validate(settings, from_attributes=True)
 
 
@@ -1118,9 +1112,7 @@ async def list_feed_customer(
         )
         for p in posts
     ]
-    return ListResourceWithCursorPagination.from_results(
-        items, has_next_page=has_next
-    )
+    return ListResourceWithCursorPagination.from_results(items, has_next_page=has_next)
 
 
 @customer_router.post(

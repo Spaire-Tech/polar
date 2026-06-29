@@ -701,7 +701,11 @@ const applyOptimisticReaction = (
     // Drop the user from their previous emoji row.
     const idx = reactions.findIndex((r) => r.emoji === currentMine.emoji)
     if (idx >= 0) {
-      const next = { ...reactions[idx], mine: false, count: Math.max(reactions[idx].count - 1, 0) }
+      const next = {
+        ...reactions[idx],
+        mine: false,
+        count: Math.max(reactions[idx].count - 1, 0),
+      }
       if (next.count === 0) reactions.splice(idx, 1)
       else reactions[idx] = next
     }
@@ -711,7 +715,11 @@ const applyOptimisticReaction = (
     // Add the user to the clicked emoji row.
     const idx = reactions.findIndex((r) => r.emoji === emoji)
     if (idx >= 0) {
-      reactions[idx] = { ...reactions[idx], mine: true, count: reactions[idx].count + 1 }
+      reactions[idx] = {
+        ...reactions[idx],
+        mine: true,
+        count: reactions[idx].count + 1,
+      }
     } else {
       reactions.push({ emoji, mine: true, count: 1 })
     }
@@ -881,6 +889,18 @@ export const useUpdateCommunitySettings = (courseId: string | undefined) =>
       // Optimistic-style: stash the server-returned settings so the form
       // doesn't blink while the GET re-fires.
       getQueryClient().setQueryData(creatorSettingsKey(courseId), data)
+      getQueryClient().invalidateQueries({
+        queryKey: creatorSettingsKey(courseId),
+      })
+    },
+  })
+
+export const useDeleteCommunity = (courseId: string | undefined) =>
+  useMutation({
+    mutationFn: () =>
+      creatorFetch<void>(`/v1/community/${courseId}`, { method: 'DELETE' }),
+    onSuccess: () => {
+      if (!courseId) return
       getQueryClient().invalidateQueries({
         queryKey: creatorSettingsKey(courseId),
       })
@@ -1178,13 +1198,7 @@ export const useVotePostPoll = (
   mode: CommunityIOMode = 'creator',
 ) =>
   useMutation({
-    mutationFn: ({
-      postId,
-      optionId,
-    }: {
-      postId: string
-      optionId: string
-    }) =>
+    mutationFn: ({ postId, optionId }: { postId: string; optionId: string }) =>
       communityFetch<CommunityPollRead>(
         mode,
         token,
@@ -1427,134 +1441,6 @@ export const useRsvpCommunityEvent = (
     onSuccess: () => {
       if (courseId) invalidateEvents('customer', token, courseId)
     },
-  })
-
-// ----- Host-side: attendees roster + re-announce -----
-
-export interface CommunityEventAttendeeRead {
-  customer_id: string
-  name: string
-  email: string
-  avatar_url: string | null
-  rsvp_at: string
-}
-
-export const useCommunityEventAttendees = (
-  courseId: string | undefined,
-  eventId: string | undefined,
-) =>
-  useQuery<CommunityEventAttendeeRead[]>({
-    queryKey: ['community-event-attendees', courseId ?? '', eventId ?? ''],
-    queryFn: () =>
-      communityFetch<CommunityEventAttendeeRead[]>(
-        'creator',
-        undefined,
-        `${communityBase('creator', courseId!)}/events/${eventId}/attendees`,
-      ),
-    // Only fetch when the host opens the roster — saves a request on
-    // every page load. The `enabled` is the gate; caller flips it by
-    // passing eventId only when the modal is open.
-    enabled: !!courseId && !!eventId,
-  })
-
-export interface CommunityEventAnnounceResult {
-  enqueued: boolean
-}
-
-export const useAnnounceCommunityEvent = (courseId: string | undefined) =>
-  useMutation({
-    mutationFn: (eventId: string) =>
-      communityFetch<CommunityEventAnnounceResult>(
-        'creator',
-        undefined,
-        `${communityBase('creator', courseId!)}/events/${eventId}/announce`,
-        { method: 'POST' },
-      ),
-  })
-
-// ----- Host-side: per-event announcement composer (P3) -----
-
-export interface CommunityEventAnnouncementRead {
-  id: string
-  event_id: string
-  course_id: string
-  subject: string
-  body: string
-  status: 'draft' | 'sending' | 'sent' | 'failed'
-  sent_at: string | null
-  recipient_count: number
-  created_at: string
-  modified_at: string | null
-}
-
-export interface CommunityEventAnnouncementCreateBody {
-  subject: string
-  body: string
-  send_now: boolean
-}
-
-export interface CommunityEventAnnouncementPreviewBody {
-  subject: string
-  body: string
-}
-
-export interface CommunityEventAnnouncementPreviewResult {
-  subject: string
-  html: string
-}
-
-export const useCreateCommunityEventAnnouncement = (
-  courseId: string | undefined,
-  eventId: string | undefined,
-) =>
-  useMutation({
-    mutationFn: (body: CommunityEventAnnouncementCreateBody) =>
-      communityFetch<CommunityEventAnnouncementRead>(
-        'creator',
-        undefined,
-        `${communityBase('creator', courseId!)}/events/${eventId}/announcements`,
-        { method: 'POST', body: JSON.stringify(body) },
-      ),
-    onSuccess: () => {
-      // Refresh the announcements list so the audit view (when we
-      // surface it) reflects the new row immediately.
-      getQueryClient().invalidateQueries({
-        queryKey: ['community-event-announcements', courseId ?? '', eventId ?? ''],
-      })
-    },
-  })
-
-export const usePreviewCommunityEventAnnouncement = (
-  courseId: string | undefined,
-  eventId: string | undefined,
-) =>
-  useMutation({
-    mutationFn: (body: CommunityEventAnnouncementPreviewBody) =>
-      communityFetch<CommunityEventAnnouncementPreviewResult>(
-        'creator',
-        undefined,
-        `${communityBase('creator', courseId!)}/events/${eventId}/announcements/preview`,
-        { method: 'POST', body: JSON.stringify(body) },
-      ),
-  })
-
-export const useCommunityEventAnnouncements = (
-  courseId: string | undefined,
-  eventId: string | undefined,
-) =>
-  useQuery<CommunityEventAnnouncementRead[]>({
-    queryKey: [
-      'community-event-announcements',
-      courseId ?? '',
-      eventId ?? '',
-    ],
-    queryFn: () =>
-      communityFetch<CommunityEventAnnouncementRead[]>(
-        'creator',
-        undefined,
-        `${communityBase('creator', courseId!)}/events/${eventId}/announcements`,
-      ),
-    enabled: !!courseId && !!eventId,
   })
 
 // =====================================================================
@@ -1958,11 +1844,14 @@ export type CustomerNotificationPreferences = {
 export const useUpdateCommunityProfile = (token: string | null | undefined) =>
   useMutation({
     mutationFn: (body: { name: string | null; avatar_url: string | null }) =>
-      portalFetch<{ id: string; name: string | null; avatar_url: string | null }>(
-        '/v1/customer-portal/customers/me/profile',
-        token!,
-        { method: 'PATCH', body: JSON.stringify(body) },
-      ),
+      portalFetch<{
+        id: string
+        name: string | null
+        avatar_url: string | null
+      }>('/v1/customer-portal/customers/me/profile', token!, {
+        method: 'PATCH',
+        body: JSON.stringify(body),
+      }),
     onSuccess: () => {
       const qc = getQueryClient()
       qc.invalidateQueries({ queryKey: ['customer'] })
