@@ -336,7 +336,24 @@ export type GeneratedPortalPageProps = {
    *  first time the clip needs to play, so the full URL is never embedded in
    *  the page. Returns null when unavailable (e.g. quota exhausted). */
   onRequestSampleUrl?: () => Promise<string | null>
+
+  /** Section visibility (landing_overrides.visible). A section whose id maps
+   *  to `false` is not rendered on the public page; in the editor it moves to
+   *  the "hidden sections" bar where it can be brought back. */
+  sectionVisible?: Record<string, boolean>
+  /** Hide/show a body section (editor only). */
+  onSetSectionHidden?: (id: string, hidden: boolean) => void
 }
+
+// The body sections the live landing renders, in render order. The hero is
+// always first and isn't a hideable body section. Used for the hide control
+// and the "hidden sections" recovery bar.
+const BODY_SECTIONS: { id: string; label: string }[] = [
+  { id: 'instructor', label: 'Instructor' },
+  { id: 'sample', label: 'Free sample' },
+  { id: 'lessons', label: 'Lessons' },
+  { id: 'faq', label: 'FAQ' },
+]
 
 export type EditField =
   | 'title'
@@ -424,7 +441,26 @@ export function GeneratedPortalPage({
   onAddBioParagraph,
   onRemoveBioParagraph,
   onRequestSampleUrl,
+  sectionVisible,
+  onSetSectionHidden,
 }: GeneratedPortalPageProps) {
+  const isSectionHidden = (id: string) => sectionVisible?.[id] === false
+  // A small hover control rendered at the top of each editable body section.
+  // A render helper (not a nested component) so it doesn't remount each render.
+  const sectionHideControl = (id: string): React.ReactNode =>
+    onSetSectionHidden ? (
+      <button
+        type="button"
+        className="gpp-section-hide"
+        title="Hide section"
+        onClick={(e) => {
+          e.stopPropagation()
+          onSetSectionHidden(id, true)
+        }}
+      >
+        Hide section
+      </button>
+    ) : null
   const isEpisodic = structure === 'episodic'
   const unitCap = unit === 'episode' ? 'Episode' : 'Lesson'
   const year = new Date().getFullYear()
@@ -1601,8 +1637,10 @@ export function GeneratedPortalPage({
       )}
 
       {/* ════════ INSTRUCTOR (Course Page Empty State.html) ════════ */}
-      {(instructorName || instructorSub || instructorBio.length > 0) && (
-        <section className="instructor">
+      {(instructorName || instructorSub || instructorBio.length > 0) &&
+        !isSectionHidden('instructor') && (
+        <section className="instructor gpp-section">
+          {editable && sectionHideControl('instructor')}
           <div className="inst-inner">
             <div className="inst-copy">
               <div className="inst-head">
@@ -1774,8 +1812,9 @@ export function GeneratedPortalPage({
       )}
 
       {/* ════════ FREE SAMPLE (Course Page Empty State.html) ════════ */}
-      {hasSampleSection && (
-        <section className="sample">
+      {hasSampleSection && !isSectionHidden('sample') && (
+        <section className="sample gpp-section">
+          {editable && sectionHideControl('sample')}
           <div className="sample-eyebrow">Free Sample</div>
           <h2>Watch a free sample</h2>
           <p className="sample-sub">
@@ -1927,8 +1966,10 @@ export function GeneratedPortalPage({
       )}
 
       {/* ════════ LESSONS — module rows (CPES) or episode strip (MCP) ════════ */}
-      {isEpisodic ? (
-        <div className="lessons">
+      {!isSectionHidden('lessons') &&
+        (isEpisodic ? (
+        <div className="lessons gpp-section">
+          {editable && sectionHideControl('lessons')}
           <div className="row-head strip-rh">
             {/* Desktop labels this "Episodes"; the mobile design uses
                 "Free preview". Both render, one shows per breakpoint. */}
@@ -1980,7 +2021,8 @@ export function GeneratedPortalPage({
           </div>
         </div>
       ) : (
-        <div className="lessons">
+        <div className="lessons gpp-section">
+          {editable && sectionHideControl('lessons')}
           {groups.map((g, gi) => (
             <section className="row" key={gi}>
               <div className="row-head">
@@ -1997,11 +2039,13 @@ export function GeneratedPortalPage({
             </section>
           ))}
         </div>
-      )}
+        ))}
 
       {/* ════════ FAQ (Course Page Empty State.html) ════════ */}
-      {(faq.length > 0 || (editable && onAddFaq)) && (
-        <section className="faq">
+      {(faq.length > 0 || (editable && onAddFaq)) &&
+        !isSectionHidden('faq') && (
+        <section className="faq gpp-section">
+          {editable && sectionHideControl('faq')}
           <div className="faq-inner">
             <h2>Questions? Answers.</h2>
             <div className="faq-list">
@@ -2081,6 +2125,26 @@ export function GeneratedPortalPage({
           </div>
         </section>
       )}
+
+      {/* ════════ HIDDEN SECTIONS (editor only) — bring any hidden body
+            section back. Keeps "hide" reversible instead of destructive. ═══ */}
+      {editable &&
+        onSetSectionHidden &&
+        BODY_SECTIONS.some((s) => isSectionHidden(s.id)) && (
+          <div className="gpp-hidden-bar">
+            <span className="gpp-hidden-label">Hidden sections</span>
+            {BODY_SECTIONS.filter((s) => isSectionHidden(s.id)).map((s) => (
+              <button
+                key={s.id}
+                type="button"
+                className="gpp-add"
+                onClick={() => onSetSectionHidden(s.id, false)}
+              >
+                + Show {s.label}
+              </button>
+            ))}
+          </div>
+        )}
 
       {/* ════════ ENROLL SHEET — a locked lesson was clicked ════════ */}
       <div
@@ -2843,6 +2907,49 @@ export function GeneratedPortalPage({
         }
         .gpp .faq-remove:hover {
           background: color-mix(in srgb, #ef4444 10%, transparent);
+        }
+        /* Per-section hide control — quiet, appears on section hover. */
+        .gpp .gpp-section {
+          position: relative;
+        }
+        .gpp .gpp-section-hide {
+          position: absolute;
+          top: 14px;
+          right: 14px;
+          z-index: 5;
+          padding: 5px 11px;
+          border-radius: 980px;
+          border: 1px solid
+            color-mix(in srgb, var(--color-ce-accent) 45%, transparent);
+          background: color-mix(in srgb, var(--bg-0, #fff) 88%, transparent);
+          -webkit-backdrop-filter: blur(12px);
+          backdrop-filter: blur(12px);
+          color: var(--color-ce-accent);
+          font: inherit;
+          font-size: 12px;
+          font-weight: 600;
+          cursor: pointer;
+          opacity: 0;
+          transition: opacity 0.15s;
+        }
+        .gpp .gpp-section:hover .gpp-section-hide {
+          opacity: 1;
+        }
+        .gpp .gpp-hidden-bar {
+          display: flex;
+          flex-wrap: wrap;
+          align-items: center;
+          gap: 10px;
+          max-width: 1080px;
+          margin: 0 auto;
+          padding: 24px 32px 48px;
+        }
+        .gpp .gpp-hidden-label {
+          font-size: 12px;
+          font-weight: 600;
+          letter-spacing: 0.04em;
+          text-transform: uppercase;
+          opacity: 0.5;
         }
 
         /* ── editor affordances (Course Page Empty State.html, verbatim) ── */

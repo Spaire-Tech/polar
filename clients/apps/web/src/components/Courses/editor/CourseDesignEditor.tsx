@@ -648,6 +648,21 @@ export function CourseDesignEditor({
     [aiInstructor, commitOverrides],
   )
 
+  // ── section visibility (landing_overrides.visible). Hiding a body section
+  //    drops it from the public page and moves it to the editor's hidden bar;
+  //    one undo step, reversible. ────────────────────────────────────────────
+  const onSetSectionHidden = useCallback(
+    (id: string, hidden: boolean) => {
+      const prev = course.landing_overrides?.visible?.[id] ?? null
+      commitOverrides(
+        { visible: { [id]: !hidden } },
+        { visible: { [id]: prev } },
+        hidden ? 'Hide section' : 'Show section',
+      )
+    },
+    [course.landing_overrides?.visible, commitOverrides],
+  )
+
   // ── hero copy (the AI-written hero, falling back to course fields) ────────
   const [sampleOpen, setSampleOpen] = useState(false)
   const { priceLabel, recurring } = formatPrice(product)
@@ -762,6 +777,8 @@ export function CourseDesignEditor({
       onRemoveBadge={onRemoveBadge}
       onAddBioParagraph={onAddBioParagraph}
       onRemoveBioParagraph={onRemoveBioParagraph}
+      sectionVisible={course.landing_overrides?.visible}
+      onSetSectionHidden={onSetSectionHidden}
       avatarUrl={organization?.avatar_url ?? null}
       instructorSub={aiInstructor?.sub ?? ''}
       instructorBio={aiInstructor?.bio ?? []}

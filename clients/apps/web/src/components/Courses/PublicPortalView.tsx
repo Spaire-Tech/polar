@@ -439,6 +439,7 @@ export function PublicPortalView({
         sampleImageUrl={sample?.thumbnail_url ?? null}
         samplePlayable={samplePlayable}
         onRequestSampleUrl={onRequestSampleUrl}
+        sectionVisible={landing.landing_overrides?.visible}
         samplePlaybackId={sample?.mux_playback_id ?? null}
         samplePlaybackUrl={sample?.mux_playback_url ?? null}
         sampleStart={sample?.start_seconds ?? 0}
