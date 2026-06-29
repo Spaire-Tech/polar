@@ -130,7 +130,7 @@ export function CommunityHubStudent({
 
   return (
     <HubProvider value={ctx}>
-      <div className={`spaire-hub${dark ? 'dark' : ''}`}>
+      <div className={`spaire-hub ${dark ? 'dark' : ''}`}>
         <div className="mh-cover is-static">
           {cover && (
             <img src={cover} alt="" style={{ objectPosition: coverPos }} />
