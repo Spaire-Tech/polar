@@ -48,7 +48,7 @@ const TIERS: DesignTier[] = [
     recommended: false,
     includes: 'Includes',
     features: [
-      { label: <>Merchant of Record — Spaire handles tax &amp; VAT</>, shield: true },
+      { label: <>Merchant of Record — we handle sales tax &amp; VAT for you</>, shield: true },
       {
         label: (
           <>
@@ -56,11 +56,12 @@ const TIERS: DesignTier[] = [
           </>
         ),
       },
-      { label: <>5 published courses</> },
-      { label: <>10K email subscribers</> },
-      { label: <>25 hours of hosted video</> },
-      { label: <>Email sequences, segments &amp; drip</> },
+      { label: <>5 published courses · unlimited drafts</> },
+      { label: <>10K email subscribers — your buyers never count</> },
+      { label: <>Unlimited email sends, sequences &amp; drip</> },
       { label: <>Revenue, MRR &amp; churn analytics</> },
+      { label: <>25 hours of hosted video</> },
+      { label: <>Full REST API, webhooks &amp; license keys</> },
     ],
   },
   {
@@ -85,10 +86,11 @@ const TIERS: DesignTier[] = [
       },
       { label: <>25 published courses</> },
       { label: <>50K email subscribers</> },
-      { label: <>Custom email sender domain</> },
+      { label: <>Send from your own email domain</> },
       { label: <>Email A/B testing</> },
       { label: <>White-label player &amp; customer wallet</> },
-      { label: <>5 team seats</> },
+      { label: <>Remove “Powered by Spaire” branding</> },
+      { label: <>5 team seats · same-day priority support</> },
     ],
   },
   {
@@ -115,8 +117,8 @@ const TIERS: DesignTier[] = [
       { label: <>150K email subscribers</> },
       { label: <>200 video hours · 250 GB storage</> },
       { label: <>20 team seats · audit logs</> },
-      { label: <>Slack + dedicated AM · 4-hr SLA</> },
-      { label: <>Custom pricing above $50k/mo GMV</> },
+      { label: <>Slack + dedicated account manager · 4-hour SLA</> },
+      { label: <>Custom pricing above $50k/mo in sales</> },
     ],
   },
 ]
