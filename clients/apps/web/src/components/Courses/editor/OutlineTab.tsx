@@ -33,9 +33,12 @@ import SearchOutlined from '@mui/icons-material/SearchOutlined'
 import VisibilityOutlined from '@mui/icons-material/VisibilityOutlined'
 import { useMemo, useState } from 'react'
 import { LessonOptionsMenu, LessonOptionsPatch } from './LessonOptionsMenu'
-import { LessonContentType } from './ModuleCard'
 import { PaywallRow } from './PaywallRow'
 import { ScheduleEdits, ScheduleMenu } from './ScheduleMenu'
+
+// The kinds of lesson the outline can create. Lives here (the live outline)
+// now that the old ModuleCard that used to own it has been removed.
+export type LessonContentType = 'text' | 'video' | 'quiz'
 
 const THUMB_GRADIENTS: [string, string][] = [
   ['#1c1c2e', '#2d1b69'],
