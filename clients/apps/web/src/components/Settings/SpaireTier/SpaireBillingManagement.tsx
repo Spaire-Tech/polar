@@ -18,14 +18,10 @@ import {
   useUpdateSpaireBillingDetails,
 } from '@/hooks/queries/spaireTier'
 import { createClientSideAPI } from '@/utils/client'
-import AddOutlined from '@mui/icons-material/AddOutlined'
-import CreditCardOutlined from '@mui/icons-material/CreditCardOutlined'
-import DownloadOutlined from '@mui/icons-material/DownloadOutlined'
 import { enums, schemas } from '@spaire/client'
 import Button from '@spaire/ui/components/atoms/Button'
 import CountryPicker from '@spaire/ui/components/atoms/CountryPicker'
 import Input from '@spaire/ui/components/atoms/Input'
-import Pill from '@spaire/ui/components/atoms/Pill'
 import { getThemePreset } from '@spaire/ui/hooks/theming'
 import { useMemo, useState } from 'react'
 
@@ -54,14 +50,12 @@ const formatDate = (iso: string | null | undefined): string => {
   }
 }
 
-const statusPillColor = (
-  status: string,
-): 'green' | 'yellow' | 'purple' | 'gray' => {
-  if (status === 'paid') return 'green'
-  if (status === 'pending') return 'yellow'
-  if (status === 'refunded' || status === 'partially_refunded') return 'purple'
-  return 'gray'
-}
+// Neutral status chip — no accent colours; the label alone carries the state.
+const StatusChip = ({ status }: { status: string }) => (
+  <span className="dark:bg-polar-700 inline-flex rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium capitalize text-gray-600 dark:text-gray-300">
+    {status.replace(/_/g, ' ')}
+  </span>
+)
 
 const cardLabel = (pm: SpairePaymentMethod): string => {
   if (pm.type !== 'card') return pm.type.replace(/_/g, ' ')
@@ -103,27 +97,25 @@ const PaymentMethodRow = ({
   }
 
   return (
-    <div className="flex flex-col gap-y-4 rounded-2xl border border-gray-200 bg-white p-4 sm:flex-row sm:items-center sm:justify-between">
-      <div className="flex flex-row items-center gap-x-3">
-        <CreditCardOutlined
-          className="text-gray-400"
-          style={{ fontSize: 20 }}
-        />
-        <div>
-          <div className="flex flex-row items-center gap-x-2">
-            <span className="text-sm font-medium text-gray-900">
-              {cardLabel(paymentMethod)}
-            </span>
-            {isDefault && <Pill color="green">Default</Pill>}
-          </div>
-          {cardExpiry(paymentMethod) && (
-            <span className="text-xs text-gray-500">
-              {cardExpiry(paymentMethod)}
+    <div className="dark:border-polar-700 flex flex-col gap-y-3 rounded-2xl border border-gray-200 bg-white p-4 dark:bg-transparent sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-y-0.5">
+        <div className="flex flex-row items-center gap-x-2">
+          <span className="text-sm font-medium text-gray-900 dark:text-white">
+            {cardLabel(paymentMethod)}
+          </span>
+          {isDefault && (
+            <span className="dark:bg-polar-700 rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600 dark:text-gray-300">
+              Default
             </span>
           )}
         </div>
+        {cardExpiry(paymentMethod) && (
+          <span className="text-xs text-gray-500">
+            {cardExpiry(paymentMethod)}
+          </span>
+        )}
       </div>
-      <div className="flex flex-row items-center gap-x-2">
+      <div className="flex flex-row items-center gap-x-1">
         {canManage && !isDefault && (
           <Button
             variant="ghost"
@@ -138,7 +130,7 @@ const PaymentMethodRow = ({
           <Button
             variant="ghost"
             size="sm"
-            className="text-red-500 hover:text-red-600"
+            className="text-gray-500 hover:text-gray-900 dark:hover:text-white"
             loading={remove.isPending}
             onClick={onRemove}
           >
@@ -210,7 +202,9 @@ const BillingAddressForm = ({
 
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-y-4 p-6">
-      <h2 className="text-lg font-medium text-gray-900">Billing address</h2>
+      <h2 className="text-lg font-medium text-gray-900 dark:text-white">
+        Billing address
+      </h2>
       <Input
         placeholder="Name on invoice"
         value={billingName}
@@ -295,47 +289,52 @@ const OrderRow = ({
   }
 
   return (
-    <div className="flex flex-row items-center justify-between gap-x-4 px-4 py-3">
-      <div className="flex min-w-0 flex-col">
-        <span className="truncate text-sm font-medium text-gray-900">
-          {order.description}
-        </span>
-        <span className="text-xs text-gray-500">
-          {formatDate(order.created_at)} ·{' '}
-          {order.invoice_number ?? order.id.slice(0, 8)}
-        </span>
-      </div>
-      <div className="flex flex-row items-center gap-x-3">
-        <Pill color={statusPillColor(order.status)}>
-          {order.status.replace(/_/g, ' ')}
-        </Pill>
-        <span
-          className={
-            refunded
-              ? 'text-sm text-gray-400 line-through'
-              : 'text-sm font-medium text-gray-900'
-          }
-        >
-          {formatCurrency(order.total_amount, order.currency)}
-        </span>
-        {order.is_invoice_generated && (
-          <Button
-            variant="ghost"
-            size="icon"
-            loading={getInvoice.isPending}
+    <tr className="dark:hover:bg-polar-800 hover:bg-gray-50">
+      <td className="px-5 py-3.5">
+        <div className="flex flex-col">
+          <span className="font-medium text-gray-900 dark:text-white">
+            {order.description}
+          </span>
+          <span className="text-xs text-gray-400">
+            {order.invoice_number ?? order.id.slice(0, 8)}
+          </span>
+        </div>
+      </td>
+      <td className="px-5 py-3.5 tabular-nums whitespace-nowrap text-gray-500">
+        {formatDate(order.created_at)}
+      </td>
+      <td className="px-5 py-3.5">
+        <StatusChip status={order.status} />
+      </td>
+      <td
+        className={`px-5 py-3.5 text-right tabular-nums whitespace-nowrap ${
+          refunded
+            ? 'text-gray-400 line-through'
+            : 'font-medium text-gray-900 dark:text-white'
+        }`}
+      >
+        {formatCurrency(order.total_amount, order.currency)}
+      </td>
+      <td className="px-5 py-3.5 text-right">
+        {order.is_invoice_generated ? (
+          <button
+            type="button"
             onClick={onDownload}
-            title="Download invoice"
+            disabled={getInvoice.isPending}
+            className="text-sm font-medium text-gray-500 underline underline-offset-2 hover:text-gray-900 disabled:opacity-50 dark:hover:text-white"
           >
-            <DownloadOutlined style={{ fontSize: 18 }} />
-          </Button>
+            {getInvoice.isPending ? 'Preparing…' : 'Download'}
+          </button>
+        ) : (
+          <span className="text-gray-300">—</span>
         )}
-      </div>
-    </div>
+      </td>
+    </tr>
   )
 }
 
 const EmptyState = ({ children }: { children: React.ReactNode }) => (
-  <div className="rounded-2xl border border-dashed border-gray-200 p-8 text-center text-sm text-gray-500">
+  <div className="rounded-2xl border border-dashed border-gray-200 p-8 text-center text-sm text-gray-500 dark:border-polar-700">
     {children}
   </div>
 )
@@ -391,7 +390,7 @@ export default function SpaireBillingManagement({
   }
 
   return (
-    <div className="flex flex-col gap-y-12">
+    <div className="flex flex-col gap-y-10">
       {/* Payment methods */}
       <Section id="payment-methods">
         <div className="flex flex-row items-start justify-between gap-x-4">
@@ -401,11 +400,9 @@ export default function SpaireBillingManagement({
           />
           <Button
             variant="secondary"
-            wrapperClassNames="flex flex-row items-center gap-x-1"
             loading={createSession.isPending}
             onClick={onAddCard}
           >
-            <AddOutlined style={{ fontSize: 16 }} />
             Add card
           </Button>
         </div>
@@ -439,30 +436,47 @@ export default function SpaireBillingManagement({
             {hasAddress ? 'Edit' : 'Add address'}
           </Button>
         </div>
-        <div className="rounded-2xl border border-gray-200 bg-white p-6">
+        <div className="dark:border-polar-700 rounded-2xl border border-gray-200 bg-white p-6 dark:bg-transparent">
           {hasAddress ? (
-            <div className="flex flex-col gap-y-0.5 text-sm text-gray-700">
-              {billingDetails?.billing_name && (
-                <span className="font-medium text-gray-900">
-                  {billingDetails.billing_name}
-                </span>
-              )}
-              {address?.line1 && <span>{address.line1}</span>}
-              {address?.line2 && <span>{address.line2}</span>}
-              <span>
-                {[address?.postal_code, address?.city]
-                  .filter(Boolean)
-                  .join(' ')}
-              </span>
-              <span>
-                {[address?.state, address?.country].filter(Boolean).join(', ')}
-              </span>
+            <dl className="grid grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-2">
+              <div className="flex flex-col gap-y-1">
+                <dt className="text-xs font-medium uppercase tracking-wide text-gray-400">
+                  Name
+                </dt>
+                <dd className="text-sm text-gray-900 dark:text-white">
+                  {billingDetails?.billing_name || '—'}
+                </dd>
+              </div>
+              <div className="flex flex-col gap-y-1">
+                <dt className="text-xs font-medium uppercase tracking-wide text-gray-400">
+                  Address
+                </dt>
+                <dd className="flex flex-col text-sm text-gray-900 dark:text-white">
+                  {address?.line1 && <span>{address.line1}</span>}
+                  {address?.line2 && <span>{address.line2}</span>}
+                  <span>
+                    {[address?.postal_code, address?.city]
+                      .filter(Boolean)
+                      .join(' ') || '—'}
+                  </span>
+                  <span className="text-gray-500">
+                    {[address?.state, address?.country]
+                      .filter(Boolean)
+                      .join(', ')}
+                  </span>
+                </dd>
+              </div>
               {billingDetails?.tax_id && (
-                <span className="mt-1 text-gray-500">
-                  Tax ID: {billingDetails.tax_id[0]}
-                </span>
+                <div className="flex flex-col gap-y-1">
+                  <dt className="text-xs font-medium uppercase tracking-wide text-gray-400">
+                    Tax ID
+                  </dt>
+                  <dd className="text-sm text-gray-900 dark:text-white">
+                    {billingDetails.tax_id[0]}
+                  </dd>
+                </div>
               )}
-            </div>
+            </dl>
           ) : (
             <p className="text-sm text-gray-500">No billing address on file.</p>
           )}
@@ -478,10 +492,27 @@ export default function SpaireBillingManagement({
         {orderItems.length === 0 ? (
           <EmptyState>No orders yet.</EmptyState>
         ) : (
-          <div className="divide-y divide-gray-100 overflow-hidden rounded-2xl border border-gray-200 bg-white">
-            {orderItems.map((order) => (
-              <OrderRow key={order.id} organizationId={orgId} order={order} />
-            ))}
+          <div className="dark:border-polar-700 overflow-x-auto rounded-2xl border border-gray-200 bg-white dark:bg-transparent">
+            <table className="w-full min-w-[34rem] text-sm">
+              <thead>
+                <tr className="dark:border-polar-700 border-b border-gray-100 text-left text-xs uppercase tracking-wide text-gray-400">
+                  <th className="px-5 py-3 font-medium">Description</th>
+                  <th className="px-5 py-3 font-medium">Date</th>
+                  <th className="px-5 py-3 font-medium">Status</th>
+                  <th className="px-5 py-3 text-right font-medium">Amount</th>
+                  <th className="px-5 py-3 text-right font-medium">Invoice</th>
+                </tr>
+              </thead>
+              <tbody className="dark:divide-polar-700 divide-y divide-gray-100">
+                {orderItems.map((order) => (
+                  <OrderRow
+                    key={order.id}
+                    organizationId={orgId}
+                    order={order}
+                  />
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
       </Section>
