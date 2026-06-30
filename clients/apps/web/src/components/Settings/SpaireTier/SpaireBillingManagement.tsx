@@ -103,7 +103,7 @@ const PaymentMethodRow = ({
   }
 
   return (
-    <div className="dark:border-polar-700 flex flex-col gap-y-4 rounded-2xl border border-gray-200 bg-white p-4 sm:flex-row sm:items-center sm:justify-between dark:bg-transparent">
+    <div className="flex flex-col gap-y-4 rounded-2xl border border-gray-200 bg-white p-4 sm:flex-row sm:items-center sm:justify-between">
       <div className="flex flex-row items-center gap-x-3">
         <CreditCardOutlined
           className="text-gray-400"
@@ -111,7 +111,7 @@ const PaymentMethodRow = ({
         />
         <div>
           <div className="flex flex-row items-center gap-x-2">
-            <span className="text-sm font-medium text-gray-900 dark:text-white">
+            <span className="text-sm font-medium text-gray-900">
               {cardLabel(paymentMethod)}
             </span>
             {isDefault && <Pill color="green">Default</Pill>}
@@ -210,9 +210,7 @@ const BillingAddressForm = ({
 
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-y-4 p-6">
-      <h2 className="text-lg font-medium text-gray-900 dark:text-white">
-        Billing address
-      </h2>
+      <h2 className="text-lg font-medium text-gray-900">Billing address</h2>
       <Input
         placeholder="Name on invoice"
         value={billingName}
@@ -299,7 +297,7 @@ const OrderRow = ({
   return (
     <div className="flex flex-row items-center justify-between gap-x-4 px-4 py-3">
       <div className="flex min-w-0 flex-col">
-        <span className="truncate text-sm font-medium text-gray-900 dark:text-white">
+        <span className="truncate text-sm font-medium text-gray-900">
           {order.description}
         </span>
         <span className="text-xs text-gray-500">
@@ -315,7 +313,7 @@ const OrderRow = ({
           className={
             refunded
               ? 'text-sm text-gray-400 line-through'
-              : 'text-sm font-medium text-gray-900 dark:text-white'
+              : 'text-sm font-medium text-gray-900'
           }
         >
           {formatCurrency(order.total_amount, order.currency)}
@@ -337,7 +335,7 @@ const OrderRow = ({
 }
 
 const EmptyState = ({ children }: { children: React.ReactNode }) => (
-  <div className="dark:border-polar-700 rounded-2xl border border-dashed border-gray-200 p-8 text-center text-sm text-gray-500">
+  <div className="rounded-2xl border border-dashed border-gray-200 p-8 text-center text-sm text-gray-500">
     {children}
   </div>
 )
@@ -441,11 +439,11 @@ export default function SpaireBillingManagement({
             {hasAddress ? 'Edit' : 'Add address'}
           </Button>
         </div>
-        <div className="dark:border-polar-700 rounded-2xl border border-gray-200 bg-white p-6 dark:bg-transparent">
+        <div className="rounded-2xl border border-gray-200 bg-white p-6">
           {hasAddress ? (
-            <div className="flex flex-col gap-y-0.5 text-sm text-gray-700 dark:text-gray-300">
+            <div className="flex flex-col gap-y-0.5 text-sm text-gray-700">
               {billingDetails?.billing_name && (
-                <span className="font-medium text-gray-900 dark:text-white">
+                <span className="font-medium text-gray-900">
                   {billingDetails.billing_name}
                 </span>
               )}
@@ -480,7 +478,7 @@ export default function SpaireBillingManagement({
         {orderItems.length === 0 ? (
           <EmptyState>No orders yet.</EmptyState>
         ) : (
-          <div className="dark:border-polar-700 divide-y divide-gray-100 overflow-hidden rounded-2xl border border-gray-200 bg-white dark:divide-gray-800 dark:bg-transparent">
+          <div className="divide-y divide-gray-100 overflow-hidden rounded-2xl border border-gray-200 bg-white">
             {orderItems.map((order) => (
               <OrderRow key={order.id} organizationId={orgId} order={order} />
             ))}
