@@ -24,10 +24,9 @@ export default function BillingPage({
         <Section id="subscriptions">
           <SectionDescription title="Subscriptions" />
           <OrganizationSubscriptionSettings organization={org} />
-        </Section>
-
-        <Section id="customer_portal">
-          <SectionDescription title="Customer portal" />
+          {/* Course-only reposition: the standalone "Customer portal" section is
+              removed; its sole remaining control (let customers change their
+              plan) now lives here under Subscriptions. */}
           <OrganizationCustomerPortalSettings organization={org} />
         </Section>
 
