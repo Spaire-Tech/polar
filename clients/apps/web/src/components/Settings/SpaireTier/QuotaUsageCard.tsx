@@ -3,8 +3,6 @@
 import { QuotaUsage, useSpaireUsage } from '@/hooks/queries/spaireTier'
 import { schemas } from '@spaire/client'
 import { useMemo } from 'react'
-import { twMerge } from 'tailwind-merge'
-import { SettingsGroup, SettingsGroupItem } from '../SettingsGroup'
 
 interface QuotaUsageCardProps {
   organization: schemas['Organization']
@@ -12,7 +10,7 @@ interface QuotaUsageCardProps {
 
 const QUOTA_LABELS: Record<string, { label: string; unit: string }> = {
   video_hours_hosted: { label: 'Video hours hosted', unit: 'hours' },
-  video_views_monthly: { label: 'Video views (this month)', unit: 'views' },
+  video_views_monthly: { label: 'Video views', unit: 'views' },
   storage_gb: { label: 'File storage', unit: 'GB' },
 }
 
@@ -31,15 +29,24 @@ const QuotaUsageCard = ({ organization }: QuotaUsageCardProps) => {
   }, [usage.data])
 
   return (
-    <SettingsGroup>
-      {usage.isLoading && (
-        <SettingsGroupItem title="Loading usage…" vertical>
-          <div className="h-3 w-full animate-pulse rounded-full bg-gray-100" />
-        </SettingsGroupItem>
+    <div className="dark:border-polar-700 overflow-hidden rounded-2xl border border-gray-200 bg-white dark:bg-transparent">
+      {usage.isLoading ? (
+        <div className="flex flex-col gap-y-6 p-6">
+          {[0, 1, 2].map((i) => (
+            <div
+              key={i}
+              className="h-10 w-full animate-pulse rounded-lg bg-gray-100"
+            />
+          ))}
+        </div>
+      ) : (
+        <div className="dark:divide-polar-700 divide-y divide-gray-100">
+          {sorted.map((q) => (
+            <QuotaRow key={q.quota} quota={q} />
+          ))}
+        </div>
       )}
-      {!usage.isLoading &&
-        sorted.map((q) => <QuotaRow key={q.quota} quota={q} />)}
-    </SettingsGroup>
+    </div>
   )
 }
 
@@ -54,55 +61,60 @@ const QuotaRow = ({ quota }: { quota: QuotaUsage }) => {
       ? 0
       : Math.min(100, Math.round((quota.used / quota.limit) * 100))
 
-  const barColor = quota.is_exceeded
-    ? 'bg-red-500'
-    : percent >= 80
-      ? 'bg-amber-500'
-      : 'bg-blue-500'
-
   return (
-    <SettingsGroupItem
-      title={meta.label}
-      description={
-        isUnlimited
-          ? 'Unlimited on your current plan'
-          : quota.is_exceeded
-            ? `You're at or over the cap. Upgrade your plan to keep going.`
-            : `${quota.used.toLocaleString()} of ${quota.limit?.toLocaleString()} ${meta.unit} used`
-      }
-      vertical
-    >
-      <div className="flex w-full flex-col gap-y-2">
-        <div className="h-2 w-full overflow-hidden rounded-full bg-gray-100">
-          {!isUnlimited && (
-            <div
-              className={twMerge('h-full transition-all', barColor)}
-              style={{ width: `${percent}%` }}
-            />
+    <div className="flex flex-col gap-y-2.5 px-6 py-5">
+      {/* Label + headline figure, aligned to the edges so the numbers form a
+          clean column down the card. */}
+      <div className="flex items-baseline justify-between gap-x-4">
+        <span className="text-sm font-medium text-gray-900 dark:text-white">
+          {meta.label}
+        </span>
+        <span className="text-sm tabular-nums text-gray-900 dark:text-white">
+          {isUnlimited ? (
+            'Unlimited'
+          ) : (
+            <>
+              {quota.used.toLocaleString()}
+              <span className="text-gray-400">
+                {' '}
+                / {quota.limit?.toLocaleString()} {meta.unit}
+              </span>
+            </>
           )}
-        </div>
-        <div className="flex flex-row items-center justify-between text-xs text-gray-500">
-          <span>
-            {isUnlimited
-              ? '∞'
-              : `${percent}%`}
-          </span>
-          <span>
-            {isUnlimited
-              ? `${quota.used.toLocaleString()} ${meta.unit}`
-              : `${quota.remaining?.toLocaleString() ?? 0} ${meta.unit} remaining`}
-          </span>
-        </div>
-        {quota.is_exceeded && (
-          <a
-            href="#plans"
-            className="text-xs font-medium text-blue-500 hover:text-blue-600"
-          >
-            Upgrade your plan to raise this limit →
-          </a>
-        )}
+        </span>
       </div>
-    </SettingsGroupItem>
+
+      {!isUnlimited && (
+        <div className="dark:bg-polar-700 h-1.5 w-full overflow-hidden rounded-full bg-gray-100">
+          <div
+            className="h-full rounded-full bg-gray-900 transition-all dark:bg-white"
+            style={{ width: `${percent}%` }}
+          />
+        </div>
+      )}
+
+      <div className="flex items-center justify-between text-xs text-gray-400">
+        <span>
+          {isUnlimited ? 'Unlimited on your current plan' : `${percent}% used`}
+        </span>
+        <span className="tabular-nums">
+          {isUnlimited
+            ? `${quota.used.toLocaleString()} ${meta.unit}`
+            : quota.is_exceeded
+              ? 'Over limit'
+              : `${quota.remaining?.toLocaleString() ?? 0} ${meta.unit} left`}
+        </span>
+      </div>
+
+      {quota.is_exceeded && (
+        <a
+          href="#plans"
+          className="text-xs font-medium text-gray-700 underline underline-offset-2 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white"
+        >
+          Upgrade your plan to raise this limit
+        </a>
+      )}
+    </div>
   )
 }
 

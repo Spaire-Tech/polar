@@ -665,31 +665,29 @@ const starterLines = (plan: TierPlan): string[] => [
   `${formatTransactionFee(plan.transaction_fee)} per transaction`,
   `${plan.limits.published_courses} published courses`,
   `${formatCount(plan.limits.email_subscribers ?? 0)} email subscribers`,
-  'Unlimited email sends',
-  'Unlimited email sequences',
   `${plan.limits.video_hours_hosted} hours of hosted video`,
-  'Sandbox / test environment',
+  'Email sequences, segments & drip',
+  'Revenue, MRR & churn analytics',
 ]
 
 const studioLines = (plan: TierPlan): string[] => [
-  `${formatTransactionFee(plan.transaction_fee)} per transaction (saves 2% vs Starter)`,
+  `${formatTransactionFee(plan.transaction_fee)} per transaction (saves 2%)`,
   `${plan.limits.published_courses} published courses`,
   `${formatCount(plan.limits.email_subscribers ?? 0)} email subscribers`,
   'Custom email sender domain',
-  'White-label course player',
-  'Customer wallet',
+  'Email A/B testing',
+  'White-label player & customer wallet',
   `${plan.limits.dashboard_team_seats} team seats`,
 ]
 
 const scaleLines = (plan: TierPlan): string[] => [
-  `${formatTransactionFee(plan.transaction_fee)} per transaction (saves 4% vs Starter)`,
+  `${formatTransactionFee(plan.transaction_fee)} per transaction (saves 4%)`,
   `${plan.limits.published_courses} published courses`,
   `${formatCount(plan.limits.email_subscribers ?? 0)} email subscribers`,
-  'Unlimited email sequences',
-  `${plan.limits.storage_gb} GB storage`,
-  `${plan.limits.dashboard_team_seats} team seats`,
-  'Audit logs',
-  'Dedicated support · 4-hour SLA',
+  `${plan.limits.video_hours_hosted} video hours · ${plan.limits.storage_gb} GB storage`,
+  `${plan.limits.dashboard_team_seats} team seats · audit logs`,
+  'Slack + dedicated AM · 4-hr SLA',
+  'Custom pricing above $50k/mo GMV',
 ]
 
 export default SpairePlanCards
