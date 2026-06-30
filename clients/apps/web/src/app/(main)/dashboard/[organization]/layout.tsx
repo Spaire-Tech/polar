@@ -148,6 +148,10 @@ export default async function Layout(props: {
     '/formation',
     '/startup-stack',
     '/claude-code',
+    // Usage-metering analytics — hidden from the Analytics tabs too. The
+    // Metrics tab (/analytics, /analytics/metrics) stays reachable.
+    '/analytics/events',
+    '/analytics/costs',
   ]
   const isHiddenSurface =
     hiddenSurfacePrefixes.some(

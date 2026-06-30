@@ -5,11 +5,10 @@ import Link from 'next/link'
 import { useParams, usePathname } from 'next/navigation'
 import { PropsWithChildren } from 'react'
 
-const analyticsTabs = [
-  { title: 'Metrics', suffix: '/metrics' },
-  { title: 'Events', suffix: '/events' },
-  { title: 'Costs', suffix: '/costs' },
-]
+// Course-only reposition: Events (usage-metering) and Costs are hidden from
+// the analytics tabs and URL-gated in [organization]/layout.tsx. Reversible:
+// re-add the entries here and remove the gate to restore them.
+const analyticsTabs = [{ title: 'Metrics', suffix: '/metrics' }]
 
 export default function AnalyticsLayout({ children }: PropsWithChildren) {
   const params = useParams<{ organization: string }>()

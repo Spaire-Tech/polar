@@ -18,13 +18,6 @@ import Avatar from '@spaire/ui/components/atoms/Avatar'
 import Button from '@spaire/ui/components/atoms/Button'
 import CopyToClipboardInput from '@spaire/ui/components/atoms/CopyToClipboardInput'
 import Input from '@spaire/ui/components/atoms/Input'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@spaire/ui/components/atoms/Select'
 import TextArea from '@spaire/ui/components/atoms/TextArea'
 import {
   Form,
@@ -54,14 +47,6 @@ const SHOW_INTERNAL_ID = false
 interface OrganizationDetailsFormProps {
   organization: schemas['Organization']
   inKYCMode: boolean
-}
-
-const SwitchingFromOptions = {
-  paddle: 'Paddle',
-  lemon_squeezy: 'Lemon Squeezy',
-  gumroad: 'Gumroad',
-  stripe: 'Stripe',
-  other: 'Other',
 }
 
 const SOCIAL_PLATFORM_DOMAINS = {
@@ -427,13 +412,13 @@ export const OrganizationDetailsForm: React.FC<
           <div className="space-y-6">
             <div>
               <label className="mb-2 block text-sm font-medium">
-                Describe your product *
+                Describe your course *
               </label>
               <FormField
                 control={control}
                 name="details.product_description"
                 rules={{
-                  required: 'Please describe your product',
+                  required: 'Please describe your course',
                   minLength: {
                     value: 20,
                     message: 'Please provide at least 20 characters',
@@ -447,7 +432,7 @@ export const OrganizationDetailsForm: React.FC<
                   <div>
                     <CompactTextArea
                       field={field}
-                      placeholder="We build a design collaboration platform for remote teams."
+                      placeholder="An online course teaching beginners how to shoot and edit cinematic travel videos."
                     />
                     <div className="mt-1 flex items-center justify-between">
                       <FormMessage />
@@ -460,45 +445,6 @@ export const OrganizationDetailsForm: React.FC<
               />
             </div>
 
-            <div>
-              <label className="mb-2 block text-sm font-medium">
-                Currently using
-              </label>
-              <FormField
-                control={control}
-                name="details.switching_from"
-                render={({ field }) => (
-                  <div>
-                    <Select
-                      value={field.value || 'none'}
-                      onValueChange={(value) => {
-                        field.onChange(value === 'none' ? undefined : value)
-                        setValue('details.switching', value !== 'none', {
-                          shouldDirty: true,
-                        })
-                      }}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a platform" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">
-                          This is my first billing provider
-                        </SelectItem>
-                        {Object.entries(SwitchingFromOptions).map(
-                          ([key, label]) => (
-                            <SelectItem key={key} value={key}>
-                              {label}
-                            </SelectItem>
-                          ),
-                        )}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </div>
-                )}
-              />
-            </div>
           </div>
         </div>
       )}

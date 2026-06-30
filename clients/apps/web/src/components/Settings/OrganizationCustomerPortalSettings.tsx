@@ -70,48 +70,11 @@ const OrganizationCustomerPortalSettings: React.FC<
         }}
       >
         <SettingsGroup>
-          <SettingsGroupItem
-            title="Show metered usage"
-            description="Show customer usage in the portal (API endpoints unaffected)"
-          >
-            <FormField
-              control={control}
-              name="usage.show"
-              render={({ field }) => (
-                <FormItem>
-                  <FormControl>
-                    <Switch
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </SettingsGroupItem>
-
-          <SettingsGroupItem
-            title="Enable subscription seat management"
-            description="Allow customers to assign and manage seats for their subscriptions."
-          >
-            <FormField
-              control={control}
-              name="subscription.update_seats"
-              render={({ field }) => (
-                <FormItem>
-                  <FormControl>
-                    <Switch
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </SettingsGroupItem>
-
+          {/* Course-only reposition: the "Show metered usage" and "subscription
+              seat management" toggles are removed; only plan-change control
+              remains, surfaced under the Subscriptions settings section. The
+              underlying customer_portal_settings.usage.show and
+              subscription.update_seats values are left untouched server-side. */}
           <SettingsGroupItem
             title="Enable subscription plan changes"
             description="Allow customers to change their subscription plan from the portal."
