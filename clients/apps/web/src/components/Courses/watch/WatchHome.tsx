@@ -488,7 +488,7 @@ export function WatchHome({
 
   if (!ep) {
     return (
-      <div className={`sow${dark ? 'dark' : ''}`}>
+      <div className={`sow ${dark ? 'dark' : ''}`}>
         <div
           style={{
             display: 'grid',
@@ -545,9 +545,9 @@ export function WatchHome({
     )
 
   return (
-    <div className={`sow${dark ? 'dark' : ''}`}>
+    <div className={`sow ${dark ? 'dark' : ''}`}>
       {/* ════════ now-playing hero ════════ */}
-      <header className={`panel${heroVariant === 'cover' ? 'cover' : ''}`}>
+      <header className={`panel ${heroVariant === 'cover' ? 'cover' : ''}`}>
         {lessons.map((l, i) => {
           // The hero shows the lesson's own cover when it has one, else the
           // course cover. Honor whichever image's saved focal point
@@ -562,7 +562,7 @@ export function WatchHome({
           return (
             <div
               key={l.id}
-              className={`hero-layer${i === focus ? 'show' : ''}${
+              className={`hero-layer ${i === focus ? 'show' : ''} ${
                 heroImage ? '' : 'ph'
               }`}
               style={
@@ -597,7 +597,7 @@ export function WatchHome({
              buttons + progress (same set as the marquee band). ════ */
           <div className="hero-content">
             <div className="hero-meta">
-              <span className={`badge${status === 'watched' ? 'done' : ''}`}>
+              <span className={`badge ${status === 'watched' ? 'done' : ''}`}>
                 {status === 'watched'
                   ? 'Watched'
                   : status === 'progress'
@@ -645,7 +645,7 @@ export function WatchHome({
               </button>
               <div className="icon-row">
                 <button
-                  className={`icon-glass${isBookmarked ? 'on' : ''}`}
+                  className={`icon-glass ${isBookmarked ? 'on' : ''}`}
                   type="button"
                   aria-label="Bookmark lesson"
                   onClick={() => toggleBookmark(ep)}
@@ -695,7 +695,9 @@ export function WatchHome({
         ) : (
           <>
             <div className="panel-title">
-              <div className={`pt-kicker${status === 'watched' ? 'done' : ''}`}>
+              <div
+                className={`pt-kicker ${status === 'watched' ? 'done' : ''}`}
+              >
                 {kicker}
               </div>
               <h1 className="pt-h">{ep.title}</h1>
@@ -720,7 +722,7 @@ export function WatchHome({
                 </button>
                 <div className="icon-row">
                   <button
-                    className={`icon-glass${isBookmarked ? 'on' : ''}`}
+                    className={`icon-glass ${isBookmarked ? 'on' : ''}`}
                     type="button"
                     aria-label="Bookmark lesson"
                     onClick={() => toggleBookmark(ep)}
@@ -820,7 +822,7 @@ export function WatchHome({
         </div>
         <div className="strip-wrap" onMouseEnter={updateArrows}>
           <button
-            className={`arrow prev${canPrev ? 'show' : ''}`}
+            className={`arrow prev ${canPrev ? 'show' : ''}`}
             type="button"
             aria-label="Previous"
             onClick={() => scrollBy(-1)}
@@ -839,7 +841,7 @@ export function WatchHome({
             </svg>
           </button>
           <button
-            className={`arrow next${canNext ? 'show' : ''}`}
+            className={`arrow next ${canNext ? 'show' : ''}`}
             type="button"
             aria-label="Next"
             onClick={() => scrollBy(1)}
@@ -951,7 +953,7 @@ export function WatchHome({
                     onMouseEnter={() => setFocus(i)}
                     onClick={() => void playLesson(l)}
                   >
-                    <div className={`spot-card${imgStyle ? '' : 'ph'}`}>
+                    <div className={`spot-card ${imgStyle ? '' : 'ph'}`}>
                       <div className="img" style={imgStyle} />
                       <div className="spot-shade" />
                       {overlays}
@@ -981,7 +983,7 @@ export function WatchHome({
                   <div className="lc-card">
                     <div className="lc-thumb">
                       <div
-                        className={`img${imgStyle ? '' : 'ph'}`}
+                        className={`img ${imgStyle ? '' : 'ph'}`}
                         style={imgStyle}
                       />
                       {overlays}
