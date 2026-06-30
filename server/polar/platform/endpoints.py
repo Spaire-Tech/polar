@@ -744,6 +744,18 @@ async def set_default_payment_method(
     )
 
 
+def _order_description(order: Order) -> str:
+    """Order.description raises IndexError for an order that has neither a
+    product nor items — and a platform customer can have such orders (e.g. a
+    balance/wallet order, or one whose product was removed). Compute it
+    safely so the order-history list never 500s on a single odd row."""
+    if order.product is not None:
+        return order.product.name
+    if order.items:
+        return order.items[0].label
+    return order.invoice_number or "Spaire subscription"
+
+
 @router.get(
     "/organizations/{organization_id}/orders",
     summary="List Spaire Orders",
@@ -785,10 +797,14 @@ async def list_orders(
             id=order.id,
             created_at=order.created_at,
             invoice_number=order.invoice_number,
-            description=order.description,
+            description=_order_description(order),
             total_amount=order.total_amount,
             currency=order.currency,
-            status=order.status.value,
+            # Order.status is a plain String column, so a DB-loaded order
+            # carries a str here, NOT an OrderStatus enum — `.value` would
+            # AttributeError on every real request. str() is safe for both
+            # the str and the (StrEnum) in-memory cases.
+            status=str(order.status),
             refunded_amount=order.refunded_amount,
             is_invoice_generated=order.invoice_path is not None,
         )

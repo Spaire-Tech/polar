@@ -17,7 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from polar.auth.models import AuthSubject
 from polar.auth.scope import Scope
-from polar.enums import PaymentProcessor
+from polar.enums import PaymentProcessor, SubscriptionRecurringInterval
 from polar.kit.address import AddressInput
 from polar.kit.pagination import PaginationParams
 from polar.models import (
@@ -34,6 +34,7 @@ from tests.fixtures.database import SaveFixture
 from tests.fixtures.random_objects import (
     create_customer,
     create_organization,
+    create_product,
 )
 
 _SCOPES = {
@@ -156,6 +157,68 @@ class TestPlatformBillingEndpoints:
         assert item.total_amount == 12900
         assert item.status == "paid"
         assert item.is_invoice_generated is False
+
+    async def test_list_orders_handles_product_backed_and_empty_orders(
+        self,
+        mocker: MockerFixture,
+        session: AsyncSession,
+        save_fixture: SaveFixture,
+    ) -> None:
+        # Regression: order.description raises IndexError for an order with no
+        # product AND no items — which 500'd the order-history list in prod.
+        platform, creator, customer = await _setup(save_fixture, mocker)
+        product = await create_product(
+            save_fixture,
+            organization=platform,
+            recurring_interval=SubscriptionRecurringInterval.month,
+            prices=[(12900, "usd")],
+        )
+
+        def _order(**kw: object) -> Order:
+            return Order(
+                status=OrderStatus.paid,
+                subtotal_amount=0,
+                discount_amount=0,
+                net_amount=0,
+                tax_amount=0,
+                applied_balance_amount=0,
+                currency="usd",
+                billing_reason=OrderBillingReasonInternal.subscription_create,
+                invoice_number=f"SPAIRE-{uuid.uuid4().hex[:6].upper()}-0001",
+                customer=customer,
+                custom_field_data={},
+                user_metadata={},
+                **kw,  # type: ignore[arg-type]
+            )
+
+        # product-backed order (a normal plan charge)
+        await save_fixture(
+            _order(
+                product=product,
+                items=[
+                    OrderItem(
+                        label="Studio",
+                        amount=0,
+                        net_amount=0,
+                        tax_amount=0,
+                        proration=False,
+                    )
+                ],
+            )
+        )
+        # order with NEITHER product NOR items (the crash case)
+        await save_fixture(_order(product=None, items=[]))
+
+        result = await platform_endpoints.list_orders(
+            organization_id=creator.id,
+            auth_subject=_auth(creator),
+            pagination=_PAGINATION,
+            session=session,
+        )
+
+        assert result.pagination.total_count == 2
+        # Every order serialized a non-empty description; none raised.
+        assert all(item.description for item in result.items)
 
     async def test_get_and_update_billing_details(
         self,
