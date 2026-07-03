@@ -67,6 +67,18 @@
   backdrop-filter: saturate(160%) blur(14px);
   -webkit-backdrop-filter: saturate(160%) blur(14px);
   border-bottom: 1px solid var(--sp-line);
+  transition: transform 0.3s ease;
+  will-change: transform;
+}
+/* Website-style hide-on-scroll: slide the sticky bar out of view when
+   scrolling down, back in when scrolling up (toggled from TopBar). */
+.spaire-portal .sp-topbar--hidden {
+  transform: translateY(-100%);
+}
+@media (prefers-reduced-motion: reduce) {
+  .spaire-portal .sp-topbar {
+    transition: none;
+  }
 }
 .spaire-portal .sp-topbar-inner {
   max-width: 1280px;
