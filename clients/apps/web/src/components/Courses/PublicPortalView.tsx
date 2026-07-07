@@ -125,6 +125,34 @@ export function PublicPortalView({
   //    simple lightbox (it's a plain file, not a lesson). ──────────────────
   const [playing, setPlaying] = useState<PlayingClip | null>(null)
   const [watching, setWatching] = useState<CourseLandingLesson | null>(null)
+  // Server-minted (signed) HLS URL for the lesson currently in the player.
+  // Once assets use the signed playback policy, a URL built from the bare
+  // playback id 403s — so every free-preview play asks the API for a real
+  // URL first (which also counts the view against the org's quota).
+  const [watchingUrl, setWatchingUrl] = useState<string | null>(null)
+  const openWatch = useCallback(
+    async (lesson: CourseLandingLesson) => {
+      let url: string | null = null
+      try {
+        const res = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/v1/customer-portal/courses/${landing.id}/lessons/${lesson.id}/preview-playback-url`,
+          { method: 'POST', credentials: 'include' },
+        )
+        if (res.ok) {
+          const data = (await res.json()) as {
+            mux_playback_url?: string | null
+          }
+          url = data.mux_playback_url ?? null
+        }
+      } catch {
+        // Fall back to the public playback-id URL below (works for public
+        // assets; signed ones surface the player's error state).
+      }
+      setWatchingUrl(url)
+      setWatching(lesson)
+    },
+    [landing.id],
+  )
   const [watchState, setWatchState] = useState<WatchState>({
     p: {},
     done: [],
@@ -152,12 +180,12 @@ export function PublicPortalView({
         return
       }
       if (!isLocked(lesson) && lesson.mux_playback_id) {
-        setWatching(lesson)
+        void openWatch(lesson)
         return
       }
       void enroll()
     },
-    [hasAccess, goToPortal, isLocked, enroll],
+    [hasAccess, goToPortal, isLocked, enroll, openWatch],
   )
 
   const onWatchProgress = useCallback(
@@ -278,7 +306,7 @@ export function PublicPortalView({
           !watchState.done.includes(l.id),
       ) ??
       landing.lessons.find((l) => l.is_free_preview && l.mux_playback_id)
-    if (target) setWatching(target)
+    if (target) void openWatch(target)
     else void enroll()
   }, [
     hasAccess,
@@ -287,6 +315,7 @@ export function PublicPortalView({
     landing.lessons,
     watchState.done,
     enroll,
+    openWatch,
   ])
 
   const onBuy = useCallback(() => {
@@ -564,6 +593,7 @@ export function PublicPortalView({
             description: watching.description,
             thumbnailUrl: watching.thumbnail_url,
             muxPlaybackId: watching.mux_playback_id,
+            playbackUrl: watchingUrl,
           }}
           courseTitle={landing.title ?? product.name}
           instructorName={landing.instructor_name}

@@ -1,4 +1,5 @@
 from collections.abc import Sequence
+from datetime import datetime
 from uuid import UUID
 
 from sqlalchemy import Select, func, select, update
@@ -237,6 +238,24 @@ class CourseLessonRepository(
             CourseLesson.mux_asset_id == asset_id
         )
         return await self.get_one_or_none(statement)
+
+    async def list_stalled_mux_uploads(
+        self, cutoff: datetime, limit: int = 200
+    ) -> Sequence[CourseLesson]:
+        """Lessons whose video is stuck in `waiting`/`processing` since
+        before `cutoff`. The Mux webhook is the normal way out of those
+        states; when it never arrives (abandoned upload tab, dropped
+        webhook, failed transcode) the reconcile cron resolves them so the
+        editor doesn't show "Processing…" — and poll — forever."""
+        statement = (
+            self.get_base_statement()
+            .where(
+                CourseLesson.mux_status.in_(["waiting", "processing"]),
+                CourseLesson.modified_at < cutoff,
+            )
+            .limit(limit)
+        )
+        return await self.get_all(statement)
 
     async def list_pending_transcripts(
         self, limit: int = 200

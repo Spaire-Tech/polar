@@ -113,6 +113,10 @@ export default function CourseEditor({
       DEFAULT_LESSON_TITLES.has((l.title ?? '').trim()) &&
       !(l.description ?? '').trim() &&
       !l.mux_playback_id &&
+      // A lesson whose video is still uploading/processing is NOT empty —
+      // discarding it here would orphan the in-flight video.
+      !l.mux_upload_id &&
+      !l.mux_status &&
       !l.published &&
       !hasContent
     )
