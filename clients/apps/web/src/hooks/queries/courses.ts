@@ -773,6 +773,10 @@ export type CourseLandingLesson = {
   is_free_preview: boolean
   duration_seconds: number | null
   thumbnail_url: string | null
+  // Creator-set crop (CSS object-position, e.g. "50% 30%") for the card
+  // thumbnail. The landing endpoint has always sent this; it just wasn't
+  // declared here, so the public page silently dropped it.
+  thumbnail_object_position?: string | null
   mux_playback_id?: string | null
   mux_status?: string | null
   locked?: boolean

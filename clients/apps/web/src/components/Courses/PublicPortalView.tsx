@@ -384,6 +384,12 @@ export function PublicPortalView({
       description: l.description ?? '',
       flatIdx,
       imageUrl: l.thumbnail_url ?? null,
+      // Apply the creator's saved thumbnail crop. The editor preview
+      // (CourseDesignEditor) always passed this through, but the real
+      // visitor-facing mapper dropped it — so a repositioned thumbnail
+      // looked right in the studio and rendered at the default crop for
+      // every visitor.
+      imagePosition: l.thumbnail_object_position ?? null,
       durationLabel: l.duration_seconds
         ? `${Math.max(1, Math.round(l.duration_seconds / 60))}m`
         : null,
