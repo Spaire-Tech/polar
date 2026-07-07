@@ -52,14 +52,17 @@ router = APIRouter(prefix="/courses", tags=["customer_portal_courses", APITag.pu
 async def _course_is_publicly_visible(session: AsyncSession, course) -> bool:
     """Whether a course's landing may be served to a non-enrolled visitor.
 
-    Mirrors the storefront's own visibility gate: the org must have its
-    storefront enabled and not be blocked/deleted, and the product must be
-    live (not archived, not deleted). Without this the landing endpoint served
-    full landing data — title, instructor, overrides, published lessons — for
-    any course whose product was archived or whose org never opened a
-    storefront, to anyone holding the id. Enrolled customers keep access via
-    the caller's separate enrollment check (they bought it before it was
-    pulled).
+    Mirrors the storefront's own visibility gate: the org must not be
+    blocked/deleted and the product must be live (not archived, not deleted).
+    Without this the landing endpoint served full landing data — title,
+    instructor, overrides, published lessons — for any course whose product was
+    archived, to anyone holding the id. Enrolled customers keep access via the
+    caller's separate enrollment check (they bought it before it was pulled).
+
+    Note: this deliberately does NOT require ``storefront_enabled``. The
+    course-only reposition (Phase 6) hides the Space UI and no longer flips that
+    flag, so gating on it 404s every legitimate course landing. A live course
+    product on an active org is public — same rule the storefront query uses.
     """
     from polar.models import Organization
 
@@ -72,7 +75,6 @@ async def _course_is_publicly_visible(session: AsyncSession, course) -> bool:
             Product.is_archived.is_(False),
             Organization.deleted_at.is_(None),
             Organization.blocked_at.is_(None),
-            Organization.storefront_enabled.is_(True),
         )
     )
     result = await session.execute(statement)
