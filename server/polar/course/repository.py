@@ -251,7 +251,14 @@ class CourseLessonRepository(
             self.get_base_statement()
             .where(
                 CourseLesson.mux_status.in_(["waiting", "processing"]),
-                CourseLesson.modified_at < cutoff,
+                # modified_at is NULL until a row's first UPDATE — and a
+                # wizard-created lesson whose upload was abandoned may never
+                # be updated at all, so fall back to created_at or those
+                # rows would evade the reconcile forever.
+                func.coalesce(
+                    CourseLesson.modified_at, CourseLesson.created_at
+                )
+                < cutoff,
             )
             .limit(limit)
         )
