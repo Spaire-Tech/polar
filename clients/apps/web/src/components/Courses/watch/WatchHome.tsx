@@ -761,16 +761,23 @@ export function WatchHome({
 
               <div className="band-cast">
                 <div className="bc-row">
-                  {organization.avatar_url ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      className="bc-av"
-                      src={organization.avatar_url}
-                      alt={course.instructor_name ?? organization.name}
-                    />
-                  ) : (
-                    <div className="bc-av" />
-                  )}
+                  {(() => {
+                    // Prefer the course-scoped instructor avatar (cropped in the
+                    // landing editor); fall back to the org avatar.
+                    const av =
+                      course.landing_overrides?.instructor_avatar_url ??
+                      organization.avatar_url
+                    return av ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        className="bc-av"
+                        src={av}
+                        alt={course.instructor_name ?? organization.name}
+                      />
+                    ) : (
+                      <div className="bc-av" />
+                    )
+                  })()}
                   <div>
                     <div className="bc-k">Instructor</div>
                     <div className="bc-v">
@@ -778,8 +785,16 @@ export function WatchHome({
                     </div>
                   </div>
                 </div>
-                {course.instructor_bio && (
-                  <div className="bc-sub">{course.instructor_bio}</div>
+                {/* Use the SAME AI-written instructor byline the landing/portal
+                    marquee shows (landing_overrides.ai_hero.byline). Editing it
+                    on the landing updates it here too; fall back to the raw
+                    onboarding bio only when no AI byline exists. */}
+                {(course.landing_overrides?.ai_hero?.byline ||
+                  course.instructor_bio) && (
+                  <div className="bc-sub">
+                    {course.landing_overrides?.ai_hero?.byline ||
+                      course.instructor_bio}
+                  </div>
                 )}
                 <div className="bc-progress">
                   <div className="bc-pt">

@@ -171,7 +171,7 @@ function Preview() {
       portraitCaption="Jack Reeves · The Scoring Game"
       faq={[
         { q: 'What\u2019s included when I enroll?', a: 'Every lesson across all three modules, plus the free sample, downloadable practice notes, and lifetime updates whenever new lessons are added. One payment, no subscription.' },
-        { q: 'Where can I watch?', a: 'On the web, iPhone, iPad, and Apple TV. Your place is kept in sync, so you can start a lesson on one device and pick it up on another.' },
+        { q: 'Where can I watch?', a: 'In your web browser on desktop and phone. Your place is kept in sync, so you can start a lesson on one device and pick it up on another.' },
         { q: 'Do I need to be an experienced golfer?', a: 'No. The course starts with grip and setup and builds up to scoring and strategy, so it works at any level.' },
         { q: 'How long do I have access?', a: 'Forever. Once you enroll the course is yours to revisit as often as you like, at your own pace, with no expiry.' },
         { q: 'What if it\u2019s not for me?', a: 'Email within 30 days for a full refund. No forms, no questions.' },

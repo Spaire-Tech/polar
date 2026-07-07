@@ -257,15 +257,24 @@ export type GeneratedPortalPageProps = {
   sampleDuration?: number
   /** Hero Play starts the inline sample (sample-trial pages). */
   playStartsSample?: boolean
-  /** Instructor section — avatar comes from the platform (org avatar);
-   *  the writing is AI-polished from the creator's instructor details. */
+  /** Instructor section — avatar defaults to the org avatar; the creator can
+   *  crop a course-specific one. The writing is AI-polished from the creator's
+   *  instructor details. */
   avatarUrl?: string | null
+  /** Editor only — open the avatar crop/zoom/reposition editor. When provided,
+   *  the round avatar becomes clickable. */
+  onEditAvatar?: () => void
   instructorSub?: string
   instructorBio?: string[]
   portraitUrl?: string | null
+  /** Focal point for the square portrait (CSS object-position). */
+  portraitPosition?: string | null
   portraitCaption?: string
   onAddPortrait?: () => void
   portraitBusy?: boolean
+  /** Live object-position updates while dragging the portrait to reposition it.
+   *  Commit/debounce is the caller's job (mirrors onCoverPosition). */
+  onPortraitPosition?: (pos: string) => void
   /** FAQ — AI-written Q/A pairs, all editable. */
   faq?: { q: string; a: string }[]
   /** The band's badge chips — creator-editable; defaults to the design's. */
@@ -387,7 +396,6 @@ export function GeneratedPortalPage({
   structure,
   trialMode,
   paywallEnabled,
-  playLabel,
   buyLabel,
   freeLine,
   coverUrl,
@@ -398,16 +406,18 @@ export function GeneratedPortalPage({
   samplePlaybackUrl = null,
   sampleStart = 0,
   sampleDuration = 0,
-  playStartsSample = false,
   avatarUrl = null,
+  onEditAvatar,
   instructorSub = '',
   instructorBio = [],
   portraitUrl = null,
+  portraitPosition = null,
   portraitCaption = '',
   onAddPortrait,
   portraitBusy = false,
+  onPortraitPosition,
   faq = [],
-  badges = ['All Levels', 'Self-paced', 'Captions', 'Mobile & TV'],
+  badges = ['All Levels', 'Self-paced', 'Captions', 'Mobile & Desktop'],
   groups,
   lessonCount,
   metaDuration = '0 min',
@@ -480,12 +490,12 @@ export function GeneratedPortalPage({
   // add/remove the sample from the lesson editor.)
   const hasSampleSection =
     paywallEnabled && trialMode === 'lesson_sample' && samplePlayable
-  // The primary CTA should lead with the trailer, not the sample. When a
-  // trailer exists the main button plays it and the sample is demoted to the
-  // secondary slot (where the trailer button used to sit). With no trailer the
-  // sample stays primary so the button is never a dead end.
-  const sampleMode = playStartsSample && samplePlayable
-  const trailerPrimary = sampleMode && !!trailerUrl
+  // The hero primary CTA is ALWAYS "Play Trailer" on both the Marquee and the
+  // Cover — never "Play Sample". The trailer is the hook; the free sample lives
+  // in its own section further down (and, on the Marquee, as a chip in the
+  // metadata row). `onTrailer` plays the trailer when one exists and otherwise
+  // falls back to `onPlay`, so the button is never a dead end.
+  const playPrimary = onTrailer ?? onPlay
   const closeEnroll = useCallback(() => setEnrollLesson(null), [])
   useEffect(() => {
     if (!enrollLesson) return
@@ -633,6 +643,68 @@ export function GeneratedPortalPage({
   const onDragEnd = () => {
     dragRef.current = null
   }
+
+  // ── instructor portrait reposition — the SAME "grab the photo" convention
+  //    as the cover (drag right → reveal the image's left, position decreases),
+  //    so the direction is identical across the product. Persists to
+  //    landing_overrides.portrait_object_position via onPortraitPosition. ──
+  const portraitRef = useRef<HTMLDivElement | null>(null)
+  const [portraitReposing, setPortraitReposing] = useState(false)
+  const portraitDragRef = useRef<{
+    startX: number
+    startY: number
+    posX: number
+    posY: number
+  } | null>(null)
+  const [portraitLivePos, setPortraitLivePos] = useState<{
+    pos: string
+    base: string | null
+  } | null>(null)
+  const committedPortraitPos = portraitPosition ?? null
+  const effectivePortraitPos =
+    portraitLivePos && portraitLivePos.base === committedPortraitPos
+      ? portraitLivePos.pos
+      : committedPortraitPos
+  const onPortraitDragStart = (e: React.PointerEvent) => {
+    if (!portraitReposing) return
+    const [px, py] = parsePos(effectivePortraitPos)
+    portraitDragRef.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      posX: px,
+      posY: py,
+    }
+    ;(e.target as HTMLElement).setPointerCapture?.(e.pointerId)
+  }
+  const onPortraitDragMove = (e: React.PointerEvent) => {
+    const d = portraitDragRef.current
+    const el = portraitRef.current
+    if (!portraitReposing || !d || !el) return
+    const r = el.getBoundingClientRect()
+    const nx = Math.min(
+      100,
+      Math.max(0, d.posX - ((e.clientX - d.startX) / r.width) * 100),
+    )
+    const ny = Math.min(
+      100,
+      Math.max(0, d.posY - ((e.clientY - d.startY) / r.height) * 100),
+    )
+    const next = `${nx.toFixed(1)}% ${ny.toFixed(1)}%`
+    setPortraitLivePos({ pos: next, base: committedPortraitPos })
+    onPortraitPosition?.(next)
+  }
+  const onPortraitDragEnd = () => {
+    portraitDragRef.current = null
+  }
+  const portraitReposProps =
+    portraitReposing && portraitUrl
+      ? {
+          onPointerDown: onPortraitDragStart,
+          onPointerMove: onPortraitDragMove,
+          onPointerUp: onPortraitDragEnd,
+          onPointerCancel: onPortraitDragEnd,
+        }
+      : {}
 
   // ── inline sample playback: seek to the clip start, stop at the clip end,
   //    and STOP when the screen scrolls out of view (the protected
@@ -1288,13 +1360,7 @@ export function GeneratedPortalPage({
 
           <div className="band rise d2">
             <div className="band-actions">
-              <button
-                className="abtn play"
-                type="button"
-                onClick={
-                  trailerPrimary ? onTrailer : sampleMode ? startSample : onPlay
-                }
-              >
+              <button className="abtn play" type="button" onClick={playPrimary}>
                 <svg
                   width="17"
                   height="17"
@@ -1303,7 +1369,7 @@ export function GeneratedPortalPage({
                 >
                   <path d={PLAY_PATH} />
                 </svg>
-                {trailerPrimary ? 'Watch Trailer' : playLabel}
+                Play Trailer
               </button>
               <button className="abtn buy" type="button" onClick={onBuy}>
                 {buyLabel}
@@ -1374,11 +1440,13 @@ export function GeneratedPortalPage({
                     + Add
                   </button>
                 )}
-                {trailerPrimary ? (
+                {/* The trailer also lives here in the metadata row, alongside
+                    the badge chips (Self-paced, Captions, …). */}
+                {showTrailerButton && (
                   <button
                     className="bd-trailer"
                     type="button"
-                    onClick={startSample}
+                    onClick={playPrimary}
                   >
                     <svg
                       width="12"
@@ -1388,26 +1456,8 @@ export function GeneratedPortalPage({
                     >
                       <path d={PLAY_PATH} />
                     </svg>
-                    Sample
+                    Trailer
                   </button>
-                ) : (
-                  showTrailerButton && (
-                    <button
-                      className="bd-trailer"
-                      type="button"
-                      onClick={onTrailer}
-                    >
-                      <svg
-                        width="12"
-                        height="12"
-                        viewBox="0 0 24 24"
-                        fill="currentColor"
-                      >
-                        <path d={PLAY_PATH} />
-                      </svg>
-                      Trailer
-                    </button>
-                  )
                 )}
               </div>
             </div>
@@ -1553,20 +1603,12 @@ export function GeneratedPortalPage({
                 field="desc"
                 value={desc}
               />{' '}
-              <span className="with">
-                —{' '}
-                <EditText
-                  editable={editable}
-                  onEditText={onEditText}
-                  field="byline"
-                  // Editable: show the raw byline (empty stays empty, with the
-                  // "with <name>" hint as a placeholder) so just focusing the
-                  // field can't persist the hint as real copy. Public: keep the
-                  // "with <name>" fallback when no byline was written.
-                  value={editable ? byline : byline || `with ${instructorName}`}
-                  placeholder={`with ${instructorName}`}
-                />
-              </span>
+              {/* The cover byline is always just "With <instructor>" — it
+                  mirrors the instructor name, not the AI credential line (that
+                  credential still runs bottom-right on the Marquee). */}
+              {instructorName ? (
+                <span className="with">— With {instructorName}</span>
+              ) : null}
             </p>
 
             <div className="hero-actions">
@@ -1574,13 +1616,7 @@ export function GeneratedPortalPage({
                 <button
                   className="btn-trailer"
                   type="button"
-                  onClick={
-                    trailerPrimary
-                      ? onTrailer
-                      : sampleMode
-                        ? startSample
-                        : (onTrailer ?? onPlay)
-                  }
+                  onClick={playPrimary}
                 >
                   <span className="play">
                     <svg
@@ -1592,30 +1628,7 @@ export function GeneratedPortalPage({
                       <path d={PLAY_PATH} />
                     </svg>
                   </span>
-                  {trailerPrimary
-                    ? 'Watch trailer'
-                    : trialMode === 'lesson_sample'
-                      ? playLabel
-                      : 'Watch trailer'}
-                </button>
-              )}
-              {trailerPrimary && (
-                <button
-                  className="btn-trailer"
-                  type="button"
-                  onClick={startSample}
-                >
-                  <span className="play">
-                    <svg
-                      width="12"
-                      height="12"
-                      viewBox="0 0 24 24"
-                      fill="currentColor"
-                    >
-                      <path d={PLAY_PATH} />
-                    </svg>
-                  </span>
-                  Sample
+                  Play Trailer
                 </button>
               )}
               <button className="btn-enroll" type="button" onClick={onBuy}>
@@ -1646,7 +1659,25 @@ export function GeneratedPortalPage({
           <div className="inst-inner">
             <div className="inst-copy">
               <div className="inst-head">
-                <div className={`inst-avatar ${avatarUrl ? 'filled' : ''}`}>
+                <div
+                  className={`inst-avatar ${avatarUrl ? 'filled' : ''} ${
+                    editable && onEditAvatar ? 'editable-avatar' : ''
+                  }`}
+                  {...(editable && onEditAvatar
+                    ? {
+                        role: 'button',
+                        tabIndex: 0,
+                        title: 'Edit instructor photo',
+                        onClick: onEditAvatar,
+                        onKeyDown: (e: React.KeyboardEvent) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault()
+                            onEditAvatar()
+                          }
+                        },
+                      }
+                    : {})}
+                >
                   <div className="ph-ambient" />
                   <div className="glass-tint" />
                   <div
@@ -1671,6 +1702,23 @@ export function GeneratedPortalPage({
                     <circle cx="12" cy="8" r="3.6" />
                     <path d="M5 20c.8-3.6 3.7-5.6 7-5.6s6.2 2 7 5.6" />
                   </svg>
+                  {editable && onEditAvatar && (
+                    <div className="av-edit" aria-hidden>
+                      <svg
+                        width="18"
+                        height="18"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.9"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <path d="M4 20h4L18.5 9.5a2.1 2.1 0 0 0-3-3L5 17v3z" />
+                        <path d="M13.5 6.5l3 3" />
+                      </svg>
+                    </div>
+                  )}
                 </div>
                 <div className="inst-id">
                   <EditText
@@ -1737,14 +1785,23 @@ export function GeneratedPortalPage({
               )}
             </div>
 
-            <div className={`inst-media ${portraitUrl ? 'filled' : ''}`}>
+            <div
+              ref={portraitRef}
+              className={`inst-media ${portraitUrl ? 'filled' : ''} ${
+                portraitReposing ? 'repositioning' : ''
+              }`}
+              {...portraitReposProps}
+            >
               <div className="ph-ambient" />
               <div className="glass-tint" />
               <div
                 className="photo"
                 style={
                   portraitUrl
-                    ? { backgroundImage: `url("${portraitUrl}")` }
+                    ? {
+                        backgroundImage: `url("${portraitUrl}")`,
+                        backgroundPosition: effectivePortraitPos || 'center',
+                      }
                     : undefined
                 }
               />
@@ -1802,10 +1859,34 @@ export function GeneratedPortalPage({
                 <button
                   className="change-pill"
                   type="button"
+                  onPointerDown={(e) => e.stopPropagation()}
                   onClick={onAddPortrait}
                 >
                   {PillImageIcon}
                   Change
+                </button>
+              )}
+              {editable && onPortraitPosition && portraitUrl && (
+                <button
+                  className="change-pill portrait-repos-pill"
+                  type="button"
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onClick={() => setPortraitReposing((v) => !v)}
+                  title="Drag the photo to reposition it"
+                >
+                  <svg
+                    width="15"
+                    height="15"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.9"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M5 9l-3 3 3 3M9 5l3-3 3 3M15 19l-3 3-3-3M19 9l3 3-3 3M2 12h20M12 2v20" />
+                  </svg>
+                  {portraitReposing ? 'Done' : 'Reposition'}
                 </button>
               )}
             </div>
@@ -2110,19 +2191,39 @@ export function GeneratedPortalPage({
                   {editable && onRemoveFaq && (
                     <button
                       type="button"
-                      className="gpp-add faq-remove"
+                      className="gpp-remove faq-x"
+                      title="Remove question"
+                      aria-label="Remove question"
                       onClick={() => onRemoveFaq(i)}
                     >
-                      Remove question
+                      ×
                     </button>
                   )}
                 </div>
               ))}
             </div>
             {editable && onAddFaq && (
-              <button type="button" className="gpp-add" onClick={onAddFaq}>
-                + Add question
-              </button>
+              <div className="faq-add-row">
+                <button
+                  type="button"
+                  className="faq-add-btn"
+                  onClick={onAddFaq}
+                  title="Add question"
+                  aria-label="Add question"
+                >
+                  <svg
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.2"
+                    strokeLinecap="round"
+                  >
+                    <path d="M12 5v14M5 12h14" />
+                  </svg>
+                </button>
+              </div>
             )}
           </div>
         </section>
@@ -3929,6 +4030,28 @@ export function GeneratedPortalPage({
           z-index: 2;
           opacity: 0.92;
         }
+        /* Editable avatar — clickable, with a hover overlay hinting the crop
+           editor (zoom + reposition), mirroring the Space avatar affordance. */
+        .gpp .inst-avatar.editable-avatar {
+          cursor: pointer;
+        }
+        .gpp .inst-avatar .av-edit {
+          position: absolute;
+          inset: 0;
+          z-index: 4;
+          display: grid;
+          place-items: center;
+          color: #fff;
+          background: rgba(10, 11, 13, 0.44);
+          -webkit-backdrop-filter: blur(3px);
+          backdrop-filter: blur(3px);
+          opacity: 0;
+          transition: opacity 0.16s ease;
+        }
+        .gpp .inst-avatar.editable-avatar:hover .av-edit,
+        .gpp .inst-avatar.editable-avatar:focus-visible .av-edit {
+          opacity: 1;
+        }
         .gpp .inst-avatar.filled .ph-ambient,
         .gpp .inst-avatar.filled .glass-tint,
         .gpp .inst-avatar.filled .av-ic {
@@ -3995,6 +4118,26 @@ export function GeneratedPortalPage({
         .gpp .inst-media.filled:hover .change-pill {
           opacity: 1;
         }
+        /* Reposition toggle sits top-left so it never overlaps Change (top-right). */
+        .gpp .inst-media .portrait-repos-pill {
+          right: auto;
+          left: 16px;
+        }
+        /* While repositioning, the whole portrait is a grab surface and the
+           control stays visible so the creator can finish. */
+        .gpp .inst-media.repositioning {
+          cursor: grab;
+          touch-action: none;
+        }
+        .gpp .inst-media.repositioning:active {
+          cursor: grabbing;
+        }
+        .gpp .inst-media.repositioning .change-pill {
+          opacity: 1;
+        }
+        .gpp .inst-media.repositioning .photo {
+          box-shadow: inset 0 0 0 2px var(--color-ce-accent);
+        }
         .gpp .inst-caption {
           position: absolute;
           left: 20px;
@@ -4038,6 +4181,49 @@ export function GeneratedPortalPage({
         }
         .gpp .faq-item {
           border-bottom: 1px solid var(--hair);
+          position: relative;
+        }
+        /* Remove-question control — a quiet × that appears on row hover, sitting
+           just left of the chevron so it never collides with it. */
+        .gpp .faq-x {
+          position: absolute;
+          top: 22px;
+          right: 44px;
+          margin-left: 0;
+          z-index: 2;
+        }
+        /* Add-question control — a single centered + button under the list,
+           replacing the old text pill. */
+        .gpp .faq-add-row {
+          display: flex;
+          justify-content: center;
+          margin-top: 28px;
+        }
+        .gpp .faq-add-btn {
+          width: 46px;
+          height: 46px;
+          border-radius: 999px;
+          display: grid;
+          place-items: center;
+          border: 1px dashed
+            color-mix(in srgb, var(--color-ce-accent) 55%, transparent);
+          background: transparent;
+          color: var(--color-ce-accent);
+          cursor: pointer;
+          transition:
+            background 0.16s ease,
+            transform 0.16s ease;
+        }
+        .gpp .faq-add-btn:hover {
+          background: color-mix(
+            in srgb,
+            var(--color-ce-accent) 10%,
+            transparent
+          );
+          transform: scale(1.06);
+        }
+        .gpp .faq-add-btn:active {
+          transform: scale(0.96);
         }
         .gpp .faq-q {
           width: 100%;

@@ -26,6 +26,7 @@ import {
   type CourseRead,
 } from '@/hooks/queries/courses'
 import { useProduct } from '@/hooks/queries/products'
+import { AvatarCropModal } from '@/components/Customization/InlineEdit/AvatarCropModal'
 import type { schemas } from '@spaire/client'
 import { formatProductPrice, isRecurringProduct } from '../courseLandingPrice'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -43,7 +44,7 @@ import type {
 
 // Default band badges. Single source so the editor seeds the exact chips the
 // renderer shows when no override exists (kept in sync with GeneratedPortalPage).
-const DEFAULT_BADGES = ['All Levels', 'Self-paced', 'Captions', 'Mobile & TV']
+const DEFAULT_BADGES = ['All Levels', 'Self-paced', 'Captions', 'Mobile & Desktop']
 
 function pickFile(accept: string, cb: (file: File) => void) {
   const input = document.createElement('input')
@@ -418,6 +419,75 @@ export function CourseDesignEditor({
     commitOverrides,
   ])
 
+  // ── portrait reposition (debounced commit; one undo step per drag gesture,
+  //    mirrors onCoverPosition) ───────────────────────────────────────────────
+  const portraitReposTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const onPortraitPosition = useCallback(
+    (pos: string) => {
+      if (portraitReposTimer.current) clearTimeout(portraitReposTimer.current)
+      const prev = course.landing_overrides?.portrait_object_position ?? null
+      portraitReposTimer.current = setTimeout(() => {
+        if (pos === prev) return
+        commitOverrides(
+          { portrait_object_position: pos },
+          { portrait_object_position: prev },
+          'Reposition portrait',
+        )
+      }, 600)
+    },
+    [course.landing_overrides?.portrait_object_position, commitOverrides],
+  )
+
+  // ── instructor avatar (round) — reuses the Space avatar crop editor
+  //    (zoom + reposition) and the course-scoped landing media upload, so a
+  //    per-course avatar can be set without touching the global org avatar.
+  //    Falls back to the org avatar when none is set. ─────────────────────────
+  const [avatarEditFile, setAvatarEditFile] = useState<File | null>(null)
+  const pickAvatar = useCallback(() => {
+    pickFile('image/*', (file) => setAvatarEditFile(file))
+  }, [])
+  const onAvatarCropSave = useCallback(
+    async (blob: Blob) => {
+      const file = new File([blob], 'instructor-avatar.jpg', {
+        type: 'image/jpeg',
+      })
+      const prev = course.landing_overrides?.instructor_avatar_url ?? null
+      try {
+        const { url } = await uploadLandingMedia.mutateAsync({
+          courseId: course.id,
+          file,
+        })
+        commitOverrides(
+          { instructor_avatar_url: url },
+          { instructor_avatar_url: prev },
+          'Change instructor photo',
+        )
+        toast({ title: 'Instructor photo updated' })
+      } catch {
+        toast({ title: 'Upload failed', description: 'Please try again.' })
+      } finally {
+        setAvatarEditFile(null)
+      }
+    },
+    [
+      course.id,
+      course.landing_overrides?.instructor_avatar_url,
+      uploadLandingMedia,
+      commitOverrides,
+    ],
+  )
+  const onAvatarDelete = useCallback(() => {
+    const prev = course.landing_overrides?.instructor_avatar_url ?? null
+    if (prev) {
+      commitOverrides(
+        { instructor_avatar_url: null },
+        { instructor_avatar_url: prev },
+        'Remove instructor photo',
+      )
+    }
+    setAvatarEditFile(null)
+  }, [course.landing_overrides?.instructor_avatar_url, commitOverrides])
+
   const onEditText = useCallback(
     (
       field: EditField,
@@ -779,12 +849,21 @@ export function CourseDesignEditor({
       onRemoveBioParagraph={onRemoveBioParagraph}
       sectionVisible={course.landing_overrides?.visible}
       onSetSectionHidden={onSetSectionHidden}
-      avatarUrl={organization?.avatar_url ?? null}
+      avatarUrl={
+        course.landing_overrides?.instructor_avatar_url ??
+        organization?.avatar_url ??
+        null
+      }
+      onEditAvatar={pickAvatar}
       instructorSub={aiInstructor?.sub ?? ''}
       instructorBio={aiInstructor?.bio ?? []}
       portraitUrl={course.landing_overrides?.portrait_url ?? null}
+      portraitPosition={
+        course.landing_overrides?.portrait_object_position ?? null
+      }
       portraitCaption={aiInstructor?.caption ?? ''}
       onAddPortrait={onAddPortrait}
+      onPortraitPosition={onPortraitPosition}
       portraitBusy={portraitBusy}
       faq={aiFaq}
       badges={course.landing_overrides?.badges ?? undefined}
@@ -799,6 +878,22 @@ export function CourseDesignEditor({
         initial={course.sample ?? null}
         unit={isEpisodic ? 'episode' : 'lesson'}
       />
+      {/* Instructor avatar crop editor — zoom + reposition, ported from the
+          Space avatar editor. Saves a course-scoped avatar (landing media). */}
+      {avatarEditFile && (
+        <AvatarCropModal
+          src={avatarEditFile}
+          dark={dark}
+          onSave={onAvatarCropSave}
+          onCancel={() => setAvatarEditFile(null)}
+          onReplace={pickAvatar}
+          onDelete={
+            course.landing_overrides?.instructor_avatar_url
+              ? onAvatarDelete
+              : undefined
+          }
+        />
+      )}
     </>
   )
 }

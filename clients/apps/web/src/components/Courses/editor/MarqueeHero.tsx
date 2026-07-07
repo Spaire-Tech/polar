@@ -63,7 +63,7 @@ export function MarqueeHero({
   title = 'The Golfer’s Blueprint',
   description = 'A two-time major champion takes you inside the scoring game — the swing, the short game, and the mind that wins the shots that matter. Shot like a film, taught like a private lesson.',
   metaLine = 'Documentary Series · Golf  ·  2026  ·  12 Episodes  ·  4h 15m',
-  badges = ['All Levels', 'Self-paced', 'Captions', 'Mobile & TV'],
+  badges = ['All Levels', 'Self-paced', 'Captions', 'Mobile & Desktop'],
   instructorName = 'Jack Reeves',
   instructorSub = 'Two-time major champion and former world No. 1.',
   playLabel = 'Play Episode 1 Free',
