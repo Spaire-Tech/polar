@@ -54,8 +54,21 @@ async def send_test_step(step_id: UUID, to_email: str) -> None:
         )
 
         unsubscribe_url = build_test_unsubscribe_url()
+        # Resolve {{first_name}} etc. against a representative recipient so the
+        # test looks like a real, personalised send rather than shipping the
+        # literal placeholder tokens (mirrors the real step-send path).
+        from polar.email.personalize import build_variables
+        from polar.email.personalize import render as personalize
+        from polar.email.personalize import sample_subscriber
+
+        personalize_vars = build_variables(subscriber=sample_subscriber(to_email))
+        personalize_vars["unsubscribe_url"] = unsubscribe_url
+        body_html = personalize(
+            step.content_html or "<p>No content</p>", personalize_vars, html=True
+        )
+        subject_text = personalize(step.subject or "", personalize_vars, html=False)
         wrapped_html = finalize_email_html(
-            step.content_html or "<p>No content</p>",
+            body_html,
             unsubscribe_url=unsubscribe_url,
             organization_name=organization.name if organization else step.sender_name,
             organization_logo_url=organization.avatar_url if organization else None,
@@ -64,7 +77,7 @@ async def send_test_step(step_id: UUID, to_email: str) -> None:
         try:
             await email_sender.send(
                 to_email_addr=to_email,
-                subject=f"[TEST] {step.subject}",
+                subject=f"[TEST] {subject_text}",
                 html_content=wrapped_html,
                 from_name=step.sender_name,
                 from_email_addr=step.sender_email

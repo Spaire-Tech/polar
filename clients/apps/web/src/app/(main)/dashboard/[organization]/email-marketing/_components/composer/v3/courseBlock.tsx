@@ -84,7 +84,7 @@ function editorSpec(variant: CourseVariant, c: CourseData): Spec {
     case 'welcome':
       return wrap(
         'padding:56px 44px',
-        ['h2', { style: `margin:0 0 24px;font-size:34px;font-weight:700;line-height:1.1;letter-spacing:-.5px;color:${H}` }, c.welcomeHeading || 'Welcome to the table.'],
+        ['h2', { style: `margin:0 0 24px;font-size:34px;font-weight:700;line-height:1.1;letter-spacing:-.5px;color:${H}` }, c.welcomeHeading || 'Welcome — you’re in.'],
         ...c.welcome.map((p, i) => ['p', { style: `margin:${i ? 14 : 0}px 0 0;font-size:17px;line-height:1.65;color:${T}` }, p]),
         [
           'div',
@@ -178,7 +178,7 @@ function editorSpec(variant: CourseVariant, c: CourseData): Spec {
     case 'cta':
       return wrap(
         'padding:44px;text-align:center',
-        ['h2', { style: `margin:0 0 18px;font-size:26px;font-weight:700;line-height:1.15;color:${H}` }, 'Ready to start cooking?'],
+        ['h2', { style: `margin:0 0 18px;font-size:26px;font-weight:700;line-height:1.15;color:${H}` }, 'Ready to begin?'],
         ['a', { href: c.ctaHref, style: `display:inline-block;text-decoration:none;background:${BTN};color:${BTNT};border-radius:999px;padding:14px 28px;font-size:15px;font-weight:600` }, c.ctaText],
       )
   }
@@ -209,7 +209,7 @@ function emailEl(variant: CourseVariant, c: CourseData): ReactNode {
     case 'welcome':
       return div(
         { padding: '56px 44px' },
-        txt('h2', { margin: '0 0 24px', fontSize: 34, fontWeight: 700, lineHeight: 1.1, color: eH }, c.welcomeHeading || 'Welcome to the table.'),
+        txt('h2', { margin: '0 0 24px', fontSize: 34, fontWeight: 700, lineHeight: 1.1, color: eH }, c.welcomeHeading || 'Welcome — you’re in.'),
         ...c.welcome.map((p, i) =>
           createElement('p', { key: i, style: { margin: `${i ? 14 : 0}px 0 0`, fontSize: 17, lineHeight: 1.65, color: eT } }, p),
         ),
@@ -285,7 +285,7 @@ function emailEl(variant: CourseVariant, c: CourseData): ReactNode {
     case 'cta':
       return div(
         { padding: 44, textAlign: 'center' },
-        txt('h2', { margin: '0 0 18px', fontSize: 26, fontWeight: 700, color: eH }, 'Ready to start cooking?'),
+        txt('h2', { margin: '0 0 18px', fontSize: 26, fontWeight: 700, color: eH }, 'Ready to begin?'),
         createElement('a', { href: c.ctaHref, style: { display: 'inline-block', textDecoration: 'none', background: '#141518', color: '#fff', borderRadius: 999, padding: '14px 28px', fontSize: 15, fontWeight: 600 } }, c.ctaText),
       )
   }

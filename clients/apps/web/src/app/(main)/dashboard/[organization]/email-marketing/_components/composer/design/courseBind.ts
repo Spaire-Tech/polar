@@ -1,40 +1,67 @@
 // Auto-bind a freshly-loaded template's blocks to the REAL course, in place,
-// while keeping every field editable (we only seed initial props). The creator
-// designed each lifecycle email's voice; binding swaps the placeholder course
-// (Southern Cooking) for the live one: lessons, cover image/title, course
-// facts, instructor and trailer. Lifecycle copy (notes, CTAs, hero phrases) is
-// left untouched — that's the template's job.
+// while keeping every field editable (we only seed initial props). The templates
+// carry NO course-specific example copy any more — they leave the course-driven
+// fields as empty "slots" (cover title / byline / tagline, welcome-note heading &
+// signature, lessons, instructor, facts). This fills those slots from the live
+// course: title, description, lessons, instructor and trailer. The remaining
+// lifecycle copy (moment headings, CTAs) is course-agnostic and stays as-is.
+//
+// The `trigger` (the lifecycle moment) decides what each cover/note slot means —
+// e.g. the enrolment byline is "Taught by <instructor>", the first-lesson byline
+// is the first lesson's title, the halfway byline is the course name.
 
 import type { CourseData } from '../v3/courseData'
 import type { Block } from './emailEngine'
 
-const PLACEHOLDER_TITLE = 'Southern Cooking'
-const PLACEHOLDER_INSTRUCTOR = 'Adaeze Bello'
+// Legacy placeholder name — older saved emails / hand-edited blocks may still
+// carry it, so we defensively swap it out wherever it signs a block.
+const LEGACY_INSTRUCTOR = 'Adaeze Bello'
+const LEGACY_TITLE = 'Southern Cooking'
 
-/** Swap the design's placeholder course name for the real one, anywhere it
- *  appears (e.g. "Southern Cooking, all twelve lessons"). */
-const swapCourseName = (s: string, title: string): string =>
-  String(s ?? '').split(PLACEHOLDER_TITLE).join(title)
+/** A representative "pivotal" lesson for the specific-lesson email: roughly a
+ *  third of the way in, clamped to the real curriculum. */
+const pivotalLessonIndex = (n: number): number =>
+  Math.min(Math.max(0, n - 1), Math.max(0, Math.floor(n / 3)))
 
 export function bindCourse(
   blocks: Block[],
   course: CourseData | undefined,
   creatorName?: string,
+  trigger?: string,
 ): Block[] {
   if (!course) return blocks
   const hasLessons = course.lessons.length > 0
   const lessonCount = course.lessons.length
   const inst = course.instructor
   // The name every block signs with: the course's instructor if set, otherwise
-  // the creator/organization. NEVER the design's placeholder ("Adaeze Bello").
+  // the creator/organization. NEVER a design placeholder.
   const instructorName = (inst.name || creatorName || '').trim()
   const instructorRole = (inst.role || 'Instructor').trim()
   const instructorBio = (inst.bio || '').trim()
-  // Replace the placeholder name wherever it signs a block.
-  const swapInstructor = (s: string): string => {
-    const v = String(s ?? '')
-    if (!instructorName) return v
-    return v.split(PLACEHOLDER_INSTRUCTOR).join(instructorName)
+  const courseTagline = (course.tagline || '').trim()
+  const swapLegacy = (s: string): string => {
+    let v = String(s ?? '')
+    if (instructorName) v = v.split(LEGACY_INSTRUCTOR).join(instructorName)
+    v = v.split(LEGACY_TITLE).join(course.title)
+    return v
+  }
+
+  // The cover byline (small subtitle under the title) means something different
+  // per moment. Returns the string to use, or null to leave the template's value.
+  const coverByline = (): string | null => {
+    switch (trigger) {
+      case 'firstLesson':
+        return hasLessons ? course.lessons[0].title : null
+      case 'specificLesson':
+        return hasLessons ? course.lessons[pivotalLessonIndex(lessonCount)].title : null
+      case 'enrolment':
+        return instructorName ? `Taught by ${instructorName}` : course.title
+      case 'halfway':
+      case 'courseComplete':
+        return course.title
+      default:
+        return null
+    }
   }
 
   for (const b of blocks) {
@@ -42,22 +69,28 @@ export function bindCourse(
     switch (b.type) {
       case 'coverHero': {
         if (course.heroImage) p.img = course.heroImage
-        // The cover title is the course-name slot only when the template used
-        // the placeholder course name; lifecycle phrases ("A good start.") stay.
-        if (p.title) p.title = swapCourseName(p.title, course.title)
-        // Hero subtitle: "Taught by X" / "with X" → real instructor; a bare
-        // course-name subtitle → the real course name.
-        if (/^(taught by|with)\b/i.test(String(p.instructor || ''))) {
+        // Title slot → the course name; a moment phrase ("A good start.") stays.
+        if (!p.title) p.title = course.title
+        else p.title = swapLegacy(p.title)
+        // Byline slot → the moment-appropriate subtitle (see coverByline).
+        const byline = coverByline()
+        if (byline != null) {
+          p.instructor = byline
+        } else if (/^(taught by|with)\b/i.test(String(p.instructor || ''))) {
           if (instructorName)
             p.instructor = (String(p.instructor).match(/^taught by/i) ? 'Taught by ' : 'with ') + instructorName
         } else if (p.instructor) {
-          p.instructor = swapCourseName(swapInstructor(p.instructor), course.title)
+          p.instructor = swapLegacy(p.instructor)
+        } else if (instructorName) {
+          p.instructor = `Taught by ${instructorName}`
         }
+        // Tagline slot → the course description; a moment tagline stays.
+        if (!p.tagline && courseTagline) p.tagline = courseTagline
         break
       }
       case 'meta': {
         p.items = [
-          { v: `${lessonCount || 12} lessons` },
+          { v: `${lessonCount || 0} lesson${lessonCount === 1 ? '' : 's'}` },
           { v: course.totalDuration || '—' },
           { v: course.level || 'All levels' },
         ]
@@ -88,7 +121,7 @@ export function bindCourse(
         if (instructorName) p.name = instructorName
         p.role = instructorRole
         // Real bio if the course has one; otherwise a neutral factual line —
-        // never the placeholder's fabricated "Adaeze runs a Charleston kitchen".
+        // never a fabricated placeholder bio.
         p.bio =
           instructorBio ||
           (instructorName
@@ -106,14 +139,20 @@ export function bindCourse(
         break
       }
       case 'note': {
+        // The enrolment welcome-note headline is a course slot; other moments
+        // keep their (course-agnostic) headline.
+        if (trigger === 'enrolment' && course.title)
+          p.heading = `Welcome to ${course.title}.`
         // The instructor signs every lifecycle note — bind it to the real one
-        // (or the creator), never the placeholder.
-        if (instructorName) p.sign = swapInstructor(p.sign)
+        // (or the creator), never a placeholder.
+        if (instructorName) p.sign = instructorName
+        else if (p.sign) p.sign = swapLegacy(p.sign)
         p.signRole = instructorRole
         break
       }
       case 'quote': {
-        if (instructorName) p.by = swapInstructor(p.by)
+        if (instructorName) p.by = instructorName
+        else if (p.by) p.by = swapLegacy(p.by)
         break
       }
     }

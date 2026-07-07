@@ -100,9 +100,9 @@ const uid = () => 'b' + Math.random().toString(36).slice(2, 8)
 
 /* the six behavioural triggers in the sequence */
 const TRIGGERS = [
-  { key: 'enrolment', name: 'Enrolment', desc: 'Sent the moment access is granted', subject: 'Welcome to Southern Cooking', preview: 'Your class is ready. Here is your first lesson.', audience: 'New enrollments', count: '1,204' },
+  { key: 'enrolment', name: 'Enrolment', desc: 'Sent the moment access is granted', subject: 'Welcome to Southern Cooking', preview: 'Your course is ready. Here is your first lesson.', audience: 'New enrollments', count: '1,204' },
   { key: 'firstLesson', name: 'First lesson completed', desc: 'Fires on their first finish', subject: 'You finished your first lesson', preview: 'One down — here is what comes next.', audience: 'Finished lesson 1', count: '860' },
-  { key: 'specificLesson', name: 'Specific lesson completed', desc: 'Fires when they clear a chosen lesson', subject: 'You hit the turning point', preview: 'The hardest lesson is behind you.', audience: 'Finished “Low & Slow Braises”', count: '612' },
+  { key: 'specificLesson', name: 'Specific lesson completed', desc: 'Fires when they clear a chosen lesson', subject: 'You hit the turning point', preview: 'The hardest lesson is behind you.', audience: 'Finished a key lesson', count: '612' },
   { key: 'halfway', name: 'Halfway', desc: 'Fires at 50% — the retention email', subject: 'You are halfway through Southern Cooking', preview: 'Don’t stop now — the best is still ahead.', audience: 'Reached 50%', count: '494' },
   { key: 'courseComplete', name: 'Course completed', desc: 'Fires when every lesson is done', subject: 'You finished Southern Cooking', preview: 'Look how far you have come.', audience: 'Completed the course', count: '237' },
   { key: 'inactive', name: 'Inactive for N days', desc: 'Win-back after a quiet stretch', subject: 'Your class is waiting', preview: 'Pick up right where you left off.', audience: 'Inactive 7+ days', count: '318' },
@@ -340,9 +340,9 @@ export function createEditor(root: HTMLElement, opts: CreateEditorOpts = {}): Ed
     const d = REG[type].defaults(theme())
     return { id: uid(), type, props: Object.assign({}, d, props || {}) }
   }
-  /* A brand-new block from the palette/drag still carries the design's
-     placeholder defaults ("Adaeze Bello", "12 lessons", "Southern Cooking").
-     Bind it to the live course on creation so it matches the rest of the email. */
+  /* A brand-new block from the palette/drag carries only neutral placeholder
+     defaults (empty course slots). Bind it to the live course on creation so it
+     fills in with the real title / lessons / instructor like the rest of the email. */
   function makeBoundBlock(type: string): Block {
     const b = makeBlock(type)
     if (opts.applyCourse) opts.applyCourse([b], currentTrigger)

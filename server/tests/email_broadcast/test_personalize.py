@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-from polar.email.personalize import build_variables, render
+from polar.email.personalize import build_variables, render, sample_subscriber
 
 
 def _sub(name: str | None = "Ada Lovelace", email: str = "ada@example.com") -> object:
@@ -76,3 +76,26 @@ def test_no_braces_returns_unchanged() -> None:
     vs = build_variables(subscriber=_sub("Ada"))
     out = render("no tokens at all", vs, html=False)
     assert out == "no tokens at all"
+
+
+def test_sample_subscriber_derives_name_from_email() -> None:
+    """Test/preview sends must not ship the literal token — the sample
+    recipient resolves {{first_name}}/{{last_name}} to realistic values."""
+    vs = build_variables(subscriber=sample_subscriber("ada.lovelace@example.com"))
+    out = render("Hi {{first_name}} {{last_name}}", vs, html=False)
+    assert out == "Hi Ada Lovelace"
+    assert vs["email"] == "ada.lovelace@example.com"
+    assert "{{" not in out
+
+
+def test_sample_subscriber_single_token_local_part() -> None:
+    vs = build_variables(subscriber=sample_subscriber("jsmith@example.com"))
+    assert vs["first_name"] == "Jsmith"
+    assert vs["last_name"] == ""
+
+
+def test_sample_subscriber_falls_back_when_no_letters() -> None:
+    vs = build_variables(subscriber=sample_subscriber("12345@example.com"))
+    # No usable letters → neutral sample name, never a literal placeholder.
+    assert vs["first_name"] == "Alex"
+    assert vs["last_name"] == "Rivera"

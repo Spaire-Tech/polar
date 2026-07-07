@@ -92,7 +92,8 @@ export function BroadcastEditorDesign({
       fromName: creatorName,
       initialState: seededState,
       resolveAsset: makeAssetResolver(cbRef.current.course),
-      applyCourse: (blocks) => bindCourse(blocks, cbRef.current.course, cbRef.current.creatorName),
+      applyCourse: (blocks, trigger) =>
+        bindCourse(blocks, cbRef.current.course, cbRef.current.creatorName, trigger),
       onUploadImage: (file) => cbRef.current.onUploadImage!(file),
       onSendTest: cbRef.current.onSendTest
         ? (v) => cbRef.current.onSendTest!(v)
