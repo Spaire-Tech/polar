@@ -72,6 +72,9 @@ from polar.organization.endpoints import router as organization_router
 from polar.organization_access_token.endpoints import (
     router as organization_access_token_router,
 )
+from polar.organization_custom_domain.endpoints import (
+    router as organization_custom_domain_router,
+)
 from polar.payment.endpoints import router as payment_router
 from polar.payout.endpoints import router as payout_router
 from polar.personal_access_token.endpoints import router as pat_router
@@ -112,6 +115,8 @@ router.include_router(accounts_router)
 router.include_router(stream_router)
 # /organizations
 router.include_router(organization_router)
+# /organizations/{id}/custom-domain
+router.include_router(organization_custom_domain_router)
 # /subscriptions
 router.include_router(subscription_router)
 # /transactions
