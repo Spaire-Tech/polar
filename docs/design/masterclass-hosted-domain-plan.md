@@ -5,6 +5,17 @@ landing, public events, and the customer (student) portal — on their **own
 domain** (e.g. `learn.milesbecker.com`) instead of only
 `space.spairehq.com/{slug}`.
 
+> **Product decisions (founder, 2026-07-07):**
+> 1. Hosted domain ships as a **Studio plan** feature — flip
+>    `custom_storefront_domain=True` for `TierKey.studio` (and presumably
+>    `scale`) in `entitlements/tiers.py`; it is currently `False` for all
+>    real tiers.
+> 2. **Spaire Space is hidden** — there is no multi-product storefront
+>    anymore. The custom domain is the front door to the masterclass
+>    landing + student portal only, which simplifies scope: `spacePageLink`
+>    references below become "the platform-hosted fallback URL", and the
+>    space→custom 301 question mostly disappears.
+
 ---
 
 ## Part 1 — Audit of the current masterclass surfaces
