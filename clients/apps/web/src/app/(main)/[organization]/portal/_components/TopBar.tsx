@@ -6,6 +6,7 @@ import {
 } from '@/hooks/queries'
 import {
   type CustomerNotificationRead,
+  useCommunityEnrolledCourses,
   useCustomerNotificationUnreadCount,
   useCustomerNotifications,
   useMarkAllCustomerNotificationsRead,
@@ -37,6 +38,7 @@ const buildTabs = (
   organization: schemas['CustomerOrganization'],
   authenticatedUser: schemas['PortalAuthenticatedUser'] | undefined,
   customer: schemas['CustomerPortalCustomer'] | undefined,
+  showCommunity: boolean,
 ): Tab[] => {
   const slug = organization.slug
   const canAccessBilling = hasBillingPermission(authenticatedUser)
@@ -61,13 +63,20 @@ const buildTabs = (
         p.includes('/portal/courses') &&
         !/\/portal\/courses\/[^/]+\/community/.test(p),
     },
-    {
-      href: `/${slug}/portal/community`,
-      label: 'Community',
-      matches: (p) =>
-        p.includes('/portal/community') ||
-        /\/portal\/courses\/[^/]+\/community/.test(p),
-    },
+    // Community is only surfaced once at least one enrolled course has a
+    // live, published community. Until a creator turns one on, the tab is
+    // hidden (the /portal/community route still works via deep link).
+    ...(showCommunity
+      ? [
+          {
+            href: `/${slug}/portal/community`,
+            label: 'Community',
+            matches: (p: string) =>
+              p.includes('/portal/community') ||
+              /\/portal\/courses\/[^/]+\/community/.test(p),
+          },
+        ]
+      : []),
     // Phase 4d: Downloads tab hidden from the student portal nav. Route file
     // is kept; restore this entry to bring the tab back.
     // {
@@ -166,14 +175,27 @@ export const TopBar = ({
   const api = React.useMemo(() => createClientSideAPI(token ?? ''), [token])
   const { data: authenticatedUser } = usePortalAuthenticatedUser(api)
   const { data: customer } = useAuthenticatedCustomer(api)
+  const { data: communityCourses } = useCommunityEnrolledCourses(token)
   const hidden = useHideOnScroll()
+
+  // Show the Community tab only when a creator has an enrolled course's
+  // community live and published. Undefined data (still loading) keeps it
+  // hidden so we never flash a tab that then disappears.
+  const showCommunity = (communityCourses ?? []).some(
+    (c) => c.community_enabled,
+  )
 
   const buildHref = (href: string) => {
     if (!searchParams.toString()) return href
     return `${href}?${searchParams.toString()}`
   }
 
-  const tabs = buildTabs(organization, authenticatedUser, customer)
+  const tabs = buildTabs(
+    organization,
+    authenticatedUser,
+    customer,
+    showCommunity,
+  )
   const overviewHref = buildHref(`/${organization.slug}/portal/overview`)
 
   return (
