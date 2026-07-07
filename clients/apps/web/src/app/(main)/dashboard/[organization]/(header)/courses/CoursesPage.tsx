@@ -470,7 +470,7 @@ function CoursesEmptyHero({
                 lineHeight: 1,
               }}
             >
-              Start your free trial →
+              Get Started →
             </button>
           </div>
         </section>

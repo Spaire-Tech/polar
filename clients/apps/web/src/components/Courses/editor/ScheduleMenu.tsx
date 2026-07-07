@@ -232,10 +232,10 @@ function ModeRow({
       <span
         className={cn(
           'mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-2',
-          selected ? 'border-gray-900' : 'border-gray-300',
+          selected ? 'border-ce-accent' : 'border-gray-300',
         )}
       >
-        {selected && <span className="h-2 w-2 rounded-full bg-gray-900" />}
+        {selected && <span className="bg-ce-accent h-2 w-2 rounded-full" />}
       </span>
       <div className="flex-1">
         <div className="text-sm font-medium text-gray-900">{label}</div>
