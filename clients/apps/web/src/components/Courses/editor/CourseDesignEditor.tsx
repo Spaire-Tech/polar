@@ -718,10 +718,10 @@ export function CourseDesignEditor({
   return (
     <>
       <GeneratedPortalPage
-      brand="Spaire Originals"
+      brand=""
       title={course.title ?? 'Untitled Original'}
       titleLines={aiHero?.titleLines ?? null}
-      eyebrow={aiHero?.eyebrow || 'A Spaire Original'}
+      eyebrow={aiHero?.eyebrow || ''}
       badge={aiHero?.badge || (isEpisodic ? 'New Series' : 'New Course')}
       desc={aiHero?.description || course.description || ''}
       byline={aiHero?.byline || course.instructor_bio || ''}

@@ -131,7 +131,7 @@ function Preview() {
 
   return (
     <GeneratedPortalPage
-      brand="Spaire Originals"
+      brand=""
       title={params.get('title') ?? 'The Golfer’s Blueprint'}
       titleLines={
         params.get('title') ? null : ['The Golfer’s', 'Blueprint']

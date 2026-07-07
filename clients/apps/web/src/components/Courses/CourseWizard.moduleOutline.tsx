@@ -6,15 +6,15 @@
 // up to four 16:10 poster cards hanging above/below in an alternating
 // zig-zag. Posters carry the blurred ambient placeholder from the design
 // (hue-rotated per stop), a "Module 01" pill and a ring. Clicking a card
-// opens the detail sheet: blurred cover, kicker + title, lesson rows.
-// Footer: Regenerate / "Looks good — continue" + foot-note.
+// opens the detail sheet: blurred cover, kicker + title, lesson rows —
+// the module title and each lesson title are editable in place.
+// Footer: Regenerate / "Looks good — continue".
 //
-// The header subtitle is the design's line with the AI-written arc clause:
-// "Four modules, shaped from your answers — {arc}." — the arc always names
-// THIS course's journey (the generation prompt enforces it).
+// The header subtitle is a fixed reassurance line ("This outline is a
+// starting point — …"); the AI's arc clause is no longer surfaced here.
 
 import CloseIcon from '@mui/icons-material/Close'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 type PartialLesson = {
   title?: string
@@ -32,7 +32,47 @@ type PartialOutline = {
   modules?: PartialModule[]
 }
 
-const COUNT_WORDS = ['Zero', 'One', 'Two', 'Three', 'Four', 'Five', 'Six']
+// The standing note that used to sit at the bottom of the screen; it now
+// carries the subtitle slot directly under the title (replacing the
+// AI-written "Four modules, shaped from your answers — …" line).
+const STARTING_POINT_NOTE =
+  'This outline is a starting point — you can reshape modules, lessons, and content anytime after your course is created.'
+
+// A contenteditable field that commits on blur. Committing on blur (not on
+// every keystroke) keeps the caret stable — React never re-renders the node
+// mid-edit — so the creator can freely rewrite the AI's module / lesson copy.
+function EditableText({
+  value,
+  onCommit,
+  className,
+  multiline = false,
+}: {
+  value: string
+  onCommit: (next: string) => void
+  className?: string
+  multiline?: boolean
+}) {
+  return (
+    <div
+      className={`${className ?? ''} moes-editable`}
+      contentEditable
+      suppressContentEditableWarning
+      spellCheck={false}
+      onBlur={(e) => {
+        const next = e.currentTarget.textContent ?? ''
+        if (next !== value) onCommit(next)
+      }}
+      onKeyDown={(e) => {
+        if (!multiline && e.key === 'Enter') {
+          e.preventDefault()
+          e.currentTarget.blur()
+        }
+      }}
+    >
+      {value}
+    </div>
+  )
+}
 
 export function ModuleOutlineScreen({
   title,
@@ -42,6 +82,7 @@ export function ModuleOutlineScreen({
   onRegenerate,
   onCreate,
   onClose,
+  onOutlineChange,
 }: {
   title: string
   partialOutline: PartialOutline
@@ -50,9 +91,18 @@ export function ModuleOutlineScreen({
   onRegenerate: () => void
   onCreate: () => void
   onClose: () => void
+  onOutlineChange?: (outline: PartialOutline) => void
 }) {
-  const modules = partialOutline.modules ?? []
-  const arc = partialOutline.arc
+  // Local editable copy of the streamed outline. It mirrors the incoming
+  // stream until the creator edits a field (dirty), after which their edits
+  // win and are pushed up via onOutlineChange so create persists them.
+  const [local, setLocal] = useState<PartialOutline>(partialOutline)
+  const dirtyRef = useRef(false)
+  useEffect(() => {
+    if (!dirtyRef.current) setLocal(partialOutline)
+  }, [partialOutline])
+
+  const modules = local.modules ?? []
   const [openIdx, setOpenIdx] = useState<number | null>(null)
 
   useEffect(() => {
@@ -64,13 +114,37 @@ export function ModuleOutlineScreen({
     return () => document.removeEventListener('keydown', onKey)
   }, [openIdx])
 
-  const countWord =
-    modules.length > 0 && modules.length < COUNT_WORDS.length
-      ? COUNT_WORDS[modules.length]
-      : 'Four'
-  const sub = `${countWord} module${modules.length === 1 ? '' : 's'}, shaped from your answers${
-    arc ? ` — ${arc}` : ''
-  }.`
+  const cloneModules = () =>
+    (local.modules ?? []).map((m) => ({
+      ...m,
+      lessons: (m.lessons ?? []).map((l) => ({ ...l })),
+    }))
+
+  const commitModuleTitle = (i: number, val: string) => {
+    const mods = cloneModules()
+    if (!mods[i]) return
+    mods[i] = { ...mods[i], title: val }
+    const next = { ...local, modules: mods }
+    dirtyRef.current = true
+    setLocal(next)
+    onOutlineChange?.(next)
+  }
+
+  const commitLessonTitle = (mi: number, li: number, val: string) => {
+    const mods = cloneModules()
+    if (!mods[mi]?.lessons?.[li]) return
+    mods[mi].lessons![li] = { ...mods[mi].lessons![li], title: val }
+    const next = { ...local, modules: mods }
+    dirtyRef.current = true
+    setLocal(next)
+    onOutlineChange?.(next)
+  }
+
+  // Regenerating discards local edits so the fresh stream shows through.
+  const handleRegenerate = () => {
+    dirtyRef.current = false
+    onRegenerate()
+  }
 
   const openModule = openIdx !== null ? modules[openIdx] : null
 
@@ -102,8 +176,7 @@ export function ModuleOutlineScreen({
         </div>
         <h1 className="h-title">{title}</h1>
         <p className="h-sub">
-          {sub}
-          {isStreaming && ' Generating…'}
+          {isStreaming ? 'Generating…' : STARTING_POINT_NOTE}
         </p>
       </div>
 
@@ -155,7 +228,7 @@ export function ModuleOutlineScreen({
 
       {/* ── footer ── */}
       <div className="foot">
-        <button className="back" type="button" onClick={onRegenerate}>
+        <button className="back" type="button" onClick={handleRegenerate}>
           <svg
             width="15"
             height="15"
@@ -194,10 +267,6 @@ export function ModuleOutlineScreen({
           </svg>
         </button>
       </div>
-      <p className="foot-note">
-        This outline is a starting point — you can reshape modules, lessons,
-        and content anytime after your course is created.
-      </p>
 
       {/* ── detail sheet ── */}
       <div
@@ -237,7 +306,11 @@ export function ModuleOutlineScreen({
               </button>
               <div className="sheet-title">
                 <div className="k">{openModule.kicker || ''}</div>
-                <div className="t">{openModule.title || ''}</div>
+                <EditableText
+                  className="t"
+                  value={openModule.title || ''}
+                  onCommit={(v) => commitModuleTitle(openIdx, v)}
+                />
               </div>
             </div>
             <div className="sheet-body">
@@ -249,9 +322,13 @@ export function ModuleOutlineScreen({
               {(openModule.lessons ?? []).map((lesson, idx) => (
                 <div key={idx} className="lrow">
                   <span className="lnum">{idx + 1}</span>
-                  <span className="lmain">
-                    <span className="ltitle">{lesson.title || '…'}</span>
-                  </span>
+                  <div className="lmain">
+                    <EditableText
+                      className="ltitle"
+                      value={lesson.title || ''}
+                      onCommit={(v) => commitLessonTitle(openIdx, idx, v)}
+                    />
+                  </div>
                 </div>
               ))}
             </div>
@@ -829,6 +906,24 @@ export function ModuleOutlineScreen({
           font-weight: 500;
           letter-spacing: -0.01em;
           line-height: 1.25;
+        }
+
+        /* editable fields — subtle affordance so the creator knows the AI
+           copy can be rewritten in place. */
+        .moes-editable {
+          cursor: text;
+          border-radius: 8px;
+          transition: box-shadow 0.15s, background 0.15s;
+          outline: none;
+        }
+        .moes-editable:hover {
+          box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.14);
+        }
+        .moes-editable:focus {
+          box-shadow: 0 0 0 2px rgba(106, 77, 216, 0.55);
+        }
+        .ltitle.moes-editable:focus {
+          background: rgba(0, 0, 0, 0.03);
         }
 
         @media (max-width: 1180px) {

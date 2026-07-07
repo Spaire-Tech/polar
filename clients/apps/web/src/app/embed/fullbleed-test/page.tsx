@@ -49,7 +49,7 @@ export default function FullbleedTestPage() {
               {/* PublicPortalView's full-bleed wrapper */}
               <div className="gpp-fullbleed" data-gpp-fullbleed>
                 <GeneratedPortalPage
-                  brand="Spaire Originals"
+                  brand=""
                   title="The Golfer’s Blueprint"
                   eyebrow="Documentary Series · Golf"
                   badge="New Series"

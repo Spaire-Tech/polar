@@ -1245,7 +1245,7 @@ export function GeneratedPortalPage({
           )}
           <div className="panel-grain" />
 
-          <div className="panel-brand rise">{brand}</div>
+          {brand ? <div className="panel-brand rise">{brand}</div> : null}
           {creatorBar}
 
           {/* Mobile-only centered Add cover (matches the cover hero). */}
@@ -1464,10 +1464,12 @@ export function GeneratedPortalPage({
           <div className="hero-shade" />
           <div className="hero-blend" />
 
-          <div className="hero-eyebrow">
-            <span className="dot" />
-            <span>{brand}</span>
-          </div>
+          {brand ? (
+            <div className="hero-eyebrow">
+              <span className="dot" />
+              <span>{brand}</span>
+            </div>
+          ) : null}
 
           {creatorBar}
 
@@ -2170,10 +2172,12 @@ export function GeneratedPortalPage({
                 }
               />
               <div className="photo-shade" />
-              <div className="es-eyebrow">
-                <span className="dot" />
-                <span>Spaire Original</span>
-              </div>
+              {brand ? (
+                <div className="es-eyebrow">
+                  <span className="dot" />
+                  <span>{brand}</span>
+                </div>
+              ) : null}
               <div className="es-title">{title}</div>
               <button
                 className="es-close"

@@ -2,7 +2,8 @@
 
 // CoverHero — literal clone of the "Cover Hero.html" design (The Golfer's
 // Blueprint). Standalone, no JS in the source: a full-bleed 100vh photo hero
-// with a dual legibility shade, "Spaire Original" eyebrow top-left, and a
+// with a dual legibility shade, an optional eyebrow top-left (only when one is
+// provided — no channel/brand label by default), and a
 // lower-left content stack (NEW SERIES badge + meta line, balance-wrapped
 // display title, description with the dimmed "— with" byline, white Watch
 // trailer pill + frosted Enroll button). CSS is a faithful port of the source
@@ -30,7 +31,7 @@ export type CoverHeroProps = {
 }
 
 export function CoverHero({
-  eyebrow = 'Spaire Original',
+  eyebrow = '',
   badge = 'New Series',
   metaItems = ['11 lessons', '3 hr 42 min', 'All levels'],
   titleLines = ['The Golfer’s', 'Blueprint'],
@@ -59,10 +60,12 @@ export function CoverHero({
       />
       <div className="hero-shade" />
 
-      <div className="hero-eyebrow">
-        <span className="dot" style={{ background: dotColor }} />
-        {eyebrow}
-      </div>
+      {eyebrow ? (
+        <div className="hero-eyebrow">
+          <span className="dot" style={{ background: dotColor }} />
+          {eyebrow}
+        </div>
+      ) : null}
 
       <div className="hero-content">
         <div className="hero-meta">

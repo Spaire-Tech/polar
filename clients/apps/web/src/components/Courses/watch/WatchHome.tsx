@@ -579,10 +579,6 @@ export function WatchHome({
         <div className="panel-scrim" />
         <div className="panel-grain" />
 
-        <div className="panel-brand">
-          <span className="dot" />
-          Spaire Originals
-        </div>
         <div className="top-controls">
           <span className="member-chip">
             <Glyph d={SF.check} size={13} stroke={2.6} />
