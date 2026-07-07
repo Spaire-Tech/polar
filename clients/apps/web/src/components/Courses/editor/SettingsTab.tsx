@@ -8,9 +8,11 @@ import {
 } from '@/hooks/queries/courses'
 import { getQueryClient } from '@/utils/api/query'
 import ImageOutlined from '@mui/icons-material/ImageOutlined'
+import { schemas } from '@spaire/client'
 import Switch from '@spaire/ui/components/atoms/Switch'
 import { useEffect, useRef, useState } from 'react'
 import { toast } from '../../Toast/use-toast'
+import { CustomDomainSection } from './CustomDomainSection'
 import { ThumbnailPositioner } from './ThumbnailPositioner'
 
 export type CourseSettingsEdits = {
@@ -26,10 +28,12 @@ export type CourseSettingsEdits = {
 
 export function SettingsTab({
   course,
+  organization,
   onSave,
   isSaving,
 }: {
   course: CourseRead
+  organization: schemas['Organization']
   onSave: (edits: CourseSettingsEdits) => void
   isSaving: boolean
 }) {
@@ -448,6 +452,8 @@ export function SettingsTab({
           </div>
         )}
       </section>
+
+      <CustomDomainSection organization={organization} />
 
       <div className="sticky bottom-0 z-10 -mx-2 mt-6 flex justify-end gap-2 rounded-2xl border border-gray-200 bg-white/85 px-4 py-3 backdrop-blur">
         <button

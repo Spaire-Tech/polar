@@ -476,6 +476,7 @@ export default function CourseEditor({
     mainContent = (
       <SettingsTab
         course={course}
+        organization={organization}
         onSave={handleSaveSettings}
         isSaving={updateCourse.isPending}
       />
