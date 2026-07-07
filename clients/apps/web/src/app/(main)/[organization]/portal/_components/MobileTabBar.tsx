@@ -11,6 +11,7 @@ import {
   useAuthenticatedCustomer,
   usePortalAuthenticatedUser,
 } from '@/hooks/queries'
+import { useCommunityEnrolledCourses } from '@/hooks/queries/community'
 import { createClientSideAPI } from '@/utils/client'
 import { hasBillingPermission } from '@/utils/customerPortal'
 import { schemas } from '@spaire/client'
@@ -149,6 +150,7 @@ const ChatIcon = (active: boolean) => (
 const buildTabs = (
   organization: schemas['CustomerOrganization'],
   authenticatedUser: schemas['PortalAuthenticatedUser'] | undefined,
+  showCommunity: boolean,
 ): Tab[] => {
   const slug = organization.slug
   const canAccessBilling = hasBillingPermission(authenticatedUser)
@@ -165,14 +167,20 @@ const buildTabs = (
       matches: (p) => p.includes('/portal/courses'),
       icon: StackIcon,
     },
-    {
-      href: `/${slug}/portal/community`,
-      label: 'Community',
-      matches: (p) =>
-        p.includes('/portal/community') ||
-        /\/portal\/courses\/[^/]+\/community/.test(p),
-      icon: ChatIcon,
-    },
+    // Community only appears once an enrolled course's community is live and
+    // published — mirrors the desktop TopBar gating.
+    ...(showCommunity
+      ? [
+          {
+            href: `/${slug}/portal/community`,
+            label: 'Community',
+            matches: (p: string) =>
+              p.includes('/portal/community') ||
+              /\/portal\/courses\/[^/]+\/community/.test(p),
+            icon: ChatIcon,
+          },
+        ]
+      : []),
     // Phase 4d: Downloads tab hidden from the student portal nav. Route file
     // is kept; restore this entry to bring the tab back.
     // {
@@ -216,8 +224,15 @@ export const MobileTabBar = ({
   // Pull the customer record too — same hook the desktop bar uses — so any
   // future role gating can be folded in without re-fetching.
   useAuthenticatedCustomer(api)
+  const { data: communityCourses } = useCommunityEnrolledCourses(token)
 
-  const tabs = buildTabs(organization, authenticatedUser)
+  // Match the desktop TopBar: surface Community only when at least one
+  // enrolled course has a live, published community.
+  const showCommunity = (communityCourses ?? []).some(
+    (c) => c.community_enabled,
+  )
+
+  const tabs = buildTabs(organization, authenticatedUser, showCommunity)
   const buildHref = (href: string) => {
     const qs = searchParams.toString()
     return qs ? `${href}?${qs}` : href
