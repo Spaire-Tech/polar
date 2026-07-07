@@ -5,6 +5,7 @@ import structlog
 from sqlalchemy import or_, select
 
 from polar.exceptions import PolarTaskError
+from polar.integrations.vercel import domains as vercel_domains
 from polar.kit.utils import utc_now
 from polar.models import OrganizationCustomDomain
 from polar.models.organization_custom_domain import OrganizationCustomDomainStatus
@@ -91,3 +92,29 @@ async def custom_domain_verify(custom_domain_id: uuid.UUID) -> None:
             cname_ok=result.cname_ok,
             txt_ok=result.txt_ok,
         )
+
+
+@actor(
+    actor_name="organization_custom_domain.provision",
+    priority=TaskPriority.LOW,
+)
+async def custom_domain_provision(domain: str) -> None:
+    """Attach an activated domain to the hosting provider (Vercel) so TLS
+    certificate issuance starts. No-op when Vercel isn't configured (local
+    dev / other hosting). API errors raise so dramatiq retries."""
+    if not vercel_domains.is_configured():
+        log.info("organization_custom_domain.provision.not_configured", domain=domain)
+        return
+    await vercel_domains.add_domain(domain)
+
+
+@actor(
+    actor_name="organization_custom_domain.deprovision",
+    priority=TaskPriority.LOW,
+)
+async def custom_domain_deprovision(domain: str) -> None:
+    """Detach a removed/replaced domain from the hosting provider."""
+    if not vercel_domains.is_configured():
+        log.info("organization_custom_domain.deprovision.not_configured", domain=domain)
+        return
+    await vercel_domains.remove_domain(domain)

@@ -128,8 +128,9 @@ class TestSetDomain:
         session: AsyncSession,
         organization: Organization,
     ) -> None:
-        mocker.patch("polar.organization_custom_domain.service.enqueue_job")
-
+        enqueue_job_mock = mocker.patch(
+            "polar.organization_custom_domain.service.enqueue_job"
+        )
         first = await custom_domain_service.set_domain(
             session, organization, "learn.creator.com"
         )
@@ -146,6 +147,11 @@ class TestSetDomain:
         assert second.verification_token != token
         assert second.verified_at is None
         assert second.failure_count == 0
+        # The replaced domain is detached from the hosting provider.
+        enqueue_job_mock.assert_any_call(
+            "organization_custom_domain.deprovision",
+            domain="learn.creator.com",
+        )
 
     async def test_conflict_with_other_organization(
         self,
@@ -190,7 +196,9 @@ class TestVerify:
         session: AsyncSession,
         organization: Organization,
     ) -> OrganizationCustomDomain:
-        mocker.patch("polar.organization_custom_domain.service.enqueue_job")
+        self.enqueue_job_mock = mocker.patch(
+            "polar.organization_custom_domain.service.enqueue_job"
+        )
         return await custom_domain_service.set_domain(
             session, organization, "learn.creator.com"
         )
@@ -218,6 +226,16 @@ class TestVerify:
         assert custom_domain.verified_at is not None
         assert custom_domain.last_checked_at is not None
         assert custom_domain.failure_count == 0
+        # Activation hands the domain to the TLS/hosting provider.
+        self.enqueue_job_mock.assert_any_call(
+            "organization_custom_domain.provision",
+            domain=custom_domain.domain,
+        )
+
+        # Re-verifying an already-active domain must not re-provision.
+        self.enqueue_job_mock.reset_mock()
+        await custom_domain_service.verify(session, custom_domain)
+        self.enqueue_job_mock.assert_not_called()
 
     async def test_stays_pending_when_txt_missing(
         self,
@@ -306,7 +324,9 @@ class TestRemove:
         session: AsyncSession,
         organization: Organization,
     ) -> None:
-        mocker.patch("polar.organization_custom_domain.service.enqueue_job")
+        enqueue_job_mock = mocker.patch(
+            "polar.organization_custom_domain.service.enqueue_job"
+        )
         await custom_domain_service.set_domain(
             session, organization, "learn.creator.com"
         )
@@ -316,6 +336,11 @@ class TestRemove:
         assert (
             await custom_domain_service.get_for_organization(session, organization.id)
             is None
+        )
+        # Removal detaches the domain from the hosting provider.
+        enqueue_job_mock.assert_any_call(
+            "organization_custom_domain.deprovision",
+            domain="learn.creator.com",
         )
 
     async def test_no_domain_configured(

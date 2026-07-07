@@ -123,6 +123,13 @@ class Settings(BaseSettings):
     CUSTOM_DOMAIN_DOH_URL: str = "https://cloudflare-dns.com/dns-query"
     # Consecutive failed re-checks before an active domain is demoted to failed.
     CUSTOM_DOMAIN_FAILURE_THRESHOLD: int = 3
+    # Vercel project-domains API, used to attach verified custom domains to
+    # the web project so Vercel issues TLS certificates. Left empty, domain
+    # provisioning is a logged no-op (local dev / other hosting).
+    VERCEL_API_BASE_URL: str = "https://api.vercel.com"
+    VERCEL_API_TOKEN: str = ""
+    VERCEL_PROJECT_ID: str = ""
+    VERCEL_TEAM_ID: str | None = None
 
     # URL to frontend app.
     # Update to ngrok domain or similar in case you want

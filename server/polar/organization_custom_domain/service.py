@@ -161,8 +161,12 @@ class OrganizationCustomDomainService:
         if custom_domain is not None:
             if custom_domain.domain == domain:
                 return custom_domain
-            # Replacing the domain: future Phase 2 hook — detach the old
-            # domain from the TLS/hosting provider here.
+            # Replacing the domain: detach the old one from the TLS/hosting
+            # provider so it stops serving the storefront.
+            enqueue_job(
+                "organization_custom_domain.deprovision",
+                domain=custom_domain.domain,
+            )
             custom_domain.domain = domain
             custom_domain.status = OrganizationCustomDomainStatus.pending
             custom_domain.verification_token = generate_verification_token()
@@ -195,7 +199,10 @@ class OrganizationCustomDomainService:
         custom_domain = await repository.get_by_organization_id(organization_id)
         if custom_domain is None:
             raise NoDomainConfigured()
-        # Future Phase 2 hook — detach from the TLS/hosting provider here.
+        enqueue_job(
+            "organization_custom_domain.deprovision",
+            domain=custom_domain.domain,
+        )
         await repository.hard_delete(custom_domain)
         log.info(
             "organization_custom_domain.removed",
@@ -230,8 +237,12 @@ class OrganizationCustomDomainService:
             if custom_domain.verified_at is None:
                 custom_domain.verified_at = utc_now()
             if previous_status != OrganizationCustomDomainStatus.active:
-                # Future Phase 2 hook — attach the domain to the TLS/hosting
-                # provider (e.g. Vercel domains API) here.
+                # Attach the domain to the TLS/hosting provider (Vercel)
+                # so certificate issuance starts right away.
+                enqueue_job(
+                    "organization_custom_domain.provision",
+                    domain=custom_domain.domain,
+                )
                 log.info(
                     "organization_custom_domain.activated",
                     organization_id=str(custom_domain.organization_id),
