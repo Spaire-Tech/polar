@@ -151,6 +151,11 @@ export default function CourseWizard({
   const [heroStyle, setHeroStyle] = useState<HeroStyle>('Marquee')
   const [cardStyle, setCardStyle] = useState<LessonCardStyle>('Spotlight')
 
+  // Creator edits to the AI-generated outline (title / description rewrites in
+  // the outline screen) overlay the streamed object. When present they win at
+  // create time. Reset whenever a fresh outline is generated.
+  const [editedOutline, setEditedOutline] = useState<PartialOutline | null>(null)
+
   const heroVariant: HeroVariant = heroStyle === 'Marquee' ? 'marquee' : 'cover'
   const cardVariant: LessonCardVariant =
     cardStyle === 'Spotlight' ? 'spotlight' : 'catalog'
@@ -249,6 +254,8 @@ export default function CourseWizard({
     form.setValue('description', course.desc)
     const { billingType, priceLabel } = priceInfo()
 
+    // A new generation supersedes any edits made to the previous outline.
+    setEditedOutline(null)
     setScreen('generating-outline')
     submitOutline({
       title: course.title,
@@ -279,7 +286,10 @@ export default function CourseWizard({
   const creatingRef = useRef(false)
 
   const finalizeCourse = async () => {
-    const outline = partialOutline as PartialOutline | undefined
+    // Prefer the creator's edited outline over the raw stream when they've
+    // rewritten any AI titles/descriptions.
+    const outline =
+      editedOutline ?? (partialOutline as PartialOutline | undefined)
     if (!outline?.modules?.length) {
       toast({
         title: 'No outline yet',
@@ -455,7 +465,9 @@ export default function CourseWizard({
         description: 'Could not create your Original. Please try again.',
       })
       creatingRef.current = false
-      setScreen('portal')
+      // Return to the outline (not the retired landing preview) so the
+      // creator can fix things and retry "Looks good — continue".
+      setScreen('outline')
     }
   }
 
@@ -474,7 +486,7 @@ export default function CourseWizard({
     // Prefer the AI-written hero copy; fall back to the creator's inputs only
     // if a field is still streaming/empty. The hero description must NOT be the
     // raw course.desc blob — show the synthesised line, else nothing.
-    const o = partialOutline as PartialOutline | undefined
+    const o = editedOutline ?? (partialOutline as PartialOutline | undefined)
     const aiHero = o?.hero ?? {}
     // Clamp the advertised free-preview count to the lessons that actually
     // exist, matching what finalizeCourse persists — otherwise the preview can
@@ -651,7 +663,10 @@ export default function CourseWizard({
                   isStreaming={isOutlineStreaming}
                   error={outlineErrorMsg}
                   onRegenerate={onRegenerate}
-                  onCreate={() => setScreen('portal')}
+                  onOutlineChange={setEditedOutline}
+                  // "Looks good — continue" creates the course and drops the
+                  // creator straight into the editor (no landing preview step).
+                  onCreate={finalizeCourse}
                   onClose={handleClose}
                 />
               ) : (
@@ -662,7 +677,10 @@ export default function CourseWizard({
                   error={outlineErrorMsg}
                   cardVariant={cardVariant}
                   onRegenerate={onRegenerate}
-                  onCreate={() => setScreen('portal')}
+                  onOutlineChange={setEditedOutline}
+                  // "Looks good — continue" creates the course and drops the
+                  // creator straight into the editor (no landing preview step).
+                  onCreate={finalizeCourse}
                   onClose={handleClose}
                 />
               )

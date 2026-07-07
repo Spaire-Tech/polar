@@ -47,7 +47,7 @@ const RES_ICON: Record<string, keyof typeof SF> = {
 }
 
 export function OverviewSheet({
-  brand = 'Spaire Originals',
+  brand = '',
   lessonN,
   title,
   durLabel,
@@ -97,7 +97,7 @@ export function OverviewSheet({
           <div className="xs-eyebrow">
             <span className="dot" />
             <span>
-              {brand} · Lesson {lessonN}
+              {brand ? `${brand} · ` : ''}Lesson {lessonN}
               {locked ? ' · Locked' : ''}
             </span>
           </div>

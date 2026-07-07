@@ -1235,7 +1235,7 @@ export function StepCourse({
     <StepShell
       step={3}
       total={4}
-      title="Original details"
+      title="Masterclass Details"
       onNext={onNext}
       onBack={onBack}
       onClose={onClose}
@@ -1969,7 +1969,7 @@ function PFMediaDrop({
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={value?.public_url ?? localPreview ?? undefined}
-          alt={value?.name ?? 'Course cover'}
+          alt={value?.name ?? 'Masterclass cover'}
           style={uploading ? { opacity: 0.7 } : undefined}
         />
         {uploading ? (
@@ -2214,7 +2214,7 @@ export function StepPricingWizard({
             {/* MEDIA */}
             <PFSection
               eyebrow="Media"
-              title="Course cover"
+              title="Masterclass Cover"
               description="The first thing students see — in checkout, on your spaire space, in shares. Use a frame from a lesson, or a custom thumbnail. 16:9 works best."
             >
               <PFMediaDrop
@@ -2228,7 +2228,7 @@ export function StepPricingWizard({
             <PFSection
               eyebrow="Pricing"
               title="How students pay"
-              description="Sell your course once, or charge a recurring fee for ongoing access. Add other currencies for international students."
+              description="Sell your masterclass once, or charge a recurring fee for ongoing access. Add other currencies for international students."
             >
               <div className="flex w-full flex-col gap-10">
                 {/* Pricing model — Fixed price / Free, same Label markup. */}

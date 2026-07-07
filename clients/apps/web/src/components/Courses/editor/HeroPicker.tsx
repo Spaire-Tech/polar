@@ -54,7 +54,7 @@ export function HeroPicker({
           title={'The Art of\nSouthern Cooking'}
           description="A James Beard–winning chef opens her kitchen and her table — the gravies, the greens, the cornbread, and the slow craft of a Southern meal made from scratch. Shot like a film, taught like Sunday dinner."
           metaLine="Documentary Series · Food  ·  2026  ·  9 Lessons  ·  3h 10m"
-          badges={['All Levels', 'Self-paced', 'Recipe cards', 'Mobile & TV']}
+          badges={['All Levels', 'Self-paced', 'Recipe cards', 'Mobile & Desktop']}
           instructorName="Della Carter"
           instructorSub="James Beard–winning chef and Lowcountry restaurateur."
           playLabel="Play Lesson 1 Free"

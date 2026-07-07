@@ -157,10 +157,6 @@ export function RepositionInPortal({
               }
             />
             <div className="rip-hero-scrim" />
-            <div className="rip-hero-brand">
-              <span className="rip-hero-dot" />
-              Spaire Originals
-            </div>
             <div className="rip-hero-info">
               <div className="rip-num">{lessonLabel}</div>
               <div className="rip-hero-title">{title}</div>

@@ -306,7 +306,7 @@ export function PublicPortalView({
   const aiHero = landing.landing_overrides?.ai_hero ?? null
   const heroDesc = aiHero?.description || landing.description || ''
   const heroByline = aiHero?.byline || landing.instructor_bio || ''
-  const heroEyebrow = aiHero?.eyebrow || 'A Spaire Original'
+  const heroEyebrow = aiHero?.eyebrow || ''
   const heroBadge =
     aiHero?.badge || (isEpisodic ? 'New Series' : 'New Course')
   const heroTitleLines =
@@ -416,7 +416,7 @@ export function PublicPortalView({
   return (
     <div className="gpp-fullbleed" data-gpp-fullbleed>
       <GeneratedPortalPage
-        brand="Spaire Originals"
+        brand=""
         title={landing.title ?? product.name}
         titleLines={heroTitleLines}
         eyebrow={heroEyebrow}
@@ -447,10 +447,17 @@ export function PublicPortalView({
         playStartsSample={
           !hasAccess && trialMode === 'lesson_sample' && samplePlayable
         }
-        avatarUrl={organization.avatar_url ?? null}
+        avatarUrl={
+          landing.landing_overrides?.instructor_avatar_url ??
+          organization.avatar_url ??
+          null
+        }
         instructorSub={aiInstructor?.sub ?? ''}
         instructorBio={aiInstructor?.bio ?? []}
         portraitUrl={portraitUrl}
+        portraitPosition={
+          landing.landing_overrides?.portrait_object_position ?? null
+        }
         portraitCaption={aiInstructor?.caption ?? ''}
         faq={aiFaq}
         badges={badges}

@@ -5,7 +5,8 @@
 // a 3-column grid of episode cards with blurred ambient empty-state covers
 // (hue-rotated per episode), Regenerate / "Looks good — continue" footer and
 // a click-to-open detail sheet (16:9 blurred cover, Episode NN + title, the
-// AI-written description as the body).
+// AI-written description as the body) — the title and description are
+// editable in place.
 //
 // The card layout follows the creator's lesson-card choice:
 //   • spotlight — the design as given: square card, shade gradient, episode
@@ -16,7 +17,7 @@
 // show the AI title AND description; no lesson minutes anywhere.
 
 import CloseIcon from '@mui/icons-material/Close'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 type PartialLesson = {
   title?: string
@@ -34,7 +35,47 @@ type PartialOutline = {
   modules?: PartialModule[]
 }
 
-const COUNT_WORDS = ['Zero', 'One', 'Two', 'Three', 'Four', 'Five', 'Six']
+// The standing note that used to sit at the bottom of the screen; it now
+// carries the subtitle slot directly under the title (replacing the
+// AI-written "Six episodes, in order — …" line).
+const STARTING_POINT_NOTE =
+  'This outline is a starting point — you can reshape episodes, order, and content anytime after your course is created.'
+
+// A contenteditable field that commits on blur. Committing on blur (not on
+// every keystroke) keeps the caret stable — React never re-renders the node
+// mid-edit — so the creator can freely rewrite the AI's title/description.
+function EditableText({
+  value,
+  onCommit,
+  className,
+  multiline = false,
+}: {
+  value: string
+  onCommit: (next: string) => void
+  className?: string
+  multiline?: boolean
+}) {
+  return (
+    <div
+      className={`${className ?? ''} eoes-editable`}
+      contentEditable
+      suppressContentEditableWarning
+      spellCheck={false}
+      onBlur={(e) => {
+        const next = e.currentTarget.textContent ?? ''
+        if (next !== value) onCommit(next)
+      }}
+      onKeyDown={(e) => {
+        if (!multiline && e.key === 'Enter') {
+          e.preventDefault()
+          e.currentTarget.blur()
+        }
+      }}
+    >
+      {value}
+    </div>
+  )
+}
 
 export function EpisodicOutlineScreen({
   title,
@@ -45,6 +86,7 @@ export function EpisodicOutlineScreen({
   onRegenerate,
   onCreate,
   onClose,
+  onOutlineChange,
 }: {
   title: string
   partialOutline: PartialOutline
@@ -54,10 +96,19 @@ export function EpisodicOutlineScreen({
   onRegenerate: () => void
   onCreate: () => void
   onClose: () => void
+  onOutlineChange?: (outline: PartialOutline) => void
 }) {
+  // Local editable copy of the streamed outline. It mirrors the incoming
+  // stream until the creator edits a field (dirty), after which their edits
+  // win and are pushed up via onOutlineChange so create persists them.
+  const [local, setLocal] = useState<PartialOutline>(partialOutline)
+  const dirtyRef = useRef(false)
+  useEffect(() => {
+    if (!dirtyRef.current) setLocal(partialOutline)
+  }, [partialOutline])
+
   // Episodic Originals: one season module holds every episode.
-  const episodes = partialOutline.modules?.[0]?.lessons ?? []
-  const arc = partialOutline.arc
+  const episodes = local.modules?.[0]?.lessons ?? []
   const [openIdx, setOpenIdx] = useState<number | null>(null)
 
   useEffect(() => {
@@ -69,13 +120,28 @@ export function EpisodicOutlineScreen({
     return () => document.removeEventListener('keydown', onKey)
   }, [openIdx])
 
-  const countWord =
-    episodes.length > 0 && episodes.length < COUNT_WORDS.length
-      ? COUNT_WORDS[episodes.length]
-      : 'Six'
-  const sub = `${countWord} episode${episodes.length === 1 ? '' : 's'}, in order${
-    arc ? ` — ${arc}` : ''
-  }.`
+  const commitEpisode = (
+    i: number,
+    field: 'title' | 'description',
+    val: string,
+  ) => {
+    const modules = (local.modules ?? []).map((m) => ({
+      ...m,
+      lessons: (m.lessons ?? []).map((l) => ({ ...l })),
+    }))
+    if (!modules[0]?.lessons?.[i]) return
+    modules[0].lessons![i] = { ...modules[0].lessons![i], [field]: val }
+    const next = { ...local, modules }
+    dirtyRef.current = true
+    setLocal(next)
+    onOutlineChange?.(next)
+  }
+
+  // Regenerating discards local edits so the fresh stream shows through.
+  const handleRegenerate = () => {
+    dirtyRef.current = false
+    onRegenerate()
+  }
 
   const openEpisode = openIdx !== null ? episodes[openIdx] : null
 
@@ -114,8 +180,7 @@ export function EpisodicOutlineScreen({
         </div>
         <h1 className="h-title">{title}</h1>
         <p className="h-sub">
-          {sub}
-          {isStreaming && ' Generating…'}
+          {isStreaming ? 'Generating…' : STARTING_POINT_NOTE}
         </p>
       </div>
 
@@ -173,7 +238,7 @@ export function EpisodicOutlineScreen({
 
       {/* ── footer ── */}
       <div className="foot">
-        <button className="back" type="button" onClick={onRegenerate}>
+        <button className="back" type="button" onClick={handleRegenerate}>
           <svg
             width="15"
             height="15"
@@ -212,10 +277,6 @@ export function EpisodicOutlineScreen({
           </svg>
         </button>
       </div>
-      <p className="foot-note">
-        This outline is a starting point — you can reshape episodes, order,
-        and content anytime after your course is created.
-      </p>
 
       {/* ── detail sheet ── */}
       <div
@@ -252,11 +313,20 @@ export function EpisodicOutlineScreen({
                 <div className="k">
                   Episode {String(openIdx + 1).padStart(2, '0')}
                 </div>
-                <div className="t">{openEpisode.title || ''}</div>
+                <EditableText
+                  className="t"
+                  value={openEpisode.title || ''}
+                  onCommit={(v) => commitEpisode(openIdx, 'title', v)}
+                />
               </div>
             </div>
             <div className="sheet-body">
-              <p className="sheet-desc">{openEpisode.description || ''}</p>
+              <EditableText
+                className="sheet-desc"
+                multiline
+                value={openEpisode.description || ''}
+                onCommit={(v) => commitEpisode(openIdx, 'description', v)}
+              />
             </div>
           </div>
         )}
@@ -736,6 +806,25 @@ export function EpisodicOutlineScreen({
           line-height: 1.6;
           color: var(--ink);
           text-wrap: pretty;
+        }
+
+        /* editable fields — subtle affordance so the creator knows the AI
+           copy can be rewritten in place. */
+        .eoes-editable {
+          cursor: text;
+          border-radius: 8px;
+          transition: box-shadow 0.15s, background 0.15s;
+          outline: none;
+        }
+        .eoes-editable:hover {
+          box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.14);
+        }
+        .eoes-editable:focus {
+          box-shadow: 0 0 0 2px rgba(106, 77, 216, 0.55);
+          background: rgba(255, 255, 255, 0.06);
+        }
+        .sheet-desc.eoes-editable:focus {
+          background: rgba(0, 0, 0, 0.03);
         }
 
         @media (max-width: 980px) {

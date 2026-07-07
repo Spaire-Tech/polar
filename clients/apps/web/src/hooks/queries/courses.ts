@@ -253,6 +253,13 @@ export type LandingOverrides = {
     caption?: string | null
   } | null
   portrait_url?: string | null
+  // The round instructor avatar. Defaults to the organization avatar; when the
+  // creator crops a course-specific one (zoom + reposition), it's stored here.
+  instructor_avatar_url?: string | null
+  // Focal point (CSS object-position, e.g. "50.0% 30.0%") for the square
+  // instructor portrait — set by dragging it in the editor, same convention as
+  // the cover. Absent means centred.
+  portrait_object_position?: string | null
   // FAQ — AI-written Q/A pairs grounded in the course facts, editable.
   ai_faq?: { q: string; a: string }[] | null
   // The hero band's badge chips ("All Levels", "Self-paced", …) — creator
