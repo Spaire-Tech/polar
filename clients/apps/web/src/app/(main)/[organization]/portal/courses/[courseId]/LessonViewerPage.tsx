@@ -119,6 +119,17 @@ const LessonViewerPage = ({
     router.push(`?${params.toString()}`, { scroll: false })
   }
 
+  // When the player overlay closes, strip ?lesson=/?t= (replace, not push —
+  // no history entry) so a refresh shows the course home, not the player.
+  const handlePlayerClose = () => {
+    if (!searchParams.get('lesson') && !searchParams.get('t')) return
+    setSelectedLessonId(null)
+    const params = new URLSearchParams(searchParams.toString())
+    params.delete('lesson')
+    params.delete('t')
+    router.replace(`?${params.toString()}`, { scroll: false })
+  }
+
   const handleMarkComplete = () => {
     if (!currentLesson || currentLesson.completed) return
     markComplete.mutate(currentLesson.id)
@@ -149,71 +160,77 @@ const LessonViewerPage = ({
     )
   }
 
-  // Show lesson viewer if a lesson is selected
-  if (currentLesson) {
+  // Deep-linked VIDEO lessons (?lesson= from assistant citations, bookmarks,
+  // back/forward) play in WatchHome's player overlay — the one real player.
+  // The MasterClass reading view below is reserved for text and quiz
+  // lessons, which have no video surface.
+  const isVideoLesson = currentLesson?.content_type === 'video'
+
+  // Show the reading view if a text/quiz lesson is selected
+  if (currentLesson && !isVideoLesson) {
     return (
       <>
-      <MasterClassLessonViewer
-        lesson={{
-          id: currentLesson.id,
-          title: currentLesson.title,
-          description: currentLesson.description,
-          content_type: currentLesson.content_type,
-          duration_seconds: currentLesson.duration_seconds,
-          thumbnail_url: currentLesson.thumbnail_url,
-          thumbnail_object_position: currentLesson.thumbnail_object_position,
-          mux_playback_id: currentLesson.mux_playback_id,
-          mux_status: currentLesson.mux_status,
-          mux_playback_url: currentLesson.mux_playback_url,
-          completed: currentLesson.completed,
-          content: currentLesson.content,
-          comments_mode: currentLesson.comments_mode,
-        }}
-        lessonIndex={flatLessons.findIndex((l) => l.id === currentLesson.id)}
-        totalLessons={flatLessons.length}
-        lessons={flatLessons.map((l) => ({
-          id: l.id,
-          title: l.title,
-          position: l.position,
-          completed: l.completed,
-          duration_seconds: l.duration_seconds,
-          thumbnail_url: l.thumbnail_url,
-          thumbnail_object_position: l.thumbnail_object_position,
-          mux_playback_id: l.mux_playback_id,
-          locked: l.locked,
-          locked_until: l.locked_until,
-          is_free_preview: l.is_free_preview,
-        }))}
-        courseTitle={data.course.title}
-        courseDescription={data.course.description}
-        instructorName={data.course.instructor_name ?? organization.name}
-        instructorAvatarUrl={organization.avatar_url ?? null}
-        totalDurationSeconds={flatLessons.reduce(
-          (s, l) => s + (l.duration_seconds ?? 0),
-          0,
+        <MasterClassLessonViewer
+          lesson={{
+            id: currentLesson.id,
+            title: currentLesson.title,
+            description: currentLesson.description,
+            content_type: currentLesson.content_type,
+            duration_seconds: currentLesson.duration_seconds,
+            thumbnail_url: currentLesson.thumbnail_url,
+            thumbnail_object_position: currentLesson.thumbnail_object_position,
+            mux_playback_id: currentLesson.mux_playback_id,
+            mux_status: currentLesson.mux_status,
+            mux_playback_url: currentLesson.mux_playback_url,
+            completed: currentLesson.completed,
+            content: currentLesson.content,
+            comments_mode: currentLesson.comments_mode,
+          }}
+          lessonIndex={flatLessons.findIndex((l) => l.id === currentLesson.id)}
+          totalLessons={flatLessons.length}
+          lessons={flatLessons.map((l) => ({
+            id: l.id,
+            title: l.title,
+            position: l.position,
+            completed: l.completed,
+            duration_seconds: l.duration_seconds,
+            thumbnail_url: l.thumbnail_url,
+            thumbnail_object_position: l.thumbnail_object_position,
+            mux_playback_id: l.mux_playback_id,
+            locked: l.locked,
+            locked_until: l.locked_until,
+            is_free_preview: l.is_free_preview,
+          }))}
+          courseTitle={data.course.title}
+          courseDescription={data.course.description}
+          instructorName={data.course.instructor_name ?? organization.name}
+          instructorAvatarUrl={organization.avatar_url ?? null}
+          totalDurationSeconds={flatLessons.reduce(
+            (s, l) => s + (l.duration_seconds ?? 0),
+            0,
+          )}
+          isPending={markComplete.isPending}
+          onBack={handleBack}
+          onSelectLesson={(lessonId) => {
+            const lesson = flatLessons.find((l) => l.id === lessonId)
+            if (lesson) handleSelectLesson(lesson)
+          }}
+          onMarkComplete={handleMarkComplete}
+          token={customerSessionToken}
+          courseId={courseId}
+          organizationSlug={organization.slug}
+          customerName={data.customer_name ?? null}
+          startSeconds={startSeconds}
+        />
+        {COURSE_ASSISTANT_UI_ENABLED && (
+          <AskAssistant courseId={courseId} token={customerSessionToken} />
         )}
-        isPending={markComplete.isPending}
-        onBack={handleBack}
-        onSelectLesson={(lessonId) => {
-          const lesson = flatLessons.find((l) => l.id === lessonId)
-          if (lesson) handleSelectLesson(lesson)
-        }}
-        onMarkComplete={handleMarkComplete}
-        token={customerSessionToken}
-        courseId={courseId}
-        organizationSlug={organization.slug}
-        customerName={data.customer_name ?? null}
-        startSeconds={startSeconds}
-      />
-      {COURSE_ASSISTANT_UI_ENABLED && (
-        <AskAssistant courseId={courseId} token={customerSessionToken} />
-      )}
       </>
     )
   }
 
-  // No lesson selected — render the Spaire Originals v2 watch page
-  // (now-playing hero + rail; player, comments, bookmarks, progress).
+  // Course home (hero + rail). A deep-linked video lesson auto-opens in the
+  // player overlay on top of it.
   return (
     <>
       <WatchHome
@@ -226,6 +243,9 @@ const LessonViewerPage = ({
           const lesson = flatLessons.find((l) => l.id === lessonId)
           if (lesson && !lesson.completed) markComplete.mutate(lessonId)
         }}
+        autoplayLessonId={isVideoLesson ? currentLesson.id : null}
+        autoplayStartSec={isVideoLesson ? startSeconds : undefined}
+        onPlayerClose={handlePlayerClose}
       />
       {COURSE_ASSISTANT_UI_ENABLED && (
         <AskAssistant courseId={courseId} token={customerSessionToken} />
