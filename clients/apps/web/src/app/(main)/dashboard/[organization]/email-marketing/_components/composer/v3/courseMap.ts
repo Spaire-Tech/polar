@@ -56,7 +56,11 @@ export function mapCourse(c: CourseRead): CourseData {
       name: c.instructor_name ?? '',
       role: 'Instructor',
       bio: c.instructor_bio ?? '',
-      avatar: null,
+      // The instructor portrait is the square photo the creator uploaded for
+      // the landing page's Instructor section (landing_overrides.portrait_url).
+      // Without it the email's instructor block falls back to the course cover,
+      // showing the wrong image. Prefer the real portrait.
+      avatar: c.landing_overrides?.portrait_url ?? null,
     },
     lessons: lessons.map((l) => ({
       title: l.title,

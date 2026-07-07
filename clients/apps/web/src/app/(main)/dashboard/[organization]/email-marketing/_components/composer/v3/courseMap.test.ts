@@ -17,6 +17,7 @@ const course: any = {
   trailer_url: 'https://cdn/trailer.mp4',
   instructor_name: 'Marco Pierre',
   instructor_bio: 'Twenty years at the pass.',
+  landing_overrides: { portrait_url: 'https://cdn/portrait.jpg' },
   format: 'course',
   modules: [
     {
@@ -36,6 +37,9 @@ describe('mapCourse', () => {
     expect(c.heroImage).toBe('https://cdn/hero.jpg')
     expect(c.trailerImage).toBe('https://cdn/trailer.mp4')
     expect(c.instructor.name).toBe('Marco Pierre')
+    // The instructor photo comes from the landing Instructor section portrait,
+    // not the course cover.
+    expect(c.instructor.avatar).toBe('https://cdn/portrait.jpg')
     expect(c.lessons).toHaveLength(3)
     expect(c.lessons[0]).toEqual({ title: 'Holding the Blade', duration: '7 min' })
     expect(c.lessons[2].duration).toBe('1h 30m')
@@ -63,6 +67,8 @@ describe('mapCourse', () => {
     expect(c.lessons).toEqual([])
     expect(c.welcome).toEqual([])
     expect(c.totalDuration).toBe('0m')
+    // No portrait uploaded → avatar stays null (block falls back to the cover).
+    expect(c.instructor.avatar).toBeNull()
   })
 })
 
