@@ -7,6 +7,7 @@ from sqlalchemy import select
 from polar.email.compose import finalize_email_html
 from polar.email.personalize import build_variables
 from polar.email.personalize import render as personalize
+from polar.email.personalize import sample_subscriber
 from polar.email.sender import email_sender, resolve_creator_from_address
 from polar.kit.utils import utc_now
 from polar.models.email_broadcast import EmailBroadcast, EmailBroadcastStatus
@@ -40,8 +41,8 @@ def _render_broadcast_html(
     When ``personalize_vars`` is provided, ``{{token}}`` placeholders in
     the broadcast body are substituted before the outer template wraps
     it. The outer template doesn't currently expose recipient-specific
-    fields, so a None map (test / preview sends) just leaves the body
-    untouched.
+    fields, so a None map (a raw preview render with no recipient) just
+    leaves the body untouched.
     """
     body_html = broadcast.content_html or "<p>No content</p>"
     if personalize_vars is not None:
@@ -75,9 +76,9 @@ async def send_broadcast_email(
     """Render and send a single broadcast email. Returns the Resend email id.
 
     ``subscriber`` and ``custom_fields`` drive ``{{token}}`` substitution
-    in the subject and body. Test sends (no real subscriber) pass None
-    so placeholders render literally — the recipient can see exactly
-    what an author wrote.
+    in the subject and body. Test sends pass a representative
+    ``sample_subscriber`` so placeholders resolve to realistic values
+    instead of shipping the literal ``{{first_name}}`` token.
     """
     personalize_vars: dict[str, str] | None = None
     if subscriber is not None:
@@ -285,6 +286,9 @@ async def send_test_inline(
                 to_email=to_email,
                 unsubscribe_url=build_test_unsubscribe_url(),
                 extra_subject_prefix="[TEST] ",
+                # Substitute {{first_name}} etc. against a representative
+                # recipient so the test looks like a real, personalised send.
+                subscriber=sample_subscriber(to_email),
             )
         except Exception:
             log.exception(
@@ -320,6 +324,9 @@ async def send_test_broadcast(broadcast_id: UUID, to_email: str) -> None:
                 to_email=to_email,
                 unsubscribe_url=build_test_unsubscribe_url(),
                 extra_subject_prefix="[TEST] ",
+                # Resolve {{first_name}} etc. against a representative recipient
+                # rather than shipping the literal placeholder tokens.
+                subscriber=sample_subscriber(to_email),
             )
         except Exception:
             log.exception(

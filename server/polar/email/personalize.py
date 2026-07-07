@@ -23,12 +23,60 @@ sender doesn't ship ``{{unknown_field}}`` to recipients).
 from __future__ import annotations
 
 import re
+from dataclasses import dataclass
 from html import escape
 from typing import Any
 
 # Anchored on ``{{`` to avoid matching inside HTML attribute braces.
 # Non-greedy body so two placeholders on one line don't merge.
 _TOKEN_RE = re.compile(r"\{\{\s*([a-zA-Z0-9_.]+)\s*\}\}")
+
+# Neutral fallback name for preview/test sends whose recipient address yields no
+# usable name (e.g. ``billing@acme.com``).
+_SAMPLE_NAME = "Alex Rivera"
+
+
+@dataclass(frozen=True)
+class SampleSubscriber:
+    """A duck-typed stand-in recipient for TEST / preview sends.
+
+    Exposes only ``.email`` and ``.name`` — exactly what ``build_variables``
+    reads — so a test send can flow through the same substitution path a real
+    send uses.
+    """
+
+    email: str
+    name: str
+
+
+def _display_name_from_email(email: str) -> str:
+    """Best-effort friendly display name from an email's local part.
+
+    ``ada.lovelace@x.com`` → ``Ada Lovelace``; ``jsmith@x.com`` → ``Jsmith``;
+    an address with no usable letters falls back to a neutral sample name.
+    """
+    local = (email or "").split("@", 1)[0]
+    words: list[str] = []
+    for part in re.split(r"[._+\-]+", local):
+        letters = re.sub(r"[^A-Za-z]", "", part)
+        if letters:
+            words.append(letters[:1].upper() + letters[1:].lower())
+    if not words:
+        return _SAMPLE_NAME
+    return " ".join(words[:2])
+
+
+def sample_subscriber(email: str) -> SampleSubscriber:
+    """Build a representative recipient for a TEST / preview send.
+
+    Test sends have no real subscriber, but shipping the literal
+    ``{{first_name}}`` token to whoever hit "Send test" reads as broken
+    personalisation. Substituting against a representative recipient derived
+    from the test address instead lets the author see a realistic, personalised
+    email (``Hi Alex,``) exactly as a subscriber would — proving the merge tags
+    work rather than exposing raw placeholders.
+    """
+    return SampleSubscriber(email=email, name=_display_name_from_email(email))
 
 
 def _split_first_last(full_name: str | None) -> tuple[str, str]:

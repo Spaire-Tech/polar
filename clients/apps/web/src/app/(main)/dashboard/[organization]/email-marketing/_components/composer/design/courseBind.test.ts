@@ -41,10 +41,12 @@ const course: CourseData = {
 
 describe('bindCourse', () => {
   it('binds the enrolment template to the real course', () => {
-    const blocks = bindCourse(blocksFor('enrolment'), course)
+    const blocks = bindCourse(blocksFor('enrolment'), course, undefined, 'enrolment')
     const cover = blocks.find((b) => b.type === 'coverHero')!
     expect(cover.props.title).toBe('Italian Home Cooking')
     expect(cover.props.instructor).toBe('Taught by Marco Rossi')
+    // The cover tagline is filled from the course description, not the example.
+    expect(cover.props.tagline).toBe('Pasta from scratch.')
     expect(cover.props.img).toBe('https://cdn/hero.jpg')
 
     const lessons = blocks.find((b) => b.type === 'lessons')!
@@ -58,24 +60,51 @@ describe('bindCourse', () => {
     const instructor = blocks.find((b) => b.type === 'instructor')!
     expect(instructor.props.name).toBe('Marco Rossi')
     expect(instructor.props.role).toBe('Head Chef')
+    expect(instructor.props.bio).toBe('Bologna-trained.')
 
     const note = blocks.find((b) => b.type === 'note')!
+    // The welcome-note headline is the course, not "Welcome to the table."
+    expect(note.props.heading).toBe('Welcome to Italian Home Cooking.')
     expect(note.props.sign).toBe('Marco Rossi')
     expect(note.props.signRole).toBe('Head Chef')
 
     const trailer = blocks.find((b) => b.type === 'trailer')!
     expect(trailer.props.playbackId).toBe('muxPB123')
+
+    // None of the southern-cooking example copy survives anywhere.
+    const json = JSON.stringify(blocks)
+    expect(json).not.toContain('grandmother')
+    expect(json).not.toContain('Welcome to the table')
+    expect(json).not.toContain('Heritage technique')
+  })
+
+  it('shows the first lesson in the first-lesson cover byline', () => {
+    const blocks = bindCourse(blocksFor('firstLesson'), course, undefined, 'firstLesson')
+    const cover = blocks.find((b) => b.type === 'coverHero')!
+    expect(cover.props.instructor).toBe('Fresh Pasta')
+  })
+
+  it('shows a pivotal lesson in the specific-lesson cover byline', () => {
+    const blocks = bindCourse(blocksFor('specificLesson'), course, undefined, 'specificLesson')
+    const cover = blocks.find((b) => b.type === 'coverHero')!
+    // 6 lessons → pivotal index floor(6/3) = 2 → "Sunday Ragù"
+    expect(cover.props.instructor).toBe('Sunday Ragù')
   })
 
   it('re-bases the halfway progress ratio onto the real lesson count', () => {
-    const blocks = bindCourse(blocksFor('halfway'), course)
+    const blocks = bindCourse(blocksFor('halfway'), course, undefined, 'halfway')
     const progress = blocks.find((b) => b.type === 'progress')!
     // template was 6/12 (50%) → 3/6 against a 6-lesson course
     expect(progress.props.total).toBe(6)
     expect(progress.props.value).toBe(3)
-    // a bare course-name hero subtitle is swapped for the real course
+    // the hero byline is the real course name
     const cover = blocks.find((b) => b.type === 'coverHero')!
     expect(cover.props.instructor).toBe('Italian Home Cooking')
+    // the "still to come" list is the second half of the real curriculum
+    const lessons = blocks.find((b) => b.type === 'lessons')!
+    expect(lessons.props.items.map((i: { title: string }) => i.title)).toEqual([
+      'Risotto', 'Tiramisù', 'Plating',
+    ])
   })
 
   it('falls back to the creator name when the course has no instructor (never the placeholder)', () => {
@@ -83,7 +112,7 @@ describe('bindCourse', () => {
       ...course,
       instructor: { name: '', role: '', bio: '', avatar: null },
     }
-    const blocks = bindCourse(blocksFor('enrolment'), noInstructor, 'Acme Cooking School')
+    const blocks = bindCourse(blocksFor('enrolment'), noInstructor, 'Acme Cooking School', 'enrolment')
     const cover = blocks.find((b) => b.type === 'coverHero')!
     expect(cover.props.instructor).toBe('Taught by Acme Cooking School')
     const note = blocks.find((b) => b.type === 'note')!
@@ -97,7 +126,7 @@ describe('bindCourse', () => {
 
   it('leaves blocks untouched when no course is provided', () => {
     const before = blocksFor('enrolment')
-    const after = bindCourse(blocksFor('enrolment'), undefined)
+    const after = bindCourse(blocksFor('enrolment'), undefined, undefined, 'enrolment')
     expect(after[0].props.title).toBe(before[0].props.title)
   })
 })
@@ -105,11 +134,12 @@ describe('bindCourse', () => {
 describe('makeAssetResolver', () => {
   it('maps design asset keys to course media, passes real URLs through', () => {
     const r = makeAssetResolver(course)
-    expect(r('assets/southern-cooking.jpg')).toBe('https://cdn/hero.jpg')
+    expect(r('assets/course-cover.jpg')).toBe('https://cdn/hero.jpg')
+    expect(r('assets/course-trailer.jpg')).toBe('https://cdn/trailer.jpg')
     expect(r('https://x/y.png')).toBe('https://x/y.png')
   })
   it('falls back to a neutral placeholder when there is no course media', () => {
     const r = makeAssetResolver(undefined)
-    expect(r('assets/southern-cooking.jpg')).toContain('data:image/svg+xml')
+    expect(r('assets/course-cover.jpg')).toContain('data:image/svg+xml')
   })
 })

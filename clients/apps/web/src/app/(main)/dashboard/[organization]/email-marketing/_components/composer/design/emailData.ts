@@ -63,7 +63,7 @@ export interface TemplateDef {
 const esc = (s: any): string => String(s == null ? '' : s)
 
 /* Asset resolution is injected by the host (engine maps design asset keys
-   such as 'assets/southern-cooking.jpg' to real course media or a neutral
+   such as 'assets/course-cover.jpg' to real course media or a neutral
    placeholder). Defaults to identity so the module stays pure. */
 let assetResolver: (p: string) => string = (p) => p
 export function setAssetResolver(fn: (p: string) => string) {
@@ -458,32 +458,35 @@ export const REG: Record<string, BlockDef> = {
     icon: ICO.cover,
     group: 'Course',
     defaults: (t) => ({
-      img: 'assets/southern-cooking.jpg',
+      // Empty copy slots — bindCourse fills title / byline / tagline from the
+      // real course. The asset key resolves to the course cover (or a neutral
+      // placeholder) via the engine's asset resolver.
+      img: 'assets/course-cover.jpg',
       height: 560,
       overlay: 58,
       overlayColor: '#0c0a08',
-      eyebrow: 'The Kitchen Series',
+      eyebrow: '',
       eyebrowFont: t.font,
       eyebrowSize: 11,
       eyebrowColor: t.heroText,
       eyebrowAlign: 'left',
-      title: 'Southern Cooking',
+      title: '',
       titleFont: t.headingFont,
       titleSize: 66,
       titleColor: t.heroText,
       titleAlign: 'left',
-      instructor: 'with Adaeze Bello',
+      instructor: '',
       instructorFont: t.font,
       instructorSize: 14.5,
       instructorColor: t.heroText,
       instructorAlign: 'left',
-      tagline: 'Heritage technique, soul food, and the stories behind every dish.',
+      tagline: '',
       taglineFont: t.font,
       taglineSize: 15,
       taglineColor: t.heroText,
       taglineAlign: 'left',
       showBtn: true,
-      btn: { text: 'Begin the first lesson', style: 'solid', radius: 999, align: 'left' },
+      btn: { text: 'Start the course', style: 'solid', radius: 999, align: 'left' },
     }),
     render(p, t) {
       const grad = `linear-gradient(180deg, ${hexA(p.overlayColor, p.overlay / 240)} 0%, ${hexA(p.overlayColor, Math.min(0.92, p.overlay / 95))} 100%)`
@@ -530,22 +533,22 @@ export const REG: Record<string, BlockDef> = {
     defaults: (t) => ({
       eyebrow: '',
       eyebrowColor: t.accent,
-      heading: 'Welcome to the table.',
+      heading: 'Welcome — you’re in.',
       hFont: t.headingFont,
       hSize: 38,
       hColor: t.heading,
       headingAlign: 'left',
       body: [
-        'I’m glad you’re here. This is everything my grandmother taught me, and everything I’ve learned in the twenty years since. Take it one lesson at a time.',
+        'I’m really glad you’re here. Everything you need to get started is right inside — there’s no rush, so take it one lesson at a time and go at your own pace.',
       ],
       bodyFont: t.font,
       bodyColor: t.text,
       bodySize: 17,
       bodyAlign: 'left',
-      sign: 'Adaeze Bello',
+      sign: '',
       signFont: t.headingFont,
       signSize: 24,
-      signRole: 'Chef & Instructor',
+      signRole: 'Instructor',
       signColor: t.muted,
       signAlign: 'left',
       bg: 'none',
@@ -650,12 +653,13 @@ export const REG: Record<string, BlockDef> = {
       hAlign: 'left',
       intro: '',
       introColor: t.text,
+      // Placeholder rows — bindCourse replaces these with the real curriculum.
       items: [
-        { title: 'The Southern Pantry', meta: '14 min' },
-        { title: 'Cornbread, Three Ways', meta: '22 min' },
-        { title: 'Low & Slow Braises', meta: '31 min' },
-        { title: 'Sunday Greens & Gravy', meta: '26 min' },
-        { title: 'Plating with Intention', meta: '18 min' },
+        { title: 'Lesson one', meta: '' },
+        { title: 'Lesson two', meta: '' },
+        { title: 'Lesson three', meta: '' },
+        { title: 'Lesson four', meta: '' },
+        { title: 'Lesson five', meta: '' },
       ],
       listFont: t.font,
       titleSize: 16,
@@ -760,7 +764,7 @@ export const REG: Record<string, BlockDef> = {
     icon: ICO.trailer,
     group: 'Course',
     defaults: (t) => ({
-      img: 'assets/southern-cooking.jpg',
+      img: 'assets/course-trailer.jpg',
       label: 'Watch the trailer',
       sub: '2 min',
       href: '',
@@ -827,10 +831,11 @@ export const REG: Record<string, BlockDef> = {
     icon: ICO.instructor,
     group: 'Course',
     defaults: (t) => ({
-      img: 'assets/southern-cooking.jpg',
-      name: 'Adaeze Bello',
-      role: 'Chef & Instructor',
-      bio: 'Adaeze runs a Charleston kitchen rooted in Gullah Geechee tradition, where the recipes carry as much history as flavour.',
+      // Filled from the real course by bindCourse (name / role / bio / portrait).
+      img: 'assets/course-instructor.jpg',
+      name: '',
+      role: 'Instructor',
+      bio: '',
       nameFont: t.headingFont,
       nameSize: 30,
       nameAlign: 'left',
@@ -1009,7 +1014,7 @@ export const REG: Record<string, BlockDef> = {
     icon: ICO.button,
     group: 'Content',
     defaults: (t) => ({
-      text: 'Enter the class',
+      text: 'Enter the course',
       href: '#',
       style: 'solid',
       bg: t.button,
@@ -1093,8 +1098,8 @@ export const REG: Record<string, BlockDef> = {
     icon: ICO.quote,
     group: 'Content',
     defaults: (t) => ({
-      text: 'Cooking is the one language everyone at the table understands.',
-      by: 'Adaeze Bello',
+      text: 'Add a short, memorable line here.',
+      by: '',
       color: t.heading,
       byColor: t.muted,
       font: t.headingFont,
@@ -1158,7 +1163,7 @@ export const REG: Record<string, BlockDef> = {
     icon: ICO.footer,
     group: 'Footer',
     defaults: (t) => ({
-      tagline: 'You are receiving this because you enrolled in this class.',
+      tagline: 'You are receiving this because you enrolled in this course.',
       taglineColor: t.muted,
       links: 'My courses    ·    Help',
       linksColor: t.muted,
@@ -1237,8 +1242,9 @@ export const REG: Record<string, BlockDef> = {
 export const GROUPS = ['Course', 'Content', 'Footer']
 
 /* ============================================================ TEMPLATES
-   The six behavioural lifecycle emails for one Original — Southern Cooking.
-   Each fires on a student behaviour, not a schedule. Concierge voice. */
+   The six behavioural lifecycle emails, course-agnostic. Copy stays generic;
+   bindCourse fills course specifics (title, tagline, lessons, instructor) from
+   the real course. Each fires on a student behaviour, not a schedule. */
 export const TEMPLATES: Record<string, TemplateDef> = {
   enrolment: {
     theme: 'studio',
@@ -1248,30 +1254,32 @@ export const TEMPLATES: Record<string, TemplateDef> = {
       {
         type: 'coverHero',
         props: {
-          img: 'assets/southern-cooking.jpg',
+          img: 'assets/course-cover.jpg',
           eyebrow: 'Spaire Originals',
-          title: 'Southern Cooking',
+          // title / byline / tagline are course slots — bindCourse fills them.
+          title: '',
           titleSize: 64,
-          instructor: 'Taught by Adaeze Bello',
-          tagline: 'Heritage technique, soul food, and the stories behind every dish.',
-          btn: { text: 'Start the class', style: 'solid', align: 'left', radius: 999 },
+          instructor: '',
+          tagline: '',
+          btn: { text: 'Start the course', style: 'solid', align: 'left', radius: 999 },
         },
       },
       {
         type: 'note',
         props: {
-          heading: 'Welcome to the table.',
-          sign: 'Adaeze Bello',
-          signRole: 'Chef & Instructor',
+          // heading + signature are filled from the course by bindCourse.
+          heading: 'Welcome — you’re in.',
+          sign: '',
+          signRole: 'Instructor',
           body: [
-            'I’m glad you’re here. This is everything my grandmother taught me, and everything I’ve learned in the twenty years since. There’s no rush. Take it one lesson at a time.',
+            'I’m really glad you’re here. Everything you need to get started is right inside — there’s no rush, so take it one lesson at a time and go at your own pace.',
           ],
         },
       },
-      { type: 'meta', props: { items: [{ v: '12 lessons' }, { v: '3h 40m' }, { v: 'All levels' }] } },
+      { type: 'meta', props: {} },
       { type: 'lessons', props: {} },
-      { type: 'trailer', props: { img: 'assets/chef-marco.jpg', label: 'Watch the trailer', sub: '2 min' } },
-      { type: 'instructor', props: { img: 'assets/southern-cooking.jpg', name: 'Adaeze Bello', role: 'Chef & Instructor' } },
+      { type: 'trailer', props: { img: 'assets/course-trailer.jpg', label: 'Watch the trailer', sub: '2 min' } },
+      { type: 'instructor', props: { img: 'assets/course-instructor.jpg' } },
       { type: 'cta', props: {} },
       { type: 'footer', props: {} },
     ],
@@ -1284,15 +1292,16 @@ export const TEMPLATES: Record<string, TemplateDef> = {
       {
         type: 'coverHero',
         props: {
-          img: 'assets/southern-cooking.jpg',
+          img: 'assets/course-cover.jpg',
           height: 460,
           overlay: 62,
-          eyebrow: 'Lesson 1 of 12',
+          eyebrow: 'Lesson 1',
           title: 'A good start.',
           titleSize: 60,
-          instructor: 'The Southern Pantry',
-          tagline: 'The hardest part of any class is starting. You’ve done that.',
-          btn: { text: 'Continue to lesson 2', style: 'solid', align: 'left', radius: 999 },
+          // byline shows the first lesson — bindCourse fills it from the course.
+          instructor: '',
+          tagline: 'The hardest part of any course is starting. You’ve done that.',
+          btn: { text: 'Continue to the next lesson', style: 'solid', align: 'left', radius: 999 },
         },
       },
       { type: 'progress', props: { label: 'Your progress', value: 1, total: 12 } },
@@ -1300,8 +1309,8 @@ export const TEMPLATES: Record<string, TemplateDef> = {
         type: 'note',
         props: {
           heading: 'Keep that going.',
-          sign: 'Adaeze Bello',
-          signRole: 'Chef & Instructor',
+          sign: '',
+          signRole: 'Instructor',
           body: [
             'The first lesson is the one that decides the rest. Most people never finish it. You did. Everything from here builds on what you just learned.',
           ],
@@ -1312,7 +1321,7 @@ export const TEMPLATES: Record<string, TemplateDef> = {
         props: {
           heading: 'Lesson two is ready.',
           body: 'Pick up where you left off.',
-          btn: { text: 'Continue the class', style: 'solid', size: 14.5, align: 'center' },
+          btn: { text: 'Continue the course', style: 'solid', size: 14.5, align: 'center' },
         },
       },
       { type: 'footer', props: {} },
@@ -1326,15 +1335,16 @@ export const TEMPLATES: Record<string, TemplateDef> = {
       {
         type: 'coverHero',
         props: {
-          img: 'assets/southern-cooking.jpg',
+          img: 'assets/course-cover.jpg',
           height: 460,
           overlay: 64,
           eyebrow: 'A pivotal lesson',
           title: 'The turning point.',
           titleSize: 58,
-          instructor: 'Low & Slow Braises',
-          tagline: 'This is the lesson the rest of the class is built on.',
-          btn: { text: 'Continue to lesson 5', style: 'solid', align: 'left', radius: 999 },
+          // byline shows the pivotal lesson — bindCourse fills it from the course.
+          instructor: '',
+          tagline: 'This is the lesson the rest of the course is built on.',
+          btn: { text: 'Continue to the next lesson', style: 'solid', align: 'left', radius: 999 },
         },
       },
       { type: 'progress', props: { label: 'Your progress', value: 4, total: 12 } },
@@ -1342,10 +1352,10 @@ export const TEMPLATES: Record<string, TemplateDef> = {
         type: 'note',
         props: {
           heading: 'You turned the corner.',
-          sign: 'Adaeze Bello',
-          signRole: 'Chef & Instructor',
+          sign: '',
+          signRole: 'Instructor',
           body: [
-            'Braising is where Southern cooking stops being a recipe and starts being instinct. It rewards patience, and you gave it the time it needs. You’ll taste the difference in everything that follows.',
+            'This is one of the lessons the rest of the course leans on. It rewards the time you put in, and you gave it exactly that. You’ll feel the difference in everything that comes after.',
           ],
         },
       },
@@ -1354,7 +1364,7 @@ export const TEMPLATES: Record<string, TemplateDef> = {
         props: {
           heading: 'There’s more where that came from.',
           body: 'Lesson five is ready when you are.',
-          btn: { text: 'Resume the class', style: 'solid', size: 14.5, align: 'center' },
+          btn: { text: 'Resume the course', style: 'solid', size: 14.5, align: 'center' },
         },
       },
       { type: 'footer', props: {} },
@@ -1368,15 +1378,16 @@ export const TEMPLATES: Record<string, TemplateDef> = {
       {
         type: 'coverHero',
         props: {
-          img: 'assets/southern-cooking.jpg',
+          img: 'assets/course-cover.jpg',
           height: 460,
           overlay: 64,
-          eyebrow: 'Lesson 6 of 12',
+          eyebrow: 'The halfway mark',
           title: 'You’re halfway.',
           titleSize: 56,
-          instructor: 'Southern Cooking',
+          // byline shows the course name — bindCourse fills it from the course.
+          instructor: '',
           tagline: 'This is the middle, where most people drift. You’re still here.',
-          btn: { text: 'Continue to lesson 7', style: 'solid', align: 'left', radius: 999 },
+          btn: { text: 'Continue the course', style: 'solid', align: 'left', radius: 999 },
         },
       },
       { type: 'progress', props: { label: 'Your progress', value: 6, total: 12 } },
@@ -1384,23 +1395,23 @@ export const TEMPLATES: Record<string, TemplateDef> = {
         type: 'note',
         props: {
           heading: 'Stay with it.',
-          sign: 'Adaeze Bello',
-          signRole: 'Chef & Instructor',
+          sign: '',
+          signRole: 'Instructor',
           body: [
-            'Halfway in is when the kitchen starts to feel like yours. The knife sits better in your hand. The heat makes sense. The second half is where it comes together on the plate.',
+            'The middle is where most people drift — and you’re still here. This is where it starts to click. The second half is where everything you’ve learned so far comes together.',
           ],
         },
       },
       {
         type: 'lessons',
         props: {
+          // "Still to come" — bindCourse fills the second half of the curriculum.
           heading: 'Still to come',
           intro: '',
           items: [
-            { title: 'Sunday Greens & Gravy', meta: '26 min' },
-            { title: 'The Cast-Iron Cornbread', meta: '20 min' },
-            { title: 'Plating with Intention', meta: '18 min' },
-            { title: 'Feeding a Crowd', meta: '23 min' },
+            { title: 'Lesson', meta: '' },
+            { title: 'Lesson', meta: '' },
+            { title: 'Lesson', meta: '' },
           ],
         },
       },
@@ -1409,7 +1420,7 @@ export const TEMPLATES: Record<string, TemplateDef> = {
         props: {
           heading: 'Lesson seven is ready.',
           body: 'Begin whenever you’re ready.',
-          btn: { text: 'Resume the class', style: 'solid', size: 14.5, align: 'center' },
+          btn: { text: 'Resume the course', style: 'solid', size: 14.5, align: 'center' },
         },
       },
       { type: 'footer', props: {} },
@@ -1423,14 +1434,15 @@ export const TEMPLATES: Record<string, TemplateDef> = {
       {
         type: 'coverHero',
         props: {
-          img: 'assets/southern-cooking.jpg',
+          img: 'assets/course-cover.jpg',
           height: 500,
           overlay: 58,
           eyebrow: 'Course complete',
           title: 'You did it.',
           titleSize: 64,
-          instructor: 'Southern Cooking, all twelve lessons',
-          tagline: 'Twelve lessons. A kitchen that’s yours now.',
+          // byline shows the course name — bindCourse fills it from the course.
+          instructor: '',
+          tagline: 'Every lesson, done. What you built here is yours now.',
           btn: { text: 'Get your certificate', style: 'solid', align: 'left', radius: 999 },
         },
       },
@@ -1439,23 +1451,19 @@ export const TEMPLATES: Record<string, TemplateDef> = {
         type: 'note',
         props: {
           heading: 'This is the beginning.',
-          sign: 'Adaeze Bello',
-          signRole: 'Chef & Instructor',
+          sign: '',
+          signRole: 'Instructor',
           body: [
-            'Finishing the whole class puts you in rare company. But the recipes only matter if you cook them. Make this for someone you love this week. That’s where it becomes yours.',
+            'Finishing the whole thing puts you in rare company. But it only counts if you use it — put what you learned into practice this week. That’s where it truly becomes yours.',
           ],
         },
       },
       {
-        type: 'quote',
-        props: { text: 'Cooking is the one language everyone at the table understands.', by: 'Adaeze Bello' },
-      },
-      {
         type: 'cta',
         props: {
-          heading: 'What to cook next.',
-          body: 'Your next class is waiting.',
-          btn: { text: 'Explore more classes', style: 'solid', size: 14.5, align: 'center' },
+          heading: 'What to learn next.',
+          body: 'Your next course is waiting.',
+          btn: { text: 'Explore more courses', style: 'solid', size: 14.5, align: 'center' },
         },
       },
       { type: 'footer', props: {} },
@@ -1469,13 +1477,13 @@ export const TEMPLATES: Record<string, TemplateDef> = {
       {
         type: 'coverHero',
         props: {
-          img: 'assets/southern-cooking.jpg',
+          img: 'assets/course-cover.jpg',
           height: 460,
           overlay: 62,
           eyebrow: 'Your place is saved',
           title: 'Where you left off.',
           titleSize: 54,
-          instructor: 'Lesson 5 of 12',
+          instructor: 'Right where you left off',
           tagline: 'It’s been a little while. Nothing has moved.',
           btn: { text: 'Pick up where you left off', style: 'solid', align: 'left', radius: 999 },
         },
@@ -1485,8 +1493,8 @@ export const TEMPLATES: Record<string, TemplateDef> = {
         type: 'note',
         props: {
           heading: 'Five minutes is enough.',
-          sign: 'Adaeze Bello',
-          signRole: 'Chef & Instructor',
+          sign: '',
+          signRole: 'Instructor',
           body: [
             'You don’t have to finish today. Press play on one lesson. The next one is short, and it starts exactly where you stopped.',
           ],
@@ -1497,7 +1505,7 @@ export const TEMPLATES: Record<string, TemplateDef> = {
         props: {
           heading: 'Whenever you’re ready.',
           body: 'Lesson five is cued up.',
-          btn: { text: 'Resume the class', style: 'solid', size: 14.5, align: 'center' },
+          btn: { text: 'Resume the course', style: 'solid', size: 14.5, align: 'center' },
         },
       },
       { type: 'footer', props: {} },
