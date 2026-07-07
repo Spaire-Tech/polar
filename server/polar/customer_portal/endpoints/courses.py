@@ -435,21 +435,25 @@ async def get_enrolled_course(
     customer = await session.get(Customer, customer_id)
     customer_name = customer.name if customer else None
     # Real customers get their own avatar (set during the first-sign-in
-    # onboarding flow or the Settings menu). Preview customers — the
-    # admin acting as a student — fall back to the org's avatar
-    # (logo.dev fallback when the creator hasn't uploaded one) so the
-    # composer pill reads as the admin themselves.
+    # onboarding flow or the Settings menu). The admin acting as a
+    # student — an org member's own customer account (preview flow), or
+    # a legacy @course-preview.invalid sandbox — falls back to the org's
+    # avatar (logo.dev fallback when the creator hasn't uploaded one) so
+    # the composer pill reads as the admin themselves.
     customer_avatar_url: str | None = customer.avatar_url if customer else None
-    if (
-        customer_avatar_url is None
-        and customer is not None
-        and (customer.email or "").endswith("@course-preview.invalid")
-    ):
-        from polar.models.organization import Organization
+    if customer_avatar_url is None and customer is not None:
+        viewer_email = (customer.email or "").lower()
+        is_admin_viewer = viewer_email.endswith("@course-preview.invalid")
+        if not is_admin_viewer and viewer_email:
+            is_admin_viewer = viewer_email in await _instructor_emails(
+                session, course.organization_id
+            )
+        if is_admin_viewer:
+            from polar.models.organization import Organization
 
-        org = await session.get(Organization, customer.organization_id)
-        if org is not None:
-            customer_avatar_url = org.avatar_url
+            org = await session.get(Organization, customer.organization_id)
+            if org is not None:
+                customer_avatar_url = org.avatar_url
 
     modules, accessible_ids = _build_module_list(
         course, course.paywall_position, enrolled_at, now, completed_ids

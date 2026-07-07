@@ -544,6 +544,7 @@ class CourseService:
         course_id: UUID,
         customer: Customer,
         product_id: UUID | None = None,
+        fire_events: bool = True,
     ) -> CourseEnrollment:
         """Enroll a customer in a course.
 
@@ -554,6 +555,10 @@ class CourseService:
         duplicate active rows under concurrent grants — a losing
         transaction will surface as IntegrityError and the caller (a
         Dramatiq actor for benefit grant) will retry.
+
+        `fire_events=False` skips the `course.enrolled` automation event —
+        used when the instructor enrolls their own account via the preview
+        flow, which must not trigger the org's email automations.
         """
         repo = CourseEnrollmentRepository.from_session(session)
         statement = repo.get_by_customer_and_course_statement(customer.id, course_id)
@@ -568,12 +573,13 @@ class CourseService:
             enrolled_at=datetime.now(tz=UTC),
         )
         enrollment = await repo.create(enrollment, flush=True)
-        await self._fire_course_event(
-            session,
-            course_id=course_id,
-            customer_id=customer.id,
-            event_name="course.enrolled",
-        )
+        if fire_events:
+            await self._fire_course_event(
+                session,
+                course_id=course_id,
+                customer_id=customer.id,
+                event_name="course.enrolled",
+            )
         return enrollment
 
     async def revoke_enrollment(
@@ -611,21 +617,13 @@ class CourseService:
         session: AsyncSession,
         course_id: UUID,
         *,
+        organization_id: UUID,
         limit: int,
         page: int,
     ) -> tuple[Sequence[CourseEnrollment], int]:
-        from sqlalchemy.orm import selectinload
-
         repo = CourseEnrollmentRepository.from_session(session)
-        # Eager-load the customer in the same round trip — the endpoint
-        # used to issue a follow-up SELECT … WHERE id IN (…) which
-        # doubled the wire time on the customers tab. With selectinload
-        # SQLAlchemy batches the customers query alongside this one.
-        statement = (
-            repo.get_base_statement()
-            .where(CourseEnrollment.course_id == course_id)
-            .order_by(CourseEnrollment.enrolled_at.desc())
-            .options(selectinload(CourseEnrollment.customer))
+        statement = repo.get_students_for_course_statement(
+            course_id, organization_id
         )
         return await repo.paginate(statement, limit=limit, page=page)
 
