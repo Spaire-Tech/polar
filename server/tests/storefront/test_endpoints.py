@@ -4,8 +4,14 @@ import pytest
 from httpx import AsyncClient
 
 from polar.models import Organization, Product, User
+from polar.models.product import ProductCategory
 from tests.fixtures.database import SaveFixture
-from tests.fixtures.random_objects import create_customer, create_subscription
+from tests.fixtures.random_objects import (
+    create_customer,
+    create_organization,
+    create_product,
+    create_subscription,
+)
 
 
 @pytest.mark.asyncio
@@ -69,3 +75,81 @@ async def test_get_organization_slug_by_subscription_id(
 
     json = response.json()
     assert json["organization_slug"] == organization.slug
+
+
+@pytest.mark.asyncio
+async def test_get_storefront_disabled_without_course_returns_404(
+    save_fixture: SaveFixture,
+    client: AsyncClient,
+) -> None:
+    # Storefront disabled and no course product → not public.
+    organization = await create_organization(
+        save_fixture, storefront_settings={"enabled": False}
+    )
+
+    response = await client.get(f"/v1/storefronts/{organization.slug}")
+
+    assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_get_storefront_enabled_returns_200(
+    save_fixture: SaveFixture,
+    client: AsyncClient,
+) -> None:
+    organization = await create_organization(
+        save_fixture, storefront_settings={"enabled": True}
+    )
+
+    response = await client.get(f"/v1/storefronts/{organization.slug}")
+
+    assert response.status_code == 200
+    assert response.json()["organization"]["slug"] == organization.slug
+
+
+@pytest.mark.asyncio
+async def test_get_storefront_with_live_course_returns_200(
+    save_fixture: SaveFixture,
+    client: AsyncClient,
+) -> None:
+    # Course-only reposition (Phase 6) hides the Space UI and never flips
+    # `storefront_enabled`, so a live course must keep the storefront (and
+    # therefore the course landing at `/{slug}` and `/{slug}/products/{id}`)
+    # reachable even though the flag is off.
+    organization = await create_organization(
+        save_fixture, storefront_settings={"enabled": False}
+    )
+    product = await create_product(
+        save_fixture, organization=organization, recurring_interval=None
+    )
+    product.category = ProductCategory.course
+    await save_fixture(product)
+
+    response = await client.get(f"/v1/storefronts/{organization.slug}")
+
+    assert response.status_code == 200
+    assert response.json()["organization"]["slug"] == organization.slug
+
+
+@pytest.mark.asyncio
+async def test_get_storefront_with_archived_course_returns_404(
+    save_fixture: SaveFixture,
+    client: AsyncClient,
+) -> None:
+    # An archived course product is not live, so it does not make the
+    # storefront public on its own.
+    organization = await create_organization(
+        save_fixture, storefront_settings={"enabled": False}
+    )
+    product = await create_product(
+        save_fixture,
+        organization=organization,
+        recurring_interval=None,
+        is_archived=True,
+    )
+    product.category = ProductCategory.course
+    await save_fixture(product)
+
+    response = await client.get(f"/v1/storefronts/{organization.slug}")
+
+    assert response.status_code == 404
