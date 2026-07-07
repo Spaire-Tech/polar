@@ -281,6 +281,9 @@ class CourseProgressRead(Schema):
     completed_lessons: int
     completion_percent: float
     completed: dict[str, str]  # lesson_id -> completed_at ISO string
+    # lesson_id -> partial watch position (fraction 0..1) for lessons the
+    # student has started but not completed.
+    positions: dict[str, float] = {}
 
 
 class LessonCommentCreate(Schema):
@@ -394,11 +397,27 @@ class CourseEnrollmentCustomer(Schema):
     avatar_url: str | None = None
 
 
+class CourseEnrollmentProgress(Schema):
+    """Instructor-facing progress rollup for one enrollment."""
+
+    total_lessons: int
+    completed_lessons: int
+    # Lessons with a recorded partial watch position (started, not finished).
+    started_lessons: int
+    completion_percent: float
+    last_active_at: datetime | None = None
+
+
 class CourseEnrollmentRead(Schema):
     id: UUID4
     customer_id: UUID4
     enrolled_at: datetime
     customer: CourseEnrollmentCustomer | None = None
+    progress: CourseEnrollmentProgress | None = None
+
+
+class WatchProgressUpdate(Schema):
+    fraction: float = Field(ge=0.0, le=1.0)
 
 
 class CourseNoteUpsert(Schema):

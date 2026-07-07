@@ -1,5 +1,6 @@
 from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
+from typing import NamedTuple
 from uuid import UUID
 
 from sqlalchemy import select
@@ -25,6 +26,7 @@ from .repository import (
     CourseEnrollmentRepository,
     CourseLessonProgressRepository,
     CourseLessonRepository,
+    CourseLessonWatchProgressRepository,
     CourseModuleRepository,
     CourseNoteRepository,
     CourseRepository,
@@ -39,6 +41,12 @@ from .schemas import (
     CourseModuleUpdate,
     CourseUpdate,
 )
+
+
+class EnrollmentProgressSummary(NamedTuple):
+    completed_lessons: int
+    started_lessons: int
+    last_active_at: datetime | None
 
 
 def _build_lesson(schema: CourseLessonCreate) -> CourseLesson:
@@ -561,6 +569,29 @@ class CourseService:
         if existing is not None:
             return existing
 
+        # A previously revoked (soft-deleted) enrollment is resurrected
+        # rather than replaced: progress, watch positions, comments and
+        # notes are all keyed by enrollment_id, so a fresh row would
+        # orphan them and a returning student would restart from 0%.
+        # enrolled_at is kept from the original enrollment so drip
+        # schedules don't restart.
+        revoked = await repo.get_latest_revoked_for_customer_course(
+            customer.id, course_id
+        )
+        if revoked is not None:
+            update_dict: dict = {"deleted_at": None}
+            if product_id is not None:
+                update_dict["product_id"] = product_id
+            enrollment = await repo.update(revoked, update_dict=update_dict)
+            await session.flush()
+            await self._fire_course_event(
+                session,
+                course_id=course_id,
+                customer_id=customer.id,
+                event_name="course.enrolled",
+            )
+            return enrollment
+
         enrollment = CourseEnrollment(
             customer_id=customer.id,
             course_id=course_id,
@@ -585,6 +616,59 @@ class CourseService:
         enrollment = await repo.get_by_id(enrollment_id)
         if enrollment is not None:
             await repo.soft_delete(enrollment)
+
+    async def revoke_enrollment_and_entitlements(
+        self,
+        session: AsyncSession,
+        enrollment_id: UUID,
+    ) -> None:
+        """Instructor-initiated removal from the course editor.
+
+        Soft-deleting the enrollment alone is not enough: the course-access
+        benefit grant that created it stays granted, so any later re-grant
+        of the customer's benefits (a subscription renewal, a benefit
+        update, a product change) silently re-enrolls the student. Revoke
+        those grants too, so removal actually revokes the entitlement.
+        The grant strategy's own revoke() re-revokes the enrollment, which
+        is an idempotent no-op.
+
+        Known limit: a subscription status bounce (past_due → active) or
+        an un-cancel re-runs the grant pipeline, which re-grants revoked
+        grants by design — access restored with the subscription. The
+        confirm dialog tells the instructor as much. Progress rows are
+        intentionally kept, and re-enrollment resurrects the original
+        enrollment row (see enroll_customer), so a returning student
+        resumes where they left off.
+        """
+        # Local imports: the benefit strategy package imports this module,
+        # so a top-level import would be circular.
+        from polar.benefit.grant.repository import BenefitGrantRepository
+        from polar.worker import enqueue_job
+
+        repo = CourseEnrollmentRepository.from_session(session)
+        enrollment = await repo.get_by_id(enrollment_id)
+        if enrollment is None:
+            return
+
+        grant_repo = BenefitGrantRepository.from_session(session)
+        grants = await grant_repo.list_granted_course_access(
+            enrollment.customer_id, enrollment.course_id
+        )
+        for grant in grants:
+            scope: dict[str, UUID] = {}
+            if grant.subscription_id is not None:
+                scope["subscription_id"] = grant.subscription_id
+            if grant.order_id is not None:
+                scope["order_id"] = grant.order_id
+            enqueue_job(
+                "benefit.revoke",
+                customer_id=grant.customer_id,
+                benefit_id=grant.benefit_id,
+                member_id=grant.member_id,
+                **scope,
+            )
+
+        await repo.soft_delete(enrollment)
 
     async def list_enrollments_for_customer(
         self,
@@ -613,6 +697,7 @@ class CourseService:
         *,
         limit: int,
         page: int,
+        query: str | None = None,
     ) -> tuple[Sequence[CourseEnrollment], int]:
         from sqlalchemy.orm import selectinload
 
@@ -627,7 +712,40 @@ class CourseService:
             .order_by(CourseEnrollment.enrolled_at.desc())
             .options(selectinload(CourseEnrollment.customer))
         )
+        if query:
+            # Server-side search — the tab is paginated, so filtering the
+            # loaded page client-side would miss students on other pages.
+            statement = repo.apply_customer_search(statement, query)
         return await repo.paginate(statement, limit=limit, page=page)
+
+    async def get_enrollment_progress_summaries(
+        self,
+        session: AsyncSession,
+        enrollment_ids: Sequence[UUID],
+    ) -> dict[UUID, "EnrollmentProgressSummary"]:
+        """Per-enrollment progress rollup for the instructor's Customers tab,
+        computed in two grouped queries over the given page of enrollments."""
+        progress_repo = CourseLessonProgressRepository.from_session(session)
+        watch_repo = CourseLessonWatchProgressRepository.from_session(session)
+        completed = await progress_repo.completion_summary_by_enrollments(
+            enrollment_ids
+        )
+        watched = await watch_repo.watch_summary_by_enrollments(enrollment_ids)
+
+        summaries: dict[UUID, EnrollmentProgressSummary] = {}
+        for eid in enrollment_ids:
+            completed_count, last_completed = completed.get(eid, (0, None))
+            started_count, last_watched = watched.get(eid, (0, None))
+            last_active = max(
+                (d for d in (last_completed, last_watched) if d is not None),
+                default=None,
+            )
+            summaries[eid] = EnrollmentProgressSummary(
+                completed_lessons=completed_count,
+                started_lessons=started_count,
+                last_active_at=last_active,
+            )
+        return summaries
 
     async def get_enrollment_by_id(
         self,
@@ -668,10 +786,65 @@ class CourseService:
             completed_at=datetime.now(tz=UTC),
         )
         progress = await repo.create(progress, flush=True)
+        # A completed lesson is no longer "in progress" — drop the partial
+        # watch position so started/completed counts don't double-count.
+        watch_repo = CourseLessonWatchProgressRepository.from_session(session)
+        watch = await watch_repo.get_one_or_none(
+            watch_repo.get_by_enrollment_and_lesson_statement(
+                enrollment_id, lesson_id
+            )
+        )
+        if watch is not None:
+            await watch_repo.soft_delete(watch)
         await self._fire_lesson_completion_events(
             session, enrollment_id=enrollment_id, lesson_id=lesson_id
         )
         return progress
+
+    async def record_watch_progress(
+        self,
+        session: AsyncSession,
+        *,
+        enrollment_id: UUID,
+        lesson_id: UUID,
+        fraction: float,
+    ) -> None:
+        """Persist a partial watch position (fraction of the lesson watched).
+
+        Upserts the (enrollment, lesson) row with the latest position, so
+        partial progress survives the student closing the tab and follows
+        them across devices. Completed lessons are tracked separately in
+        CourseLessonProgress.
+        """
+        fraction = min(1.0, max(0.0, fraction))
+        repo = CourseLessonWatchProgressRepository.from_session(session)
+        await repo.upsert_position(
+            enrollment_id=enrollment_id,
+            lesson_id=lesson_id,
+            fraction=fraction,
+            now=datetime.now(tz=UTC),
+        )
+
+    async def get_watch_positions_for_enrollment(
+        self,
+        session: AsyncSession,
+        *,
+        enrollment_id: UUID,
+        completed_lesson_ids: set[str],
+    ) -> dict[str, float]:
+        """{lesson_id: fraction} for lessons the student has started but
+        not completed. The single definition of what counts as a partial
+        position — served to the portal so progress follows the student
+        across devices instead of living only in localStorage."""
+        repo = CourseLessonWatchProgressRepository.from_session(session)
+        watch_items = await repo.get_all(
+            repo.get_by_enrollment_statement(enrollment_id)
+        )
+        return {
+            str(w.lesson_id): w.fraction
+            for w in watch_items
+            if str(w.lesson_id) not in completed_lesson_ids and w.fraction > 0
+        }
 
     # --- Automation event firing ---
 

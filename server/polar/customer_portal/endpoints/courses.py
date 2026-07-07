@@ -11,7 +11,10 @@ log = logging.getLogger(__name__)
 from polar.auth.models import AuthSubject, Member, is_customer, is_member
 from polar.auth.models import Customer as CustomerSubject
 from polar.course import mux as mux_client
-from polar.course.repository import CourseLessonRepository
+from polar.course.repository import (
+    CourseEnrollmentRepository,
+    CourseLessonRepository,
+)
 from polar.organization.repository import OrganizationRepository
 from polar.quotas.definitions import QuotaKey
 from polar.quotas.exceptions import QuotaExceededError
@@ -29,6 +32,7 @@ from polar.course.schemas import (
     QuizAnswerResult,
     QuizAttemptResult,
     QuizAttemptSubmission,
+    WatchProgressUpdate,
 )
 from polar.course.service import course_service
 from polar.file.s3 import S3_SERVICES
@@ -427,6 +431,9 @@ async def get_enrolled_course(
         session, enrollment_id=enrollment.id
     )
     completed_ids = {str(p.lesson_id) for p in progress_items}
+    positions = await course_service.get_watch_positions_for_enrollment(
+        session, enrollment_id=enrollment.id, completed_lesson_ids=completed_ids
+    )
 
     course = enrollment.course
     now = datetime.now(tz=UTC)
@@ -475,6 +482,17 @@ async def get_enrolled_course(
                 if total_lessons
                 else 0.0
             ),
+            # lesson_id -> completed_at. The client type has always
+            # declared this map; the payload previously omitted it and
+            # relied solely on each lesson's `completed` flag.
+            "completed": {
+                str(p.lesson_id): p.completed_at.isoformat()
+                for p in progress_items
+            },
+            # Partial watch positions (fraction 0..1) for started-but-not-
+            # completed lessons, so progress follows the student across
+            # devices instead of living only in localStorage.
+            "positions": positions,
         },
         "course": {
             "id": str(course.id),
@@ -685,6 +703,52 @@ async def mark_lesson_complete(
     )
 
 
+@router.post(
+    "/{course_id}/lessons/{lesson_id}/watch-progress",
+    status_code=204,
+    summary="Record Watch Progress",
+)
+async def record_watch_progress(
+    course_id: UUID,
+    lesson_id: UUID,
+    payload: WatchProgressUpdate,
+    auth_subject: auth.CustomerPortalUnionRead,
+    session: AsyncSession = Depends(get_db_session),
+) -> None:
+    """Persist a partial watch position for a video lesson.
+
+    The player reports the current position as a fraction of the lesson's
+    duration. Stored server-side so partial progress survives closing the
+    tab, follows the student across devices, and is visible to the
+    instructor in the course editor's Customers tab.
+
+    This fires every ~10s per active viewer, so the check is deliberately
+    lighter than _verify_lesson_in_enrolled_course: two indexed lookups
+    (active enrollment + published lesson in this course) instead of
+    hydrating the full course tree and recomputing drip/paywall access —
+    a position write is only useful for lessons the student can already
+    play, and playback itself is gated by the playback-url endpoint.
+    """
+    customer_id = get_customer_id(auth_subject)
+    enrollment_repo = CourseEnrollmentRepository.from_session(session)
+    enrollment_id = await enrollment_repo.get_active_id_for_customer_course(
+        customer_id, course_id
+    )
+    if enrollment_id is None:
+        raise HTTPException(status_code=404, detail="Course not found or not enrolled")
+
+    lesson_repo = CourseLessonRepository.from_session(session)
+    if not await lesson_repo.is_published_in_course(lesson_id, course_id):
+        raise HTTPException(status_code=404, detail="Lesson not found")
+
+    await course_service.record_watch_progress(
+        session,
+        enrollment_id=enrollment_id,
+        lesson_id=lesson_id,
+        fraction=payload.fraction,
+    )
+
+
 @router.get(
     "/{course_id}/progress",
     summary="Get Course Progress",
@@ -726,6 +790,11 @@ async def get_course_progress(
         completed={
             str(p.lesson_id): p.completed_at.isoformat() for p in progress_items
         },
+        positions=await course_service.get_watch_positions_for_enrollment(
+            session,
+            enrollment_id=enrollment.id,
+            completed_lesson_ids=completed_ids,
+        ),
     )
 
 
