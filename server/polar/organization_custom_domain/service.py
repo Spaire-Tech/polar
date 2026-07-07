@@ -173,6 +173,9 @@ class OrganizationCustomDomainService:
             custom_domain.verified_at = None
             custom_domain.last_checked_at = None
             custom_domain.failure_count = 0
+            # URL builders fall back to the platform host until the new
+            # domain verifies.
+            organization.custom_domain = None
             await repository.update(custom_domain, flush=True)
         else:
             custom_domain = await repository.create(
@@ -203,6 +206,9 @@ class OrganizationCustomDomainService:
             "organization_custom_domain.deprovision",
             domain=custom_domain.domain,
         )
+        organization = await session.get(Organization, organization_id)
+        if organization is not None:
+            organization.custom_domain = None
         await repository.hard_delete(custom_domain)
         log.info(
             "organization_custom_domain.removed",
@@ -230,12 +236,18 @@ class OrganizationCustomDomainService:
 
         custom_domain.last_checked_at = utc_now()
 
+        organization = await session.get(Organization, custom_domain.organization_id)
+
         previous_status = custom_domain.status
         if txt_ok and cname_ok:
             custom_domain.status = OrganizationCustomDomainStatus.active
             custom_domain.failure_count = 0
             if custom_domain.verified_at is None:
                 custom_domain.verified_at = utc_now()
+            # Keep the denormalized column in sync so URL builders pick the
+            # domain up (also self-heals if it ever drifts).
+            if organization is not None:
+                organization.custom_domain = custom_domain.domain
             if previous_status != OrganizationCustomDomainStatus.active:
                 # Attach the domain to the TLS/hosting provider (Vercel)
                 # so certificate issuance starts right away.
@@ -262,6 +274,12 @@ class OrganizationCustomDomainService:
                         failure_count=custom_domain.failure_count,
                     )
                 custom_domain.status = OrganizationCustomDomainStatus.failed
+                # Fall back to platform-host URLs while the domain is down.
+                if (
+                    organization is not None
+                    and organization.custom_domain == custom_domain.domain
+                ):
+                    organization.custom_domain = None
 
         return CustomDomainCheckResult(
             custom_domain=custom_domain, cname_ok=cname_ok, txt_ok=txt_ok

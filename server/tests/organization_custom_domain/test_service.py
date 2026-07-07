@@ -237,6 +237,40 @@ class TestVerify:
         await custom_domain_service.verify(session, custom_domain)
         self.enqueue_job_mock.assert_not_called()
 
+        # The denormalized column drives URL generation.
+        assert organization.custom_domain == "learn.creator.com"
+        assert (
+            organization.storefront_url("/portal") == "https://learn.creator.com/portal"
+        )
+
+    async def test_demotion_clears_organization_custom_domain(
+        self,
+        mocker: MockerFixture,
+        session: AsyncSession,
+        organization: Organization,
+    ) -> None:
+        custom_domain = await self._create_domain(mocker, session, organization)
+        _mock_dns(
+            mocker,
+            _dns_responses(
+                txt=[custom_domain.verification_token],
+                cname=[settings.CUSTOM_DOMAIN_CNAME_TARGET],
+            ),
+        )
+        await custom_domain_service.verify(session, custom_domain)
+        assert organization.custom_domain == "learn.creator.com"
+
+        _mock_dns(mocker, _dns_responses())
+        for _ in range(settings.CUSTOM_DOMAIN_FAILURE_THRESHOLD):
+            await custom_domain_service.verify(session, custom_domain)
+
+        assert custom_domain.status == OrganizationCustomDomainStatus.failed
+        # URL generation falls back to the platform host while down.
+        assert organization.custom_domain is None
+        assert organization.storefront_url("/portal").endswith(
+            f"/{organization.slug}/portal"
+        )
+
     async def test_stays_pending_when_txt_missing(
         self,
         mocker: MockerFixture,
@@ -331,17 +365,20 @@ class TestRemove:
             session, organization, "learn.creator.com"
         )
 
+        organization.custom_domain = "learn.creator.com"
         await custom_domain_service.remove(session, organization.id)
 
         assert (
             await custom_domain_service.get_for_organization(session, organization.id)
             is None
         )
-        # Removal detaches the domain from the hosting provider.
+        # Removal detaches the domain from the hosting provider and clears
+        # the denormalized column.
         enqueue_job_mock.assert_any_call(
             "organization_custom_domain.deprovision",
             domain="learn.creator.com",
         )
+        assert organization.custom_domain is None
 
     async def test_no_domain_configured(
         self,

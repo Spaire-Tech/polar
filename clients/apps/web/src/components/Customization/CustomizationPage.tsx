@@ -14,7 +14,7 @@ import { useUpdateOrganization } from '@/hooks/queries'
 import { FormPublic } from '@/hooks/queries/forms'
 import { useStorefront } from '@/hooks/queries/storefront'
 import { setValidationErrors } from '@/utils/api/errors'
-import { spacePageLink } from '@/utils/nav'
+import { storefrontLink } from '@/utils/nav'
 import { isValidationError, schemas } from '@spaire/client'
 import { Form } from '@spaire/ui/components/ui/form'
 import { useQueryClient } from '@tanstack/react-query'
@@ -522,7 +522,7 @@ const Customization = ({
               )}
               {isSpaceEnabled && (
                 <a
-                  href={spacePageLink(organization)}
+                  href={storefrontLink(organization)}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="rounded-full px-3 py-[5px] text-xs font-medium tracking-tight text-gray-600 transition-colors hover:bg-gray-100"

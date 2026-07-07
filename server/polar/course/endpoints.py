@@ -1013,7 +1013,9 @@ async def get_preview_access(
         session, customer
     )
 
-    portal_url = f"/{org.slug}/portal/courses/{course_id}?customer_session_token={token}"
+    portal_url = org.storefront_url(
+        f"/portal/courses/{course_id}?customer_session_token={token}"
+    )
     return {"token": token, "portal_url": portal_url}
 
 
