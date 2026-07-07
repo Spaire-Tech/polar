@@ -310,15 +310,23 @@ class ProductService:
             )
             errors.extend(prices_errors)
 
-        # Prevent non-legacy products from changing their recurring interval
-        if (
-            update_schema.recurring_interval is not None
-            and (
-                update_schema.recurring_interval != product.recurring_interval
-                or update_schema.recurring_interval_count
-                != product.recurring_interval_count
-            )
-            and not all(is_legacy_price(price) for price in product.prices)
+        # Prevent non-legacy products from changing their recurring interval.
+        # This includes explicitly setting `recurring_interval` to `null` on a
+        # recurring product — that would silently convert a subscription to a
+        # one-time purchase, leaving existing subscribers in limbo. Fields are
+        # checked against `model_fields_set` so an omitted field (which the
+        # update leaves untouched) is not mistaken for an attempt to clear it.
+        recurring_interval_changed = (
+            "recurring_interval" in update_schema.model_fields_set
+            and update_schema.recurring_interval != product.recurring_interval
+        )
+        recurring_interval_count_changed = (
+            "recurring_interval_count" in update_schema.model_fields_set
+            and update_schema.recurring_interval_count
+            != product.recurring_interval_count
+        )
+        if (recurring_interval_changed or recurring_interval_count_changed) and not all(
+            is_legacy_price(price) for price in product.prices
         ):
             errors.append(
                 {

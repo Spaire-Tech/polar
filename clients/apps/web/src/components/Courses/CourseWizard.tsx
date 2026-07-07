@@ -223,7 +223,9 @@ export default function CourseWizard({
           price_currency?: string
         }
       | undefined
-    const isFree = first?.amount_type === 'free' || !paywall.paywallEnabled
+    // Free means a free PRICE — the paywall toggle only controls which
+    // lessons are watchable before purchase, never what checkout charges.
+    const isFree = first?.amount_type === 'free'
     const currency = (first?.price_currency ?? defaultCurrency).toUpperCase()
     let priceLabel = 'Free'
     if (!isFree) {
