@@ -67,6 +67,7 @@ const COMMENTS: WatchComment[] = [
 export default function WatchEmbedPage() {
   const [params, setParams] = useState<URLSearchParams | null>(null)
   const [url, setUrl] = useState<string | null>(null)
+  const [storyboardUrl, setStoryboardUrl] = useState<string | null>(null)
   const [open, setOpen] = useState(true)
   const [progressLog, setProgressLog] = useState<number[]>([])
 
@@ -74,26 +75,64 @@ export default function WatchEmbedPage() {
     setParams(new URLSearchParams(window.location.search))
   }, [])
 
-  // Synthesize a short real video clip (same trick as /embed/generated-portal).
+  // Synthesize a short real video clip (same trick as /embed/generated-portal),
+  // plus a Mux-shaped storyboard (sprite sheet + WebVTT with #xywh cues) so
+  // hover-scrub thumbnails are verifiable without a Mux asset. Pass
+  // &storyboard=0 to exercise the timestamp-only fallback.
   useEffect(() => {
     if (!params || params.get('sheet') || params.get('comments') || url) return
     const canvas = document.createElement('canvas')
     canvas.width = 320
     canvas.height = 180
     const ctx = canvas.getContext('2d')!
+    // One sprite tile per second of the 8s clip, laid out in a row.
+    const TILE_W = 160
+    const TILE_H = 90
+    const TILES = 8
+    const sprite = document.createElement('canvas')
+    sprite.width = TILE_W * TILES
+    sprite.height = TILE_H
+    const sctx = sprite.getContext('2d')!
     let hue = 0
+    let tick = 0
     const draw = () => {
       hue = (hue + 4) % 360
       ctx.fillStyle = `hsl(${hue} 70% 50%)`
       ctx.fillRect(0, 0, 320, 180)
+      // Snapshot the frame at the top of each second into its sprite cell.
+      if (tick % 20 === 0) {
+        const i = Math.min(TILES - 1, tick / 20)
+        sctx.drawImage(canvas, i * TILE_W, 0, TILE_W, TILE_H)
+        sctx.fillStyle = '#fff'
+        sctx.font = 'bold 28px sans-serif'
+        sctx.fillText(`${i}s`, i * TILE_W + 12, TILE_H - 14)
+      }
+      tick++
     }
     draw()
     const stream = canvas.captureStream(20)
     const rec = new MediaRecorder(stream, { mimeType: 'video/webm' })
     const chunks: Blob[] = []
     rec.ondataavailable = (e) => chunks.push(e.data)
-    rec.onstop = () =>
+    rec.onstop = () => {
       setUrl(URL.createObjectURL(new Blob(chunks, { type: 'video/webm' })))
+      if (params.get('storyboard') !== '0') {
+        sprite.toBlob((blob) => {
+          if (!blob) return
+          const spriteUrl = URL.createObjectURL(blob)
+          const cues = Array.from({ length: TILES }, (_, i) => {
+            const t = (s: number) =>
+              `00:00:0${s}.000`
+            return `${t(i)} --> ${t(i + 1)}\n${spriteUrl}#xywh=${i * TILE_W},0,${TILE_W},${TILE_H}`
+          }).join('\n\n')
+          setStoryboardUrl(
+            URL.createObjectURL(
+              new Blob([`WEBVTT\n\n${cues}\n`], { type: 'text/vtt' }),
+            ),
+          )
+        }, 'image/jpeg')
+      }
+    }
     rec.start()
     const timer = setInterval(draw, 50)
     setTimeout(() => {
@@ -185,6 +224,7 @@ export default function WatchEmbedPage() {
             n: 2,
             title: 'The Athlete’s Mindset',
             playbackUrl: url,
+            storyboardUrl,
           }}
           courseTitle="Championship Tennis"
           instructorName="Carla Marín"

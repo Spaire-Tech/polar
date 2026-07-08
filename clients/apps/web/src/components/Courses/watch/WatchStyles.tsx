@@ -543,9 +543,58 @@ export function WatchStyles() {
         text-align: right;
       }
       .sov2 .scrub {
+        position: relative;
         flex: 1;
         padding: 10px 0;
         cursor: pointer;
+      }
+      /* Hover-scrub preview — a floating frame card + time pill above the
+         bar. No transition on left: it tracks the pointer 1:1, and only
+         the appearance fades in. */
+      .sov2 .scrub-preview {
+        position: absolute;
+        bottom: calc(100% + 14px);
+        transform: translateX(-50%);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+        pointer-events: none;
+        animation: sov2-ovIn 0.18s ease;
+      }
+      .sov2 .scrub-thumb {
+        position: relative;
+        overflow: hidden;
+        border-radius: 12px;
+        background: rgba(20, 20, 24, 0.6);
+        box-shadow: 0 16px 44px rgba(0, 0, 0, 0.55);
+      }
+      .sov2 .scrub-thumb img {
+        position: absolute;
+        top: 0;
+        left: 0;
+        max-width: none;
+        user-select: none;
+      }
+      /* Hairline edge painted above the cropped sprite. */
+      .sov2 .scrub-thumb::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        border-radius: inherit;
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.22);
+      }
+      .sov2 .scrub-preview-time {
+        padding: 3px 10px;
+        border-radius: 980px;
+        background: rgba(20, 20, 24, 0.55);
+        -webkit-backdrop-filter: blur(14px) saturate(150%);
+        backdrop-filter: blur(14px) saturate(150%);
+        color: #fff;
+        font-size: 12px;
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+        letter-spacing: -0.01em;
       }
       .sov2 .scrub-track {
         position: relative;
@@ -608,6 +657,146 @@ export function WatchStyles() {
         justify-content: flex-end;
         gap: 10px;
       }
+      /* Buffering — a hairline arc so a mid-stream stall never looks like
+         a frozen frame. Independent of the auto-hiding chrome. */
+      .sov2 .player-spin {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        z-index: 4;
+        width: 54px;
+        height: 54px;
+        margin: -27px 0 0 -27px;
+        pointer-events: none;
+        border-radius: 50%;
+        border: 2.5px solid rgba(255, 255, 255, 0.22);
+        border-top-color: #fff;
+        animation: sov2-spin 0.9s linear infinite, sov2-ovIn 0.25s ease;
+      }
+      @keyframes sov2-spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      /* Volume — the slider slides out of a glass capsule on hover
+         (macOS-player style) and while dragging or after a keyboard
+         change (.open). */
+      .sov2 .pvol {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .sov2 .pvol-slider {
+        width: 0;
+        opacity: 0;
+        overflow: hidden;
+        height: 28px;
+        padding: 0;
+        border-radius: 980px;
+        background: rgba(255, 255, 255, 0.14);
+        -webkit-backdrop-filter: blur(40px) saturate(150%);
+        backdrop-filter: blur(40px) saturate(150%);
+        display: flex;
+        align-items: center;
+        cursor: pointer;
+        touch-action: none;
+        transition: width 0.28s cubic-bezier(0.2, 1, 0.3, 1),
+          opacity 0.2s ease, padding 0.28s cubic-bezier(0.2, 1, 0.3, 1);
+      }
+      .sov2 .pvol:hover .pvol-slider,
+      .sov2 .pvol.open .pvol-slider {
+        width: 96px;
+        opacity: 1;
+        padding: 0 12px;
+      }
+      .sov2 .pvol-track {
+        position: relative;
+        flex: 1;
+        height: 4px;
+        border-radius: 980px;
+        background: rgba(255, 255, 255, 0.28);
+      }
+      .sov2 .pvol-fill {
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        border-radius: 980px;
+        background: #fff;
+      }
+      .sov2 .pvol-knob {
+        position: absolute;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        width: 11px;
+        height: 11px;
+        border-radius: 50%;
+        background: #fff;
+        box-shadow: 0 1px 5px rgba(0, 0, 0, 0.45);
+      }
+
+      /* Playback speed — text button + frosted menu above the transport. */
+      .sov2 .prate {
+        position: relative;
+      }
+      .sov2 .prate-label {
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: -0.02em;
+        font-variant-numeric: tabular-nums;
+      }
+      .sov2 .pmenu {
+        position: absolute;
+        bottom: calc(100% + 12px);
+        right: 0;
+        z-index: 6;
+        min-width: 148px;
+        padding: 6px;
+        border-radius: 16px;
+        background: rgba(28, 28, 32, 0.72);
+        -webkit-backdrop-filter: blur(40px) saturate(150%);
+        backdrop-filter: blur(40px) saturate(150%);
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5),
+          inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+        animation: sov2-menuIn 0.28s cubic-bezier(0.2, 1, 0.3, 1);
+      }
+      @keyframes sov2-menuIn {
+        from {
+          opacity: 0;
+          transform: translateY(8px) scale(0.97);
+        }
+      }
+      .sov2 .pmenu-title {
+        padding: 8px 12px 6px;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, 0.55);
+      }
+      .sov2 .pmenu-item {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 8px 12px;
+        border-radius: 10px;
+        font-size: 13.5px;
+        font-weight: 500;
+        color: rgba(255, 255, 255, 0.9);
+        font-variant-numeric: tabular-nums;
+        transition: background 0.15s;
+      }
+      .sov2 .pmenu-item:hover {
+        background: rgba(255, 255, 255, 0.12);
+      }
+      .sov2 .pmenu-item.on {
+        font-weight: 600;
+        color: #fff;
+      }
+
       .sov2 .player-cc {
         position: absolute;
         left: 50%;
@@ -934,6 +1123,11 @@ export function WatchStyles() {
         }
         .sov2 .player-controls {
           padding: 0 20px 22px;
+        }
+        /* No hover on touch and no room in the transport row — volume is
+           mute-only on small screens (system volume rules there anyway). */
+        .sov2 .pvol-slider {
+          display: none;
         }
         .sov2 .xs-body {
           padding: 24px 22px 28px;

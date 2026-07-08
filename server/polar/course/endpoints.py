@@ -83,6 +83,7 @@ def _lesson_read(lesson) -> CourseLessonRead:
         # inlining it is safe — without it the editor's own Play button and
         # sample-clip preview 403 the moment signed playback is enabled.
         mux_playback_url=mux_client.playback_url(lesson.mux_playback_id),
+        mux_storyboard_url=mux_client.storyboard_url(lesson.mux_playback_id),
         mux_status=lesson.mux_status,
         transcript_status=getattr(lesson, "transcript_status", None),
         thumbnail_url=lesson.thumbnail_url,
