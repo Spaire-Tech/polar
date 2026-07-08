@@ -1,4 +1,5 @@
 import type { schemas } from '@spaire/client'
+import { formatCurrency } from '@spaire/currency'
 
 // Single source for the course landing price label, shared by the public
 // landing (PublicPortalView) and the dashboard editor (CourseDesignEditor).
@@ -17,9 +18,7 @@ export function formatProductPrice(
     return ''
   }
   const cents = fixed.price_amount as number
-  const dollars = cents / 100
-  if (dollars === Math.floor(dollars)) return `$${dollars.toFixed(0)}`
-  return `$${dollars.toFixed(2)}`
+  return formatCurrency('compact')(cents, fixed.price_currency)
 }
 
 // Whether the product's active price recurs (subscription) vs one-time.

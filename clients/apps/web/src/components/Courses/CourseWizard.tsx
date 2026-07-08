@@ -223,7 +223,9 @@ export default function CourseWizard({
           price_currency?: string
         }
       | undefined
-    const isFree = first?.amount_type === 'free' || !paywall.paywallEnabled
+    // Free means a free PRICE — the paywall toggle only controls which
+    // lessons are watchable before purchase, never what checkout charges.
+    const isFree = first?.amount_type === 'free'
     const currency = (first?.price_currency ?? defaultCurrency).toUpperCase()
     let priceLabel = 'Free'
     if (!isFree) {
@@ -235,7 +237,7 @@ export default function CourseWizard({
           minimumFractionDigits: cents % 100 === 0 ? 0 : 2,
         }).format(cents / 100)
       } catch {
-        priceLabel = `$${(cents / 100).toFixed(0)}`
+        priceLabel = `${(cents / 100).toFixed(0)} ${currency}`
       }
       if (recurringInterval) priceLabel = `${priceLabel} / ${recurringInterval}`
     }

@@ -310,6 +310,44 @@ class CourseEnrollmentRepository(
         ).where(CourseEnrollment.deleted_at.is_(None))
         return await self.get_one_or_none(statement)
 
+    def get_students_for_course_statement(
+        self, course_id: UUID, organization_id: UUID
+    ):
+        """Enrollments for a course excluding the org's own members.
+
+        Instructors preview their course through their own real customer
+        account (their dashboard email — see get_preview_access), and the
+        legacy preview sandbox used @course-preview.invalid addresses.
+        Neither is a student, so both are excluded from the student-facing
+        list (Customers tab, its count, and the CSV export). Eager-loads
+        .customer in the same round trip.
+        """
+        from sqlalchemy.orm import selectinload
+
+        from polar.models.customer import Customer
+
+        instructor_emails = (
+            select(func.lower(User.email))
+            .join(UserOrganization, UserOrganization.user_id == User.id)
+            .where(
+                UserOrganization.organization_id == organization_id,
+                UserOrganization.deleted_at.is_(None),
+                User.email.is_not(None),
+            )
+            .scalar_subquery()
+        )
+        return (
+            self.get_base_statement()
+            .join(Customer, Customer.id == CourseEnrollment.customer_id)
+            .where(
+                CourseEnrollment.course_id == course_id,
+                Customer.email.notilike("%@course-preview.invalid"),
+                func.lower(Customer.email).not_in(instructor_emails),
+            )
+            .order_by(CourseEnrollment.enrolled_at.desc())
+            .options(selectinload(CourseEnrollment.customer))
+        )
+
     async def list_customer_ids_for_course(
         self, course_id: UUID
     ) -> list[UUID]:

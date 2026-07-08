@@ -389,6 +389,7 @@ async def list_course_enrollments(
     enrollments, total = await course_service.paginate_enrollments_for_course(
         session,
         course_id,
+        organization_id=course.organization_id,
         limit=pagination.limit,
         page=pagination.page,
     )
@@ -964,7 +965,20 @@ async def get_preview_access(
     auth_subject: auth.CoursesWrite,
     session: AsyncSession = Depends(get_db_session),
 ) -> dict[str, str]:
-    """Create a customer session for an org member to preview a course as a student."""
+    """Sign the requesting org member into the portal as themselves.
+
+    Finds-or-creates the instructor's OWN customer record — their real
+    dashboard email — in the course's organization, enrolls it, and mints a
+    customer session. The portal identifies instructors by matching the
+    customer email against org-member emails, so this account automatically
+    gets the instructor badge and moderation powers in lesson discussions,
+    and the enrollments listing excludes it from student-facing counts.
+
+    Security: the session is only ever minted for the requesting user's own
+    email — never an arbitrary customer — so this cannot be used to
+    impersonate a student. Signing in "as yourself" is something the user
+    could already do through the portal's email-code flow.
+    """
     if not is_user(auth_subject):
         raise HTTPException(status_code=400, detail="Preview requires user authentication")
 
@@ -986,44 +1000,36 @@ async def get_preview_access(
         raise HTTPException(status_code=404, detail="Organization not found")
 
     customer_repo = CustomerRepository.from_session(session)
-    # Use a deterministic preview-only email tied to the org user, NOT the
-    # user's real email. Reusing a real customer record by email would mint
-    # a customer-session token that also unlocks that customer's other
-    # purchases / orders / PII — so we route every preview through a
-    # sandboxed customer scoped to (org_user, organization) instead.
-    # The .invalid TLD is RFC-reserved and guaranteed to never match a
-    # real address, so this can't collide with checkout-created customers.
-    preview_email = f"preview+{user.id}@course-preview.invalid"
-    # Display name mirrors the admin's editorial identity: course's
-    # instructor_name override → org name → user email-local. No
-    # "(preview)" suffix — the portal now treats this customer as the
-    # admin themselves, not a sandboxed fake account.
+    # Display name for a freshly-created record mirrors the admin's
+    # editorial identity: course instructor_name → org name → email-local.
     display_name = (
         (course.instructor_name or "").strip()
         or (org.name or "").strip()
         or user.email.split("@")[0]
     )
     customer = await customer_repo.get_by_email_and_organization(
-        preview_email, course.organization_id
+        user.email, course.organization_id
     )
     if customer is None:
         customer = await customer_repo.create(
             Customer(
-                email=preview_email,
+                email=user.email,
                 name=display_name,
                 organization_id=course.organization_id,
             ),
             flush=True,
         )
-    elif customer.name != display_name:
-        # Refresh stale preview customer rows from earlier sessions
-        # whose name still carries the legacy "(preview)" suffix.
+    elif not (customer.name or "").strip():
+        # Backfill a display name, but never overwrite one the customer
+        # record already carries (e.g. set via portal onboarding).
         customer = await customer_repo.update(
             customer, update_dict={"name": display_name}
         )
 
+    # Don't fire enrollment events: previewing your own course must not
+    # trigger the org's own email automations.
     await course_service.enroll_customer(
-        session, course_id=course_id, customer=customer
+        session, course_id=course_id, customer=customer, fire_events=False
     )
 
     token, _ = await customer_session.create_customer_session(

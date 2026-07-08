@@ -32,6 +32,7 @@ import ScheduleOutlined from '@mui/icons-material/ScheduleOutlined'
 import SearchOutlined from '@mui/icons-material/SearchOutlined'
 import VisibilityOutlined from '@mui/icons-material/VisibilityOutlined'
 import { useMemo, useState } from 'react'
+import { toast } from '../../Toast/use-toast'
 import { LessonOptionsMenu, LessonOptionsPatch } from './LessonOptionsMenu'
 import { PaywallRow } from './PaywallRow'
 import { ScheduleEdits, ScheduleMenu } from './ScheduleMenu'
@@ -293,7 +294,6 @@ function groupByModule(items: LessonWithGlobalIndex[]): ModuleGroup[] {
 
 export function OutlineTab({
   course,
-  organizationSlug,
   selectedLessonId,
   onSelectLesson,
   onAddLesson,
@@ -309,7 +309,6 @@ export function OutlineTab({
   onUpdateModuleSchedule,
 }: {
   course: CourseRead
-  organizationSlug?: string
   selectedLessonId: string | null
   onSelectLesson: (lessonId: string) => void
   onAddLesson: (
@@ -341,13 +340,9 @@ export function OutlineTab({
       const { portal_url } = await previewAccess.mutateAsync(course.id)
       window.open(portal_url, '_blank', 'noopener,noreferrer')
     } catch {
-      if (organizationSlug) {
-        window.open(
-          `/${organizationSlug}/portal/courses/${course.id}`,
-          '_blank',
-          'noopener,noreferrer',
-        )
-      }
+      // Opening the portal without a session token would just land on the
+      // sign-in screen — surface the failure instead.
+      toast({ title: 'Could not open the preview. Please try again.' })
     }
   }
 

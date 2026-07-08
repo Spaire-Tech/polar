@@ -736,31 +736,37 @@ export function CourseDesignEditor({
   // ── hero copy (the AI-written hero, falling back to course fields) ────────
   const [sampleOpen, setSampleOpen] = useState(false)
   const { priceLabel, recurring } = formatPrice(product)
+  // Free is a property of the PRODUCT price, not the paywall toggle —
+  // matching PublicPortalView, so the editor preview never promises
+  // "Enroll Free" for a course checkout will charge for.
+  const isFreeProduct = formatProductPrice(product) === 'Free'
   const cadence = recurring ? 'cancel anytime' : 'one-time purchase'
-  const enrollPriceSub = !paywallEnabled
+  const enrollPriceSub = isFreeProduct
     ? `${flatLessons.length} ${unit}${flatLessons.length === 1 ? '' : 's'} · Free`
     : recurring
       ? `Subscription · ${flatLessons.length} ${unit}${flatLessons.length === 1 ? '' : 's'} · cancel anytime`
       : `One-time purchase · ${flatLessons.length} ${unit}${flatLessons.length === 1 ? '' : 's'} · Lifetime access`
-  const buyLabel = !paywallEnabled
+  const buyLabel = isFreeProduct
     ? 'Enroll Free'
     : recurring
       ? `Subscribe — ${priceLabel}`
       : `Buy — ${priceLabel}`
-  const playLabel = !paywallEnabled
+  const playLabel = isFreeProduct || !paywallEnabled
     ? 'Start Watching'
     : trialMode === 'lesson_sample'
       ? 'Play Sample'
       : freeCount > 0
         ? `Play ${unitCap} 1 Free`
         : 'Watch Preview'
-  const freeLine = !paywallEnabled
+  const freeLine = isFreeProduct
     ? 'Free for everyone'
-    : trialMode === 'lesson_sample'
-      ? `Sample clip free · ${cadence}`
-      : freeCount > 0
-        ? `${freeCount} ${unit}${freeCount === 1 ? '' : 's'} free · ${cadence}`
-        : cadence
+    : !paywallEnabled
+      ? `All ${unit}s free to watch · ${cadence}`
+      : trialMode === 'lesson_sample'
+        ? `Sample clip free · ${cadence}`
+        : freeCount > 0
+          ? `${freeCount} ${unit}${freeCount === 1 ? '' : 's'} free · ${cadence}`
+          : cadence
 
   const sample = course.sample
   const sampleLesson = sample?.lesson_id

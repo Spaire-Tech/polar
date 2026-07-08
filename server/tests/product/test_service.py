@@ -1375,6 +1375,76 @@ class TestUpdate:
         AuthSubjectFixture(subject="user"),
         AuthSubjectFixture(subject="organization"),
     )
+    async def test_invalid_remove_recurring_interval_on_non_legacy_product(
+        self,
+        session: AsyncSession,
+        auth_subject: AuthSubject[User | Organization],
+        product: Product,
+        user_organization: UserOrganization,
+    ) -> None:
+        """Explicitly setting recurring_interval to None on a recurring
+        product must be rejected: it would silently convert a subscription
+        product to a one-time purchase."""
+        update_schema = ProductUpdate(recurring_interval=None)
+
+        with pytest.raises(SpaireRequestValidationError):
+            await product_service.update(
+                session,
+                product,
+                update_schema,
+                auth_subject,
+            )
+
+    @pytest.mark.auth(
+        AuthSubjectFixture(subject="user"),
+        AuthSubjectFixture(subject="organization"),
+    )
+    async def test_invalid_change_recurring_interval_count_on_non_legacy_product(
+        self,
+        session: AsyncSession,
+        auth_subject: AuthSubject[User | Organization],
+        product: Product,
+        user_organization: UserOrganization,
+    ) -> None:
+        update_schema = ProductUpdate(recurring_interval_count=6)
+
+        with pytest.raises(SpaireRequestValidationError):
+            await product_service.update(
+                session,
+                product,
+                update_schema,
+                auth_subject,
+            )
+
+    @pytest.mark.auth(
+        AuthSubjectFixture(subject="user"),
+        AuthSubjectFixture(subject="organization"),
+    )
+    async def test_valid_unchanged_recurring_interval_on_non_legacy_product(
+        self,
+        session: AsyncSession,
+        auth_subject: AuthSubject[User | Organization],
+        product: Product,
+        user_organization: UserOrganization,
+    ) -> None:
+        update_schema = ProductUpdate(
+            recurring_interval=product.recurring_interval,
+            recurring_interval_count=product.recurring_interval_count,
+        )
+
+        updated_product = await product_service.update(
+            session,
+            product,
+            update_schema,
+            auth_subject,
+        )
+
+        assert updated_product.recurring_interval == product.recurring_interval
+
+    @pytest.mark.auth(
+        AuthSubjectFixture(subject="user"),
+        AuthSubjectFixture(subject="organization"),
+    )
     async def test_invalid_legacy_product_price_with_new_price(
         self,
         session: AsyncSession,

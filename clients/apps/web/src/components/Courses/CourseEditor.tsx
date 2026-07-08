@@ -416,7 +416,6 @@ export default function CourseEditor({
             lesson={selectedLessonInfo.lesson}
             module={selectedLessonInfo.module}
             course={course}
-            organizationSlug={organization.slug}
             onSave={handleSaveQuiz}
             onDelete={() => handleDeleteLesson(selectedLessonInfo.lesson)}
             isSaving={isSaving}
@@ -436,7 +435,6 @@ export default function CourseEditor({
       mainContent = (
         <OutlineTab
           course={course}
-          organizationSlug={organization.slug}
           selectedLessonId={selectedLessonId}
           onSelectLesson={guardedSetSelectedLessonId}
           onAddLesson={(mod, ct) => handleAddLesson(mod, ct)}
@@ -496,9 +494,7 @@ export default function CourseEditor({
       />
     )
   } else {
-    mainContent = (
-      <CustomersTab organization={organization} courseId={course.id} />
-    )
+    mainContent = <CustomersTab courseId={course.id} />
   }
 
   const handleClose = () =>

@@ -1,6 +1,5 @@
 'use client'
 
-import { useAuth } from '@/hooks/auth'
 import {
   useCourseEnrollments,
   useRevokeCourseEnrollment,
@@ -8,18 +7,16 @@ import {
 import DeleteOutlineOutlined from '@mui/icons-material/DeleteOutlineOutlined'
 import FileDownloadOutlined from '@mui/icons-material/FileDownloadOutlined'
 import SearchOutlined from '@mui/icons-material/SearchOutlined'
-import { schemas } from '@spaire/client'
 import Avatar from '@spaire/ui/components/atoms/Avatar'
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { toast } from '../../Toast/use-toast'
 
 type CustomerRow = {
   id: string
-  enrollmentId: string | null
+  enrollmentId: string
   name: string
   email: string
   avatar_url: string | null
-  role: 'Admin' | 'Student'
   joined: string | null
 }
 
@@ -40,11 +37,11 @@ function csvEscape(value: string): string {
 }
 
 function downloadCsv(rows: CustomerRow[]): void {
-  const header = ['Name', 'Email', 'Role', 'Joined']
+  const header = ['Name', 'Email', 'Joined']
   const lines = [header.join(',')]
   for (const r of rows) {
     lines.push(
-      [r.name, r.email, r.role, r.joined ?? '']
+      [r.name, r.email, r.joined ?? '']
         .map((v) => csvEscape(String(v)))
         .join(','),
     )
@@ -62,45 +59,22 @@ function downloadCsv(rows: CustomerRow[]): void {
   URL.revokeObjectURL(url)
 }
 
-export function CustomersTab({
-  organization,
-  courseId,
-}: {
-  organization: schemas['Organization']
-  courseId: string
-}) {
-  const { currentUser } = useAuth()
+export function CustomersTab({ courseId }: { courseId: string }) {
   const [query, setQuery] = useState('')
   const { data: enrollmentsPage, isLoading } = useCourseEnrollments(courseId)
   const enrollments = enrollmentsPage?.items
   const revoke = useRevokeCourseEnrollment(courseId)
 
-  const adminRow: CustomerRow | null = currentUser
-    ? {
-        id: `admin-${currentUser.id}`,
-        enrollmentId: null,
-        name: currentUser.email.split('@')[0],
-        email: currentUser.email,
-        avatar_url: currentUser.avatar_url,
-        role: 'Admin',
-        joined: organization.created_at ?? currentUser.created_at,
-      }
-    : null
-
-  const studentRows: CustomerRow[] = (enrollments ?? []).map((e) => ({
+  const rows: CustomerRow[] = (enrollments ?? []).map((e) => ({
     id: e.id,
     enrollmentId: e.id,
     name: e.customer?.name || e.customer?.email.split('@')[0] || 'Student',
     email: e.customer?.email ?? '—',
     avatar_url: e.customer?.avatar_url ?? null,
-    role: 'Student',
     joined: e.enrolled_at,
   }))
 
-  const rows = useMemo(
-    () => (adminRow ? [adminRow, ...studentRows] : studentRows),
-    [adminRow, studentRows],
-  )
+  const totalCount = enrollmentsPage?.pagination?.total_count ?? rows.length
 
   const visibleRows = query.trim()
     ? rows.filter(
@@ -111,11 +85,8 @@ export function CustomersTab({
     : rows
 
   const handleRemove = async (row: CustomerRow) => {
-    if (!row.enrollmentId) return
     if (
-      !confirm(
-        `Remove ${row.name} from this course? Their progress will be cleared.`,
-      )
+      !confirm(`Remove ${row.name} from this course? They will lose access.`)
     ) {
       return
     }
@@ -141,11 +112,11 @@ export function CustomersTab({
       <div className="mb-6 flex items-start justify-between gap-4">
         <div>
           <h1 className="text-lg font-medium text-gray-900">
-            Customers ({rows.length})
+            Customers ({totalCount})
           </h1>
           <p className="mt-1 text-gray-500">
-            Everyone with access to this course — instructors and enrolled
-            students.
+            Students enrolled in this course. Instructors preview with their own
+            account and are not listed here.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -174,9 +145,8 @@ export function CustomersTab({
           />
         </div>
 
-        <div className="grid grid-cols-[2.5fr_1fr_1.2fr_0.6fr] gap-4 px-6 py-3 text-[11px] font-semibold tracking-wider text-gray-400 uppercase">
+        <div className="grid grid-cols-[2.5fr_1.2fr_0.6fr] gap-4 px-6 py-3 text-[11px] font-semibold tracking-wider text-gray-400 uppercase">
           <span>Name</span>
-          <span>Role</span>
           <span>Joined</span>
           <span className="text-right">Actions</span>
         </div>
@@ -195,7 +165,7 @@ export function CustomersTab({
           visibleRows.map((row) => (
             <div
               key={row.id}
-              className="grid grid-cols-[2.5fr_1fr_1.2fr_0.6fr] items-center gap-4 border-t border-gray-100 px-6 py-4 text-sm text-gray-900"
+              className="grid grid-cols-[2.5fr_1.2fr_0.6fr] items-center gap-4 border-t border-gray-100 px-6 py-4 text-sm text-gray-900"
             >
               <div className="flex min-w-0 items-center gap-3">
                 <Avatar
@@ -212,20 +182,17 @@ export function CustomersTab({
                   </span>
                 </div>
               </div>
-              <span className="text-gray-700">{row.role}</span>
               <span className="text-gray-700">{formatDate(row.joined)}</span>
               <span className="flex justify-end">
-                {row.role === 'Student' && row.enrollmentId && (
-                  <button
-                    onClick={() => handleRemove(row)}
-                    disabled={revoke.isPending}
-                    className="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-gray-500 transition-colors hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
-                    title="Remove student"
-                  >
-                    <DeleteOutlineOutlined sx={{ fontSize: 14 }} />
-                    Remove
-                  </button>
-                )}
+                <button
+                  onClick={() => handleRemove(row)}
+                  disabled={revoke.isPending}
+                  className="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-gray-500 transition-colors hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
+                  title="Remove student"
+                >
+                  <DeleteOutlineOutlined sx={{ fontSize: 14 }} />
+                  Remove
+                </button>
               </span>
             </div>
           ))

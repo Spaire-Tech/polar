@@ -89,7 +89,13 @@ export function PublicPortalView({
 
   const priceLabel =
     formatProductPrice(product as unknown as schemas['Product']) || 'Free'
-  const isFreeProduct = priceLabel === 'Free' || !landing.paywall_enabled
+  // Free is a property of the PRODUCT, never of the paywall toggle. A paid
+  // course with the paywall off means every lesson is watchable before
+  // purchase — checkout still charges the real price, so the page must
+  // never promise "Enroll Free".
+  const isFreeProduct = priceLabel === 'Free'
+  // Paywall off → nothing is locked; any lesson with playback is previewable.
+  const allLessonsOpen = !(landing.paywall_enabled ?? false)
   const recurring = (
     product as unknown as { prices?: { type?: string }[] }
   ).prices?.some((p) => p.type === 'recurring')
@@ -253,19 +259,19 @@ export function PublicPortalView({
     return (
       landing.lessons.find(
         (l) =>
-          l.is_free_preview &&
+          (l.is_free_preview || allLessonsOpen) &&
           l.mux_playback_id &&
           !watchState.done.includes(l.id) &&
           (watchState.p[l.id] ?? 0) > 0.01,
       ) ?? null
     )
-  }, [landing.lessons, watchState])
+  }, [landing.lessons, watchState, allLessonsOpen])
 
   const playLabel = hasAccess
     ? 'Continue Watching'
     : resumeLesson
       ? `Resume ${unitCap} ${lessonNumber(resumeLesson)}`
-      : isFreeProduct
+      : isFreeProduct || allLessonsOpen
         ? 'Start Watching'
         : trialMode === 'lesson_sample'
           ? 'Play Sample'
@@ -283,11 +289,13 @@ export function PublicPortalView({
     ? 'You own this Original'
     : isFreeProduct
       ? 'Free for everyone'
-      : trialMode === 'lesson_sample'
-        ? `Sample clip free · ${cadence}`
-        : freeCount > 0
-          ? `${freeCount} ${unit}${freeCount === 1 ? '' : 's'} free · ${cadence}`
-          : cadence
+      : allLessonsOpen
+        ? `All ${unit}s free to watch · ${cadence}`
+        : trialMode === 'lesson_sample'
+          ? `Sample clip free · ${cadence}`
+          : freeCount > 0
+            ? `${freeCount} ${unit}${freeCount === 1 ? '' : 's'} free · ${cadence}`
+            : cadence
 
   // Sample playback is INLINE on the sample screen (clip-windowed,
   // scroll-aware) — handled inside GeneratedPortalPage via the
@@ -301,11 +309,13 @@ export function PublicPortalView({
       resumeLesson ??
       landing.lessons.find(
         (l) =>
-          l.is_free_preview &&
+          (l.is_free_preview || allLessonsOpen) &&
           l.mux_playback_id &&
           !watchState.done.includes(l.id),
       ) ??
-      landing.lessons.find((l) => l.is_free_preview && l.mux_playback_id)
+      landing.lessons.find(
+        (l) => (l.is_free_preview || allLessonsOpen) && l.mux_playback_id,
+      )
     if (target) void openWatch(target)
     else void enroll()
   }, [
@@ -314,6 +324,7 @@ export function PublicPortalView({
     resumeLesson,
     landing.lessons,
     watchState.done,
+    allLessonsOpen,
     enroll,
     openWatch,
   ])
