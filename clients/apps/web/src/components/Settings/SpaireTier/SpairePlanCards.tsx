@@ -35,6 +35,10 @@ interface SpairePlanCardsProps {
  * match the Framer/Webflow plan-card pattern, with a single global
  * Monthly/Annual toggle.
  *
+ * Every plan is the whole platform; cards list only usage (fee rate,
+ * courses, contacts, video/storage, seats, support) and the shared
+ * feature set renders once below the grid.
+ *
  * The card the user is currently subscribed to renders the CURRENT
  * badge and a secondary "Cancel" CTA. Other cards show a primary
  * black CTA that maps to the right action ("Upgrade", "Switch to X",
@@ -194,9 +198,20 @@ const SpairePlanCards = ({ organization }: SpairePlanCardsProps) => {
         </div>
       )}
 
-      <p className="mt-2 text-center text-sm text-gray-500">
-        Compare all plans and features
-      </p>
+      <div className="rounded-2xl border border-gray-200 bg-white p-6">
+        <h3 className="text-base font-medium text-gray-900">
+          Every plan includes the whole platform
+        </h3>
+        <p className="mt-1 text-sm text-gray-500">
+          No feature gates — upgrading only buys a lower transaction rate and
+          more usage.
+        </p>
+        <div className="mt-4 grid grid-cols-1 gap-x-8 gap-y-2.5 md:grid-cols-2">
+          {SHARED_PLATFORM_FEATURES.map((label) => (
+            <FeatureRow key={label} label={label} />
+          ))}
+        </div>
+      </div>
 
       <ConfirmModal
         isShown={confirmCancel.isShown}
@@ -409,13 +424,11 @@ const PlanCard = ({
         )}
       </div>
 
-      {/* Features */}
+      {/* Usage — every plan is the whole platform, so this is all that differs */}
       <div className="mt-6 flex flex-1 flex-col gap-y-2.5">
-        {previousPlanName && (
-          <p className="text-sm font-medium text-gray-900">
-            Everything from {previousPlanName}, plus:
-          </p>
-        )}
+        <p className="text-sm font-medium text-gray-900">
+          The whole platform — your usage:
+        </p>
         {featureLines.map((line, i) => (
           <FeatureRow key={i} label={line} />
         ))}
@@ -639,16 +652,10 @@ const PrimaryBlackButton = ({
 )
 
 // -----------------------------------------------------------------------------
-// Feature copy — picks the lines that best differentiate each tier
+// Feature copy — every plan is the whole platform, so cards only list usage
+// (fee rate, courses, contacts, video/storage, seats, support). The shared
+// feature set is rendered once below the grid.
 // -----------------------------------------------------------------------------
-
-const buildFeatureLines = (plan: TierPlan): string[] => {
-  if (plan.tier === 'starter') return starterLines(plan)
-  if (plan.tier === 'studio') return studioLines(plan)
-  if (plan.tier === 'scale') return scaleLines(plan)
-  // Defensive — Legacy isn't in the card grid.
-  return []
-}
 
 const formatCount = (n: number): string => {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`
@@ -656,38 +663,46 @@ const formatCount = (n: number): string => {
   return String(n)
 }
 
-// Starter lists the full baseline. Studio and Scale list only the
-// incremental delta — the "Everything from X, plus:" header above them
-// in the card carries the inheritance, so re-listing identical rows
-// would just inflate the cards.
-const starterLines = (plan: TierPlan): string[] => [
+const FEE_SAVINGS_NOTE: Partial<Record<string, string>> = {
+  studio: ' (saves 2%)',
+  scale: ' (saves 4%)',
+}
+
+const SUPPORT_LINE: Partial<Record<string, string>> = {
+  starter: 'Email support, 1 business day',
+  studio: 'Priority support, same day',
+  scale: 'Slack + dedicated AM · 4-hr SLA',
+}
+
+// Everything below ships on every plan — rendered once under the card grid.
+const SHARED_PLATFORM_FEATURES: string[] = [
   'Merchant of Record — Spaire handles tax & VAT',
-  `${formatTransactionFee(plan.transaction_fee)} per transaction`,
-  `${plan.limits.published_courses} published courses`,
-  `${formatCount(plan.limits.email_subscribers ?? 0)} email subscribers`,
-  `${plan.limits.video_hours_hosted} hours of hosted video`,
-  'Email sequences, segments & drip',
-  'Revenue, MRR & churn analytics',
-]
-
-const studioLines = (plan: TierPlan): string[] => [
-  `${formatTransactionFee(plan.transaction_fee)} per transaction (saves 2%)`,
-  `${plan.limits.published_courses} published courses`,
-  `${formatCount(plan.limits.email_subscribers ?? 0)} email subscribers`,
+  'AI teaching assistant on every course',
+  'Email sequences, segments, drip & A/B testing',
+  'Unlimited email sends & unlimited products',
   'Custom email sender domain',
-  'Email A/B testing',
-  'White-label player & customer wallet',
-  `${plan.limits.dashboard_team_seats} team seats`,
+  'White-label course player',
+  'Customer wallet & seat-based B2B pricing',
+  'Custom storefront domain',
+  'Revenue, MRR & churn analytics',
+  'Full REST API, webhooks & audit logs',
 ]
 
-const scaleLines = (plan: TierPlan): string[] => [
-  `${formatTransactionFee(plan.transaction_fee)} per transaction (saves 4%)`,
-  `${plan.limits.published_courses} published courses`,
-  `${formatCount(plan.limits.email_subscribers ?? 0)} email subscribers`,
-  `${plan.limits.video_hours_hosted} video hours · ${plan.limits.storage_gb} GB storage`,
-  `${plan.limits.dashboard_team_seats} team seats · audit logs`,
-  'Slack + dedicated AM · 4-hr SLA',
-  'Custom pricing above $50k/mo GMV',
-]
+const buildFeatureLines = (plan: TierPlan): string[] => {
+  const seats = plan.limits.dashboard_team_seats ?? 0
+  const lines = [
+    `${formatTransactionFee(plan.transaction_fee)} per transaction${
+      FEE_SAVINGS_NOTE[plan.tier] ?? ''
+    }`,
+    `${plan.limits.published_courses} published courses`,
+    `${formatCount(plan.limits.email_subscribers ?? 0)} email subscribers`,
+    `${plan.limits.video_hours_hosted} video hours · ${plan.limits.storage_gb} GB storage`,
+    `${seats} team ${seats === 1 ? 'seat' : 'seats'}`,
+  ]
+  const support = SUPPORT_LINE[plan.tier]
+  if (support) lines.push(support)
+  if (plan.tier === 'scale') lines.push('Custom pricing above $50k/mo GMV')
+  return lines
+}
 
 export default SpairePlanCards

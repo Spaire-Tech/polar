@@ -51,11 +51,22 @@ export const FeatureGate = ({
     return <>{children}</>
   }
 
+  // Every plan is the whole platform, so a feature that unlocks at
+  // Starter is really "included with any plan" — the gate only appears
+  // for orgs with no active plan. Scale-only levers keep the classic
+  // upgrade framing.
   const requiredTier = requiredTierFor(feature)
-  const headline = title ?? `${FEATURE_NICE_NAME[feature]} is on ${requiredTier}`
+  const anyPlan = requiredTier === 'Starter'
+  const headline =
+    title ??
+    (anyPlan
+      ? `${FEATURE_NICE_NAME[feature]} comes with every plan`
+      : `${FEATURE_NICE_NAME[feature]} is on ${requiredTier}`)
   const sub =
     description ??
-    `Upgrade to ${requiredTier} to unlock ${FEATURE_NICE_NAME[feature].toLowerCase()}.`
+    (anyPlan
+      ? `Every plan is the whole platform — pick one to unlock ${FEATURE_NICE_NAME[feature].toLowerCase()}.`
+      : `Upgrade to ${requiredTier} to unlock ${FEATURE_NICE_NAME[feature].toLowerCase()}.`)
 
   return (
     <div
@@ -73,7 +84,7 @@ export const FeatureGate = ({
       </div>
       <Link href={`/dashboard/${organizationSlug}/settings/plan`}>
         <Button className="bg-black text-white hover:bg-gray-800">
-          Upgrade to {requiredTier}
+          {anyPlan ? 'Choose a plan' : `Upgrade to ${requiredTier}`}
         </Button>
       </Link>
     </div>

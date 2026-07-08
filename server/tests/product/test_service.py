@@ -965,7 +965,7 @@ def _seat_price_create() -> ProductPriceSeatBasedCreate:
 
 @pytest.mark.asyncio
 class TestUpdateSeatPricingGate:
-    """Seat-based pricing (Studio+) must be gated on update, not just create,
+    """Seat-based pricing (requires an active plan) must be gated on update, not just create,
     so it can't be introduced by PATCHing a seat price onto a product made
     while the creator lacked the feature."""
 

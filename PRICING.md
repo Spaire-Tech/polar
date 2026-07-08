@@ -2,35 +2,50 @@
 
 Three paid tiers — **Starter**, **Studio**, **Scale** — calibrated against what the platform actually ships today and benchmarked against Kajabi, Podia, Thinkific, Lemon Squeezy, Paddle, and Gumroad. Every paid tier ships with a **14-day free trial** so creators can build inside Spaire before being charged.
 
+**The pricing philosophy: every plan is the whole platform. You pay for how much of it you use.** No feature is gated behind a tier — the AI teaching assistant, email marketing suite, white-label player, customer wallet, and everything else ship on every plan. Tiers differ only on the transaction-fee rate, usage caps (courses, contacts, video, storage), team seats, and support level.
+
 Spaire's positioning vs. those competitors:
 
 - **Merchant of Record** built in (Kajabi/Podia/Thinkific don't do this — tax/VAT stays on the creator).
+- **Masterclass builder + AI teaching assistant + email marketing** in the same product (Lemon Squeezy/Paddle/Gumroad don't have these).
 - **Developer-first** APIs, SDKs, webhooks, license keys, usage-based billing (course platforms lack these).
-- **Course builder + email marketing** in the same product (Lemon Squeezy/Paddle/Gumroad don't have these).
 
-The tiering story: "Stripe-grade infra + Kajabi-grade creator tools + MoR tax handling — pick your scale."
+The tiering story: "Every plan is the whole platform — pick your scale."
 
 ---
 
-## Universal — applies to Starter, Studio, and Scale
+## Universal — every plan is the whole platform
 
-The following are part of the product on every tier. Gating any of these would break delivery for paying customers.
+The following are part of the product on every tier. Nothing here is a tier differentiator — a feature either ships on every plan or it isn't shipped.
 
 | Item | Policy |
 |---|---|
 | Free trial on every paid tier | 14 days, card required up front (charged at day 14 unless canceled) |
 | Sandbox / test environment (sandbox.spairehq.com) | every creator, no charge |
 | Merchant of Record (tax/VAT handled) | ✓ |
+| AI teaching assistant on every course | ✓ |
+| Course builder, player + lesson access for buyers | ✓ |
+| Drip scheduling | ✓ |
+| White-label course player | ✓ |
+| Email broadcasts, sequences & segments | ✓ |
+| Email A/B testing | ✓ |
+| Custom email sender domain | ✓ |
+| Email sends / month | unlimited on every tier |
+| Custom storefront domain | ✓ |
 | Customer portal (login, manage subs, access purchases) | ✓ |
-| Course player + lesson access for buyers | ✓ |
+| Customer wallet (prepaid balance, auto-top-up) | ✓ |
+| Seat-based product pricing (B2B sales) | ✓ |
+| Products (one-time, sub, downloads, license keys, usage-based) | unlimited |
 | Digital download delivery | ✓ |
 | License key issuance & validation | ✓ |
 | Discord / GitHub benefit granting | ✓ |
 | Customer invoices & receipts | ✓ |
 | Full REST API + all webhook events | ✓ |
-| Email broadcasts | ✓ |
+| Checkout links + embedded checkout | ✓ |
 | Discount codes (creator-shared) | ✓ |
+| Analytics — revenue, MRR, churn rate | ✓ |
 | CSV exports of analytics & customer data | ✓ |
+| Audit logs | ✓ |
 | "Powered by Spaire" badge on storefront & checkout | shown on Starter; removable on Studio & Scale |
 | Payout settlement | 7-day delay from transaction date |
 | Settlement grandfathering | orgs created before May 12, 2026 keep instant payouts |
@@ -39,9 +54,20 @@ The following are part of the product on every tier. Gating any of these would b
 | Minimum payout threshold | $25 |
 | Refund policy | Spaire's % fee retained on refund |
 
+### Roadmap — ships to every plan when built
+
+| Item | Status |
+|---|---|
+| Stackable / cart-rule discounts | roadmap |
+| Analytics — cohort retention curves | roadmap |
+| Custom checkout domain | roadmap |
+| SSO (merchant dashboard) | roadmap |
+
 ---
 
-## Tier differentiators
+## Tier differentiators — usage only
+
+Every plan is the whole platform, so the ONLY levers between tiers are the transaction-fee rate, usage caps, team seats, and support. There are no feature rows in this table by design.
 
 | Lever | Starter | Studio | Scale |
 |---|---|---|---|
@@ -53,38 +79,16 @@ The following are part of the product on every tier. Gating any of these would b
 | **Custom pricing at scale** | — | — | available above $50k/mo GMV |
 | **Published courses** § | 5 | 25 | 100 |
 | **Lessons per course** | 50 | unlimited | unlimited |
-| **Active email sequences** | unlimited | unlimited | unlimited |
 | **Email subscribers** † | 10,000 | 50,000 | 150,000 |
-| **Email sends / month** | unlimited | unlimited | unlimited |
 | **Course video hours hosted** ‡ | 25 | 50 | 200 |
 | **Course video views / month** ‡ | 5,000 | 50,000 | 250,000 |
 | **Downloadables storage** ‡ | 5 GB | 50 GB | 250 GB |
 | **Dashboard team seats** | 1 | 5 | 20 |
-| Products (one-time, sub, downloads, license keys, usage-based) | unlimited | unlimited | unlimited |
-| Drip scheduling | ✓ | ✓ | ✓ |
-| Email sequences & segments | ✓ | ✓ | ✓ |
-| Email A/B testing | — | ✓ | ✓ |
-| Stackable / cart-rule discounts ★ | roadmap | roadmap | roadmap |
-| Checkout links | ✓ | ✓ | ✓ |
-| Embedded checkout on your site | ✓ | ✓ | ✓ |
-| Custom email sender domain | — | ✓ | ✓ |
-| White-label course player | — | ✓ | ✓ |
-| Seat-based product pricing (B2B sales) | — | ✓ | ✓ |
-| Customer wallet (prepaid balance, auto-top-up) | — | ✓ | ✓ |
-| Analytics — revenue, MRR, churn rate | ✓ | ✓ | ✓ |
-| Analytics — cohort retention curves ★ | roadmap | roadmap | roadmap |
-| CSV exports of analytics & customer data | ✓ | ✓ | ✓ |
-| API rate limits | higher | higher | highest + custom |
-| Custom storefront domain ★ | — | — | roadmap |
-| Custom checkout domain ★ | — | — | roadmap |
-| Audit logs | — | — | ✓ |
-| SSO ★ | — | — | roadmap |
-| Support | email, 1 business day | priority email, same day | Slack + dedicated AM, 4-hour SLA |
+| **Support** | email, 1 business day | priority email, same day | Slack + dedicated AM, 4-hour SLA |
 
 ‡ = quota enforcement enforced via metered events.
 † = Email is metered on **marketing list size only** — checked directly against the cap whenever a contact is added, not via metered usage events. **Buyers don't count:** a contact acquired through a purchase or linked to a paying customer is uncapped (they're already monetized by the transaction fee), so a creator is never pushed to upgrade by their own sales. Only marketing contacts — signups, lead-magnet opt-ins, manual adds, and imports — count toward the cap. Sends and active sequences are unlimited on every tier, with the ESP cost absorbed into the transaction-fee spine. Scale's 150k contact cap is a published ceiling, not a hard wall — larger lists are a negotiated bump under custom pricing.
 § = Counts **published** courses only — a course occupies a slot once it has a published lesson. Draft courses (no published lesson) are free and unlimited; the cap is enforced at the publish transition, never at course creation. Counting drafts toward the cap was a documented Kajabi surprise we deliberately avoid.
-★ = feature itself must be built or completed before this row is shippable.
 
 ---
 
@@ -170,6 +174,7 @@ Custom pricing for the Scale tier kicks in above $50k/month GMV. The negotiated 
 - Seat-based product pricing (`customer_seat/`)
 - CSV exports (pattern established in email analytics endpoint)
 - Per-org rate limiting (`rate_limit_group` on Organization model)
+- Custom storefront domain (`organization_custom_domain` module)
 - Webhooks, full REST API, OAuth2 for end-customers
 - Team members with roles (`member/` module)
 - Basic revenue / MRR / churn-rate analytics
@@ -185,12 +190,11 @@ Custom pricing for the Scale tier kicks in above $50k/month GMV. The negotiated 
 - Cohort analysis — only aggregate churn rate today, no retention curves.
 - Refund/chargeback fee policy — fee types tracked (`ProcessorFeeType.dispute`, `ProcessorFeeType.refund`), no policy config for absorption.
 
-### Not built — Scale-tier roadmap
+### Not built — roadmap (ships to every plan when built)
 
-- Custom storefront domain (was previously removed in `2024-06-21-1348_remove_organization_custom_domain.py`; needs to be rebuilt).
 - Custom checkout domain (no DNS verification, SSL provisioning, or domain routing).
 - SSO / SAML for the merchant dashboard.
-- Audit logs (model + endpoints exist; UI surface still pending).
+- Audit logs UI (model + endpoints exist and are enabled on every plan; UI surface still pending).
 - Sandbox / test mode (no per-org Stripe test/live toggle today).
 
 ### Trial conversion follow-ups
@@ -210,7 +214,7 @@ Custom pricing for the Scale tier kicks in above $50k/month GMV. The negotiated 
 ## Recommended ship order
 
 1. **Trial conversion plumbing** — lapse-expired-trial cron, reminder emails, support extension. This is the highest-leverage gap; without it Starter trials sit in `trialing` forever.
-2. **Studio differentiators** — white-label player toggle, customer wallet polish so the +$80 between Starter and Studio is visible.
-3. **Cohort retention curves** — closes the cohort_analytics roadmap row that's open across all three tiers.
-4. **Scale-tier build** — sandbox/test mode, audit logs UI, then the domain bundles.
+2. **Whole-platform polish** — white-label player toggle and customer wallet UX, now that both ship on every plan and every trial sees them.
+3. **Cohort retention curves** — closes the cohort_analytics roadmap row (ships to every plan when built).
+4. **Remaining roadmap** — sandbox/test mode, audit logs UI, then the checkout-domain bundle.
 5. **Defer until paying Scale demand exists** — SSO, SCIM, course certificates, affiliate portal.

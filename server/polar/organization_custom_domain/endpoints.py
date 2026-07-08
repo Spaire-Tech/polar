@@ -98,8 +98,8 @@ async def set_custom_domain(
     session: AsyncSession = Depends(get_db_session),
 ) -> CustomDomainStatus:
     """Set or replace the org's custom storefront domain. Requires the
-    custom_storefront_domain entitlement (Studio plan and above). Returns
-    the DNS records to install; verification runs automatically."""
+    custom_storefront_domain entitlement (included with every active plan).
+    Returns the DNS records to install; verification runs automatically."""
     organization = await _get_readable_organization(
         session, auth_subject, organization_id
     )

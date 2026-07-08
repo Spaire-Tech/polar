@@ -116,12 +116,11 @@ class TestRequireFeature:
             monthly_cents=0,
         )
 
-        # Email A/B testing is gated on Studio+ — Pro should be blocked.
+        # Every shipped feature is on every paid plan now — the only gated
+        # features left are roadmap ones that haven't shipped, like SSO.
         with pytest.raises(FeatureNotInPlanError) as excinfo:
-            await entitlements.require_feature(
-                session, creator.id, "email_ab_testing"
-            )
-        assert excinfo.value.feature == "email_ab_testing"
+            await entitlements.require_feature(session, creator.id, "sso")
+        assert excinfo.value.feature == "sso"
         assert excinfo.value.tier == TierKey.starter
         assert excinfo.value.status_code == 402
 

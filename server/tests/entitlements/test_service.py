@@ -306,8 +306,9 @@ class TestGetForOrganization:
         assert result.transaction_fee.fixed_cents == 30
         assert result.monthly_price_cents == 4900
         assert result.features.email_sequences_and_segments is True
-        assert result.features.white_label_course_player is False
-        assert result.features.customer_wallet is False
+        # Every plan is the whole platform — no shipped feature is gated.
+        assert result.features.white_label_course_player is True
+        assert result.features.customer_wallet is True
         assert result.limits.published_courses == 5
         # Email is metered on list size only — sends and active sequences
         # are uncapped on every tier.
@@ -351,6 +352,7 @@ class TestTierDefinitions:
         assert studio.limits.dashboard_team_seats == 5
         assert studio.features.white_label_course_player is True
         assert studio.features.customer_wallet is True
+        assert studio.features.audit_logs is True
         assert studio.features.custom_pricing_negotiation is False
 
     def test_starter_shape(self) -> None:
@@ -366,9 +368,19 @@ class TestTierDefinitions:
         assert starter.limits.email_subscribers == 10_000
         assert starter.limits.email_sends_monthly is None
         assert starter.features.email_sequences_and_segments is True
-        # email_ab_testing was pulled up to Studio+ so Starter doesn't have it.
-        assert starter.features.email_ab_testing is False
-        assert starter.features.customer_wallet is False
+        # Every plan is the whole platform: Starter carries every shipped
+        # feature. Only roadmap features (and the Scale-only custom-pricing
+        # lever) stay gated.
+        assert starter.features.email_ab_testing is True
+        assert starter.features.customer_wallet is True
+        assert starter.features.white_label_course_player is True
+        assert starter.features.custom_email_sender_domain is True
+        assert starter.features.seat_based_product_pricing is True
+        assert starter.features.audit_logs is True
+        assert starter.features.custom_pricing_negotiation is False
+        # Roadmap features remain gated everywhere until they ship.
+        assert starter.features.sso is False
+        assert starter.features.stackable_discounts is False
         assert starter.rate_limit_group == "elevated"
 
     def test_unmanaged_is_unlimited(self) -> None:

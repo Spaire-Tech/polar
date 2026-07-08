@@ -2,6 +2,12 @@
 
 These mirror the customer-facing PRICING.md table. When updating prices or
 limits here, update PRICING.md in the same PR.
+
+Pricing philosophy: every paid plan is the whole platform. Tiers differ on
+USAGE (courses, contacts, video, storage, seats), the transaction-fee rate,
+and support — not on features. Every shipped feature is True on every paid
+tier; a False on a paid tier means either the feature hasn't shipped yet
+(roadmap) or it's the Scale-only custom-pricing sales lever.
 """
 
 from dataclasses import dataclass
@@ -90,9 +96,15 @@ class TierLimits:
 
 @dataclass(frozen=True)
 class TierFeatures:
-    """Boolean feature gates."""
+    """Boolean feature gates.
 
-    # Pro+
+    Every SHIPPED feature is True on every paid tier — plans differ on
+    usage, not features. The only False values on paid tiers are roadmap
+    features that haven't shipped (stackable_discounts, cohort_analytics,
+    custom_checkout_domain, sso) and custom_pricing_negotiation, which is
+    a Scale-only commercial lever rather than a platform capability.
+    """
+
     drip_scheduling: bool
     email_sequences_and_segments: bool
     email_ab_testing: bool
@@ -100,7 +112,6 @@ class TierFeatures:
     custom_email_sender_domain: bool
     seat_based_product_pricing: bool
     cohort_analytics: bool
-    # Scale+
     custom_pricing_negotiation: bool
     customer_wallet: bool
     white_label_course_player: bool
@@ -233,8 +244,8 @@ _STARTER = TierEntitlements(
         # Email is metered on ONE dimension only — list size (email_subscribers).
         # Sends and active sequences are unlimited so we never recreate the
         # "10 emails and you're capped" failure; the ESP cost is absorbed into
-        # the fee spine. Studio still has clear reasons to upgrade (bigger
-        # list, custom sender domain, A/B testing, wallet, team seats).
+        # the fee spine. Studio's upgrade case is pure usage: a lower rate,
+        # bigger list, more courses/video/storage, and more team seats.
         published_courses=5,
         lessons_per_course=50,
         active_email_sequences=None,
@@ -246,40 +257,37 @@ _STARTER = TierEntitlements(
         dashboard_team_seats=1,
     ),
     features=TierFeatures(
+        # Every plan is the whole platform — Starter gets every shipped
+        # feature. Upgrades are driven by the fee-rate cut and usage caps
+        # (courses, contacts, video, storage, seats), not by feature gates.
         drip_scheduling=True,
         # email_sequences gate (feature on/off). The active-sequence count
         # is no longer capped on any tier — active_email_sequences is None
         # everywhere now that email is metered on list size only.
         email_sequences_and_segments=True,
-        # Pulled up to Studio+. Starter doesn't get A/B testing — most
-        # Starter customers have lists where A/B testing has little
-        # statistical power, and it helps justify the Studio price.
-        email_ab_testing=False,
+        email_ab_testing=True,
         # stackable_discounts: roadmap — discount engine doesn't support
-        # combining codes yet. Flip to True when the engine ships it.
+        # combining codes yet. Flip to True (on every tier) when it ships.
         stackable_discounts=False,
-        # Pulled up to Studio+. Domain warming + DKIM is a serious-
-        # business need; making it a Studio differentiator helps justify
-        # the Studio price.
-        custom_email_sender_domain=False,
-        # Pulled up to Studio+. B2B seat pricing is for orgs selling to
-        # other orgs — that's not a $49 starter use case.
-        seat_based_product_pricing=False,
+        custom_email_sender_domain=True,
+        seat_based_product_pricing=True,
         # cohort_analytics: roadmap — only basic churn rate is computed
-        # today. Flip to True when retention curves and segment-level
-        # cohort views ship.
+        # today. Flip to True (on every tier) when retention curves and
+        # segment-level cohort views ship.
         cohort_analytics=False,
+        # Scale-only sales lever, not a platform capability.
         custom_pricing_negotiation=False,
-        customer_wallet=False,
-        white_label_course_player=False,
+        customer_wallet=True,
+        white_label_course_player=True,
         # Sandbox is a separate environment (sandbox.spairehq.com)
         # available to every creator; the entitlement is informational
         # and not used as a require_feature gate.
         sandbox_mode=True,
-        custom_storefront_domain=False,
+        custom_storefront_domain=True,
+        # custom_checkout_domain / sso: roadmap — not built yet.
         custom_checkout_domain=False,
         sso=False,
-        audit_logs=False,
+        audit_logs=True,
     ),
     rate_limit_group="elevated",
     monthly_price_cents=4900,
@@ -307,26 +315,23 @@ _STUDIO = TierEntitlements(
         dashboard_team_seats=5,
     ),
     features=TierFeatures(
+        # Same whole-platform feature set as Starter — see its definition
+        # for the roadmap gates. Studio buys usage headroom + a lower rate.
         drip_scheduling=True,
         email_sequences_and_segments=True,
         email_ab_testing=True,
-        # stackable_discounts: roadmap — see Pro definition.
         stackable_discounts=False,
         custom_email_sender_domain=True,
         seat_based_product_pricing=True,
-        # cohort_analytics: roadmap — see Pro definition.
         cohort_analytics=False,
         custom_pricing_negotiation=False,
         customer_wallet=True,
         white_label_course_player=True,
-        # See Pro definition.
         sandbox_mode=True,
-        # Hosted (custom) storefront domain — serve the masterclass landing
-        # + customer portal from the creator's own subdomain. Studio+.
         custom_storefront_domain=True,
         custom_checkout_domain=False,
         sso=False,
-        audit_logs=False,
+        audit_logs=True,
     ),
     rate_limit_group="elevated",
     monthly_price_cents=12900,
@@ -359,21 +364,19 @@ _SCALE = TierEntitlements(
         dashboard_team_seats=20,
     ),
     features=TierFeatures(
+        # Same whole-platform feature set as Starter/Studio, plus the
+        # custom-pricing negotiation lever above $50k/mo GMV.
         drip_scheduling=True,
         email_sequences_and_segments=True,
         email_ab_testing=True,
-        # stackable_discounts: roadmap — see Pro definition.
         stackable_discounts=False,
         custom_email_sender_domain=True,
         seat_based_product_pricing=True,
-        # cohort_analytics: roadmap — see Pro definition.
         cohort_analytics=False,
         custom_pricing_negotiation=True,
         customer_wallet=True,
         white_label_course_player=True,
-        # See Pro definition.
         sandbox_mode=True,
-        # Hosted (custom) storefront domain — Studio and above.
         custom_storefront_domain=True,
         custom_checkout_domain=False,
         sso=False,

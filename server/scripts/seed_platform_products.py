@@ -183,25 +183,28 @@ class ProductSpec:
     trial: TrialSpec | None = None
 
 
+# Every plan is the whole platform (AI teaching assistant, email marketing,
+# white-label player, wallet — nothing feature-gated); the descriptions only
+# pitch USAGE: fee rate, courses, contacts, video/storage, seats, support.
 _STARTER_DESCRIPTION = (
-    "For solo creators starting out. 7% + $0.30 per transaction. "
-    "5 published courses, 10,000 email subscribers, unlimited email sends "
-    "and sequences, 25 hours of hosted video, sandbox environment. "
-    "14-day free trial."
+    "The whole platform, sized for starting out. 7% + $0.30 per "
+    "transaction. 5 published courses, 10,000 email subscribers, 25 hours "
+    "of hosted video, 5 GB storage, 1 team seat. Every feature included — "
+    "you pay for how much of it you use. 14-day free trial."
 )
 _STUDIO_DESCRIPTION = (
-    "For small teams scaling up. 5% + $0.30 per transaction. "
-    "Everything in Starter plus 25 published courses, 50,000 subscribers, "
-    "unlimited email sends and sequences, custom email sender domain, "
-    "A/B testing, white-label course player, customer wallet, 5 team "
-    "seats. 14-day free trial."
+    "The whole platform, sized for growth. 5% + $0.30 per transaction. "
+    "25 published courses, 50,000 email subscribers, 50 hours of hosted "
+    "video, 50 GB storage, 5 team seats. Every feature included — you pay "
+    "for how much of it you use. 14-day free trial."
 )
 _SCALE_DESCRIPTION = (
-    "For established businesses. 3% + $0.30 per transaction, with "
-    "custom pricing available above $50,000/month GMV. 100 published "
-    "courses, 150,000 subscribers, unlimited email sends and sequences, "
-    "250 GB storage, 20 team seats. Audit logs and dedicated support "
-    "with a 4-hour SLA. 14-day free trial."
+    "The whole platform, sized for volume. 3% + $0.30 per transaction, "
+    "with custom pricing available above $50,000/month GMV. 100 published "
+    "courses, 150,000 email subscribers, 200 hours of hosted video, 250 GB "
+    "storage, 20 team seats, dedicated support with a 4-hour SLA. Every "
+    "feature included — you pay for how much of it you use. 14-day free "
+    "trial."
 )
 
 # Annual = ~20% off the monthly run-rate, rounded to a whole dollar so the

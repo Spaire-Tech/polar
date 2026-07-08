@@ -22,7 +22,11 @@ import { twMerge } from 'tailwind-merge'
  * onboarding complete, and forwards the creator into the course wizard.
  */
 
-// ── Tier copy (matches the provided design exactly) ─────────────────────────
+// ── Tier copy ────────────────────────────────────────────────────────────────
+//
+// Every plan is the whole platform — features are never gated. The cards
+// only list USAGE (fee rate, courses, contacts, video/storage, seats,
+// support); the shared feature set lives in SHARED_FEATURES below the grid.
 
 interface DesignFeature {
   label: ReactNode
@@ -46,9 +50,12 @@ const TIERS: DesignTier[] = [
     monthly: 49,
     annual: 39,
     recommended: false,
-    includes: 'Includes',
+    includes: (
+      <>
+        The whole platform, <span className="from">sized for starting out</span>
+      </>
+    ),
     features: [
-      { label: <>Merchant of Record — Spaire handles tax &amp; VAT</>, shield: true },
       {
         label: (
           <>
@@ -58,9 +65,9 @@ const TIERS: DesignTier[] = [
       },
       { label: <>5 published courses</> },
       { label: <>10K email subscribers</> },
-      { label: <>25 hours of hosted video</> },
-      { label: <>Email sequences, segments &amp; drip</> },
-      { label: <>Revenue, MRR &amp; churn analytics</> },
+      { label: <>25 video hours · 5 GB storage</> },
+      { label: <>1 team seat</> },
+      { label: <>Email support, 1 business day</> },
     ],
   },
   {
@@ -71,7 +78,7 @@ const TIERS: DesignTier[] = [
     recommended: true,
     includes: (
       <>
-        Everything in Starter, <span className="from">plus</span>
+        The whole platform, <span className="from">sized for growth</span>
       </>
     ),
     features: [
@@ -85,10 +92,9 @@ const TIERS: DesignTier[] = [
       },
       { label: <>25 published courses</> },
       { label: <>50K email subscribers</> },
-      { label: <>Custom email sender domain</> },
-      { label: <>Email A/B testing</> },
-      { label: <>White-label player &amp; customer wallet</> },
+      { label: <>50 video hours · 50 GB storage</> },
       { label: <>5 team seats</> },
+      { label: <>Priority support, same day</> },
     ],
   },
   {
@@ -99,7 +105,7 @@ const TIERS: DesignTier[] = [
     recommended: false,
     includes: (
       <>
-        Everything in Studio, <span className="from">plus</span>
+        The whole platform, <span className="from">sized for volume</span>
       </>
     ),
     features: [
@@ -114,11 +120,28 @@ const TIERS: DesignTier[] = [
       { label: <>100 published courses</> },
       { label: <>150K email subscribers</> },
       { label: <>200 video hours · 250 GB storage</> },
-      { label: <>20 team seats · audit logs</> },
+      { label: <>20 team seats</> },
       { label: <>Slack + dedicated AM · 4-hr SLA</> },
       { label: <>Custom pricing above $50k/mo GMV</> },
     ],
   },
+]
+
+// Everything below ships on every plan — this is the platform, not a tier.
+const SHARED_FEATURES: DesignFeature[] = [
+  {
+    label: <>Merchant of Record — Spaire handles tax &amp; VAT</>,
+    shield: true,
+  },
+  { label: <>AI teaching assistant on every course</> },
+  { label: <>Email sequences, segments, drip &amp; A/B testing</> },
+  { label: <>Unlimited email sends &amp; unlimited products</> },
+  { label: <>Custom email sender domain</> },
+  { label: <>White-label course player</> },
+  { label: <>Customer wallet &amp; seat-based B2B pricing</> },
+  { label: <>Custom storefront domain</> },
+  { label: <>Revenue, MRR &amp; churn analytics</> },
+  { label: <>Full REST API, webhooks &amp; audit logs</> },
 ]
 
 const BILLING_STORAGE_KEY = 'spaire_billing_cycle'
@@ -198,8 +221,9 @@ export default function PlanPage() {
         <div className="head">
           <h1>Choose your plan</h1>
           <p>
-            Every plan starts with a 14-day free trial. You won&rsquo;t be
-            charged during the trial — switch or cancel anytime from Settings.
+            Every plan is the whole platform — you pay for how much of it you
+            use. Each starts with a 14-day free trial; switch or cancel
+            anytime from Settings.
           </p>
         </div>
 
@@ -287,6 +311,24 @@ export default function PlanPage() {
             </div>
           )
         })}
+        </div>
+
+        <div className="allplans">
+          <div className="allplans-head">
+            <h2>Every plan includes the whole platform</h2>
+            <p>
+              No feature gates, ever. Upgrading only buys a lower transaction
+              rate and more usage.
+            </p>
+          </div>
+          <div className="allplans-grid">
+            {SHARED_FEATURES.map((feature, i) => (
+              <div className="feat" key={i}>
+                {feature.shield ? <ShieldIcon /> : <CheckIcon />}
+                <span>{feature.label}</span>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -679,6 +721,38 @@ function SpairePlanPickerStyles() {
         color: var(--gray);
       }
 
+      /* ---------- shared "whole platform" panel ---------- */
+      .spaire-plan-picker .allplans {
+        width: 100%;
+        max-width: 1060px;
+        margin-top: 22px;
+        border-radius: 24px;
+        padding: 30px 32px 32px;
+        background: rgba(16, 18, 22, 0.34);
+        -webkit-backdrop-filter: blur(44px) saturate(170%);
+        backdrop-filter: blur(44px) saturate(170%);
+        box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.14),
+          0 24px 50px -28px rgba(0, 0, 0, 0.5);
+      }
+      .spaire-plan-picker .allplans-head h2 {
+        font-family: var(--po);
+        font-size: 19px;
+        font-weight: 600;
+        letter-spacing: -0.02em;
+      }
+      .spaire-plan-picker .allplans-head p {
+        font-size: 14px;
+        line-height: 1.5;
+        color: rgba(255, 255, 255, 0.62);
+        margin-top: 6px;
+      }
+      .spaire-plan-picker .allplans-grid {
+        margin-top: 22px;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px 32px;
+      }
+
       @media (max-width: 860px) {
         .spaire-plan-picker .stage {
           padding: 56px 22px;
@@ -693,6 +767,13 @@ function SpairePlanPickerStyles() {
         }
         .spaire-plan-picker .card.rec:hover {
           transform: translateY(-4px);
+        }
+        .spaire-plan-picker .allplans {
+          max-width: 420px;
+          padding: 26px 24px 28px;
+        }
+        .spaire-plan-picker .allplans-grid {
+          grid-template-columns: 1fr;
         }
       }
     `}</style>

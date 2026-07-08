@@ -14,31 +14,29 @@ export type LimitKey = keyof TierLimits
 
 /**
  * The minimum paid tier that unlocks each feature. Mirrors
- * polar/entitlements/tiers.py — keep in sync when you flip a feature
- * up or down a tier.
+ * polar/entitlements/tiers.py — every plan is the whole platform, so
+ * every shipped feature unlocks at Starter. Roadmap features
+ * (stackable_discounts, cohort_analytics, custom_checkout_domain, sso)
+ * will also ship to every plan, so they're 'starter' too — the gate
+ * only shows for orgs with no active plan. The one exception is the
+ * Scale-only custom-pricing sales lever.
  */
 const FEATURE_REQUIRED_TIER: Record<FeatureKey, SpaireTierKey> = {
   drip_scheduling: 'starter',
-  // Sequences & segments are included on Starter (3 active on Starter,
-  // 15 on Studio) — the count cap is enforced separately, the feature
-  // itself is not gated above Starter. Must match the backend, which
-  // sets email_sequences_and_segments=True on Starter.
   email_sequences_and_segments: 'starter',
-  email_ab_testing: 'studio',
-  stackable_discounts: 'studio',
-  custom_email_sender_domain: 'studio',
-  seat_based_product_pricing: 'studio',
-  cohort_analytics: 'studio',
-  customer_wallet: 'studio',
-  white_label_course_player: 'studio',
+  email_ab_testing: 'starter',
+  stackable_discounts: 'starter',
+  custom_email_sender_domain: 'starter',
+  seat_based_product_pricing: 'starter',
+  cohort_analytics: 'starter',
+  customer_wallet: 'starter',
+  white_label_course_player: 'starter',
   sandbox_mode: 'starter',
   custom_pricing_negotiation: 'scale',
-  // Hosted (custom) storefront domain unlocked on Studio — matches
-  // tiers.py custom_storefront_domain=True on studio and scale.
-  custom_storefront_domain: 'studio',
-  custom_checkout_domain: 'scale',
-  sso: 'scale',
-  audit_logs: 'scale',
+  custom_storefront_domain: 'starter',
+  custom_checkout_domain: 'starter',
+  sso: 'starter',
+  audit_logs: 'starter',
 }
 
 export interface Entitlements {

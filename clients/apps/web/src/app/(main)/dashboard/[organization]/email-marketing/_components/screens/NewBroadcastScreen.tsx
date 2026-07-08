@@ -624,7 +624,9 @@ const ComposerInner = ({
   )
 }
 
-const StudioOnlyPill = () => (
+// A/B testing ships on every plan; this lock state is only reachable for
+// orgs with no active plan (trial lapsed / never converted).
+const PlanRequiredPill = () => (
   <span
     style={{
       fontSize: 10,
@@ -636,7 +638,7 @@ const StudioOnlyPill = () => (
       borderRadius: 9999,
     }}
   >
-    STUDIO
+    PLAN REQUIRED
   </span>
 )
 
@@ -750,12 +752,12 @@ const DetailsSection = ({
               }}
             >
               Run an A/B test
-              {!abTestingUnlocked && <StudioOnlyPill />}
+              {!abTestingUnlocked && <PlanRequiredPill />}
             </div>
             <div style={{ fontSize: 12.5, color: 'var(--ink-3)' }}>
               {abTestingUnlocked
                 ? "Test subject lines on a slice of your audience first; we'll send the winner to the rest."
-                : 'A/B testing is part of Studio and Scale. Upgrade to test subject lines on a slice of your audience.'}
+                : 'A/B testing comes with every plan. Pick a plan to test subject lines on a slice of your audience.'}
             </div>
           </div>
         </div>
@@ -779,7 +781,7 @@ const DetailsSection = ({
               textDecoration: 'none',
             }}
           >
-            Upgrade to Studio
+            Choose a plan
           </Link>
         )}
       </div>

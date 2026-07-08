@@ -271,12 +271,12 @@ class ProductService:
         existing_prices = set(product.prices)
         added_prices: list[ProductPrice] = []
         if update_schema.prices is not None:
-            # Seat-based product pricing is Studio+. The create path gates
-            # this; gate it here too so it can't be introduced via an update
-            # (create a normal product, then PATCH in a seat price). Only
-            # block when the product isn't ALREADY seat-priced, so a creator
-            # who later downgraded can still edit a seat product they made
-            # while entitled.
+            # Seat-based product pricing requires an active plan (it ships
+            # on every paid tier). The create path gates this; gate it here
+            # too so it can't be introduced via an update (create a normal
+            # product, then PATCH in a seat price). Only block when the
+            # product isn't ALREADY seat-priced, so a creator whose plan
+            # lapsed can still edit a seat product they made while entitled.
             from polar.models.product_price import (
                 ProductPriceAmountType,
                 ProductPriceSeatUnit,
