@@ -19,6 +19,7 @@ import MoreHorizOutlined from '@mui/icons-material/MoreHorizOutlined'
 import VisibilityOutlined from '@mui/icons-material/VisibilityOutlined'
 import { cn } from '@spaire/ui/lib/utils'
 import { useEffect, useState } from 'react'
+import { toast } from '../../Toast/use-toast'
 
 type QuestionType = QuizQuestion['type']
 
@@ -88,7 +89,6 @@ export function QuizDetail({
   lesson,
   module,
   course,
-  organizationSlug,
   onSave,
   onDelete,
   isSaving,
@@ -96,7 +96,6 @@ export function QuizDetail({
   lesson: CourseLessonRead
   module: CourseModuleRead
   course: CourseRead
-  organizationSlug: string
   onSave: (body: QuizSaveBody) => void
   onDelete: () => void
   isSaving: boolean
@@ -230,11 +229,9 @@ export function QuizDetail({
       url.searchParams.set('lesson', lesson.id)
       window.open(url.toString(), '_blank', 'noopener,noreferrer')
     } catch {
-      window.open(
-        `/${organizationSlug}/portal/courses/${course.id}?lesson=${lesson.id}`,
-        '_blank',
-        'noopener,noreferrer',
-      )
+      // Opening the portal without a session token would just land on the
+      // sign-in screen — surface the failure instead.
+      toast({ title: 'Could not open the preview. Please try again.' })
     }
   }
 
