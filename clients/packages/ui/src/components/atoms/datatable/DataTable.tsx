@@ -125,7 +125,7 @@ export function DataTable<TData, TValue>({
     <div className={twMerge('flex flex-col gap-6', className)}>
       <div
         className={twMerge(
-          ' overflow-hidden rounded-2xl border border-gray-200',
+          ' overflow-x-auto rounded-2xl border border-gray-200',
           wrapperClassName,
         )}
       >

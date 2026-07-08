@@ -1069,6 +1069,216 @@
 .spaire-portal .sp-tabbar-item.is-active .sp-tabbar-label {
   font-weight: 600;
 }
+/* The "You" tab renders the customer's avatar instead of a glyph. */
+.spaire-portal .sp-tabbar-avatar {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  overflow: hidden;
+  display: block;
+  background: #e8e8e8;
+}
+.spaire-portal .sp-tabbar-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.spaire-portal .sp-tabbar-item.is-active .sp-tabbar-avatar {
+  box-shadow: 0 0 0 2px var(--sp-ink);
+}
+/* The You tab is a <button>, not a Link — neutralize UA button chrome. */
+.spaire-portal button.sp-tabbar-item {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+/* Mirror the top bar: slide out of view when scrolling down, back in when
+   scrolling up (toggled from MobileTabBar via useHideOnScroll). */
+.spaire-portal .sp-tabbar {
+  transition: transform 0.3s ease;
+  will-change: transform;
+}
+.spaire-portal .sp-tabbar--hidden {
+  transform: translateY(100%);
+}
+@media (prefers-reduced-motion: reduce) {
+  .spaire-portal .sp-tabbar {
+    transition: none;
+  }
+}
+
+/* ────────────────────────────────────────────────────────────────────────
+   Bottom sheet — the portal's primitive for mobile secondary surfaces
+   (You hub, notifications; later lesson outlines / comments). Rendered
+   into document.body by PortalSheet.tsx, which re-applies .spaire-portal
+   (+ .sp-dark) on the root so the tokens resolve.
+   ──────────────────────────────────────────────────────────────────────── */
+.spaire-portal.sp-sheet-root {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  background: transparent;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+.spaire-portal .sp-sheet-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.42);
+  animation: sp-sheet-fade 0.2s ease both;
+}
+.spaire-portal .sp-sheet {
+  position: relative;
+  width: 100%;
+  max-width: 480px;
+  margin: 0 auto;
+  background: var(--sp-surface);
+  color: var(--sp-ink);
+  border-radius: 18px 18px 0 0;
+  box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.2);
+  max-height: min(85dvh, 720px);
+  display: flex;
+  flex-direction: column;
+  animation: sp-sheet-up 0.28s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  transition: transform 0.2s ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  .spaire-portal .sp-sheet,
+  .spaire-portal .sp-sheet-backdrop {
+    animation: none;
+  }
+}
+.spaire-portal .sp-sheet-grip {
+  padding: 10px 0 6px;
+  display: grid;
+  place-items: center;
+  touch-action: none;
+  cursor: grab;
+}
+.spaire-portal .sp-sheet-handle {
+  width: 36px;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--sp-line-strong);
+}
+.spaire-portal .sp-sheet-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 2px 16px 12px;
+  border-bottom: 1px solid var(--sp-line);
+}
+.spaire-portal .sp-sheet-title {
+  flex: 1;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.spaire-portal .sp-sheet-close {
+  appearance: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  border: 0;
+  background: var(--sp-surface-2);
+  color: var(--sp-ink-2);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+.spaire-portal .sp-sheet-body {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  padding: 8px 10px calc(16px + env(safe-area-inset-bottom, 0px));
+}
+@keyframes sp-sheet-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: none;
+  }
+}
+@keyframes sp-sheet-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* ── You hub (profile sheet) ─────────────────────────────────────────── */
+.spaire-portal .sp-hub-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 12px 14px;
+}
+.spaire-portal .sp-hub-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--sp-ink);
+}
+.spaire-portal .sp-hub-email {
+  font-size: 12.5px;
+  color: var(--sp-muted);
+  margin-top: 1px;
+}
+.spaire-portal .sp-hub-sep {
+  height: 1px;
+  background: var(--sp-line);
+  margin: 6px 2px;
+}
+.spaire-portal .sp-hub-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  min-height: 48px;
+  padding: 12px;
+  border-radius: 12px;
+  border: 0;
+  background: transparent;
+  font-family: var(--sp-font);
+  font-size: 14.5px;
+  font-weight: 500;
+  color: var(--sp-ink);
+  text-decoration: none;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.spaire-portal .sp-hub-item:hover,
+.spaire-portal .sp-hub-item:active {
+  background: var(--sp-surface-2);
+}
+.spaire-portal .sp-hub-icon {
+  width: 24px;
+  display: grid;
+  place-items: center;
+  color: var(--sp-ink-2);
+}
+.spaire-portal .sp-hub-spacer {
+  flex: 1;
+}
+.spaire-portal .sp-hub-value {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--sp-muted);
+}
+.spaire-portal .sp-hub-item--danger,
+.spaire-portal .sp-hub-item--danger .sp-hub-icon {
+  color: #b23b3b;
+}
+.spaire-portal.sp-dark .sp-hub-item--danger,
+.spaire-portal.sp-dark .sp-hub-item--danger .sp-hub-icon {
+  color: #e07a7a;
+}
 
 /* ────────────────────────────────────────────────────────────────────────
    Mobile layout (≤ 720px)
@@ -1205,6 +1415,26 @@
   .spaire-portal .sp-stat-label {
     font-size: 11px;
     margin-bottom: 6px;
+  }
+
+  /* Plan card — info stacks above the actions, buttons go full width
+     instead of the desktop side-by-side wrap. */
+  .spaire-portal .sp-plan-card {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 20px;
+    gap: 18px;
+  }
+  .spaire-portal .sp-plan-actions {
+    flex-wrap: nowrap;
+  }
+  .spaire-portal .sp-plan-actions .sp-btn-light,
+  .spaire-portal .sp-plan-actions .sp-btn-dark-ghost {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
   }
 
   /* Library / subscription nudge at the bottom of Overview — soft card. */

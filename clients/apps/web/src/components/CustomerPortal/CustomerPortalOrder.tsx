@@ -327,7 +327,7 @@ const CustomerPortalOrder = ({
               </p>
             </div>
             <div className="flex flex-col gap-y-3">
-              <div className="flex items-start gap-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:gap-4">
                 <div className="flex-1">
                   <Input
                     type="email"

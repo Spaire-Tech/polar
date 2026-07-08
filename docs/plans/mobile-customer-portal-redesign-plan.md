@@ -1,6 +1,6 @@
 # Plan — Mobile redesign of the Customer Portal & Course Player
 
-**Status:** Proposed (plan only — no implementation yet)
+**Status:** Phases 0–1 implemented (quick wins + navigation/shell); Phases 2–5 proposed
 **Scope:** Everything under `/portal` (customer-facing), including the course home, the video player, and the text/quiz lesson viewer.
 **North stars:** YouTube mobile (player, gestures, up-next, bottom-sheet everything) and Netflix mobile (course home, vertical episode lists, always-visible progress).
 
