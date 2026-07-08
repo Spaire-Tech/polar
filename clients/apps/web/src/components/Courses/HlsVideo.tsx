@@ -68,6 +68,10 @@ export const HlsVideo = ({
   // leak the previous one.
   const hlsRef = useRef<HlsInstance | null>(null)
   const [fatalError, setFatalError] = useState<string | null>(null)
+  // Bumped by "Try again" so the setup effect below actually re-runs —
+  // clearing the error alone re-rendered a dead <video> (the Hls instance
+  // had been destroyed) and the screen stayed black.
+  const [retryNonce, setRetryNonce] = useState(0)
   // Prefer the server-signed playback URL. Fall back to building one from
   // the public playback id for legacy public assets.
   const src =
@@ -159,7 +163,7 @@ export const HlsVideo = ({
       hlsRef.current?.destroy()
       hlsRef.current = null
     }
-  }, [src])
+  }, [src, retryNonce])
 
   if (fatalError) {
     return (
@@ -172,7 +176,10 @@ export const HlsVideo = ({
         <p>Couldn't play this video.</p>
         <button
           type="button"
-          onClick={() => setFatalError(null)}
+          onClick={() => {
+            setFatalError(null)
+            setRetryNonce((n) => n + 1)
+          }}
           className="rounded-full bg-white/10 px-3 py-1 text-xs font-medium hover:bg-white/20"
         >
           Try again
