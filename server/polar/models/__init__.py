@@ -31,6 +31,7 @@ from .course_assistant_question import CourseAssistantQuestion
 from .course_enrollment import CourseEnrollment
 from .course_lesson import CourseLesson
 from .course_lesson_progress import CourseLessonProgress
+from .course_lesson_watch_progress import CourseLessonWatchProgress
 from .course_module import CourseModule
 from .course_note import CourseNote
 from .custom_field import CustomField
@@ -165,6 +166,7 @@ __all__ = [
     "CourseEnrollment",
     "CourseLesson",
     "CourseLessonProgress",
+    "CourseLessonWatchProgress",
     "CourseModule",
     "CourseNote",
     "CustomField",

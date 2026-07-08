@@ -23,6 +23,7 @@ import {
   useLikeLessonComment,
   useMintLessonPlaybackUrl,
   usePinLessonComment,
+  postWatchProgress,
   type CustomerCourseDetail,
 } from '@/hooks/queries/courses'
 import { schemas } from '@spaire/client'
@@ -215,13 +216,29 @@ export function WatchHome({
     [data.progress],
   )
 
-  /* ── per-device positions + bookmarks ── */
+  /* ── watch positions (server + per-device) + bookmarks ── */
+  // Positions are persisted server-side (per enrollment) AND mirrored in
+  // localStorage. Merge the two ONCE per course, taking the furthest
+  // position, so progress made on another device — or before this
+  // device's cache was cleared — isn't lost. After that first merge the
+  // local state is authoritative: it's always at least as fresh as the
+  // server (every local update is also synced), and re-merging on every
+  // refetch would snap a deliberate rewind back forward.
+  const serverPositions = data.progress?.positions
   const [watchState, setWatchState] = useState<WatchState>({ p: {}, done: [] })
   const [bookmarks, setBookmarks] = useState<Set<string>>(new Set())
+  const mergedCourseRef = useRef<string | null>(null)
   useEffect(() => {
-    setWatchState(readWatchState(courseId))
+    if (mergedCourseRef.current === courseId) return
+    mergedCourseRef.current = courseId
+    const local = readWatchState(courseId)
+    const p = { ...local.p }
+    for (const [lessonId, frac] of Object.entries(serverPositions ?? {})) {
+      if ((p[lessonId] ?? 0) < frac) p[lessonId] = frac
+    }
+    setWatchState({ ...local, p })
     setBookmarks(readBookmarks(courseId))
-  }, [courseId])
+  }, [courseId, serverPositions])
 
   const fractionOf = useCallback(
     (l: WatchLessonData): number | null => {
@@ -471,6 +488,39 @@ export function WatchHome({
     void playLesson(l, autoplayStartSec)
   }, [autoplayLessonId, autoplayStartSec, lessons, playLesson])
 
+  /* ── server-side position sync ── */
+  // The player reports progress every ~5s; sending each tick would hammer
+  // the API, so sends are throttled (every 10s or a ≥10% jump). The latest
+  // unsent position is kept in pendingSyncRef and flushed when the player
+  // closes or the page hides, so "watched 95% then closed the tab" is
+  // recorded — previously it only ever lived in localStorage. One send
+  // path (postWatchProgress, keepalive) serves both the throttled ticks
+  // and the pagehide/unmount flush.
+  const pendingSyncRef = useRef<{ lessonId: string; fraction: number } | null>(
+    null,
+  )
+  const lastSyncRef = useRef<{
+    lessonId: string
+    fraction: number
+    at: number
+  } | null>(null)
+
+  const flushPendingSync = useCallback(() => {
+    const pending = pendingSyncRef.current
+    if (!pending) return
+    pendingSyncRef.current = null
+    lastSyncRef.current = { ...pending, at: Date.now() }
+    postWatchProgress(token, courseId, pending.lessonId, pending.fraction)
+  }, [courseId, token])
+
+  useEffect(() => {
+    window.addEventListener('pagehide', flushPendingSync)
+    return () => {
+      window.removeEventListener('pagehide', flushPendingSync)
+      flushPendingSync()
+    }
+  }, [flushPendingSync])
+
   const onPlayerProgress = useCallback(
     (lessonId: string, frac: number) => {
       setWatchState((s) => {
@@ -478,8 +528,20 @@ export function WatchHome({
         writeWatchState(courseId, next)
         return next
       })
+      // Rewatching an already-completed lesson shouldn't re-mark it as
+      // "in progress" server-side.
+      const lesson = lessons.find((l) => l.id === lessonId)
+      if (lesson?.completed || completedIds.has(lessonId)) return
+      pendingSyncRef.current = { lessonId, fraction: frac }
+      const last = lastSyncRef.current
+      const due =
+        !last ||
+        last.lessonId !== lessonId ||
+        Date.now() - last.at >= 10_000 ||
+        Math.abs(frac - last.fraction) >= 0.1
+      if (due) flushPendingSync()
     },
-    [courseId],
+    [completedIds, courseId, flushPendingSync, lessons],
   )
   const onPlayerComplete = useCallback(
     (lessonId: string) => {
@@ -490,6 +552,10 @@ export function WatchHome({
         writeWatchState(courseId, next)
         return next
       })
+      // Completion supersedes any pending partial position.
+      if (pendingSyncRef.current?.lessonId === lessonId) {
+        pendingSyncRef.current = null
+      }
       onMarkComplete(lessonId)
     },
     [courseId, onMarkComplete],
@@ -1122,6 +1188,9 @@ export function WatchHome({
           onPinComment={viewerIsInstructor ? onPinComment : undefined}
           onHeartComment={viewerIsInstructor ? onHeartComment : undefined}
           onClose={() => {
+            // The player fires a final onProgress right before closing —
+            // push that position to the server immediately.
+            flushPendingSync()
             setPlaying(null)
             onPlayerClose?.()
           }}
