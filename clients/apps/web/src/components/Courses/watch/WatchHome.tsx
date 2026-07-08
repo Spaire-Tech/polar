@@ -482,6 +482,35 @@ export function WatchHome({
     [fractionOf, mintUrl, onOpenTextLesson, showToast],
   )
 
+  /* ── in-player lesson navigation (prev/next, up-next, lessons sheet) ── */
+  const playerPlaylist = useMemo(
+    () =>
+      lessons.map((l, i) => ({
+        id: l.id,
+        n: i + 1,
+        title: l.title,
+        durationSeconds: l.duration_seconds,
+        thumbnailUrl: l.thumbnail_url ?? course.thumbnail_url,
+        locked: l.locked,
+        watched: statusOf(l) === 'watched',
+      })),
+    [lessons, course.thumbnail_url, statusOf],
+  )
+  const selectFromPlayer = useCallback(
+    (lessonId: string) => {
+      const l = lessons.find((x) => x.id === lessonId)
+      if (!l) return
+      // Text/quiz lessons leave the player for the reading view — close the
+      // overlay first so it isn't left open underneath.
+      if (l.content_type !== 'video') {
+        setPlaying(null)
+        onPlayerClose?.()
+      }
+      void playLesson(l)
+    },
+    [lessons, playLesson, onPlayerClose],
+  )
+
   /* ── deep-linked video (?lesson= / ?t=) opens straight in the player.
      This used to route to the legacy MasterClass reading view — a second,
      divergent player. Consumed once per (lesson, timestamp) so closing the
@@ -1357,6 +1386,12 @@ export function WatchHome({
 
       {playing && (
         <WatchPlayer
+          // Remount per lesson so playback state (time, completion latch,
+          // start-position seek) never leaks across in-player navigation.
+          key={playing.lesson.id}
+          playlist={playerPlaylist}
+          currentId={playing.lesson.id}
+          onSelectLesson={selectFromPlayer}
           lesson={{
             n: lessons.findIndex((l) => l.id === playing.lesson.id) + 1,
             title: playing.lesson.title,

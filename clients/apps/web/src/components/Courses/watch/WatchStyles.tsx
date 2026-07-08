@@ -957,6 +957,287 @@ export function WatchStyles() {
         }
       }
 
+      /* ════════ player: lesson navigation + gestures ════════ */
+      .sov2 .pbtn:disabled {
+        opacity: 0.35;
+        transform: none;
+        cursor: default;
+      }
+      /* Transparent touch surface over the video — below the chrome (top
+         bar z4 / controls z5 / bigplay z4) so buttons keep priority, above
+         the vignette. Only touch handlers are bound; desktop mouse input
+         is unaffected. */
+      .sov2 .player-gestures {
+        position: absolute;
+        inset: 0;
+        z-index: 3;
+      }
+      /* Double-tap seek indicator (YouTube-style). */
+      .sov2 .tap-ind {
+        position: absolute;
+        top: 50%;
+        z-index: 4;
+        pointer-events: none;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 6px;
+        color: #fff;
+        font-size: 12.5px;
+        font-weight: 600;
+        padding: 20px 22px;
+        border-radius: 22px;
+        background: rgba(0, 0, 0, 0.45);
+        animation: sov2-tapind 0.55s ease both;
+      }
+      .sov2 .tap-ind.left {
+        left: 9%;
+      }
+      .sov2 .tap-ind.right {
+        right: 9%;
+      }
+      @keyframes sov2-tapind {
+        from {
+          opacity: 0;
+          transform: translateY(-50%) scale(0.82);
+        }
+        25% {
+          opacity: 1;
+        }
+        to {
+          opacity: 0;
+          transform: translateY(-50%) scale(1.04);
+        }
+      }
+
+      /* Up-next autoplay card. */
+      .sov2 .upnext {
+        position: absolute;
+        right: 28px;
+        bottom: 118px;
+        z-index: 6;
+        display: flex;
+        gap: 14px;
+        width: min(380px, calc(100% - 40px));
+        padding: 14px;
+        border-radius: 16px;
+        background: rgba(18, 18, 22, 0.92);
+        color: #fff;
+        -webkit-backdrop-filter: blur(30px) saturate(140%);
+        backdrop-filter: blur(30px) saturate(140%);
+        box-shadow: 0 18px 60px rgba(0, 0, 0, 0.5);
+        animation: sov2-sheetUp 0.35s cubic-bezier(0.2, 1, 0.3, 1);
+      }
+      .sov2 .un-thumb {
+        flex: none;
+        width: 122px;
+        aspect-ratio: 16 / 9;
+        border-radius: 10px;
+        background: #333;
+        background-size: cover;
+        background-position: center;
+      }
+      .sov2 .un-info {
+        flex: 1;
+        min-width: 0;
+      }
+      .sov2 .un-k {
+        font-size: 12px;
+        font-weight: 600;
+        color: rgba(255, 255, 255, 0.65);
+        font-variant-numeric: tabular-nums;
+      }
+      .sov2 .un-t {
+        margin-top: 3px;
+        font-size: 14.5px;
+        font-weight: 600;
+        line-height: 1.25;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+      }
+      .sov2 .un-actions {
+        display: flex;
+        gap: 8px;
+        margin-top: 10px;
+      }
+      .sov2 .un-actions button {
+        font-size: 12.5px;
+        font-weight: 600;
+        padding: 7px 14px;
+        border-radius: 980px;
+      }
+      .sov2 .un-cancel {
+        background: rgba(255, 255, 255, 0.14);
+        color: #fff;
+      }
+      .sov2 .un-play {
+        background: #fff;
+        color: #111;
+      }
+
+      /* In-player lessons sheet — right drawer on desktop, bottom sheet on
+         mobile (media block below). Always dark like the player. */
+      .sov2 .pl-wrap {
+        position: absolute;
+        inset: 0;
+        z-index: 7;
+        display: flex;
+        justify-content: flex-end;
+        background: rgba(0, 0, 0, 0.5);
+        animation: sov2-ovIn 0.25s ease;
+      }
+      .sov2 .pl-sheet {
+        width: min(420px, 92vw);
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        background: rgba(18, 18, 22, 0.95);
+        color: #fff;
+        -webkit-backdrop-filter: blur(40px) saturate(150%);
+        backdrop-filter: blur(40px) saturate(150%);
+        box-shadow: -20px 0 60px rgba(0, 0, 0, 0.3);
+        animation: sov2-panelIn 0.4s cubic-bezier(0.2, 1, 0.3, 1);
+      }
+      .sov2 .pl-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 18px 20px 12px;
+        font-size: 16px;
+        font-weight: 700;
+        letter-spacing: -0.015em;
+      }
+      .sov2 .pl-body {
+        flex: 1;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        padding: 0 10px calc(16px + env(safe-area-inset-bottom, 0px));
+      }
+      .sov2 .pl-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        text-align: left;
+        padding: 8px;
+        border-radius: 12px;
+        transition: background 0.15s;
+      }
+      .sov2 .pl-row:hover {
+        background: rgba(255, 255, 255, 0.07);
+      }
+      .sov2 .pl-row.now {
+        background: rgba(255, 255, 255, 0.12);
+      }
+      .sov2 .pl-row.locked {
+        opacity: 0.5;
+        cursor: default;
+      }
+      .sov2 .pl-thumb {
+        position: relative;
+        flex: none;
+        width: 96px;
+        aspect-ratio: 16 / 9;
+        border-radius: 8px;
+        overflow: hidden;
+        background: #26262a;
+        background-size: cover;
+        background-position: center;
+        display: grid;
+        place-items: center;
+        color: rgba(255, 255, 255, 0.9);
+      }
+      .sov2 .pl-info {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+      .sov2 .pl-num {
+        font-size: 10.5px;
+        font-weight: 600;
+        letter-spacing: 0.07em;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, 0.6);
+      }
+      .sov2 .pl-title {
+        font-size: 13.5px;
+        font-weight: 600;
+        line-height: 1.25;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        overflow-wrap: anywhere;
+      }
+      .sov2 .pl-dur {
+        flex: none;
+        font-size: 11.5px;
+        font-weight: 500;
+        color: rgba(255, 255, 255, 0.6);
+        font-variant-numeric: tabular-nums;
+      }
+
+      /* ════════ mobile player controls (≤720) ════════
+         The chapter label drops, the transport wraps into a centered
+         cluster row (prev / −10 / play / +10 / next) with the utility
+         buttons beneath, and paddings clear the home indicator. */
+      @media (max-width: 720px) {
+        .sov2 .tp-left {
+          display: none;
+        }
+        .sov2 .transport {
+          flex-wrap: wrap;
+          justify-content: center;
+          margin-top: 4px;
+        }
+        .sov2 .tp-center {
+          width: 100%;
+          justify-content: center;
+          gap: 20px;
+        }
+        .sov2 .tp-right {
+          width: 100%;
+          flex: none;
+          justify-content: center;
+          gap: 14px;
+          margin-top: 8px;
+        }
+        .sov2 .player-controls {
+          padding-bottom: max(18px, env(safe-area-inset-bottom, 0px));
+        }
+        .sov2 .ptime {
+          min-width: 40px;
+          font-size: 12px;
+        }
+        .sov2 .player-bigplay {
+          width: 76px;
+          height: 76px;
+        }
+        .sov2 .upnext {
+          left: 50%;
+          right: auto;
+          transform: translateX(-50%);
+          bottom: 150px;
+        }
+        .sov2 .pl-wrap {
+          justify-content: stretch;
+          align-items: flex-end;
+        }
+        .sov2 .pl-sheet {
+          width: 100%;
+          height: min(72dvh, 620px);
+          border-radius: 22px 22px 0 0;
+          box-shadow: 0 -20px 60px rgba(0, 0, 0, 0.3);
+          animation: sov2-panelUp 0.4s cubic-bezier(0.2, 1, 0.3, 1);
+        }
+      }
+
       /* ════════ mobile (≤720): overlays become bottom sheets ════════
          The centered overview modal and the right-side discussion drawer
          both anchor to the bottom edge and slide up, matching the portal's

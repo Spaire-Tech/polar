@@ -32,6 +32,66 @@ export type WatchLesson = {
   playbackUrl?: string | null
 }
 
+/** One entry of the course's ordered lesson list, for in-player navigation
+ * (prev/next buttons, the up-next card, and the lessons sheet). */
+export type WatchPlaylistItem = {
+  id: string
+  n: number
+  title: string
+  durationSeconds?: number | null
+  thumbnailUrl?: string | null
+  locked?: boolean
+  watched?: boolean
+}
+
+// Track-skip (previous/next lesson) and PiP glyphs — local to the player;
+// WatchGlyphs has no equivalents.
+const TrackIcon = ({ dir, size = 22 }: { dir: -1 | 1; size?: number }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="currentColor"
+    aria-hidden
+    style={dir === -1 ? { transform: 'scaleX(-1)' } : undefined}
+  >
+    <path d="M6 5.5v13a.7.7 0 0 0 1.1.57l9.15-6.5a.7.7 0 0 0 0-1.14L7.1 4.93A.7.7 0 0 0 6 5.5Z" />
+    <rect x="17.2" y="5" width="2.2" height="14" rx="1.1" />
+  </svg>
+)
+const PipIcon = ({ size = 21 }: { size?: number }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.9"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden
+  >
+    <path d="M21 9V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h4" />
+    <rect x="12" y="13" width="9" height="7" rx="1.5" fill="currentColor" />
+  </svg>
+)
+const ListIcon = ({ size = 21 }: { size?: number }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.9"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden
+  >
+    <path d="M4 6h10M4 12h10M4 18h10" />
+    <path d="m17.5 14.5 4-2.5-4-2.5v5Z" fill="currentColor" stroke="none" />
+  </svg>
+)
+
 export function WatchPlayer({
   lesson,
   courseTitle,
@@ -47,6 +107,9 @@ export function WatchPlayer({
   onClose,
   onProgress,
   onComplete,
+  playlist,
+  currentId,
+  onSelectLesson,
 }: {
   lesson: WatchLesson
   courseTitle: string
@@ -62,6 +125,12 @@ export function WatchPlayer({
   onClose: () => void
   onProgress?: (frac: number) => void
   onComplete?: () => void
+  /** Ordered course lesson list. When provided together with onSelectLesson,
+   * the player gains prev/next buttons, an up-next autoplay card at the end
+   * of the video, and a lessons sheet. */
+  playlist?: WatchPlaylistItem[]
+  currentId?: string
+  onSelectLesson?: (lessonId: string) => void
 }) {
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const containerRef = useRef<HTMLDivElement | null>(null)
@@ -78,13 +147,33 @@ export function WatchPlayer({
   const ccRef = useRef(false)
   ccRef.current = cc
   const [isFullscreen, setIsFullscreen] = useState(false)
-  const [side, setSide] = useState<null | 'discussion'>(null)
+  const [side, setSide] = useState<null | 'discussion' | 'lessons'>(null)
   const [uiVisible, setUiVisible] = useState(true)
   const barRef = useRef<HTMLDivElement | null>(null)
   const dragging = useRef(false)
   const done = useRef(false)
   const startedRef = useRef(false)
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // ── lesson navigation (prev / next / up-next / lessons sheet) ──
+  // Locked lessons are skipped when stepping; text/quiz lessons are valid
+  // targets (onSelectLesson routes them to the reading view).
+  const canNavigate = !!(playlist && playlist.length > 0 && onSelectLesson)
+  const currentIdx = canNavigate
+    ? playlist!.findIndex((p) => p.id === currentId)
+    : -1
+  const prevItem = canNavigate
+    ? [...playlist!.slice(0, Math.max(0, currentIdx))]
+        .reverse()
+        .find((p) => !p.locked)
+    : undefined
+  const nextItem =
+    canNavigate && currentIdx >= 0
+      ? playlist!.slice(currentIdx + 1).find((p) => !p.locked)
+      : undefined
+  const nextItemRef = useRef(nextItem)
+  nextItemRef.current = nextItem
+  const [upNextIn, setUpNextIn] = useState<number | null>(null)
 
   // ── element wiring ──
   const onVideoEl = useCallback(
@@ -172,6 +261,29 @@ export function WatchPlayer({
     else if (hideTimer.current) clearTimeout(hideTimer.current)
   }, [scheduleHide])
 
+  // Mirror for the touch handlers (they need the current value without
+  // re-binding on every visibility flip).
+  const uiVisibleRef = useRef(true)
+  uiVisibleRef.current = uiVisible
+
+  // ── up-next countdown ──
+  // Armed by onEnded when a next lesson exists; ticks down once a second
+  // and then navigates. Cancelled by the card's button or by replaying.
+  useEffect(() => {
+    if (upNextIn == null) return
+    if (upNextIn <= 0) {
+      const next = nextItemRef.current
+      setUpNextIn(null)
+      if (next) onSelectLesson?.(next.id)
+      return
+    }
+    const id = setTimeout(
+      () => setUpNextIn((s) => (s != null ? s - 1 : s)),
+      1000,
+    )
+    return () => clearTimeout(id)
+  }, [upNextIn, onSelectLesson])
+
   // Keep chrome up whenever paused; restart the idle countdown on play.
   useEffect(() => {
     if (paused) {
@@ -256,11 +368,51 @@ export function WatchPlayer({
     }
   }, [])
 
+  // Best-effort fullscreen-on-rotate for touch devices: turning the phone
+  // to landscape while watching enters real fullscreen (and back out on
+  // portrait). Browsers may reject the request outside a user gesture —
+  // that's fine, the fullscreen button remains the explicit path.
+  useEffect(() => {
+    if (!window.matchMedia('(pointer: coarse)').matches) return
+    const mq = window.matchMedia('(orientation: landscape)')
+    const onChange = () => {
+      const root = containerRef.current
+      if (mq.matches) {
+        if (!document.fullscreenElement && root?.requestFullscreen) {
+          void root.requestFullscreen().catch(() => undefined)
+        }
+      } else if (document.fullscreenElement && document.exitFullscreen) {
+        void document.exitFullscreen().catch(() => undefined)
+      }
+    }
+    mq.addEventListener('change', onChange)
+    return () => mq.removeEventListener('change', onChange)
+  }, [])
+
+  // ── Picture-in-Picture (progressive enhancement) ──
+  const [pipSupported, setPipSupported] = useState(false)
+  useEffect(() => {
+    setPipSupported(
+      'pictureInPictureEnabled' in document && document.pictureInPictureEnabled,
+    )
+  }, [])
+  const togglePip = useCallback(() => {
+    const el = videoRef.current
+    if (!el) return
+    if (document.pictureInPictureElement) {
+      void document.exitPictureInPicture().catch(() => undefined)
+    } else {
+      void el.requestPictureInPicture().catch(() => undefined)
+    }
+  }, [])
+
   const togglePlay = useCallback(() => {
     const el = videoRef.current
     if (!el) return
-    if (el.paused) void el.play().catch(() => undefined)
-    else el.pause()
+    if (el.paused) {
+      setUpNextIn(null) // replaying cancels a pending up-next
+      void el.play().catch(() => undefined)
+    } else el.pause()
   }, [])
 
   const seekBy = useCallback((delta: number) => {
@@ -346,7 +498,90 @@ export function WatchPlayer({
       done.current = true
       onComplete?.()
     }
-  }, [onComplete])
+    // Arm the up-next autoplay card when there's somewhere to go.
+    if (nextItemRef.current && onSelectLesson) setUpNextIn(5)
+  }, [onComplete, onSelectLesson])
+
+  // ── touch gestures on the video surface ──
+  // A transparent layer over the video (below the chrome) owns touch input:
+  // single tap toggles the chrome, double-tap on the left/right third seeks
+  // ∓/±10s with a YouTube-style indicator, and a decisive downward swipe
+  // dismisses the player. Mouse input is untouched — desktop keeps its
+  // hover/keyboard behavior.
+  const touchStartPos = useRef<{ x: number; y: number } | null>(null)
+  const lastTap = useRef<{
+    time: number
+    timer: ReturnType<typeof setTimeout> | null
+  }>({ time: 0, timer: null })
+  const [tapInd, setTapInd] = useState<null | {
+    side: 'left' | 'right'
+    key: number
+  }>(null)
+  useEffect(() => {
+    if (!tapInd) return
+    const id = setTimeout(() => setTapInd(null), 550)
+    return () => clearTimeout(id)
+  }, [tapInd])
+  useEffect(
+    () => () => {
+      if (lastTap.current.timer) clearTimeout(lastTap.current.timer)
+    },
+    [],
+  )
+
+  const onGestureTouchStart = (e: React.TouchEvent) => {
+    const t0 = e.touches[0]
+    touchStartPos.current = t0 ? { x: t0.clientX, y: t0.clientY } : null
+  }
+  const onGestureTouchEnd = (e: React.TouchEvent) => {
+    const start = touchStartPos.current
+    const t0 = e.changedTouches[0]
+    touchStartPos.current = null
+    if (!start || !t0) return
+    const dx = t0.clientX - start.x
+    const dy = t0.clientY - start.y
+    // Swipe down → dismiss (position is flushed by exit()).
+    if (dy > 90 && dy > 2 * Math.abs(dx)) {
+      exit()
+      return
+    }
+    if (Math.hypot(dx, dy) > 12) return // a drag, not a tap
+    const now = Date.now()
+    const rect = containerRef.current?.getBoundingClientRect()
+    const w = rect?.width ?? window.innerWidth
+    const x = t0.clientX - (rect?.left ?? 0)
+    const zone = x < w / 3 ? 'left' : x > (2 * w) / 3 ? 'right' : 'center'
+    if (lastTap.current.timer && now - lastTap.current.time < 300) {
+      // Double tap.
+      clearTimeout(lastTap.current.timer)
+      lastTap.current = { time: 0, timer: null }
+      if (zone === 'left') {
+        seekBy(-10)
+        setTapInd({ side: 'left', key: now })
+      } else if (zone === 'right') {
+        seekBy(10)
+        setTapInd({ side: 'right', key: now })
+      } else {
+        togglePlay()
+      }
+      return
+    }
+    // Single tap (fires unless a second tap lands within the window):
+    // toggle the chrome.
+    lastTap.current = {
+      time: now,
+      timer: setTimeout(() => {
+        lastTap.current.timer = null
+        const show = !uiVisibleRef.current
+        setUiVisible(show)
+        if (show && videoRef.current && !videoRef.current.paused) {
+          scheduleHide()
+        } else if (!show && hideTimer.current) {
+          clearTimeout(hideTimer.current)
+        }
+      }, 280),
+    }
+  }
 
   return (
     <div
@@ -355,7 +590,6 @@ export function WatchPlayer({
       data-watch-player
       onMouseMove={revealUi}
       onMouseDown={revealUi}
-      onTouchStart={revealUi}
     >
       <div className="player-video">
         {isHls ? (
@@ -379,6 +613,19 @@ export function WatchPlayer({
         )}
       </div>
       <div className="player-vignette" />
+
+      <div
+        className="player-gestures"
+        onTouchStart={onGestureTouchStart}
+        onTouchEnd={onGestureTouchEnd}
+        aria-hidden
+      />
+      {tapInd && (
+        <div key={tapInd.key} className={`tap-ind ${tapInd.side}`}>
+          <SkipIcon dir={tapInd.side === 'left' ? -1 : 1} n={10} size={28} />
+          <span>10 seconds</span>
+        </div>
+      )}
 
       {paused && (
         <button
@@ -437,6 +684,16 @@ export function WatchPlayer({
             <span className="tp-chaplabel">{lesson.title}</span>
           </div>
           <div className="tp-center">
+            {canNavigate && (
+              <button
+                className="pbtn sm"
+                disabled={!prevItem}
+                onClick={() => prevItem && onSelectLesson?.(prevItem.id)}
+                aria-label="Previous lesson"
+              >
+                <TrackIcon dir={-1} />
+              </button>
+            )}
             <button
               className="pbtn"
               onClick={() => seekBy(-10)}
@@ -462,8 +719,39 @@ export function WatchPlayer({
             >
               <SkipIcon dir={1} n={10} size={30} />
             </button>
+            {canNavigate && (
+              <button
+                className="pbtn sm"
+                disabled={!nextItem}
+                onClick={() => nextItem && onSelectLesson?.(nextItem.id)}
+                aria-label="Next lesson"
+              >
+                <TrackIcon dir={1} />
+              </button>
+            )}
           </div>
           <div className="tp-right">
+            {canNavigate && (
+              <button
+                className={`pbtn sm ${side === 'lessons' ? 'on' : ''}`}
+                onClick={() =>
+                  setSide((s) => (s === 'lessons' ? null : 'lessons'))
+                }
+                aria-label="Lessons"
+                aria-pressed={side === 'lessons'}
+              >
+                <ListIcon />
+              </button>
+            )}
+            {pipSupported && (
+              <button
+                className="pbtn sm"
+                onClick={togglePip}
+                aria-label="Picture in picture"
+              >
+                <PipIcon />
+              </button>
+            )}
             {hasCaptions && (
               <button
                 className={`pbtn sm ${cc ? 'on' : ''}`}
@@ -504,6 +792,101 @@ export function WatchPlayer({
           </div>
         </div>
       </div>
+
+      {upNextIn != null && nextItem && (
+        <div className="upnext" role="dialog" aria-label="Up next">
+          <div
+            className="un-thumb"
+            style={
+              nextItem.thumbnailUrl
+                ? { backgroundImage: `url("${nextItem.thumbnailUrl}")` }
+                : undefined
+            }
+          />
+          <div className="un-info">
+            <div className="un-k">Up next in {Math.max(0, upNextIn)}…</div>
+            <div className="un-t">
+              Lesson {nextItem.n} · {nextItem.title}
+            </div>
+            <div className="un-actions">
+              <button className="un-cancel" onClick={() => setUpNextIn(null)}>
+                Cancel
+              </button>
+              <button
+                className="un-play"
+                onClick={() => {
+                  setUpNextIn(null)
+                  onSelectLesson?.(nextItem.id)
+                }}
+              >
+                Play now
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {side === 'lessons' && canNavigate && (
+        <div
+          className="pl-wrap"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setSide(null)
+          }}
+        >
+          <div className="pl-sheet" role="dialog" aria-label="Lessons">
+            <div className="pl-head">
+              <span>Lessons</span>
+              <button
+                className="pbtn sm"
+                onClick={() => setSide(null)}
+                aria-label="Close"
+              >
+                <Glyph d={SF.close} size={14} stroke={2.2} />
+              </button>
+            </div>
+            <div className="pl-body">
+              {playlist!.map((p) => (
+                <button
+                  key={p.id}
+                  className={`pl-row ${p.id === currentId ? 'now' : ''} ${
+                    p.locked ? 'locked' : ''
+                  }`}
+                  disabled={p.locked}
+                  onClick={() => {
+                    setSide(null)
+                    if (p.id !== currentId) onSelectLesson?.(p.id)
+                  }}
+                >
+                  <span
+                    className="pl-thumb"
+                    style={
+                      p.thumbnailUrl
+                        ? { backgroundImage: `url("${p.thumbnailUrl}")` }
+                        : undefined
+                    }
+                  >
+                    {p.locked ? (
+                      <Glyph d={SF.locksm} size={12} stroke={2.1} />
+                    ) : p.watched ? (
+                      <Glyph d={SF.check} size={12} stroke={2.6} />
+                    ) : null}
+                  </span>
+                  <span className="pl-info">
+                    <span className="pl-num">
+                      Lesson {p.n}
+                      {p.id === currentId ? ' · Now playing' : ''}
+                    </span>
+                    <span className="pl-title">{p.title}</span>
+                  </span>
+                  <span className="pl-dur">
+                    {p.durationSeconds ? fmtTime(p.durationSeconds) : ''}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {side === 'discussion' && hasDiscussion && (
         <CommentsPanel
