@@ -33,7 +33,9 @@ const FEATURE_REQUIRED_TIER: Record<FeatureKey, SpaireTierKey> = {
   white_label_course_player: 'studio',
   sandbox_mode: 'starter',
   custom_pricing_negotiation: 'scale',
-  custom_storefront_domain: 'scale',
+  // Hosted (custom) storefront domain unlocked on Studio — matches
+  // tiers.py custom_storefront_domain=True on studio and scale.
+  custom_storefront_domain: 'studio',
   custom_checkout_domain: 'scale',
   sso: 'scale',
   audit_logs: 'scale',
@@ -79,9 +81,7 @@ export const useEntitlements = (
 
   const daysLeftInTrial =
     status === 'trialing' && trialEnd
-      ? Math.ceil(
-          (trialEnd.getTime() - Date.now()) / (1000 * 60 * 60 * 24),
-        )
+      ? Math.ceil((trialEnd.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
       : null
 
   const hasFeature = (feature: FeatureKey): boolean =>

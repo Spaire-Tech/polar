@@ -11,7 +11,7 @@
 // Reads + writes via the surrounding react-hook-form context (same as the
 // canvas inline editors), so the Publish button stays in sync.
 
-import { spacePageLink } from '@/utils/nav'
+import { storefrontLink } from '@/utils/nav'
 import { schemas } from '@spaire/client'
 import { useCallback, useEffect, useState } from 'react'
 import { useFormContext } from 'react-hook-form'
@@ -79,7 +79,12 @@ function CommitTextarea({
   )
 }
 
-type DisplayToggle = { key: keyof Settings; label: string; hint: string; def: boolean }
+type DisplayToggle = {
+  key: keyof Settings
+  label: string
+  hint: string
+  def: boolean
+}
 
 const DISPLAY_TOGGLES: DisplayToggle[] = [
   {
@@ -94,7 +99,12 @@ const DISPLAY_TOGGLES: DisplayToggle[] = [
     hint: 'Show your avatar on the profile card',
     def: true,
   },
-  { key: 'show_name', label: 'Name', hint: 'Show your display name', def: true },
+  {
+    key: 'show_name',
+    label: 'Name',
+    hint: 'Show your display name',
+    def: true,
+  },
   {
     key: 'show_description',
     label: 'Description',
@@ -166,7 +176,7 @@ export const SpaceSettingsTab = ({
   const theme = settings.theme ?? 'light'
   const thumbnailSize = settings.thumbnail_size ?? 'large'
 
-  const spaceUrl = spacePageLink(organization).replace(/\/$/, '')
+  const spaceUrl = storefrontLink(organization).replace(/\/$/, '')
   const [copied, setCopied] = useState(false)
   const copyLink = () => {
     navigator.clipboard.writeText(spaceUrl)
@@ -190,10 +200,12 @@ export const SpaceSettingsTab = ({
 
   return (
     <div
-      className={`spaire-hub${dark ? ' dark' : ''}`}
+      className={`spaire-hub${dark ? 'dark' : ''}`}
       style={{ background: 'var(--bg)', minHeight: '100%' }}
     >
-      <div style={{ maxWidth: 760, margin: '0 auto', padding: '28px 24px 96px' }}>
+      <div
+        style={{ maxWidth: 760, margin: '0 auto', padding: '28px 24px 96px' }}
+      >
         <div className="cr-head">
           <div>
             <div className="h">Settings</div>
@@ -210,7 +222,10 @@ export const SpaceSettingsTab = ({
             label="Enable your Space"
             hint="Publish your Space to make it reachable at your public URL"
           >
-            <Toggle on={isEnabled} onClick={() => handleEnabledChange(!isEnabled)} />
+            <Toggle
+              on={isEnabled}
+              onClick={() => handleEnabledChange(!isEnabled)}
+            />
           </Row>
           {isEnabled && (
             <Row label="Public URL" hint={spaceUrl}>
@@ -300,9 +315,7 @@ export const SpaceSettingsTab = ({
             hint="How large product images appear on your Space"
           >
             <Seg
-              value={
-                thumbnailSize[0].toUpperCase() + thumbnailSize.slice(1)
-              }
+              value={thumbnailSize[0].toUpperCase() + thumbnailSize.slice(1)}
               options={['Small', 'Medium', 'Large']}
               onChange={(v) =>
                 updateSetting(

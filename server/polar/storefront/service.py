@@ -19,6 +19,15 @@ class StorefrontService:
         repository = StorefrontRepository.from_session(session)
         return await repository.get_organization_slug_by_product_id(product_id)
 
+    async def get_organization_slug_by_custom_domain(
+        self, session: AsyncSession, domain: str
+    ) -> str | None:
+        """Resolve an active custom storefront domain (learn.creator.com)
+        to the owning organization's slug, for host-based routing in the
+        frontend middleware."""
+        repository = StorefrontRepository.from_session(session)
+        return await repository.get_organization_slug_by_custom_domain(domain)
+
     async def get_organization_slug_by_subscription_id(
         self, session: AsyncSession, subscription_id: str
     ) -> str | None:

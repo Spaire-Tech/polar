@@ -1063,6 +1063,7 @@ export function LessonEditorV2({
             // Signed HLS URL from the API — required once assets use the
             // signed playback policy (the bare playback id 403s).
             playbackUrl: lesson.mux_playback_url ?? null,
+            storyboardUrl: lesson.mux_storyboard_url ?? null,
           }}
           courseTitle={course.title ?? 'Course'}
           instructorName={course.instructor_name}

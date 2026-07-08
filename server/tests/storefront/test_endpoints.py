@@ -3,7 +3,8 @@ import uuid
 import pytest
 from httpx import AsyncClient
 
-from polar.models import Organization, Product, User
+from polar.models import Organization, OrganizationCustomDomain, Product, User
+from polar.models.organization_custom_domain import OrganizationCustomDomainStatus
 from polar.models.product import ProductCategory
 from tests.fixtures.database import SaveFixture
 from tests.fixtures.random_objects import (
@@ -153,3 +154,50 @@ async def test_get_storefront_with_archived_course_returns_404(
     response = await client.get(f"/v1/storefronts/{organization.slug}")
 
     assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_get_organization_slug_by_custom_domain_not_found(
+    client: AsyncClient,
+) -> None:
+    response = await client.get("/v1/storefronts/lookup/domain/unknown.creator.com")
+
+    assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_get_organization_slug_by_custom_domain_pending_not_resolved(
+    save_fixture: SaveFixture,
+    client: AsyncClient,
+    organization: Organization,
+) -> None:
+    # Only ACTIVE (verified) domains resolve — pending ones must not route.
+    custom_domain = OrganizationCustomDomain(
+        organization_id=organization.id,
+        domain="learn.creator.com",
+    )
+    await save_fixture(custom_domain)
+
+    response = await client.get("/v1/storefronts/lookup/domain/learn.creator.com")
+
+    assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_get_organization_slug_by_custom_domain_active(
+    save_fixture: SaveFixture,
+    client: AsyncClient,
+    organization: Organization,
+) -> None:
+    custom_domain = OrganizationCustomDomain(
+        organization_id=organization.id,
+        domain="learn.creator.com",
+        status=OrganizationCustomDomainStatus.active,
+    )
+    await save_fixture(custom_domain)
+
+    # Case-insensitive (CITEXT) and tolerant of a trailing dot.
+    response = await client.get("/v1/storefronts/lookup/domain/Learn.Creator.com.")
+
+    assert response.status_code == 200
+    assert response.json()["organization_slug"] == organization.slug
