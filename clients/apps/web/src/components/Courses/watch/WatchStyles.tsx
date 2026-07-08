@@ -817,6 +817,116 @@ export function WatchStyles() {
         color: #fff;
       }
 
+      /* Up Next — the autoplay card in the final seconds. A sibling of the
+         chrome, deliberately NOT in the ui-hidden selectors: the prompt
+         stays up even when the controls have faded. */
+      .sov2 .upnext {
+        position: absolute;
+        right: 36px;
+        bottom: 132px;
+        z-index: 6;
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+        animation: sov2-upnextIn 0.45s cubic-bezier(0.2, 1, 0.3, 1);
+      }
+      @keyframes sov2-upnextIn {
+        from {
+          opacity: 0;
+          transform: translateY(14px) scale(0.97);
+        }
+      }
+      .sov2 .upnext-card {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        max-width: 380px;
+        padding: 10px 14px 10px 10px;
+        border-radius: 18px;
+        background: rgba(28, 28, 32, 0.72);
+        -webkit-backdrop-filter: blur(40px) saturate(150%);
+        backdrop-filter: blur(40px) saturate(150%);
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5),
+          inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+        color: #fff;
+        text-align: left;
+        transition: background 0.18s, transform 0.16s;
+      }
+      .sov2 .upnext-card:hover {
+        background: rgba(46, 46, 52, 0.78);
+        transform: scale(1.02);
+      }
+      .sov2 .upnext-card:active {
+        transform: scale(0.98);
+      }
+      .sov2 .upnext-thumb {
+        flex: none;
+        width: 72px;
+        height: 44px;
+        border-radius: 10px;
+        object-fit: cover;
+        background: rgba(255, 255, 255, 0.08);
+      }
+      .sov2 .upnext-thumb.ph {
+        display: grid;
+        place-items: center;
+        color: rgba(255, 255, 255, 0.7);
+      }
+      .sov2 .upnext-main {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+      }
+      .sov2 .upnext-k {
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, 0.6);
+        font-variant-numeric: tabular-nums;
+      }
+      .sov2 .upnext-t {
+        font-size: 14px;
+        font-weight: 600;
+        margin-top: 2px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .sov2 .upnext-ring {
+        position: relative;
+        flex: none;
+        width: 40px;
+        height: 40px;
+        display: grid;
+        place-items: center;
+      }
+      .sov2 .upnext-ring svg {
+        position: absolute;
+        inset: 0;
+      }
+      .sov2 .upnext-x {
+        flex: none;
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        background: rgba(28, 28, 32, 0.72);
+        -webkit-backdrop-filter: blur(40px) saturate(150%);
+        backdrop-filter: blur(40px) saturate(150%);
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+        color: #fff;
+        display: grid;
+        place-items: center;
+        transition: background 0.18s, transform 0.16s;
+      }
+      .sov2 .upnext-x:hover {
+        background: rgba(46, 46, 52, 0.78);
+        transform: scale(1.06);
+      }
+      .sov2 .upnext-x:active {
+        transform: scale(0.92);
+      }
+
       .sov2 .player-cc {
         position: absolute;
         left: 50%;
@@ -1151,6 +1261,13 @@ export function WatchStyles() {
         .sov2 .pvol-slider {
           display: none;
         }
+        .sov2 .upnext {
+          right: 20px;
+          bottom: 124px;
+        }
+        .sov2 .upnext-card {
+          max-width: min(320px, calc(100vw - 76px));
+        }
         .sov2 .xs-body {
           padding: 24px 22px 28px;
         }
@@ -1209,72 +1326,8 @@ export function WatchStyles() {
         }
       }
 
-      /* Up-next autoplay card. */
-      .sov2 .upnext {
-        position: absolute;
-        right: 28px;
-        bottom: 118px;
-        z-index: 6;
-        display: flex;
-        gap: 14px;
-        width: min(380px, calc(100% - 40px));
-        padding: 14px;
-        border-radius: 16px;
-        background: rgba(18, 18, 22, 0.92);
-        color: #fff;
-        -webkit-backdrop-filter: blur(30px) saturate(140%);
-        backdrop-filter: blur(30px) saturate(140%);
-        box-shadow: 0 18px 60px rgba(0, 0, 0, 0.5);
-        animation: sov2-sheetUp 0.35s cubic-bezier(0.2, 1, 0.3, 1);
-      }
-      .sov2 .un-thumb {
-        flex: none;
-        width: 122px;
-        aspect-ratio: 16 / 9;
-        border-radius: 10px;
-        background: #333;
-        background-size: cover;
-        background-position: center;
-      }
-      .sov2 .un-info {
-        flex: 1;
-        min-width: 0;
-      }
-      .sov2 .un-k {
-        font-size: 12px;
-        font-weight: 600;
-        color: rgba(255, 255, 255, 0.65);
-        font-variant-numeric: tabular-nums;
-      }
-      .sov2 .un-t {
-        margin-top: 3px;
-        font-size: 14.5px;
-        font-weight: 600;
-        line-height: 1.25;
-        display: -webkit-box;
-        -webkit-line-clamp: 2;
-        -webkit-box-orient: vertical;
-        overflow: hidden;
-      }
-      .sov2 .un-actions {
-        display: flex;
-        gap: 8px;
-        margin-top: 10px;
-      }
-      .sov2 .un-actions button {
-        font-size: 12.5px;
-        font-weight: 600;
-        padding: 7px 14px;
-        border-radius: 980px;
-      }
-      .sov2 .un-cancel {
-        background: rgba(255, 255, 255, 0.14);
-        color: #fff;
-      }
-      .sov2 .un-play {
-        background: #fff;
-        color: #111;
-      }
+      /* (Up Next card styles live in the player section above — the
+         pre-end .upnext-* glass card with the countdown ring.) */
 
       /* In-player lessons sheet — right drawer on desktop, bottom sheet on
          mobile (media block below). Always dark like the player. */
@@ -1424,6 +1477,9 @@ export function WatchStyles() {
           right: auto;
           transform: translateX(-50%);
           bottom: 150px;
+          /* The desktop entry animates transform, which would fight the
+             centering translateX here — fade only on mobile. */
+          animation: sov2-ovIn 0.3s ease;
         }
         .sov2 .pl-wrap {
           justify-content: stretch;

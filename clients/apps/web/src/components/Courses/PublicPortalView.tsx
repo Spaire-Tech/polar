@@ -166,6 +166,34 @@ export function PublicPortalView({
     },
     [landing.id],
   )
+  // In-player lesson list for the landing. Lessons the visitor can't
+  // preview (paywalled, no processed video, or not a video at all) are
+  // marked locked: the player's prev/next and Up Next skip them, and the
+  // lessons sheet shows them locked — which is the enroll pitch.
+  const previewPlaylist = useMemo(
+    () =>
+      landing.lessons.map((l, i) => ({
+        id: l.id,
+        n: i + 1,
+        title: l.title,
+        durationSeconds: l.duration_seconds,
+        thumbnailUrl: l.thumbnail_url,
+        locked:
+          !l.mux_playback_id ||
+          l.content_type !== 'video' ||
+          !(l.is_free_preview || allLessonsOpen),
+        watched: false,
+      })),
+    [landing.lessons, allLessonsOpen],
+  )
+  const selectFromPlayer = useCallback(
+    (lessonId: string) => {
+      const l = landing.lessons.find((x) => x.id === lessonId)
+      if (l) void openWatch(l)
+    },
+    [landing.lessons, openWatch],
+  )
+
   const [watchState, setWatchState] = useState<WatchState>({
     p: {},
     done: [],
@@ -611,6 +639,8 @@ export function PublicPortalView({
           (Resume + completion) persisted per course in localStorage. */}
       {watching && (
         <WatchPlayer
+          // Keyed by lesson so Up Next's swap is a clean remount.
+          key={watching.id}
           lesson={{
             n: lessonNumber(watching),
             title: watching.title,
@@ -629,6 +659,9 @@ export function PublicPortalView({
           onClose={() => setWatching(null)}
           onProgress={(frac) => onWatchProgress(watching.id, frac)}
           onComplete={() => onWatchComplete(watching.id)}
+          playlist={previewPlaylist}
+          currentId={watching.id}
+          onSelectLesson={selectFromPlayer}
         />
       )}
 
