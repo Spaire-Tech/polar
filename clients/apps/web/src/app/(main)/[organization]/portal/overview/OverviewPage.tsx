@@ -294,7 +294,10 @@ const OverviewBody = ({
                   All courses →
                 </Link>
               </div>
-              <div className="sp-grid" style={{ marginBottom: 48 }}>
+              <div
+                className="sp-grid sp-grid--rail"
+                style={{ marginBottom: 48 }}
+              >
                 {continueList.map((e, i) => (
                   <SmallCard
                     key={e.enrollment_id}
@@ -345,14 +348,7 @@ const OverviewBody = ({
           <div className="sp-sec-head">
             <h2 className="sp-sec-title">Manage</h2>
           </div>
-          <div
-            style={{
-              display: 'flex',
-              gap: 10,
-              flexWrap: 'wrap',
-              marginBottom: 48,
-            }}
-          >
+          <div className="sp-manage">
             {showUsageLink && (
               <Link
                 href={buildHref(`/${organization.slug}/portal/usage`)}

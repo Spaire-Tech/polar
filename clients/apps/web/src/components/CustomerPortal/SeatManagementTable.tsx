@@ -80,6 +80,50 @@ export const SeatManagementTable = ({
     }
   }
 
+  // Shared between the desktop table cells and the mobile card layout.
+  const seatStatusBadge = (seat: CustomerSeat) => {
+    const [label, className] = seatStatusToDisplayName[seat.status]
+    return (
+      <Status className={twMerge(className, 'w-fit text-xs')} status={label} />
+    )
+  }
+
+  const seatActions = (seat: CustomerSeat) => {
+    const isLoading = loadingSeats.has(seat.id)
+
+    if (seat.status === 'revoked') {
+      return null
+    }
+
+    return (
+      <div className="flex justify-end">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild disabled={isLoading}>
+            <Button className="h-8 w-8" variant="secondary">
+              <MoreVertOutlined fontSize="inherit" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            {seat.status === 'pending' && (
+              <DropdownMenuItem
+                onClick={() => handleResend(seat.id)}
+                disabled={isLoading}
+              >
+                Resend Invitation
+              </DropdownMenuItem>
+            )}
+            <DropdownMenuItem
+              onClick={() => handleRevoke(seat.id)}
+              disabled={isLoading}
+            >
+              Revoke Seat
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    )
+  }
+
   return (
     <DataTable
       data={seats.sort((a, b) => {
@@ -100,58 +144,28 @@ export const SeatManagementTable = ({
         {
           accessorKey: 'status',
           header: 'Status',
-          cell: ({ row }) => {
-            const status = row.original.status
-            const [label, className] = seatStatusToDisplayName[status]
-            return (
-              <Status
-                className={twMerge(className, 'w-fit text-xs')}
-                status={label}
-              />
-            )
-          },
+          cell: ({ row }) => seatStatusBadge(row.original),
         },
         {
           id: 'actions',
           header: '',
-          cell: ({ row }) => {
-            const seat = row.original
-            const isLoading = loadingSeats.has(seat.id)
-
-            if (seat.status === 'revoked') {
-              return null
-            }
-
-            return (
-              <div className="flex justify-end">
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild disabled={isLoading}>
-                    <Button className="h-8 w-8" variant="secondary">
-                      <MoreVertOutlined fontSize="inherit" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    {seat.status === 'pending' && (
-                      <DropdownMenuItem
-                        onClick={() => handleResend(seat.id)}
-                        disabled={isLoading}
-                      >
-                        Resend Invitation
-                      </DropdownMenuItem>
-                    )}
-                    <DropdownMenuItem
-                      onClick={() => handleRevoke(seat.id)}
-                      disabled={isLoading}
-                    >
-                      Revoke Seat
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-            )
-          },
+          cell: ({ row }) => seatActions(row.original),
         },
       ]}
+      mobileCard={(row) => {
+        const seat = row.original
+        return (
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex min-w-0 flex-col gap-1.5">
+              <span className="truncate text-sm">
+                {seat.customer_email || '—'}
+              </span>
+              {seatStatusBadge(seat)}
+            </div>
+            {seatActions(seat)}
+          </div>
+        )
+      }}
     />
   )
 }

@@ -166,18 +166,33 @@ export function PublicPortalView({
     },
     [landing.id],
   )
-  // Up Next on the landing: only advance to the next lesson the visitor is
-  // actually allowed to preview — a locked next lesson ends the player
-  // normally (the lesson list right behind it is the enroll pitch).
-  const nextPreview = useMemo(() => {
-    if (!watching) return null
-    const idx = landing.lessons.findIndex((l) => l.id === watching.id)
-    if (idx < 0) return null
-    const nl = landing.lessons[idx + 1]
-    if (!nl || !nl.mux_playback_id) return null
-    if (!(nl.is_free_preview || allLessonsOpen)) return null
-    return { lesson: nl, n: idx + 2 }
-  }, [watching, landing.lessons, allLessonsOpen])
+  // In-player lesson list for the landing. Lessons the visitor can't
+  // preview (paywalled, no processed video, or not a video at all) are
+  // marked locked: the player's prev/next and Up Next skip them, and the
+  // lessons sheet shows them locked — which is the enroll pitch.
+  const previewPlaylist = useMemo(
+    () =>
+      landing.lessons.map((l, i) => ({
+        id: l.id,
+        n: i + 1,
+        title: l.title,
+        durationSeconds: l.duration_seconds,
+        thumbnailUrl: l.thumbnail_url,
+        locked:
+          !l.mux_playback_id ||
+          l.content_type !== 'video' ||
+          !(l.is_free_preview || allLessonsOpen),
+        watched: false,
+      })),
+    [landing.lessons, allLessonsOpen],
+  )
+  const selectFromPlayer = useCallback(
+    (lessonId: string) => {
+      const l = landing.lessons.find((x) => x.id === lessonId)
+      if (l) void openWatch(l)
+    },
+    [landing.lessons, openWatch],
+  )
 
   const [watchState, setWatchState] = useState<WatchState>({
     p: {},
@@ -644,18 +659,9 @@ export function PublicPortalView({
           onClose={() => setWatching(null)}
           onProgress={(frac) => onWatchProgress(watching.id, frac)}
           onComplete={() => onWatchComplete(watching.id)}
-          nextLesson={
-            nextPreview
-              ? {
-                  n: nextPreview.n,
-                  title: nextPreview.lesson.title,
-                  thumbnailUrl: nextPreview.lesson.thumbnail_url,
-                }
-              : null
-          }
-          onPlayNext={
-            nextPreview ? () => void openWatch(nextPreview.lesson) : undefined
-          }
+          playlist={previewPlaylist}
+          currentId={watching.id}
+          onSelectLesson={selectFromPlayer}
         />
       )}
 

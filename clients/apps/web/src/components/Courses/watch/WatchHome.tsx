@@ -16,6 +16,7 @@
 //   theme        → the course's landing theme (dark landing → dark page)
 
 import {
+  postWatchProgress,
   useCreateLessonComment,
   useDeleteLessonComment,
   useInstructorHeartComment,
@@ -215,13 +216,42 @@ export function WatchHome({
     [data.progress],
   )
 
-  /* ── per-device positions + bookmarks ── */
+  // Lesson id → module title, used by the mobile vertical list to insert
+  // group headers. Single-module courses skip the headers entirely.
+  const moduleTitleById = useMemo(() => {
+    const map = new Map<string, string>()
+    const modules = course.modules ?? []
+    if (modules.length > 1) {
+      for (const m of [...modules].sort((a, b) => a.position - b.position)) {
+        for (const l of m.lessons) map.set(l.id, m.title)
+      }
+    }
+    return map
+  }, [course.modules])
+
+  /* ── watch positions (server + per-device) + bookmarks ── */
+  // Positions are persisted server-side (per enrollment) AND mirrored in
+  // localStorage. Merge the two ONCE per course, taking the furthest
+  // position, so progress made on another device — or before this
+  // device's cache was cleared — isn't lost. After that first merge the
+  // local state is authoritative: it's always at least as fresh as the
+  // server (every local update is also synced), and re-merging on every
+  // refetch would snap a deliberate rewind back forward.
+  const serverPositions = data.progress?.positions
   const [watchState, setWatchState] = useState<WatchState>({ p: {}, done: [] })
   const [bookmarks, setBookmarks] = useState<Set<string>>(new Set())
+  const mergedCourseRef = useRef<string | null>(null)
   useEffect(() => {
-    setWatchState(readWatchState(courseId))
+    if (mergedCourseRef.current === courseId) return
+    mergedCourseRef.current = courseId
+    const local = readWatchState(courseId)
+    const p = { ...local.p }
+    for (const [lessonId, frac] of Object.entries(serverPositions ?? {})) {
+      if ((p[lessonId] ?? 0) < frac) p[lessonId] = frac
+    }
+    setWatchState({ ...local, p })
     setBookmarks(readBookmarks(courseId))
-  }, [courseId])
+  }, [courseId, serverPositions])
 
   const fractionOf = useCallback(
     (l: WatchLessonData): number | null => {
@@ -413,19 +443,6 @@ export function WatchHome({
     startSec: number
   } | null>(null)
 
-  // Up Next: the lesson right after the one playing, when it's a watchable
-  // video (not drip-locked, video processed). A text/quiz lesson or a lock
-  // is a genuine mode change, so the player ends normally there instead.
-  const nextUp = useMemo(() => {
-    if (!playing) return null
-    const idx = lessons.findIndex((l) => l.id === playing.lesson.id)
-    if (idx < 0) return null
-    const nl = lessons[idx + 1]
-    if (!nl || nl.locked || nl.content_type !== 'video' || !nl.mux_playback_id)
-      return null
-    return { lesson: nl, n: idx + 2 }
-  }, [playing, lessons])
-
   const playLesson = useCallback(
     async (l: WatchLessonData, startOverride?: number) => {
       if (l.locked) {
@@ -467,6 +484,35 @@ export function WatchHome({
     [fractionOf, mintUrl, onOpenTextLesson, showToast],
   )
 
+  /* ── in-player lesson navigation (prev/next, up-next, lessons sheet) ── */
+  const playerPlaylist = useMemo(
+    () =>
+      lessons.map((l, i) => ({
+        id: l.id,
+        n: i + 1,
+        title: l.title,
+        durationSeconds: l.duration_seconds,
+        thumbnailUrl: l.thumbnail_url ?? course.thumbnail_url,
+        locked: l.locked,
+        watched: statusOf(l) === 'watched',
+      })),
+    [lessons, course.thumbnail_url, statusOf],
+  )
+  const selectFromPlayer = useCallback(
+    (lessonId: string) => {
+      const l = lessons.find((x) => x.id === lessonId)
+      if (!l) return
+      // Text/quiz lessons leave the player for the reading view — close the
+      // overlay first so it isn't left open underneath.
+      if (l.content_type !== 'video') {
+        setPlaying(null)
+        onPlayerClose?.()
+      }
+      void playLesson(l)
+    },
+    [lessons, playLesson, onPlayerClose],
+  )
+
   /* ── deep-linked video (?lesson= / ?t=) opens straight in the player.
      This used to route to the legacy MasterClass reading view — a second,
      divergent player. Consumed once per (lesson, timestamp) so closing the
@@ -486,6 +532,39 @@ export function WatchHome({
     void playLesson(l, autoplayStartSec)
   }, [autoplayLessonId, autoplayStartSec, lessons, playLesson])
 
+  /* ── server-side position sync ── */
+  // The player reports progress every ~5s; sending each tick would hammer
+  // the API, so sends are throttled (every 10s or a ≥10% jump). The latest
+  // unsent position is kept in pendingSyncRef and flushed when the player
+  // closes or the page hides, so "watched 95% then closed the tab" is
+  // recorded — previously it only ever lived in localStorage. One send
+  // path (postWatchProgress, keepalive) serves both the throttled ticks
+  // and the pagehide/unmount flush.
+  const pendingSyncRef = useRef<{ lessonId: string; fraction: number } | null>(
+    null,
+  )
+  const lastSyncRef = useRef<{
+    lessonId: string
+    fraction: number
+    at: number
+  } | null>(null)
+
+  const flushPendingSync = useCallback(() => {
+    const pending = pendingSyncRef.current
+    if (!pending) return
+    pendingSyncRef.current = null
+    lastSyncRef.current = { ...pending, at: Date.now() }
+    postWatchProgress(token, courseId, pending.lessonId, pending.fraction)
+  }, [courseId, token])
+
+  useEffect(() => {
+    window.addEventListener('pagehide', flushPendingSync)
+    return () => {
+      window.removeEventListener('pagehide', flushPendingSync)
+      flushPendingSync()
+    }
+  }, [flushPendingSync])
+
   const onPlayerProgress = useCallback(
     (lessonId: string, frac: number) => {
       setWatchState((s) => {
@@ -493,8 +572,20 @@ export function WatchHome({
         writeWatchState(courseId, next)
         return next
       })
+      // Rewatching an already-completed lesson shouldn't re-mark it as
+      // "in progress" server-side.
+      const lesson = lessons.find((l) => l.id === lessonId)
+      if (lesson?.completed || completedIds.has(lessonId)) return
+      pendingSyncRef.current = { lessonId, fraction: frac }
+      const last = lastSyncRef.current
+      const due =
+        !last ||
+        last.lessonId !== lessonId ||
+        Date.now() - last.at >= 10_000 ||
+        Math.abs(frac - last.fraction) >= 0.1
+      if (due) flushPendingSync()
     },
-    [courseId],
+    [completedIds, courseId, flushPendingSync, lessons],
   )
   const onPlayerComplete = useCallback(
     (lessonId: string) => {
@@ -505,6 +596,10 @@ export function WatchHome({
         writeWatchState(courseId, next)
         return next
       })
+      // Completion supersedes any pending partial position.
+      if (pendingSyncRef.current?.lessonId === lessonId) {
+        pendingSyncRef.current = null
+      }
       onMarkComplete(lessonId)
     },
     [courseId, onMarkComplete],
@@ -864,6 +959,85 @@ export function WatchHome({
             </div>
           </>
         )}
+
+        {/* ════ mobile hero — one variant-independent layout (Netflix mobile).
+           WatchPageStyles shows this ≤720px and hides the cover/marquee
+           blocks there, so which hero the creator picked no longer decides
+           whether a phone user sees their progress. ════ */}
+        <div className="m-hero">
+          <div className={`pt-kicker ${status === 'watched' ? 'done' : ''}`}>
+            {kicker}
+          </div>
+          <h1 className="m-hero-title">{ep.title}</h1>
+          <div className="m-hero-meta">
+            {course.title} · {lessons.length} {unitCap.toLowerCase()}
+            {lessons.length === 1 ? '' : 's'} · {fmtRuntime(totalRuntime)}
+          </div>
+          <div className="m-hero-actions">
+            <button
+              className="abtn play"
+              type="button"
+              onClick={() => void playLesson(ep)}
+            >
+              <Glyph d={SF.play} size={15} fill="currentColor" /> {playLabel}{' '}
+              {unitCap} {epN}
+            </button>
+            <div className="m-hero-row">
+              <button
+                className="abtn glass"
+                type="button"
+                onClick={() => setOverviewFor(ep)}
+              >
+                <Glyph d={SF.doc} size={17} stroke={1.9} /> Overview
+              </button>
+              <button
+                className={`icon-glass ${isBookmarked ? 'on' : ''}`}
+                type="button"
+                aria-label="Bookmark lesson"
+                onClick={() => toggleBookmark(ep)}
+              >
+                <Glyph
+                  d={SF.bookmark}
+                  size={19}
+                  fill={isBookmarked ? 'currentColor' : 'none'}
+                  stroke={isBookmarked ? 0 : 2}
+                />
+              </button>
+              {commentsVisible && (
+                <button
+                  className="icon-glass"
+                  type="button"
+                  aria-label="Discussion"
+                  onClick={() => setShowComments(true)}
+                >
+                  <Glyph d={SF.bubble} size={19} stroke={2} />
+                  {comments.length > 0 && (
+                    <span className="icon-badge">{comments.length}</span>
+                  )}
+                </button>
+              )}
+            </div>
+          </div>
+          <div className="cv-progress">
+            <div className="cv-pt">
+              <span>Your progress</span>
+              <span>
+                {lessonsDone} of {progressTotal}
+              </span>
+            </div>
+            <div className="cv-pbar">
+              <i
+                style={{
+                  width: `${
+                    progressTotal
+                      ? Math.round((lessonsDone / progressTotal) * 100)
+                      : 0
+                  }%`,
+                }}
+              />
+            </div>
+          </div>
+        </div>
       </header>
 
       {/* ════════ lesson rail ════════ */}
@@ -1059,6 +1233,102 @@ export function WatchHome({
             })}
           </div>
         </div>
+
+        {/* ════ mobile vertical lesson list (YouTube-playlist style) —
+           WatchPageStyles shows this ≤720px and hides the horizontal rail
+           there. Rows group under module headers when the course has more
+           than one module. ════ */}
+        <div className="m-list">
+          {lessons.map((l, i) => {
+            const st = statusOf(l)
+            const frac = fractionOf(l)
+            const thumb = l.thumbnail_url ?? course.thumbnail_url
+            const moduleTitle = moduleTitleById.get(l.id)
+            const prevModuleTitle =
+              i > 0 ? moduleTitleById.get(lessons[i - 1]!.id) : undefined
+            const lockedWhen = l.locked ? unlockDateLabel(l.locked_until) : null
+            return (
+              <div key={l.id}>
+                {moduleTitle && moduleTitle !== prevModuleTitle && (
+                  <div className="ml-module">{moduleTitle}</div>
+                )}
+                <div
+                  className={`ml-row ${l.locked ? 'locked' : ''}`}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => void playLesson(l)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault()
+                      void playLesson(l)
+                    }
+                  }}
+                >
+                  <div className="ml-thumb">
+                    <div
+                      className={`img ${thumb ? '' : 'ph'}`}
+                      style={
+                        thumb
+                          ? { backgroundImage: `url("${thumb}")` }
+                          : undefined
+                      }
+                    />
+                    {l.locked ? (
+                      <span className="ml-state">
+                        <Glyph d={SF.locksm} size={10} stroke={2.1} />
+                      </span>
+                    ) : st === 'watched' ? (
+                      <span className="ml-state done">
+                        <Glyph d={SF.check} size={10} stroke={2.8} />
+                      </span>
+                    ) : null}
+                    {l.duration_seconds ? (
+                      <span className="ml-dur">
+                        {fmtTime(l.duration_seconds)}
+                      </span>
+                    ) : null}
+                    {frac != null && (
+                      <span className="ml-progbar">
+                        <i style={{ width: `${frac * 100}%` }} />
+                      </span>
+                    )}
+                  </div>
+                  <div className="ml-info">
+                    <div className="ml-num">
+                      {unitCap} {i + 1}
+                      {bookmarks.has(l.id) ? ' · Saved' : ''}
+                    </div>
+                    <div className="ml-title">{l.title}</div>
+                    <div className="ml-meta">
+                      {l.locked
+                        ? lockedWhen
+                          ? `Unlocks ${lockedWhen}`
+                          : 'Locked'
+                        : st === 'watched'
+                          ? 'Watched'
+                          : st === 'progress'
+                            ? `Continue · ${Math.round((frac ?? 0) * 100)}%`
+                            : l.duration_seconds
+                              ? fmtTime(l.duration_seconds)
+                              : '—'}
+                    </div>
+                  </div>
+                  <button
+                    className="ml-ov"
+                    type="button"
+                    aria-label="Lesson overview"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setOverviewFor(l)
+                    }}
+                  >
+                    <Glyph d={SF.info} size={17} stroke={1.9} />
+                  </button>
+                </div>
+              </div>
+            )
+          })}
+        </div>
       </section>
 
       {toastMsg && (
@@ -1118,9 +1388,12 @@ export function WatchHome({
 
       {playing && (
         <WatchPlayer
-          // Keyed by lesson so Up Next's swap is a clean remount: fresh
-          // clock, completion flag, and Up Next arm state per lesson.
+          // Remount per lesson so playback state (time, completion latch,
+          // start-position seek) never leaks across in-player navigation.
           key={playing.lesson.id}
+          playlist={playerPlaylist}
+          currentId={playing.lesson.id}
+          onSelectLesson={selectFromPlayer}
           lesson={{
             n: lessons.findIndex((l) => l.id === playing.lesson.id) + 1,
             title: playing.lesson.title,
@@ -1141,23 +1414,14 @@ export function WatchHome({
           onPinComment={viewerIsInstructor ? onPinComment : undefined}
           onHeartComment={viewerIsInstructor ? onHeartComment : undefined}
           onClose={() => {
+            // The player fires a final onProgress right before closing —
+            // push that position to the server immediately.
+            flushPendingSync()
             setPlaying(null)
             onPlayerClose?.()
           }}
           onProgress={(f) => onPlayerProgress(playing.lesson.id, f)}
           onComplete={() => onPlayerComplete(playing.lesson.id)}
-          nextLesson={
-            nextUp
-              ? {
-                  n: nextUp.n,
-                  title: nextUp.lesson.title,
-                  thumbnailUrl: nextUp.lesson.thumbnail_url,
-                }
-              : null
-          }
-          onPlayNext={
-            nextUp ? () => void playLesson(nextUp.lesson, 0) : undefined
-          }
         />
       )}
 

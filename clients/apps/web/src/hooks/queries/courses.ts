@@ -599,6 +599,15 @@ export const useReorderModules = () =>
       }),
   })
 
+export type CourseEnrollmentProgress = {
+  total_lessons: number
+  completed_lessons: number
+  // Lessons with a recorded partial watch position (started, not finished).
+  started_lessons: number
+  completion_percent: number
+  last_active_at: string | null
+}
+
 export type CourseEnrollmentRead = {
   id: string
   customer_id: string
@@ -609,6 +618,7 @@ export type CourseEnrollmentRead = {
     name: string | null
     avatar_url: string | null
   } | null
+  progress: CourseEnrollmentProgress | null
 }
 
 type EnrollmentsListResource = {
@@ -616,20 +626,57 @@ type EnrollmentsListResource = {
   pagination: { page: number; total_count: number }
 }
 
+const enrollmentsPath = (
+  courseId: string,
+  page: number,
+  limit: number,
+  query?: string,
+) =>
+  `/v1/courses/${courseId}/enrollments?page=${page}&limit=${limit}` +
+  (query ? `&query=${encodeURIComponent(query)}` : '')
+
 export const useCourseEnrollments = (
   courseId: string | undefined,
-  options?: { page?: number; limit?: number },
+  options?: { page?: number; limit?: number; query?: string },
 ) => {
   const page = options?.page ?? 1
   const limit = options?.limit ?? 50
+  const query = options?.query?.trim() || undefined
   return useQuery<EnrollmentsListResource>({
-    queryKey: ['course-enrollments', courseId, page, limit],
+    queryKey: ['course-enrollments', courseId, page, limit, query ?? ''],
     queryFn: () =>
       courseApiFetch<EnrollmentsListResource>(
-        `/v1/courses/${courseId}/enrollments?page=${page}&limit=${limit}`,
+        enrollmentsPath(courseId!, page, limit, query),
       ),
     enabled: !!courseId,
+    // Keep the previous page on screen while the next one loads so
+    // paginating / typing a search doesn't flash the empty state.
+    placeholderData: (prev) => prev,
   })
+}
+
+// Every enrollment for a course, walking all pages. Used by the CSV export
+// so students beyond the first page aren't silently dropped. Page 1 tells
+// us the total; the remaining pages are fetched in parallel.
+export const fetchAllCourseEnrollments = async (
+  courseId: string,
+  query?: string,
+): Promise<CourseEnrollmentRead[]> => {
+  const limit = 100
+  const q = query?.trim() || undefined
+  const first = await courseApiFetch<EnrollmentsListResource>(
+    enrollmentsPath(courseId, 1, limit, q),
+  )
+  const totalPages = Math.ceil(first.pagination.total_count / limit)
+  if (totalPages <= 1) return first.items
+  const rest = await Promise.all(
+    Array.from({ length: totalPages - 1 }, (_, i) =>
+      courseApiFetch<EnrollmentsListResource>(
+        enrollmentsPath(courseId, i + 2, limit, q),
+      ),
+    ),
+  )
+  return [...first.items, ...rest.flatMap((r) => r.items)]
 }
 
 export const useRevokeCourseEnrollment = (courseId: string | undefined) =>
@@ -732,6 +779,10 @@ export type CustomerCourseProgress = {
   completed_lessons: number
   completion_percent: number
   completed: Record<string, string>
+  // lesson_id -> partial watch position (fraction 0..1) for lessons the
+  // student has started but not completed. Server-side twin of the
+  // per-device localStorage store, so progress survives closing the tab.
+  positions?: Record<string, number>
 }
 
 export type CustomerCourseDetail = {
@@ -1160,6 +1211,35 @@ export const useMarkLessonComplete = (
       })
     },
   })
+
+// Persist a partial watch position for a video lesson. Fire-and-forget
+// from the player's throttled progress callback — no cache invalidation,
+// the local watchState already reflects the position. A plain function
+// (not a mutation) with keepalive so the same call also works from
+// pagehide/unmount, when React Query mutations can no longer run.
+export const postWatchProgress = (
+  token: string,
+  courseId: string,
+  lessonId: string,
+  fraction: number,
+): void => {
+  try {
+    fetch(
+      `${process.env.NEXT_PUBLIC_API_URL}/v1/customer-portal/courses/${courseId}/lessons/${lessonId}/watch-progress`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ fraction }),
+        keepalive: true,
+      },
+    ).catch(() => {})
+  } catch {
+    /* fire-and-forget — the position is still in localStorage */
+  }
+}
 
 // Mint a signed Mux playback URL for a lesson. Called when the player
 // transitions to "playing" so the server can enforce the

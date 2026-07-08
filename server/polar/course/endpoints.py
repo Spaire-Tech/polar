@@ -33,6 +33,7 @@ from .repository import (
 from .schemas import (
     CourseCreate,
     CourseEnrollmentCustomer,
+    CourseEnrollmentProgress,
     CourseEnrollmentRead,
     CourseLessonCreate,
     CourseLessonRead,
@@ -381,6 +382,7 @@ async def list_course_enrollments(
     course_id: UUID,
     auth_subject: auth.CoursesRead,
     pagination: PaginationParamsQuery,
+    query: str | None = None,
     session: AsyncSession = Depends(get_db_session),
 ) -> ListResource[CourseEnrollmentRead]:
     repo = CourseRepository.from_session(session)
@@ -393,12 +395,24 @@ async def list_course_enrollments(
         organization_id=course.organization_id,
         limit=pagination.limit,
         page=pagination.page,
+        query=query,
     )
+
+    # Progress rollup for the page: completed / started lesson counts and
+    # the last time each student was active, in two grouped queries.
+    lesson_repo = CourseLessonRepository.from_session(session)
+    total_lessons = await lesson_repo.count_published_by_course(course_id)
+    summaries = await course_service.get_enrollment_progress_summaries(
+        session, [e.id for e in enrollments]
+    )
+
     # `paginate_enrollments_for_course` already eager-loads .customer
     # via selectinload, so this loop never goes back to the DB.
     items: list[CourseEnrollmentRead] = []
     for e in enrollments:
         c = e.customer
+        summary = summaries[e.id]
+        completed_lessons = summary.completed_lessons
         items.append(
             CourseEnrollmentRead(
                 id=e.id,
@@ -413,6 +427,20 @@ async def list_course_enrollments(
                     )
                     if c is not None
                     else None
+                ),
+                progress=CourseEnrollmentProgress(
+                    total_lessons=total_lessons,
+                    completed_lessons=completed_lessons,
+                    started_lessons=summary.started_lessons,
+                    completion_percent=(
+                        min(
+                            100.0,
+                            round(completed_lessons / total_lessons * 100, 1),
+                        )
+                        if total_lessons
+                        else 0.0
+                    ),
+                    last_active_at=summary.last_active_at,
                 ),
             )
         )
@@ -433,7 +461,11 @@ async def revoke_course_enrollment(
     enrollment = await course_service.get_enrollment_by_id(session, enrollment_id)
     if enrollment is None or enrollment.course_id != course_id:
         raise HTTPException(status_code=404, detail="Enrollment not found")
-    await course_service.revoke_enrollment(session, enrollment_id)
+    # Also revoke the course-access benefit grant(s) behind this
+    # enrollment — otherwise the entitlement survives and the student is
+    # silently re-enrolled on the next benefit re-grant (e.g. a
+    # subscription past_due→active bounce).
+    await course_service.revoke_enrollment_and_entitlements(session, enrollment_id)
 
 
 @router.post("/{course_id}/modules/reorder", response_model=CourseRead)
@@ -1037,7 +1069,9 @@ async def get_preview_access(
         session, customer
     )
 
-    portal_url = f"/{org.slug}/portal/courses/{course_id}?customer_session_token={token}"
+    portal_url = org.storefront_url(
+        f"/portal/courses/{course_id}?customer_session_token={token}"
+    )
     return {"token": token, "portal_url": portal_url}
 
 

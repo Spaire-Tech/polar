@@ -239,16 +239,24 @@ export default function WatchEmbedPage() {
           onClose={() => setOpen(false)}
           onProgress={(f) => setProgressLog((l) => [...l, f])}
           onComplete={() => setProgressLog((l) => [...l, 1])}
-          nextLesson={
+          playlist={
             params.get('next') !== '0'
-              ? {
-                  n: lessonN + 1,
-                  title: 'Serving Under Pressure',
-                  thumbnailUrl: null,
-                }
-              : null
+              ? [
+                  {
+                    id: `l${lessonN}`,
+                    n: lessonN,
+                    title: 'The Athlete’s Mindset',
+                  },
+                  {
+                    id: `l${lessonN + 1}`,
+                    n: lessonN + 1,
+                    title: 'Serving Under Pressure',
+                  },
+                ]
+              : undefined
           }
-          onPlayNext={
+          currentId={params.get('next') !== '0' ? `l${lessonN}` : undefined}
+          onSelectLesson={
             params.get('next') !== '0'
               ? () => setLessonN((n) => n + 1)
               : undefined

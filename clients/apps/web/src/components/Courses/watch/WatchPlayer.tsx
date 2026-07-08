@@ -59,7 +59,8 @@ function loadPrefs(): PlayerPrefs {
           : DEFAULT_PREFS.volume,
       muted: p.muted === true,
       rate:
-        typeof p.rate === 'number' && (RATES as readonly number[]).includes(p.rate)
+        typeof p.rate === 'number' &&
+        (RATES as readonly number[]).includes(p.rate)
           ? p.rate
           : DEFAULT_PREFS.rate,
     }
@@ -91,13 +92,6 @@ export type WatchLesson = {
   storyboardUrl?: string | null
 }
 
-// What the Up Next card needs to know about the following lesson.
-export type WatchNextLesson = {
-  n: number
-  title: string
-  thumbnailUrl?: string | null
-}
-
 // Display width of the hover-scrub thumbnail; height follows the sprite
 // tile's own aspect ratio.
 const PREVIEW_W = 164
@@ -111,6 +105,66 @@ const UP_NEXT_MIN_FRAC = 0.5
 // Countdown ring geometry (r=16.5 inside a 40px viewBox).
 const RING_R = 16.5
 const RING_C = 2 * Math.PI * RING_R
+
+/** One entry of the course's ordered lesson list, for in-player navigation
+ * (prev/next buttons, the up-next card, and the lessons sheet). */
+export type WatchPlaylistItem = {
+  id: string
+  n: number
+  title: string
+  durationSeconds?: number | null
+  thumbnailUrl?: string | null
+  locked?: boolean
+  watched?: boolean
+}
+
+// Track-skip (previous/next lesson) and PiP glyphs — local to the player;
+// WatchGlyphs has no equivalents.
+const TrackIcon = ({ dir, size = 22 }: { dir: -1 | 1; size?: number }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="currentColor"
+    aria-hidden
+    style={dir === -1 ? { transform: 'scaleX(-1)' } : undefined}
+  >
+    <path d="M6 5.5v13a.7.7 0 0 0 1.1.57l9.15-6.5a.7.7 0 0 0 0-1.14L7.1 4.93A.7.7 0 0 0 6 5.5Z" />
+    <rect x="17.2" y="5" width="2.2" height="14" rx="1.1" />
+  </svg>
+)
+const PipIcon = ({ size = 21 }: { size?: number }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.9"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden
+  >
+    <path d="M21 9V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h4" />
+    <rect x="12" y="13" width="9" height="7" rx="1.5" fill="currentColor" />
+  </svg>
+)
+const ListIcon = ({ size = 21 }: { size?: number }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.9"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden
+  >
+    <path d="M4 6h10M4 12h10M4 18h10" />
+    <path d="m17.5 14.5 4-2.5-4-2.5v5Z" fill="currentColor" stroke="none" />
+  </svg>
+)
 
 export function WatchPlayer({
   lesson,
@@ -127,8 +181,9 @@ export function WatchPlayer({
   onClose,
   onProgress,
   onComplete,
-  nextLesson,
-  onPlayNext,
+  playlist,
+  currentId,
+  onSelectLesson,
 }: {
   lesson: WatchLesson
   courseTitle: string
@@ -144,9 +199,12 @@ export function WatchPlayer({
   onClose: () => void
   onProgress?: (frac: number) => void
   onComplete?: () => void
-  // Up Next autoplay — both must be present for the card to render.
-  nextLesson?: WatchNextLesson | null
-  onPlayNext?: () => void
+  /** Ordered course lesson list. When provided together with onSelectLesson,
+   * the player gains prev/next buttons, a pre-end Up Next autoplay card,
+   * and a lessons sheet. */
+  playlist?: WatchPlaylistItem[]
+  currentId?: string
+  onSelectLesson?: (lessonId: string) => void
 }) {
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const containerRef = useRef<HTMLDivElement | null>(null)
@@ -163,13 +221,32 @@ export function WatchPlayer({
   const ccRef = useRef(false)
   ccRef.current = cc
   const [isFullscreen, setIsFullscreen] = useState(false)
-  const [side, setSide] = useState<null | 'discussion'>(null)
+  const [side, setSide] = useState<null | 'discussion' | 'lessons'>(null)
   const [uiVisible, setUiVisible] = useState(true)
   const barRef = useRef<HTMLDivElement | null>(null)
   const dragging = useRef(false)
   const done = useRef(false)
   const startedRef = useRef(false)
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // ── lesson navigation (prev / next / up-next / lessons sheet) ──
+  // Locked lessons are skipped when stepping; text/quiz lessons are valid
+  // targets (onSelectLesson routes them to the reading view).
+  const canNavigate = !!(playlist && playlist.length > 0 && onSelectLesson)
+  const currentIdx = canNavigate
+    ? playlist!.findIndex((p) => p.id === currentId)
+    : -1
+  const prevItem = canNavigate
+    ? [...playlist!.slice(0, Math.max(0, currentIdx))]
+        .reverse()
+        .find((p) => !p.locked)
+    : undefined
+  const nextItem =
+    canNavigate && currentIdx >= 0
+      ? playlist!.slice(currentIdx + 1).find((p) => !p.locked)
+      : undefined
+  const nextItemRef = useRef(nextItem)
+  nextItemRef.current = nextItem
 
   // ── volume / speed / stall state ──
   // Initialized from persisted prefs; safe because the player only ever
@@ -327,6 +404,11 @@ export function WatchPlayer({
     else if (hideTimer.current) clearTimeout(hideTimer.current)
   }, [scheduleHide])
 
+  // Mirror for the touch handlers (they need the current value without
+  // re-binding on every visibility flip).
+  const uiVisibleRef = useRef(true)
+  uiVisibleRef.current = uiVisible
+
   // Keep chrome up whenever paused or while the speed menu is open;
   // restart the idle countdown on play / menu close.
   useEffect(() => {
@@ -410,6 +492,44 @@ export function WatchPlayer({
         | (HTMLVideoElement & { webkitEnterFullscreen?: () => void })
         | null
       video?.webkitEnterFullscreen?.()
+    }
+  }, [])
+
+  // Best-effort fullscreen-on-rotate for touch devices: turning the phone
+  // to landscape while watching enters real fullscreen (and back out on
+  // portrait). Browsers may reject the request outside a user gesture —
+  // that's fine, the fullscreen button remains the explicit path.
+  useEffect(() => {
+    if (!window.matchMedia('(pointer: coarse)').matches) return
+    const mq = window.matchMedia('(orientation: landscape)')
+    const onChange = () => {
+      const root = containerRef.current
+      if (mq.matches) {
+        if (!document.fullscreenElement && root?.requestFullscreen) {
+          void root.requestFullscreen().catch(() => undefined)
+        }
+      } else if (document.fullscreenElement && document.exitFullscreen) {
+        void document.exitFullscreen().catch(() => undefined)
+      }
+    }
+    mq.addEventListener('change', onChange)
+    return () => mq.removeEventListener('change', onChange)
+  }, [])
+
+  // ── Picture-in-Picture (progressive enhancement) ──
+  const [pipSupported, setPipSupported] = useState(false)
+  useEffect(() => {
+    setPipSupported(
+      'pictureInPictureEnabled' in document && document.pictureInPictureEnabled,
+    )
+  }, [])
+  const togglePip = useCallback(() => {
+    const el = videoRef.current
+    if (!el) return
+    if (document.pictureInPictureElement) {
+      void document.exitPictureInPicture().catch(() => undefined)
+    } else {
+      void el.requestPictureInPicture().catch(() => undefined)
     }
   }, [])
 
@@ -611,22 +731,122 @@ export function WatchPlayer({
     lesson.muxPlaybackId ||
     (lesson.playbackUrl && lesson.playbackUrl.includes('.m3u8')),
   )
-  // Advance to the next lesson — flush a final progress report first so
-  // the finished lesson's watch state lands before the swap.
+  // Advance to the next playlist lesson — flush a final progress report
+  // first so the finished lesson's watch state lands before the swap.
   const goNext = useCallback(() => {
-    if (!onPlayNext) return
+    const next = nextItemRef.current
+    if (!next || !onSelectLesson) return
     if (fracRef.current > 0) onProgress?.(fracRef.current)
-    onPlayNext()
-  }, [onPlayNext, onProgress])
+    onSelectLesson(next.id)
+  }, [onSelectLesson, onProgress])
 
   const onEndedCb = useCallback(() => {
     if (!done.current) {
       done.current = true
       onComplete?.()
     }
-    // The clip ran out with the card still armed → this is the autoplay.
-    if (nextLesson && onPlayNext && !upNextDismissedRef.current) goNext()
-  }, [onComplete, nextLesson, onPlayNext, goNext])
+    // The clip ran out with the Up Next card still armed → autoplay now.
+    // (The card counted down during the final seconds; the end of the
+    // video IS the zero mark, so there's no dead frame in between.)
+    if (!upNextDismissedRef.current) goNext()
+  }, [onComplete, goNext])
+
+  // ── touch gestures on the video surface ──
+  // A transparent layer over the video (below the chrome) owns touch input:
+  // single tap toggles the chrome, double-tap on the left/right third seeks
+  // ∓/±10s with a YouTube-style indicator, and a decisive downward swipe
+  // dismisses the player. Mouse input is untouched — desktop keeps its
+  // hover/keyboard behavior.
+  //
+  // Mobile browsers replay a tap as SYNTHETIC mouse events (mousemove /
+  // mousedown) right after the touch sequence. Without suppression those
+  // hit the root's revealUi immediately, so by the time the deferred
+  // single-tap handler ran (280ms later, to leave room for a double-tap)
+  // the chrome was already visible and the "toggle" hid it again — tap,
+  // flash, gone. Every touch stamps lastTouchAt (captured at the root so
+  // control taps count too) and mouse handlers stand down inside that
+  // window; on touch devices the tap gesture is the only chrome authority.
+  const lastTouchAt = useRef(0)
+  const touchStartPos = useRef<{ x: number; y: number } | null>(null)
+  const lastTap = useRef<{
+    time: number
+    timer: ReturnType<typeof setTimeout> | null
+  }>({ time: 0, timer: null })
+  const [tapInd, setTapInd] = useState<null | {
+    side: 'left' | 'right'
+    key: number
+  }>(null)
+  useEffect(() => {
+    if (!tapInd) return
+    const id = setTimeout(() => setTapInd(null), 550)
+    return () => clearTimeout(id)
+  }, [tapInd])
+  useEffect(
+    () => () => {
+      if (lastTap.current.timer) clearTimeout(lastTap.current.timer)
+    },
+    [],
+  )
+
+  const isRecentTouch = () => Date.now() - lastTouchAt.current < 800
+  const revealUiFromMouse = () => {
+    if (isRecentTouch()) return
+    revealUi()
+  }
+
+  const onGestureTouchStart = (e: React.TouchEvent) => {
+    const t0 = e.touches[0]
+    touchStartPos.current = t0 ? { x: t0.clientX, y: t0.clientY } : null
+  }
+  const onGestureTouchEnd = (e: React.TouchEvent) => {
+    const start = touchStartPos.current
+    const t0 = e.changedTouches[0]
+    touchStartPos.current = null
+    if (!start || !t0) return
+    const dx = t0.clientX - start.x
+    const dy = t0.clientY - start.y
+    // Swipe down → dismiss (position is flushed by exit()).
+    if (dy > 90 && dy > 2 * Math.abs(dx)) {
+      exit()
+      return
+    }
+    if (Math.hypot(dx, dy) > 12) return // a drag, not a tap
+    const now = Date.now()
+    const rect = containerRef.current?.getBoundingClientRect()
+    const w = rect?.width ?? window.innerWidth
+    const x = t0.clientX - (rect?.left ?? 0)
+    const zone = x < w / 3 ? 'left' : x > (2 * w) / 3 ? 'right' : 'center'
+    if (lastTap.current.timer && now - lastTap.current.time < 300) {
+      // Double tap.
+      clearTimeout(lastTap.current.timer)
+      lastTap.current = { time: 0, timer: null }
+      if (zone === 'left') {
+        seekBy(-10)
+        setTapInd({ side: 'left', key: now })
+      } else if (zone === 'right') {
+        seekBy(10)
+        setTapInd({ side: 'right', key: now })
+      } else {
+        togglePlay()
+      }
+      return
+    }
+    // Single tap (fires unless a second tap lands within the window):
+    // toggle the chrome.
+    lastTap.current = {
+      time: now,
+      timer: setTimeout(() => {
+        lastTap.current.timer = null
+        const show = !uiVisibleRef.current
+        setUiVisible(show)
+        if (show && videoRef.current && !videoRef.current.paused) {
+          scheduleHide()
+        } else if (!show && hideTimer.current) {
+          clearTimeout(hideTimer.current)
+        }
+      }, 280),
+    }
+  }
 
   const effVol = muted ? 0 : volume
   const volGlyph =
@@ -646,8 +866,8 @@ export function WatchPlayer({
   // pausing freezes the countdown.
   const remaining = Math.max(0, dur - t)
   const upNextVisible = Boolean(
-    nextLesson &&
-      onPlayNext &&
+    nextItem &&
+      onSelectLesson &&
       !upNextDismissed &&
       dur > 0 &&
       remaining <= UP_NEXT_WINDOW_SECONDS &&
@@ -664,9 +884,11 @@ export function WatchPlayer({
       ref={containerRef}
       className={`sov2 player ${uiVisible ? '' : 'ui-hidden'}`}
       data-watch-player
-      onMouseMove={revealUi}
-      onMouseDown={revealUi}
-      onTouchStart={revealUi}
+      onMouseMove={revealUiFromMouse}
+      onMouseDown={revealUiFromMouse}
+      onTouchStartCapture={() => {
+        lastTouchAt.current = Date.now()
+      }}
     >
       <div className="player-video">
         {isHls ? (
@@ -691,6 +913,19 @@ export function WatchPlayer({
       </div>
       <div className="player-vignette" />
 
+      <div
+        className="player-gestures"
+        onTouchStart={onGestureTouchStart}
+        onTouchEnd={onGestureTouchEnd}
+        aria-hidden
+      />
+      {tapInd && (
+        <div key={tapInd.key} className={`tap-ind ${tapInd.side}`}>
+          <SkipIcon dir={tapInd.side === 'left' ? -1 : 1} n={10} size={28} />
+          <span>10 seconds</span>
+        </div>
+      )}
+
       {paused && (
         <button
           className="player-bigplay"
@@ -705,7 +940,7 @@ export function WatchPlayer({
         <div className="player-spin" role="status" aria-label="Loading" />
       )}
 
-      <div className="player-top">
+      <div className="player-top" onTouchStart={revealUi}>
         <button className="pbtn" onClick={exit} aria-label="Back">
           <Glyph d={SF.back} size={24} stroke={2} />
         </button>
@@ -720,13 +955,14 @@ export function WatchPlayer({
         </div>
       </div>
 
-      <div className="player-controls">
+      <div className="player-controls" onTouchStart={revealUi}>
         <div className="scrub-row">
           <span className="ptime">{fmtTime(t)}</span>
           <div
             className="scrub"
             ref={barRef}
             onMouseDown={(e) => {
+              if (isRecentTouch()) return // synthetic replay of a touch
               dragging.current = true
               seekAt(e.clientX)
               previewAt(e.clientX)
@@ -738,7 +974,10 @@ export function WatchPlayer({
                 previewAt(e.touches[0].clientX)
               }
             }}
-            onMouseMove={(e) => previewAt(e.clientX)}
+            onMouseMove={(e) => {
+              if (isRecentTouch()) return // would strand the frame preview
+              previewAt(e.clientX)
+            }}
             onMouseLeave={() => {
               if (!dragging.current) setPreview(null)
             }}
@@ -796,6 +1035,16 @@ export function WatchPlayer({
             <span className="tp-chaplabel">{lesson.title}</span>
           </div>
           <div className="tp-center">
+            {canNavigate && (
+              <button
+                className="pbtn sm"
+                disabled={!prevItem}
+                onClick={() => prevItem && onSelectLesson?.(prevItem.id)}
+                aria-label="Previous lesson"
+              >
+                <TrackIcon dir={-1} />
+              </button>
+            )}
             <button
               className="pbtn"
               onClick={() => seekBy(-10)}
@@ -821,6 +1070,16 @@ export function WatchPlayer({
             >
               <SkipIcon dir={1} n={10} size={30} />
             </button>
+            {canNavigate && (
+              <button
+                className="pbtn sm"
+                disabled={!nextItem}
+                onClick={() => nextItem && onSelectLesson?.(nextItem.id)}
+                aria-label="Next lesson"
+              >
+                <TrackIcon dir={1} />
+              </button>
+            )}
           </div>
           <div className="tp-right">
             <div className={`pvol ${volOpen ? 'open' : ''}`}>
@@ -905,6 +1164,27 @@ export function WatchPlayer({
                 </div>
               )}
             </div>
+            {canNavigate && (
+              <button
+                className={`pbtn sm ${side === 'lessons' ? 'on' : ''}`}
+                onClick={() =>
+                  setSide((s) => (s === 'lessons' ? null : 'lessons'))
+                }
+                aria-label="Lessons"
+                aria-pressed={side === 'lessons'}
+              >
+                <ListIcon />
+              </button>
+            )}
+            {pipSupported && (
+              <button
+                className="pbtn sm"
+                onClick={togglePip}
+                aria-label="Picture in picture"
+              >
+                <PipIcon />
+              </button>
+            )}
             {hasCaptions && (
               <button
                 className={`pbtn sm ${cc ? 'on' : ''}`}
@@ -946,18 +1226,18 @@ export function WatchPlayer({
         </div>
       </div>
 
-      {upNextVisible && nextLesson && (
+      {upNextVisible && nextItem && (
         <div className="upnext">
           <button
             className="upnext-card"
             onClick={goNext}
-            aria-label={`Play next: Lesson ${nextLesson.n} · ${nextLesson.title}`}
+            aria-label={`Play next: Lesson ${nextItem.n} · ${nextItem.title}`}
           >
-            {nextLesson.thumbnailUrl ? (
+            {nextItem.thumbnailUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 className="upnext-thumb"
-                src={nextLesson.thumbnailUrl}
+                src={nextItem.thumbnailUrl}
                 alt=""
                 draggable={false}
               />
@@ -971,7 +1251,7 @@ export function WatchPlayer({
                 Up next · in {upNextCountdown}s
               </span>
               <span className="upnext-t">
-                Lesson {nextLesson.n} · {nextLesson.title}
+                Lesson {nextItem.n} · {nextItem.title}
               </span>
             </span>
             <span className="upnext-ring" aria-hidden>
@@ -1008,6 +1288,68 @@ export function WatchPlayer({
           >
             <Glyph d={SF.close} size={13} stroke={2.2} />
           </button>
+        </div>
+      )}
+
+      {side === 'lessons' && canNavigate && (
+        <div
+          className="pl-wrap"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setSide(null)
+          }}
+        >
+          <div className="pl-sheet" role="dialog" aria-label="Lessons">
+            <div className="pl-head">
+              <span>Lessons</span>
+              <button
+                className="pbtn sm"
+                onClick={() => setSide(null)}
+                aria-label="Close"
+              >
+                <Glyph d={SF.close} size={14} stroke={2.2} />
+              </button>
+            </div>
+            <div className="pl-body">
+              {playlist!.map((p) => (
+                <button
+                  key={p.id}
+                  className={`pl-row ${p.id === currentId ? 'now' : ''} ${
+                    p.locked ? 'locked' : ''
+                  }`}
+                  disabled={p.locked}
+                  onClick={() => {
+                    setSide(null)
+                    if (p.id !== currentId) onSelectLesson?.(p.id)
+                  }}
+                >
+                  <span
+                    className="pl-thumb"
+                    style={
+                      p.thumbnailUrl
+                        ? { backgroundImage: `url("${p.thumbnailUrl}")` }
+                        : undefined
+                    }
+                  >
+                    {p.locked ? (
+                      <Glyph d={SF.locksm} size={12} stroke={2.1} />
+                    ) : p.watched ? (
+                      <Glyph d={SF.check} size={12} stroke={2.6} />
+                    ) : null}
+                  </span>
+                  <span className="pl-info">
+                    <span className="pl-num">
+                      Lesson {p.n}
+                      {p.id === currentId ? ' · Now playing' : ''}
+                    </span>
+                    <span className="pl-title">{p.title}</span>
+                  </span>
+                  <span className="pl-dur">
+                    {p.durationSeconds ? fmtTime(p.durationSeconds) : ''}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
       )}
 
