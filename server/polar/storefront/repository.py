@@ -5,7 +5,15 @@ from sqlalchemy.orm import selectinload
 
 from polar.kit.pagination import PaginationParams, paginate
 from polar.kit.repository import RepositoryBase
-from polar.models import Customer, Order, Organization, Product, Subscription
+from polar.models import (
+    Customer,
+    Order,
+    Organization,
+    OrganizationCustomDomain,
+    Product,
+    Subscription,
+)
+from polar.models.organization_custom_domain import OrganizationCustomDomainStatus
 from polar.models.product import ProductCategory
 
 
@@ -52,6 +60,25 @@ class StorefrontRepository(RepositoryBase[Organization]):
             .where(
                 Product.id == product_id,
                 Product.deleted_at.is_(None),
+                Organization.deleted_at.is_(None),
+                Organization.blocked_at.is_(None),
+            )
+        )
+        result = await self.session.execute(statement)
+        return result.scalar_one_or_none()
+
+    async def get_organization_slug_by_custom_domain(self, domain: str) -> str | None:
+        statement = (
+            select(Organization.slug)
+            .join(
+                OrganizationCustomDomain,
+                OrganizationCustomDomain.organization_id == Organization.id,
+            )
+            .where(
+                OrganizationCustomDomain.domain == domain,
+                OrganizationCustomDomain.status
+                == OrganizationCustomDomainStatus.active,
+                OrganizationCustomDomain.deleted_at.is_(None),
                 Organization.deleted_at.is_(None),
                 Organization.blocked_at.is_(None),
             )

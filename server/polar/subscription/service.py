@@ -2405,9 +2405,7 @@ class SubscriptionService:
                 "email": customer.email,
             }
         )
-        portal_url = settings.generate_frontend_url(
-            f"/{organization.slug}/portal?{query_string}"
-        )
+        portal_url = organization.storefront_url(f"/portal?{query_string}")
 
         email = EmailAdapter.validate_python(
             {
