@@ -998,16 +998,23 @@ async def get_preview_access(
             Customer(
                 email=user.email,
                 name=display_name,
+                # The portal's top-right avatar shows the admin's real
+                # dashboard picture, not initials.
+                avatar_url=user.avatar_url,
                 organization_id=course.organization_id,
             ),
             flush=True,
         )
-    elif not (customer.name or "").strip():
-        # Backfill a display name, but never overwrite one the customer
+    else:
+        # Backfill name/avatar, but never overwrite values the customer
         # record already carries (e.g. set via portal onboarding).
-        customer = await customer_repo.update(
-            customer, update_dict={"name": display_name}
-        )
+        updates: dict[str, str] = {}
+        if not (customer.name or "").strip():
+            updates["name"] = display_name
+        if not customer.avatar_url and user.avatar_url:
+            updates["avatar_url"] = user.avatar_url
+        if updates:
+            customer = await customer_repo.update(customer, update_dict=updates)
 
     # Don't fire enrollment events: previewing your own course must not
     # trigger the org's own email automations.
