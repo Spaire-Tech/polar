@@ -7,6 +7,9 @@ import { useSearchParams } from 'next/navigation'
 import { NuqsAdapter } from 'nuqs/adapters/next/app'
 import * as React from 'react'
 import { ChevronIcon, DownloadIcon, ExternalIcon } from '../_components/icons'
+import { PortalSheet } from '../_components/PortalSheet'
+import { useMediaMax } from '../_components/useMediaMax'
+import { usePortalTheme } from '../usePortalTheme'
 
 const PAGE_SIZE = 20
 
@@ -76,18 +79,157 @@ const billingLabel = (order: schemas['CustomerOrder']): string => {
   }
 }
 
+// Line items + actions for one order — rendered inline in the desktop
+// accordion and inside a bottom sheet on mobile.
+const OrderDetailBody = ({
+  order,
+  orderHref,
+  totalLabel,
+}: {
+  order: schemas['CustomerOrder']
+  orderHref: string
+  totalLabel: string
+}) => (
+  <>
+    <table className="sp-table">
+      <thead>
+        <tr>
+          <th>Item</th>
+          <th style={{ width: 140 }}>Reason</th>
+          <th style={{ width: 100, textAlign: 'right' }}>Amount</th>
+        </tr>
+      </thead>
+      <tbody>
+        {(order.items ?? []).map((item) => (
+          <tr key={item.id}>
+            <td>{item.label}</td>
+            <td>
+              <span className="sp-tag">
+                {item.proration ? 'Proration' : 'Charge'}
+              </span>
+            </td>
+            <td
+              style={{
+                textAlign: 'right',
+                fontVariantNumeric: 'tabular-nums',
+                fontWeight: 500,
+              }}
+            >
+              {formatCurrency(item.amount, order.currency)}
+            </td>
+          </tr>
+        ))}
+        {order.discount_amount > 0 && (
+          <tr>
+            <td>Discount</td>
+            <td>
+              <span className="sp-tag">Adjustment</span>
+            </td>
+            <td
+              style={{
+                textAlign: 'right',
+                fontVariantNumeric: 'tabular-nums',
+              }}
+            >
+              −{formatCurrency(order.discount_amount, order.currency)}
+            </td>
+          </tr>
+        )}
+        {order.tax_amount > 0 && (
+          <tr>
+            <td>Tax</td>
+            <td>
+              <span className="sp-tag">VAT/Sales tax</span>
+            </td>
+            <td
+              style={{
+                textAlign: 'right',
+                fontVariantNumeric: 'tabular-nums',
+              }}
+            >
+              {formatCurrency(order.tax_amount, order.currency)}
+            </td>
+          </tr>
+        )}
+        {order.refunded_amount > 0 && (
+          <tr>
+            <td>Refunded</td>
+            <td>
+              <span className="sp-tag">Refund</span>
+            </td>
+            <td
+              style={{
+                textAlign: 'right',
+                fontVariantNumeric: 'tabular-nums',
+                color: 'var(--sp-muted)',
+              }}
+            >
+              −{formatCurrency(order.refunded_amount, order.currency)}
+            </td>
+          </tr>
+        )}
+        <tr>
+          <td colSpan={2}>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'flex-end',
+                color: 'var(--sp-muted)',
+                fontSize: 13,
+              }}
+            >
+              Total
+            </div>
+          </td>
+          <td
+            style={{
+              textAlign: 'right',
+              fontWeight: 600,
+              fontVariantNumeric: 'tabular-nums',
+            }}
+          >
+            {totalLabel}
+          </td>
+        </tr>
+      </tbody>
+    </table>
+    <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
+      {order.is_invoice_generated && (
+        <Link
+          href={orderHref}
+          className="sp-btn is-ghost"
+          style={{ padding: '8px 14px', fontSize: 12.5 }}
+        >
+          <DownloadIcon size={13} /> Invoice
+        </Link>
+      )}
+      <Link
+        href={orderHref}
+        className="sp-btn is-ghost"
+        style={{ padding: '8px 14px', fontSize: 12.5 }}
+      >
+        <ExternalIcon size={12} /> View order
+      </Link>
+    </div>
+  </>
+)
+
 const OrderRow = ({
   order,
   organizationSlug,
   searchString,
   isOpen,
   onToggle,
+  isMobile,
+  dark,
 }: {
   order: schemas['CustomerOrder']
   organizationSlug: string
   searchString: string
   isOpen: boolean
   onToggle: () => void
+  isMobile: boolean
+  dark: boolean
 }) => {
   const kind = statusKind(order)
   const isRefunded = kind === 'refunded'
@@ -151,129 +293,48 @@ const OrderRow = ({
         </div>
       </button>
 
-      {isOpen && (
+      {isOpen && !isMobile && (
         <div className="sp-order-detail sp-fade-in">
-          <table className="sp-table">
-            <thead>
-              <tr>
-                <th>Item</th>
-                <th style={{ width: 140 }}>Reason</th>
-                <th style={{ width: 100, textAlign: 'right' }}>Amount</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(order.items ?? []).map((item) => (
-                <tr key={item.id}>
-                  <td>{item.label}</td>
-                  <td>
-                    <span className="sp-tag">
-                      {item.proration ? 'Proration' : 'Charge'}
-                    </span>
-                  </td>
-                  <td
-                    style={{
-                      textAlign: 'right',
-                      fontVariantNumeric: 'tabular-nums',
-                      fontWeight: 500,
-                    }}
-                  >
-                    {formatCurrency(item.amount, order.currency)}
-                  </td>
-                </tr>
-              ))}
-              {order.discount_amount > 0 && (
-                <tr>
-                  <td>Discount</td>
-                  <td>
-                    <span className="sp-tag">Adjustment</span>
-                  </td>
-                  <td
-                    style={{
-                      textAlign: 'right',
-                      fontVariantNumeric: 'tabular-nums',
-                    }}
-                  >
-                    −{formatCurrency(order.discount_amount, order.currency)}
-                  </td>
-                </tr>
-              )}
-              {order.tax_amount > 0 && (
-                <tr>
-                  <td>Tax</td>
-                  <td>
-                    <span className="sp-tag">VAT/Sales tax</span>
-                  </td>
-                  <td
-                    style={{
-                      textAlign: 'right',
-                      fontVariantNumeric: 'tabular-nums',
-                    }}
-                  >
-                    {formatCurrency(order.tax_amount, order.currency)}
-                  </td>
-                </tr>
-              )}
-              {order.refunded_amount > 0 && (
-                <tr>
-                  <td>Refunded</td>
-                  <td>
-                    <span className="sp-tag">Refund</span>
-                  </td>
-                  <td
-                    style={{
-                      textAlign: 'right',
-                      fontVariantNumeric: 'tabular-nums',
-                      color: 'var(--sp-muted)',
-                    }}
-                  >
-                    −{formatCurrency(order.refunded_amount, order.currency)}
-                  </td>
-                </tr>
-              )}
-              <tr>
-                <td colSpan={2}>
-                  <div
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'flex-end',
-                      color: 'var(--sp-muted)',
-                      fontSize: 13,
-                    }}
-                  >
-                    Total
-                  </div>
-                </td>
-                <td
-                  style={{
-                    textAlign: 'right',
-                    fontWeight: 600,
-                    fontVariantNumeric: 'tabular-nums',
-                  }}
-                >
-                  {totalLabel}
-                </td>
-              </tr>
-            </tbody>
-          </table>
-          <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
-            {order.is_invoice_generated && (
-              <Link
-                href={orderHref}
-                className="sp-btn is-ghost"
-                style={{ padding: '8px 14px', fontSize: 12.5 }}
-              >
-                <DownloadIcon size={13} /> Invoice
-              </Link>
-            )}
-            <Link
-              href={orderHref}
-              className="sp-btn is-ghost"
-              style={{ padding: '8px 14px', fontSize: 12.5 }}
-            >
-              <ExternalIcon size={12} /> View order
-            </Link>
-          </div>
+          <OrderDetailBody
+            order={order}
+            orderHref={orderHref}
+            totalLabel={totalLabel}
+          />
         </div>
+      )}
+      {isMobile && (
+        <PortalSheet
+          open={isOpen}
+          onClose={onToggle}
+          title={order.invoice_number || 'Order'}
+          dark={dark}
+        >
+          {/* Date / reason / status are hidden from the collapsed row on
+              mobile — surface them here instead. */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: 10,
+              padding: '6px 12px 2px',
+              fontSize: 13,
+              color: 'var(--sp-muted)',
+            }}
+          >
+            <span>{formatDate(order.created_at)}</span>
+            <span>·</span>
+            <span>{billingLabel(order)}</span>
+            <StatusPill kind={kind} />
+          </div>
+          <div style={{ padding: '0 12px 8px' }}>
+            <OrderDetailBody
+              order={order}
+              orderHref={orderHref}
+              totalLabel={totalLabel}
+            />
+          </div>
+        </PortalSheet>
       )}
     </div>
   )
@@ -288,10 +349,27 @@ const OrdersBody = ({
 }) => {
   const searchParams = useSearchParams()
   const searchString = searchParams.toString()
+  const token =
+    searchParams.get('customer_session_token') ??
+    searchParams.get('member_session_token') ??
+    ''
+  const isMobile = useMediaMax(720)
+  const { dark } = usePortalTheme(organizationSlug, token)
   const [openId, setOpenId] = React.useState<string | null>(
     orders[0]?.id ?? null,
   )
   const [page, setPage] = React.useState(1)
+
+  // The first order starts expanded on desktop as a preview. On mobile the
+  // detail is a bottom sheet, and popping one open on page load would be
+  // hostile — clear the auto-selection once we know we're on a phone (unless
+  // the customer already tapped a row themselves).
+  const interactedRef = React.useRef(false)
+  React.useEffect(() => {
+    if (isMobile && !interactedRef.current) {
+      setOpenId(null)
+    }
+  }, [isMobile])
 
   const totalPages = Math.max(1, Math.ceil(orders.length / PAGE_SIZE))
   const pageOrders = orders.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
@@ -330,7 +408,12 @@ const OrdersBody = ({
               organizationSlug={organizationSlug}
               searchString={searchString}
               isOpen={openId === order.id}
-              onToggle={() => setOpenId(openId === order.id ? null : order.id)}
+              onToggle={() => {
+                interactedRef.current = true
+                setOpenId(openId === order.id ? null : order.id)
+              }}
+              isMobile={isMobile}
+              dark={dark}
             />
           ))}
           {totalPages > 1 && (

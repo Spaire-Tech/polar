@@ -12,6 +12,29 @@ export interface CustomerUsageProps {
   api: Client
 }
 
+// Bind the ring to how much of the credited allowance has been consumed.
+const MeterRing = ({
+  consumed,
+  credited,
+}: {
+  consumed: number
+  credited: number
+}) => {
+  const ratio =
+    credited > 0 ? Math.max(0, Math.min(1, consumed / credited)) : 0
+  const deg = Math.round(ratio * 360)
+  return (
+    <div
+      className="h-3 w-3 rounded-full"
+      title={`${Math.round(ratio * 100)}% of credited units consumed`}
+      style={{
+        background: `conic-gradient(#3b82f6 ${deg}deg, var(--sp-line, #e5e7eb) ${deg}deg)`,
+        transition: 'all 0.3s ease',
+      }}
+    />
+  )
+}
+
 export const CustomerUsage = ({ api }: CustomerUsageProps) => {
   const [query, setQuery] = useState<string | null>(null)
   const { data, isLoading } = useCustomerCustomerMeters(api, { query })
@@ -21,7 +44,7 @@ export const CustomerUsage = ({ api }: CustomerUsageProps) => {
     <div className="flex flex-col">
       <Tabs defaultValue="meters">
         <div className="flex flex-row items-center justify-between gap-x-12">
-          <h3 className="text-2xl">Usage</h3>
+          <h3 className="text-xl md:text-2xl">Usage</h3>
         </div>
         <TabsContent className="flex flex-col gap-y-12 pt-4" value="meters">
           <div className="flex flex-col gap-4">
@@ -39,7 +62,7 @@ export const CustomerUsage = ({ api }: CustomerUsageProps) => {
           </div>
 
           <div className="flex flex-col gap-6">
-            <h3 className="text-xl">Overview</h3>
+            <h3 className="text-lg md:text-xl">Overview</h3>
             <DataTable
               isLoading={isLoading}
               columns={[
@@ -50,33 +73,15 @@ export const CustomerUsage = ({ api }: CustomerUsageProps) => {
                     row: {
                       original: { meter, consumed_units, credited_units },
                     },
-                  }) => {
-                    // Bind the ring to how much of the credited allowance has
-                    // been consumed. It previously rendered a fixed full ring
-                    // (rotate(-90deg) over a full-rectangle clip) regardless of
-                    // the meter's actual usage.
-                    const ratio =
-                      credited_units > 0
-                        ? Math.max(
-                            0,
-                            Math.min(1, consumed_units / credited_units),
-                          )
-                        : 0
-                    const deg = Math.round(ratio * 360)
-                    return (
-                      <div className="flex items-center gap-2">
-                        <div
-                          className="h-3 w-3 rounded-full"
-                          title={`${Math.round(ratio * 100)}% of credited units consumed`}
-                          style={{
-                            background: `conic-gradient(#3b82f6 ${deg}deg, var(--sp-line, #e5e7eb) ${deg}deg)`,
-                            transition: 'all 0.3s ease',
-                          }}
-                        />
-                        <span>{meter.name}</span>
-                      </div>
-                    )
-                  },
+                  }) => (
+                    <div className="flex items-center gap-2">
+                      <MeterRing
+                        consumed={consumed_units}
+                        credited={credited_units}
+                      />
+                      <span>{meter.name}</span>
+                    </div>
+                  ),
                 },
                 {
                   header: 'Consumed',
@@ -113,6 +118,41 @@ export const CustomerUsage = ({ api }: CustomerUsageProps) => {
                 },
               ]}
               data={customerMeters}
+              mobileCard={(row) => {
+                const { meter, consumed_units, credited_units, balance } =
+                  row.original
+                return (
+                  <div className="flex flex-col gap-3">
+                    <div className="flex items-center gap-2">
+                      <MeterRing
+                        consumed={consumed_units}
+                        credited={credited_units}
+                      />
+                      <span className="text-sm font-medium">{meter.name}</span>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className="flex flex-col gap-0.5">
+                        <span className="text-xs text-gray-500">Consumed</span>
+                        <span className="text-sm">
+                          <FormattedUnits value={consumed_units} />
+                        </span>
+                      </div>
+                      <div className="flex flex-col gap-0.5">
+                        <span className="text-xs text-gray-500">Credited</span>
+                        <span className="text-sm">
+                          <FormattedUnits value={credited_units} />
+                        </span>
+                      </div>
+                      <div className="flex flex-col gap-0.5">
+                        <span className="text-xs text-gray-500">Balance</span>
+                        <span className="text-sm">
+                          <FormattedUnits value={balance} />
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )
+              }}
             />
           </div>
         </TabsContent>

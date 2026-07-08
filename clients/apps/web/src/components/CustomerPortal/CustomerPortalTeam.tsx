@@ -188,6 +188,65 @@ export const CustomerPortalTeam = ({
   const memberToRemoveData = membersList.find((m) => m.id === memberToRemove)
   const otherMembers = membersList.filter((m) => m.id !== currentMemberId)
 
+  // Shared between the desktop table cells and the mobile card layout.
+  const memberRoleBadge = (member: (typeof membersList)[number]) => {
+    const isCurrentUser = member.id === currentMemberId
+    const [label, className] =
+      roleDisplayNames[member.role] || roleDisplayNames.member
+    return (
+      <div className="flex items-center gap-2">
+        <Status className={twMerge(className, 'w-fit text-xs')} status={label} />
+        {isCurrentUser && (
+          <span className=" text-xs text-gray-500">(you)</span>
+        )}
+      </div>
+    )
+  }
+
+  const memberActions = (member: (typeof membersList)[number]) => {
+    const isCurrentUser = member.id === currentMemberId
+    const isLoading = loadingMembers.has(member.id)
+
+    // Current user can't modify themselves
+    if (isCurrentUser) {
+      return null
+    }
+
+    return (
+      <div className="flex justify-end">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild disabled={isLoading}>
+            <Button className="h-8 w-8" variant="secondary">
+              <MoreVertOutlined fontSize="inherit" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            {availableRoles
+              .filter((role) => role.value !== member.role)
+              .map((role) => (
+                <DropdownMenuItem
+                  key={role.value}
+                  onClick={() =>
+                    handleRoleChange(member.id, member.name, role.value)
+                  }
+                  disabled={isLoading}
+                >
+                  {role.label}
+                </DropdownMenuItem>
+              ))}
+            <DropdownMenuItem
+              onClick={() => setMemberToRemove(member.id)}
+              disabled={isLoading}
+              className="text-red-500 focus:text-red-500"
+            >
+              Remove from Team
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    )
+  }
+
   return (
     <div className="flex flex-col gap-8">
       <div className="flex flex-col gap-2">
@@ -263,26 +322,7 @@ export const CustomerPortalTeam = ({
             {
               accessorKey: 'role',
               header: 'Role',
-              cell: ({ row }) => {
-                const member = row.original
-                const isCurrentUser = member.id === currentMemberId
-                const [label, className] =
-                  roleDisplayNames[member.role] || roleDisplayNames.member
-
-                return (
-                  <div className="flex items-center gap-2">
-                    <Status
-                      className={twMerge(className, 'w-fit text-xs')}
-                      status={label}
-                    />
-                    {isCurrentUser && (
-                      <span className=" text-xs text-gray-500">
-                        (you)
-                      </span>
-                    )}
-                  </div>
-                )
-              },
+              cell: ({ row }) => memberRoleBadge(row.original),
             },
             {
               accessorKey: 'created_at',
@@ -296,56 +336,31 @@ export const CustomerPortalTeam = ({
             {
               id: 'actions',
               header: '',
-              cell: ({ row }) => {
-                const member = row.original
-                const isCurrentUser = member.id === currentMemberId
-                const isLoading = loadingMembers.has(member.id)
-
-                // Current user can't modify themselves
-                if (isCurrentUser) {
-                  return null
-                }
-
-                return (
-                  <div className="flex justify-end">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild disabled={isLoading}>
-                        <Button className="h-8 w-8" variant="secondary">
-                          <MoreVertOutlined fontSize="inherit" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        {availableRoles
-                          .filter((role) => role.value !== member.role)
-                          .map((role) => (
-                            <DropdownMenuItem
-                              key={role.value}
-                              onClick={() =>
-                                handleRoleChange(
-                                  member.id,
-                                  member.name,
-                                  role.value,
-                                )
-                              }
-                              disabled={isLoading}
-                            >
-                              {role.label}
-                            </DropdownMenuItem>
-                          ))}
-                        <DropdownMenuItem
-                          onClick={() => setMemberToRemove(member.id)}
-                          disabled={isLoading}
-                          className="text-red-500 focus:text-red-500"
-                        >
-                          Remove from Team
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                )
-              },
+              cell: ({ row }) => memberActions(row.original),
             },
           ]}
+          mobileCard={(row) => {
+            const member = row.original
+            return (
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex min-w-0 flex-col gap-1.5">
+                  <span className="truncate text-sm font-medium">
+                    {member.name || '—'}
+                  </span>
+                  <span className="truncate text-xs text-gray-500">
+                    {member.email}
+                  </span>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {memberRoleBadge(member)}
+                    <span className=" text-xs text-gray-500">
+                      Joined {formatDate(member.created_at)}
+                    </span>
+                  </div>
+                </div>
+                {memberActions(member)}
+              </div>
+            )
+          }}
         />
       )}
 

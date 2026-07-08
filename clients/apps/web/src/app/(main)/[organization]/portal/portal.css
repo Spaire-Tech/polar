@@ -23,6 +23,12 @@
   --sp-radius: 14px;
   --sp-radius-sm: 10px;
   --sp-radius-pill: 999px;
+  /* Fluid type scale — headings track the viewport between phone and
+     desktop sizes instead of jumping at the breakpoint. */
+  --sp-fs-page-title: clamp(26px, 7vw, 30px);
+  --sp-fs-sec-title: clamp(16px, 4vw, 18px);
+  --sp-fs-stat-value: clamp(22px, 5.5vw, 28px);
+  --sp-fs-plan-title: clamp(20px, 5vw, 24px);
   --sp-font:
     'Poppins', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
 
@@ -337,7 +343,7 @@
   flex-wrap: wrap;
 }
 .spaire-portal .sp-page-title {
-  font-size: 30px;
+  font-size: var(--sp-fs-page-title);
   font-weight: 600;
   letter-spacing: -0.025em;
   margin: 0;
@@ -545,6 +551,14 @@
   cursor: not-allowed;
 }
 
+/* ── Manage links (Overview) ──────────────────────────────────────────── */
+.spaire-portal .sp-manage {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 48px;
+}
+
 /* ── Section header ───────────────────────────────────────────────────── */
 .spaire-portal .sp-sec-head {
   display: flex;
@@ -553,7 +567,7 @@
   margin: 8px 0 16px;
 }
 .spaire-portal .sp-sec-title {
-  font-size: 18px;
+  font-size: var(--sp-fs-sec-title);
   font-weight: 600;
   letter-spacing: -0.015em;
   margin: 0;
@@ -664,7 +678,7 @@
   font-weight: 500;
 }
 .spaire-portal .sp-stat-value {
-  font-size: 28px;
+  font-size: var(--sp-fs-stat-value);
   font-weight: 600;
   letter-spacing: -0.025em;
   color: var(--sp-ink);
@@ -693,7 +707,7 @@
   margin-bottom: 10px;
 }
 .spaire-portal .sp-plan-title {
-  font-size: 24px;
+  font-size: var(--sp-fs-plan-title);
   font-weight: 600;
   letter-spacing: -0.02em;
   margin-bottom: 6px;
@@ -1353,7 +1367,6 @@
     margin-bottom: 18px;
   }
   .spaire-portal .sp-page-title {
-    font-size: 28px;
     letter-spacing: -0.03em;
     line-height: 1.1;
   }
@@ -1364,14 +1377,51 @@
   .spaire-portal .sp-sec-head {
     margin: 24px 0 12px;
   }
-  .spaire-portal .sp-sec-title {
-    font-size: 16px;
-  }
 
   /* Course / download grids collapse to a single column. */
   .spaire-portal .sp-grid {
     grid-template-columns: 1fr;
     gap: 22px;
+  }
+  /* "Continue" becomes a Netflix-style horizontal rail: wide swipeable
+     cards with scroll snap, bleeding to the page edges. Progress bars on
+     the cards stay visible. */
+  .spaire-portal .sp-grid--rail {
+    display: flex;
+    gap: 12px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+    margin-left: -16px;
+    margin-right: -16px;
+    padding: 0 16px 6px;
+  }
+  .spaire-portal .sp-grid--rail::-webkit-scrollbar {
+    display: none;
+  }
+  .spaire-portal .sp-grid--rail > * {
+    flex: 0 0 78%;
+    scroll-snap-align: start;
+  }
+  /* A rail with a single card reads better full-width. */
+  .spaire-portal .sp-grid--rail > *:only-child {
+    flex-basis: 100%;
+  }
+
+  /* Manage links become full-width tappable rows instead of small
+     side-by-side ghost buttons. */
+  .spaire-portal .sp-manage {
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 32px;
+  }
+  .spaire-portal .sp-manage .sp-btn {
+    width: 100%;
+    justify-content: space-between;
+    padding: 14px 16px;
+    font-size: 14px;
   }
   .spaire-portal .sp-card-media {
     aspect-ratio: 16 / 10;
@@ -1408,9 +1458,6 @@
     border-radius: 14px;
     padding: 14px 16px;
     background: var(--sp-surface);
-  }
-  .spaire-portal .sp-stat-value {
-    font-size: 22px;
   }
   .spaire-portal .sp-stat-label {
     font-size: 11px;
