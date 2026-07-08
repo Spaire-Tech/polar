@@ -660,6 +660,13 @@ class CourseService:
                 scope["subscription_id"] = grant.subscription_id
             if grant.order_id is not None:
                 scope["order_id"] = grant.order_id
+            if not scope:
+                # The benefit.revoke task looks the grant up by scope, and
+                # the scope comparator rejects an empty dict — enqueueing
+                # would produce a task that crashes on every retry. Every
+                # purchase path grants with a subscription or order scope,
+                # so this only guards against irregular data.
+                continue
             enqueue_job(
                 "benefit.revoke",
                 customer_id=grant.customer_id,
