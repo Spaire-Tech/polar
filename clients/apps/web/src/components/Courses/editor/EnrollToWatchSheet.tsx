@@ -14,6 +14,7 @@
 
 import type { CourseLessonRead, CourseRead } from '@/hooks/queries/courses'
 import type { schemas } from '@spaire/client'
+import { formatCurrency } from '@spaire/currency'
 import { useEffect } from 'react'
 import { createPortal } from 'react-dom'
 
@@ -84,12 +85,7 @@ function readPricing(product: schemas['Product'] | undefined): {
   }
   const cents = fixed.price_amount
   const currency = (fixed.price_currency ?? 'usd').toLowerCase()
-  const symbol = currency === 'usd' ? '$' : currency === 'eur' ? '€' : ''
-  const dollars = cents / 100
-  const formatted =
-    dollars === Math.floor(dollars)
-      ? `${symbol}${dollars.toFixed(0)}`
-      : `${symbol}${dollars.toFixed(2)}`
+  const formatted = formatCurrency('compact')(cents, currency)
   const interval = fixed.recurring_interval ?? null
   const isRecurring = !!interval
   const cycleLabel = isRecurring ? ` / ${interval}` : ''
