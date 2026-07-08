@@ -166,6 +166,19 @@ export function PublicPortalView({
     },
     [landing.id],
   )
+  // Up Next on the landing: only advance to the next lesson the visitor is
+  // actually allowed to preview — a locked next lesson ends the player
+  // normally (the lesson list right behind it is the enroll pitch).
+  const nextPreview = useMemo(() => {
+    if (!watching) return null
+    const idx = landing.lessons.findIndex((l) => l.id === watching.id)
+    if (idx < 0) return null
+    const nl = landing.lessons[idx + 1]
+    if (!nl || !nl.mux_playback_id) return null
+    if (!(nl.is_free_preview || allLessonsOpen)) return null
+    return { lesson: nl, n: idx + 2 }
+  }, [watching, landing.lessons, allLessonsOpen])
+
   const [watchState, setWatchState] = useState<WatchState>({
     p: {},
     done: [],
@@ -611,6 +624,8 @@ export function PublicPortalView({
           (Resume + completion) persisted per course in localStorage. */}
       {watching && (
         <WatchPlayer
+          // Keyed by lesson so Up Next's swap is a clean remount.
+          key={watching.id}
           lesson={{
             n: lessonNumber(watching),
             title: watching.title,
@@ -629,6 +644,18 @@ export function PublicPortalView({
           onClose={() => setWatching(null)}
           onProgress={(frac) => onWatchProgress(watching.id, frac)}
           onComplete={() => onWatchComplete(watching.id)}
+          nextLesson={
+            nextPreview
+              ? {
+                  n: nextPreview.n,
+                  title: nextPreview.lesson.title,
+                  thumbnailUrl: nextPreview.lesson.thumbnail_url,
+                }
+              : null
+          }
+          onPlayNext={
+            nextPreview ? () => void openWatch(nextPreview.lesson) : undefined
+          }
         />
       )}
 

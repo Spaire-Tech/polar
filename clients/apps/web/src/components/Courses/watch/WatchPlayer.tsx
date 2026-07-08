@@ -15,6 +15,11 @@
 //   • hover-scrub thumbnails — hovering or dragging the scrub bar shows
 //     a floating frame preview from the Mux storyboard (plus timestamp);
 //     lessons without a storyboard fall back to a timestamp-only pill
+//   • Up Next — in the final seconds an autoplay card slides in (glass,
+//     thumbnail, countdown ring); the video's end advances to the next
+//     lesson unless the viewer cancelled. Rendered only when the parent
+//     passes nextLesson + onPlayNext, and it outlives the chrome fade —
+//     it's a prompt, not a control.
 //   • captions button — wired to the video's text tracks; only rendered
 //     when the asset actually carries captions, and kept in lock-step with
 //     the on-screen captions so the button never lies about the state
@@ -86,9 +91,26 @@ export type WatchLesson = {
   storyboardUrl?: string | null
 }
 
+// What the Up Next card needs to know about the following lesson.
+export type WatchNextLesson = {
+  n: number
+  title: string
+  thumbnailUrl?: string | null
+}
+
 // Display width of the hover-scrub thumbnail; height follows the sprite
 // tile's own aspect ratio.
 const PREVIEW_W = 164
+
+// The Up Next card appears when this little of the lesson remains…
+const UP_NEXT_WINDOW_SECONDS = 10
+// …but never before this fraction has been watched, so a very short clip
+// (or a deep-link near the start) doesn't open with the card already up.
+const UP_NEXT_MIN_FRAC = 0.5
+
+// Countdown ring geometry (r=16.5 inside a 40px viewBox).
+const RING_R = 16.5
+const RING_C = 2 * Math.PI * RING_R
 
 export function WatchPlayer({
   lesson,
@@ -105,6 +127,8 @@ export function WatchPlayer({
   onClose,
   onProgress,
   onComplete,
+  nextLesson,
+  onPlayNext,
 }: {
   lesson: WatchLesson
   courseTitle: string
@@ -120,6 +144,9 @@ export function WatchPlayer({
   onClose: () => void
   onProgress?: (frac: number) => void
   onComplete?: () => void
+  // Up Next autoplay — both must be present for the card to render.
+  nextLesson?: WatchNextLesson | null
+  onPlayNext?: () => void
 }) {
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const containerRef = useRef<HTMLDivElement | null>(null)
@@ -170,6 +197,11 @@ export function WatchPlayer({
   // Hover/drag position on the scrub bar (fraction), for the frame preview.
   const [preview, setPreview] = useState<number | null>(null)
   const storyboard = useStoryboard(lesson.storyboardUrl)
+  // Up Next: cancelled for this lesson? (Parents key the player by lesson,
+  // so a lesson change remounts and re-arms naturally.)
+  const [upNextDismissed, setUpNextDismissed] = useState(false)
+  const upNextDismissedRef = useRef(false)
+  upNextDismissedRef.current = upNextDismissed
   // iOS ignores programmatic volume (it's hardware-controlled), so the
   // slider would be a dead control there — show mute-only instead.
   const [isIOS] = useState(
@@ -579,12 +611,22 @@ export function WatchPlayer({
     lesson.muxPlaybackId ||
     (lesson.playbackUrl && lesson.playbackUrl.includes('.m3u8')),
   )
+  // Advance to the next lesson — flush a final progress report first so
+  // the finished lesson's watch state lands before the swap.
+  const goNext = useCallback(() => {
+    if (!onPlayNext) return
+    if (fracRef.current > 0) onProgress?.(fracRef.current)
+    onPlayNext()
+  }, [onPlayNext, onProgress])
+
   const onEndedCb = useCallback(() => {
     if (!done.current) {
       done.current = true
       onComplete?.()
     }
-  }, [onComplete])
+    // The clip ran out with the card still armed → this is the autoplay.
+    if (nextLesson && onPlayNext && !upNextDismissedRef.current) goNext()
+  }, [onComplete, nextLesson, onPlayNext, goNext])
 
   const effVol = muted ? 0 : volume
   const volGlyph =
@@ -598,6 +640,24 @@ export function WatchPlayer({
   const previewT = preview != null && dur > 0 ? preview * dur : null
   const previewCue = previewT != null ? cueAt(storyboard, previewT) : null
   const previewScale = previewCue ? PREVIEW_W / previewCue.w : 1
+
+  // Up Next: armed in the final window, unless cancelled. Derived from the
+  // video clock, so scrubbing back out of the window hides it again and
+  // pausing freezes the countdown.
+  const remaining = Math.max(0, dur - t)
+  const upNextVisible = Boolean(
+    nextLesson &&
+      onPlayNext &&
+      !upNextDismissed &&
+      dur > 0 &&
+      remaining <= UP_NEXT_WINDOW_SECONDS &&
+      frac >= UP_NEXT_MIN_FRAC,
+  )
+  const upNextCountdown = Math.ceil(Math.min(UP_NEXT_WINDOW_SECONDS, remaining))
+  const upNextRingP = Math.max(
+    0,
+    Math.min(1, remaining / UP_NEXT_WINDOW_SECONDS),
+  )
 
   return (
     <div
@@ -885,6 +945,71 @@ export function WatchPlayer({
           </div>
         </div>
       </div>
+
+      {upNextVisible && nextLesson && (
+        <div className="upnext">
+          <button
+            className="upnext-card"
+            onClick={goNext}
+            aria-label={`Play next: Lesson ${nextLesson.n} · ${nextLesson.title}`}
+          >
+            {nextLesson.thumbnailUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                className="upnext-thumb"
+                src={nextLesson.thumbnailUrl}
+                alt=""
+                draggable={false}
+              />
+            ) : (
+              <span className="upnext-thumb ph">
+                <Glyph d={SF.play2} size={18} stroke={1.8} />
+              </span>
+            )}
+            <span className="upnext-main">
+              <span className="upnext-k">
+                Up next · in {upNextCountdown}s
+              </span>
+              <span className="upnext-t">
+                Lesson {nextLesson.n} · {nextLesson.title}
+              </span>
+            </span>
+            <span className="upnext-ring" aria-hidden>
+              <svg width="40" height="40" viewBox="0 0 40 40">
+                <circle
+                  cx="20"
+                  cy="20"
+                  r={RING_R}
+                  fill="none"
+                  stroke="rgba(255,255,255,0.22)"
+                  strokeWidth="2.5"
+                />
+                {/* Drains clockwise from 12 o'clock as the clip runs out. */}
+                <circle
+                  cx="20"
+                  cy="20"
+                  r={RING_R}
+                  fill="none"
+                  stroke="#fff"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeDasharray={RING_C}
+                  strokeDashoffset={RING_C * (1 - upNextRingP)}
+                  transform="rotate(-90 20 20)"
+                />
+              </svg>
+              <Glyph d={SF.play} size={14} fill="currentColor" />
+            </span>
+          </button>
+          <button
+            className="upnext-x"
+            onClick={() => setUpNextDismissed(true)}
+            aria-label="Cancel autoplay"
+          >
+            <Glyph d={SF.close} size={13} stroke={2.2} />
+          </button>
+        </div>
+      )}
 
       {side === 'discussion' && hasDiscussion && (
         <CommentsPanel

@@ -413,6 +413,19 @@ export function WatchHome({
     startSec: number
   } | null>(null)
 
+  // Up Next: the lesson right after the one playing, when it's a watchable
+  // video (not drip-locked, video processed). A text/quiz lesson or a lock
+  // is a genuine mode change, so the player ends normally there instead.
+  const nextUp = useMemo(() => {
+    if (!playing) return null
+    const idx = lessons.findIndex((l) => l.id === playing.lesson.id)
+    if (idx < 0) return null
+    const nl = lessons[idx + 1]
+    if (!nl || nl.locked || nl.content_type !== 'video' || !nl.mux_playback_id)
+      return null
+    return { lesson: nl, n: idx + 2 }
+  }, [playing, lessons])
+
   const playLesson = useCallback(
     async (l: WatchLessonData, startOverride?: number) => {
       if (l.locked) {
@@ -1105,6 +1118,9 @@ export function WatchHome({
 
       {playing && (
         <WatchPlayer
+          // Keyed by lesson so Up Next's swap is a clean remount: fresh
+          // clock, completion flag, and Up Next arm state per lesson.
+          key={playing.lesson.id}
           lesson={{
             n: lessons.findIndex((l) => l.id === playing.lesson.id) + 1,
             title: playing.lesson.title,
@@ -1130,6 +1146,18 @@ export function WatchHome({
           }}
           onProgress={(f) => onPlayerProgress(playing.lesson.id, f)}
           onComplete={() => onPlayerComplete(playing.lesson.id)}
+          nextLesson={
+            nextUp
+              ? {
+                  n: nextUp.n,
+                  title: nextUp.lesson.title,
+                  thumbnailUrl: nextUp.lesson.thumbnail_url,
+                }
+              : null
+          }
+          onPlayNext={
+            nextUp ? () => void playLesson(nextUp.lesson, 0) : undefined
+          }
         />
       )}
 

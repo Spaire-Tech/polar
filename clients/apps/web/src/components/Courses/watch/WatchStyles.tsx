@@ -797,6 +797,116 @@ export function WatchStyles() {
         color: #fff;
       }
 
+      /* Up Next — the autoplay card in the final seconds. A sibling of the
+         chrome, deliberately NOT in the ui-hidden selectors: the prompt
+         stays up even when the controls have faded. */
+      .sov2 .upnext {
+        position: absolute;
+        right: 36px;
+        bottom: 132px;
+        z-index: 6;
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+        animation: sov2-upnextIn 0.45s cubic-bezier(0.2, 1, 0.3, 1);
+      }
+      @keyframes sov2-upnextIn {
+        from {
+          opacity: 0;
+          transform: translateY(14px) scale(0.97);
+        }
+      }
+      .sov2 .upnext-card {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        max-width: 380px;
+        padding: 10px 14px 10px 10px;
+        border-radius: 18px;
+        background: rgba(28, 28, 32, 0.72);
+        -webkit-backdrop-filter: blur(40px) saturate(150%);
+        backdrop-filter: blur(40px) saturate(150%);
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5),
+          inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+        color: #fff;
+        text-align: left;
+        transition: background 0.18s, transform 0.16s;
+      }
+      .sov2 .upnext-card:hover {
+        background: rgba(46, 46, 52, 0.78);
+        transform: scale(1.02);
+      }
+      .sov2 .upnext-card:active {
+        transform: scale(0.98);
+      }
+      .sov2 .upnext-thumb {
+        flex: none;
+        width: 72px;
+        height: 44px;
+        border-radius: 10px;
+        object-fit: cover;
+        background: rgba(255, 255, 255, 0.08);
+      }
+      .sov2 .upnext-thumb.ph {
+        display: grid;
+        place-items: center;
+        color: rgba(255, 255, 255, 0.7);
+      }
+      .sov2 .upnext-main {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+      }
+      .sov2 .upnext-k {
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, 0.6);
+        font-variant-numeric: tabular-nums;
+      }
+      .sov2 .upnext-t {
+        font-size: 14px;
+        font-weight: 600;
+        margin-top: 2px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .sov2 .upnext-ring {
+        position: relative;
+        flex: none;
+        width: 40px;
+        height: 40px;
+        display: grid;
+        place-items: center;
+      }
+      .sov2 .upnext-ring svg {
+        position: absolute;
+        inset: 0;
+      }
+      .sov2 .upnext-x {
+        flex: none;
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        background: rgba(28, 28, 32, 0.72);
+        -webkit-backdrop-filter: blur(40px) saturate(150%);
+        backdrop-filter: blur(40px) saturate(150%);
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+        color: #fff;
+        display: grid;
+        place-items: center;
+        transition: background 0.18s, transform 0.16s;
+      }
+      .sov2 .upnext-x:hover {
+        background: rgba(46, 46, 52, 0.78);
+        transform: scale(1.06);
+      }
+      .sov2 .upnext-x:active {
+        transform: scale(0.92);
+      }
+
       .sov2 .player-cc {
         position: absolute;
         left: 50%;
@@ -1128,6 +1238,13 @@ export function WatchStyles() {
            mute-only on small screens (system volume rules there anyway). */
         .sov2 .pvol-slider {
           display: none;
+        }
+        .sov2 .upnext {
+          right: 20px;
+          bottom: 124px;
+        }
+        .sov2 .upnext-card {
+          max-width: min(320px, calc(100vw - 76px));
         }
         .sov2 .xs-body {
           padding: 24px 22px 28px;

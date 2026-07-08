@@ -70,6 +70,9 @@ export default function WatchEmbedPage() {
   const [storyboardUrl, setStoryboardUrl] = useState<string | null>(null)
   const [open, setOpen] = useState(true)
   const [progressLog, setProgressLog] = useState<number[]>([])
+  // Up Next harness state: advancing replays the same clip as lesson n+1.
+  // &next=0 exercises the no-next-lesson case (no card, normal ending).
+  const [lessonN, setLessonN] = useState(2)
 
   useEffect(() => {
     setParams(new URLSearchParams(window.location.search))
@@ -220,8 +223,9 @@ export default function WatchEmbedPage() {
       />
       {open && url && (
         <WatchPlayer
+          key={lessonN}
           lesson={{
-            n: 2,
+            n: lessonN,
             title: 'The Athlete’s Mindset',
             playbackUrl: url,
             storyboardUrl,
@@ -235,6 +239,20 @@ export default function WatchEmbedPage() {
           onClose={() => setOpen(false)}
           onProgress={(f) => setProgressLog((l) => [...l, f])}
           onComplete={() => setProgressLog((l) => [...l, 1])}
+          nextLesson={
+            params.get('next') !== '0'
+              ? {
+                  n: lessonN + 1,
+                  title: 'Serving Under Pressure',
+                  thumbnailUrl: null,
+                }
+              : null
+          }
+          onPlayNext={
+            params.get('next') !== '0'
+              ? () => setLessonN((n) => n + 1)
+              : undefined
+          }
         />
       )}
     </div>
