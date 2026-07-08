@@ -6,6 +6,12 @@
 //
 //   • scrub bar (click + drag) with buffered shading and knob
 //   • ±10s skips, big center play, space/←/→/Esc/f keys
+//   • volume + mute — hover-expanding glass slider, M / ↑ / ↓ keys,
+//     level persisted across lessons (mute-only on iOS, where page
+//     volume is hardware-controlled)
+//   • playback speed — 0.5×–2× glass menu, persisted across lessons
+//   • buffering spinner — a hairline arc whenever playback stalls
+//     mid-stream, so a rebuffer never looks like a frozen frame
 //   • captions button — wired to the video's text tracks; only rendered
 //     when the asset actually carries captions, and kept in lock-step with
 //     the on-screen captions so the button never lies about the state
@@ -22,6 +28,48 @@ import { HlsVideo } from '../HlsVideo'
 import { Glyph, SF, SkipIcon, fmtTime } from './WatchGlyphs'
 import { CommentsPanel, type WatchComment } from './WatchSheets'
 import { WatchStyles } from './WatchStyles'
+
+// Viewer preferences that outlive a single lesson (volume, mute, speed).
+// A 1.5× learner stays at 1.5× for the whole course — and the next one.
+const PREFS_KEY = 'polar-watch-player-prefs'
+const RATES = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2] as const
+
+type PlayerPrefs = { volume: number; muted: boolean; rate: number }
+const DEFAULT_PREFS: PlayerPrefs = { volume: 1, muted: false, rate: 1 }
+
+function loadPrefs(): PlayerPrefs {
+  if (typeof window === 'undefined') return DEFAULT_PREFS
+  try {
+    const raw = window.localStorage.getItem(PREFS_KEY)
+    if (!raw) return DEFAULT_PREFS
+    const p = JSON.parse(raw) as Partial<PlayerPrefs>
+    return {
+      volume:
+        typeof p.volume === 'number'
+          ? Math.min(1, Math.max(0, p.volume))
+          : DEFAULT_PREFS.volume,
+      muted: p.muted === true,
+      rate:
+        typeof p.rate === 'number' && (RATES as readonly number[]).includes(p.rate)
+          ? p.rate
+          : DEFAULT_PREFS.rate,
+    }
+  } catch {
+    return DEFAULT_PREFS
+  }
+}
+
+function savePrefs(patch: Partial<PlayerPrefs>) {
+  if (typeof window === 'undefined') return
+  try {
+    window.localStorage.setItem(
+      PREFS_KEY,
+      JSON.stringify({ ...loadPrefs(), ...patch }),
+    )
+  } catch {
+    /* storage unavailable (private mode) — prefs just don't persist */
+  }
+}
 
 export type WatchLesson = {
   n: number
@@ -86,11 +134,48 @@ export function WatchPlayer({
   const startedRef = useRef(false)
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
+  // ── volume / speed / stall state ──
+  // Initialized from persisted prefs; safe because the player only ever
+  // mounts client-side (opened by a user interaction, never SSR'd).
+  const [volume, setVolume] = useState(() => loadPrefs().volume)
+  const [muted, setMuted] = useState(() => loadPrefs().muted)
+  const [rate, setRate] = useState(() => loadPrefs().rate)
+  const [rateOpen, setRateOpen] = useState(false)
+  const [volOpen, setVolOpen] = useState(false)
+  const [stalled, setStalled] = useState(false)
+  // Mirrors for the polling loop / element wiring, same pattern as ccRef.
+  const volumeRef = useRef(volume)
+  volumeRef.current = volume
+  const mutedRef = useRef(muted)
+  mutedRef.current = muted
+  const rateRef = useRef(rate)
+  rateRef.current = rate
+  const rateOpenRef = useRef(rateOpen)
+  rateOpenRef.current = rateOpen
+  const volBarRef = useRef<HTMLDivElement | null>(null)
+  const volDragging = useRef(false)
+  const volFlashTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const stallTicks = useRef(0)
+  const prateRef = useRef<HTMLDivElement | null>(null)
+  // iOS ignores programmatic volume (it's hardware-controlled), so the
+  // slider would be a dead control there — show mute-only instead.
+  const [isIOS] = useState(
+    () =>
+      typeof navigator !== 'undefined' &&
+      (/iP(hone|od|ad)/.test(navigator.userAgent) ||
+        (navigator.userAgent.includes('Mac') && navigator.maxTouchPoints > 1)),
+  )
+
   // ── element wiring ──
   const onVideoEl = useCallback(
     (el: HTMLVideoElement | null) => {
       videoRef.current = el
       if (!el) return
+      // Apply the viewer's persisted prefs before anything plays, so a
+      // lesson never opens at the wrong loudness or speed.
+      el.volume = volumeRef.current
+      el.muted = mutedRef.current
+      el.playbackRate = rateRef.current
       const begin = () => {
         if (startedRef.current) return
         startedRef.current = true
@@ -123,6 +208,23 @@ export function WatchPlayer({
       } catch {
         /* ignore */
       }
+      // Mirror the element's volume/mute so the speaker button can never
+      // lie (autoplay policies and hls.js can both flip `muted`); re-assert
+      // the playback rate the same defensive way captions are handled.
+      setVolume(el.volume)
+      setMuted(el.muted)
+      if (el.playbackRate !== rateRef.current) {
+        el.playbackRate = rateRef.current
+      }
+      // Stall detection: playing, but without enough data to keep going.
+      // Two consecutive ticks (~500ms) before showing the spinner so a
+      // normal seek or a healthy segment switch never flashes it.
+      if (!el.paused && !el.ended && el.readyState < 3) {
+        stallTicks.current += 1
+      } else {
+        stallTicks.current = 0
+      }
+      setStalled(stallTicks.current >= 2)
       // Detect caption tracks and keep their visibility pinned to the
       // viewer's choice. Re-asserting every tick (not just on toggle) means
       // nothing else — hls.js, the browser, or OS caption settings — can
@@ -161,8 +263,16 @@ export function WatchPlayer({
     if (hideTimer.current) clearTimeout(hideTimer.current)
     hideTimer.current = setTimeout(() => {
       // Only fade out while the video is actually playing — a paused
-      // player always keeps its controls visible.
-      if (videoRef.current && !videoRef.current.paused) setUiVisible(false)
+      // player always keeps its controls visible. An open speed menu or a
+      // volume drag counts as interacting: never fade mid-adjustment.
+      if (
+        videoRef.current &&
+        !videoRef.current.paused &&
+        !rateOpenRef.current &&
+        !volDragging.current
+      ) {
+        setUiVisible(false)
+      }
     }, 3000)
   }, [])
 
@@ -172,19 +282,21 @@ export function WatchPlayer({
     else if (hideTimer.current) clearTimeout(hideTimer.current)
   }, [scheduleHide])
 
-  // Keep chrome up whenever paused; restart the idle countdown on play.
+  // Keep chrome up whenever paused or while the speed menu is open;
+  // restart the idle countdown on play / menu close.
   useEffect(() => {
-    if (paused) {
+    if (paused || rateOpen) {
       if (hideTimer.current) clearTimeout(hideTimer.current)
       setUiVisible(true)
     } else {
       scheduleHide()
     }
-  }, [paused, scheduleHide])
+  }, [paused, rateOpen, scheduleHide])
 
   useEffect(
     () => () => {
       if (hideTimer.current) clearTimeout(hideTimer.current)
+      if (volFlashTimer.current) clearTimeout(volFlashTimer.current)
     },
     [],
   )
@@ -263,6 +375,75 @@ export function WatchPlayer({
     else el.pause()
   }, [])
 
+  // ── volume + mute ──
+  // The element is the single source of truth: every path writes to it
+  // synchronously and mirrors into state, and the poll keeps them honest.
+  const applyVolume = useCallback((v: number) => {
+    const el = videoRef.current
+    if (!el) return
+    const clamped = Math.min(1, Math.max(0, v))
+    el.volume = clamped
+    // Dragging to zero reads as mute; any audible level unmutes.
+    el.muted = clamped === 0
+    setVolume(clamped)
+    setMuted(el.muted)
+    savePrefs({ volume: clamped, muted: el.muted })
+  }, [])
+
+  const toggleMute = useCallback(() => {
+    const el = videoRef.current
+    if (!el) return
+    if (el.muted || el.volume === 0) {
+      el.muted = false
+      // Unmuting at zero volume would be a silent no-op — restore to half.
+      if (el.volume === 0) el.volume = 0.5
+    } else {
+      el.muted = true
+    }
+    setMuted(el.muted)
+    setVolume(el.volume)
+    savePrefs({ muted: el.muted, volume: el.volume })
+  }, [])
+
+  // Briefly expand the slider capsule after a keyboard volume change so
+  // the level is visible without needing the pointer on the button.
+  const flashVolume = useCallback(() => {
+    setVolOpen(true)
+    if (volFlashTimer.current) clearTimeout(volFlashTimer.current)
+    volFlashTimer.current = setTimeout(() => setVolOpen(false), 1200)
+  }, [])
+
+  const setVolFromX = useCallback(
+    (clientX: number) => {
+      const bar = volBarRef.current
+      if (!bar) return
+      const r = bar.getBoundingClientRect()
+      applyVolume((clientX - r.left) / r.width)
+    },
+    [applyVolume],
+  )
+
+  // ── playback speed ──
+  const selectRate = useCallback((r: number) => {
+    setRate(r)
+    setRateOpen(false)
+    const el = videoRef.current
+    if (el) el.playbackRate = r
+    savePrefs({ rate: r })
+  }, [])
+
+  // Close the speed menu on any press outside it.
+  useEffect(() => {
+    if (!rateOpen) return
+    const onDown = (e: PointerEvent) => {
+      if (prateRef.current && !prateRef.current.contains(e.target as Node)) {
+        setRateOpen(false)
+      }
+    }
+    window.addEventListener('pointerdown', onDown)
+    return () => window.removeEventListener('pointerdown', onDown)
+  }, [rateOpen])
+
   const seekBy = useCallback((delta: number) => {
     const el = videoRef.current
     if (!el || !Number.isFinite(el.duration)) return
@@ -308,7 +489,8 @@ export function WatchPlayer({
       if ((e.target as HTMLElement)?.tagName === 'INPUT') return
       revealUi()
       if (e.key === 'Escape') {
-        if (side) setSide(null)
+        if (rateOpen) setRateOpen(false)
+        else if (side) setSide(null)
         // While fullscreen, the browser already exits fullscreen on Escape —
         // don't also tear down the whole player out from under the viewer.
         else if (document.fullscreenElement) return
@@ -318,11 +500,31 @@ export function WatchPlayer({
         togglePlay()
       } else if (e.key === 'ArrowRight') seekBy(10)
       else if (e.key === 'ArrowLeft') seekBy(-10)
+      else if (e.key === 'ArrowUp') {
+        e.preventDefault()
+        applyVolume((mutedRef.current ? 0 : volumeRef.current) + 0.05)
+        flashVolume()
+      } else if (e.key === 'ArrowDown') {
+        e.preventDefault()
+        applyVolume(volumeRef.current - 0.05)
+        flashVolume()
+      } else if (e.key === 'm' || e.key === 'M') toggleMute()
       else if (e.key === 'f' || e.key === 'F') toggleFullscreen()
     }
     window.addEventListener('keydown', h)
     return () => window.removeEventListener('keydown', h)
-  }, [side, exit, togglePlay, seekBy, revealUi, toggleFullscreen])
+  }, [
+    side,
+    rateOpen,
+    exit,
+    togglePlay,
+    seekBy,
+    revealUi,
+    toggleFullscreen,
+    applyVolume,
+    flashVolume,
+    toggleMute,
+  ])
 
   // Lock page scroll while the player is up.
   useEffect(() => {
@@ -347,6 +549,14 @@ export function WatchPlayer({
       onComplete?.()
     }
   }, [onComplete])
+
+  const effVol = muted ? 0 : volume
+  const volGlyph =
+    muted || volume === 0
+      ? SF.audioMuted
+      : volume < 0.55
+        ? SF.audioLow
+        : SF.audio
 
   return (
     <div
@@ -388,6 +598,10 @@ export function WatchPlayer({
         >
           <Glyph d={SF.play} size={44} fill="#fff" />
         </button>
+      )}
+
+      {stalled && (
+        <div className="player-spin" role="status" aria-label="Loading" />
       )}
 
       <div className="player-top">
@@ -464,6 +678,88 @@ export function WatchPlayer({
             </button>
           </div>
           <div className="tp-right">
+            <div className={`pvol ${volOpen ? 'open' : ''}`}>
+              {/* Slider precedes the button so the capsule grows leftward
+                  into empty space instead of shoving the other controls.
+                  Hidden on iOS, where page volume is hardware-only. */}
+              {!isIOS && (
+                <div
+                  className="pvol-slider"
+                  role="slider"
+                  aria-label="Volume"
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={Math.round(effVol * 100)}
+                  onPointerDown={(e) => {
+                    e.currentTarget.setPointerCapture(e.pointerId)
+                    volDragging.current = true
+                    setVolOpen(true)
+                    if (volFlashTimer.current)
+                      clearTimeout(volFlashTimer.current)
+                    setVolFromX(e.clientX)
+                  }}
+                  onPointerMove={(e) => {
+                    if (volDragging.current) setVolFromX(e.clientX)
+                  }}
+                  onPointerUp={() => {
+                    volDragging.current = false
+                    setVolOpen(false)
+                  }}
+                  onPointerCancel={() => {
+                    volDragging.current = false
+                    setVolOpen(false)
+                  }}
+                >
+                  <div className="pvol-track" ref={volBarRef}>
+                    <div
+                      className="pvol-fill"
+                      style={{ width: `${effVol * 100}%` }}
+                    />
+                    <div
+                      className="pvol-knob"
+                      style={{ left: `${effVol * 100}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+              <button
+                className="pbtn sm"
+                onClick={toggleMute}
+                aria-label={muted ? 'Unmute' : 'Mute'}
+                aria-pressed={muted}
+              >
+                <Glyph d={volGlyph} size={21} stroke={1.9} />
+              </button>
+            </div>
+            <div className="prate" ref={prateRef}>
+              <button
+                className={`pbtn sm ${rate !== 1 ? 'on' : ''}`}
+                onClick={() => setRateOpen((o) => !o)}
+                aria-label="Playback speed"
+                aria-expanded={rateOpen}
+              >
+                <span className="prate-label">{rate}&times;</span>
+              </button>
+              {rateOpen && (
+                <div className="pmenu" role="menu">
+                  <div className="pmenu-title">Speed</div>
+                  {RATES.map((r) => (
+                    <button
+                      key={r}
+                      className={`pmenu-item ${r === rate ? 'on' : ''}`}
+                      role="menuitemradio"
+                      aria-checked={r === rate}
+                      onClick={() => selectRate(r)}
+                    >
+                      <span>{r}&times;</span>
+                      {r === rate && (
+                        <Glyph d={SF.check} size={14} stroke={2.4} />
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
             {hasCaptions && (
               <button
                 className={`pbtn sm ${cc ? 'on' : ''}`}
