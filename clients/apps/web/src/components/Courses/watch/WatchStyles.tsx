@@ -19,10 +19,12 @@ export function WatchStyles() {
         --blue: #0071e3;
         --hair: rgba(0, 0, 0, 0.12);
         --ans: #4a4a4f;
-        --sf: -apple-system, BlinkMacSystemFont, 'SF Pro Display',
-          'SF Pro Text', system-ui, sans-serif;
-        --po: 'Poppins', var(--font-poppins), -apple-system,
-          BlinkMacSystemFont, system-ui, sans-serif;
+        --sf:
+          -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text',
+          system-ui, sans-serif;
+        --po:
+          'Poppins', var(--font-poppins), -apple-system, BlinkMacSystemFont,
+          system-ui, sans-serif;
         font-family: var(--sf);
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
@@ -80,7 +82,8 @@ export function WatchStyles() {
         overflow: hidden;
         background: var(--bg);
         color: var(--text);
-        box-shadow: 0 50px 100px rgba(0, 0, 0, 0.4),
+        box-shadow:
+          0 50px 100px rgba(0, 0, 0, 0.4),
           0 8px 28px rgba(0, 0, 0, 0.2);
         animation: sov2-sheetIn 0.42s cubic-bezier(0.2, 1, 0.3, 1);
       }
@@ -175,7 +178,9 @@ export function WatchStyles() {
         backdrop-filter: blur(14px) saturate(150%);
         display: grid;
         place-items: center;
-        transition: background 0.18s, transform 0.16s;
+        transition:
+          background 0.18s,
+          transform 0.16s;
       }
       .sov2 .xs-close:hover {
         background: rgba(40, 40, 46, 0.7);
@@ -204,7 +209,10 @@ export function WatchStyles() {
         font-size: 16px;
         font-weight: 600;
         letter-spacing: -0.01em;
-        transition: transform 0.16s, opacity 0.16s, background 0.4s ease,
+        transition:
+          transform 0.16s,
+          opacity 0.16s,
+          background 0.4s ease,
           color 0.4s ease;
       }
       .sov2 .cta-main:hover {
@@ -226,7 +234,10 @@ export function WatchStyles() {
         box-shadow: inset 0 0 0 1px var(--bt3);
         display: grid;
         place-items: center;
-        transition: background 0.18s, transform 0.16s, color 0.4s ease;
+        transition:
+          background 0.18s,
+          transform 0.16s,
+          color 0.4s ease;
       }
       .sov2 .icon-glass:hover {
         transform: scale(1.06);
@@ -414,7 +425,9 @@ export function WatchStyles() {
         backdrop-filter: blur(40px) saturate(150%);
         display: grid;
         place-items: center;
-        transition: background 0.18s, transform 0.16s;
+        transition:
+          background 0.18s,
+          transform 0.16s;
       }
       .sov2 .pbtn:hover {
         background: rgba(255, 255, 255, 0.26);
@@ -512,7 +525,9 @@ export function WatchStyles() {
         display: grid;
         place-items: center;
         padding-left: 6px;
-        transition: background 0.2s, transform 0.16s;
+        transition:
+          background 0.2s,
+          transform 0.16s;
       }
       .sov2 .player-bigplay:hover {
         background: rgba(255, 255, 255, 0.28);
@@ -677,7 +692,9 @@ export function WatchStyles() {
         color: var(--text);
         display: grid;
         place-items: center;
-        transition: background 0.15s, transform 0.15s;
+        transition:
+          background 0.15s,
+          transform 0.15s;
       }
       .sov2 .cmt-x:hover {
         background: rgba(125, 125, 135, 0.28);
@@ -937,6 +954,49 @@ export function WatchStyles() {
         }
         .sov2 .xs-body {
           padding: 24px 22px 28px;
+        }
+      }
+
+      /* ════════ mobile (≤720): overlays become bottom sheets ════════
+         The centered overview modal and the right-side discussion drawer
+         both anchor to the bottom edge and slide up, matching the portal's
+         PortalSheet behavior. */
+      @media (max-width: 720px) {
+        .sov2.sheet-overlay {
+          padding: 0;
+          place-items: end center;
+        }
+        .sov2 .x-sheet,
+        .sov2 .x-sheet.wide {
+          width: 100%;
+          max-height: 92dvh;
+          border-radius: 22px 22px 0 0;
+          padding-bottom: env(safe-area-inset-bottom, 0px);
+          animation: sov2-sheetUp 0.38s cubic-bezier(0.2, 1, 0.3, 1);
+        }
+        .sov2.cmt-overlay {
+          justify-content: stretch;
+          align-items: flex-end;
+        }
+        .sov2 .cmt-panel {
+          width: 100%;
+          height: min(82dvh, 680px);
+          border-radius: 22px 22px 0 0;
+          padding-bottom: env(safe-area-inset-bottom, 0px);
+          box-shadow: 0 -20px 60px rgba(0, 0, 0, 0.3);
+          animation: sov2-panelUp 0.4s cubic-bezier(0.2, 1, 0.3, 1);
+        }
+      }
+      @keyframes sov2-sheetUp {
+        from {
+          transform: translateY(48px);
+          opacity: 0;
+        }
+      }
+      @keyframes sov2-panelUp {
+        from {
+          transform: translateY(64px);
+          opacity: 0;
         }
       }
     `}</style>

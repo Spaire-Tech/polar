@@ -16,6 +16,7 @@
 //   theme        → the course's landing theme (dark landing → dark page)
 
 import {
+  postWatchProgress,
   useCreateLessonComment,
   useDeleteLessonComment,
   useInstructorHeartComment,
@@ -23,7 +24,6 @@ import {
   useLikeLessonComment,
   useMintLessonPlaybackUrl,
   usePinLessonComment,
-  postWatchProgress,
   type CustomerCourseDetail,
 } from '@/hooks/queries/courses'
 import { schemas } from '@spaire/client'
@@ -215,6 +215,19 @@ export function WatchHome({
     () => new Set(Object.keys(data.progress?.completed ?? {})),
     [data.progress],
   )
+
+  // Lesson id → module title, used by the mobile vertical list to insert
+  // group headers. Single-module courses skip the headers entirely.
+  const moduleTitleById = useMemo(() => {
+    const map = new Map<string, string>()
+    const modules = course.modules ?? []
+    if (modules.length > 1) {
+      for (const m of [...modules].sort((a, b) => a.position - b.position)) {
+        for (const l of m.lessons) map.set(l.id, m.title)
+      }
+    }
+    return map
+  }, [course.modules])
 
   /* ── watch positions (server + per-device) + bookmarks ── */
   // Positions are persisted server-side (per enrollment) AND mirrored in
@@ -915,6 +928,85 @@ export function WatchHome({
             </div>
           </>
         )}
+
+        {/* ════ mobile hero — one variant-independent layout (Netflix mobile).
+           WatchPageStyles shows this ≤720px and hides the cover/marquee
+           blocks there, so which hero the creator picked no longer decides
+           whether a phone user sees their progress. ════ */}
+        <div className="m-hero">
+          <div className={`pt-kicker ${status === 'watched' ? 'done' : ''}`}>
+            {kicker}
+          </div>
+          <h1 className="m-hero-title">{ep.title}</h1>
+          <div className="m-hero-meta">
+            {course.title} · {lessons.length} {unitCap.toLowerCase()}
+            {lessons.length === 1 ? '' : 's'} · {fmtRuntime(totalRuntime)}
+          </div>
+          <div className="m-hero-actions">
+            <button
+              className="abtn play"
+              type="button"
+              onClick={() => void playLesson(ep)}
+            >
+              <Glyph d={SF.play} size={15} fill="currentColor" /> {playLabel}{' '}
+              {unitCap} {epN}
+            </button>
+            <div className="m-hero-row">
+              <button
+                className="abtn glass"
+                type="button"
+                onClick={() => setOverviewFor(ep)}
+              >
+                <Glyph d={SF.doc} size={17} stroke={1.9} /> Overview
+              </button>
+              <button
+                className={`icon-glass ${isBookmarked ? 'on' : ''}`}
+                type="button"
+                aria-label="Bookmark lesson"
+                onClick={() => toggleBookmark(ep)}
+              >
+                <Glyph
+                  d={SF.bookmark}
+                  size={19}
+                  fill={isBookmarked ? 'currentColor' : 'none'}
+                  stroke={isBookmarked ? 0 : 2}
+                />
+              </button>
+              {commentsVisible && (
+                <button
+                  className="icon-glass"
+                  type="button"
+                  aria-label="Discussion"
+                  onClick={() => setShowComments(true)}
+                >
+                  <Glyph d={SF.bubble} size={19} stroke={2} />
+                  {comments.length > 0 && (
+                    <span className="icon-badge">{comments.length}</span>
+                  )}
+                </button>
+              )}
+            </div>
+          </div>
+          <div className="cv-progress">
+            <div className="cv-pt">
+              <span>Your progress</span>
+              <span>
+                {lessonsDone} of {progressTotal}
+              </span>
+            </div>
+            <div className="cv-pbar">
+              <i
+                style={{
+                  width: `${
+                    progressTotal
+                      ? Math.round((lessonsDone / progressTotal) * 100)
+                      : 0
+                  }%`,
+                }}
+              />
+            </div>
+          </div>
+        </div>
       </header>
 
       {/* ════════ lesson rail ════════ */}
@@ -1109,6 +1201,102 @@ export function WatchHome({
               )
             })}
           </div>
+        </div>
+
+        {/* ════ mobile vertical lesson list (YouTube-playlist style) —
+           WatchPageStyles shows this ≤720px and hides the horizontal rail
+           there. Rows group under module headers when the course has more
+           than one module. ════ */}
+        <div className="m-list">
+          {lessons.map((l, i) => {
+            const st = statusOf(l)
+            const frac = fractionOf(l)
+            const thumb = l.thumbnail_url ?? course.thumbnail_url
+            const moduleTitle = moduleTitleById.get(l.id)
+            const prevModuleTitle =
+              i > 0 ? moduleTitleById.get(lessons[i - 1]!.id) : undefined
+            const lockedWhen = l.locked ? unlockDateLabel(l.locked_until) : null
+            return (
+              <div key={l.id}>
+                {moduleTitle && moduleTitle !== prevModuleTitle && (
+                  <div className="ml-module">{moduleTitle}</div>
+                )}
+                <div
+                  className={`ml-row ${l.locked ? 'locked' : ''}`}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => void playLesson(l)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault()
+                      void playLesson(l)
+                    }
+                  }}
+                >
+                  <div className="ml-thumb">
+                    <div
+                      className={`img ${thumb ? '' : 'ph'}`}
+                      style={
+                        thumb
+                          ? { backgroundImage: `url("${thumb}")` }
+                          : undefined
+                      }
+                    />
+                    {l.locked ? (
+                      <span className="ml-state">
+                        <Glyph d={SF.locksm} size={10} stroke={2.1} />
+                      </span>
+                    ) : st === 'watched' ? (
+                      <span className="ml-state done">
+                        <Glyph d={SF.check} size={10} stroke={2.8} />
+                      </span>
+                    ) : null}
+                    {l.duration_seconds ? (
+                      <span className="ml-dur">
+                        {fmtTime(l.duration_seconds)}
+                      </span>
+                    ) : null}
+                    {frac != null && (
+                      <span className="ml-progbar">
+                        <i style={{ width: `${frac * 100}%` }} />
+                      </span>
+                    )}
+                  </div>
+                  <div className="ml-info">
+                    <div className="ml-num">
+                      {unitCap} {i + 1}
+                      {bookmarks.has(l.id) ? ' · Saved' : ''}
+                    </div>
+                    <div className="ml-title">{l.title}</div>
+                    <div className="ml-meta">
+                      {l.locked
+                        ? lockedWhen
+                          ? `Unlocks ${lockedWhen}`
+                          : 'Locked'
+                        : st === 'watched'
+                          ? 'Watched'
+                          : st === 'progress'
+                            ? `Continue · ${Math.round((frac ?? 0) * 100)}%`
+                            : l.duration_seconds
+                              ? fmtTime(l.duration_seconds)
+                              : '—'}
+                    </div>
+                  </div>
+                  <button
+                    className="ml-ov"
+                    type="button"
+                    aria-label="Lesson overview"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setOverviewFor(l)
+                    }}
+                  >
+                    <Glyph d={SF.info} size={17} stroke={1.9} />
+                  </button>
+                </div>
+              </div>
+            )
+          })}
         </div>
       </section>
 

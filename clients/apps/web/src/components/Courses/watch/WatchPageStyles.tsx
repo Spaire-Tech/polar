@@ -23,10 +23,12 @@ export function WatchPageStyles() {
         --ans: #4a4a4f;
         --card-bg: #ffffff;
         --card-bd: #e6e6e9;
-        --sf: -apple-system, BlinkMacSystemFont, 'SF Pro Display',
-          'SF Pro Text', system-ui, sans-serif;
-        --po: 'Poppins', var(--font-poppins), -apple-system,
-          BlinkMacSystemFont, system-ui, sans-serif;
+        --sf:
+          -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text',
+          system-ui, sans-serif;
+        --po:
+          'Poppins', var(--font-poppins), -apple-system, BlinkMacSystemFont,
+          system-ui, sans-serif;
         --gut: 64px;
         font-family: var(--sf);
         background: var(--bg);
@@ -89,11 +91,8 @@ export function WatchPageStyles() {
         opacity: 1;
       }
       .sow .hero-layer.ph {
-        background: radial-gradient(
-            42% 52% at 20% 28%,
-            #6e7a5e 0%,
-            transparent 70%
-          ),
+        background:
+          radial-gradient(42% 52% at 20% 28%, #6e7a5e 0%, transparent 70%),
           radial-gradient(46% 56% at 76% 22%, #8a7565 0%, transparent 70%),
           radial-gradient(52% 62% at 62% 82%, #46464c 0%, transparent 72%),
           radial-gradient(36% 46% at 28% 78%, #5d6e6a 0%, transparent 70%),
@@ -399,8 +398,11 @@ export function WatchPageStyles() {
         font-size: 15px;
         font-weight: 600;
         letter-spacing: -0.01em;
-        transition: transform 0.16s cubic-bezier(0.2, 1.2, 0.3, 1),
-          background 0.16s, box-shadow 0.16s, color 0.4s ease;
+        transition:
+          transform 0.16s cubic-bezier(0.2, 1.2, 0.3, 1),
+          background 0.16s,
+          box-shadow 0.16s,
+          color 0.4s ease;
       }
       .sow .abtn:active {
         transform: scale(0.975);
@@ -450,7 +452,10 @@ export function WatchPageStyles() {
         box-shadow: inset 0 0 0 1px var(--bt3);
         display: grid;
         place-items: center;
-        transition: background 0.18s, transform 0.16s, color 0.4s ease;
+        transition:
+          background 0.18s,
+          transform 0.16s,
+          color 0.4s ease;
       }
       .sow .icon-glass:hover {
         transform: scale(1.06);
@@ -574,7 +579,9 @@ export function WatchPageStyles() {
         height: 100%;
         border-radius: 980px;
         background: var(--bt);
-        transition: width 0.5s ease, background 0.4s ease;
+        transition:
+          width 0.5s ease,
+          background 0.4s ease;
       }
 
       /* ════════ lesson rail — catalog cards ════════ */
@@ -634,7 +641,9 @@ export function WatchPageStyles() {
         place-items: center;
         opacity: 0;
         pointer-events: none;
-        transition: opacity 0.2s, color 0.15s;
+        transition:
+          opacity 0.2s,
+          color 0.15s;
       }
       .sow .arrow:hover {
         color: #000;
@@ -668,13 +677,19 @@ export function WatchPageStyles() {
         border: 1px solid var(--card-bd);
         display: flex;
         flex-direction: column;
-        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 4px 16px rgba(0, 0, 0, 0.05);
-        transition: transform 0.26s cubic-bezier(0.34, 1.3, 0.64, 1),
-          box-shadow 0.26s, background 0.4s ease;
+        box-shadow:
+          0 1px 2px rgba(0, 0, 0, 0.04),
+          0 4px 16px rgba(0, 0, 0, 0.05);
+        transition:
+          transform 0.26s cubic-bezier(0.34, 1.3, 0.64, 1),
+          box-shadow 0.26s,
+          background 0.4s ease;
       }
       .sow .lc-catalog:hover .lc-card {
         transform: translateY(-5px);
-        box-shadow: 0 16px 48px rgba(0, 0, 0, 0.14), 0 2px 8px rgba(0, 0, 0, 0.06);
+        box-shadow:
+          0 16px 48px rgba(0, 0, 0, 0.14),
+          0 2px 8px rgba(0, 0, 0, 0.06);
       }
       .sow .lc-thumb {
         position: relative;
@@ -690,11 +705,8 @@ export function WatchPageStyles() {
         background-position: center;
       }
       .sow .lc-thumb .img.ph {
-        background: radial-gradient(
-            42% 52% at 20% 28%,
-            #6e7a5e 0%,
-            transparent 70%
-          ),
+        background:
+          radial-gradient(42% 52% at 20% 28%, #6e7a5e 0%, transparent 70%),
           radial-gradient(46% 56% at 76% 22%, #8a7565 0%, transparent 70%),
           radial-gradient(52% 62% at 62% 82%, #46464c 0%, transparent 72%),
           #57544e;
@@ -792,7 +804,9 @@ export function WatchPageStyles() {
         display: grid;
         place-items: center;
         opacity: 0;
-        transition: opacity 0.2s, background 0.15s;
+        transition:
+          opacity 0.2s,
+          background 0.15s;
       }
       .sow .lc-catalog:hover .lc-ovbtn {
         opacity: 1;
@@ -876,7 +890,8 @@ export function WatchPageStyles() {
         overflow: hidden;
         background: #111;
         box-shadow: 0 14px 14px rgba(0, 0, 0, 0.04);
-        transition: transform 0.26s cubic-bezier(0.34, 1.3, 0.64, 1),
+        transition:
+          transform 0.26s cubic-bezier(0.34, 1.3, 0.64, 1),
           box-shadow 0.26s;
       }
       .sow .lc-spot:hover .spot-card {
@@ -890,11 +905,8 @@ export function WatchPageStyles() {
         background-position: center;
       }
       .sow .spot-card.ph .img {
-        background: radial-gradient(
-            42% 52% at 20% 28%,
-            #6e7a5e 0%,
-            transparent 70%
-          ),
+        background:
+          radial-gradient(42% 52% at 20% 28%, #6e7a5e 0%, transparent 70%),
           radial-gradient(46% 56% at 76% 22%, #8a7565 0%, transparent 70%),
           radial-gradient(52% 62% at 62% 82%, #46464c 0%, transparent 72%),
           #57544e;
@@ -1067,6 +1079,265 @@ export function WatchPageStyles() {
       @media (max-width: 560px) {
         .sow .grid .lc-catalog {
           flex-basis: 82%;
+        }
+      }
+
+      /* ════════ mobile course home (≤720) — Netflix-mobile treatment ════════
+         The desktop cover/marquee hero blocks and the horizontal rail hide;
+         a variant-independent poster hero (.m-hero) and a vertical lesson
+         list (.m-list) take over. Markup for both is always rendered by
+         WatchHome — visibility is purely these media rules. */
+      .sow .m-hero {
+        display: none;
+      }
+      .sow .m-list {
+        display: none;
+      }
+      @media (max-width: 720px) {
+        .sow .panel {
+          height: auto;
+          min-height: min(72svh, 620px);
+        }
+        .sow .panel .hero-content,
+        .sow .panel-title,
+        .sow .band {
+          display: none;
+        }
+        /* Variant-independent bottom scrim so the stacked hero content reads
+           over the still on BOTH hero variants (the marquee otherwise has a
+           side scrim only). Same specificity as the cover rule, later in
+           source, so it wins inside this query. */
+        .sow .panel .panel-scrim,
+        .sow .panel.cover .panel-scrim {
+          background: linear-gradient(
+            to top,
+            rgba(0, 0, 0, 0.9) 0%,
+            rgba(0, 0, 0, 0.5) 36%,
+            rgba(0, 0, 0, 0.12) 68%,
+            transparent 100%
+          );
+        }
+
+        .sow .m-hero {
+          display: flex;
+          flex-direction: column;
+          position: relative;
+          z-index: 4;
+          margin: 0 var(--gut);
+          padding-bottom: 24px;
+          color: #fff;
+        }
+        .sow .m-hero-title {
+          margin: 0;
+          font-family: var(--po);
+          font-size: clamp(28px, 8vw, 38px);
+          font-weight: 700;
+          line-height: 1.05;
+          letter-spacing: -0.025em;
+          display: -webkit-box;
+          -webkit-line-clamp: 3;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
+          overflow-wrap: anywhere;
+          text-shadow: 0 2px 24px rgba(0, 0, 0, 0.45);
+        }
+        .sow .m-hero-meta {
+          margin-top: 10px;
+          font-size: 13px;
+          font-weight: 500;
+          color: rgba(255, 255, 255, 0.78);
+        }
+        .sow .m-hero-actions {
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+          margin-top: 18px;
+        }
+        /* Always light-on-image (the hero sits over a photo on both
+           variants), so colours are fixed like the cover hero's, not
+           theme vars. */
+        .sow .m-hero-actions .abtn {
+          width: 100%;
+          height: 48px;
+          border-radius: 12px;
+        }
+        .sow .m-hero-actions .abtn.play {
+          background: #fff;
+          color: #111;
+        }
+        .sow .m-hero-row {
+          display: flex;
+          gap: 10px;
+        }
+        .sow .m-hero-row .abtn.glass {
+          flex: 1;
+          background: rgba(255, 255, 255, 0.14);
+          color: #fff;
+          box-shadow: none;
+          -webkit-backdrop-filter: blur(30px) saturate(150%);
+          backdrop-filter: blur(30px) saturate(150%);
+        }
+        .sow .m-hero-row .icon-glass {
+          flex: none;
+          width: 48px;
+          height: 48px;
+          border-radius: 12px;
+          background: rgba(255, 255, 255, 0.14);
+          color: #fff;
+          box-shadow: none;
+        }
+        .sow .m-hero-row .icon-glass.on {
+          background: #fff;
+          color: #111;
+        }
+        /* Progress is part of the mobile hero on both variants — never
+           hidden by a breakpoint again. */
+        .sow .m-hero .cv-progress {
+          margin-top: 20px;
+          max-width: none;
+        }
+
+        /* ── vertical lesson list ── */
+        .sow .lessons {
+          padding: 26px var(--gut) 80px;
+        }
+        .sow .strip-wrap {
+          display: none;
+        }
+        .sow .m-list {
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+        }
+        .sow .ml-module {
+          margin: 18px 0 8px;
+          font-size: 12px;
+          font-weight: 700;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          color: var(--text-2);
+        }
+        .sow .ml-row {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          padding: 8px;
+          border-radius: 14px;
+          cursor: pointer;
+          transition: background 0.15s;
+          -webkit-tap-highlight-color: transparent;
+        }
+        .sow .ml-row:active {
+          background: rgba(125, 125, 135, 0.14);
+        }
+        .sow .ml-row.locked {
+          opacity: 0.62;
+        }
+        .sow .ml-thumb {
+          position: relative;
+          flex: none;
+          width: 118px;
+          aspect-ratio: 16 / 9;
+          border-radius: 10px;
+          overflow: hidden;
+          background: #111;
+        }
+        .sow .ml-thumb .img {
+          position: absolute;
+          inset: 0;
+          background-size: cover;
+          background-position: center;
+        }
+        .sow .ml-thumb .img.ph {
+          background:
+            radial-gradient(42% 52% at 20% 28%, #6e7a5e 0%, transparent 70%),
+            radial-gradient(46% 56% at 76% 22%, #8a7565 0%, transparent 70%),
+            radial-gradient(52% 62% at 62% 82%, #46464c 0%, transparent 72%),
+            #57544e;
+        }
+        .sow .ml-state {
+          position: absolute;
+          left: 6px;
+          top: 6px;
+          z-index: 2;
+          width: 20px;
+          height: 20px;
+          border-radius: 50%;
+          display: grid;
+          place-items: center;
+          color: rgba(255, 255, 255, 0.92);
+          background: rgba(0, 0, 0, 0.45);
+        }
+        .sow .ml-state.done {
+          background: rgba(35, 160, 80, 0.9);
+        }
+        .sow .ml-dur {
+          position: absolute;
+          right: 5px;
+          bottom: 5px;
+          z-index: 2;
+          font-size: 10.5px;
+          font-weight: 600;
+          color: #fff;
+          font-variant-numeric: tabular-nums;
+          background: rgba(0, 0, 0, 0.6);
+          padding: 2px 6px;
+          border-radius: 6px;
+        }
+        .sow .ml-progbar {
+          position: absolute;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          height: 3px;
+          background: rgba(255, 255, 255, 0.28);
+          z-index: 3;
+          display: block;
+        }
+        .sow .ml-progbar i {
+          display: block;
+          height: 100%;
+          background: #fff;
+        }
+        .sow .ml-info {
+          flex: 1;
+          min-width: 0;
+        }
+        .sow .ml-num {
+          font-size: 10px;
+          font-weight: 600;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          color: var(--text-2);
+          margin-bottom: 3px;
+        }
+        .sow .ml-title {
+          font-size: 14.5px;
+          font-weight: 600;
+          letter-spacing: -0.015em;
+          line-height: 1.25;
+          color: var(--text);
+          display: -webkit-box;
+          -webkit-line-clamp: 2;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
+          overflow-wrap: anywhere;
+        }
+        .sow .ml-meta {
+          margin-top: 4px;
+          font-size: 12px;
+          font-weight: 500;
+          color: var(--text-2);
+          font-variant-numeric: tabular-nums;
+        }
+        .sow .ml-ov {
+          flex: none;
+          width: 40px;
+          height: 40px;
+          border-radius: 50%;
+          display: grid;
+          place-items: center;
+          color: var(--text-2);
         }
       }
     `}</style>
