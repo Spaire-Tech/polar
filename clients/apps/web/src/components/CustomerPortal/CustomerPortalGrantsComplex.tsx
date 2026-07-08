@@ -55,7 +55,7 @@ export const CustomerPortalGrantsComplex = ({
 
   return (
     <div className="flex w-full flex-col gap-4">
-      <h3 className="text-xl">What&apos;s included</h3>
+      <h3 className="text-lg md:text-xl">What&apos;s included</h3>
 
       {/* Search box */}
       <Input

@@ -160,7 +160,7 @@ const CustomerPortalSubscription = ({
   return (
     <div className="flex flex-col gap-8">
       <div>
-        <h3 className="text-xl">{subscription.product.name}</h3>
+        <h3 className="text-lg md:text-xl">{subscription.product.name}</h3>
       </div>
 
       <div className="flex flex-col text-sm">
@@ -255,7 +255,7 @@ const CustomerPortalSubscription = ({
             </p>
           </div>
           <div className="flex flex-col gap-y-3">
-            <div className="flex items-start gap-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:gap-4">
               <div className="flex-1">
                 <Input
                   type="email"
@@ -349,6 +349,31 @@ const CustomerPortalSubscription = ({
                   ),
                 },
               ]}
+              mobileCard={(row) => (
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex min-w-0 flex-col gap-0.5">
+                    <span className="text-sm font-medium">
+                      <FormattedDateTime
+                        datetime={row.original.created_at}
+                        dateStyle="medium"
+                        resolution="day"
+                      />
+                    </span>
+                    <span className=" text-xs text-gray-500">
+                      {formatCurrency('compact')(
+                        row.original.total_amount,
+                        row.original.currency,
+                      )}
+                    </span>
+                  </div>
+                  <DownloadInvoicePortal
+                    customerSessionToken={customerSessionToken}
+                    order={row.original}
+                    onInvoiceGenerated={refetchOrders}
+                    dropdown
+                  />
+                </div>
+              )}
             />
           </div>
         )}

@@ -1,115 +1,29 @@
 'use client'
 
 import {
-  useAuthenticatedCustomer,
-  usePortalAuthenticatedUser,
-} from '@/hooks/queries'
-import {
   type CustomerNotificationRead,
-  useCommunityEnrolledCourses,
   useCustomerNotificationUnreadCount,
   useCustomerNotifications,
   useMarkAllCustomerNotificationsRead,
   useMarkCustomerNotificationRead,
 } from '@/hooks/queries/community'
 import { useCustomerSSE } from '@/hooks/sse'
-import { createClientSideAPI } from '@/utils/client'
-import { hasBillingPermission } from '@/utils/customerPortal'
 import { schemas } from '@spaire/client'
 import { useQueryClient } from '@tanstack/react-query'
 import Link from 'next/link'
-import { usePathname, useRouter, useSearchParams } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import * as React from 'react'
 import { usePortalTheme } from '../usePortalTheme'
 import { BellIcon, BookmarkIcon } from './icons'
+import { PortalSheet } from './PortalSheet'
 import {
   type CustomerWithProfile,
   OnboardingModal,
   SettingsModal,
 } from './ProfileOnboarding'
-
-type Tab = {
-  href: string
-  label: string
-  matches: (path: string) => boolean
-}
-
-const buildTabs = (
-  organization: schemas['CustomerOrganization'],
-  authenticatedUser: schemas['PortalAuthenticatedUser'] | undefined,
-  customer: schemas['CustomerPortalCustomer'] | undefined,
-  showCommunity: boolean,
-): Tab[] => {
-  const slug = organization.slug
-  const canAccessBilling = hasBillingPermission(authenticatedUser)
-  const isTeamCustomer = customer?.type === 'team'
-  const showTeam =
-    isTeamCustomer &&
-    canAccessBilling &&
-    organization.organization_features?.member_model_enabled
-
-  const tabs: Tab[] = [
-    {
-      href: `/${slug}/portal/overview`,
-      label: 'Overview',
-      matches: (p) => p.includes('/portal/overview'),
-    },
-    {
-      href: `/${slug}/portal/courses`,
-      label: 'Courses',
-      // Don't light up Courses while inside a course's community sub-route —
-      // that path belongs to the Community tab (matched below).
-      matches: (p) =>
-        p.includes('/portal/courses') &&
-        !/\/portal\/courses\/[^/]+\/community/.test(p),
-    },
-    // Community is only surfaced once at least one enrolled course has a
-    // live, published community. Until a creator turns one on, the tab is
-    // hidden (the /portal/community route still works via deep link).
-    ...(showCommunity
-      ? [
-          {
-            href: `/${slug}/portal/community`,
-            label: 'Community',
-            matches: (p: string) =>
-              p.includes('/portal/community') ||
-              /\/portal\/courses\/[^/]+\/community/.test(p),
-          },
-        ]
-      : []),
-    // Phase 4d: Downloads tab hidden from the student portal nav. Route file
-    // is kept; restore this entry to bring the tab back.
-    // {
-    //   href: `/${slug}/portal/downloads`,
-    //   label: 'Downloads',
-    //   matches: (p) => p.includes('/portal/downloads'),
-    // },
-  ]
-  if (canAccessBilling) {
-    tabs.push({
-      href: `/${slug}/portal/orders`,
-      label: 'Enrollments',
-      matches: (p) => p.includes('/portal/orders'),
-    })
-  }
-  // Team management is shown to team customers whose billing-capable members
-  // can manage seats (member model orgs only).
-  if (showTeam) {
-    tabs.push({
-      href: `/${slug}/portal/team`,
-      label: 'Team',
-      matches: (p) => p.includes('/portal/team'),
-    })
-  }
-  if (canAccessBilling) {
-    tabs.push({
-      href: `/${slug}/portal/settings`,
-      label: 'Billing',
-      matches: (p) => p.includes('/portal/settings'),
-    })
-  }
-  return tabs
-}
+import { useHideOnScroll } from './useHideOnScroll'
+import { useMediaMax } from './useMediaMax'
+import { usePortalTabs } from './usePortalTabs'
 
 const initialsFor = (name: string | null | undefined, email: string) => {
   const source = (name && name.trim()) || email
@@ -124,78 +38,19 @@ const orgInitial = (name: string) => {
   return trimmed ? trimmed[0]!.toUpperCase() : '·'
 }
 
-// Website-style nav: hide the top bar when scrolling down, reveal it when
-// scrolling back up (and always show it near the very top). The portal shell
-// is `min-height: 100vh` with no inner scroll container, so the window is what
-// scrolls — we read `window.scrollY`, rAF-throttled to stay smooth.
-function useHideOnScroll(): boolean {
-  const [hidden, setHidden] = React.useState(false)
-  React.useEffect(() => {
-    let lastY = window.scrollY
-    let ticking = false
-    const DELTA = 6 // ignore trackpad/sub-pixel jitter
-    const TOP_ZONE = 72 // always reveal near the top of the page
-    const update = () => {
-      const y = Math.max(0, window.scrollY)
-      if (y <= TOP_ZONE) {
-        setHidden(false)
-      } else if (Math.abs(y - lastY) > DELTA) {
-        setHidden(y > lastY) // scrolling down → hide; up → reveal
-      }
-      lastY = y
-      ticking = false
-    }
-    const onScroll = () => {
-      if (!ticking) {
-        ticking = true
-        window.requestAnimationFrame(update)
-      }
-    }
-    window.addEventListener('scroll', onScroll, { passive: true })
-    return () => window.removeEventListener('scroll', onScroll)
-  }, [])
-  return hidden
-}
-
 export const TopBar = ({
   organization,
 }: {
   organization: schemas['CustomerOrganization']
 }) => {
   const pathname = usePathname()
-  const searchParams = useSearchParams()
-
-  const token =
-    searchParams.get('customer_session_token') ??
-    searchParams.get('member_session_token')
-
-  // Always call hooks at the top level (rules of hooks). When there is no
-  // token the API instance still gets built, but the underlying queries will
-  // fail silently and the right-side actions render with empty defaults.
-  const api = React.useMemo(() => createClientSideAPI(token ?? ''), [token])
-  const { data: authenticatedUser } = usePortalAuthenticatedUser(api)
-  const { data: customer } = useAuthenticatedCustomer(api)
-  const { data: communityCourses } = useCommunityEnrolledCourses(token)
   const hidden = useHideOnScroll()
 
-  // Show the Community tab only when a creator has an enrolled course's
-  // community live and published. Undefined data (still loading) keeps it
-  // hidden so we never flash a tab that then disappears.
-  const showCommunity = (communityCourses ?? []).some(
-    (c) => c.community_enabled,
-  )
-
-  const buildHref = (href: string) => {
-    if (!searchParams.toString()) return href
-    return `${href}?${searchParams.toString()}`
-  }
-
-  const tabs = buildTabs(
-    organization,
-    authenticatedUser,
-    customer,
-    showCommunity,
-  )
+  // Tab building, permission gating, and href threading are shared with the
+  // mobile bottom tab bar via usePortalTabs.
+  const { tabs, buildHref, token, authenticatedUser, customer } =
+    usePortalTabs(organization)
+  const desktopTabs = tabs.filter((t) => t.desktop)
   const overviewHref = buildHref(`/${organization.slug}/portal/overview`)
 
   return (
@@ -216,7 +71,7 @@ export const TopBar = ({
           <span>{organization.name}</span>
         </Link>
         <nav className="sp-tabs" aria-label="Student portal sections">
-          {tabs.map((t) => (
+          {desktopTabs.map((t) => (
             <Link
               key={t.href}
               href={buildHref(t.href)}
@@ -229,7 +84,7 @@ export const TopBar = ({
         </nav>
         <div className="sp-right">
           <ThemeToggle slug={organization.slug} token={token ?? ''} />
-          <NotificationsBell token={token} />
+          <NotificationsBell slug={organization.slug} token={token} />
           <Link
             href={buildHref(`/${organization.slug}/portal/bookmarks`)}
             className={
@@ -470,13 +325,22 @@ function AccountAvatar({
 }
 
 // ---------------------------------------------------------------------
-// Notifications bell — dropdown over the existing bell icon. Only the
-// red dot is conditional; the icon button stays put when there's no
-// token (preview/anonymous viewer) but the dropdown is then disabled.
+// Notifications bell — dropdown over the existing bell icon on desktop,
+// a bottom sheet at the mobile breakpoint. Only the red dot is
+// conditional; the icon button stays put when there's no token
+// (preview/anonymous viewer) but opening is then disabled.
 // ---------------------------------------------------------------------
 
-function NotificationsBell({ token }: { token: string | null }) {
+function NotificationsBell({
+  slug,
+  token,
+}: {
+  slug: string
+  token: string | null
+}) {
   const [open, setOpen] = React.useState(false)
+  const isMobile = useMediaMax(720)
+  const { dark } = usePortalTheme(slug, token ?? '')
   const unreadQ = useCustomerNotificationUnreadCount(token)
   const listQ = useCustomerNotifications(open ? token : null)
   const markRead = useMarkCustomerNotificationRead(token)
@@ -518,6 +382,54 @@ function NotificationsBell({ token }: { token: string | null }) {
     })
   }, [queryClient, token])
 
+  const markAllReadButton =
+    unread > 0 ? (
+      <button
+        type="button"
+        className="sp-account-menu-item"
+        style={{ padding: '4px 8px', fontSize: 12, width: 'auto' }}
+        onClick={() =>
+          markAllRead.mutate(undefined, {
+            onError: resyncNotifications,
+          })
+        }
+      >
+        Mark all read
+      </button>
+    ) : null
+
+  const listContent = listQ.isLoading ? (
+    <div
+      style={{
+        padding: 16,
+        color: 'var(--sp-muted)',
+        fontSize: 13,
+      }}
+    >
+      Loading…
+    </div>
+  ) : list.length === 0 ? (
+    <div
+      style={{
+        padding: 16,
+        color: 'var(--sp-muted)',
+        fontSize: 13,
+      }}
+    >
+      You&apos;re all caught up.
+    </div>
+  ) : (
+    list.map((n) => (
+      <NotificationRow
+        key={n.id}
+        notif={n}
+        onMarkRead={() =>
+          markRead.mutate(n.id, { onError: resyncNotifications })
+        }
+      />
+    ))
+  )
+
   return (
     <div className="sp-account" style={{ position: 'relative' }}>
       <button
@@ -525,7 +437,7 @@ function NotificationsBell({ token }: { token: string | null }) {
         className="sp-iconbtn"
         aria-label="Notifications"
         title="Notifications"
-        aria-haspopup="menu"
+        aria-haspopup={isMobile ? 'dialog' : 'menu'}
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
         disabled={!token}
@@ -533,69 +445,42 @@ function NotificationsBell({ token }: { token: string | null }) {
         <BellIcon />
         {unread > 0 && <span className="sp-dot" aria-hidden />}
       </button>
-      {open && (
-        <div
-          className="sp-account-menu"
-          role="menu"
-          style={{ width: 360, maxHeight: 480, overflow: 'auto' }}
-          onMouseLeave={() => setOpen(false)}
+      {isMobile ? (
+        <PortalSheet
+          open={open}
+          onClose={() => setOpen(false)}
+          title="Notifications"
+          dark={dark}
+          headerAction={markAllReadButton}
         >
+          {listContent}
+        </PortalSheet>
+      ) : (
+        open && (
           <div
-            className="sp-account-menu-head"
+            className="sp-account-menu"
+            role="menu"
             style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
+              width: 'min(360px, calc(100vw - 32px))',
+              maxHeight: 480,
+              overflow: 'auto',
             }}
+            onMouseLeave={() => setOpen(false)}
           >
-            <div className="sp-account-menu-name">Notifications</div>
-            {unread > 0 && (
-              <button
-                type="button"
-                className="sp-account-menu-item"
-                style={{ padding: '4px 8px', fontSize: 12 }}
-                onClick={() =>
-                  markAllRead.mutate(undefined, {
-                    onError: resyncNotifications,
-                  })
-                }
-              >
-                Mark all read
-              </button>
-            )}
+            <div
+              className="sp-account-menu-head"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              }}
+            >
+              <div className="sp-account-menu-name">Notifications</div>
+              {markAllReadButton}
+            </div>
+            {listContent}
           </div>
-          {listQ.isLoading ? (
-            <div
-              style={{
-                padding: 16,
-                color: 'var(--sp-muted)',
-                fontSize: 13,
-              }}
-            >
-              Loading…
-            </div>
-          ) : list.length === 0 ? (
-            <div
-              style={{
-                padding: 16,
-                color: 'var(--sp-muted)',
-                fontSize: 13,
-              }}
-            >
-              You&apos;re all caught up.
-            </div>
-          ) : (
-            list.map((n) => (
-              <NotificationRow
-                key={n.id}
-                notif={n}
-                onMarkRead={() =>
-                  markRead.mutate(n.id, { onError: resyncNotifications })
-                }
-              />
-            ))
-          )}
-        </div>
+        )
       )}
     </div>
   )

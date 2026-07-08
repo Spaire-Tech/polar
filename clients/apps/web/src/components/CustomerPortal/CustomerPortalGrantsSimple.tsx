@@ -16,7 +16,7 @@ export const CustomerPortalGrantsSimple = ({
 }: CustomerPortalGrantsSimpleProps) => {
   return (
     <div className="flex w-full flex-col gap-4">
-      <h3 className="text-xl">What&apos;s included</h3>
+      <h3 className="text-lg md:text-xl">What&apos;s included</h3>
       <div className="flex flex-col gap-4">
         <List>
           {benefitGrants?.map((benefitGrant) => (

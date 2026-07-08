@@ -54,6 +54,10 @@ interface DataTableProps<TData, TValue> {
   enableRowSelection?: boolean
   onRowSelectionChange?: OnChangeFn<RowSelectionState>
   onRowClick?: (row: Row<TData>) => void
+  /** Rendered instead of the table below the `md` breakpoint — one card per
+   * row, stacked vertically. Dense tables crush or force sideways scrolling
+   * on phones; this gives each row a card layout there instead. */
+  mobileCard?: (row: Row<TData>) => React.ReactNode
 }
 
 export type DataTableColumnDef<TData, TValue = unknown> = ColumnDef<
@@ -91,6 +95,7 @@ export function DataTable<TData, TValue>({
   enableRowSelection,
   onRowSelectionChange,
   onRowClick,
+  mobileCard,
 }: DataTableProps<TData, TValue>) {
   const table = useReactTable({
     data,
@@ -125,7 +130,8 @@ export function DataTable<TData, TValue>({
     <div className={twMerge('flex flex-col gap-6', className)}>
       <div
         className={twMerge(
-          ' overflow-hidden rounded-2xl border border-gray-200',
+          ' overflow-x-auto rounded-2xl border border-gray-200',
+          mobileCard ? 'max-md:hidden' : '',
           wrapperClassName,
         )}
       >
@@ -233,6 +239,29 @@ export function DataTable<TData, TValue>({
           </TableBody>
         </Table>
       </div>
+      {mobileCard ? (
+        <div className="flex flex-col gap-3 md:hidden">
+          {calcLoading ? (
+            <div className="rounded-2xl border border-gray-200 p-6 text-center text-sm text-gray-500">
+              Loading...
+            </div>
+          ) : table.getRowModel().rows?.length ? (
+            table.getRowModel().rows.map((row) => (
+              <div
+                key={row.id}
+                className="rounded-2xl border border-gray-200 p-4"
+                onClick={onRowClick ? () => onRowClick(row) : undefined}
+              >
+                {mobileCard(row)}
+              </div>
+            ))
+          ) : (
+            <div className="rounded-2xl border border-gray-200 p-6 text-center text-sm text-gray-500">
+              No Results
+            </div>
+          )}
+        </div>
+      ) : null}
       {pagination ? <DataTablePagination table={table} /> : null}
     </div>
   )
