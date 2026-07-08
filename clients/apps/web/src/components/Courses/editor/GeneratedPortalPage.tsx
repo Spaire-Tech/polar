@@ -1540,6 +1540,9 @@ export function GeneratedPortalPage({
           </div>
           <div className="hero-shade" />
           <div className="hero-blend" />
+          {/* Film grain — a mobile-only detail from the cover design; the
+              base rule hides it, the ≤640px block reveals it. */}
+          <div className="hero-grain" />
 
           {brand ? (
             <div className="hero-eyebrow">
@@ -2875,7 +2878,8 @@ export function GeneratedPortalPage({
         }
         @media (prefers-reduced-motion: reduce) {
           .gpp .rise,
-          .gpp .panel-art {
+          .gpp .panel-art,
+          .gpp .hero .photo {
             animation: none;
             opacity: 1;
             transform: none;
@@ -2912,6 +2916,9 @@ export function GeneratedPortalPage({
           pointer-events: none;
         }
         .gpp .hero-shade {
+          display: none;
+        }
+        .gpp .hero-grain {
           display: none;
         }
         .gpp .hero-blend {
@@ -4604,19 +4611,50 @@ export function GeneratedPortalPage({
             margin: 0 auto;
           }
 
-          /* ── cover hero ── full-viewport, same as the marquee ── */
+          /* ── cover hero ── design port ("Spaire Cover Hero Mobile"):
+             full-bleed photo with everything overlaid — one deep bottom
+             shade feathered upward plus a soft top shade, film grain,
+             gentle Ken Burns on the cover, and side-by-side pill CTAs.
+             Same fields as desktop: AI badge/headline/description, the
+             course's lesson count/duration, trailer, and price. ── */
           .gpp .hero {
             height: 100svh;
-            min-height: 640px;
+            min-height: 660px;
             max-height: none;
           }
+          /* Ken Burns on the creator's cover. Kept subtler than the demo's
+             1.32× so the saved focal crop stays honored; parked while the
+             builder's reposition drag is active. */
+          .gpp .hero .photo {
+            animation: gpp-kb 26s ease-out forwards;
+          }
+          .gpp .hero.repositioning .photo {
+            animation: none;
+          }
+          /* THE overlay — the design's exact two-layer shade: deep at the
+             bottom where the content sits (.92 → transparent at 74%), plus
+             a soft darkening at the very top for the brand/status bar. */
           .gpp .hero .photo-shade {
-            background: linear-gradient(
-              0deg,
-              rgba(5, 5, 8, 0.66) 0%,
-              rgba(5, 5, 8, 0.3) 36%,
-              transparent 60%
-            );
+            background:
+              linear-gradient(
+                0deg,
+                rgba(5, 5, 8, 0.92) 0%,
+                rgba(5, 5, 8, 0.82) 16%,
+                rgba(5, 5, 8, 0.5) 36%,
+                rgba(5, 5, 8, 0.18) 56%,
+                transparent 74%
+              ),
+              linear-gradient(180deg, rgba(5, 5, 8, 0.34) 0%, transparent 22%);
+          }
+          .gpp .hero .hero-grain {
+            display: block;
+            position: absolute;
+            inset: 0;
+            z-index: 2;
+            opacity: 0.05;
+            pointer-events: none;
+            mix-blend-mode: overlay;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
           }
           .gpp .hero-ph {
             top: 44%;
@@ -4626,62 +4664,83 @@ export function GeneratedPortalPage({
           }
           .gpp .hero-eyebrow {
             top: 22px;
-            left: 20px;
+            left: 26px;
             font-size: 11px;
           }
           .gpp .hero-eyebrow .dot {
             width: 6px;
             height: 6px;
           }
+          /* The cover design sits the content on a 26px inset (its own
+             --gut), deeper 44px off the bottom edge. */
           .gpp .hero-content {
-            left: 20px;
-            right: 20px;
-            bottom: 28px;
+            left: 26px;
+            right: 26px;
+            bottom: 44px;
           }
           .gpp .hero-meta {
             flex-wrap: wrap;
-            gap: 10px;
-            margin-bottom: 14px;
+            gap: 12px;
+            margin-bottom: 20px;
           }
           .gpp .badge {
-            font-size: 10px;
-            padding: 6px 12px;
+            font-size: 10.5px;
+            font-weight: 800;
+            padding: 6px 13px;
+            background: rgba(255, 255, 255, 0.94);
           }
           .gpp .meta-line {
-            font-size: 13px;
+            font-size: 13.5px;
             gap: 8px;
+            color: rgba(255, 255, 255, 0.82);
+            text-shadow: 0 1px 12px rgba(0, 0, 0, 0.5);
+          }
+          .gpp .meta-line .sep {
+            opacity: 0.5;
           }
           .gpp .hero-title {
-            font-size: clamp(38px, 11.5vw, 48px);
-            line-height: 1.04;
+            font-family: var(--po);
+            font-size: clamp(44px, 14vw, 60px);
+            line-height: 0.98;
+            letter-spacing: -0.03em;
+            text-shadow: 0 4px 50px rgba(0, 0, 0, 0.55);
           }
           .gpp .hero-desc {
-            margin-top: 14px;
-            font-size: 15px;
+            margin-top: 18px;
+            font-size: 15.5px;
+            line-height: 1.55;
+            color: rgba(255, 255, 255, 0.9);
+            text-shadow: 0 2px 20px rgba(0, 0, 0, 0.5);
+            text-wrap: pretty;
           }
+          /* side-by-side pills, equal width, filling the inset column */
           .gpp .hero-actions {
-            flex-direction: column;
-            /* reset the desktop row's align-items: center — the design's
-               buttons fill the 20px-gutter column edge to edge */
             align-items: stretch;
-            gap: 10px;
-            margin-top: 22px;
+            gap: 12px;
+            margin-top: 28px;
           }
           .gpp .btn-trailer,
           .gpp .btn-enroll {
+            flex: 1 1 0;
             justify-content: center;
-            height: 50px;
-            font-size: 15px;
+            height: 56px;
+            font-size: 16px;
           }
           .gpp .btn-trailer {
-            padding: 0 20px;
+            padding: 0 16px 0 8px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.28);
           }
           .gpp .btn-trailer .play {
-            width: 28px;
-            height: 28px;
+            width: 38px;
+            height: 38px;
           }
           .gpp .btn-enroll {
             padding: 0 22px;
+            background: rgba(20, 20, 24, 0.42);
+            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.28);
+          }
+          .gpp .btn-enroll:active {
+            background: rgba(40, 40, 46, 0.6);
           }
 
           /* creator controls → 44px icon pills; Add-cover is the centered
