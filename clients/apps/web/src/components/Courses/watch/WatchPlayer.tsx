@@ -747,6 +747,16 @@ export function WatchPlayer({
   // ∓/±10s with a YouTube-style indicator, and a decisive downward swipe
   // dismisses the player. Mouse input is untouched — desktop keeps its
   // hover/keyboard behavior.
+  //
+  // Mobile browsers replay a tap as SYNTHETIC mouse events (mousemove /
+  // mousedown) right after the touch sequence. Without suppression those
+  // hit the root's revealUi immediately, so by the time the deferred
+  // single-tap handler ran (280ms later, to leave room for a double-tap)
+  // the chrome was already visible and the "toggle" hid it again — tap,
+  // flash, gone. Every touch stamps lastTouchAt (captured at the root so
+  // control taps count too) and mouse handlers stand down inside that
+  // window; on touch devices the tap gesture is the only chrome authority.
+  const lastTouchAt = useRef(0)
   const touchStartPos = useRef<{ x: number; y: number } | null>(null)
   const lastTap = useRef<{
     time: number
@@ -767,6 +777,12 @@ export function WatchPlayer({
     },
     [],
   )
+
+  const isRecentTouch = () => Date.now() - lastTouchAt.current < 800
+  const revealUiFromMouse = () => {
+    if (isRecentTouch()) return
+    revealUi()
+  }
 
   const onGestureTouchStart = (e: React.TouchEvent) => {
     const t0 = e.touches[0]
@@ -840,8 +856,11 @@ export function WatchPlayer({
       ref={containerRef}
       className={`sov2 player ${uiVisible ? '' : 'ui-hidden'}`}
       data-watch-player
-      onMouseMove={revealUi}
-      onMouseDown={revealUi}
+      onMouseMove={revealUiFromMouse}
+      onMouseDown={revealUiFromMouse}
+      onTouchStartCapture={() => {
+        lastTouchAt.current = Date.now()
+      }}
     >
       <div className="player-video">
         {isHls ? (
@@ -893,7 +912,7 @@ export function WatchPlayer({
         <div className="player-spin" role="status" aria-label="Loading" />
       )}
 
-      <div className="player-top">
+      <div className="player-top" onTouchStart={revealUi}>
         <button className="pbtn" onClick={exit} aria-label="Back">
           <Glyph d={SF.back} size={24} stroke={2} />
         </button>
@@ -908,13 +927,14 @@ export function WatchPlayer({
         </div>
       </div>
 
-      <div className="player-controls">
+      <div className="player-controls" onTouchStart={revealUi}>
         <div className="scrub-row">
           <span className="ptime">{fmtTime(t)}</span>
           <div
             className="scrub"
             ref={barRef}
             onMouseDown={(e) => {
+              if (isRecentTouch()) return // synthetic replay of a touch
               dragging.current = true
               seekAt(e.clientX)
               previewAt(e.clientX)
@@ -926,7 +946,10 @@ export function WatchPlayer({
                 previewAt(e.touches[0].clientX)
               }
             }}
-            onMouseMove={(e) => previewAt(e.clientX)}
+            onMouseMove={(e) => {
+              if (isRecentTouch()) return // would strand the frame preview
+              previewAt(e.clientX)
+            }}
             onMouseLeave={() => {
               if (!dragging.current) setPreview(null)
             }}
