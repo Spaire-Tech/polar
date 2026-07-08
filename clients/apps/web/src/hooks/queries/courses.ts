@@ -64,6 +64,8 @@ export type CourseLessonRead = {
   // Signed (when the org uses signed playback) HLS URL for creator-side
   // playback — the editor's Play button and sample preview use this.
   mux_playback_url?: string | null
+  // Signed storyboard VTT for hover-scrub thumbnails in the preview player.
+  mux_storyboard_url?: string | null
   mux_status: string | null
   // Course Assistant transcript pipeline state for video lessons:
   // pending | ready | failed | unavailable (null = not started / not a video).
@@ -1167,6 +1169,9 @@ export const useMarkLessonComplete = (
 export type LessonPlaybackUrlResponse = {
   mux_playback_id: string | null
   mux_playback_url: string | null
+  // Signed storyboard VTT for hover-scrub thumbnails (absent/null when
+  // the asset has no storyboard).
+  mux_storyboard_url?: string | null
 }
 
 export const useMintLessonPlaybackUrl = (

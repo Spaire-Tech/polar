@@ -543,9 +543,58 @@ export function WatchStyles() {
         text-align: right;
       }
       .sov2 .scrub {
+        position: relative;
         flex: 1;
         padding: 10px 0;
         cursor: pointer;
+      }
+      /* Hover-scrub preview — a floating frame card + time pill above the
+         bar. No transition on left: it tracks the pointer 1:1, and only
+         the appearance fades in. */
+      .sov2 .scrub-preview {
+        position: absolute;
+        bottom: calc(100% + 14px);
+        transform: translateX(-50%);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+        pointer-events: none;
+        animation: sov2-ovIn 0.18s ease;
+      }
+      .sov2 .scrub-thumb {
+        position: relative;
+        overflow: hidden;
+        border-radius: 12px;
+        background: rgba(20, 20, 24, 0.6);
+        box-shadow: 0 16px 44px rgba(0, 0, 0, 0.55);
+      }
+      .sov2 .scrub-thumb img {
+        position: absolute;
+        top: 0;
+        left: 0;
+        max-width: none;
+        user-select: none;
+      }
+      /* Hairline edge painted above the cropped sprite. */
+      .sov2 .scrub-thumb::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        border-radius: inherit;
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.22);
+      }
+      .sov2 .scrub-preview-time {
+        padding: 3px 10px;
+        border-radius: 980px;
+        background: rgba(20, 20, 24, 0.55);
+        -webkit-backdrop-filter: blur(14px) saturate(150%);
+        backdrop-filter: blur(14px) saturate(150%);
+        color: #fff;
+        font-size: 12px;
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+        letter-spacing: -0.01em;
       }
       .sov2 .scrub-track {
         position: relative;

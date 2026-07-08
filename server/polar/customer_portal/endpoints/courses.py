@@ -657,6 +657,9 @@ async def mint_lesson_playback_url(
     return {
         "mux_playback_id": playback_id,
         "mux_playback_url": mux_client.playback_url(playback_id),
+        # Storyboard VTT for hover-scrub thumbnails. Read-only metadata on
+        # the same asset the play was just authorized for — no extra quota.
+        "mux_storyboard_url": mux_client.storyboard_url(playback_id),
     }
 
 
@@ -1134,6 +1137,7 @@ async def mint_preview_playback_url(
     return {
         "mux_playback_id": playback_id,
         "mux_playback_url": mux_client.playback_url(playback_id),
+        "mux_storyboard_url": mux_client.storyboard_url(playback_id),
     }
 
 

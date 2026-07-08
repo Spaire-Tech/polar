@@ -88,6 +88,9 @@ class CourseLessonRead(TimestampedSchema):
     # build a working URL from the bare playback id once assets use the
     # `signed` playback policy.
     mux_playback_url: str | None = None
+    # Signed storyboard (sprite sheet) WebVTT URL for hover-scrub
+    # thumbnails in the editor's preview player.
+    mux_storyboard_url: str | None = None
     mux_status: str | None = None
     # Course Assistant transcript pipeline state, surfaced so the editor can
     # show whether a video lesson has been transcribed yet:

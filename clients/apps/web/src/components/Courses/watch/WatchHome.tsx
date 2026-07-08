@@ -409,6 +409,7 @@ export function WatchHome({
     lesson: WatchLessonData
     playbackUrl: string | null
     playbackId: string | null
+    storyboardUrl: string | null
     startSec: number
   } | null>(null)
 
@@ -443,6 +444,7 @@ export function WatchHome({
           lesson: l,
           playbackUrl: minted.mux_playback_url ?? null,
           playbackId: minted.mux_playback_id ?? l.mux_playback_id,
+          storyboardUrl: minted.mux_storyboard_url ?? null,
           startSec,
         })
       } catch {
@@ -1110,6 +1112,7 @@ export function WatchHome({
             thumbnailUrl: playing.lesson.thumbnail_url,
             muxPlaybackId: playing.playbackId,
             playbackUrl: playing.playbackUrl,
+            storyboardUrl: playing.storyboardUrl,
           }}
           courseTitle={course.title ?? ''}
           instructorName={course.instructor_name ?? organization.name}

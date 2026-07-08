@@ -12,6 +12,9 @@
 //   • playback speed — 0.5×–2× glass menu, persisted across lessons
 //   • buffering spinner — a hairline arc whenever playback stalls
 //     mid-stream, so a rebuffer never looks like a frozen frame
+//   • hover-scrub thumbnails — hovering or dragging the scrub bar shows
+//     a floating frame preview from the Mux storyboard (plus timestamp);
+//     lessons without a storyboard fall back to a timestamp-only pill
 //   • captions button — wired to the video's text tracks; only rendered
 //     when the asset actually carries captions, and kept in lock-step with
 //     the on-screen captions so the button never lies about the state
@@ -28,6 +31,7 @@ import { HlsVideo } from '../HlsVideo'
 import { Glyph, SF, SkipIcon, fmtTime } from './WatchGlyphs'
 import { CommentsPanel, type WatchComment } from './WatchSheets'
 import { WatchStyles } from './WatchStyles'
+import { cueAt, useStoryboard } from './useStoryboard'
 
 // Viewer preferences that outlive a single lesson (volume, mute, speed).
 // A 1.5× learner stays at 1.5× for the whole course — and the next one.
@@ -78,7 +82,13 @@ export type WatchLesson = {
   thumbnailUrl?: string | null
   muxPlaybackId?: string | null
   playbackUrl?: string | null
+  // Mux storyboard WebVTT (signed) for hover-scrub thumbnails.
+  storyboardUrl?: string | null
 }
+
+// Display width of the hover-scrub thumbnail; height follows the sprite
+// tile's own aspect ratio.
+const PREVIEW_W = 164
 
 export function WatchPlayer({
   lesson,
@@ -157,6 +167,9 @@ export function WatchPlayer({
   const volFlashTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const stallTicks = useRef(0)
   const prateRef = useRef<HTMLDivElement | null>(null)
+  // Hover/drag position on the scrub bar (fraction), for the frame preview.
+  const [preview, setPreview] = useState<number | null>(null)
+  const storyboard = useStoryboard(lesson.storyboardUrl)
   // iOS ignores programmatic volume (it's hardware-controlled), so the
   // slider would be a dead control there — show mute-only instead.
   const [isIOS] = useState(
@@ -460,15 +473,38 @@ export function WatchPlayer({
     setT(el.currentTime)
   }, [])
 
-  // Drag-to-scrub (mouse + touch).
+  // Move the frame preview to the pointer's position over the scrub bar.
+  const previewAt = useCallback((clientX: number) => {
+    const bar = barRef.current
+    if (!bar) return
+    const r = bar.getBoundingClientRect()
+    setPreview(Math.min(1, Math.max(0, (clientX - r.left) / r.width)))
+  }, [])
+
+  // Warm the sprite sheet as soon as cues arrive, so the very first hover
+  // shows a frame instead of a blank card while the image loads.
+  useEffect(() => {
+    if (!storyboard || storyboard.length === 0) return
+    const img = new Image()
+    img.src = storyboard[0].url
+  }, [storyboard])
+
+  // Drag-to-scrub (mouse + touch). The preview follows the drag.
   useEffect(() => {
     const mv = (e: MouseEvent) => {
-      if (dragging.current) seekAt(e.clientX)
+      if (dragging.current) {
+        seekAt(e.clientX)
+        previewAt(e.clientX)
+      }
     }
     const tm = (e: TouchEvent) => {
-      if (dragging.current && e.touches[0]) seekAt(e.touches[0].clientX)
+      if (dragging.current && e.touches[0]) {
+        seekAt(e.touches[0].clientX)
+        previewAt(e.touches[0].clientX)
+      }
     }
     const up = () => {
+      if (dragging.current) setPreview(null)
       dragging.current = false
     }
     window.addEventListener('mousemove', mv)
@@ -481,7 +517,7 @@ export function WatchPlayer({
       window.removeEventListener('touchmove', tm)
       window.removeEventListener('touchend', up)
     }
-  }, [seekAt])
+  }, [seekAt, previewAt])
 
   // Keyboard.
   useEffect(() => {
@@ -558,6 +594,11 @@ export function WatchPlayer({
         ? SF.audioLow
         : SF.audio
 
+  // Frame preview under the pointer while hovering/dragging the scrub bar.
+  const previewT = preview != null && dur > 0 ? preview * dur : null
+  const previewCue = previewT != null ? cueAt(storyboard, previewT) : null
+  const previewScale = previewCue ? PREVIEW_W / previewCue.w : 1
+
   return (
     <div
       ref={containerRef}
@@ -628,12 +669,56 @@ export function WatchPlayer({
             onMouseDown={(e) => {
               dragging.current = true
               seekAt(e.clientX)
+              previewAt(e.clientX)
             }}
             onTouchStart={(e) => {
               dragging.current = true
-              if (e.touches[0]) seekAt(e.touches[0].clientX)
+              if (e.touches[0]) {
+                seekAt(e.touches[0].clientX)
+                previewAt(e.touches[0].clientX)
+              }
+            }}
+            onMouseMove={(e) => previewAt(e.clientX)}
+            onMouseLeave={() => {
+              if (!dragging.current) setPreview(null)
             }}
           >
+            {previewT != null && (
+              <div
+                className="scrub-preview"
+                style={{
+                  // Follow the pointer, but never hang off the bar's ends.
+                  left: `clamp(${PREVIEW_W / 2}px, ${
+                    (preview ?? 0) * 100
+                  }%, calc(100% - ${PREVIEW_W / 2}px))`,
+                }}
+              >
+                {previewCue && (
+                  <div
+                    className="scrub-thumb"
+                    style={{
+                      width: PREVIEW_W,
+                      height: Math.round(previewCue.h * previewScale),
+                    }}
+                  >
+                    {/* One sprite sheet, cropped per cue: shift the sheet so
+                        the tile's corner lands at origin, then scale it to
+                        the display size (transforms apply right-to-left). */}
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={previewCue.url}
+                      alt=""
+                      draggable={false}
+                      style={{
+                        transform: `scale(${previewScale}) translate(${-previewCue.x}px, ${-previewCue.y}px)`,
+                        transformOrigin: '0 0',
+                      }}
+                    />
+                  </div>
+                )}
+                <span className="scrub-preview-time">{fmtTime(previewT)}</span>
+              </div>
+            )}
             <div className="scrub-track">
               <div
                 className="scrub-buf"

@@ -136,9 +136,13 @@ export function PublicPortalView({
   // playback id 403s — so every free-preview play asks the API for a real
   // URL first (which also counts the view against the org's quota).
   const [watchingUrl, setWatchingUrl] = useState<string | null>(null)
+  const [watchingStoryboard, setWatchingStoryboard] = useState<string | null>(
+    null,
+  )
   const openWatch = useCallback(
     async (lesson: CourseLandingLesson) => {
       let url: string | null = null
+      let storyboard: string | null = null
       try {
         const res = await fetch(
           `${process.env.NEXT_PUBLIC_API_URL}/v1/customer-portal/courses/${landing.id}/lessons/${lesson.id}/preview-playback-url`,
@@ -147,14 +151,17 @@ export function PublicPortalView({
         if (res.ok) {
           const data = (await res.json()) as {
             mux_playback_url?: string | null
+            mux_storyboard_url?: string | null
           }
           url = data.mux_playback_url ?? null
+          storyboard = data.mux_storyboard_url ?? null
         }
       } catch {
         // Fall back to the public playback-id URL below (works for public
         // assets; signed ones surface the player's error state).
       }
       setWatchingUrl(url)
+      setWatchingStoryboard(storyboard)
       setWatching(lesson)
     },
     [landing.id],
@@ -611,6 +618,7 @@ export function PublicPortalView({
             thumbnailUrl: watching.thumbnail_url,
             muxPlaybackId: watching.mux_playback_id,
             playbackUrl: watchingUrl,
+            storyboardUrl: watchingStoryboard,
           }}
           courseTitle={landing.title ?? product.name}
           instructorName={landing.instructor_name}
