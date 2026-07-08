@@ -206,6 +206,34 @@ async def delete_asset(asset_id: str) -> bool:
     return False
 
 
+async def cancel_upload(upload_id: str) -> bool:
+    """Cancel a Mux direct upload that hasn't produced an asset yet.
+
+    Returns True on success or when the upload is already gone (404).
+    Returns False when the upload can't be cancelled — typically because
+    the file already finished uploading and an asset is being created —
+    so the caller should re-resolve the upload to an asset and delete
+    that instead.
+    """
+    if not upload_id or not settings.MUX_TOKEN_ID or not settings.MUX_TOKEN_SECRET:
+        return False
+    async with _client() as client:
+        try:
+            resp = await client.put(f"/video/v1/uploads/{upload_id}/cancel")
+        except httpx.HTTPError:
+            log.exception(
+                "Failed to call Mux cancel upload", extra={"upload_id": upload_id}
+            )
+            return False
+    if resp.status_code in (200, 204, 404):
+        return True
+    log.info(
+        "Mux cancel upload returned non-success status",
+        extra={"upload_id": upload_id, "status": resp.status_code},
+    )
+    return False
+
+
 async def get_caption_vtt(
     asset_id: str,
     playback_id: str,

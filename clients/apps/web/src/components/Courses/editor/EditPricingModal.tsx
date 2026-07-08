@@ -9,7 +9,7 @@
 
 import { useUpdateProduct } from '@/hooks/queries/products'
 import { ProductEditOrCreateForm } from '@/utils/product'
-import { schemas } from '@spaire/client'
+import { isValidationError, schemas } from '@spaire/client'
 import { Form } from '@spaire/ui/components/ui/form'
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
@@ -19,6 +19,18 @@ import {
   StepPricingWizard,
   type WizardPaywallState,
 } from '../CourseWizard.steps'
+
+// Turn an API error into something a creator can act on — never the raw
+// validation payload.
+const describeUpdateError = (detail: unknown): string => {
+  if (isValidationError(detail)) {
+    return detail.map((e) => e.msg).join(' ')
+  }
+  if (typeof detail === 'string') {
+    return detail
+  }
+  return 'Please try again.'
+}
 
 export function EditPricingModal({
   organization,
@@ -35,7 +47,8 @@ export function EditPricingModal({
   // live checkout preview opens already showing what's actually charged.
   // Spread `...price` so the existing price id rides along — the backend
   // treats that as ExistingProductPrice and keeps the row untouched if
-  // it wasn't changed.
+  // it wasn't changed. (The wizard clears the id whenever the amount is
+  // edited, so a changed price is sent as a new one replacing the old.)
   const form = useForm<ProductEditOrCreateForm>({
     defaultValues: {
       ...product,
@@ -60,26 +73,35 @@ export function EditPricingModal({
   const save = async () => {
     const values = form.getValues() as unknown as {
       prices: schemas['ProductUpdate']['prices']
-      recurring_interval?: schemas['SubscriptionRecurringInterval'] | null
-      recurring_interval_count?: number | null
       trial_interval?: schemas['TrialInterval'] | null
       trial_interval_count?: number | null
+      full_medias?: schemas['ProductMediaFileRead'][]
     }
+    // The billing cycle is immutable after creation (the API rejects any
+    // recurring_interval change, and sending `null` for a subscription
+    // would try to convert it to one-time), so it's never sent here.
+    // Trial settings only exist on subscriptions.
+    const isRecurring = product.recurring_interval != null
     try {
       const result = await updateProduct.mutateAsync({
         id: product.id,
         body: {
           prices: values.prices,
-          recurring_interval: values.recurring_interval ?? null,
-          recurring_interval_count: values.recurring_interval_count ?? null,
-          trial_interval: values.trial_interval ?? null,
-          trial_interval_count: values.trial_interval_count ?? null,
+          medias: (values.full_medias ?? []).map((m) => m.id),
+          ...(isRecurring
+            ? {
+                trial_interval: values.trial_interval ?? null,
+                trial_interval_count: values.trial_interval_count ?? null,
+              }
+            : {}),
         },
       })
       if (result.error) {
         toast({
           title: 'Failed to update price',
-          description: JSON.stringify(result.error),
+          description: describeUpdateError(
+            (result.error as { detail?: unknown }).detail,
+          ),
         })
         return
       }
@@ -88,7 +110,7 @@ export function EditPricingModal({
     } catch (err) {
       toast({
         title: 'Failed to update price',
-        description: err instanceof Error ? err.message : undefined,
+        description: err instanceof Error ? err.message : 'Please try again.',
       })
     }
   }
@@ -121,6 +143,7 @@ export function EditPricingModal({
             backLabel="Cancel"
             hideProgress
             hideAccessSection
+            update
           />
         </div>
       </form>

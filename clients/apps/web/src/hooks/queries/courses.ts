@@ -61,6 +61,9 @@ export type CourseLessonRead = {
   mux_upload_id: string | null
   mux_asset_id: string | null
   mux_playback_id: string | null
+  // Signed (when the org uses signed playback) HLS URL for creator-side
+  // playback — the editor's Play button and sample preview use this.
+  mux_playback_url?: string | null
   mux_status: string | null
   // Course Assistant transcript pipeline state for video lessons:
   // pending | ready | failed | unavailable (null = not started / not a video).
@@ -334,24 +337,29 @@ export const useCourseById = (courseId: string | undefined) =>
     refetchInterval: (query) => {
       const data = query.state.data
       if (!data) return false
+      // Poll only while something can still resolve. Terminal states
+      // (ready / errored / quota_exceeded / deleted) must NOT poll — the
+      // old `mux_status !== 'ready'` check kept every failed upload
+      // polling every 5 seconds, forever. Uploads abandoned long enough
+      // ago are also given up on client-side (the server reconcile job
+      // marks them errored on its own schedule).
+      const staleCutoff = Date.now() - 3 * 60 * 60 * 1000
+      const stillResolving = (l: CourseLessonRead) =>
+        (l.mux_status === 'waiting' || l.mux_status === 'processing') &&
+        new Date(l.modified_at ?? l.created_at).getTime() > staleCutoff
       const hasPendingMux = data.modules.some((m) =>
-        m.lessons.some(
-          (l) =>
-            l.mux_upload_id && (!l.mux_playback_id || l.mux_status !== 'ready'),
-        ),
+        m.lessons.some(stillResolving),
       )
       // Keep polling while a video is still being transcribed for the Course
       // Assistant, so the outline's transcription chip updates live (Mux
       // becomes "ready" before captions exist, so the mux check alone stops
-      // too early).
+      // too early). Only 'pending' can resolve — anything else is settled.
       const hasPendingTranscript = data.modules.some((m) =>
         m.lessons.some(
           (l) =>
             l.content_type === 'video' &&
-            (!!l.mux_upload_id || !!l.mux_status) &&
-            l.transcript_status !== 'ready' &&
-            l.transcript_status !== 'failed' &&
-            l.transcript_status !== 'unavailable',
+            l.mux_status === 'ready' &&
+            l.transcript_status === 'pending',
         ),
       )
       return hasPendingMux || hasPendingTranscript ? 5000 : false
@@ -816,6 +824,10 @@ export type CourseLandingLesson = {
   is_free_preview: boolean
   duration_seconds: number | null
   thumbnail_url: string | null
+  // Creator-set crop (CSS object-position, e.g. "50% 30%") for the card
+  // thumbnail. The landing endpoint has always sent this; it just wasn't
+  // declared here, so the public page silently dropped it.
+  thumbnail_object_position?: string | null
   mux_playback_id?: string | null
   mux_status?: string | null
   locked?: boolean

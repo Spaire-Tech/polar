@@ -16,7 +16,7 @@ import {
   useUpdateCommunitySettings,
   useUploadPostImage,
 } from '@/hooks/queries/community'
-import { type CourseRead } from '@/hooks/queries/courses'
+import { type CourseRead, usePreviewAccess } from '@/hooks/queries/courses'
 import { schemas } from '@spaire/client'
 import { useRouter } from 'next/navigation'
 import * as React from 'react'
@@ -147,6 +147,22 @@ export function CommunityHub({
   const backToEditor = () =>
     router.push(`/dashboard/${organization.slug}/courses/${courseId}`)
 
+  // "View as student" needs a portal session — mint one for the admin's own
+  // account (same flow as the outline's Preview button); opening the portal
+  // URL bare would just land on the sign-in screen.
+  const previewAccess = usePreviewAccess()
+  const viewAsStudent = async () => {
+    try {
+      const { token } = await previewAccess.mutateAsync(courseId)
+      window.open(
+        `/${organization.slug}/portal/courses/${courseId}/community?customer_session_token=${token}`,
+        '_blank',
+      )
+    } catch {
+      showToast('Could not open the student view')
+    }
+  }
+
   const name = settings?.feed_title_override || course.title || 'Your community'
   const host = course.instructor_name || organization.name
   const defaultTagline = `Hosted by ${host}`
@@ -264,14 +280,11 @@ export function CommunityHub({
           <span className="spacer" />
           <button
             className="btn btn-quiet btn-sm"
-            onClick={() =>
-              window.open(
-                `/${organization.slug}/portal/courses/${courseId}/community`,
-                '_blank',
-              )
-            }
+            onClick={viewAsStudent}
+            disabled={previewAccess.isPending}
           >
-            <Glyph d="eye" size={15} stroke={1.9} /> View as student
+            <Glyph d="eye" size={15} stroke={1.9} />{' '}
+            {previewAccess.isPending ? 'Opening…' : 'View as student'}
           </button>
         </div>
       </div>

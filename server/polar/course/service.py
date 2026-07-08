@@ -1,3 +1,4 @@
+import logging
 from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
 from typing import NamedTuple
@@ -41,6 +42,9 @@ from .schemas import (
     CourseModuleUpdate,
     CourseUpdate,
 )
+
+
+log = logging.getLogger(__name__)
 
 
 class EnrollmentProgressSummary(NamedTuple):
@@ -486,6 +490,61 @@ class CourseService:
         lesson_repo = CourseLessonRepository.from_session(session)
         return await lesson_repo.get_by_id(lesson_id)
 
+    def _enqueue_lesson_video_cleanup(self, lesson: CourseLesson) -> None:
+        """Enqueue removal of whatever video work the lesson currently owns
+        at the provider. A finished asset is deleted directly; an upload
+        that hasn't produced an asset yet (still uploading, or mid-
+        transcode) is resolved by the release worker, which cancels the
+        upload or deletes the asset it eventually produced. Without the
+        upload branch, replacing/removing a video while a previous upload
+        was still processing orphaned that asset on Mux forever.
+        """
+        from polar.worker import enqueue_job
+
+        asset_id = getattr(lesson, "mux_asset_id", None)
+        upload_id = getattr(lesson, "mux_upload_id", None)
+        if asset_id:
+            enqueue_job("course.mux_delete_asset", asset_id=asset_id)
+        elif upload_id:
+            enqueue_job("course.mux_release_upload", upload_id=upload_id)
+
+    async def _refund_lesson_video_quota(
+        self, session: AsyncSession, lesson: CourseLesson
+    ) -> None:
+        """Give the org's video-hours quota back for a detached asset.
+
+        The quota is only ever counted when an asset reaches `ready`
+        (the webhook emits the positive event then), so refund exactly
+        that case. Assets that errored, were never counted
+        (quota_exceeded), or never finished carry no usage to refund.
+        """
+        from polar.quotas.producers import emit_video_uploaded
+
+        if lesson.mux_status != "ready" or not lesson.duration_seconds:
+            return
+        lesson_repo = CourseLessonRepository.from_session(session)
+        organization_id = await lesson_repo.get_organization_id_for_lesson(
+            lesson.id
+        )
+        if organization_id is not None:
+            emit_video_uploaded(
+                session,
+                organization_id=organization_id,
+                duration_seconds=-int(lesson.duration_seconds),
+            )
+
+    async def _kick_assistant_rebuild(
+        self, session: AsyncSession, lesson_id: UUID
+    ) -> None:
+        """Re-check the course's AI assistant after a transcript went away,
+        so it stops quoting (and citing timestamps from) a removed video."""
+        from polar.worker import enqueue_job
+
+        lesson_repo = CourseLessonRepository.from_session(session)
+        course_id = await lesson_repo.get_course_id_for_lesson(lesson_id)
+        if course_id is not None:
+            enqueue_job("course_assistant.maybe_build", course_id=course_id)
+
     async def clear_lesson_video(
         self, session: AsyncSession, lesson: CourseLesson
     ) -> CourseLesson:
@@ -494,15 +553,14 @@ class CourseService:
         Fires the asset-cleanup job idempotently so a half-uploaded or
         ready asset is removed from the provider even if the user immediately
         re-uploads — the worker tolerates 404s on subsequent attempts.
+        Also refunds the video-hours quota the asset consumed and drops the
+        video's transcript so the Course Assistant rebuilds without it.
         """
-        from polar.worker import enqueue_job
-
-        asset_id = getattr(lesson, "mux_asset_id", None)
-        if asset_id:
-            enqueue_job("course.mux_delete_asset", asset_id=asset_id)
+        self._enqueue_lesson_video_cleanup(lesson)
+        await self._refund_lesson_video_quota(session, lesson)
 
         lesson_repo = CourseLessonRepository.from_session(session)
-        return await lesson_repo.update(
+        lesson = await lesson_repo.update(
             lesson,
             update_dict={
                 "mux_upload_id": None,
@@ -510,21 +568,192 @@ class CourseService:
                 "mux_playback_id": None,
                 "mux_status": None,
                 "duration_seconds": None,
+                "transcript": None,
+                "transcript_status": None,
+                "transcript_cues": None,
             },
         )
+        await self._kick_assistant_rebuild(session, lesson.id)
+        return lesson
+
+    async def stage_lesson_video_replacement(
+        self,
+        session: AsyncSession,
+        lesson: CourseLesson,
+        *,
+        upload_id: str,
+    ) -> CourseLesson:
+        """Point the lesson at a brand-new direct upload.
+
+        Replacing is remove + attach in one step: the previous asset (or a
+        still-processing previous upload) is cleaned up at the provider, its
+        video-hours are refunded, and the stale playback/duration/transcript
+        state is cleared so the editor shows the upload's real progress
+        instead of the old video.
+        """
+        self._enqueue_lesson_video_cleanup(lesson)
+        await self._refund_lesson_video_quota(session, lesson)
+
+        lesson_repo = CourseLessonRepository.from_session(session)
+        lesson = await lesson_repo.update(
+            lesson,
+            update_dict={
+                "mux_upload_id": upload_id,
+                "mux_asset_id": None,
+                "mux_playback_id": None,
+                "mux_status": "waiting",
+                "duration_seconds": None,
+                "content_type": "video",
+                "transcript": None,
+                "transcript_status": None,
+                "transcript_cues": None,
+            },
+        )
+        await self._kick_assistant_rebuild(session, lesson.id)
+        return lesson
+
+    async def attach_ready_asset(
+        self,
+        session: AsyncSession,
+        lesson: CourseLesson,
+        *,
+        asset_id: str,
+        playback_id: str,
+        duration: float | None,
+    ) -> None:
+        """Attach a finished Mux asset to its lesson.
+
+        Shared by the `video.asset.ready` webhook and the stalled-upload
+        reconcile cron (which recovers lessons whose webhook never arrived).
+        Runs the definitive video-hours quota check with the real duration,
+        requests auto-captions, seeds the transcript pipeline state, and
+        counts the hours — exactly once, guarded by the ready transition.
+        """
+        from polar.organization.repository import OrganizationRepository
+        from polar.quotas.definitions import QuotaKey
+        from polar.quotas.producers import emit_video_uploaded
+        from polar.quotas.service import quotas
+        from polar.worker import enqueue_job
+
+        from . import mux as mux_client
+
+        lesson_repo = CourseLessonRepository.from_session(session)
+
+        # Only emit on the first transition to ready, so retried webhooks
+        # (or webhook + reconcile racing) don't double-count the same asset.
+        previously_ready = lesson.mux_status == "ready"
+        organization_id = (
+            await lesson_repo.get_organization_id_for_lesson(lesson.id)
+            if not previously_ready and duration
+            else None
+        )
+
+        # Post-completion quota check: now that Mux has told us the real
+        # duration, see if adding it would push the org past their
+        # video-hours grace ceiling. The upload-initiate check was a
+        # conservative estimate; this is the definitive value. If it
+        # exceeds, flip the lesson to `quota_exceeded` instead of `ready`
+        # and skip the count emit — the asset stays on Mux but the
+        # customer-portal playback-url endpoint will refuse to mint a URL
+        # for it until the creator upgrades or deletes other content.
+        target_status = "ready"
+        if organization_id is not None:
+            org_repo = OrganizationRepository.from_session(session)
+            organization = await org_repo.get_by_id(organization_id)
+            if organization is not None:
+                check = await quotas.check(
+                    session,
+                    organization.id,
+                    QuotaKey.video_hours_hosted,
+                    requested_storage_units=int(duration or 0),
+                )
+                if not check.allowed:
+                    target_status = "quota_exceeded"
+                    log.warning(
+                        "course.upload.over_quota",
+                        extra={
+                            "organization_id": str(organization.id),
+                            "lesson_id": str(lesson.id),
+                            "duration_seconds": int(duration or 0),
+                            "used": check.used,
+                            "limit": check.limit,
+                        },
+                    )
+
+        update: dict = {
+            "mux_asset_id": asset_id,
+            "mux_playback_id": playback_id,
+            "mux_status": target_status,
+        }
+        if duration:
+            update["duration_seconds"] = int(duration)
+        await lesson_repo.update(lesson, update_dict=update)
+
+        # Auto-generated captions: when the lesson keeps captions on (the
+        # default; the lesson editor's Captions switch writes
+        # content.captions=false to opt out), ask Mux to generate an
+        # English subtitle track from the audio now that the asset is
+        # ready. Best-effort and idempotent — a failure here must not fail
+        # the caller (the asset is already playable).
+        if target_status == "ready" and not previously_ready:
+            captions_enabled = (lesson.content or {}).get("captions", True)
+            # Drive the Course Assistant transcript pipeline: request
+            # captions and record whether a transcript is coming
+            # ("pending") or never will ("unavailable"). The
+            # transcript-track webhook (or the reconcile cron) fetches the
+            # VTT once Mux finishes generating it.
+            transcript_status = "unavailable"
+            if captions_enabled:
+                try:
+                    ok = await mux_client.request_auto_captions(asset_id)
+                    transcript_status = "pending" if ok else "unavailable"
+                except Exception:
+                    log.exception(
+                        "course.captions.request_failed",
+                        extra={
+                            "lesson_id": str(lesson.id),
+                            "asset_id": asset_id,
+                        },
+                    )
+                    # Optimistic: the track may still arrive; let the
+                    # reconcile cron resolve it rather than giving up.
+                    transcript_status = "pending"
+            await lesson_repo.update(
+                lesson, update_dict={"transcript_status": transcript_status}
+            )
+            if transcript_status == "unavailable":
+                # This lesson will never yield a transcript, so it may be
+                # the last thing the assistant build was waiting on.
+                course_id = await lesson_repo.get_course_id_for_lesson(
+                    lesson.id
+                )
+                if course_id is not None:
+                    enqueue_job(
+                        "course_assistant.maybe_build", course_id=course_id
+                    )
+
+        if (
+            not previously_ready
+            and duration
+            and organization_id is not None
+            and target_status == "ready"
+        ):
+            emit_video_uploaded(
+                session,
+                organization_id=organization_id,
+                duration_seconds=int(duration),
+            )
 
     async def delete_lesson(
         self, session: AsyncSession, lesson: CourseLesson
     ) -> None:
-        # Enqueue Mux asset cleanup before soft-delete so we still have
-        # the asset id available. The worker is idempotent (404 from Mux
-        # counts as success), so a failed enqueue is safe to retry later.
-        from polar.worker import enqueue_job
-
+        # Enqueue Mux cleanup before soft-delete so we still have the
+        # asset/upload ids available, and refund the quota the asset was
+        # consuming. The workers are idempotent (404 from Mux counts as
+        # success), so a failed enqueue is safe to retry later.
         lesson_repo = CourseLessonRepository.from_session(session)
-        asset_id = getattr(lesson, "mux_asset_id", None)
-        if asset_id:
-            enqueue_job("course.mux_delete_asset", asset_id=asset_id)
+        self._enqueue_lesson_video_cleanup(lesson)
+        await self._refund_lesson_video_quota(session, lesson)
         await lesson_repo.soft_delete(lesson)
 
     async def reorder_lessons(
@@ -552,6 +781,7 @@ class CourseService:
         course_id: UUID,
         customer: Customer,
         product_id: UUID | None = None,
+        fire_events: bool = True,
     ) -> CourseEnrollment:
         """Enroll a customer in a course.
 
@@ -562,6 +792,10 @@ class CourseService:
         duplicate active rows under concurrent grants — a losing
         transaction will surface as IntegrityError and the caller (a
         Dramatiq actor for benefit grant) will retry.
+
+        `fire_events=False` skips the `course.enrolled` automation event —
+        used when the instructor enrolls their own account via the preview
+        flow, which must not trigger the org's email automations.
         """
         repo = CourseEnrollmentRepository.from_session(session)
         statement = repo.get_by_customer_and_course_statement(customer.id, course_id)
@@ -599,12 +833,13 @@ class CourseService:
             enrolled_at=datetime.now(tz=UTC),
         )
         enrollment = await repo.create(enrollment, flush=True)
-        await self._fire_course_event(
-            session,
-            course_id=course_id,
-            customer_id=customer.id,
-            event_name="course.enrolled",
-        )
+        if fire_events:
+            await self._fire_course_event(
+                session,
+                course_id=course_id,
+                customer_id=customer.id,
+                event_name="course.enrolled",
+            )
         return enrollment
 
     async def revoke_enrollment(
@@ -702,22 +937,14 @@ class CourseService:
         session: AsyncSession,
         course_id: UUID,
         *,
+        organization_id: UUID,
         limit: int,
         page: int,
         query: str | None = None,
     ) -> tuple[Sequence[CourseEnrollment], int]:
-        from sqlalchemy.orm import selectinload
-
         repo = CourseEnrollmentRepository.from_session(session)
-        # Eager-load the customer in the same round trip — the endpoint
-        # used to issue a follow-up SELECT … WHERE id IN (…) which
-        # doubled the wire time on the customers tab. With selectinload
-        # SQLAlchemy batches the customers query alongside this one.
-        statement = (
-            repo.get_base_statement()
-            .where(CourseEnrollment.course_id == course_id)
-            .order_by(CourseEnrollment.enrolled_at.desc())
-            .options(selectinload(CourseEnrollment.customer))
+        statement = repo.get_students_for_course_statement(
+            course_id, organization_id
         )
         if query:
             # Server-side search — the tab is paginated, so filtering the

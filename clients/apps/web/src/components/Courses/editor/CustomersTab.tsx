@@ -1,6 +1,5 @@
 'use client'
 
-import { useAuth } from '@/hooks/auth'
 import {
   fetchAllCourseEnrollments,
   useCourseEnrollments,
@@ -8,13 +7,12 @@ import {
   type CourseEnrollmentProgress,
   type CourseEnrollmentRead,
 } from '@/hooks/queries/courses'
+import useDebounce from '@/utils/useDebounce'
 import ChevronLeftOutlined from '@mui/icons-material/ChevronLeftOutlined'
 import ChevronRightOutlined from '@mui/icons-material/ChevronRightOutlined'
 import DeleteOutlineOutlined from '@mui/icons-material/DeleteOutlineOutlined'
 import FileDownloadOutlined from '@mui/icons-material/FileDownloadOutlined'
 import SearchOutlined from '@mui/icons-material/SearchOutlined'
-import useDebounce from '@/utils/useDebounce'
-import { schemas } from '@spaire/client'
 import Avatar from '@spaire/ui/components/atoms/Avatar'
 import { useEffect, useState } from 'react'
 import { timeAgo } from '../../Community/hub/format'
@@ -24,11 +22,10 @@ const PAGE_SIZE = 50
 
 type CustomerRow = {
   id: string
-  enrollmentId: string | null
+  enrollmentId: string
   name: string
   email: string
   avatar_url: string | null
-  role: 'Admin' | 'Student'
   joined: string | null
   progress: CourseEnrollmentProgress | null
 }
@@ -49,7 +46,6 @@ function enrollmentToRow(e: CourseEnrollmentRead): CustomerRow {
     name: e.customer?.name || e.customer?.email.split('@')[0] || 'Student',
     email: e.customer?.email ?? '—',
     avatar_url: e.customer?.avatar_url ?? null,
-    role: 'Student',
     joined: e.enrolled_at,
     progress: e.progress ?? null,
   }
@@ -66,7 +62,6 @@ function downloadCsv(rows: CustomerRow[], suffix?: string): void {
   const header = [
     'Name',
     'Email',
-    'Role',
     'Joined',
     'Completed Lessons',
     'Total Lessons',
@@ -79,7 +74,6 @@ function downloadCsv(rows: CustomerRow[], suffix?: string): void {
       [
         r.name,
         r.email,
-        r.role,
         r.joined ?? '',
         r.progress ? String(r.progress.completed_lessons) : '',
         r.progress ? String(r.progress.total_lessons) : '',
@@ -137,14 +131,7 @@ function ProgressCell({
   )
 }
 
-export function CustomersTab({
-  organization,
-  courseId,
-}: {
-  organization: schemas['Organization']
-  courseId: string
-}) {
-  const { currentUser } = useAuth()
+export function CustomersTab({ courseId }: { courseId: string }) {
   const [query, setQuery] = useState('')
   const [page, setPage] = useState(1)
   const [exporting, setExporting] = useState(false)
@@ -177,39 +164,9 @@ export function CustomersTab({
     if (enrollmentsPage && page > totalPages) setPage(totalPages)
   }, [enrollmentsPage, page, totalPages])
 
-  const adminRow: CustomerRow | null = currentUser
-    ? {
-        id: `admin-${currentUser.id}`,
-        enrollmentId: null,
-        name: currentUser.email.split('@')[0],
-        email: currentUser.email,
-        avatar_url: currentUser.avatar_url,
-        role: 'Admin',
-        joined: organization.created_at ?? currentUser.created_at,
-        progress: null,
-      }
-    : null
-
-  // The admin isn't an enrollment, so the server search can't see them —
-  // apply the same match client-side. The match drives the header count
-  // and the CSV export; whether the row renders additionally depends on
-  // being on the first page (it's pinned to the top of the list).
-  const q = debouncedQuery.toLowerCase()
-  const adminMatchesQuery =
-    !!adminRow &&
-    (!q ||
-      adminRow.email.toLowerCase().includes(q) ||
-      adminRow.name.toLowerCase().includes(q))
-  const adminVisible = adminMatchesQuery && page === 1
-
-  const studentRows: CustomerRow[] = (enrollments ?? []).map(enrollmentToRow)
-  const visibleRows =
-    adminVisible && adminRow ? [adminRow, ...studentRows] : studentRows
-
-  const totalCustomers = totalStudents + (adminMatchesQuery ? 1 : 0)
+  const visibleRows: CustomerRow[] = (enrollments ?? []).map(enrollmentToRow)
 
   const handleRemove = async (row: CustomerRow) => {
-    if (!row.enrollmentId) return
     if (
       !confirm(
         `Remove ${row.name} from this course?\n\n` +
@@ -237,10 +194,7 @@ export function CustomersTab({
       // narrows the export to the matching students — the filename and
       // toast say so, so a filtered file isn't mistaken for the roster.
       const all = await fetchAllCourseEnrollments(courseId, debouncedQuery)
-      const rows = [
-        ...(adminMatchesQuery && adminRow ? [adminRow] : []),
-        ...all.map(enrollmentToRow),
-      ]
+      const rows = all.map(enrollmentToRow)
       if (rows.length === 0) {
         toast({ title: 'No customers to export yet' })
         return
@@ -263,11 +217,11 @@ export function CustomersTab({
       <div className="mb-6 flex items-start justify-between gap-4">
         <div>
           <h1 className="text-lg font-medium text-gray-900">
-            Customers{!isLoading && !isError ? ` (${totalCustomers})` : ''}
+            Customers{!isLoading && !isError ? ` (${totalStudents})` : ''}
           </h1>
           <p className="mt-1 text-gray-500">
-            Everyone with access to this course — instructors and enrolled
-            students.
+            Students enrolled in this course. Instructors preview with their
+            own account and are not listed here.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -343,40 +297,27 @@ export function CustomersTab({
                 <div className="flex min-w-0 flex-col">
                   <span className="truncate font-semibold text-gray-900">
                     {row.name}
-                    {row.role === 'Admin' && (
-                      <span className="ml-2 rounded-md bg-gray-100 px-1.5 py-0.5 text-[10px] font-semibold tracking-wide text-gray-500 uppercase">
-                        Admin
-                      </span>
-                    )}
                   </span>
                   <span className="truncate text-xs text-gray-500">
                     {row.email}
                   </span>
                 </div>
               </div>
-              {row.role === 'Admin' ? (
-                <span className="text-gray-400">—</span>
-              ) : (
-                <ProgressCell progress={row.progress} />
-              )}
+              <ProgressCell progress={row.progress} />
               <span className="text-gray-700">
-                {row.role === 'Admin'
-                  ? '—'
-                  : timeAgo(row.progress?.last_active_at) || '—'}
+                {timeAgo(row.progress?.last_active_at) || '—'}
               </span>
               <span className="text-gray-700">{formatDate(row.joined)}</span>
               <span className="flex justify-end">
-                {row.role === 'Student' && row.enrollmentId && (
-                  <button
-                    onClick={() => handleRemove(row)}
-                    disabled={revoke.isPending}
-                    className="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-gray-500 transition-colors hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
-                    title="Remove student"
-                  >
-                    <DeleteOutlineOutlined sx={{ fontSize: 14 }} />
-                    Remove
-                  </button>
-                )}
+                <button
+                  onClick={() => handleRemove(row)}
+                  disabled={revoke.isPending}
+                  className="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-gray-500 transition-colors hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
+                  title="Remove student"
+                >
+                  <DeleteOutlineOutlined sx={{ fontSize: 14 }} />
+                  Remove
+                </button>
               </span>
             </div>
           ))

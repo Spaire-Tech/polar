@@ -177,6 +177,9 @@ export function WatchHome({
   token,
   onOpenTextLesson,
   onMarkComplete,
+  autoplayLessonId,
+  autoplayStartSec,
+  onPlayerClose,
 }: {
   organization: schemas['CustomerOrganization']
   data: CustomerCourseDetail
@@ -184,6 +187,14 @@ export function WatchHome({
   token: string
   onOpenTextLesson: (lessonId: string) => void
   onMarkComplete: (lessonId: string) => void
+  /** Deep-linked video lesson (?lesson= in the URL — assistant citations,
+   *  bookmarks, back/forward) to open directly in the player overlay. */
+  autoplayLessonId?: string | null
+  /** Start second for the autoplayed lesson (?t= citation timestamp). */
+  autoplayStartSec?: number
+  /** Fired when the player overlay closes — lets the route strip the
+   *  ?lesson=/?t= params so a refresh doesn't reopen the player. */
+  onPlayerClose?: () => void
 }) {
   const course = data.course
   const courseId = course.id
@@ -419,7 +430,7 @@ export function WatchHome({
   } | null>(null)
 
   const playLesson = useCallback(
-    async (l: WatchLessonData) => {
+    async (l: WatchLessonData, startOverride?: number) => {
       if (l.locked) {
         const when = unlockDateLabel(l.locked_until)
         showToast(when ? `Unlocks ${when}` : 'This lesson unlocks later')
@@ -442,7 +453,7 @@ export function WatchHome({
         return
       }
       const frac = fractionOf(l) ?? 0
-      const startSec = frac * (l.duration_seconds ?? 0)
+      const startSec = startOverride ?? frac * (l.duration_seconds ?? 0)
       try {
         const minted = await mintUrl.mutateAsync(l.id)
         setPlaying({
@@ -457,6 +468,25 @@ export function WatchHome({
     },
     [fractionOf, mintUrl, onOpenTextLesson, showToast],
   )
+
+  /* ── deep-linked video (?lesson= / ?t=) opens straight in the player.
+     This used to route to the legacy MasterClass reading view — a second,
+     divergent player. Consumed once per (lesson, timestamp) so closing the
+     player doesn't re-trigger it, while a fresh citation — same lesson,
+     new second — still re-opens; the ref resets when the params clear. ── */
+  const autoplayConsumedRef = useRef<string | null>(null)
+  useEffect(() => {
+    if (!autoplayLessonId) {
+      autoplayConsumedRef.current = null
+      return
+    }
+    const key = `${autoplayLessonId}:${autoplayStartSec ?? ''}`
+    if (autoplayConsumedRef.current === key) return
+    const l = lessons.find((x) => x.id === autoplayLessonId)
+    if (!l) return
+    autoplayConsumedRef.current = key
+    void playLesson(l, autoplayStartSec)
+  }, [autoplayLessonId, autoplayStartSec, lessons, playLesson])
 
   /* ── server-side position sync ── */
   // The player reports progress every ~5s; sending each tick would hammer
@@ -1162,6 +1192,7 @@ export function WatchHome({
             // push that position to the server immediately.
             flushPendingSync()
             setPlaying(null)
+            onPlayerClose?.()
           }}
           onProgress={(f) => onPlayerProgress(playing.lesson.id, f)}
           onComplete={() => onPlayerComplete(playing.lesson.id)}

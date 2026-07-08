@@ -264,6 +264,31 @@ class CourseLessonRepository(
         )
         return await self.get_one_or_none(statement)
 
+    async def list_stalled_mux_uploads(
+        self, cutoff: datetime, limit: int = 200
+    ) -> Sequence[CourseLesson]:
+        """Lessons whose video is stuck in `waiting`/`processing` since
+        before `cutoff`. The Mux webhook is the normal way out of those
+        states; when it never arrives (abandoned upload tab, dropped
+        webhook, failed transcode) the reconcile cron resolves them so the
+        editor doesn't show "Processing…" — and poll — forever."""
+        statement = (
+            self.get_base_statement()
+            .where(
+                CourseLesson.mux_status.in_(["waiting", "processing"]),
+                # modified_at is NULL until a row's first UPDATE — and a
+                # wizard-created lesson whose upload was abandoned may never
+                # be updated at all, so fall back to created_at or those
+                # rows would evade the reconcile forever.
+                func.coalesce(
+                    CourseLesson.modified_at, CourseLesson.created_at
+                )
+                < cutoff,
+            )
+            .limit(limit)
+        )
+        return await self.get_all(statement)
+
     async def list_pending_transcripts(
         self, limit: int = 200
     ) -> Sequence[CourseLesson]:
@@ -345,11 +370,50 @@ class CourseEnrollmentRepository(
         result = await self.session.execute(statement)
         return result.scalars().first()
 
-    def apply_customer_search(self, statement: Select, query: str) -> Select:
-        """Filter an enrollments statement by customer email/name.
+    def get_students_for_course_statement(
+        self, course_id: UUID, organization_id: UUID
+    ):
+        """Enrollments for a course excluding the org's own members.
 
-        Escapes LIKE metacharacters so a literal '_' or '%' in the query
-        (common in emails) matches literally instead of as a wildcard.
+        Instructors preview their course through their own real customer
+        account (their dashboard email — see get_preview_access), and the
+        legacy preview sandbox used @course-preview.invalid addresses.
+        Neither is a student, so both are excluded from the student-facing
+        list (Customers tab, its count, and the CSV export). Eager-loads
+        .customer in the same round trip.
+        """
+        from sqlalchemy.orm import selectinload
+
+        instructor_emails = (
+            select(func.lower(User.email))
+            .join(UserOrganization, UserOrganization.user_id == User.id)
+            .where(
+                UserOrganization.organization_id == organization_id,
+                UserOrganization.deleted_at.is_(None),
+                User.email.is_not(None),
+            )
+            .scalar_subquery()
+        )
+        return (
+            self.get_base_statement()
+            .join(Customer, Customer.id == CourseEnrollment.customer_id)
+            .where(
+                CourseEnrollment.course_id == course_id,
+                Customer.email.notilike("%@course-preview.invalid"),
+                func.lower(Customer.email).not_in(instructor_emails),
+            )
+            .order_by(CourseEnrollment.enrolled_at.desc())
+            .options(selectinload(CourseEnrollment.customer))
+        )
+
+    def apply_customer_search(self, statement: Select, query: str) -> Select:
+        """Filter a students statement by customer email/name.
+
+        Expects a statement that already joins Customer (i.e. built by
+        get_students_for_course_statement) — it only adds the WHERE
+        clause. Escapes LIKE metacharacters so a literal '_' or '%' in
+        the query (common in emails) matches literally instead of as a
+        wildcard.
         """
         escaped = (
             query.strip()
@@ -358,9 +422,7 @@ class CourseEnrollmentRepository(
             .replace("_", "\\_")
         )
         pattern = f"%{escaped}%"
-        return statement.join(
-            Customer, Customer.id == CourseEnrollment.customer_id
-        ).where(
+        return statement.where(
             Customer.email.ilike(pattern) | Customer.name.ilike(pattern)
         )
 

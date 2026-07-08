@@ -78,6 +78,11 @@ def _lesson_read(lesson) -> CourseLessonRead:
         mux_upload_id=lesson.mux_upload_id,
         mux_asset_id=lesson.mux_asset_id,
         mux_playback_id=lesson.mux_playback_id,
+        # Signed HLS URL (falls back to the public URL when signing keys
+        # aren't configured). Dashboard reads are creator-authenticated, so
+        # inlining it is safe — without it the editor's own Play button and
+        # sample-clip preview 403 the moment signed playback is enabled.
+        mux_playback_url=mux_client.playback_url(lesson.mux_playback_id),
         mux_status=lesson.mux_status,
         transcript_status=getattr(lesson, "transcript_status", None),
         thumbnail_url=lesson.thumbnail_url,
@@ -386,6 +391,7 @@ async def list_course_enrollments(
     enrollments, total = await course_service.paginate_enrollments_for_course(
         session,
         course_id,
+        organization_id=course.organization_id,
         limit=pagination.limit,
         page=pagination.page,
         query=query,
@@ -679,14 +685,12 @@ async def create_mux_upload(
         log.error("Mux upload creation failed: %s", e)
         raise HTTPException(status_code=502, detail="Failed to create upload")
 
-    lesson_repo = CourseLessonRepository.from_session(session)
-    await lesson_repo.update(
-        lesson,
-        update_dict={
-            "mux_upload_id": result["upload_id"],
-            "mux_status": "waiting",
-            "content_type": "video",
-        },
+    # Replace = remove + attach: the previous asset (or a still-processing
+    # previous upload) is deleted at Mux, its video-hours refunded, and the
+    # stale playback/duration/transcript state cleared so the editor shows
+    # the new upload's progress instead of the old video.
+    await course_service.stage_lesson_video_replacement(
+        session, lesson, upload_id=result["upload_id"]
     )
 
     return MuxUploadRead(
@@ -813,10 +817,24 @@ async def upload_course_trailer(
     if ext not in {"mp4", "mov", "webm", "m4v"}:
         ext = "mp4"
 
-    path = f"course-trailers/{course_id}.{ext}"
+    # Content-addressed path so replacing the trailer yields a fresh URL —
+    # the previous fixed `{course_id}.{ext}` key meant browsers (and CDNs)
+    # kept serving the cached old trailer after a replace.
+    digest = hashlib.sha256(data).hexdigest()[:12]
+    path = f"course-trailers/{course_id}/{digest}.{ext}"
     s3 = S3Service(bucket=settings.S3_FILES_PUBLIC_BUCKET_NAME)
     s3.upload(data, path, content_type)
     trailer_url = s3.get_public_url(path)
+
+    # Best-effort cleanup of the replaced trailer object.
+    old_url = course.trailer_url
+    if old_url and old_url != trailer_url:
+        old_path = old_url.split("/course-trailers/", 1)
+        if len(old_path) == 2:
+            try:
+                s3.delete_file(f"course-trailers/{old_path[1].split('?')[0]}")
+            except Exception as e:
+                log.warning("Failed to delete old trailer from S3: %s", e)
 
     course = await repo.update(course, update_dict={"trailer_url": trailer_url})
     return _course_read(course)
@@ -979,7 +997,20 @@ async def get_preview_access(
     auth_subject: auth.CoursesWrite,
     session: AsyncSession = Depends(get_db_session),
 ) -> dict[str, str]:
-    """Create a customer session for an org member to preview a course as a student."""
+    """Sign the requesting org member into the portal as themselves.
+
+    Finds-or-creates the instructor's OWN customer record — their real
+    dashboard email — in the course's organization, enrolls it, and mints a
+    customer session. The portal identifies instructors by matching the
+    customer email against org-member emails, so this account automatically
+    gets the instructor badge and moderation powers in lesson discussions,
+    and the enrollments listing excludes it from student-facing counts.
+
+    Security: the session is only ever minted for the requesting user's own
+    email — never an arbitrary customer — so this cannot be used to
+    impersonate a student. Signing in "as yourself" is something the user
+    could already do through the portal's email-code flow.
+    """
     if not is_user(auth_subject):
         raise HTTPException(status_code=400, detail="Preview requires user authentication")
 
@@ -1001,44 +1032,36 @@ async def get_preview_access(
         raise HTTPException(status_code=404, detail="Organization not found")
 
     customer_repo = CustomerRepository.from_session(session)
-    # Use a deterministic preview-only email tied to the org user, NOT the
-    # user's real email. Reusing a real customer record by email would mint
-    # a customer-session token that also unlocks that customer's other
-    # purchases / orders / PII — so we route every preview through a
-    # sandboxed customer scoped to (org_user, organization) instead.
-    # The .invalid TLD is RFC-reserved and guaranteed to never match a
-    # real address, so this can't collide with checkout-created customers.
-    preview_email = f"preview+{user.id}@course-preview.invalid"
-    # Display name mirrors the admin's editorial identity: course's
-    # instructor_name override → org name → user email-local. No
-    # "(preview)" suffix — the portal now treats this customer as the
-    # admin themselves, not a sandboxed fake account.
+    # Display name for a freshly-created record mirrors the admin's
+    # editorial identity: course instructor_name → org name → email-local.
     display_name = (
         (course.instructor_name or "").strip()
         or (org.name or "").strip()
         or user.email.split("@")[0]
     )
     customer = await customer_repo.get_by_email_and_organization(
-        preview_email, course.organization_id
+        user.email, course.organization_id
     )
     if customer is None:
         customer = await customer_repo.create(
             Customer(
-                email=preview_email,
+                email=user.email,
                 name=display_name,
                 organization_id=course.organization_id,
             ),
             flush=True,
         )
-    elif customer.name != display_name:
-        # Refresh stale preview customer rows from earlier sessions
-        # whose name still carries the legacy "(preview)" suffix.
+    elif not (customer.name or "").strip():
+        # Backfill a display name, but never overwrite one the customer
+        # record already carries (e.g. set via portal onboarding).
         customer = await customer_repo.update(
             customer, update_dict={"name": display_name}
         )
 
+    # Don't fire enrollment events: previewing your own course must not
+    # trigger the org's own email automations.
     await course_service.enroll_customer(
-        session, course_id=course_id, customer=customer
+        session, course_id=course_id, customer=customer, fire_events=False
     )
 
     token, _ = await customer_session.create_customer_session(
@@ -1146,116 +1169,16 @@ async def mux_webhook(
 
             lesson = await _find_lesson_by_upload(upload_id)
             if lesson:
-                # Only emit on first transition to ready, so retried
-                # webhooks don't double-count the same asset.
-                previously_ready = lesson.mux_status == "ready"
-                organization_id = (
-                    await lesson_repo.get_organization_id_for_lesson(lesson.id)
-                    if not previously_ready and duration
-                    else None
+                # Quota check + attach + captions + transcript seeding +
+                # video-hours emit, shared with the stalled-upload
+                # reconcile cron (which recovers missed webhooks).
+                await course_service.attach_ready_asset(
+                    session,
+                    lesson,
+                    asset_id=asset_id,
+                    playback_id=playback_id,
+                    duration=duration,
                 )
-
-                # Post-completion quota check: now that Mux has told us
-                # the real duration, see if adding it would push the org
-                # past their video-hours grace ceiling. The upload-
-                # initiate check was a conservative estimate; this is
-                # the definitive value. If it exceeds, flip the lesson
-                # to `quota_exceeded` instead of `ready` and skip the
-                # count emit — the asset stays on Mux but the
-                # customer-portal playback-url endpoint will refuse to
-                # mint a URL for it until the creator upgrades or
-                # deletes other content.
-                target_status = "ready"
-                if organization_id is not None:
-                    org_repo = OrganizationRepository.from_session(session)
-                    organization = await org_repo.get_by_id(organization_id)
-                    if organization is not None:
-                        from polar.quotas.service import quotas as _quotas
-
-                        check = await _quotas.check(
-                            session,
-                            organization.id,
-                            QuotaKey.video_hours_hosted,
-                            requested_storage_units=int(duration),
-                        )
-                        if not check.allowed:
-                            target_status = "quota_exceeded"
-                            log.warning(
-                                "course.upload.over_quota",
-                                organization_id=str(organization.id),
-                                lesson_id=str(lesson.id),
-                                duration_seconds=int(duration),
-                                used=check.used,
-                                limit=check.limit,
-                            )
-
-                update: dict = {
-                    "mux_asset_id": asset_id,
-                    "mux_playback_id": playback_id,
-                    "mux_status": target_status,
-                }
-                if duration:
-                    update["duration_seconds"] = int(duration)
-                await lesson_repo.update(lesson, update_dict=update)
-
-                # Auto-generated captions: when the lesson keeps captions on
-                # (the default; the lesson editor's Captions switch writes
-                # content.captions=false to opt out), ask Mux to generate an
-                # English subtitle track from the audio now that the asset is
-                # ready. Best-effort and idempotent — a failure here must not
-                # fail the webhook (the asset is already playable).
-                if target_status == "ready" and not previously_ready:
-                    captions_enabled = (lesson.content or {}).get(
-                        "captions", True
-                    )
-                    # Drive the Course Assistant transcript pipeline: request
-                    # captions and record whether a transcript is coming
-                    # ("pending") or never will ("unavailable"). The
-                    # transcript-track webhook (or the reconcile cron) fetches
-                    # the VTT once Mux finishes generating it.
-                    transcript_status = "unavailable"
-                    if captions_enabled:
-                        try:
-                            ok = await mux_client.request_auto_captions(asset_id)
-                            transcript_status = "pending" if ok else "unavailable"
-                        except Exception:
-                            log.exception(
-                                "course.captions.request_failed",
-                                lesson_id=str(lesson.id),
-                                asset_id=asset_id,
-                            )
-                            # Optimistic: the track may still arrive; let the
-                            # reconcile cron resolve it rather than giving up.
-                            transcript_status = "pending"
-                    await lesson_repo.update(
-                        lesson,
-                        update_dict={"transcript_status": transcript_status},
-                    )
-                    if transcript_status == "unavailable":
-                        # This lesson will never yield a transcript, so it may
-                        # be the last thing the assistant build was waiting on.
-                        from polar.worker import enqueue_job
-
-                        course_id = await lesson_repo.get_course_id_for_lesson(
-                            lesson.id
-                        )
-                        if course_id is not None:
-                            enqueue_job(
-                                "course_assistant.maybe_build",
-                                course_id=course_id,
-                            )
-
-                if (
-                    not previously_ready
-                    and duration
-                    and organization_id is not None
-                    and target_status == "ready"
-                ):
-                    emit_video_uploaded(
-                        session,
-                        organization_id=organization_id,
-                        duration_seconds=int(duration),
-                    )
 
     elif event_type in ("video.upload.errored", "video.asset.errored"):
         upload_id = data.get("upload_id") or data.get("id")

@@ -442,21 +442,25 @@ async def get_enrolled_course(
     customer = await session.get(Customer, customer_id)
     customer_name = customer.name if customer else None
     # Real customers get their own avatar (set during the first-sign-in
-    # onboarding flow or the Settings menu). Preview customers — the
-    # admin acting as a student — fall back to the org's avatar
-    # (logo.dev fallback when the creator hasn't uploaded one) so the
-    # composer pill reads as the admin themselves.
+    # onboarding flow or the Settings menu). The admin acting as a
+    # student — an org member's own customer account (preview flow), or
+    # a legacy @course-preview.invalid sandbox — falls back to the org's
+    # avatar (logo.dev fallback when the creator hasn't uploaded one) so
+    # the composer pill reads as the admin themselves.
     customer_avatar_url: str | None = customer.avatar_url if customer else None
-    if (
-        customer_avatar_url is None
-        and customer is not None
-        and (customer.email or "").endswith("@course-preview.invalid")
-    ):
-        from polar.models.organization import Organization
+    if customer_avatar_url is None and customer is not None:
+        viewer_email = (customer.email or "").lower()
+        is_admin_viewer = viewer_email.endswith("@course-preview.invalid")
+        if not is_admin_viewer and viewer_email:
+            is_admin_viewer = viewer_email in await _instructor_emails(
+                session, course.organization_id
+            )
+        if is_admin_viewer:
+            from polar.models.organization import Organization
 
-        org = await session.get(Organization, customer.organization_id)
-        if org is not None:
-            customer_avatar_url = org.avatar_url
+            org = await session.get(Organization, customer.organization_id)
+            if org is not None:
+                customer_avatar_url = org.avatar_url
 
     modules, accessible_ids = _build_module_list(
         course, course.paywall_position, enrolled_at, now, completed_ids
@@ -1110,6 +1114,95 @@ async def mint_sample_playback_url(
         "mux_playback_url": mux_client.playback_url(playback_id),
         "start_seconds": int(raw_sample.get("start_seconds") or 0),
         "duration_seconds": int(raw_sample.get("duration_seconds") or 0),
+    }
+
+
+@router.post(
+    "/{course_id}/lessons/{lesson_id}/preview-playback-url",
+    summary="Mint Free-Preview Playback URL",
+)
+async def mint_preview_playback_url(
+    course_id: UUID,
+    lesson_id: UUID,
+    auth_subject: auth.CustomerPortalLandingRead,
+    session: AsyncSession = Depends(get_db_session),
+) -> dict:
+    """Authorize and mint a signed Mux playback URL for a free-preview lesson.
+
+    The public landing plays free previews to anonymous visitors, who can't
+    hit the enrolled playback-url endpoint. Without this, previews only work
+    while assets use the public playback policy — turning on signed video
+    silently breaks every free preview. Each play is counted against the
+    course owner's monthly video-view quota, exactly like enrolled playback.
+    """
+    course = await course_service.get_by_id(session, course_id)
+    if course is None:
+        raise HTTPException(status_code=404, detail="Course not found")
+    if not await _course_is_publicly_visible(session, course):
+        raise HTTPException(status_code=404, detail="Course not found")
+
+    lesson = None
+    published_lessons = []
+    for module in sorted(course.modules, key=lambda m: m.position):
+        for candidate in sorted(module.lessons, key=lambda l: l.position):
+            if candidate.published:
+                published_lessons.append(candidate)
+            if candidate.id == lesson_id:
+                lesson = candidate
+    if lesson is None or not lesson.published:
+        raise HTTPException(status_code=404, detail="Lesson not found")
+
+    # Free per the same rules the landing uses: the explicit flag wins,
+    # lessons before an enabled positional paywall are free, and with the
+    # paywall off entirely every published lesson is watchable before
+    # purchase (mirrors the landing's allLessonsOpen semantics).
+    paywall_at = (
+        course.paywall_position
+        if (
+            course.paywall_enabled
+            and course.paywall_position is not None
+            and course.paywall_position > 0
+        )
+        else None
+    )
+    lesson_index = next(
+        (i for i, l in enumerate(published_lessons) if l.id == lesson.id), None
+    )
+    is_free = (
+        bool(lesson.is_free_preview)
+        or not course.paywall_enabled
+        or (
+            paywall_at is not None
+            and lesson_index is not None
+            and lesson_index < paywall_at
+        )
+    )
+    if not is_free:
+        raise HTTPException(status_code=403, detail="Lesson is not a free preview")
+
+    playback_id = getattr(lesson, "mux_playback_id", None)
+    if not playback_id or (lesson.mux_status or "").lower() != "ready":
+        raise HTTPException(
+            status_code=404, detail="Lesson video is not available yet"
+        )
+
+    org_repo = OrganizationRepository.from_session(session)
+    organization = await org_repo.get_by_id(course.organization_id)
+    if organization is not None:
+        try:
+            await enforce(
+                session,
+                organization,
+                QuotaKey.video_views_monthly,
+                requested_storage_units=1,
+            )
+        except QuotaExceededError as exc:
+            raise HTTPException(status_code=402, detail=exc.message) from exc
+        emit_video_viewed(session, organization_id=organization.id)
+
+    return {
+        "mux_playback_id": playback_id,
+        "mux_playback_url": mux_client.playback_url(playback_id),
     }
 
 
