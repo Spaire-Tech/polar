@@ -292,6 +292,25 @@ async function courseApiFetch<T>(
   return res.json()
 }
 
+// Surface the server's real reason for a failed course request instead of a
+// generic toast. courseApiFetch throws `Error("API <status>: <body>")` where
+// the body is a PolarError JSON `{"error", "detail"}` — so a 402 tier-limit
+// block ("Your plan allows N lessons per course. Upgrade…") can be shown to
+// the creator rather than swallowed. Returns null when there's nothing useful
+// to show. Shared by the course editor and the lesson editor.
+export function apiErrorDetail(err: unknown): string | null {
+  if (!(err instanceof Error) || !err.message) return null
+  const m = /^API \d+:\s*(.*)$/s.exec(err.message)
+  if (!m) return err.message
+  try {
+    const parsed = JSON.parse(m[1]) as { detail?: unknown }
+    if (typeof parsed.detail === 'string') return parsed.detail
+  } catch {
+    /* not JSON */
+  }
+  return m[1] || err.message
+}
+
 // Raw, non-invalidating PATCH helpers. The landing editor (useLandingEditor)
 // drives the course query cache optimistically and manages its own undo/redo,
 // so it must NOT trigger the invalidate-on-success that the useUpdateCourse*
