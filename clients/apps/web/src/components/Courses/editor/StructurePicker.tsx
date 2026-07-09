@@ -80,6 +80,11 @@ export function StructurePicker({
 
   return (
     <div className="sp-root">
+      {/* Centering lives on .stage (margin:auto), not justify-content on
+          .sp-root — so when the content is taller than the viewport it
+          top-aligns and scrolls into reach instead of being clipped above
+          the top edge. See the .sp-root / .stage CSS below. */}
+      <div className="stage">
       <div className="head">
         <h1>Choose your structure</h1>
         <p>
@@ -167,6 +172,7 @@ export function StructurePicker({
           Continue
         </button>
       </div>
+      </div>
 
       <div className="toastwrap">
         {toasts.map((t) => (
@@ -211,8 +217,22 @@ export function StructurePicker({
           width: 100%;
           display: flex;
           flex-direction: column;
+        }
+        /* Vertical centering lives here (margin:auto), NOT as
+           justify-content:center on .sp-root. On a viewport shorter than the
+           content — a small laptop screen, 125%/150% Windows display scaling,
+           or browser zoom — justify-content:center splits the overflow evenly
+           above and below, pushing the heading ABOVE the scroll origin where
+           it can never be scrolled back into view. margin:auto collapses to 0
+           once free space runs out, so tall content top-aligns and scrolls
+           while short content still centers. (Same fix as .spaire-plan-picker
+           .stage.) */
+        .stage {
+          margin: auto;
+          width: 100%;
+          display: flex;
+          flex-direction: column;
           align-items: center;
-          justify-content: center;
           /* extra bottom padding reserves room for a tab bar, so the content
              optically centers in the space ABOVE it rather than the full
              viewport */
@@ -530,7 +550,7 @@ export function StructurePicker({
         }
 
         @media (max-width: 800px) {
-          .sp-root {
+          .stage {
             padding: 56px 20px 48px;
           }
           .cards {
