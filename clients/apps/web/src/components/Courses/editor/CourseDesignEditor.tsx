@@ -37,6 +37,10 @@ import {
   type GeneratedGroup,
 } from './GeneratedPortalPage'
 import { SampleSettingsPopover } from './SeriesSampleBlock'
+import {
+  courseTrailerUploadStore,
+  useCourseTrailerUpload,
+} from './courseTrailerUploadStore'
 import type {
   LandingEditor,
   OverridesPatch,
@@ -177,33 +181,46 @@ export function CourseDesignEditor({
   )
 
   // ── trailer ───────────────────────────────────────────────────────────────
-  const [trailerBusy, setTrailerBusy] = useState(false)
-  // Byte-level upload progress (0–100) for the trailer. A trailer can be up
-  // to 500 MB, so a bare "Uploading…" left the creator with no idea whether
-  // it was working or stuck — the same gap the lesson video editor had.
-  const [trailerPct, setTrailerPct] = useState<number | null>(null)
+  // The in-flight trailer upload lives in a module-level store keyed by
+  // course id, NOT component state — the customize editor unmounts when you
+  // switch tabs but the upload's XHR keeps running, so keeping progress in
+  // the store means coming back shows the same live percentage. A trailer
+  // can be up to 500 MB, so a bare "Uploading…" (or nothing, after a tab
+  // switch) left the creator with no idea whether it was working or stuck.
+  const trailerUpload = useCourseTrailerUpload(course.id)
+  const trailerBusy = trailerUpload != null
+  const trailerPct = trailerUpload?.pct ?? null
   const onAddTrailer = useCallback(() => {
     pickFile('video/*', async (file) => {
-      setTrailerBusy(true)
-      setTrailerPct(0)
+      const courseId = course.id
       const prevUrl = course.trailer_url ?? null
+      // Register in the store before any await so the bar shows instantly
+      // and survives navigating away and back; the token lets this attempt
+      // detect if a newer upload (a re-pick) has superseded it.
+      const token = courseTrailerUploadStore.begin(courseId)
       try {
         const updated = await uploadTrailer.mutateAsync({
-          courseId: course.id,
+          courseId,
           file,
-          onProgress: setTrailerPct,
+          onProgress: (pct) =>
+            courseTrailerUploadStore.progress(courseId, token, pct),
         })
-        record({
-          apply: { kind: 'course', body: { trailer_url: updated.trailer_url } },
-          invert: { kind: 'course', body: { trailer_url: prevUrl } },
-          label: 'Change trailer',
-        })
-        toast({ title: 'Trailer updated' })
+        if (courseTrailerUploadStore.isCurrent(courseId, token)) {
+          record({
+            apply: {
+              kind: 'course',
+              body: { trailer_url: updated.trailer_url },
+            },
+            invert: { kind: 'course', body: { trailer_url: prevUrl } },
+            label: 'Change trailer',
+          })
+          toast({ title: 'Trailer updated' })
+        }
       } catch {
-        toast({ title: 'Upload failed', description: 'Please try again.' })
+        if (courseTrailerUploadStore.isCurrent(courseId, token))
+          toast({ title: 'Upload failed', description: 'Please try again.' })
       } finally {
-        setTrailerBusy(false)
-        setTrailerPct(null)
+        courseTrailerUploadStore.clear(courseId, token)
       }
     })
   }, [course.id, course.trailer_url, uploadTrailer, record])
