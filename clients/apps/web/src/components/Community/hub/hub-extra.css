@@ -775,6 +775,19 @@
   top: 0;
 }
 
+/* One left edge for the whole hub. `.content` and `.mh-bar-in` sit flush at the
+   wrap edge (they zero the `.wrap` horizontal gutter), but `.mh-head` and
+   `.tabs-in` inherited the 32px gutter — so the hero title and the tab row were
+   indented 32px to the right of the feed heading, composer, and posts. Drop
+   their gutter so the hero title, meta bar, tabs, and content all line up.
+   Higher specificity than `.spaire-hub .wrap` so it wins regardless of the
+   hub-extra/hub import order. */
+.spaire-hub .mh-cover .mh-head,
+.spaire-hub .tabs .tabs-in {
+  padding-left: 0;
+  padding-right: 0;
+}
+
 /* ============================================================ EVENTS — RSVP,
    host controls, add-to-calendar, and a roomier event picker. */
 
