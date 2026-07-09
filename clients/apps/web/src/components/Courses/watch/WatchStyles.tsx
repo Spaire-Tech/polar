@@ -927,19 +927,34 @@ export function WatchStyles() {
         transform: scale(0.92);
       }
 
+      /* Captions — rendered by the player, not the browser: clean white
+         text with a soft dark edge (no black box), film-subtitle style.
+         Sits low over the picture; steps up above the transport whenever
+         the chrome is visible so the controls never cover a line. */
       .sov2 .player-cc {
         position: absolute;
         left: 50%;
-        bottom: 200px;
+        bottom: 190px;
         transform: translateX(-50%);
         z-index: 4;
-        max-width: 70%;
-        background: rgba(0, 0, 0, 0.72);
+        max-width: min(82%, 900px);
+        text-align: center;
+        pointer-events: none;
         color: #fff;
-        font-size: 22px;
+        font-size: clamp(17px, 2.4vw, 28px);
         font-weight: 500;
-        padding: 10px 20px;
-        border-radius: 10px;
+        line-height: 1.35;
+        letter-spacing: -0.005em;
+        text-shadow: 0 0 2px rgba(0, 0, 0, 0.9), 0 1px 2px rgba(0, 0, 0, 0.85),
+          0 2px 10px rgba(0, 0, 0, 0.5);
+        transition: bottom 0.35s ease;
+      }
+      .sov2 .player-cc span {
+        display: block;
+      }
+      /* Chrome faded → drop to the classic subtitle position. */
+      .sov2.player.ui-hidden .player-cc {
+        bottom: 64px;
       }
 
       /* ════════ discussion panel ════════ */

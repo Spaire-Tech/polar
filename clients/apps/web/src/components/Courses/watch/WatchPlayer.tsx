@@ -217,12 +217,12 @@ export function WatchPlayer({
   const [buffered, setBuffered] = useState(0)
   const [hasCaptions, setHasCaptions] = useState(false)
   const [cc, setCc] = useState(false)
-  // Mirror of `cc` for the polling loop, whose effect closes over the
-  // initial value. The poll re-asserts the desired caption mode every
-  // tick so the on-screen captions can never drift from the button (e.g.
-  // when hls.js or the OS tries to re-enable a default subtitle track).
-  const ccRef = useRef(false)
-  ccRef.current = cc
+  // The player renders captions itself (styled overlay below) instead of
+  // letting the browser draw its default black boxes, so every text track
+  // is pinned to 'hidden': cues stay loaded and readable, nothing is
+  // natively displayed, and hls.js / OS caption settings can't flip a
+  // default track visible behind the button's back.
+  const [captionText, setCaptionText] = useState<string | null>(null)
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [side, setSide] = useState<null | 'discussion' | 'lessons'>(null)
   const [uiVisible, setUiVisible] = useState(true)
@@ -350,34 +350,74 @@ export function WatchPlayer({
         stallTicks.current = 0
       }
       setStalled(stallTicks.current >= 2)
-      // Detect caption tracks and keep their visibility pinned to the
-      // viewer's choice. Re-asserting every tick (not just on toggle) means
+      // Detect caption tracks and pin them all to 'hidden' — cues load and
+      // are readable for the overlay below, but the browser never draws
+      // its own. Re-asserting every tick (not just on toggle) means
       // nothing else — hls.js, the browser, or OS caption settings — can
-      // flip a default track back on behind the button's back.
+      // flip a default track visible behind the button's back.
       let captionsPresent = false
-      const want = ccRef.current ? 'showing' : 'hidden'
       for (const tr of el.textTracks) {
         if (tr.kind !== 'subtitles' && tr.kind !== 'captions') continue
         captionsPresent = true
-        if (tr.mode !== want) tr.mode = want
+        if (tr.mode !== 'hidden') tr.mode = 'hidden'
       }
       setHasCaptions(captionsPresent)
     }, 250)
     return () => clearInterval(id)
   }, [])
 
-  // Captions toggle → native text track mode. The poll above also enforces
-  // this, but applying it synchronously here makes the toggle feel instant
-  // instead of waiting for the next poll tick.
+  // ── caption overlay ──
+  // Auto-generated (ASR) cues tend to run slightly AHEAD of the audio —
+  // the line pops up before anyone has said it. Shifting the clock we
+  // evaluate cues against by a beat makes each line land with the voice.
+  const CAPTION_SYNC_DELAY_S = 0.35
   useEffect(() => {
-    const el = videoRef.current
-    if (!el) return
-    for (const tr of el.textTracks) {
-      if (tr.kind === 'subtitles' || tr.kind === 'captions') {
-        tr.mode = cc ? 'showing' : 'hidden'
-      }
+    if (!cc) {
+      setCaptionText(null)
+      return
     }
-  }, [cc, hasCaptions])
+    // A dedicated fast tick (the main 250ms poll is too coarse for text
+    // that must land on syllables). Runs only while captions are on.
+    const id = setInterval(() => {
+      const el = videoRef.current
+      if (!el) return
+      const now = el.currentTime - CAPTION_SYNC_DELAY_S
+      let text = ''
+      for (const tr of el.textTracks) {
+        if (tr.kind !== 'subtitles' && tr.kind !== 'captions') continue
+        const cues = tr.cues
+        if (!cues) continue
+        for (let i = 0; i < cues.length; i++) {
+          const cue = cues[i] as VTTCue
+          if (now >= cue.startTime && now < cue.endTime) {
+            // Strip VTT voice/styling markup (the overlay styles itself)
+            // and decode the character escapes WebVTT text may carry —
+            // cue.text is raw, so "&amp;"/"&#39;" would render literally.
+            const line = (cue.text ?? '')
+              .replace(/<[^>]*>/g, '')
+              .replace(/&(amp|lt|gt|nbsp|lrm|rlm|apos|quot|#39|#x27);/g, (_, e) =>
+                e === 'amp'
+                  ? '&'
+                  : e === 'lt'
+                    ? '<'
+                    : e === 'gt'
+                      ? '>'
+                      : e === 'nbsp'
+                        ? ' '
+                        : e === 'quot'
+                          ? '"'
+                          : e === 'lrm' || e === 'rlm'
+                            ? ''
+                            : "'",
+              )
+            if (line) text += (text ? '\n' : '') + line
+          }
+        }
+      }
+      setCaptionText(text || null)
+    }, 100)
+    return () => clearInterval(id)
+  }, [cc])
 
   // ── auto-hiding chrome ──
   // The title, controls and vignette are only there when the viewer needs
@@ -941,6 +981,14 @@ export function WatchPlayer({
 
       {stalled && (
         <div className="player-spin" role="status" aria-label="Loading" />
+      )}
+
+      {cc && captionText && (
+        <div className="player-cc" aria-live="off">
+          {captionText.split('\n').map((line, i) => (
+            <span key={i}>{line}</span>
+          ))}
+        </div>
       )}
 
       <div className="player-top" onTouchStart={revealUi}>
