@@ -35,6 +35,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from '../../Toast/use-toast'
 import { RepositionInPortal } from '../watch/RepositionInPortal'
 import { WatchPlayer } from '../watch/WatchPlayer'
+import {
+  lessonVideoUploadStore,
+  useLessonVideoUpload,
+} from './lessonVideoUploadStore'
 import { SampleSettingsPopover } from './SeriesSampleBlock'
 
 type SaveState = 'saved' | 'saving' | 'error'
@@ -157,11 +161,16 @@ export function LessonEditorV2({
   const [saveState, setSaveState] = useState<SaveState>('saved')
 
   // ── video upload (Mux) ──
-  const [localVideoUrl, setLocalVideoUrl] = useState<string | null>(null)
-  const [uploadPct, setUploadPct] = useState<number | null>(null)
+  // The in-flight upload lives in a module-level store keyed by lesson id,
+  // NOT in component state — the editor remounts when you switch lessons
+  // (key=lesson.id) but the upload's XHR keeps running, so keeping progress
+  // in the store means coming back to the lesson shows the same live bar
+  // (and Cancel button) instead of a mystery "Processing…" with no percent.
+  const upload = useLessonVideoUpload(lesson.id)
+  const uploadPct = upload?.pct ?? null
+  const localVideoUrl = upload?.localUrl ?? null
+  const uploadPrevPlaybackId = upload?.prevPlaybackId ?? null
   const [playing, setPlaying] = useState(false)
-  const prevPlaybackId = useRef<string | null>(null)
-  const uploadXhr = useRef<XMLHttpRequest | null>(null)
   // The upload/transcode pipeline has real terminal failure states — don't
   // fold them into "Processing…" (which used to spin forever on a failed
   // transcode or an over-quota upload).
@@ -179,11 +188,6 @@ export function LessonEditorV2({
   )
   const playable = Boolean(lesson.mux_playback_id) && !processing
 
-  useEffect(() => {
-    return () => {
-      if (localVideoUrl) URL.revokeObjectURL(localVideoUrl)
-    }
-  }, [localVideoUrl])
   // Closing/refreshing the tab mid-upload kills the PUT and used to leave the
   // lesson "waiting" forever. Warn first — the server-side reconcile job now
   // also times abandoned uploads out, but not losing the upload is better.
@@ -196,14 +200,22 @@ export function LessonEditorV2({
     window.addEventListener('beforeunload', warn)
     return () => window.removeEventListener('beforeunload', warn)
   }, [uploadPct])
-  // Clear the local preview once the freshly-uploaded asset is ready.
+  // Drop the local preview once the freshly-uploaded asset is ready — i.e.
+  // when a NEW playback id (different from the one the lesson had when this
+  // upload started) has landed. The store owns the object URL's lifetime, so
+  // this must NOT run on unmount (the upload may still be going).
   useEffect(() => {
     if (!localVideoUrl) return
     if (lesson.mux_status !== 'ready' || !lesson.mux_playback_id) return
-    if (lesson.mux_playback_id === prevPlaybackId.current) return
-    URL.revokeObjectURL(localVideoUrl)
-    setLocalVideoUrl(null)
-  }, [lesson.mux_status, lesson.mux_playback_id, localVideoUrl])
+    if (lesson.mux_playback_id === uploadPrevPlaybackId) return
+    lessonVideoUploadStore.clear(lesson.id, { revoke: true })
+  }, [
+    lesson.mux_status,
+    lesson.mux_playback_id,
+    lesson.id,
+    localVideoUrl,
+    uploadPrevPlaybackId,
+  ])
 
   // ── debounced autosave of the content JSONB + scalar fields ──
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -293,24 +305,35 @@ export function LessonEditorV2({
     input.onchange = async () => {
       const file = input.files?.[0]
       if (!file) return
-      if (localVideoUrl) URL.revokeObjectURL(localVideoUrl)
-      prevPlaybackId.current = lesson.mux_playback_id ?? null
-      setLocalVideoUrl(URL.createObjectURL(file))
-      setUploadPct(0)
+      // Register the upload in the store BEFORE any awaits, so the bar shows
+      // instantly and survives navigating away and back. begin() aborts and
+      // revokes any prior attempt for this lesson and hands back a token; the
+      // handlers below use it to bow out if a newer upload supersedes them.
+      const lessonId = lesson.id
+      const localUrl = URL.createObjectURL(file)
+      const token = lessonVideoUploadStore.begin(
+        lessonId,
+        localUrl,
+        lesson.mux_playback_id ?? null,
+      )
       // Only reset the lesson's video state on failure once the server has
       // actually staged the new upload — before that point the lesson still
       // owns its previous (intact) video and must be left alone.
       let staged = false
       let aborted = false
       try {
-        const { upload_url } = await createMuxUpload.mutateAsync(lesson.id)
+        const { upload_url } = await createMuxUpload.mutateAsync(lessonId)
         staged = true
         await new Promise<void>((resolve, reject) => {
           const xhr = new XMLHttpRequest()
-          uploadXhr.current = xhr
+          lessonVideoUploadStore.attachXhr(lessonId, token, xhr)
           xhr.upload.onprogress = (ev) => {
             if (ev.lengthComputable)
-              setUploadPct(Math.round((ev.loaded / ev.total) * 100))
+              lessonVideoUploadStore.progress(
+                lessonId,
+                token,
+                Math.round((ev.loaded / ev.total) * 100),
+              )
           }
           xhr.onload = () => {
             // onload fires for ANY response — a 4xx/5xx from the video host
@@ -327,18 +350,19 @@ export function LessonEditorV2({
           xhr.open('PUT', upload_url)
           xhr.send(file)
         })
-        setUploadPct(null)
+        // Bytes all sent; the host is transcoding. Keep the preview, drop the
+        // percentage (the lesson's mux_status now drives "Processing…").
+        lessonVideoUploadStore.settled(lessonId, token)
         toast({ title: 'Video uploaded — processing now' })
       } catch (err) {
-        setUploadPct(null)
-        setLocalVideoUrl((url) => {
-          if (url) URL.revokeObjectURL(url)
-          return null
-        })
+        // A newer upload for this lesson has taken over (e.g. the creator
+        // re-picked, which aborted this one) — leave its state untouched.
+        if (!lessonVideoUploadStore.isCurrent(lessonId, token)) return
+        lessonVideoUploadStore.clear(lessonId, { revoke: true, token })
         if (staged) {
           // Clear the staged 'waiting' state and cancel the upload at the
           // host — otherwise the lesson sits "waiting" (and polls) forever.
-          void removeVideo.mutateAsync(lesson.id).catch(() => undefined)
+          void removeVideo.mutateAsync(lessonId).catch(() => undefined)
         }
         if (aborted) {
           toast({ title: 'Upload canceled' })
@@ -348,24 +372,20 @@ export function LessonEditorV2({
             description: apiErrorDetail(err) ?? 'Please try again.',
           })
         }
-      } finally {
-        uploadXhr.current = null
       }
     }
     input.click()
   }
 
-  // Abort the in-flight PUT; the catch handler above resets state and
-  // releases the staged upload server-side.
-  const cancelUpload = () => uploadXhr.current?.abort()
+  // Abort the in-flight PUT (read from the store so a remounted editor can
+  // still cancel an upload it didn't start); the catch handler above resets
+  // state and releases the staged upload server-side.
+  const cancelUpload = () => lessonVideoUploadStore.get(lesson.id)?.xhr?.abort()
 
   const clearVideo = async () => {
     try {
       await removeVideo.mutateAsync(lesson.id)
-      if (localVideoUrl) {
-        URL.revokeObjectURL(localVideoUrl)
-        setLocalVideoUrl(null)
-      }
+      lessonVideoUploadStore.clear(lesson.id, { revoke: true })
       toast({ title: 'Video removed' })
     } catch (err) {
       toast({
