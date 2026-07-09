@@ -1684,7 +1684,7 @@ export function GeneratedPortalPage({
       {/* ════════ INSTRUCTOR (Course Page Empty State.html) ════════ */}
       {(instructorName || instructorSub || instructorBio.length > 0) &&
         !isSectionHidden('instructor') && (
-          <section className={`instructor${editable ? 'gpp-section' : ''}`}>
+          <section className={`instructor${editable ? ' gpp-section' : ''}`}>
             {editable && sectionHideControl('instructor')}
             <div className="inst-inner">
               <div className="inst-copy">
@@ -1926,7 +1926,7 @@ export function GeneratedPortalPage({
 
       {/* ════════ FREE SAMPLE (Course Page Empty State.html) ════════ */}
       {hasSampleSection && !isSectionHidden('sample') && (
-        <section className={`sample${editable ? 'gpp-section' : ''}`}>
+        <section className={`sample${editable ? ' gpp-section' : ''}`}>
           {editable && sectionHideControl('sample')}
           <div className="sample-eyebrow">Free Sample</div>
           <h2>Watch a free sample</h2>
@@ -2081,7 +2081,7 @@ export function GeneratedPortalPage({
       {/* ════════ LESSONS — module rows (CPES) or episode strip (MCP) ════════ */}
       {!isSectionHidden('lessons') &&
         (isEpisodic ? (
-          <div className={`lessons${editable ? 'gpp-section' : ''}`}>
+          <div className={`lessons${editable ? ' gpp-section' : ''}`}>
             {editable && sectionHideControl('lessons')}
             <div className="row-head strip-rh">
               {/* Desktop labels this "Episodes"; the mobile design uses
@@ -2134,7 +2134,7 @@ export function GeneratedPortalPage({
             </div>
           </div>
         ) : (
-          <div className={`lessons${editable ? 'gpp-section' : ''}`}>
+          <div className={`lessons${editable ? ' gpp-section' : ''}`}>
             {editable && sectionHideControl('lessons')}
             {groups.map((g, gi) => (
               <section className="row" key={gi}>
@@ -2157,7 +2157,7 @@ export function GeneratedPortalPage({
       {/* ════════ FAQ (Course Page Empty State.html) ════════ */}
       {(faq.length > 0 || (editable && onAddFaq)) &&
         !isSectionHidden('faq') && (
-          <section className={`faq${editable ? 'gpp-section' : ''}`}>
+          <section className={`faq${editable ? ' gpp-section' : ''}`}>
             {editable && sectionHideControl('faq')}
             <div className="faq-inner">
               <h2>Questions? Answers.</h2>
