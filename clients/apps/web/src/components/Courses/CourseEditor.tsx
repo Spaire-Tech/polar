@@ -1,6 +1,7 @@
 'use client'
 
 import {
+  apiErrorDetail,
   CourseLessonRead,
   CourseModuleRead,
   CourseRead,
@@ -217,8 +218,14 @@ export default function CourseEditor({
       invalidateCourse()
       setNewLessonId(lesson.id)
       setSelectedLessonId(lesson.id)
-    } catch {
-      toast({ title: 'Failed to add lesson' })
+    } catch (err) {
+      // Surface the server's reason when it sent one — e.g. the 402
+      // tier-limit message ("Your plan allows N lessons per course. Upgrade…")
+      // that this toast used to swallow behind a generic label.
+      toast({
+        title: 'Failed to add lesson',
+        description: apiErrorDetail(err) ?? undefined,
+      })
     }
   }
 

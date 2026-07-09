@@ -17,6 +17,7 @@
 // design's "Offline downloads" row is intentionally omitted per product.
 
 import {
+  apiErrorDetail,
   CourseLessonRead,
   CourseModuleRead,
   CourseRead,
@@ -47,23 +48,6 @@ function fmtBytes(n: number): string {
 function fmtDur(secs?: number | null): string {
   const s = Math.max(0, Math.round(secs ?? 0))
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
-}
-
-// Surface the server's real error (quota exceeded, Mux not configured, …)
-// instead of a generic failure line. courseApiFetch throws
-// `Error("API <status>: <body>")` where the body is usually
-// `{"detail": "..."}`.
-function apiErrorDetail(err: unknown): string | null {
-  if (!(err instanceof Error) || !err.message) return null
-  const m = /^API \d+:\s*(.*)$/s.exec(err.message)
-  if (!m) return err.message
-  try {
-    const parsed = JSON.parse(m[1]) as { detail?: unknown }
-    if (typeof parsed.detail === 'string') return parsed.detail
-  } catch {
-    /* not JSON */
-  }
-  return m[1] || err.message
 }
 
 // The lesson's JSONB `content` carries the creator-authored extras. We read
