@@ -20,9 +20,11 @@
 //     lesson unless the viewer cancelled. Rendered only when the parent
 //     passes nextLesson + onPlayNext, and it outlives the chrome fade —
 //     it's a prompt, not a control.
-//   • captions button — wired to the video's text tracks; only rendered
-//     when the asset actually carries captions, and kept in lock-step with
-//     the on-screen captions so the button never lies about the state
+//   • captions button — always present in the transport so it's
+//     discoverable on every lesson; enabled and wired to the video's text
+//     tracks when the asset carries captions (kept in lock-step with the
+//     on-screen captions), and shown dimmed/disabled ("Captions
+//     unavailable") when it doesn't — never silently absent
 //   • fullscreen button — real Fullscreen API on the player root (not a
 //     disguised exit), with the icon/label reflecting the current state
 //   • discussion side panel — rendered only when comment wiring is passed
@@ -1236,16 +1238,27 @@ export function WatchPlayer({
                 <PipIcon />
               </button>
             )}
-            {hasCaptions && (
-              <button
-                className={`pbtn sm ${cc ? 'on' : ''}`}
-                onClick={() => setCc((c) => !c)}
-                aria-label={cc ? 'Turn off captions' : 'Turn on captions'}
-                aria-pressed={cc}
-              >
-                <Glyph d={SF.captions} size={21} stroke={1.9} />
-              </button>
-            )}
+            {/* Always present so the control is discoverable on every
+                lesson; disabled (and non-toggling) when the asset carries no
+                caption track — a lesson whose Mux auto-captions aren't ready
+                yet still shows a dimmed "Captions unavailable" button rather
+                than nothing at all. */}
+            <button
+              className={`pbtn sm ${cc && hasCaptions ? 'on' : ''}`}
+              onClick={() => setCc((c) => !c)}
+              disabled={!hasCaptions}
+              aria-label={
+                !hasCaptions
+                  ? 'Captions unavailable'
+                  : cc
+                    ? 'Turn off captions'
+                    : 'Turn on captions'
+              }
+              aria-pressed={hasCaptions ? cc : undefined}
+              title={hasCaptions ? undefined : 'Captions unavailable'}
+            >
+              <Glyph d={SF.captions} size={21} stroke={1.9} />
+            </button>
             {hasDiscussion && (
               <button
                 className={`pbtn sm ${side === 'discussion' ? 'on' : ''}`}
