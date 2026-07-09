@@ -360,14 +360,6 @@ export function Composer({
           </button>
           <button
             onClick={() => {
-              setPoll((p) => p || ['', ''])
-              expand()
-            }}
-          >
-            <Glyph d="poll" size={18} stroke={1.9} /> Poll
-          </button>
-          <button
-            onClick={() => {
               expand()
               setEventPick(true)
             }}
@@ -488,13 +480,6 @@ export function Composer({
             onClick={toggleEmoji}
           >
             <Glyph d="smiley" size={20} stroke={1.8} />
-          </button>
-          <button
-            title="Poll"
-            className={poll ? 'on' : ''}
-            onClick={() => setPoll((p) => p || ['', ''])}
-          >
-            <Glyph d="poll" size={20} stroke={1.9} />
           </button>
           <div className="tool-wrap">
             <button
