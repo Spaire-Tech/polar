@@ -1103,27 +1103,65 @@ export const useUploadLandingMedia = () =>
     },
   })
 
+// Multipart upload over XMLHttpRequest instead of fetch(): fetch cannot
+// report request-body progress, so a large file (a 500 MB trailer) gave
+// the UI nothing but a spinner. XHR exposes `upload.onprogress`, which we
+// forward to `onProgress` so callers can render a real percentage. Errors
+// mirror courseApiFetch's `API <status>: <body>` shape so apiErrorDetail()
+// can surface the server's message.
+export function uploadFileWithProgress<T>(
+  url: string,
+  file: File,
+  onProgress?: (pct: number) => void,
+): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const form = new FormData()
+    form.append('file', file)
+    const xhr = new XMLHttpRequest()
+    xhr.open('POST', url)
+    xhr.withCredentials = true
+    xhr.upload.onprogress = (ev) => {
+      if (ev.lengthComputable && onProgress)
+        onProgress(Math.round((ev.loaded / ev.total) * 100))
+    }
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+          resolve(
+            xhr.responseText
+              ? (JSON.parse(xhr.responseText) as T)
+              : (undefined as T),
+          )
+        } catch {
+          reject(new Error('Invalid server response'))
+        }
+      } else {
+        reject(new Error(`API ${xhr.status}: ${xhr.responseText ?? ''}`))
+      }
+    }
+    xhr.onerror = () => reject(new Error('Network error'))
+    xhr.send(form)
+  })
+}
+
 export const useUploadCourseTrailer = () =>
   useMutation({
-    mutationFn: async ({
+    mutationFn: ({
       courseId,
       file,
+      onProgress,
     }: {
       courseId: string
       file: File
-    }) => {
-      const form = new FormData()
-      form.append('file', file)
-      const res = await fetch(
+      // Called with 0–100 as the file uploads, so the editor can show a
+      // real progress bar instead of an indefinite "Uploading…".
+      onProgress?: (pct: number) => void
+    }) =>
+      uploadFileWithProgress<CourseRead>(
         `${process.env.NEXT_PUBLIC_API_URL}/v1/courses/${courseId}/trailer`,
-        { method: 'POST', body: form, credentials: 'include' },
-      )
-      if (!res.ok) {
-        const text = await res.text().catch(() => '')
-        throw new Error(`API ${res.status}: ${text}`)
-      }
-      return res.json() as Promise<CourseRead>
-    },
+        file,
+        onProgress,
+      ),
     onSuccess: (data) => {
       getQueryClient().invalidateQueries({
         queryKey: ['courses', { courseId: data.id }],

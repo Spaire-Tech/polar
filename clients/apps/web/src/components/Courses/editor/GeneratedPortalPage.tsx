@@ -306,6 +306,8 @@ export type GeneratedPortalPageProps = {
   coverBusy?: boolean
   onAddTrailer?: () => void
   trailerBusy?: boolean
+  /** Trailer upload progress, 0–100 while uploading, null otherwise. */
+  trailerPct?: number | null
   /** Live object-position updates while the creator drags the cover.
    *  Commit/debounce is the caller's job. */
   onCoverPosition?: (pos: string) => void
@@ -436,6 +438,7 @@ export function GeneratedPortalPage({
   coverBusy = false,
   onAddTrailer,
   trailerBusy = false,
+  trailerPct = null,
   onCoverPosition,
   onAddLessonImage,
   onRepositionLesson,
@@ -1014,7 +1017,9 @@ export function GeneratedPortalPage({
           </svg>
           <span>
             {trailerBusy
-              ? 'Uploading…'
+              ? trailerPct != null
+                ? `Uploading ${trailerPct}%`
+                : 'Uploading…'
               : trailerUrl
                 ? 'Change trailer'
                 : 'Add trailer'}
