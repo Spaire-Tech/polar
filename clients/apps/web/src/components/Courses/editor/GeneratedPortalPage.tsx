@@ -2088,10 +2088,10 @@ export function GeneratedPortalPage({
           <div className={`lessons${editable ? ' gpp-section' : ''}`}>
             {editable && sectionHideControl('lessons')}
             <div className="row-head strip-rh">
-              {/* Desktop labels this "Episodes"; the mobile design uses
-                "Free preview". Both render, one shows per breakpoint. */}
-              <span className="rh rh-desktop">Episodes</span>
-              <span className="rh rh-mobile">Free preview</span>
+              {/* The strip lists every episode (locked ones included), so it's
+                  "Episodes" on every breakpoint — the old mobile "Free preview"
+                  label mislabelled paid episodes as free. */}
+              <span className="rh">Episodes</span>
             </div>
             <div className="strip-wrap">
               <button
@@ -3753,9 +3753,6 @@ export function GeneratedPortalPage({
           gap: 13px;
           margin-bottom: 18px;
         }
-        .gpp .strip-rh .rh-mobile {
-          display: none;
-        }
         .gpp .strip-rh .rh {
           font-size: 19px;
           font-weight: 700;
@@ -5159,12 +5156,6 @@ export function GeneratedPortalPage({
           }
           .gpp .strip-rh .rh {
             font-size: 19px;
-          }
-          .gpp .strip-rh .rh-desktop {
-            display: none;
-          }
-          .gpp .strip-rh .rh-mobile {
-            display: inline;
           }
           .gpp .strip-wrap .grid {
             overscroll-behavior-x: contain;

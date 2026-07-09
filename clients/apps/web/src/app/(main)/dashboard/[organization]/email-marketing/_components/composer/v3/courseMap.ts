@@ -55,7 +55,13 @@ export function mapCourse(c: CourseRead): CourseData {
     instructor: {
       name: c.instructor_name ?? '',
       role: 'Instructor',
-      bio: c.instructor_bio ?? '',
+      // The instructor block's description mirrors the landing hero: the
+      // AI-generated course description (landing_overrides.ai_hero.description),
+      // falling back to the raw course description exactly as the hero does.
+      // Because CourseData is re-derived from the live course, editing the hero
+      // copy flows through to this block on the next template load.
+      bio:
+        c.landing_overrides?.ai_hero?.description || c.description || '',
       // The instructor portrait is the square photo the creator uploaded for
       // the landing page's Instructor section (landing_overrides.portrait_url).
       // Without it the email's instructor block falls back to the course cover,
