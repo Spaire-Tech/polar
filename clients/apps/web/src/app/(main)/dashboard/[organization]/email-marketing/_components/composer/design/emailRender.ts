@@ -310,8 +310,8 @@ export function buildEmailHTML(
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <meta http-equiv="X-UA-Compatible" content="IE=edge"/>
-<meta name="color-scheme" content="light dark"/>
-<meta name="supported-color-schemes" content="light dark"/>
+<meta name="color-scheme" content="light"/>
+<meta name="supported-color-schemes" content="light"/>
 <title>${escAttr(broadcast.subject)}</title>
 <!-- Web fonts for clients that honour them (Apple Mail, iOS) so the email shows
      the real Instrument Serif / Geist; Gmail & Outlook ignore these and fall
@@ -321,10 +321,18 @@ export function buildEmailHTML(
 <!--<![endif]-->
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap');
-  /* Declare BOTH schemes so clients that honour color-scheme (Apple Mail/iOS)
-     keep the authored colours as-is and do NOT generate an inverted "dark
-     mode" version that recolours the text. The email is one fixed design. */
-  :root{color-scheme:light dark;supported-color-schemes:light dark}
+  /* The email is ONE fixed design with explicit colours on every element, and
+     must look identical no matter the recipient's system dark/light setting.
+     Declaring "light dark" previously told clients the email supported a dark
+     scheme, so in dark mode Apple Mail / iOS picked "dark" and — since we ship
+     no dark-specific styles — applied its OWN colour adaptation, recolouring
+     the design (the "it changes with the phone's mode" bug, mobile only).
+     "color-scheme: only light" opts out of that adaptation entirely: the UA
+     renders our authored colours as-is in every system mode. It does NOT
+     lighten a dark design — it only stops the client from re-tinting it.
+     (Gmail's app applies its own transform and ignores this; nothing in the
+     HTML can fully opt out of Gmail dark mode.) */
+  :root{color-scheme:only light}
   html,body{margin:0!important;padding:0!important;width:100%!important}
   *{-ms-text-size-adjust:100%;-webkit-text-size-adjust:100%}
   table{border-collapse:collapse!important;mso-table-lspace:0;mso-table-rspace:0}
