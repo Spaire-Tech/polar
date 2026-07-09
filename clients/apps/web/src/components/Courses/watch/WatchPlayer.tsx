@@ -90,6 +90,9 @@ export type WatchLesson = {
   playbackUrl?: string | null
   // Mux storyboard WebVTT (signed) for hover-scrub thumbnails.
   storyboardUrl?: string | null
+  // Overrides the "Lesson {n} · {title}" subtitle in the player header. Set
+  // for non-lesson clips (e.g. a course trailer) so they don't read "Lesson 0".
+  kicker?: string | null
 }
 
 // Display width of the hover-scrub thumbnail; height follows the sprite
@@ -950,7 +953,7 @@ export function WatchPlayer({
             {courseTitle}
           </div>
           <div className="pt-t">
-            Lesson {lesson.n} · {lesson.title}
+            {lesson.kicker ?? `Lesson ${lesson.n} · ${lesson.title}`}
           </div>
         </div>
       </div>

@@ -1966,6 +1966,10 @@ export function GeneratedPortalPage({
                   poster={sampleImageUrl}
                   controls={false}
                   muted={sampleMuted}
+                  // The sample has no caption control, so captions must never
+                  // show — otherwise native HLS turns them on for mobile
+                  // visitors while desktop (hls.js) keeps them off.
+                  hideCaptions
                   className="sample-video"
                   onVideoElement={onSampleVideoEl}
                   onEnded={stopSample}
@@ -4713,34 +4717,46 @@ export function GeneratedPortalPage({
             text-shadow: 0 2px 20px rgba(0, 0, 0, 0.5);
             text-wrap: pretty;
           }
-          /* side-by-side pills, equal width, filling the inset column */
+          /* Full-width stacked pills. Side-by-side half-width pills wrapped
+             real labels mid-button ("Play Trailer" → two lines, "Buy — $129"
+             → two lines, and a "Subscribe — $89 / month" label is worse), so
+             stack them: each label stays on one line and the tap targets are
+             bigger. */
           .gpp .hero-actions {
+            flex-direction: column;
             align-items: stretch;
             gap: 12px;
             margin-top: 28px;
           }
           .gpp .btn-trailer,
           .gpp .btn-enroll {
-            flex: 1 1 0;
+            width: 100%;
             justify-content: center;
             height: 56px;
             font-size: 16px;
+            white-space: nowrap;
           }
           .gpp .btn-trailer {
-            padding: 0 16px 0 8px;
+            padding: 0 16px;
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.28);
           }
           .gpp .btn-trailer .play {
-            width: 38px;
-            height: 38px;
+            width: 34px;
+            height: 34px;
           }
           .gpp .btn-enroll {
             padding: 0 22px;
-            background: rgba(20, 20, 24, 0.42);
-            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.28);
+            /* A near-opaque fill so the enroll CTA is legible on ANY cover
+               even where backdrop-filter is unsupported (Google's in-app
+               browser, some Android WebViews) — the translucent glass relied
+               on that filter and vanished without it. */
+            background: rgba(12, 14, 18, 0.64);
+            -webkit-backdrop-filter: blur(18px) saturate(140%);
+            backdrop-filter: blur(18px) saturate(140%);
+            box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.4);
           }
           .gpp .btn-enroll:active {
-            background: rgba(40, 40, 46, 0.6);
+            background: rgba(40, 40, 46, 0.72);
           }
 
           /* creator controls → 44px icon pills; Add-cover is the centered
