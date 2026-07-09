@@ -332,7 +332,7 @@ export function buildEmailHTML(
      lighten a dark design — it only stops the client from re-tinting it.
      (Gmail's app applies its own transform and ignores this; nothing in the
      HTML can fully opt out of Gmail dark mode.) */
-  :root{color-scheme:only light}
+  :root,html,body{color-scheme:only light}
   html,body{margin:0!important;padding:0!important;width:100%!important}
   *{-ms-text-size-adjust:100%;-webkit-text-size-adjust:100%}
   table{border-collapse:collapse!important;mso-table-lspace:0;mso-table-rspace:0}
