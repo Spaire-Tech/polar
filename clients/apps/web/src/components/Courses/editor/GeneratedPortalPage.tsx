@@ -1966,6 +1966,10 @@ export function GeneratedPortalPage({
                   poster={sampleImageUrl}
                   controls={false}
                   muted={sampleMuted}
+                  // The sample has no caption control, so captions must never
+                  // show — otherwise native HLS turns them on for mobile
+                  // visitors while desktop (hls.js) keeps them off.
+                  hideCaptions
                   className="sample-video"
                   onVideoElement={onSampleVideoEl}
                   onEnded={stopSample}
