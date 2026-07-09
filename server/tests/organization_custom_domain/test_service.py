@@ -232,10 +232,15 @@ class TestVerify:
             domain=custom_domain.domain,
         )
 
-        # Re-verifying an already-active domain must not re-provision.
+        # Re-verifying an already-active domain re-provisions (idempotently),
+        # so a domain that activated while Vercel was unconfigured self-heals
+        # on the next check instead of needing a manual dashboard step.
         self.enqueue_job_mock.reset_mock()
         await custom_domain_service.verify(session, custom_domain)
-        self.enqueue_job_mock.assert_not_called()
+        self.enqueue_job_mock.assert_any_call(
+            "organization_custom_domain.provision",
+            domain=custom_domain.domain,
+        )
 
         # The denormalized column drives URL generation.
         assert organization.custom_domain == "learn.creator.com"

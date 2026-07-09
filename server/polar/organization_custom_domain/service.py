@@ -248,13 +248,17 @@ class OrganizationCustomDomainService:
             # domain up (also self-heals if it ever drifts).
             if organization is not None:
                 organization.custom_domain = custom_domain.domain
+            # Attach the domain to the TLS/hosting provider (Vercel) so
+            # certificate issuance starts. Fired on every successful verify,
+            # not just the first activation: add_domain is idempotent, so a
+            # re-verify (manual "Check now" or the daily reconcile) re-registers
+            # a domain that activated while Vercel was unconfigured — no manual
+            # dashboard step needed once the credentials are in place.
+            enqueue_job(
+                "organization_custom_domain.provision",
+                domain=custom_domain.domain,
+            )
             if previous_status != OrganizationCustomDomainStatus.active:
-                # Attach the domain to the TLS/hosting provider (Vercel)
-                # so certificate issuance starts right away.
-                enqueue_job(
-                    "organization_custom_domain.provision",
-                    domain=custom_domain.domain,
-                )
                 log.info(
                     "organization_custom_domain.activated",
                     organization_id=str(custom_domain.organization_id),
