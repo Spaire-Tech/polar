@@ -178,14 +178,20 @@ export function CourseDesignEditor({
 
   // ── trailer ───────────────────────────────────────────────────────────────
   const [trailerBusy, setTrailerBusy] = useState(false)
+  // Byte-level upload progress (0–100) for the trailer. A trailer can be up
+  // to 500 MB, so a bare "Uploading…" left the creator with no idea whether
+  // it was working or stuck — the same gap the lesson video editor had.
+  const [trailerPct, setTrailerPct] = useState<number | null>(null)
   const onAddTrailer = useCallback(() => {
     pickFile('video/*', async (file) => {
       setTrailerBusy(true)
+      setTrailerPct(0)
       const prevUrl = course.trailer_url ?? null
       try {
         const updated = await uploadTrailer.mutateAsync({
           courseId: course.id,
           file,
+          onProgress: setTrailerPct,
         })
         record({
           apply: { kind: 'course', body: { trailer_url: updated.trailer_url } },
@@ -197,6 +203,7 @@ export function CourseDesignEditor({
         toast({ title: 'Upload failed', description: 'Please try again.' })
       } finally {
         setTrailerBusy(false)
+        setTrailerPct(null)
       }
     })
   }, [course.id, course.trailer_url, uploadTrailer, record])
@@ -840,6 +847,7 @@ export function CourseDesignEditor({
       coverBusy={coverBusy}
       onAddTrailer={onAddTrailer}
       trailerBusy={trailerBusy}
+      trailerPct={trailerPct}
       onCoverPosition={onCoverPosition}
       onAddLessonImage={onAddLessonImage}
       onRepositionLesson={onRepositionLesson}
