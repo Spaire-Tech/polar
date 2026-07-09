@@ -565,7 +565,7 @@ export function createEditor(root: HTMLElement, opts: CreateEditorOpts = {}): Ed
       return
     }
     const ihK = q('#ihK'); const ihT = q('#ihT')
-    if (ihK) ihK.textContent = def.group
+    if (ihK) ihK.textContent = def.group ?? ''
     if (ihT) ihT.textContent = def.label
     if (parts) body.appendChild(buildPartNav(b, parts))
     def.inspect(b.props, theme()).forEach((g) => body.appendChild(buildGroup(g, b)))
