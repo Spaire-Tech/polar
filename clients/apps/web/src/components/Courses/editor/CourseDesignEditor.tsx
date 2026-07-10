@@ -549,6 +549,20 @@ export function CourseDesignEditor({
           )
           break
         }
+        case 'freeLine': {
+          // The line under the CTAs. Empty clears the override so it falls back
+          // to the value derived from the paywall/trial.
+          const prev =
+            (ov.ai_hero as { freeLine?: string | null } | undefined)
+              ?.freeLine ?? null
+          const next = value.trim() ? value.trim() : null
+          commitOverrides(
+            { ai_hero: { freeLine: next } },
+            { ai_hero: { freeLine: prev } },
+            'Edit free line',
+          )
+          break
+        }
         case 'lessonTitle':
         case 'lessonDesc': {
           const lesson =
@@ -758,15 +772,18 @@ export function CourseDesignEditor({
       : freeCount > 0
         ? `Play ${unitCap} 1 Free`
         : 'Watch Preview'
-  const freeLine = isFreeProduct
-    ? 'Free for everyone'
-    : !paywallEnabled
-      ? `All ${unit}s free to watch · ${cadence}`
-      : trialMode === 'lesson_sample'
-        ? `Sample clip free · ${cadence}`
-        : freeCount > 0
-          ? `${freeCount} ${unit}${freeCount === 1 ? '' : 's'} free · ${cadence}`
-          : cadence
+  // Creator override wins; otherwise derive the line from the paywall/trial.
+  const freeLine =
+    aiHero?.freeLine ??
+    (isFreeProduct
+      ? 'Free for everyone'
+      : !paywallEnabled
+        ? `All ${unit}s free to watch · ${cadence}`
+        : trialMode === 'lesson_sample'
+          ? `Sample clip free · ${cadence}`
+          : freeCount > 0
+            ? `${freeCount} ${unit}${freeCount === 1 ? '' : 's'} free · ${cadence}`
+            : cadence)
 
   const sample = course.sample
   const sampleLesson = sample?.lesson_id

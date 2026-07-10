@@ -372,6 +372,7 @@ export type EditField =
   | 'eyebrow'
   | 'badge'
   | 'bdg'
+  | 'freeLine'
   | 'instructorName'
   | 'lessonTitle'
   | 'lessonDesc'
@@ -1385,7 +1386,20 @@ export function GeneratedPortalPage({
               <button className="abtn buy" type="button" onClick={onBuy}>
                 {buyLabel}
               </button>
-              {freeLine ? <div className="band-free">{freeLine}</div> : null}
+              {editable ? (
+                <EditText
+                  editable={editable}
+                  onEditText={onEditText}
+                  field="freeLine"
+                  value={freeLine}
+                  className="band-free"
+                  tag="div"
+                  maxLength={80}
+                  placeholder="Add a line under the buttons…"
+                />
+              ) : freeLine ? (
+                <div className="band-free">{freeLine}</div>
+              ) : null}
             </div>
 
             <div className="band-desc">
@@ -1467,13 +1481,15 @@ export function GeneratedPortalPage({
                     + Add
                   </button>
                 )}
-                {/* The trailer also lives here in the metadata row, alongside
-                    the badge chips (Self-paced, Captions, …). */}
-                {showTrailerButton && (
+                {/* The free SAMPLE clip lives here in the metadata row, beside
+                    the badge chips — the trailer is already the primary CTA
+                    above. Shows only when a playable sample exists; otherwise
+                    nothing appears here. */}
+                {hasSampleSection && (
                   <button
                     className="bd-trailer"
                     type="button"
-                    onClick={playPrimary}
+                    onClick={startSample}
                   >
                     <svg
                       width="12"
@@ -1483,7 +1499,7 @@ export function GeneratedPortalPage({
                     >
                       <path d={PLAY_PATH} />
                     </svg>
-                    Trailer
+                    Sample
                   </button>
                 )}
               </div>

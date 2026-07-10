@@ -320,15 +320,16 @@ export function PublicPortalView({
         : `Buy — ${priceLabel}`
   const freeLine = hasAccess
     ? 'You own this Original'
-    : isFreeProduct
-      ? 'Free for everyone'
-      : allLessonsOpen
-        ? `All ${unit}s free to watch · ${cadence}`
-        : trialMode === 'lesson_sample'
-          ? `Sample clip free · ${cadence}`
-          : freeCount > 0
-            ? `${freeCount} ${unit}${freeCount === 1 ? '' : 's'} free · ${cadence}`
-            : cadence
+    : (landing.landing_overrides?.ai_hero?.freeLine ??
+      (isFreeProduct
+        ? 'Free for everyone'
+        : allLessonsOpen
+          ? `All ${unit}s free to watch · ${cadence}`
+          : trialMode === 'lesson_sample'
+            ? `Sample clip free · ${cadence}`
+            : freeCount > 0
+              ? `${freeCount} ${unit}${freeCount === 1 ? '' : 's'} free · ${cadence}`
+              : cadence))
 
   // Sample playback is INLINE on the sample screen (clip-windowed,
   // scroll-aware) — handled inside GeneratedPortalPage via the

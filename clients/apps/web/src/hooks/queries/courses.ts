@@ -244,6 +244,9 @@ export type LandingOverrides = {
     description?: string | null
     byline?: string | null
     titleLines?: string[] | null
+    // Creator-editable line under the hero CTAs (e.g. "Sample clip free · one
+    // time purchase"). When absent, a value is computed from the paywall/trial.
+    freeLine?: string | null
   } | null
   // The creator's light/dark choice from onboarding — the public page and
   // portal render in this theme.

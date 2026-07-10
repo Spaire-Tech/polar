@@ -3,7 +3,6 @@
 import { CourseModuleRead } from '@/hooks/queries/courses'
 import CalendarTodayOutlined from '@mui/icons-material/CalendarTodayOutlined'
 import CloseOutlined from '@mui/icons-material/CloseOutlined'
-import ScheduleOutlined from '@mui/icons-material/ScheduleOutlined'
 import { cn } from '@spaire/ui/lib/utils'
 import { useEffect, useRef, useState } from 'react'
 
@@ -55,7 +54,7 @@ export function ScheduleMenu({
             : 'text-gray-400 hover:bg-gray-100 hover:text-gray-700',
         )}
       >
-        <ScheduleOutlined sx={{ fontSize: 14 }} />
+        <CalendarTodayOutlined sx={{ fontSize: 13 }} />
         {isScheduled && <span className="hidden md:inline">{summary}</span>}
       </button>
 
@@ -248,7 +247,10 @@ function ModeRow({
 function describe(module: CourseModuleRead): string {
   if (module.release_at) {
     const d = new Date(module.release_at)
+    // Match the community Events date design ("Fri, Jul 18"): weekday, month,
+    // day — for brand consistency across the product.
     return `Releases ${d.toLocaleDateString(undefined, {
+      weekday: 'short',
       month: 'short',
       day: 'numeric',
     })}`
