@@ -1553,7 +1553,7 @@ async def like_lesson_comment(
     return LessonCommentLikeRead(liked=liked, likes=likes)
 
 
-# ── Notes ──────────────────────────────────────────────────────────────────────
+# ── Notes ──────────────────────────────────────────────────────────────────
 
 
 @router.get(
