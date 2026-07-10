@@ -77,7 +77,7 @@ export function OverviewSheet({
   const sub = [durLabel, instructorName].filter(Boolean).join(' · ')
   return (
     <div
-      className={`sov2 sheet-overlay${dark ? ' dark' : ''}`}
+      className={`sov2 sheet-overlay${dark ? 'dark' : ''}`}
       role="dialog"
       aria-modal="true"
       aria-label="Lesson overview"
@@ -239,7 +239,7 @@ function CommentRow({
   onHeart?: (id: string) => void
 }) {
   return (
-    <div className={`cmt${isReply ? ' is-reply' : ''}`}>
+    <div className={`cmt${isReply ? 'is-reply' : ''}`}>
       {c.avatarUrl ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img className="cmt-av" src={c.avatarUrl} alt={c.name} />
@@ -254,7 +254,7 @@ function CommentRow({
           </div>
         )}
         <div className="cmt-top">
-          <span className={`cmt-name${c.isInstructor ? ' is-instructor' : ''}`}>
+          <span className={`cmt-name${c.isInstructor ? 'is-instructor' : ''}`}>
             {c.name}
           </span>
           {c.isInstructor && <span className="cmt-badge">Instructor</span>}
@@ -263,7 +263,10 @@ function CommentRow({
         </div>
         <div className="cmt-text">{c.text}</div>
         <div className="cmt-actions">
-          {onLike && (
+          {/* The instructor's one like-action is the creator heart below —
+              showing them the student like button too reads as two
+              competing like buttons. They still see the like count. */}
+          {onLike && !canModerate && (
             <button
               className={`cmt-like ${c.liked ? 'on' : ''}`}
               onClick={() => onLike(c.id)}
@@ -276,6 +279,12 @@ function CommentRow({
               />
               {(c.likes ?? 0) > 0 && <span>{c.likes}</span>}
             </button>
+          )}
+          {canModerate && (c.likes ?? 0) > 0 && (
+            <span className="cmt-like" title="Student likes">
+              <Glyph d={SF.heart} size={15} fill="none" stroke={1.9} />
+              <span>{c.likes}</span>
+            </span>
           )}
           {/* The single creator heart, YouTube-style: shown to everyone
               once given; the instructor can toggle it. */}
@@ -386,12 +395,10 @@ export function CommentsPanel({
   const listRef = useRef<HTMLDivElement | null>(null)
   const inputRef = useRef<HTMLInputElement | null>(null)
   useEsc(onClose)
-  const total = comments.reduce(
-    (n, c) => n + 1 + (c.replies?.length ?? 0),
-    0,
-  )
+  const total = comments.reduce((n, c) => n + 1 + (c.replies?.length ?? 0), 0)
   useEffect(() => {
-    if (listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight
+    if (listRef.current)
+      listRef.current.scrollTop = listRef.current.scrollHeight
   }, [total])
   const post = () => {
     if (!text.trim() || !onPost) return
@@ -405,7 +412,7 @@ export function CommentsPanel({
   }
   return (
     <div
-      className={`sov2 cmt-overlay${dark ? ' dark' : ''}`}
+      className={`sov2 cmt-overlay${dark ? 'dark' : ''}`}
       role="dialog"
       aria-modal="true"
       aria-label="Discussion"

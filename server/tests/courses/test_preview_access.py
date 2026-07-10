@@ -216,6 +216,31 @@ async def test_portal_course_self_heals_for_org_members(save_fixture, session):
 
 
 @pytest.mark.asyncio
+async def test_preview_access_retires_legacy_sandbox(save_fixture, session):
+    """Old sandbox accounts must stop appearing as a second member: the
+    preview flow revokes the sandbox's enrollment for the course."""
+    org, course, user = await _course_with_admin(save_fixture)
+    sandbox = await create_customer(
+        save_fixture,
+        organization=org,
+        email=f"preview+{user.id}@course-preview.invalid",
+        stripe_customer_id=None,
+    )
+    await course_service.enroll_customer(
+        session, course_id=course.id, customer=sandbox, fire_events=False
+    )
+
+    await get_preview_access(course.id, AuthSubject(user, set(), None), session)
+
+    assert (
+        await course_service.get_enrollment_for_customer(
+            session, customer_id=sandbox.id, course_id=course.id
+        )
+        is None
+    )
+
+
+@pytest.mark.asyncio
 async def test_portal_course_still_404s_for_strangers(save_fixture, session):
     org, course, _user = await _course_with_admin(save_fixture)
     stranger = await create_customer(
