@@ -1264,10 +1264,18 @@ async def _load_authors(
             enrollment_id=row.id,
             name=_resolve_author_name(row.name, row.email),
             avatar_url=row.avatar_url,
+            # Legacy preview-sandbox authors were the admin acting as a
+            # student — badge them as the instructor too so old comments
+            # read as one identity.
             is_instructor=bool(
-                instructor_emails
-                and row.email
-                and row.email.lower() in instructor_emails
+                row.email
+                and (
+                    row.email.lower().endswith("@course-preview.invalid")
+                    or (
+                        instructor_emails
+                        and row.email.lower() in instructor_emails
+                    )
+                )
             ),
         )
         for row in result
@@ -1545,7 +1553,7 @@ async def like_lesson_comment(
     return LessonCommentLikeRead(liked=liked, likes=likes)
 
 
-# ── Notes ──────────────────────────────────────────────────────────────────
+# ── Notes ──────────────────────────────────────────────────────────────────────
 
 
 @router.get(
