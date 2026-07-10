@@ -27,13 +27,10 @@ import {
   GeneratedPortalPage,
   type GeneratedGroup,
 } from './editor/GeneratedPortalPage'
-import { HlsVideo } from './HlsVideo'
 import { WatchPlayer } from './watch/WatchPlayer'
 
 type PlayingClip = {
   title: string
-  mux_playback_id?: string | null
-  thumbnail_url?: string | null
   trailer?: boolean
 }
 
@@ -89,7 +86,13 @@ export function PublicPortalView({
 
   const priceLabel =
     formatProductPrice(product as unknown as schemas['Product']) || 'Free'
-  const isFreeProduct = priceLabel === 'Free' || !landing.paywall_enabled
+  // Free is a property of the PRODUCT, never of the paywall toggle. A paid
+  // course with the paywall off means every lesson is watchable before
+  // purchase — checkout still charges the real price, so the page must
+  // never promise "Enroll Free".
+  const isFreeProduct = priceLabel === 'Free'
+  // Paywall off → nothing is locked; any lesson with playback is previewable.
+  const allLessonsOpen = !(landing.paywall_enabled ?? false)
   const recurring = (
     product as unknown as { prices?: { type?: string }[] }
   ).prices?.some((p) => p.type === 'recurring')
@@ -121,10 +124,74 @@ export function PublicPortalView({
     window.location.href = `/${organization.slug}/portal/courses/${landing.id}`
   }, [organization.slug, landing.id])
 
-  // ── Playback — lessons open the v2 WatchPlayer; the trailer keeps a
-  //    simple lightbox (it's a plain file, not a lesson). ──────────────────
+  // ── Playback — both lessons AND the trailer open the v2 WatchPlayer, so
+  //    the trailer gets the same full controls students get in the portal
+  //    (just no discussion / lessons list). `playing` tracks the trailer. ──
   const [playing, setPlaying] = useState<PlayingClip | null>(null)
   const [watching, setWatching] = useState<CourseLandingLesson | null>(null)
+  // Server-minted (signed) HLS URL for the lesson currently in the player.
+  // Once assets use the signed playback policy, a URL built from the bare
+  // playback id 403s — so every free-preview play asks the API for a real
+  // URL first (which also counts the view against the org's quota).
+  const [watchingUrl, setWatchingUrl] = useState<string | null>(null)
+  const [watchingStoryboard, setWatchingStoryboard] = useState<string | null>(
+    null,
+  )
+  const openWatch = useCallback(
+    async (lesson: CourseLandingLesson) => {
+      let url: string | null = null
+      let storyboard: string | null = null
+      try {
+        const res = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/v1/customer-portal/courses/${landing.id}/lessons/${lesson.id}/preview-playback-url`,
+          { method: 'POST', credentials: 'include' },
+        )
+        if (res.ok) {
+          const data = (await res.json()) as {
+            mux_playback_url?: string | null
+            mux_storyboard_url?: string | null
+          }
+          url = data.mux_playback_url ?? null
+          storyboard = data.mux_storyboard_url ?? null
+        }
+      } catch {
+        // Fall back to the public playback-id URL below (works for public
+        // assets; signed ones surface the player's error state).
+      }
+      setWatchingUrl(url)
+      setWatchingStoryboard(storyboard)
+      setWatching(lesson)
+    },
+    [landing.id],
+  )
+  // In-player lesson list for the landing. Lessons the visitor can't
+  // preview (paywalled, no processed video, or not a video at all) are
+  // marked locked: the player's prev/next and Up Next skip them, and the
+  // lessons sheet shows them locked — which is the enroll pitch.
+  const previewPlaylist = useMemo(
+    () =>
+      landing.lessons.map((l, i) => ({
+        id: l.id,
+        n: i + 1,
+        title: l.title,
+        durationSeconds: l.duration_seconds,
+        thumbnailUrl: l.thumbnail_url,
+        locked:
+          !l.mux_playback_id ||
+          l.content_type !== 'video' ||
+          !(l.is_free_preview || allLessonsOpen),
+        watched: false,
+      })),
+    [landing.lessons, allLessonsOpen],
+  )
+  const selectFromPlayer = useCallback(
+    (lessonId: string) => {
+      const l = landing.lessons.find((x) => x.id === lessonId)
+      if (l) void openWatch(l)
+    },
+    [landing.lessons, openWatch],
+  )
+
   const [watchState, setWatchState] = useState<WatchState>({
     p: {},
     done: [],
@@ -152,12 +219,12 @@ export function PublicPortalView({
         return
       }
       if (!isLocked(lesson) && lesson.mux_playback_id) {
-        setWatching(lesson)
+        void openWatch(lesson)
         return
       }
       void enroll()
     },
-    [hasAccess, goToPortal, isLocked, enroll],
+    [hasAccess, goToPortal, isLocked, enroll, openWatch],
   )
 
   const onWatchProgress = useCallback(
@@ -225,19 +292,19 @@ export function PublicPortalView({
     return (
       landing.lessons.find(
         (l) =>
-          l.is_free_preview &&
+          (l.is_free_preview || allLessonsOpen) &&
           l.mux_playback_id &&
           !watchState.done.includes(l.id) &&
           (watchState.p[l.id] ?? 0) > 0.01,
       ) ?? null
     )
-  }, [landing.lessons, watchState])
+  }, [landing.lessons, watchState, allLessonsOpen])
 
   const playLabel = hasAccess
     ? 'Continue Watching'
     : resumeLesson
       ? `Resume ${unitCap} ${lessonNumber(resumeLesson)}`
-      : isFreeProduct
+      : isFreeProduct || allLessonsOpen
         ? 'Start Watching'
         : trialMode === 'lesson_sample'
           ? 'Play Sample'
@@ -255,11 +322,13 @@ export function PublicPortalView({
     ? 'You own this Original'
     : isFreeProduct
       ? 'Free for everyone'
-      : trialMode === 'lesson_sample'
-        ? `Sample clip free · ${cadence}`
-        : freeCount > 0
-          ? `${freeCount} ${unit}${freeCount === 1 ? '' : 's'} free · ${cadence}`
-          : cadence
+      : allLessonsOpen
+        ? `All ${unit}s free to watch · ${cadence}`
+        : trialMode === 'lesson_sample'
+          ? `Sample clip free · ${cadence}`
+          : freeCount > 0
+            ? `${freeCount} ${unit}${freeCount === 1 ? '' : 's'} free · ${cadence}`
+            : cadence
 
   // Sample playback is INLINE on the sample screen (clip-windowed,
   // scroll-aware) — handled inside GeneratedPortalPage via the
@@ -273,12 +342,14 @@ export function PublicPortalView({
       resumeLesson ??
       landing.lessons.find(
         (l) =>
-          l.is_free_preview &&
+          (l.is_free_preview || allLessonsOpen) &&
           l.mux_playback_id &&
           !watchState.done.includes(l.id),
       ) ??
-      landing.lessons.find((l) => l.is_free_preview && l.mux_playback_id)
-    if (target) setWatching(target)
+      landing.lessons.find(
+        (l) => (l.is_free_preview || allLessonsOpen) && l.mux_playback_id,
+      )
+    if (target) void openWatch(target)
     else void enroll()
   }, [
     hasAccess,
@@ -286,7 +357,9 @@ export function PublicPortalView({
     resumeLesson,
     landing.lessons,
     watchState.done,
+    allLessonsOpen,
     enroll,
+    openWatch,
   ])
 
   const onBuy = useCallback(() => {
@@ -360,6 +433,12 @@ export function PublicPortalView({
       description: l.description ?? '',
       flatIdx,
       imageUrl: l.thumbnail_url ?? null,
+      // Apply the creator's saved thumbnail crop. The editor preview
+      // (CourseDesignEditor) always passed this through, but the real
+      // visitor-facing mapper dropped it — so a repositioned thumbnail
+      // looked right in the studio and rendered at the default crop for
+      // every visitor.
+      imagePosition: l.thumbnail_object_position ?? null,
       durationLabel: l.duration_seconds
         ? `${Math.max(1, Math.round(l.duration_seconds / 60))}m`
         : null,
@@ -479,93 +558,42 @@ export function PublicPortalView({
         onLessonClick={onLessonClick}
       />
 
-      {/* Lightbox — free preview / trailer / sample */}
-      {playing && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          onClick={() => setPlaying(null)}
-          style={{
-            position: 'fixed',
-            inset: 0,
-            zIndex: 120,
-            background: 'rgba(0,0,0,0.92)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: 24,
+      {/* Trailer — plays in the SAME full-featured player students get in the
+          portal (scrub preview, speed, volume, fullscreen, PiP, captions),
+          just without discussion/lessons since a trailer is standalone. The
+          old bare <video autoPlay> lightbox couldn't reliably play on mobile;
+          WatchPlayer's tap-to-play + real controls fix that. */}
+      {playing?.trailer && landing.trailer_url && (
+        <WatchPlayer
+          key="trailer"
+          lesson={{
+            n: 0,
+            title: 'Trailer',
+            kicker: 'Trailer',
+            muxPlaybackId: null,
+            playbackUrl: landing.trailer_url,
+            thumbnailUrl: landing.thumbnail_url,
           }}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{ width: 'min(1100px, 96vw)' }}
-          >
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                marginBottom: 10,
-              }}
-            >
-              <span
-                style={{
-                  color: 'rgba(255,255,255,0.85)',
-                  fontSize: 14,
-                  fontWeight: 600,
-                }}
-              >
-                {playing.title}
-              </span>
-              <button
-                type="button"
-                aria-label="Close"
-                onClick={() => setPlaying(null)}
-                style={{
-                  color: '#fff',
-                  background: 'rgba(255,255,255,0.12)',
-                  border: 'none',
-                  borderRadius: '50%',
-                  width: 34,
-                  height: 34,
-                  cursor: 'pointer',
-                  fontSize: 16,
-                }}
-              >
-                ✕
-              </button>
-            </div>
-            {playing.trailer ? (
-              <video
-                src={landing.trailer_url ?? undefined}
-                controls
-                autoPlay
-                playsInline
-                style={{ width: '100%', borderRadius: 12, background: '#000' }}
-              />
-            ) : (
-              <HlsVideo
-                playbackId={playing.mux_playback_id ?? null}
-                poster={playing.thumbnail_url}
-                controls
-                autoPlay
-                className="w-full rounded-xl bg-black"
-              />
-            )}
-          </div>
-        </div>
+          courseTitle={landing.title ?? product.name}
+          instructorName={landing.instructor_name}
+          onClose={() => setPlaying(null)}
+        />
       )}
 
       {/* v2 WatchPlayer — free-preview lessons, with anonymous progress
           (Resume + completion) persisted per course in localStorage. */}
       {watching && (
         <WatchPlayer
+          // Keyed by lesson so Up Next's swap is a clean remount.
+          key={watching.id}
           lesson={{
             n: lessonNumber(watching),
             title: watching.title,
             description: watching.description,
             thumbnailUrl: watching.thumbnail_url,
             muxPlaybackId: watching.mux_playback_id,
+            playbackUrl: watchingUrl,
+            storyboardUrl: watchingStoryboard,
           }}
           courseTitle={landing.title ?? product.name}
           instructorName={landing.instructor_name}
@@ -575,6 +603,9 @@ export function PublicPortalView({
           onClose={() => setWatching(null)}
           onProgress={(frac) => onWatchProgress(watching.id, frac)}
           onComplete={() => onWatchComplete(watching.id)}
+          playlist={previewPlaylist}
+          currentId={watching.id}
+          onSelectLesson={selectFromPlayer}
         />
       )}
 

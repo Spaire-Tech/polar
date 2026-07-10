@@ -48,6 +48,7 @@ from polar.observability.remote_write import (
 )
 from polar.observability.slo import start_slo_metrics, stop_slo_metrics
 from polar.openapi import OPENAPI_PARAMETERS, APITag, set_openapi_generator
+from polar.organization_custom_domain import cors as custom_domain_cors
 from polar.platform.startup import verify_platform_setup
 from polar.postgres import (
     AsyncSessionMiddleware,
@@ -90,13 +91,33 @@ def configure_cors(app: FastAPI) -> None:
     )
     configs.append(polar_frontend_config)
 
+    # Creator custom storefront domains (learn.creator.com). The web app
+    # sends credentials: 'include' on every request, and browsers reject
+    # credentialed responses carrying the wildcard ACAO below — so active
+    # custom domains need their own credentialed config. The matcher
+    # consults an in-process set refreshed from the database (see
+    # organization_custom_domain/cors.py); allow_origin_regex makes
+    # starlette echo the matched origin back.
+    custom_domain_config = CORSConfig(
+        lambda origin, scope: custom_domain_cors.is_active_custom_domain_origin(origin),
+        allow_origins=[],
+        allow_origin_regex=".*",
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+    configs.append(custom_domain_config)
+
     # External API calls CORS configuration
     api_config = CORSConfig(
         lambda origin, scope: True,
         allow_origins=["*"],
         allow_credentials=False,  # No cookies allowed
         allow_methods=["*"],
-        allow_headers=["Authorization", "Content-Type"],  # Allow Authorization and Content-Type headers for API calls
+        allow_headers=[
+            "Authorization",
+            "Content-Type",
+        ],  # Allow Authorization and Content-Type headers for API calls
     )
     configs.append(api_config)
 
@@ -160,6 +181,11 @@ async def lifespan(app: FastAPI) -> AsyncIterator[State]:
 
     redis = create_redis("app")
 
+    # Prime the custom-domain CORS allow-list and keep it fresh (the CORS
+    # matcher is synchronous, so it reads an in-process set).
+    await custom_domain_cors.refresh_active_domains(async_read_sessionmaker)
+    custom_domain_cors.start_refresher(async_read_sessionmaker)
+
     # Block boot if SPAIRE_PLATFORM_ORG_ID is set but the four tier
     # products haven't been seeded — without them new signups get
     # legacy entitlements and undercharged transaction fees.
@@ -189,6 +215,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[State]:
     }
 
     # Stop background threads
+    await custom_domain_cors.stop_refresher()
     stop_slo_metrics()
     stop_remote_write_pusher()
 

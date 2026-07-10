@@ -453,6 +453,14 @@ class OrganizationBase(IDSchema, TimestampedSchema):
     slug: str = Field(
         description="Unique organization slug in checkout, customer portal and credit card statements.",
     )
+    custom_domain: str | None = Field(
+        None,
+        description=(
+            "Active custom storefront domain (e.g. learn.creator.com) "
+            "serving the organization's landing and customer portal. Null "
+            "when the storefront is served from the platform host."
+        ),
+    )
     avatar_url: str | None = Field(
         description="Avatar URL shown in checkout, customer portal, emails etc."
     )

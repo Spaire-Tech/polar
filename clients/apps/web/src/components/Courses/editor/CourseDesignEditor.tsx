@@ -37,6 +37,10 @@ import {
   type GeneratedGroup,
 } from './GeneratedPortalPage'
 import { SampleSettingsPopover } from './SeriesSampleBlock'
+import {
+  courseTrailerUploadStore,
+  useCourseTrailerUpload,
+} from './courseTrailerUploadStore'
 import type { LandingEditor, OverridesPatch } from './useLandingEditor'
 
 // Default band badges. Single source so the editor seeds the exact chips the
@@ -179,26 +183,46 @@ export function CourseDesignEditor({
   )
 
   // ── trailer ───────────────────────────────────────────────────────────────
-  const [trailerBusy, setTrailerBusy] = useState(false)
+  // The in-flight trailer upload lives in a module-level store keyed by
+  // course id, NOT component state — the customize editor unmounts when you
+  // switch tabs but the upload's XHR keeps running, so keeping progress in
+  // the store means coming back shows the same live percentage. A trailer
+  // can be up to 500 MB, so a bare "Uploading…" (or nothing, after a tab
+  // switch) left the creator with no idea whether it was working or stuck.
+  const trailerUpload = useCourseTrailerUpload(course.id)
+  const trailerBusy = trailerUpload != null
+  const trailerPct = trailerUpload?.pct ?? null
   const onAddTrailer = useCallback(() => {
     pickFile('video/*', async (file) => {
-      setTrailerBusy(true)
+      const courseId = course.id
       const prevUrl = course.trailer_url ?? null
+      // Register in the store before any await so the bar shows instantly
+      // and survives navigating away and back; the token lets this attempt
+      // detect if a newer upload (a re-pick) has superseded it.
+      const token = courseTrailerUploadStore.begin(courseId)
       try {
         const updated = await uploadTrailer.mutateAsync({
-          courseId: course.id,
+          courseId,
           file,
+          onProgress: (pct) =>
+            courseTrailerUploadStore.progress(courseId, token, pct),
         })
-        record({
-          apply: { kind: 'course', body: { trailer_url: updated.trailer_url } },
-          invert: { kind: 'course', body: { trailer_url: prevUrl } },
-          label: 'Change trailer',
-        })
-        toast({ title: 'Trailer updated' })
+        if (courseTrailerUploadStore.isCurrent(courseId, token)) {
+          record({
+            apply: {
+              kind: 'course',
+              body: { trailer_url: updated.trailer_url },
+            },
+            invert: { kind: 'course', body: { trailer_url: prevUrl } },
+            label: 'Change trailer',
+          })
+          toast({ title: 'Trailer updated' })
+        }
       } catch {
-        toast({ title: 'Upload failed', description: 'Please try again.' })
+        if (courseTrailerUploadStore.isCurrent(courseId, token))
+          toast({ title: 'Upload failed', description: 'Please try again.' })
       } finally {
-        setTrailerBusy(false)
+        courseTrailerUploadStore.clear(courseId, token)
       }
     })
   }, [course.id, course.trailer_url, uploadTrailer, record])
@@ -752,31 +776,38 @@ export function CourseDesignEditor({
   // ── hero copy (the AI-written hero, falling back to course fields) ────────
   const [sampleOpen, setSampleOpen] = useState(false)
   const { priceLabel, recurring } = formatPrice(product)
+  // Free is a property of the PRODUCT price, not the paywall toggle —
+  // matching PublicPortalView, so the editor preview never promises
+  // "Enroll Free" for a course checkout will charge for.
+  const isFreeProduct = formatProductPrice(product) === 'Free'
   const cadence = recurring ? 'cancel anytime' : 'one-time purchase'
-  const enrollPriceSub = !paywallEnabled
+  const enrollPriceSub = isFreeProduct
     ? `${flatLessons.length} ${unit}${flatLessons.length === 1 ? '' : 's'} · Free`
     : recurring
       ? `Subscription · ${flatLessons.length} ${unit}${flatLessons.length === 1 ? '' : 's'} · cancel anytime`
       : `One-time purchase · ${flatLessons.length} ${unit}${flatLessons.length === 1 ? '' : 's'} · Lifetime access`
-  const buyLabel = !paywallEnabled
+  const buyLabel = isFreeProduct
     ? 'Enroll Free'
     : recurring
       ? `Subscribe — ${priceLabel}`
       : `Buy — ${priceLabel}`
-  const playLabel = !paywallEnabled
-    ? 'Start Watching'
-    : trialMode === 'lesson_sample'
-      ? 'Play Sample'
-      : freeCount > 0
-        ? `Play ${unitCap} 1 Free`
-        : 'Watch Preview'
-  const freeLineDefault = !paywallEnabled
+  const playLabel =
+    isFreeProduct || !paywallEnabled
+      ? 'Start Watching'
+      : trialMode === 'lesson_sample'
+        ? 'Play Sample'
+        : freeCount > 0
+          ? `Play ${unitCap} 1 Free`
+          : 'Watch Preview'
+  const freeLineDefault = isFreeProduct
     ? 'Free for everyone'
-    : trialMode === 'lesson_sample'
-      ? `Sample clip free · ${cadence}`
-      : freeCount > 0
-        ? `${freeCount} ${unit}${freeCount === 1 ? '' : 's'} free · ${cadence}`
-        : cadence
+    : !paywallEnabled
+      ? `All ${unit}s free to watch · ${cadence}`
+      : trialMode === 'lesson_sample'
+        ? `Sample clip free · ${cadence}`
+        : freeCount > 0
+          ? `${freeCount} ${unit}${freeCount === 1 ? '' : 's'} free · ${cadence}`
+          : cadence
   // Creator-edited price note wins over the computed default.
   const freeLine =
     (aiHero as { free_line?: string | null } | null | undefined)?.free_line ||
@@ -854,6 +885,7 @@ export function CourseDesignEditor({
         coverBusy={coverBusy}
         onAddTrailer={onAddTrailer}
         trailerBusy={trailerBusy}
+        trailerPct={trailerPct}
         onCoverPosition={onCoverPosition}
         onAddLessonImage={onAddLessonImage}
         onRepositionLesson={onRepositionLesson}

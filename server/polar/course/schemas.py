@@ -83,6 +83,14 @@ class CourseLessonRead(TimestampedSchema):
     mux_upload_id: str | None = None
     mux_asset_id: str | None = None
     mux_playback_id: str | None = None
+    # Signed (when signing keys are configured) HLS URL for creator-side
+    # playback: the editor's Play button and the sample-clip preview can't
+    # build a working URL from the bare playback id once assets use the
+    # `signed` playback policy.
+    mux_playback_url: str | None = None
+    # Signed storyboard (sprite sheet) WebVTT URL for hover-scrub
+    # thumbnails in the editor's preview player.
+    mux_storyboard_url: str | None = None
     mux_status: str | None = None
     # Course Assistant transcript pipeline state, surfaced so the editor can
     # show whether a video lesson has been transcribed yet:
@@ -281,6 +289,9 @@ class CourseProgressRead(Schema):
     completed_lessons: int
     completion_percent: float
     completed: dict[str, str]  # lesson_id -> completed_at ISO string
+    # lesson_id -> partial watch position (fraction 0..1) for lessons the
+    # student has started but not completed.
+    positions: dict[str, float] = {}
 
 
 class LessonCommentCreate(Schema):
@@ -394,11 +405,27 @@ class CourseEnrollmentCustomer(Schema):
     avatar_url: str | None = None
 
 
+class CourseEnrollmentProgress(Schema):
+    """Instructor-facing progress rollup for one enrollment."""
+
+    total_lessons: int
+    completed_lessons: int
+    # Lessons with a recorded partial watch position (started, not finished).
+    started_lessons: int
+    completion_percent: float
+    last_active_at: datetime | None = None
+
+
 class CourseEnrollmentRead(Schema):
     id: UUID4
     customer_id: UUID4
     enrolled_at: datetime
     customer: CourseEnrollmentCustomer | None = None
+    progress: CourseEnrollmentProgress | None = None
+
+
+class WatchProgressUpdate(Schema):
+    fraction: float = Field(ge=0.0, le=1.0)
 
 
 class CourseNoteUpsert(Schema):

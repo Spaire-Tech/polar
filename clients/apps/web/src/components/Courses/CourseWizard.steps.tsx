@@ -1,6 +1,7 @@
 'use client'
 
 import { Upload } from '@/components/FileUpload/Upload'
+import { toast } from '@/components/Toast/use-toast'
 import CloseIcon from '@mui/icons-material/Close'
 import { enums, schemas } from '@spaire/client'
 import MoneyInput from '@spaire/ui/components/atoms/MoneyInput'
@@ -1770,16 +1771,19 @@ function PFSelect<T extends string>({
   value,
   onChange,
   options,
+  disabled = false,
 }: {
   value: T
   onChange: (v: T) => void
   options: { value: T; label: string }[]
+  disabled?: boolean
 }) {
   return (
     <div className="pf-select-wrap">
       <select
         className="pf-select"
         value={value}
+        disabled={disabled}
         onChange={(e) => onChange(e.target.value as T)}
       >
         {options.map((o) => (
@@ -1917,6 +1921,15 @@ function PFPriceRow({
   )
 }
 
+// The product_media file service only accepts these image types, up to 10 MB
+// (server/polar/file/schemas.py: ProductMediaFileCreate). Keep the picker,
+// its `accept` filter, and the client-side guards in sync with that contract
+// so uploads can't fail on the server for a file we could have rejected here
+// with a clear message.
+const PF_COVER_TYPES = /^image\/(jpeg|png|gif|webp|svg\+xml)$/
+const PF_COVER_ACCEPT = 'image/jpeg,image/png,image/gif,image/webp,image/svg+xml'
+const PF_COVER_MAX_BYTES = 10 * 1024 * 1024
+
 // ── MediaDrop (from app.jsx) — visually identical, routes upload through the
 // canonical Upload service so the file lands as a real product_media. ──────
 function PFMediaDrop({
@@ -1937,9 +1950,38 @@ function PFMediaDrop({
 
   const onFile = (file?: File | null) => {
     if (!file) return
+    // Validate against what the product_media file service actually accepts
+    // (see server/polar/file/schemas.py: ProductMediaFileCreate) BEFORE
+    // starting an upload. Without this the picker's broad selection lets
+    // through formats the API rejects (e.g. HEIC from an iPhone) and the
+    // create 422s — which used to fail silently, so nothing happened and the
+    // creator had no idea why. Same for oversized files.
+    if (!PF_COVER_TYPES.test(file.type)) {
+      toast({
+        title: 'Unsupported image format',
+        description: 'Use a JPG, PNG, GIF, WebP or SVG file for the cover.',
+      })
+      return
+    }
+    if (file.size > PF_COVER_MAX_BYTES) {
+      toast({
+        title: 'Image is too large',
+        description: 'Cover images must be under 10 MB.',
+      })
+      return
+    }
     const url = URL.createObjectURL(file)
     setLocalPreview(url)
     setUploading(true)
+    const fail = () => {
+      setUploading(false)
+      URL.revokeObjectURL(url)
+      setLocalPreview(null)
+      toast({
+        title: "Couldn't upload cover",
+        description: 'Something went wrong. Please try again.',
+      })
+    }
     const upload = new Upload({
       organization,
       service: 'product_media',
@@ -1953,13 +1995,11 @@ function PFMediaDrop({
         URL.revokeObjectURL(url)
         setLocalPreview(null)
       },
-      onFileError: () => {
-        setUploading(false)
-        URL.revokeObjectURL(url)
-        setLocalPreview(null)
-      },
+      onFileError: fail,
     })
-    upload.run()
+    // Guard the whole run: any rejection that escapes the service (e.g. a
+    // failed S3 PUT) must clear the "Uploading…" state instead of hanging.
+    upload.run().catch(fail)
   }
 
   // Uploaded — or still uploading with an instant local preview.
@@ -2016,16 +2056,20 @@ function PFMediaDrop({
       <input
         ref={inputRef}
         type="file"
-        accept="image/*,video/*"
+        accept={PF_COVER_ACCEPT}
         hidden
-        onChange={(e) => onFile(e.target.files?.[0])}
+        onChange={(e) => {
+          onFile(e.target.files?.[0])
+          // Reset so re-picking the same file (e.g. after an error) still
+          // fires onChange.
+          e.target.value = ''
+        }}
       />
       <div className="pf-media-title">
-        Drop image or video, or{' '}
-        <span className="pf-media-browse">browse</span>
+        Drop an image, or <span className="pf-media-browse">browse</span>
       </div>
       <div className="pf-media-hint">
-        PNG, JPG, MP4 · up to 10 MB · 16:9 recommended
+        PNG, JPG, WebP, GIF or SVG · up to 10 MB · 16:9 recommended
       </div>
     </div>
   )
@@ -2035,6 +2079,11 @@ export type WizardPaywallState = {
   paywallEnabled: boolean
   freePreviewLessons: number
 }
+
+// Minimum fixed price accepted by the API (50 cents), mirrored client-side
+// so the wizard rejects a $0 price at the pricing step instead of failing
+// with a server error at the very end.
+const MINIMUM_PRICE_AMOUNT = 50
 
 export function StepPricingWizard({
   organization,
@@ -2049,6 +2098,7 @@ export function StepPricingWizard({
   backLabel,
   hideProgress = false,
   hideAccessSection = false,
+  update = false,
 }: {
   organization: schemas['Organization']
   paywall: WizardPaywallState
@@ -2068,6 +2118,10 @@ export function StepPricingWizard({
   // The course editor manages paywall position in its own Pricing tab, so
   // we hide the free-preview slider when the step is mounted there.
   hideAccessSection?: boolean
+  // True when editing an existing product. The billing cycle (one-time vs
+  // recurring) is immutable after creation — the API rejects changes — so
+  // the cycle choice is locked in this mode.
+  update?: boolean
 }) {
   const isSeries = format === 'series'
   const { control, watch, setValue, getValues } =
@@ -2193,6 +2247,31 @@ export function StepPricingWizard({
     setValue('full_medias' as never, (m ? [m] : []) as never)
   }
 
+  // Validate fixed prices before leaving the step: the API rejects amounts
+  // below 50 cents, so catch it here rather than at the final create/save.
+  const [priceError, setPriceError] = useState<string | null>(null)
+  const handleNext = () => {
+    if (priceModel === 'fixed') {
+      const current = getValues('prices') ?? []
+      const invalid = current.find(
+        (p) =>
+          p?.amount_type === 'fixed' &&
+          (p.price_amount == null || p.price_amount < MINIMUM_PRICE_AMOUNT),
+      )
+      if (invalid) {
+        if (invalid.price_currency) setSelectedCurrency(invalid.price_currency)
+        setPriceError(
+          `Set a price of at least ${(MINIMUM_PRICE_AMOUNT / 100).toFixed(2)} ${(
+            invalid.price_currency ?? defaultCurrency
+          ).toUpperCase()} — or switch the pricing model to Free.`,
+        )
+        return
+      }
+    }
+    setPriceError(null)
+    onNext()
+  }
+
   return (
     <StepShell
       step={4}
@@ -2202,7 +2281,7 @@ export function StepPricingWizard({
       }
       backLabel={backLabel}
       hideProgress={hideProgress}
-      onNext={onNext}
+      onNext={handleNext}
       onBack={onBack}
       onClose={onClose}
       wide
@@ -2282,7 +2361,10 @@ export function StepPricingWizard({
                     <hr className="border-gray-200" />
                     <RadioGroup
                       value={cycle}
-                    onValueChange={(v) => setCycle(v as 'onetime' | 'recurring')}
+                    onValueChange={(v) => {
+                      if (update) return
+                      setCycle(v as 'onetime' | 'recurring')
+                    }}
                     className="grid grid-cols-2 gap-4"
                   >
                     {(
@@ -2307,12 +2389,17 @@ export function StepPricingWizard({
                           cycle === opt.value
                             ? 'border-[oklch(0.62_0.21_265)] bg-gray-50'
                             : 'border-gray-100 text-gray-500 hover:border-gray-200',
+                          update &&
+                            cycle !== opt.value &&
+                            'cursor-not-allowed opacity-50 hover:border-gray-100',
+                          update && cycle === opt.value && 'cursor-default',
                         )}
                       >
                         <div className="flex items-center gap-2.5 font-medium">
                           <RadioGroupItem
                             value={opt.value}
                             id={`pf-cycle-${opt.value}`}
+                            disabled={update}
                           />
                           {opt.title}
                         </div>
@@ -2320,6 +2407,13 @@ export function StepPricingWizard({
                       </Label>
                     ))}
                     </RadioGroup>
+                    {update && (
+                      <p className="-mt-6 text-sm text-gray-500">
+                        The billing cycle can&apos;t be changed after creation.
+                        To switch between one-time and subscription, create a
+                        new course.
+                      </p>
+                    )}
                   </>
                 )}
 
@@ -2336,12 +2430,20 @@ export function StepPricingWizard({
                           value={
                             prices[selectedIndex]?.price_amount ?? undefined
                           }
-                          onChange={(v) =>
+                          onChange={(v) => {
                             setValue(
                               `prices.${selectedIndex}.price_amount`,
                               v,
                             )
-                          }
+                            // Clear the existing price id: a price row is
+                            // immutable server-side, so an amount change must
+                            // be sent as a NEW price (the old one is archived).
+                            // Keeping the id would make the backend treat it
+                            // as ExistingProductPrice and silently ignore the
+                            // new amount.
+                            setValue(`prices.${selectedIndex}.id`, '')
+                            setPriceError(null)
+                          }}
                           placeholder={0}
                         />
                       </div>
@@ -2356,6 +2458,9 @@ export function StepPricingWizard({
                         />
                       </div>
                     </div>
+                    {priceError && (
+                      <p className="text-sm text-red-500">{priceError}</p>
+                    )}
                   </div>
                 )}
 
@@ -2368,6 +2473,7 @@ export function StepPricingWizard({
                       min={1}
                       className="pf-num"
                       value={recurringIntervalCount}
+                      disabled={update}
                       onChange={(e) =>
                         setValue(
                           'recurring_interval_count',
@@ -2377,6 +2483,7 @@ export function StepPricingWizard({
                     />
                     <PFSelect
                       value={recurringInterval ?? 'month'}
+                      disabled={update}
                       onChange={(v) =>
                         setValue(
                           'recurring_interval',

@@ -49,6 +49,21 @@ describe('mapCourse', () => {
     expect(c.welcome).toEqual(['Sharp fundamentals.'])
   })
 
+  it('sources the instructor bio from the AI hero description (matching the landing hero)', () => {
+    const withHero = {
+      ...course,
+      landing_overrides: {
+        ...course.landing_overrides,
+        ai_hero: { description: 'The AI-written hero blurb.' },
+      },
+    }
+    // Prefer the AI hero copy — the same text shown on the landing hero.
+    expect(mapCourse(withHero).instructor.bio).toBe('The AI-written hero blurb.')
+    // No ai_hero → fall back to the raw course description, exactly as the
+    // hero itself falls back (NOT the separate instructor_bio field).
+    expect(mapCourse(course).instructor.bio).toBe('Sharp fundamentals.')
+  })
+
   it('tolerates null fields', () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const bare: any = {

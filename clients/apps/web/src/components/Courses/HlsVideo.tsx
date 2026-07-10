@@ -43,6 +43,7 @@ export const HlsVideo = ({
   muted = false,
   loop = false,
   startSec = 0,
+  hideCaptions = false,
   onEnded,
   onVideoElement,
 }: {
@@ -56,6 +57,14 @@ export const HlsVideo = ({
   loop?: boolean
   // Start playback at this second (e.g. opened from an assistant citation).
   startSec?: number
+  // Keep every subtitle/caption track OFF. hls.js honors `subtitleDisplay:
+  // false` (desktop path), but NATIVE HLS on mobile (the `video.src = m3u8`
+  // branch) ignores it and auto-shows a default/forced caption track — so a
+  // bare player with no CC control leaks captions on phones but not desktop.
+  // Set this on players that never expose a caption toggle (e.g. the sample
+  // clip). Players that own caption state themselves (WatchPlayer) leave it
+  // off and manage the tracks via onVideoElement instead.
+  hideCaptions?: boolean
   onEnded?: () => void
   // Lets a parent reach the underlying <video> element for things like
   // reading currentTime or seeking. Called with the element on mount and
@@ -68,6 +77,10 @@ export const HlsVideo = ({
   // leak the previous one.
   const hlsRef = useRef<HlsInstance | null>(null)
   const [fatalError, setFatalError] = useState<string | null>(null)
+  // Bumped by "Try again" so the setup effect below actually re-runs —
+  // clearing the error alone re-rendered a dead <video> (the Hls instance
+  // had been destroyed) and the screen stayed black.
+  const [retryNonce, setRetryNonce] = useState(0)
   // Prefer the server-signed playback URL. Fall back to building one from
   // the public playback id for legacy public assets.
   const src =
@@ -100,6 +113,28 @@ export const HlsVideo = ({
     else el.addEventListener('loadedmetadata', seek, { once: true })
     return () => el.removeEventListener('loadedmetadata', seek)
   }, [startSec])
+
+  // Force captions off (see `hideCaptions` above). Text tracks load async and
+  // native HLS / iOS can (re-)enable them after metadata or on play, so
+  // re-assert "disabled" on every event that could turn them back on.
+  useEffect(() => {
+    if (!hideCaptions) return
+    const el = videoRef.current
+    if (!el) return
+    const disableAll = () => {
+      const tracks = el.textTracks
+      for (let i = 0; i < tracks.length; i++) tracks[i].mode = 'disabled'
+    }
+    disableAll()
+    el.textTracks.addEventListener?.('addtrack', disableAll)
+    el.addEventListener('loadedmetadata', disableAll)
+    el.addEventListener('play', disableAll)
+    return () => {
+      el.textTracks.removeEventListener?.('addtrack', disableAll)
+      el.removeEventListener('loadedmetadata', disableAll)
+      el.removeEventListener('play', disableAll)
+    }
+  }, [hideCaptions, src, retryNonce])
 
   useEffect(() => {
     setFatalError(null)
@@ -159,7 +194,7 @@ export const HlsVideo = ({
       hlsRef.current?.destroy()
       hlsRef.current = null
     }
-  }, [src])
+  }, [src, retryNonce])
 
   if (fatalError) {
     return (
@@ -172,7 +207,10 @@ export const HlsVideo = ({
         <p>Couldn't play this video.</p>
         <button
           type="button"
-          onClick={() => setFatalError(null)}
+          onClick={() => {
+            setFatalError(null)
+            setRetryNonce((n) => n + 1)
+          }}
           className="rounded-full bg-white/10 px-3 py-1 text-xs font-medium hover:bg-white/20"
         >
           Try again

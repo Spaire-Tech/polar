@@ -1,6 +1,7 @@
 'use client'
 
 import {
+  apiErrorDetail,
   CourseLessonRead,
   CourseModuleRead,
   CourseRead,
@@ -113,6 +114,10 @@ export default function CourseEditor({
       DEFAULT_LESSON_TITLES.has((l.title ?? '').trim()) &&
       !(l.description ?? '').trim() &&
       !l.mux_playback_id &&
+      // A lesson whose video is still uploading/processing is NOT empty —
+      // discarding it here would orphan the in-flight video.
+      !l.mux_upload_id &&
+      !l.mux_status &&
       !l.published &&
       !hasContent
     )
@@ -213,8 +218,14 @@ export default function CourseEditor({
       invalidateCourse()
       setNewLessonId(lesson.id)
       setSelectedLessonId(lesson.id)
-    } catch {
-      toast({ title: 'Failed to add lesson' })
+    } catch (err) {
+      // Surface the server's reason when it sent one — e.g. the 402
+      // tier-limit message ("Your plan allows N lessons per course. Upgrade…")
+      // that this toast used to swallow behind a generic label.
+      toast({
+        title: 'Failed to add lesson',
+        description: apiErrorDetail(err) ?? undefined,
+      })
     }
   }
 
@@ -474,6 +485,7 @@ export default function CourseEditor({
     mainContent = (
       <SettingsTab
         course={course}
+        organization={organization}
         onSave={handleSaveSettings}
         isSaving={updateCourse.isPending}
       />

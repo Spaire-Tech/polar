@@ -91,6 +91,102 @@ const LockChip = () => (
   </div>
 )
 
+// Lesson-card still. Creator stills are full-size uploads (up to 10 MB, S3
+// serves them unresized), and the rail used to fetch EVERY card's image
+// up-front — on a phone connection they all competed with the full-screen
+// hero cover, so the one card actually on screen (episode 1) was the slowest
+// to paint. Two mitigations:
+//
+//   • Only the first card carries a src up-front; the rest get theirs when
+//     scrolled near (IntersectionObserver — native loading=lazy barely
+//     defers anything in a horizontal rail, its distance thresholds cover
+//     the whole strip).
+//   • A failed fetch (flaky cellular) retries twice with a cache-busted URL
+//     instead of leaving the card blank forever. The eager first image can
+//     fail BEFORE hydration attaches onError (it loads from the server
+//     HTML), so a mount-time complete-but-empty check catches that too.
+function LessonThumb({
+  src,
+  position,
+  className,
+  eager = false,
+}: {
+  src: string
+  position?: string | null
+  className?: string
+  eager?: boolean
+}) {
+  const imgRef = useRef<HTMLImageElement | null>(null)
+  const [attempt, setAttempt] = useState(0)
+  const [visible, setVisible] = useState(eager)
+  const failures = useRef(0)
+  const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const scheduleRetry = useCallback(() => {
+    if (failures.current >= 2) return
+    failures.current += 1
+    const n = failures.current
+    if (retryTimer.current) clearTimeout(retryTimer.current)
+    retryTimer.current = setTimeout(() => setAttempt(n), n === 1 ? 1000 : 3000)
+  }, [])
+
+  useEffect(() => {
+    // New src → new image; reset the retry counter and any pending retry.
+    failures.current = 0
+    setAttempt(0)
+  }, [src])
+  useEffect(
+    () => () => {
+      if (retryTimer.current) clearTimeout(retryTimer.current)
+    },
+    [],
+  )
+
+  // Reveal the src when the card approaches the viewport.
+  useEffect(() => {
+    if (visible) return
+    const el = imgRef.current
+    if (!el || typeof IntersectionObserver === 'undefined') {
+      setVisible(true)
+      return
+    }
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          setVisible(true)
+          io.disconnect()
+        }
+      },
+      { rootMargin: '600px' },
+    )
+    io.observe(el)
+    return () => io.disconnect()
+  }, [visible])
+
+  // Catch an image that already failed before this effect ran (the SSR'd
+  // eager image starts — and can fail — before React attaches onError).
+  useEffect(() => {
+    const el = imgRef.current
+    if (visible && el && el.complete && el.naturalWidth === 0) scheduleRetry()
+  }, [visible, attempt, src, scheduleRetry])
+
+  const url =
+    attempt === 0 ? src : `${src}${src.includes('?') ? '&' : '?'}r=${attempt}`
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      ref={imgRef}
+      className={className}
+      src={visible ? url : undefined}
+      alt=""
+      loading={eager ? 'eager' : 'lazy'}
+      decoding="async"
+      style={{ objectPosition: position ?? undefined }}
+      onError={scheduleRetry}
+    />
+  )
+}
+
 // Touch-to-edit text (the design's contenteditable). Module-level so its
 // identity is stable across renders — defined inline it would REMOUNT on
 // every parent re-render (FAQ toggle, trailer peek, strip scroll), killing
@@ -306,6 +402,8 @@ export type GeneratedPortalPageProps = {
   coverBusy?: boolean
   onAddTrailer?: () => void
   trailerBusy?: boolean
+  /** Trailer upload progress, 0–100 while uploading, null otherwise. */
+  trailerPct?: number | null
   /** Live object-position updates while the creator drags the cover.
    *  Commit/debounce is the caller's job. */
   onCoverPosition?: (pos: string) => void
@@ -437,6 +535,7 @@ export function GeneratedPortalPage({
   coverBusy = false,
   onAddTrailer,
   trailerBusy = false,
+  trailerPct = null,
   onCoverPosition,
   onAddLessonImage,
   onRepositionLesson,
@@ -512,6 +611,12 @@ export function GeneratedPortalPage({
       document.body.style.overflow = prev
     }
   }, [enrollLesson, closeEnroll])
+
+  // ── mobile marquee: the hero description clamps to two lines with an
+  //    inline MORE expander (design port). Desktop and the builder preview
+  //    always show the full text — the clamp CSS only exists ≤640px and the
+  //    button never renders while editing. ──
+  const [descExpanded, setDescExpanded] = useState(false)
 
   // ── hover-trailer peek: play WITH sound on hover, snap back on leave/scroll.
   //    (The protected behavior from the original landing's HeroMedia.) ──
@@ -1009,7 +1114,9 @@ export function GeneratedPortalPage({
           </svg>
           <span>
             {trailerBusy
-              ? 'Uploading…'
+              ? trailerPct != null
+                ? `Uploading ${trailerPct}%`
+                : 'Uploading…'
               : trailerUrl
                 ? 'Change trailer'
                 : 'Add trailer'}
@@ -1079,17 +1186,18 @@ export function GeneratedPortalPage({
     >
       <div className="ph-ambient" style={ambientTint(l.flatIdx + 1)} />
       <div className="glass-tint" />
-      <div
-        className="photo"
-        style={
-          l.imageUrl
-            ? {
-                backgroundImage: `url("${l.imageUrl}")`,
-                backgroundPosition: l.imagePosition ?? undefined,
-              }
-            : undefined
-        }
-      />
+      {l.imageUrl ? (
+        // A real <img> (not a CSS background) so the rail can lazy-load
+        // off-screen cards and recover from failed fetches — see LessonThumb.
+        <LessonThumb
+          src={l.imageUrl}
+          position={l.imagePosition}
+          className="photo"
+          eager={l.flatIdx === 0}
+        />
+      ) : (
+        <div className="photo" />
+      )}
       <div className="photo-shade" />
       {showChips ? (
         l.free ? (
@@ -1181,11 +1289,10 @@ export function GeneratedPortalPage({
       <div className="lc-card">
         <div className={`lc-thumb ${l.imageUrl ? '' : 'ph'}`}>
           {l.imageUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
+            <LessonThumb
               src={l.imageUrl}
-              alt=""
-              style={{ objectPosition: l.imagePosition ?? undefined }}
+              position={l.imagePosition}
+              eager={l.flatIdx === 0}
             />
           ) : (
             <>
@@ -1395,14 +1502,30 @@ export function GeneratedPortalPage({
             </div>
 
             <div className="band-desc">
-              <EditText
-                editable={editable}
-                onEditText={onEditText}
-                field="desc"
-                value={desc}
-                className="bd-text"
-                tag="p"
-              />
+              <div
+                className={`bd-descwrap ${
+                  descExpanded || editable ? '' : 'clamped'
+                }`}
+              >
+                <EditText
+                  editable={editable}
+                  onEditText={onEditText}
+                  field="desc"
+                  value={desc}
+                  className="bd-text"
+                  tag="p"
+                />
+                {!editable && !descExpanded && (
+                  <button
+                    className="bd-more"
+                    type="button"
+                    onClick={() => setDescExpanded(true)}
+                    aria-label="Show full description"
+                  >
+                    <span>MORE</span>
+                  </button>
+                )}
+              </div>
               <div className="bd-meta">
                 <span className="bd-meta-eyebrow">
                   {eyebrow}&nbsp;&nbsp;·&nbsp;&nbsp;
@@ -1532,6 +1655,9 @@ export function GeneratedPortalPage({
           </div>
           <div className="hero-shade" />
           <div className="hero-blend" />
+          {/* Film grain — a mobile-only detail from the cover design; the
+              base rule hides it, the ≤640px block reveals it. */}
+          <div className="hero-grain" />
 
           {brand ? (
             <div className="hero-eyebrow">
@@ -1955,6 +2081,10 @@ export function GeneratedPortalPage({
                   poster={sampleImageUrl}
                   controls={false}
                   muted={sampleMuted}
+                  // The sample has no caption control, so captions must never
+                  // show — otherwise native HLS turns them on for mobile
+                  // visitors while desktop (hls.js) keeps them off.
+                  hideCaptions
                   className="sample-video"
                   onVideoElement={onSampleVideoEl}
                   onEnded={stopSample}
@@ -2073,10 +2203,10 @@ export function GeneratedPortalPage({
           <div className={`lessons${editable ? 'gpp-section' : ''}`}>
             {editable && sectionHideControl('lessons')}
             <div className="row-head strip-rh">
-              {/* Desktop labels this "Episodes"; the mobile design uses
-                "Free preview". Both render, one shows per breakpoint. */}
-              <span className="rh rh-desktop">Episodes</span>
-              <span className="rh rh-mobile">Free preview</span>
+              {/* The strip lists every episode (locked ones included), so it's
+                  "Episodes" on every breakpoint — the old mobile "Free preview"
+                  label mislabelled paid episodes as free. */}
+              <span className="rh">Episodes</span>
             </div>
             <div className="strip-wrap">
               <button
@@ -2502,6 +2632,13 @@ export function GeneratedPortalPage({
         .gpp .filled .photo-shade {
           display: block;
         }
+        /* Spotlight-card stills are real <img>s (lazy-load + retry — see
+           LessonThumb); mirror the background-size:cover behaviour. */
+        .gpp .card img.photo {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+        }
         .gpp .hero.filled .ph-ambient,
         .gpp .hero.filled .hero-art,
         .gpp .hero.filled .hero-ph {
@@ -2773,6 +2910,14 @@ export function GeneratedPortalPage({
         .gpp .band-desc {
           padding-top: 2px;
         }
+        .gpp .bd-descwrap {
+          position: relative;
+        }
+        /* The MORE expander is a mobile-only affordance — the ≤640px block
+           reveals it while the description is clamped. */
+        .gpp .bd-more {
+          display: none;
+        }
         .gpp .bd-text {
           font-size: 16px;
           line-height: 1.5;
@@ -2859,7 +3004,8 @@ export function GeneratedPortalPage({
         }
         @media (prefers-reduced-motion: reduce) {
           .gpp .rise,
-          .gpp .panel-art {
+          .gpp .panel-art,
+          .gpp .hero .photo {
             animation: none;
             opacity: 1;
             transform: none;
@@ -2896,6 +3042,9 @@ export function GeneratedPortalPage({
           pointer-events: none;
         }
         .gpp .hero-shade {
+          display: none;
+        }
+        .gpp .hero-grain {
           display: none;
         }
         .gpp .hero-blend {
@@ -3725,9 +3874,6 @@ export function GeneratedPortalPage({
           align-items: baseline;
           gap: 13px;
           margin-bottom: 18px;
-        }
-        .gpp .strip-rh .rh-mobile {
-          display: none;
         }
         .gpp .strip-rh .rh {
           font-size: 19px;
@@ -4588,19 +4734,50 @@ export function GeneratedPortalPage({
             margin: 0 auto;
           }
 
-          /* ── cover hero ── full-viewport, same as the marquee ── */
+          /* ── cover hero ── design port ("Spaire Cover Hero Mobile"):
+             full-bleed photo with everything overlaid — one deep bottom
+             shade feathered upward plus a soft top shade, film grain,
+             gentle Ken Burns on the cover, and side-by-side pill CTAs.
+             Same fields as desktop: AI badge/headline/description, the
+             course's lesson count/duration, trailer, and price. ── */
           .gpp .hero {
             height: 100svh;
-            min-height: 640px;
+            min-height: 660px;
             max-height: none;
           }
+          /* Ken Burns on the creator's cover. Kept subtler than the demo's
+             1.32× so the saved focal crop stays honored; parked while the
+             builder's reposition drag is active. */
+          .gpp .hero .photo {
+            animation: gpp-kb 26s ease-out forwards;
+          }
+          .gpp .hero.repositioning .photo {
+            animation: none;
+          }
+          /* THE overlay — the design's exact two-layer shade: deep at the
+             bottom where the content sits (.92 → transparent at 74%), plus
+             a soft darkening at the very top for the brand/status bar. */
           .gpp .hero .photo-shade {
-            background: linear-gradient(
-              0deg,
-              rgba(5, 5, 8, 0.66) 0%,
-              rgba(5, 5, 8, 0.3) 36%,
-              transparent 60%
-            );
+            background:
+              linear-gradient(
+                0deg,
+                rgba(5, 5, 8, 0.92) 0%,
+                rgba(5, 5, 8, 0.82) 16%,
+                rgba(5, 5, 8, 0.5) 36%,
+                rgba(5, 5, 8, 0.18) 56%,
+                transparent 74%
+              ),
+              linear-gradient(180deg, rgba(5, 5, 8, 0.34) 0%, transparent 22%);
+          }
+          .gpp .hero .hero-grain {
+            display: block;
+            position: absolute;
+            inset: 0;
+            z-index: 2;
+            opacity: 0.05;
+            pointer-events: none;
+            mix-blend-mode: overlay;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
           }
           .gpp .hero-ph {
             top: 44%;
@@ -4610,62 +4787,95 @@ export function GeneratedPortalPage({
           }
           .gpp .hero-eyebrow {
             top: 22px;
-            left: 20px;
+            left: 26px;
             font-size: 11px;
           }
           .gpp .hero-eyebrow .dot {
             width: 6px;
             height: 6px;
           }
+          /* The cover design sits the content on a 26px inset (its own
+             --gut), deeper 44px off the bottom edge. */
           .gpp .hero-content {
-            left: 20px;
-            right: 20px;
-            bottom: 28px;
+            left: 26px;
+            right: 26px;
+            bottom: 44px;
           }
           .gpp .hero-meta {
             flex-wrap: wrap;
-            gap: 10px;
-            margin-bottom: 14px;
+            gap: 12px;
+            margin-bottom: 20px;
           }
           .gpp .badge {
-            font-size: 10px;
-            padding: 6px 12px;
+            font-size: 10.5px;
+            font-weight: 800;
+            padding: 6px 13px;
+            background: rgba(255, 255, 255, 0.94);
           }
           .gpp .meta-line {
-            font-size: 13px;
+            font-size: 13.5px;
             gap: 8px;
+            color: rgba(255, 255, 255, 0.82);
+            text-shadow: 0 1px 12px rgba(0, 0, 0, 0.5);
+          }
+          .gpp .meta-line .sep {
+            opacity: 0.5;
           }
           .gpp .hero-title {
-            font-size: clamp(38px, 11.5vw, 48px);
-            line-height: 1.04;
+            font-family: var(--po);
+            font-size: clamp(44px, 14vw, 60px);
+            line-height: 0.98;
+            letter-spacing: -0.03em;
+            text-shadow: 0 4px 50px rgba(0, 0, 0, 0.55);
           }
           .gpp .hero-desc {
-            margin-top: 14px;
-            font-size: 15px;
+            margin-top: 18px;
+            font-size: 15.5px;
+            line-height: 1.55;
+            color: rgba(255, 255, 255, 0.9);
+            text-shadow: 0 2px 20px rgba(0, 0, 0, 0.5);
+            text-wrap: pretty;
           }
+          /* Full-width stacked pills. Side-by-side half-width pills wrapped
+             real labels mid-button ("Play Trailer" → two lines, "Buy — $129"
+             → two lines, and a "Subscribe — $89 / month" label is worse), so
+             stack them: each label stays on one line and the tap targets are
+             bigger. */
           .gpp .hero-actions {
             flex-direction: column;
-            /* reset the desktop row's align-items: center — the design's
-               buttons fill the 20px-gutter column edge to edge */
             align-items: stretch;
-            gap: 10px;
-            margin-top: 22px;
+            gap: 12px;
+            margin-top: 28px;
           }
           .gpp .btn-trailer,
           .gpp .btn-enroll {
+            width: 100%;
             justify-content: center;
-            height: 50px;
-            font-size: 15px;
+            height: 56px;
+            font-size: 16px;
+            white-space: nowrap;
           }
           .gpp .btn-trailer {
-            padding: 0 20px;
+            padding: 0 16px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.28);
           }
           .gpp .btn-trailer .play {
-            width: 28px;
-            height: 28px;
+            width: 34px;
+            height: 34px;
           }
           .gpp .btn-enroll {
             padding: 0 22px;
+            /* A near-opaque fill so the enroll CTA is legible on ANY cover
+               even where backdrop-filter is unsupported (Google's in-app
+               browser, some Android WebViews) — the translucent glass relied
+               on that filter and vanished without it. */
+            background: rgba(12, 14, 18, 0.64);
+            -webkit-backdrop-filter: blur(18px) saturate(140%);
+            backdrop-filter: blur(18px) saturate(140%);
+            box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.4);
+          }
+          .gpp .btn-enroll:active {
+            background: rgba(40, 40, 46, 0.72);
           }
 
           /* creator controls → 44px icon pills; Add-cover is the centered
@@ -4879,32 +5089,52 @@ export function GeneratedPortalPage({
             top: 14px;
             right: 14px;
           }
+          /* Design port ("Marquee Course Page Mobile"): centered title with
+             the AI eyebrow re-seated BELOW it as a genre line, side-by-side
+             pill CTAs with the free line beneath, and the description
+             restored as a two-line clamp with an inline MORE expander
+             (desktop hides it at 820px; phones get the full stack back).
+             Same fields as desktop — eyebrow/title/desc/badges are the AI
+             landing content, price and trailer come from the course. */
           .gpp .panel-title {
             position: relative;
             left: auto;
             right: auto;
             bottom: auto;
-            margin: 0 var(--gut);
-          }
-          .gpp .pt-eyebrow {
-            font-size: 12px;
-            margin-bottom: 10px;
+            margin: 0 var(--gut) 14px;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
           }
           .gpp .pt-h {
-            font-size: clamp(34px, 10.5vw, 44px);
-            line-height: 0.98;
-            letter-spacing: -0.03em;
-            max-width: 12ch;
+            font-size: clamp(33px, 9.4vw, 42px);
+            line-height: 0.96;
+            letter-spacing: -0.035em;
+            max-width: 13ch;
+            margin: 0 auto;
+            text-shadow: 0 4px 50px rgba(0, 0, 0, 0.55);
             text-wrap: balance;
           }
-          /* band → in-flow, single column; drop the desktop description +
-             in-band instructor (instructor is its own section below). */
+          /* The AI eyebrow ("Documentary Series · Golf") reads as the genre
+             line under the title on phones — same field, new seat. */
+          .gpp .pt-eyebrow {
+            order: 2;
+            margin: 16px 0 0;
+            font-size: 14px;
+            font-weight: 600;
+            letter-spacing: -0.01em;
+            color: rgba(255, 255, 255, 0.88);
+            text-shadow: 0 2px 18px rgba(0, 0, 0, 0.55);
+          }
+          /* band → in-flow, single column, pulled up under the title. The
+             frosted fade moves to a ::before backdrop layer so it never
+             tints the buttons or text. */
           .gpp .band {
             position: relative;
             left: auto;
             right: auto;
             bottom: auto;
-            margin-top: 22px;
+            margin-top: -46px;
             display: flex;
             flex-direction: column;
             /* reset the desktop grid's align-items: start — without this the
@@ -4912,25 +5142,63 @@ export function GeneratedPortalPage({
                instead of filling the 20px-gutter column like the design */
             align-items: stretch;
             gap: 16px;
-            padding: 30px var(--gut) 26px;
+            padding: 50px var(--gut) 26px;
+            -webkit-backdrop-filter: none;
+            backdrop-filter: none;
+            background: none;
+            -webkit-mask-image: none;
+            mask-image: none;
+          }
+          .gpp .band::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            z-index: -1;
+            pointer-events: none;
+            -webkit-backdrop-filter: blur(32px) saturate(140%);
+            backdrop-filter: blur(32px) saturate(140%);
+            background: linear-gradient(
+              0deg,
+              rgba(var(--band), 1) 46%,
+              rgba(var(--band), 0.92) 64%,
+              rgba(var(--band), 0.6) 80%,
+              rgba(var(--band), 0.22) 92%,
+              rgba(var(--band), 0) 100%
+            );
             -webkit-mask-image: linear-gradient(
               0deg,
-              #000 86%,
+              #000 64%,
+              rgba(0, 0, 0, 0.55) 84%,
               transparent 100%
             );
-            mask-image: linear-gradient(0deg, #000 86%, transparent 100%);
+            mask-image: linear-gradient(
+              0deg,
+              #000 64%,
+              rgba(0, 0, 0, 0.55) 84%,
+              transparent 100%
+            );
           }
           .gpp .band-actions {
-            gap: 10px;
+            flex-direction: row;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
+            gap: 14px;
           }
-          .gpp .abtn {
-            height: 50px;
-            border-radius: 13px;
-            font-size: 15px;
+          .gpp .band-actions .abtn {
+            flex: 1 1 0;
+            height: 54px;
+            padding: 0 22px;
+            border-radius: 980px;
+            font-size: 16px;
+          }
+          .gpp .band-actions .abtn.play {
+            box-shadow: 0 8px 26px rgba(0, 0, 0, 0.2);
           }
           .gpp .band-free {
+            flex-basis: 100%;
             text-align: center;
-            margin-top: 0;
+            margin-top: 2px;
           }
           .gpp .band-desc {
             display: flex;
@@ -4938,19 +5206,57 @@ export function GeneratedPortalPage({
             gap: 16px;
             padding-top: 0;
           }
+          .gpp .bd-descwrap {
+            margin-top: 4px;
+          }
           .gpp .band-desc .bd-text {
-            display: none;
+            display: block;
+            font-size: 15px;
+            font-weight: 500;
+            line-height: 1.5;
+            text-wrap: pretty;
+          }
+          .gpp .bd-descwrap.clamped .bd-text {
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+          }
+          .gpp .bd-descwrap.clamped .bd-more {
+            display: inline-flex;
+            position: absolute;
+            right: 0;
+            bottom: 0;
+            align-items: center;
+            padding: 3px 0 3px 22px;
+            font-size: 13px;
+            font-weight: 600;
+            letter-spacing: 0.01em;
+            color: var(--bt);
+            background: linear-gradient(
+              90deg,
+              rgba(var(--band), 0) 0%,
+              rgba(var(--band), 0.97) 30%
+            );
+          }
+          .gpp .bd-more span {
+            background: rgba(125, 125, 135, 0.2);
+            border-radius: 980px;
+            padding: 3px 11px;
+          }
+          .gpp.dark .bd-more span {
+            background: rgba(255, 255, 255, 0.16);
           }
           .gpp .bd-meta {
             font-size: 13px;
-            text-align: center;
+            text-align: left;
             margin-top: 0;
           }
           .gpp .bd-meta-eyebrow {
             display: none;
           }
           .gpp .bd-badges {
-            justify-content: center;
+            justify-content: flex-start;
             margin-top: 0;
           }
           .gpp .band-cast {
@@ -4972,12 +5278,6 @@ export function GeneratedPortalPage({
           }
           .gpp .strip-rh .rh {
             font-size: 19px;
-          }
-          .gpp .strip-rh .rh-desktop {
-            display: none;
-          }
-          .gpp .strip-rh .rh-mobile {
-            display: inline;
           }
           .gpp .strip-wrap .grid {
             overscroll-behavior-x: contain;

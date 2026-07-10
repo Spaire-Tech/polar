@@ -31,6 +31,7 @@ from .course_assistant_question import CourseAssistantQuestion
 from .course_enrollment import CourseEnrollment
 from .course_lesson import CourseLesson
 from .course_lesson_progress import CourseLessonProgress
+from .course_lesson_watch_progress import CourseLessonWatchProgress
 from .course_module import CourseModule
 from .course_note import CourseNote
 from .custom_field import CustomField
@@ -91,6 +92,7 @@ from .order import Order
 from .order_item import OrderItem
 from .organization import Organization
 from .organization_access_token import OrganizationAccessToken
+from .organization_custom_domain import OrganizationCustomDomain
 from .organization_review import OrganizationReview
 from .payment import Payment
 from .payment_method import PaymentMethod
@@ -165,6 +167,7 @@ __all__ = [
     "CourseEnrollment",
     "CourseLesson",
     "CourseLessonProgress",
+    "CourseLessonWatchProgress",
     "CourseModule",
     "CourseNote",
     "CustomField",
@@ -233,6 +236,7 @@ __all__ = [
     "OrderItem",
     "Organization",
     "OrganizationAccessToken",
+    "OrganizationCustomDomain",
     "OrganizationReview",
     "Payment",
     "PaymentMethod",

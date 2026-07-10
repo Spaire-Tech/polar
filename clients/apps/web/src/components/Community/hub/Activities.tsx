@@ -18,12 +18,15 @@ import {
   type CommunityActivityCreateBody,
   type CommunityActivityRead,
   type CommunityActivitySubmissionRead,
+  type CommunityActivityUpdateBody,
   useCommunityActivities,
   useCommunityActivitySubmissions,
   useCreateCommunityActivity,
+  useDeleteCommunityActivity,
   usePostSubmissionComment,
   useSubmissionComments,
   useSubmitToCommunityActivity,
+  useUpdateCommunityActivity,
   useUploadPostImage,
   useUploadPostVideo,
 } from '@/hooks/queries/community'
@@ -60,6 +63,69 @@ const formatByLabel = (l: string) =>
 const labelForType = (t: ActivitySubmissionType) =>
   ({ video: 'Video', photo: 'Photo', text: 'Text', link: 'Link' })[t]
 
+/* ---------- sorting ----------
+   Only date/count sorts are offered — activities and submissions don't carry a
+   like/reaction count yet, so "most liked" isn't available to sort on. */
+type ActivitySort = 'recent' | 'oldest' | 'active'
+type SubmissionSort = 'recent' | 'oldest'
+
+const ACTIVITY_SORTS: { value: ActivitySort; label: string }[] = [
+  { value: 'recent', label: 'Most recent' },
+  { value: 'oldest', label: 'Oldest' },
+  { value: 'active', label: 'Most submissions' },
+]
+const SUBMISSION_SORTS: { value: SubmissionSort; label: string }[] = [
+  { value: 'recent', label: 'Most recent' },
+  { value: 'oldest', label: 'Oldest' },
+]
+
+const byCreatedDesc = (a: { created_at: string }, b: { created_at: string }) =>
+  a.created_at < b.created_at ? 1 : a.created_at > b.created_at ? -1 : 0
+
+const sortActivities = (
+  items: CommunityActivityRead[],
+  sort: ActivitySort,
+): CommunityActivityRead[] => {
+  const copy = [...items]
+  if (sort === 'active')
+    return copy.sort(
+      (a, b) => b.submission_count - a.submission_count || byCreatedDesc(a, b),
+    )
+  copy.sort(byCreatedDesc)
+  return sort === 'oldest' ? copy.reverse() : copy
+}
+
+const sortSubmissions = (
+  items: CommunityActivitySubmissionRead[],
+  sort: SubmissionSort,
+): CommunityActivitySubmissionRead[] => {
+  const copy = [...items].sort(byCreatedDesc)
+  return sort === 'oldest' ? copy.reverse() : copy
+}
+
+function SortSelect<T extends string>({
+  value,
+  options,
+  onChange,
+}: {
+  value: T
+  options: { value: T; label: string }[]
+  onChange: (v: T) => void
+}) {
+  return (
+    <label className="act-sort">
+      <select value={value} onChange={(e) => onChange(e.target.value as T)}>
+        {options.map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
+        ))}
+      </select>
+      <Glyph d="chevD" size={14} stroke={2} />
+    </label>
+  )
+}
+
 export type CourseChannel = {
   kind: ActivityChannelKind
   noun: string
@@ -70,25 +136,37 @@ export type CourseChannel = {
 function ActivityForm({
   courseId,
   channel,
+  editing = null,
   onCancel,
   onCreated,
   showToast,
 }: {
   courseId: string
   channel: CourseChannel
+  /** When set, the form edits an existing activity instead of creating one. */
+  editing?: CommunityActivityRead | null
   onCancel: (() => void) | null
   onCreated: () => void
   showToast: (m: string) => void
 }) {
-  const [prompt, setPrompt] = useState('')
-  const [formatLabel, setFormatLabel] = useState('Video')
-  const [channelId, setChannelId] = useState<string | null>(null)
-  const [cover, setCover] = useState('')
-  const [coverPos, setCoverPos] = useState('50% 50%')
+  const [prompt, setPrompt] = useState(
+    () => editing?.description || editing?.title || '',
+  )
+  const [formatLabel, setFormatLabel] = useState(() =>
+    editing ? labelForType(editing.submission_type) : 'Video',
+  )
+  const [channelId, setChannelId] = useState<string | null>(
+    () => editing?.lesson_id || editing?.module_id || null,
+  )
+  const [cover, setCover] = useState(() => editing?.cover_url || '')
+  const [coverPos, setCoverPos] = useState(
+    () => editing?.cover_object_position || '50% 50%',
+  )
   const [busy, setBusy] = useState(false)
 
   const uploadImg = useUploadPostImage(null, courseId, 'creator')
   const create = useCreateCommunityActivity(null, courseId, 'creator')
+  const update = useUpdateCommunityActivity(null, courseId, 'creator')
   const fmt = formatByLabel(formatLabel)
   const can = prompt.trim() && channel.options.length > 0 && !busy
 
@@ -113,25 +191,40 @@ function ActivityForm({
       return
     }
     const title = prompt.trim().slice(0, 200)
-    const body: CommunityActivityCreateBody = {
-      channel_kind: channel.kind,
-      module_id: channel.kind === 'module' ? targetId : null,
-      lesson_id: channel.kind === 'lesson' ? targetId : null,
-      title,
-      description: prompt.trim().length > 200 ? prompt.trim() : null,
-      cover_url: cover || null,
-      cover_object_position: cover ? coverPos : null,
-      submission_type: fmt.type,
-      pin_to_feed: false,
-      notify_on_publish: true,
-    }
+    const description = prompt.trim().length > 200 ? prompt.trim() : null
     setBusy(true)
     try {
-      await create.mutateAsync(body)
-      showToast('Activity published')
+      if (editing) {
+        const body: CommunityActivityUpdateBody = {
+          title,
+          description,
+          cover_url: cover || null,
+          cover_object_position: cover ? coverPos : null,
+          submission_type: fmt.type,
+        }
+        await update.mutateAsync({ activityId: editing.id, body })
+        showToast('Activity updated')
+      } else {
+        const body: CommunityActivityCreateBody = {
+          channel_kind: channel.kind,
+          module_id: channel.kind === 'module' ? targetId : null,
+          lesson_id: channel.kind === 'lesson' ? targetId : null,
+          title,
+          description,
+          cover_url: cover || null,
+          cover_object_position: cover ? coverPos : null,
+          submission_type: fmt.type,
+          pin_to_feed: false,
+          notify_on_publish: true,
+        }
+        await create.mutateAsync(body)
+        showToast('Activity published')
+      }
       onCreated()
     } catch {
-      showToast('Could not publish that activity')
+      showToast(
+        editing ? 'Could not save changes' : 'Could not publish that activity',
+      )
     } finally {
       setBusy(false)
     }
@@ -139,7 +232,9 @@ function ActivityForm({
 
   return (
     <div className="card form-card">
-      <div className="form-title">Create an activity</div>
+      <div className="form-title">
+        {editing ? 'Edit activity' : 'Create an activity'}
+      </div>
       <Field label="Cover image">
         <CoverDrop
           src={cover}
@@ -165,14 +260,16 @@ function ActivityForm({
           onChange={setFormatLabel}
         />
       </Field>
-      <Field label={`Link to a ${channel.noun}`}>
-        <EpisodeSelect
-          value={channelId}
-          options={channel.options}
-          noun={channel.noun}
-          onChange={setChannelId}
-        />
-      </Field>
+      {!editing && (
+        <Field label={`Link to a ${channel.noun}`}>
+          <EpisodeSelect
+            value={channelId}
+            options={channel.options}
+            noun={channel.noun}
+            onChange={setChannelId}
+          />
+        </Field>
+      )}
       <div className="form-foot">
         <span className="sp" />
         {onCancel && (
@@ -186,7 +283,13 @@ function ActivityForm({
           style={!can ? { opacity: 0.4 } : undefined}
           onClick={submit}
         >
-          {busy ? 'Publishing…' : 'Publish activity'}
+          {busy
+            ? editing
+              ? 'Saving…'
+              : 'Publishing…'
+            : editing
+              ? 'Save changes'
+              : 'Publish activity'}
         </button>
       </div>
     </div>
@@ -591,16 +694,48 @@ function ActivityPage({
   selfName,
   selfAvatar,
   onBack,
+  onEdit,
+  onDeleted,
+  showToast,
 }: {
   act: CommunityActivityRead
   courseId: string
   selfName: string
   selfAvatar?: string | null
   onBack: () => void
+  /** Host-only: open the edit form for this activity. */
+  onEdit?: (a: CommunityActivityRead) => void
+  /** Host-only: called after the activity is deleted. */
+  onDeleted?: () => void
+  showToast?: (m: string) => void
 }) {
   const { viewer, mode, token } = useHub()
+  const isHost = viewer === 'host'
   const subsQ = useCommunityActivitySubmissions(token, courseId, act.id, mode)
-  const submissions = subsQ.data ?? []
+  const del = useDeleteCommunityActivity(token, courseId, mode)
+  const [sort, setSort] = useState<SubmissionSort>('recent')
+  const submissions = useMemo(
+    () => sortSubmissions(subsQ.data ?? [], sort),
+    [subsQ.data, sort],
+  )
+
+  const onDelete = async () => {
+    if (
+      !window.confirm(
+        `Delete "${act.title || 'this activity'}"? Members' submissions will be removed too. This cannot be undone.`,
+      )
+    )
+      return
+    try {
+      await del.mutateAsync(act.id)
+      showToast?.('Activity deleted')
+      onDeleted?.()
+      onBack()
+    } catch {
+      showToast?.('Could not delete that activity')
+    }
+  }
+
   return (
     <div className="act-page">
       <button className="act-back" onClick={onBack}>
@@ -633,6 +768,25 @@ function ActivityPage({
             {submissions.length}{' '}
             {submissions.length === 1 ? 'submission' : 'submissions'}
           </div>
+          {isHost && (onEdit || onDeleted) && (
+            <div className="act-hero-host">
+              {onEdit && (
+                <button
+                  className="btn btn-quiet btn-sm"
+                  onClick={() => onEdit(act)}
+                >
+                  Edit activity
+                </button>
+              )}
+              <button
+                className="ev-sheet-del"
+                onClick={onDelete}
+                disabled={del.isPending}
+              >
+                <Glyph d="trash" size={15} stroke={2} /> Delete
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -662,18 +816,29 @@ function ActivityPage({
             </p>
           </div>
         ) : (
-          <div className="crf-stack">
-            {submissions.map((s) => (
-              <SubmissionCard
-                key={s.id}
-                s={s}
-                courseId={courseId}
-                activityId={act.id}
-                selfName={selfName}
-                selfAvatar={selfAvatar}
-              />
-            ))}
-          </div>
+          <>
+            {submissions.length > 1 && (
+              <div className="act-subs-toolbar">
+                <SortSelect
+                  value={sort}
+                  options={SUBMISSION_SORTS}
+                  onChange={setSort}
+                />
+              </div>
+            )}
+            <div className="crf-stack">
+              {submissions.map((s) => (
+                <SubmissionCard
+                  key={s.id}
+                  s={s}
+                  courseId={courseId}
+                  activityId={act.id}
+                  selfName={selfName}
+                  selfAvatar={selfAvatar}
+                />
+              ))}
+            </div>
+          </>
         )}
       </div>
     </div>
@@ -700,12 +865,33 @@ export function ActivitiesTab({
   const actsQ = useCommunityActivities(token, courseId, mode)
   const activities = useMemo(() => actsQ.data ?? [], [actsQ.data])
   const [showForm, setShowForm] = useState(false)
+  const [editing, setEditing] = useState<CommunityActivityRead | null>(null)
   const [openId, setOpenId] = useState<string | null>(null)
+  const [sort, setSort] = useState<ActivitySort>('recent')
+
+  const sorted = useMemo(
+    () => sortActivities(activities, sort),
+    [activities, sort],
+  )
 
   const openAct = useMemo(
     () => activities.find((a) => a.id === openId) || null,
     [activities, openId],
   )
+
+  const newActivity = () => {
+    setEditing(null)
+    setShowForm(true)
+  }
+  const startEdit = (act: CommunityActivityRead) => {
+    setOpenId(null)
+    setEditing(act)
+    setShowForm(true)
+  }
+  const closeForm = () => {
+    setShowForm(false)
+    setEditing(null)
+  }
 
   if (openAct) {
     return (
@@ -715,6 +901,9 @@ export function ActivitiesTab({
         selfName={selfName}
         selfAvatar={selfAvatar}
         onBack={() => setOpenId(null)}
+        onEdit={isHost ? startEdit : undefined}
+        onDeleted={isHost ? () => setOpenId(null) : undefined}
+        showToast={showToast}
       />
     )
   }
@@ -735,7 +924,7 @@ export function ActivitiesTab({
         {isHost && !showForm && activities.length > 0 && (
           <button
             className="ev-add-btn"
-            onClick={() => setShowForm(true)}
+            onClick={newActivity}
             aria-label="New activity"
           >
             <Glyph d="plus" size={20} stroke={2.2} />
@@ -743,12 +932,23 @@ export function ActivitiesTab({
         )}
       </div>
 
+      {!showForm && activities.length > 1 && (
+        <div className="act-toolbar">
+          <SortSelect
+            value={sort}
+            options={ACTIVITY_SORTS}
+            onChange={setSort}
+          />
+        </div>
+      )}
+
       {isHost && showForm && channel ? (
         <ActivityForm
           courseId={courseId}
           channel={channel}
-          onCancel={activities.length > 0 ? () => setShowForm(false) : null}
-          onCreated={() => setShowForm(false)}
+          editing={editing}
+          onCancel={activities.length > 0 ? closeForm : null}
+          onCreated={closeForm}
           showToast={showToast}
         />
       ) : actsQ.isError ? (
@@ -771,17 +971,14 @@ export function ActivitiesTab({
               : 'When your host posts an activity, it shows up here for you to respond to.'}
           </p>
           {isHost && (
-            <button
-              className="btn btn-primary"
-              onClick={() => setShowForm(true)}
-            >
+            <button className="btn btn-primary" onClick={newActivity}>
               Create an activity
             </button>
           )}
         </div>
       ) : (
         <div className="ev-grid">
-          {activities.map((a) => (
+          {sorted.map((a) => (
             <ActivityCard key={a.id} act={a} onOpen={(x) => setOpenId(x.id)} />
           ))}
         </div>

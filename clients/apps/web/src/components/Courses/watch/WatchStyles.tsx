@@ -19,10 +19,12 @@ export function WatchStyles() {
         --blue: #0071e3;
         --hair: rgba(0, 0, 0, 0.12);
         --ans: #4a4a4f;
-        --sf: -apple-system, BlinkMacSystemFont, 'SF Pro Display',
-          'SF Pro Text', system-ui, sans-serif;
-        --po: 'Poppins', var(--font-poppins), -apple-system,
-          BlinkMacSystemFont, system-ui, sans-serif;
+        --sf:
+          -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text',
+          system-ui, sans-serif;
+        --po:
+          'Poppins', var(--font-poppins), -apple-system, BlinkMacSystemFont,
+          system-ui, sans-serif;
         font-family: var(--sf);
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
@@ -80,7 +82,8 @@ export function WatchStyles() {
         overflow: hidden;
         background: var(--bg);
         color: var(--text);
-        box-shadow: 0 50px 100px rgba(0, 0, 0, 0.4),
+        box-shadow:
+          0 50px 100px rgba(0, 0, 0, 0.4),
           0 8px 28px rgba(0, 0, 0, 0.2);
         animation: sov2-sheetIn 0.42s cubic-bezier(0.2, 1, 0.3, 1);
       }
@@ -175,7 +178,9 @@ export function WatchStyles() {
         backdrop-filter: blur(14px) saturate(150%);
         display: grid;
         place-items: center;
-        transition: background 0.18s, transform 0.16s;
+        transition:
+          background 0.18s,
+          transform 0.16s;
       }
       .sov2 .xs-close:hover {
         background: rgba(40, 40, 46, 0.7);
@@ -204,7 +209,10 @@ export function WatchStyles() {
         font-size: 16px;
         font-weight: 600;
         letter-spacing: -0.01em;
-        transition: transform 0.16s, opacity 0.16s, background 0.4s ease,
+        transition:
+          transform 0.16s,
+          opacity 0.16s,
+          background 0.4s ease,
           color 0.4s ease;
       }
       .sov2 .cta-main:hover {
@@ -226,7 +234,10 @@ export function WatchStyles() {
         box-shadow: inset 0 0 0 1px var(--bt3);
         display: grid;
         place-items: center;
-        transition: background 0.18s, transform 0.16s, color 0.4s ease;
+        transition:
+          background 0.18s,
+          transform 0.16s,
+          color 0.4s ease;
       }
       .sov2 .icon-glass:hover {
         transform: scale(1.06);
@@ -414,7 +425,9 @@ export function WatchStyles() {
         backdrop-filter: blur(40px) saturate(150%);
         display: grid;
         place-items: center;
-        transition: background 0.18s, transform 0.16s;
+        transition:
+          background 0.18s,
+          transform 0.16s;
       }
       .sov2 .pbtn:hover {
         background: rgba(255, 255, 255, 0.26);
@@ -512,7 +525,9 @@ export function WatchStyles() {
         display: grid;
         place-items: center;
         padding-left: 6px;
-        transition: background 0.2s, transform 0.16s;
+        transition:
+          background 0.2s,
+          transform 0.16s;
       }
       .sov2 .player-bigplay:hover {
         background: rgba(255, 255, 255, 0.28);
@@ -543,9 +558,58 @@ export function WatchStyles() {
         text-align: right;
       }
       .sov2 .scrub {
+        position: relative;
         flex: 1;
         padding: 10px 0;
         cursor: pointer;
+      }
+      /* Hover-scrub preview — a floating frame card + time pill above the
+         bar. No transition on left: it tracks the pointer 1:1, and only
+         the appearance fades in. */
+      .sov2 .scrub-preview {
+        position: absolute;
+        bottom: calc(100% + 14px);
+        transform: translateX(-50%);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+        pointer-events: none;
+        animation: sov2-ovIn 0.18s ease;
+      }
+      .sov2 .scrub-thumb {
+        position: relative;
+        overflow: hidden;
+        border-radius: 12px;
+        background: rgba(20, 20, 24, 0.6);
+        box-shadow: 0 16px 44px rgba(0, 0, 0, 0.55);
+      }
+      .sov2 .scrub-thumb img {
+        position: absolute;
+        top: 0;
+        left: 0;
+        max-width: none;
+        user-select: none;
+      }
+      /* Hairline edge painted above the cropped sprite. */
+      .sov2 .scrub-thumb::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        border-radius: inherit;
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.22);
+      }
+      .sov2 .scrub-preview-time {
+        padding: 3px 10px;
+        border-radius: 980px;
+        background: rgba(20, 20, 24, 0.55);
+        -webkit-backdrop-filter: blur(14px) saturate(150%);
+        backdrop-filter: blur(14px) saturate(150%);
+        color: #fff;
+        font-size: 12px;
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+        letter-spacing: -0.01em;
       }
       .sov2 .scrub-track {
         position: relative;
@@ -608,19 +672,289 @@ export function WatchStyles() {
         justify-content: flex-end;
         gap: 10px;
       }
+      /* Buffering — a hairline arc so a mid-stream stall never looks like
+         a frozen frame. Independent of the auto-hiding chrome. */
+      .sov2 .player-spin {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        z-index: 4;
+        width: 54px;
+        height: 54px;
+        margin: -27px 0 0 -27px;
+        pointer-events: none;
+        border-radius: 50%;
+        border: 2.5px solid rgba(255, 255, 255, 0.22);
+        border-top-color: #fff;
+        animation:
+          sov2-spin 0.9s linear infinite,
+          sov2-ovIn 0.25s ease;
+      }
+      @keyframes sov2-spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      /* Volume — the slider slides out of a glass capsule on hover
+         (macOS-player style) and while dragging or after a keyboard
+         change (.open). */
+      .sov2 .pvol {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .sov2 .pvol-slider {
+        width: 0;
+        opacity: 0;
+        overflow: hidden;
+        height: 28px;
+        padding: 0;
+        border-radius: 980px;
+        background: rgba(255, 255, 255, 0.14);
+        -webkit-backdrop-filter: blur(40px) saturate(150%);
+        backdrop-filter: blur(40px) saturate(150%);
+        display: flex;
+        align-items: center;
+        cursor: pointer;
+        touch-action: none;
+        transition:
+          width 0.28s cubic-bezier(0.2, 1, 0.3, 1),
+          opacity 0.2s ease,
+          padding 0.28s cubic-bezier(0.2, 1, 0.3, 1);
+      }
+      .sov2 .pvol:hover .pvol-slider,
+      .sov2 .pvol.open .pvol-slider {
+        width: 96px;
+        opacity: 1;
+        padding: 0 12px;
+      }
+      .sov2 .pvol-track {
+        position: relative;
+        flex: 1;
+        height: 4px;
+        border-radius: 980px;
+        background: rgba(255, 255, 255, 0.28);
+      }
+      .sov2 .pvol-fill {
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        border-radius: 980px;
+        background: #fff;
+      }
+      .sov2 .pvol-knob {
+        position: absolute;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        width: 11px;
+        height: 11px;
+        border-radius: 50%;
+        background: #fff;
+        box-shadow: 0 1px 5px rgba(0, 0, 0, 0.45);
+      }
+
+      /* Playback speed — text button + frosted menu above the transport. */
+      .sov2 .prate {
+        position: relative;
+      }
+      .sov2 .prate-label {
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: -0.02em;
+        font-variant-numeric: tabular-nums;
+      }
+      .sov2 .pmenu {
+        position: absolute;
+        bottom: calc(100% + 12px);
+        right: 0;
+        z-index: 6;
+        min-width: 148px;
+        padding: 6px;
+        border-radius: 16px;
+        background: rgba(28, 28, 32, 0.72);
+        -webkit-backdrop-filter: blur(40px) saturate(150%);
+        backdrop-filter: blur(40px) saturate(150%);
+        box-shadow:
+          0 20px 60px rgba(0, 0, 0, 0.5),
+          inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+        animation: sov2-menuIn 0.28s cubic-bezier(0.2, 1, 0.3, 1);
+      }
+      @keyframes sov2-menuIn {
+        from {
+          opacity: 0;
+          transform: translateY(8px) scale(0.97);
+        }
+      }
+      .sov2 .pmenu-title {
+        padding: 8px 12px 6px;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, 0.55);
+      }
+      .sov2 .pmenu-item {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 8px 12px;
+        border-radius: 10px;
+        font-size: 13.5px;
+        font-weight: 500;
+        color: rgba(255, 255, 255, 0.9);
+        font-variant-numeric: tabular-nums;
+        transition: background 0.15s;
+      }
+      .sov2 .pmenu-item:hover {
+        background: rgba(255, 255, 255, 0.12);
+      }
+      .sov2 .pmenu-item.on {
+        font-weight: 600;
+        color: #fff;
+      }
+
+      /* Up Next — the autoplay card in the final seconds. A sibling of the
+         chrome, deliberately NOT in the ui-hidden selectors: the prompt
+         stays up even when the controls have faded. */
+      .sov2 .upnext {
+        position: absolute;
+        right: 36px;
+        bottom: 132px;
+        z-index: 6;
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+        animation: sov2-upnextIn 0.45s cubic-bezier(0.2, 1, 0.3, 1);
+      }
+      @keyframes sov2-upnextIn {
+        from {
+          opacity: 0;
+          transform: translateY(14px) scale(0.97);
+        }
+      }
+      .sov2 .upnext-card {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        max-width: 380px;
+        padding: 10px 14px 10px 10px;
+        border-radius: 18px;
+        background: rgba(28, 28, 32, 0.72);
+        -webkit-backdrop-filter: blur(40px) saturate(150%);
+        backdrop-filter: blur(40px) saturate(150%);
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5),
+          inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+        color: #fff;
+        text-align: left;
+        transition: background 0.18s, transform 0.16s;
+      }
+      .sov2 .upnext-card:hover {
+        background: rgba(46, 46, 52, 0.78);
+        transform: scale(1.02);
+      }
+      .sov2 .upnext-card:active {
+        transform: scale(0.98);
+      }
+      .sov2 .upnext-thumb {
+        flex: none;
+        width: 72px;
+        height: 44px;
+        border-radius: 10px;
+        object-fit: cover;
+        background: rgba(255, 255, 255, 0.08);
+      }
+      .sov2 .upnext-thumb.ph {
+        display: grid;
+        place-items: center;
+        color: rgba(255, 255, 255, 0.7);
+      }
+      .sov2 .upnext-main {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+      }
+      .sov2 .upnext-k {
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, 0.6);
+        font-variant-numeric: tabular-nums;
+      }
+      .sov2 .upnext-t {
+        font-size: 14px;
+        font-weight: 600;
+        margin-top: 2px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .sov2 .upnext-ring {
+        position: relative;
+        flex: none;
+        width: 40px;
+        height: 40px;
+        display: grid;
+        place-items: center;
+      }
+      .sov2 .upnext-ring svg {
+        position: absolute;
+        inset: 0;
+      }
+      .sov2 .upnext-x {
+        flex: none;
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        background: rgba(28, 28, 32, 0.72);
+        -webkit-backdrop-filter: blur(40px) saturate(150%);
+        backdrop-filter: blur(40px) saturate(150%);
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+        color: #fff;
+        display: grid;
+        place-items: center;
+        transition: background 0.18s, transform 0.16s;
+      }
+      .sov2 .upnext-x:hover {
+        background: rgba(46, 46, 52, 0.78);
+        transform: scale(1.06);
+      }
+      .sov2 .upnext-x:active {
+        transform: scale(0.92);
+      }
+
+      /* Captions — rendered by the player, not the browser: clean white
+         text with a soft dark edge (no black box), film-subtitle style.
+         Sits low over the picture; steps up above the transport whenever
+         the chrome is visible so the controls never cover a line. */
       .sov2 .player-cc {
         position: absolute;
         left: 50%;
-        bottom: 200px;
+        bottom: 190px;
         transform: translateX(-50%);
         z-index: 4;
-        max-width: 70%;
-        background: rgba(0, 0, 0, 0.72);
+        max-width: min(82%, 900px);
+        text-align: center;
+        pointer-events: none;
         color: #fff;
-        font-size: 22px;
+        font-size: clamp(17px, 2.4vw, 28px);
         font-weight: 500;
-        padding: 10px 20px;
-        border-radius: 10px;
+        line-height: 1.35;
+        letter-spacing: -0.005em;
+        text-shadow: 0 0 2px rgba(0, 0, 0, 0.9), 0 1px 2px rgba(0, 0, 0, 0.85),
+          0 2px 10px rgba(0, 0, 0, 0.5);
+        transition: bottom 0.35s ease;
+      }
+      .sov2 .player-cc span {
+        display: block;
+      }
+      /* Chrome faded → drop to the classic subtitle position. */
+      .sov2.player.ui-hidden .player-cc {
+        bottom: 64px;
       }
 
       /* ════════ discussion panel ════════ */
@@ -677,7 +1011,9 @@ export function WatchStyles() {
         color: var(--text);
         display: grid;
         place-items: center;
-        transition: background 0.15s, transform 0.15s;
+        transition:
+          background 0.15s,
+          transform 0.15s;
       }
       .sov2 .cmt-x:hover {
         background: rgba(125, 125, 135, 0.28);
@@ -935,8 +1271,284 @@ export function WatchStyles() {
         .sov2 .player-controls {
           padding: 0 20px 22px;
         }
+        /* No hover on touch and no room in the transport row — volume is
+           mute-only on small screens (system volume rules there anyway). */
+        .sov2 .pvol-slider {
+          display: none;
+        }
+        .sov2 .upnext {
+          right: 20px;
+          bottom: 124px;
+        }
+        .sov2 .upnext-card {
+          max-width: min(320px, calc(100vw - 76px));
+        }
         .sov2 .xs-body {
           padding: 24px 22px 28px;
+        }
+      }
+
+      /* ════════ player: lesson navigation + gestures ════════ */
+      .sov2 .pbtn:disabled {
+        opacity: 0.35;
+        transform: none;
+        cursor: default;
+      }
+      /* Transparent touch surface over the video — below the chrome (top
+         bar z4 / controls z5 / bigplay z4) so buttons keep priority, above
+         the vignette. Only touch handlers are bound; desktop mouse input
+         is unaffected. */
+      .sov2 .player-gestures {
+        position: absolute;
+        inset: 0;
+        z-index: 3;
+      }
+      /* Double-tap seek indicator (YouTube-style). */
+      .sov2 .tap-ind {
+        position: absolute;
+        top: 50%;
+        z-index: 4;
+        pointer-events: none;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 6px;
+        color: #fff;
+        font-size: 12.5px;
+        font-weight: 600;
+        padding: 20px 22px;
+        border-radius: 22px;
+        background: rgba(0, 0, 0, 0.45);
+        animation: sov2-tapind 0.55s ease both;
+      }
+      .sov2 .tap-ind.left {
+        left: 9%;
+      }
+      .sov2 .tap-ind.right {
+        right: 9%;
+      }
+      @keyframes sov2-tapind {
+        from {
+          opacity: 0;
+          transform: translateY(-50%) scale(0.82);
+        }
+        25% {
+          opacity: 1;
+        }
+        to {
+          opacity: 0;
+          transform: translateY(-50%) scale(1.04);
+        }
+      }
+
+      /* (Up Next card styles live in the player section above — the
+         pre-end .upnext-* glass card with the countdown ring.) */
+
+      /* In-player lessons sheet — right drawer on desktop, bottom sheet on
+         mobile (media block below). Always dark like the player. */
+      .sov2 .pl-wrap {
+        position: absolute;
+        inset: 0;
+        z-index: 7;
+        display: flex;
+        justify-content: flex-end;
+        background: rgba(0, 0, 0, 0.5);
+        animation: sov2-ovIn 0.25s ease;
+      }
+      .sov2 .pl-sheet {
+        width: min(420px, 92vw);
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        background: rgba(18, 18, 22, 0.95);
+        color: #fff;
+        -webkit-backdrop-filter: blur(40px) saturate(150%);
+        backdrop-filter: blur(40px) saturate(150%);
+        box-shadow: -20px 0 60px rgba(0, 0, 0, 0.3);
+        animation: sov2-panelIn 0.4s cubic-bezier(0.2, 1, 0.3, 1);
+      }
+      .sov2 .pl-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 18px 20px 12px;
+        font-size: 16px;
+        font-weight: 700;
+        letter-spacing: -0.015em;
+      }
+      .sov2 .pl-body {
+        flex: 1;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        padding: 0 10px calc(16px + env(safe-area-inset-bottom, 0px));
+      }
+      .sov2 .pl-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        text-align: left;
+        padding: 8px;
+        border-radius: 12px;
+        transition: background 0.15s;
+      }
+      .sov2 .pl-row:hover {
+        background: rgba(255, 255, 255, 0.07);
+      }
+      .sov2 .pl-row.now {
+        background: rgba(255, 255, 255, 0.12);
+      }
+      .sov2 .pl-row.locked {
+        opacity: 0.5;
+        cursor: default;
+      }
+      .sov2 .pl-thumb {
+        position: relative;
+        flex: none;
+        width: 96px;
+        aspect-ratio: 16 / 9;
+        border-radius: 8px;
+        overflow: hidden;
+        background: #26262a;
+        background-size: cover;
+        background-position: center;
+        display: grid;
+        place-items: center;
+        color: rgba(255, 255, 255, 0.9);
+      }
+      .sov2 .pl-info {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+      .sov2 .pl-num {
+        font-size: 10.5px;
+        font-weight: 600;
+        letter-spacing: 0.07em;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, 0.6);
+      }
+      .sov2 .pl-title {
+        font-size: 13.5px;
+        font-weight: 600;
+        line-height: 1.25;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        overflow-wrap: anywhere;
+      }
+      .sov2 .pl-dur {
+        flex: none;
+        font-size: 11.5px;
+        font-weight: 500;
+        color: rgba(255, 255, 255, 0.6);
+        font-variant-numeric: tabular-nums;
+      }
+
+      /* ════════ mobile player controls (≤720) ════════
+         The chapter label drops, the transport wraps into a centered
+         cluster row (prev / −10 / play / +10 / next) with the utility
+         buttons beneath, and paddings clear the home indicator. */
+      @media (max-width: 720px) {
+        .sov2 .tp-left {
+          display: none;
+        }
+        .sov2 .transport {
+          flex-wrap: wrap;
+          justify-content: center;
+          margin-top: 4px;
+        }
+        .sov2 .tp-center {
+          width: 100%;
+          justify-content: center;
+          gap: 20px;
+        }
+        .sov2 .tp-right {
+          width: 100%;
+          flex: none;
+          flex-wrap: wrap;
+          justify-content: center;
+          gap: 10px;
+          margin-top: 8px;
+        }
+        .sov2 .player-controls {
+          padding-bottom: max(18px, env(safe-area-inset-bottom, 0px));
+        }
+        .sov2 .ptime {
+          min-width: 40px;
+          font-size: 12px;
+        }
+        .sov2 .player-bigplay {
+          width: 76px;
+          height: 76px;
+        }
+        .sov2 .upnext {
+          left: 50%;
+          right: auto;
+          transform: translateX(-50%);
+          bottom: 150px;
+          /* The desktop entry animates transform, which would fight the
+             centering translateX here — fade only on mobile. */
+          animation: sov2-ovIn 0.3s ease;
+        }
+        .sov2 .pl-wrap {
+          justify-content: stretch;
+          align-items: flex-end;
+        }
+        .sov2 .pl-sheet {
+          width: 100%;
+          height: min(72dvh, 620px);
+          border-radius: 22px 22px 0 0;
+          box-shadow: 0 -20px 60px rgba(0, 0, 0, 0.3);
+          animation: sov2-panelUp 0.4s cubic-bezier(0.2, 1, 0.3, 1);
+        }
+      }
+
+      /* ════════ mobile (≤720): overlays become bottom sheets ════════
+         The centered overview modal and the right-side discussion drawer
+         both anchor to the bottom edge and slide up, matching the portal's
+         PortalSheet behavior. */
+      @media (max-width: 720px) {
+        .sov2.sheet-overlay {
+          padding: 0;
+          place-items: end center;
+        }
+        .sov2 .x-sheet,
+        .sov2 .x-sheet.wide {
+          width: 100%;
+          max-height: 92dvh;
+          border-radius: 22px 22px 0 0;
+          padding-bottom: env(safe-area-inset-bottom, 0px);
+          animation: sov2-sheetUp 0.38s cubic-bezier(0.2, 1, 0.3, 1);
+        }
+        .sov2.cmt-overlay {
+          justify-content: stretch;
+          align-items: flex-end;
+        }
+        .sov2 .cmt-panel {
+          width: 100%;
+          height: min(82dvh, 680px);
+          border-radius: 22px 22px 0 0;
+          padding-bottom: env(safe-area-inset-bottom, 0px);
+          box-shadow: 0 -20px 60px rgba(0, 0, 0, 0.3);
+          animation: sov2-panelUp 0.4s cubic-bezier(0.2, 1, 0.3, 1);
+        }
+      }
+      @keyframes sov2-sheetUp {
+        from {
+          transform: translateY(48px);
+          opacity: 0;
+        }
+      }
+      @keyframes sov2-panelUp {
+        from {
+          transform: translateY(64px);
+          opacity: 0;
         }
       }
     `}</style>

@@ -114,6 +114,80 @@
   backdrop-filter: blur(2px);
 }
 
+/* ---- Activity submission photo (Activities → submission card).
+   The photo container had no styling — the image butted straight against the
+   caption with sharp corners. Give it the same breathing room and rounding as
+   post media so the caption and photo don't crowd each other. */
+.spaire-hub .crf-imgs {
+  margin-top: 14px;
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--fill);
+}
+.spaire-hub .crf-imgs img {
+  display: block;
+  width: 100%;
+  max-height: 560px;
+  object-fit: cover;
+}
+
+/* ---- Activities: sort control (grid + submissions) and host edit/delete. */
+.spaire-hub .act-toolbar,
+.spaire-hub .act-subs-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+.spaire-hub .act-toolbar {
+  margin: -6px 0 18px;
+}
+.spaire-hub .act-subs-toolbar {
+  margin: 0 0 16px;
+}
+.spaire-hub .act-sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 12px;
+  border-radius: 980px;
+  background: var(--fill);
+  color: var(--t2);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.spaire-hub .act-sort:hover {
+  background: var(--fill-2);
+}
+.spaire-hub .act-sort select {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: inherit;
+  outline: none;
+  cursor: pointer;
+}
+.spaire-hub .act-sort svg {
+  flex: none;
+  color: var(--t3);
+  pointer-events: none;
+}
+/* Host controls on the activity detail hero — mirrors events' ev-sheet-host. */
+.spaire-hub .act-hero-host {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px solid var(--hair);
+}
+
 /* ---- split-pane photo viewer (image left, post + comments right).
    Rendered in a portal wrapped in `.spaire-hub` (the portal escapes the card's
    backdrop-filter containing block; the wrapper re-provides the design tokens).
@@ -701,6 +775,19 @@
   top: 0;
 }
 
+/* One left edge for the whole hub. `.content` and `.mh-bar-in` sit flush at the
+   wrap edge (they zero the `.wrap` horizontal gutter), but `.mh-head` and
+   `.tabs-in` inherited the 32px gutter — so the hero title and the tab row were
+   indented 32px to the right of the feed heading, composer, and posts. Drop
+   their gutter so the hero title, meta bar, tabs, and content all line up.
+   Higher specificity than `.spaire-hub .wrap` so it wins regardless of the
+   hub-extra/hub import order. */
+.spaire-hub .mh-cover .mh-head,
+.spaire-hub .tabs .tabs-in {
+  padding-left: 0;
+  padding-right: 0;
+}
+
 /* ============================================================ EVENTS — RSVP,
    host controls, add-to-calendar, and a roomier event picker. */
 
@@ -875,27 +962,54 @@
   cursor: default;
 }
 
-/* Roomier, solid event picker (composer → "Event"). The old 280px glass
-   popover read as a cramped sliver; widen it, make it opaque, and give the
-   rows breathing room. */
-.spaire-hub .pop-event {
-  width: 380px;
-  max-width: min(380px, calc(100vw - 32px));
-  max-height: 60vh;
+/* Roomier, solid event picker (composer → "Event"). The old 300px glass
+   popover read as a cramped sliver — covers overlapped the truncated titles.
+   Widen it well past the base rule (higher specificity so it wins over
+   hub.css's `.pop-event{width:300px}`), make it opaque, and give each row a
+   proper cover + title + meta with room to breathe. Scrolls when there are
+   many events; clamps to the viewport on narrow screens. */
+.spaire-hub .pop.pop-event {
+  width: 460px;
+  max-width: min(460px, calc(100vw - 28px));
+  max-height: 62vh;
   padding: 12px;
+  overflow-y: auto;
   background: var(--surface-solid, #fff);
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
 }
-.spaire-hub.dark .pop-event {
+.spaire-hub.dark .pop.pop-event {
   background: var(--surface-solid);
 }
-.spaire-hub .pop-event .event-pick-row {
-  padding: 10px;
-  gap: 13px;
+.spaire-hub .pop.pop-event .event-pick {
+  gap: 4px;
 }
-.spaire-hub .pop-event .event-pick-cover {
-  width: 64px;
-  height: 44px;
-  border-radius: 9px;
+/* The rows live inside `.crf-comp-tools`, whose `button{display:grid;
+   width:38px;height:38px}` rule (for the toolbar icons) would otherwise
+   collapse each row into a 38px square with the cover overflowing. Reset it. */
+.spaire-hub .pop.pop-event .event-pick-row {
+  display: flex;
+  width: 100%;
+  height: auto;
+  align-items: center;
+  gap: 14px;
+  padding: 10px;
+}
+.spaire-hub .pop.pop-event .event-pick-cover {
+  width: 96px;
+  height: 60px;
+  border-radius: 10px;
+}
+.spaire-hub .pop.pop-event .event-pick-main {
+  gap: 3px;
+}
+.spaire-hub .pop.pop-event .event-pick-main b {
+  font-size: 14.5px;
+  line-height: 1.3;
+}
+.spaire-hub .pop.pop-event .event-pick-main span {
+  font-size: 12.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }

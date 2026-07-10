@@ -1,7 +1,9 @@
 from collections.abc import Sequence
+from datetime import datetime
 from uuid import UUID
 
 from sqlalchemy import Select, func, select, update
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from polar.auth.models import AuthSubject, Organization, User, is_organization, is_user
 from polar.kit.repository import (
@@ -14,8 +16,10 @@ from polar.models.course import Course
 from polar.models.course_enrollment import CourseEnrollment
 from polar.models.course_lesson import CourseLesson
 from polar.models.course_lesson_progress import CourseLessonProgress
+from polar.models.course_lesson_watch_progress import CourseLessonWatchProgress
 from polar.models.course_module import CourseModule
 from polar.models.course_note import CourseNote
+from polar.models.customer import Customer
 from polar.models.lesson_comment import LessonComment
 from polar.models.lesson_comment_like import LessonCommentLike
 
@@ -230,6 +234,28 @@ class CourseLessonRepository(
         result = await self.session.execute(statement)
         return result.scalar_one_or_none()
 
+    async def is_published_in_course(
+        self, lesson_id: UUID, course_id: UUID
+    ) -> bool:
+        """Whether a published, non-deleted lesson belongs to the course.
+        A single indexed lookup for the watch-progress heartbeat — the
+        full accessibility walk (drip/paywall) is deliberately skipped:
+        recording a position is a write the student can only usefully
+        trigger for lessons they can already play."""
+        statement = (
+            select(CourseLesson.id)
+            .join(CourseModule, CourseModule.id == CourseLesson.module_id)
+            .where(
+                CourseLesson.id == lesson_id,
+                CourseLesson.published.is_(True),
+                CourseLesson.deleted_at.is_(None),
+                CourseModule.course_id == course_id,
+                CourseModule.deleted_at.is_(None),
+            )
+        )
+        result = await self.session.execute(statement)
+        return result.scalar_one_or_none() is not None
+
     async def get_by_mux_asset_id(self, asset_id: str) -> CourseLesson | None:
         """Find a (non-soft-deleted) lesson by its Mux asset id. Used by the
         caption-track webhook, which identifies the asset, not the upload."""
@@ -237,6 +263,31 @@ class CourseLessonRepository(
             CourseLesson.mux_asset_id == asset_id
         )
         return await self.get_one_or_none(statement)
+
+    async def list_stalled_mux_uploads(
+        self, cutoff: datetime, limit: int = 200
+    ) -> Sequence[CourseLesson]:
+        """Lessons whose video is stuck in `waiting`/`processing` since
+        before `cutoff`. The Mux webhook is the normal way out of those
+        states; when it never arrives (abandoned upload tab, dropped
+        webhook, failed transcode) the reconcile cron resolves them so the
+        editor doesn't show "Processing…" — and poll — forever."""
+        statement = (
+            self.get_base_statement()
+            .where(
+                CourseLesson.mux_status.in_(["waiting", "processing"]),
+                # modified_at is NULL until a row's first UPDATE — and a
+                # wizard-created lesson whose upload was abandoned may never
+                # be updated at all, so fall back to created_at or those
+                # rows would evade the reconcile forever.
+                func.coalesce(
+                    CourseLesson.modified_at, CourseLesson.created_at
+                )
+                < cutoff,
+            )
+            .limit(limit)
+        )
+        return await self.get_all(statement)
 
     async def list_pending_transcripts(
         self, limit: int = 200
@@ -284,6 +335,41 @@ class CourseEnrollmentRepository(
         ).where(CourseEnrollment.deleted_at.is_(None))
         return await self.get_one_or_none(statement)
 
+    async def get_active_id_for_customer_course(
+        self, customer_id: UUID, course_id: UUID
+    ) -> UUID | None:
+        """Id of the active enrollment for the (customer, course) pair,
+        without hydrating the enrollment's eager-loaded course tree.
+        Used by the high-frequency watch-progress heartbeat, where
+        loading course → modules → lessons per tick would be pure waste.
+        """
+        statement = select(CourseEnrollment.id).where(
+            CourseEnrollment.customer_id == customer_id,
+            CourseEnrollment.course_id == course_id,
+            CourseEnrollment.deleted_at.is_(None),
+        )
+        result = await self.session.execute(statement)
+        return result.scalar_one_or_none()
+
+    async def get_latest_revoked_for_customer_course(
+        self, customer_id: UUID, course_id: UUID
+    ) -> CourseEnrollment | None:
+        """Most recent soft-deleted enrollment for the (customer, course)
+        pair. Re-enrolling resurrects this row so progress, comments and
+        notes (all keyed by enrollment_id) survive a revoke/re-buy cycle."""
+        statement = (
+            select(CourseEnrollment)
+            .where(
+                CourseEnrollment.customer_id == customer_id,
+                CourseEnrollment.course_id == course_id,
+                CourseEnrollment.deleted_at.is_not(None),
+            )
+            .order_by(CourseEnrollment.deleted_at.desc())
+            .limit(1)
+        )
+        result = await self.session.execute(statement)
+        return result.scalars().first()
+
     def get_students_for_course_statement(
         self, course_id: UUID, organization_id: UUID
     ):
@@ -297,8 +383,6 @@ class CourseEnrollmentRepository(
         .customer in the same round trip.
         """
         from sqlalchemy.orm import selectinload
-
-        from polar.models.customer import Customer
 
         instructor_emails = (
             select(func.lower(User.email))
@@ -320,6 +404,26 @@ class CourseEnrollmentRepository(
             )
             .order_by(CourseEnrollment.enrolled_at.desc())
             .options(selectinload(CourseEnrollment.customer))
+        )
+
+    def apply_customer_search(self, statement: Select, query: str) -> Select:
+        """Filter a students statement by customer email/name.
+
+        Expects a statement that already joins Customer (i.e. built by
+        get_students_for_course_statement) — it only adds the WHERE
+        clause. Escapes LIKE metacharacters so a literal '_' or '%' in
+        the query (common in emails) matches literally instead of as a
+        wildcard.
+        """
+        escaped = (
+            query.strip()
+            .replace("\\", "\\\\")
+            .replace("%", "\\%")
+            .replace("_", "\\_")
+        )
+        pattern = f"%{escaped}%"
+        return statement.where(
+            Customer.email.ilike(pattern) | Customer.name.ilike(pattern)
         )
 
     async def list_customer_ids_for_course(
@@ -386,6 +490,146 @@ class CourseLessonProgressRepository(
             CourseLessonProgress.enrollment_id == enrollment_id,
             CourseLessonProgress.lesson_id == lesson_id,
         )
+
+    async def completion_summary_by_enrollments(
+        self, enrollment_ids: Sequence[UUID]
+    ) -> dict[UUID, tuple[int, datetime | None]]:
+        """(completed_count, last_completed_at) per enrollment, one query.
+
+        Powers the instructor's Customers tab — per-page aggregation, so
+        the payload stays bounded by the page size, not the course size.
+        Only counts currently published, non-deleted lessons so the
+        numerator matches the published-lesson denominator (otherwise
+        unpublishing a lesson after completions makes rates exceed 100%).
+        """
+        if not enrollment_ids:
+            return {}
+        statement = (
+            select(
+                CourseLessonProgress.enrollment_id,
+                func.count(CourseLessonProgress.id),
+                func.max(CourseLessonProgress.completed_at),
+            )
+            .join(
+                CourseLesson,
+                CourseLesson.id == CourseLessonProgress.lesson_id,
+            )
+            .where(
+                CourseLessonProgress.enrollment_id.in_(enrollment_ids),
+                CourseLessonProgress.deleted_at.is_(None),
+                CourseLesson.published.is_(True),
+                CourseLesson.deleted_at.is_(None),
+            )
+            .group_by(CourseLessonProgress.enrollment_id)
+        )
+        result = await self.session.execute(statement)
+        return {row[0]: (row[1], row[2]) for row in result.all()}
+
+
+class CourseLessonWatchProgressRepository(
+    RepositorySoftDeletionIDMixin[CourseLessonWatchProgress, UUID],
+    RepositorySoftDeletionMixin[CourseLessonWatchProgress],
+    RepositoryBase[CourseLessonWatchProgress],
+):
+    model = CourseLessonWatchProgress
+
+    def get_by_enrollment_statement(self, enrollment_id: UUID):
+        return self.get_base_statement().where(
+            CourseLessonWatchProgress.enrollment_id == enrollment_id
+        )
+
+    def get_by_enrollment_and_lesson_statement(
+        self, enrollment_id: UUID, lesson_id: UUID
+    ):
+        return self.get_base_statement().where(
+            CourseLessonWatchProgress.enrollment_id == enrollment_id,
+            CourseLessonWatchProgress.lesson_id == lesson_id,
+        )
+
+    async def watch_summary_by_enrollments(
+        self, enrollment_ids: Sequence[UUID]
+    ) -> dict[UUID, tuple[int, datetime | None]]:
+        """(started_count, last_watched_at) per enrollment, one query.
+
+        A lesson counts as "started" only while it isn't completed —
+        rewatching a finished lesson recreates a watch row, which must not
+        double-count against the completed tally. Only published,
+        non-deleted lessons count, mirroring completion_summary."""
+        if not enrollment_ids:
+            return {}
+        completed_exists = (
+            select(CourseLessonProgress.id)
+            .where(
+                CourseLessonProgress.enrollment_id
+                == CourseLessonWatchProgress.enrollment_id,
+                CourseLessonProgress.lesson_id
+                == CourseLessonWatchProgress.lesson_id,
+                CourseLessonProgress.deleted_at.is_(None),
+            )
+            .exists()
+        )
+        statement = (
+            select(
+                CourseLessonWatchProgress.enrollment_id,
+                func.count(CourseLessonWatchProgress.id),
+                func.max(CourseLessonWatchProgress.last_watched_at),
+            )
+            .join(
+                CourseLesson,
+                CourseLesson.id == CourseLessonWatchProgress.lesson_id,
+            )
+            .where(
+                CourseLessonWatchProgress.enrollment_id.in_(enrollment_ids),
+                CourseLessonWatchProgress.deleted_at.is_(None),
+                CourseLessonWatchProgress.fraction > 0,
+                CourseLesson.published.is_(True),
+                CourseLesson.deleted_at.is_(None),
+                ~completed_exists,
+            )
+            .group_by(CourseLessonWatchProgress.enrollment_id)
+        )
+        result = await self.session.execute(statement)
+        return {row[0]: (row[1], row[2]) for row in result.all()}
+
+    async def upsert_position(
+        self,
+        *,
+        enrollment_id: UUID,
+        lesson_id: UUID,
+        fraction: float,
+        now: datetime,
+    ) -> None:
+        """Atomically record the latest watch position for a lesson.
+
+        A single INSERT … ON CONFLICT DO UPDATE keyed on the
+        (enrollment_id, lesson_id) unique constraint: race-free under
+        concurrent heartbeats, one round-trip on the hottest write path,
+        and it resurrects (deleted_at = NULL) the row that
+        mark_lesson_complete soft-deletes — without this, rewatching a
+        completed lesson would violate the unique constraint.
+        """
+        statement = (
+            pg_insert(CourseLessonWatchProgress)
+            .values(
+                enrollment_id=enrollment_id,
+                lesson_id=lesson_id,
+                fraction=fraction,
+                last_watched_at=now,
+            )
+            .on_conflict_do_update(
+                index_elements=[
+                    CourseLessonWatchProgress.enrollment_id,
+                    CourseLessonWatchProgress.lesson_id,
+                ],
+                set_={
+                    "fraction": fraction,
+                    "last_watched_at": now,
+                    "modified_at": now,
+                    "deleted_at": None,
+                },
+            )
+        )
+        await self.session.execute(statement)
 
 
 class LessonCommentRepository(

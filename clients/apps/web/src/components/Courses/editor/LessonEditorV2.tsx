@@ -17,6 +17,7 @@
 // design's "Offline downloads" row is intentionally omitted per product.
 
 import {
+  apiErrorDetail,
   CourseLessonRead,
   CourseModuleRead,
   CourseRead,
@@ -35,6 +36,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from '../../Toast/use-toast'
 import { RepositionInPortal } from '../watch/RepositionInPortal'
 import { WatchPlayer } from '../watch/WatchPlayer'
+import {
+  lessonVideoUploadStore,
+  useLessonVideoUpload,
+} from './lessonVideoUploadStore'
 import { SampleSettingsPopover } from './SeriesSampleBlock'
 
 type SaveState = 'saved' | 'saving' | 'error'
@@ -140,31 +145,61 @@ export function LessonEditorV2({
   const [saveState, setSaveState] = useState<SaveState>('saved')
 
   // ── video upload (Mux) ──
-  const [localVideoUrl, setLocalVideoUrl] = useState<string | null>(null)
-  const [uploadPct, setUploadPct] = useState<number | null>(null)
+  // The in-flight upload lives in a module-level store keyed by lesson id,
+  // NOT in component state — the editor remounts when you switch lessons
+  // (key=lesson.id) but the upload's XHR keeps running, so keeping progress
+  // in the store means coming back to the lesson shows the same live bar
+  // (and Cancel button) instead of a mystery "Processing…" with no percent.
+  const upload = useLessonVideoUpload(lesson.id)
+  const uploadPct = upload?.pct ?? null
+  const localVideoUrl = upload?.localUrl ?? null
+  const uploadPrevPlaybackId = upload?.prevPlaybackId ?? null
   const [playing, setPlaying] = useState(false)
-  const prevPlaybackId = useRef<string | null>(null)
+  // The upload/transcode pipeline has real terminal failure states — don't
+  // fold them into "Processing…" (which used to spin forever on a failed
+  // transcode or an over-quota upload).
+  const status = lesson.mux_status
+  const uploading = uploadPct != null
+  const processing = uploading || status === 'waiting' || status === 'processing'
+  const videoErrored = !uploading && status === 'errored'
+  const quotaExceeded = status === 'quota_exceeded'
   const hasVideo = Boolean(
-    lesson.mux_playback_id || localVideoUrl || uploadPct != null,
+    lesson.mux_playback_id ||
+      localVideoUrl ||
+      processing ||
+      videoErrored ||
+      quotaExceeded,
   )
-  const processing =
-    !lesson.mux_playback_id &&
-    (uploadPct != null ||
-      (lesson.mux_status != null && lesson.mux_status !== 'ready'))
+  const playable = Boolean(lesson.mux_playback_id) && !processing
 
+  // Closing/refreshing the tab mid-upload kills the PUT and used to leave the
+  // lesson "waiting" forever. Warn first — the server-side reconcile job now
+  // also times abandoned uploads out, but not losing the upload is better.
   useEffect(() => {
-    return () => {
-      if (localVideoUrl) URL.revokeObjectURL(localVideoUrl)
+    if (uploadPct == null) return
+    const warn = (e: BeforeUnloadEvent) => {
+      e.preventDefault()
+      e.returnValue = ''
     }
-  }, [localVideoUrl])
-  // Clear the local preview once the freshly-uploaded asset is ready.
+    window.addEventListener('beforeunload', warn)
+    return () => window.removeEventListener('beforeunload', warn)
+  }, [uploadPct])
+  // Drop the local preview once the freshly-uploaded asset is ready — i.e.
+  // when a NEW playback id (different from the one the lesson had when this
+  // upload started) has landed. The store owns the object URL's lifetime, so
+  // this must NOT run on unmount (the upload may still be going).
   useEffect(() => {
     if (!localVideoUrl) return
     if (lesson.mux_status !== 'ready' || !lesson.mux_playback_id) return
-    if (lesson.mux_playback_id === prevPlaybackId.current) return
-    URL.revokeObjectURL(localVideoUrl)
-    setLocalVideoUrl(null)
-  }, [lesson.mux_status, lesson.mux_playback_id, localVideoUrl])
+    if (lesson.mux_playback_id === uploadPrevPlaybackId) return
+    lessonVideoUploadStore.clear(lesson.id, { revoke: true })
+  }, [
+    lesson.mux_status,
+    lesson.mux_playback_id,
+    lesson.id,
+    localVideoUrl,
+    uploadPrevPlaybackId,
+  ])
 
   // ── debounced autosave of the content JSONB + scalar fields ──
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -254,33 +289,94 @@ export function LessonEditorV2({
     input.onchange = async () => {
       const file = input.files?.[0]
       if (!file) return
-      if (localVideoUrl) URL.revokeObjectURL(localVideoUrl)
-      prevPlaybackId.current = lesson.mux_playback_id ?? null
-      setLocalVideoUrl(URL.createObjectURL(file))
-      setUploadPct(0)
+      // Register the upload in the store BEFORE any awaits, so the bar shows
+      // instantly and survives navigating away and back. begin() aborts and
+      // revokes any prior attempt for this lesson and hands back a token; the
+      // handlers below use it to bow out if a newer upload supersedes them.
+      const lessonId = lesson.id
+      const localUrl = URL.createObjectURL(file)
+      const token = lessonVideoUploadStore.begin(
+        lessonId,
+        localUrl,
+        lesson.mux_playback_id ?? null,
+      )
+      // Only reset the lesson's video state on failure once the server has
+      // actually staged the new upload — before that point the lesson still
+      // owns its previous (intact) video and must be left alone.
+      let staged = false
+      let aborted = false
       try {
-        const { upload_url } = await createMuxUpload.mutateAsync(lesson.id)
+        const { upload_url } = await createMuxUpload.mutateAsync(lessonId)
+        staged = true
         await new Promise<void>((resolve, reject) => {
           const xhr = new XMLHttpRequest()
+          lessonVideoUploadStore.attachXhr(lessonId, token, xhr)
           xhr.upload.onprogress = (ev) => {
             if (ev.lengthComputable)
-              setUploadPct(Math.round((ev.loaded / ev.total) * 100))
+              lessonVideoUploadStore.progress(
+                lessonId,
+                token,
+                Math.round((ev.loaded / ev.total) * 100),
+              )
           }
           xhr.onload = () => {
-            setUploadPct(null)
-            resolve()
+            // onload fires for ANY response — a 4xx/5xx from the video host
+            // is a failed upload, not a success.
+            if (xhr.status >= 200 && xhr.status < 300) resolve()
+            else reject(new Error(`The video host rejected the upload (HTTP ${xhr.status}).`))
           }
-          xhr.onerror = () => reject(new Error('Upload failed'))
+          xhr.onerror = () =>
+            reject(new Error('Check your connection and try again.'))
+          xhr.onabort = () => {
+            aborted = true
+            reject(new Error('Upload canceled'))
+          }
           xhr.open('PUT', upload_url)
           xhr.send(file)
         })
+        // Bytes all sent; the host is transcoding. Keep the preview, drop the
+        // percentage (the lesson's mux_status now drives "Processing…").
+        lessonVideoUploadStore.settled(lessonId, token)
         toast({ title: 'Video uploaded — processing now' })
-      } catch {
-        setUploadPct(null)
-        toast({ title: 'Video upload failed' })
+      } catch (err) {
+        // A newer upload for this lesson has taken over (e.g. the creator
+        // re-picked, which aborted this one) — leave its state untouched.
+        if (!lessonVideoUploadStore.isCurrent(lessonId, token)) return
+        lessonVideoUploadStore.clear(lessonId, { revoke: true, token })
+        if (staged) {
+          // Clear the staged 'waiting' state and cancel the upload at the
+          // host — otherwise the lesson sits "waiting" (and polls) forever.
+          void removeVideo.mutateAsync(lessonId).catch(() => undefined)
+        }
+        if (aborted) {
+          toast({ title: 'Upload canceled' })
+        } else {
+          toast({
+            title: 'Video upload failed',
+            description: apiErrorDetail(err) ?? 'Please try again.',
+          })
+        }
       }
     }
     input.click()
+  }
+
+  // Abort the in-flight PUT (read from the store so a remounted editor can
+  // still cancel an upload it didn't start); the catch handler above resets
+  // state and releases the staged upload server-side.
+  const cancelUpload = () => lessonVideoUploadStore.get(lesson.id)?.xhr?.abort()
+
+  const clearVideo = async () => {
+    try {
+      await removeVideo.mutateAsync(lesson.id)
+      lessonVideoUploadStore.clear(lesson.id, { revoke: true })
+      toast({ title: 'Video removed' })
+    } catch (err) {
+      toast({
+        title: 'Failed to remove video',
+        description: apiErrorDetail(err) ?? 'Please try again.',
+      })
+    }
   }
 
   const pickResource = () => {
@@ -473,6 +569,19 @@ export function LessonEditorV2({
                 }
               />
               <div className="photo-shade" />
+              {/* Local preview while the upload/transcode runs — the file is
+                  already on this machine, so show it instead of a blank tile
+                  (or, worse, the previous video). */}
+              {localVideoUrl && processing && (
+                <video
+                  className="local-preview"
+                  src={localVideoUrl}
+                  muted
+                  autoPlay
+                  loop
+                  playsInline
+                />
+              )}
               {!hasVideo && (
                 <div className="ph-cta">
                   <span className="ph-ic" onClick={pickVideo}>
@@ -492,21 +601,34 @@ export function LessonEditorV2({
                 <>
                   <span className="media-dur">
                     <Ico d="M12 12a9 9 0 1 0 0 0 M12 7v5l3 2" w={1.9} s={11} />
-                    {processing
-                      ? uploadPct != null
-                        ? `Uploading ${uploadPct}%`
-                        : 'Processing…'
-                      : fmtDur(lesson.duration_seconds)}
+                    {uploading
+                      ? `Uploading ${uploadPct}%`
+                      : processing
+                        ? 'Processing…'
+                        : videoErrored
+                          ? 'Upload failed'
+                          : fmtDur(lesson.duration_seconds)}
                   </span>
-                  <button
-                    className="media-replace"
-                    type="button"
-                    onClick={pickVideo}
-                  >
-                    <Ico d="M20 11A8 8 0 1 0 19 15 M20 4v7h-7" w={2.2} s={12} />
-                    Replace
-                  </button>
-                  {lesson.mux_playback_id && !processing && (
+                  {uploading ? (
+                    <button
+                      className="media-replace show"
+                      type="button"
+                      onClick={cancelUpload}
+                    >
+                      <Ico d="M5 5l14 14M19 5L5 19" w={2.2} s={12} />
+                      Cancel upload
+                    </button>
+                  ) : (
+                    <button
+                      className="media-replace"
+                      type="button"
+                      onClick={pickVideo}
+                    >
+                      <Ico d="M20 11A8 8 0 1 0 19 15 M20 4v7h-7" w={2.2} s={12} />
+                      Replace
+                    </button>
+                  )}
+                  {playable && (
                     <button
                       className="media-playbtn"
                       type="button"
@@ -519,6 +641,71 @@ export function LessonEditorV2({
                         s={22}
                       />
                     </button>
+                  )}
+                  {uploading && (
+                    <div className="upload-track" aria-hidden>
+                      <div
+                        className="upload-fill"
+                        style={{ width: `${uploadPct ?? 0}%` }}
+                      />
+                    </div>
+                  )}
+                  {videoErrored && (
+                    <div className="vid-alert">
+                      <span className="vid-alert-t">
+                        Video processing failed
+                      </span>
+                      <span className="vid-alert-s">
+                        The video host couldn’t process this file. Try
+                        uploading it again — if it keeps failing, re-export
+                        the video as MP4 (H.264) first.
+                      </span>
+                      <div className="vid-alert-actions">
+                        <button
+                          className="btn-main"
+                          type="button"
+                          onClick={pickVideo}
+                        >
+                          Try again
+                        </button>
+                        <button
+                          className="btn-dark"
+                          type="button"
+                          onClick={() => void clearVideo()}
+                        >
+                          Remove video
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  {quotaExceeded && !uploading && (
+                    <div className="vid-alert">
+                      <span className="vid-alert-t">
+                        Video hours limit reached
+                      </span>
+                      <span className="vid-alert-s">
+                        This video pushed your plan past its hosted video
+                        hours, so students can’t play this{' '}
+                        {unitCap.toLowerCase()}. Free up hours by removing or
+                        shortening other videos, or upgrade your plan.
+                      </span>
+                      <div className="vid-alert-actions">
+                        <button
+                          className="btn-main"
+                          type="button"
+                          onClick={pickVideo}
+                        >
+                          Replace video
+                        </button>
+                        <button
+                          className="btn-dark"
+                          type="button"
+                          onClick={() => void clearVideo()}
+                        >
+                          Remove video
+                        </button>
+                      </div>
+                    </div>
                   )}
                 </>
               )}
@@ -877,6 +1064,10 @@ export function LessonEditorV2({
             title: title || lesson.title,
             thumbnailUrl: lesson.thumbnail_url,
             muxPlaybackId: lesson.mux_playback_id,
+            // Signed HLS URL from the API — required once assets use the
+            // signed playback policy (the bare playback id 403s).
+            playbackUrl: lesson.mux_playback_url ?? null,
+            storyboardUrl: lesson.mux_storyboard_url ?? null,
           }}
           courseTitle={course.title ?? 'Course'}
           instructorName={course.instructor_name}
@@ -1435,6 +1626,83 @@ function LessonEditorStyles() {
       .led .media-playbtn:hover {
         background: rgba(255, 255, 255, 0.3);
         transform: scale(1.05);
+      }
+      .led .media-replace.show {
+        opacity: 1;
+      }
+      .led .media-zone .local-preview {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        background: #000;
+        z-index: 1;
+      }
+      .led .upload-track {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        height: 4px;
+        z-index: 3;
+        background: rgba(255, 255, 255, 0.25);
+      }
+      .led .upload-fill {
+        height: 100%;
+        background: var(--blue);
+        transition: width 0.25s ease;
+      }
+      .led .vid-alert {
+        position: absolute;
+        inset: 0;
+        z-index: 4;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        padding: 0 32px;
+        text-align: center;
+        color: #fff;
+        background: rgba(10, 11, 13, 0.62);
+        -webkit-backdrop-filter: blur(12px) saturate(140%);
+        backdrop-filter: blur(12px) saturate(140%);
+      }
+      .led .vid-alert-t {
+        font-size: 16px;
+        font-weight: 700;
+        letter-spacing: -0.015em;
+      }
+      .led .vid-alert-s {
+        font-size: 13px;
+        line-height: 1.5;
+        color: rgba(235, 235, 245, 0.75);
+        max-width: 52ch;
+      }
+      .led .vid-alert-actions {
+        display: flex;
+        gap: 10px;
+        margin-top: 6px;
+      }
+      .led .btn-dark {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        height: 38px;
+        padding: 0 16px;
+        border-radius: 980px;
+        background: rgba(255, 255, 255, 0.16);
+        color: #fff;
+        font-size: 14px;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+        -webkit-backdrop-filter: blur(14px) saturate(150%);
+        backdrop-filter: blur(14px) saturate(150%);
+        transition: background 0.18s;
+      }
+      .led .btn-dark:hover {
+        background: rgba(255, 255, 255, 0.28);
       }
 
       .led .auto-rows {

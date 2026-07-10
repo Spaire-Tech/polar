@@ -29,6 +29,10 @@ export const SF = {
     'M4 5.5h16a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-11a1 1 0 0 1 1-1z M10.6 10.2a2.4 2.4 0 1 0 0 3.6 M18 10.2a2.4 2.4 0 1 0 0 3.6',
   link: 'M9.5 14.5 14.5 9.5 M8 11 6.2 12.8a3.4 3.4 0 0 0 4.8 4.8L13 15.8 M16 13l1.8-1.8a3.4 3.4 0 0 0-4.8-4.8L11 8.2',
   audio: 'M11 5 6 9H3v6h3l5 4z M15.5 9a4 4 0 0 1 0 6 M18.5 6.5a8 8 0 0 1 0 11',
+  // Same speaker at low volume (one wave) and muted (an "x" where the
+  // waves would be) — the icon narrates the current level, SF-style.
+  audioLow: 'M11 5 6 9H3v6h3l5 4z M15.5 9a4 4 0 0 1 0 6',
+  audioMuted: 'M11 5 6 9H3v6h3l5 4z M16 9.5l5 5 M21 9.5l-5 5',
   videoclip:
     'M4 6.5h11a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1z M16 10l5-3v10l-5-3',
   pdf: 'M7 3h7l5 5v13a0 0 0 0 1 0 0H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z M14 3v5h5',

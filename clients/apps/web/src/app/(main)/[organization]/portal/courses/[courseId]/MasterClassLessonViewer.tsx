@@ -474,7 +474,7 @@ export const MasterClassLessonViewer = ({
 
   return (
     <div
-      className="min-h-screen w-full"
+      className="mc-viewer min-h-screen w-full"
       style={{
         background: '#ffffff',
         color: 'oklch(0.18 0.008 280)',
@@ -484,6 +484,21 @@ export const MasterClassLessonViewer = ({
         MozOsxFontSmoothing: 'grayscale',
       }}
     >
+      {/* The two-column grid + sticky sidebar are inline styles, so a
+          narrow-but-desktop window (or a phone that dodges the useIsMobile
+          UA check) used to keep the 380px sidebar squeezing the content.
+          Collapse to one flowing column below 820px regardless. */}
+      <style jsx global>{`
+        @media (max-width: 820px) {
+          .mc-viewer .lesson-grid {
+            grid-template-columns: minmax(0, 1fr) !important;
+          }
+          .mc-viewer .lesson-grid > aside {
+            position: static !important;
+            max-height: none !important;
+          }
+        }
+      `}</style>
       {/* Slim top bar — back button + lesson counter only (no Spaire branding) */}
       <header
         className="sticky top-0 z-40"
@@ -711,6 +726,64 @@ export const MasterClassLessonViewer = ({
                     onPassed={onMarkComplete}
                   />
                 )}
+              </div>
+            )}
+
+            {/* Resources — every attachment, not just the "Class Guide"
+                (the toolbar button above still deep-links the first one). */}
+            {attachments.length > 0 && (
+              <div style={{ marginTop: 8 }}>
+                <div
+                  style={{
+                    fontSize: 11.5,
+                    fontWeight: 600,
+                    letterSpacing: '0.08em',
+                    color: 'oklch(0.52 0.008 280)',
+                    textTransform: 'uppercase',
+                    marginBottom: 10,
+                  }}
+                >
+                  Resources
+                </div>
+                <div
+                  style={{ display: 'flex', flexDirection: 'column', gap: 8 }}
+                >
+                  {attachments.map((att, i) => (
+                    <a
+                      key={att.id ?? i}
+                      href={att.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 12,
+                        padding: '11px 14px',
+                        borderRadius: 12,
+                        border: '1px solid oklch(0.92 0.003 280)',
+                        background: 'oklch(0.975 0.002 280)',
+                        color: 'inherit',
+                        textDecoration: 'none',
+                        maxWidth: 460,
+                      }}
+                    >
+                      <DownloadOutlined
+                        sx={{ fontSize: 18, color: 'oklch(0.32 0.008 280)' }}
+                      />
+                      <span
+                        style={{
+                          fontSize: 13.5,
+                          fontWeight: 500,
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {att.name ?? att.filename ?? 'Lesson resource'}
+                      </span>
+                    </a>
+                  ))}
+                </div>
               </div>
             )}
 
@@ -958,8 +1031,7 @@ export const MasterClassLessonViewer = ({
                             ? new Date(l.locked_until)
                             : null
                           const unlockLabel =
-                            unlockDate &&
-                            !Number.isNaN(unlockDate.getTime())
+                            unlockDate && !Number.isNaN(unlockDate.getTime())
                               ? unlockDate.toLocaleDateString()
                               : null
                           const status = isActive
@@ -1381,7 +1453,7 @@ function renderMobileLessonViewer(a: MobileVA): React.ReactElement {
     shareCopied,
     isQuiz,
     textContent,
-    firstAttachment,
+    attachments,
     renderVideoArea,
     onBack,
     onSelectLesson,
@@ -1396,6 +1468,14 @@ function renderMobileLessonViewer(a: MobileVA): React.ReactElement {
     lessons.find((l, i) => i > activeIdx && !l.completed && !l.locked)?.id ??
     lessons.find((l) => !l.completed && !l.locked)?.id ??
     null
+
+  // Sequential neighbors for the sticky prev/next footer — locked lessons
+  // are skipped in both directions.
+  const prevLesson =
+    [...lessons.slice(0, Math.max(0, activeIdx))]
+      .reverse()
+      .find((l) => !l.locked) ?? null
+  const nextLesson = lessons.slice(activeIdx + 1).find((l) => !l.locked) ?? null
 
   const durationLabel = lesson.duration_seconds
     ? formatDuration(lesson.duration_seconds)
@@ -1501,7 +1581,11 @@ function renderMobileLessonViewer(a: MobileVA): React.ReactElement {
         )}
       </header>
 
-      <main style={{ paddingBottom: 'calc(120px + env(safe-area-inset-bottom, 0px))' }}>
+      <main
+        style={{
+          paddingBottom: 'calc(120px + env(safe-area-inset-bottom, 0px))',
+        }}
+      >
         {/* Full-bleed video (no rounded card edges — the device frame
             already provides the screen radius). */}
         <div
@@ -1701,7 +1785,9 @@ function renderMobileLessonViewer(a: MobileVA): React.ReactElement {
               const active = l.id === lesson.id
               const locked = !!l.locked
               const isNext = !active && l.id === nextUpId
-              const unlockDate = l.locked_until ? new Date(l.locked_until) : null
+              const unlockDate = l.locked_until
+                ? new Date(l.locked_until)
+                : null
               const unlockLabel =
                 unlockDate && !Number.isNaN(unlockDate.getTime())
                   ? unlockDate.toLocaleDateString()
@@ -1964,62 +2050,79 @@ function renderMobileLessonViewer(a: MobileVA): React.ReactElement {
           </section>
         )}
 
-        {firstAttachment && (
+        {attachments.length > 0 && (
           <section style={{ padding: '0 18px 24px' }}>
-            <a
-              href={firstAttachment.url}
-              target="_blank"
-              rel="noopener noreferrer"
+            <div
               style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 12,
-                padding: '12px 14px',
-                borderRadius: 12,
-                border: '1px solid oklch(0.92 0.003 280)',
-                background: 'oklch(0.975 0.002 280)',
-                color: 'inherit',
-                textDecoration: 'none',
-                fontFamily: mFont,
+                fontSize: 10.5,
+                fontWeight: 600,
+                letterSpacing: '0.16em',
+                color: 'oklch(0.52 0.008 280)',
+                textTransform: 'uppercase',
+                marginBottom: 10,
               }}
             >
-              <div
-                style={{
-                  width: 36,
-                  height: 36,
-                  borderRadius: 9,
-                  background: '#0a0a0a',
-                  color: 'white',
-                  display: 'grid',
-                  placeItems: 'center',
-                  flexShrink: 0,
-                }}
-              >
-                <DownloadOutlined sx={{ fontSize: 18 }} />
-              </div>
-              <div style={{ minWidth: 0, flex: 1 }}>
-                <div
+              Resources
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {attachments.map((att, i) => (
+                <a
+                  key={att.id ?? i}
+                  href={att.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   style={{
-                    fontSize: 13,
-                    fontWeight: 600,
-                    color: 'oklch(0.18 0.008 280)',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 12,
+                    padding: '12px 14px',
+                    borderRadius: 12,
+                    border: '1px solid oklch(0.92 0.003 280)',
+                    background: 'oklch(0.975 0.002 280)',
+                    color: 'inherit',
+                    textDecoration: 'none',
+                    fontFamily: mFont,
                   }}
                 >
-                  {firstAttachment.name ?? 'Lesson resource'}
-                </div>
-                <div
-                  style={{
-                    fontSize: 11.5,
-                    color: 'oklch(0.52 0.008 280)',
-                  }}
-                >
-                  Download attachment
-                </div>
-              </div>
-            </a>
+                  <div
+                    style={{
+                      width: 36,
+                      height: 36,
+                      borderRadius: 9,
+                      background: '#0a0a0a',
+                      color: 'white',
+                      display: 'grid',
+                      placeItems: 'center',
+                      flexShrink: 0,
+                    }}
+                  >
+                    <DownloadOutlined sx={{ fontSize: 18 }} />
+                  </div>
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div
+                      style={{
+                        fontSize: 13,
+                        fontWeight: 600,
+                        color: 'oklch(0.18 0.008 280)',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {att.name ?? att.filename ?? 'Lesson resource'}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: 11.5,
+                        color: 'oklch(0.52 0.008 280)',
+                      }}
+                    >
+                      Download attachment
+                    </div>
+                  </div>
+                </a>
+              ))}
+            </div>
           </section>
         )}
 
@@ -2033,6 +2136,73 @@ function renderMobileLessonViewer(a: MobileVA): React.ReactElement {
           />
         </section>
       </main>
+
+      {/* Sticky prev/next footer — the reading view previously had no
+          sequential navigation at all; the only path to another lesson was
+          the All Lessons list. */}
+      <nav
+        style={{
+          position: 'fixed',
+          left: 0,
+          right: 0,
+          bottom: 0,
+          zIndex: 40,
+          display: 'flex',
+          gap: 10,
+          padding: '10px 14px calc(10px + env(safe-area-inset-bottom, 0px))',
+          background: 'rgba(255,255,255,0.94)',
+          backdropFilter: 'saturate(180%) blur(20px)',
+          WebkitBackdropFilter: 'saturate(180%) blur(20px)',
+          borderTop: '1px solid oklch(0.945 0.003 280)',
+          fontFamily: mFont,
+        }}
+        aria-label="Lesson navigation"
+      >
+        <button
+          onClick={() => prevLesson && onSelectLesson(prevLesson.id)}
+          disabled={!prevLesson}
+          style={{
+            appearance: 'none',
+            border: '1px solid oklch(0.92 0.003 280)',
+            background: '#fff',
+            color: 'oklch(0.32 0.008 280)',
+            opacity: prevLesson ? 1 : 0.45,
+            flex: 1,
+            minHeight: 46,
+            borderRadius: 12,
+            fontSize: 13.5,
+            fontWeight: 600,
+            fontFamily: 'inherit',
+            cursor: prevLesson ? 'pointer' : 'default',
+          }}
+        >
+          ← Previous
+        </button>
+        <button
+          onClick={() =>
+            nextLesson ? onSelectLesson(nextLesson.id) : onBack()
+          }
+          style={{
+            appearance: 'none',
+            border: 0,
+            background: '#0a0a0a',
+            color: '#fff',
+            flex: 1.4,
+            minHeight: 46,
+            borderRadius: 12,
+            fontSize: 13.5,
+            fontWeight: 600,
+            fontFamily: 'inherit',
+            cursor: 'pointer',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+            padding: '0 14px',
+          }}
+        >
+          {nextLesson ? 'Next lesson →' : 'Back to course'}
+        </button>
+      </nav>
     </div>
   )
 }

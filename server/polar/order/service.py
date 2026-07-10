@@ -1384,7 +1384,7 @@ class OrderService:
             case OrderBillingReasonInternal.purchase:
                 template_name = "order_confirmation"
                 subject_template = "Your {description} order confirmation"
-                url_path_template = "/{organization}/portal"
+                url_path_template = "/portal"
                 url_params = {
                     "customer_session_token": "{token}",
                     "id": "{order}",
@@ -1393,7 +1393,7 @@ class OrderService:
             case OrderBillingReasonInternal.subscription_create:
                 template_name = "subscription_confirmation"
                 subject_template = "Your {description} subscription"
-                url_path_template = "/{organization}/portal"
+                url_path_template = "/portal"
                 url_params = {
                     "customer_session_token": "{token}",
                     "id": "{subscription}",
@@ -1405,7 +1405,7 @@ class OrderService:
             ):
                 template_name = "subscription_cycled"
                 subject_template = "Your {description} subscription has been renewed"
-                url_path_template = "/{organization}/portal"
+                url_path_template = "/portal"
                 url_params = {
                     "customer_session_token": "{token}",
                     "id": "{subscription}",
@@ -1414,7 +1414,7 @@ class OrderService:
             case OrderBillingReasonInternal.subscription_update:
                 template_name = "subscription_updated"
                 subject_template = "Your subscription has changed to {description}"
-                url_path_template = "/{organization}/portal"
+                url_path_template = "/portal"
                 url_params = {
                     "customer_session_token": "{token}",
                     "id": "{subscription}",
@@ -1442,8 +1442,7 @@ class OrderService:
             for key, value in url_params.items()
         }
         query_string = urlencode(params)
-        url_path = url_path_template.format(organization=organization.slug)
-        url = settings.generate_frontend_url(f"{url_path}?{query_string}")
+        url = organization.storefront_url(f"{url_path_template}?{query_string}")
         subject = subject_template.format(description=order.description)
         email = EmailAdapter.validate_python(
             {
@@ -1530,9 +1529,7 @@ class OrderService:
                 "id": str(subscription.id) if subscription is not None else "",
                 "email": customer.email,
             }
-            url = settings.generate_frontend_url(
-                f"/{organization.slug}/portal?{urlencode(params)}"
-            )
+            url = organization.storefront_url(f"/portal?{urlencode(params)}")
             email = EmailAdapter.validate_python(
                 {
                     "template": "platform_receipt",

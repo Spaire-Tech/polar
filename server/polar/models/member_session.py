@@ -52,8 +52,8 @@ class MemberSession(RecordModel):
         query_string = urlencode(
             {"member_session_token": self.raw_token, "email": self.member.email}
         )
-        return settings.generate_frontend_url(
-            f"/{self.member.customer.organization.slug}/portal?{query_string}"
+        return self.member.customer.organization.storefront_url(
+            f"/portal?{query_string}"
         )
 
     @property
@@ -74,6 +74,6 @@ class MemberSession(RecordModel):
         query_string = urlencode(
             {"customer_session_token": self.raw_token, "email": self.member.email}
         )
-        return settings.generate_frontend_url(
-            f"/{self.member.customer.organization.slug}/portal?{query_string}"
+        return self.member.customer.organization.storefront_url(
+            f"/portal?{query_string}"
         )

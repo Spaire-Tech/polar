@@ -141,6 +141,23 @@ def thumbnail_url(playback_id: str | None, *, time_offset: float = 1.0) -> str |
     return f"{base}&token={token}" if token else base
 
 
+def storyboard_url(playback_id: str | None) -> str | None:
+    """Return a storyboard WebVTT URL for a Mux playback id, signed when
+    possible.
+
+    Mux auto-generates a storyboard for every asset: a sprite sheet of
+    frames plus a ``storyboard.vtt`` mapping time ranges to crop regions
+    of that sheet. The player uses it for hover-scrub thumbnails. One
+    's'-audience token authorizes both the VTT and the sprite image it
+    references, so the client can reuse this URL's token for the image.
+    """
+    if not playback_id:
+        return None
+    token = sign_playback_token(playback_id, audience="s")
+    base = f"{MUX_IMAGE_BASE}/{playback_id}/storyboard.vtt"
+    return f"{base}?token={token}" if token else base
+
+
 async def get_asset_by_upload(upload_id: str) -> dict | None:
     """Poll Mux for an asset created from a direct upload."""
     async with _client() as client:
@@ -202,6 +219,34 @@ async def delete_asset(asset_id: str) -> bool:
     log.warning(
         "Mux delete returned non-success status",
         extra={"asset_id": asset_id, "status": resp.status_code},
+    )
+    return False
+
+
+async def cancel_upload(upload_id: str) -> bool:
+    """Cancel a Mux direct upload that hasn't produced an asset yet.
+
+    Returns True on success or when the upload is already gone (404).
+    Returns False when the upload can't be cancelled — typically because
+    the file already finished uploading and an asset is being created —
+    so the caller should re-resolve the upload to an asset and delete
+    that instead.
+    """
+    if not upload_id or not settings.MUX_TOKEN_ID or not settings.MUX_TOKEN_SECRET:
+        return False
+    async with _client() as client:
+        try:
+            resp = await client.put(f"/video/v1/uploads/{upload_id}/cancel")
+        except httpx.HTTPError:
+            log.exception(
+                "Failed to call Mux cancel upload", extra={"upload_id": upload_id}
+            )
+            return False
+    if resp.status_code in (200, 204, 404):
+        return True
+    log.info(
+        "Mux cancel upload returned non-success status",
+        extra={"upload_id": upload_id, "status": resp.status_code},
     )
     return False
 
