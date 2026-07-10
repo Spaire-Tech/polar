@@ -91,6 +91,102 @@ const LockChip = () => (
   </div>
 )
 
+// Lesson-card still. Creator stills are full-size uploads (up to 10 MB, S3
+// serves them unresized), and the rail used to fetch EVERY card's image
+// up-front — on a phone connection they all competed with the full-screen
+// hero cover, so the one card actually on screen (episode 1) was the slowest
+// to paint. Two mitigations:
+//
+//   • Only the first card carries a src up-front; the rest get theirs when
+//     scrolled near (IntersectionObserver — native loading=lazy barely
+//     defers anything in a horizontal rail, its distance thresholds cover
+//     the whole strip).
+//   • A failed fetch (flaky cellular) retries twice with a cache-busted URL
+//     instead of leaving the card blank forever. The eager first image can
+//     fail BEFORE hydration attaches onError (it loads from the server
+//     HTML), so a mount-time complete-but-empty check catches that too.
+function LessonThumb({
+  src,
+  position,
+  className,
+  eager = false,
+}: {
+  src: string
+  position?: string | null
+  className?: string
+  eager?: boolean
+}) {
+  const imgRef = useRef<HTMLImageElement | null>(null)
+  const [attempt, setAttempt] = useState(0)
+  const [visible, setVisible] = useState(eager)
+  const failures = useRef(0)
+  const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const scheduleRetry = useCallback(() => {
+    if (failures.current >= 2) return
+    failures.current += 1
+    const n = failures.current
+    if (retryTimer.current) clearTimeout(retryTimer.current)
+    retryTimer.current = setTimeout(() => setAttempt(n), n === 1 ? 1000 : 3000)
+  }, [])
+
+  useEffect(() => {
+    // New src → new image; reset the retry counter and any pending retry.
+    failures.current = 0
+    setAttempt(0)
+  }, [src])
+  useEffect(
+    () => () => {
+      if (retryTimer.current) clearTimeout(retryTimer.current)
+    },
+    [],
+  )
+
+  // Reveal the src when the card approaches the viewport.
+  useEffect(() => {
+    if (visible) return
+    const el = imgRef.current
+    if (!el || typeof IntersectionObserver === 'undefined') {
+      setVisible(true)
+      return
+    }
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          setVisible(true)
+          io.disconnect()
+        }
+      },
+      { rootMargin: '600px' },
+    )
+    io.observe(el)
+    return () => io.disconnect()
+  }, [visible])
+
+  // Catch an image that already failed before this effect ran (the SSR'd
+  // eager image starts — and can fail — before React attaches onError).
+  useEffect(() => {
+    const el = imgRef.current
+    if (visible && el && el.complete && el.naturalWidth === 0) scheduleRetry()
+  }, [visible, attempt, src, scheduleRetry])
+
+  const url =
+    attempt === 0 ? src : `${src}${src.includes('?') ? '&' : '?'}r=${attempt}`
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      ref={imgRef}
+      className={className}
+      src={visible ? url : undefined}
+      alt=""
+      loading={eager ? 'eager' : 'lazy'}
+      decoding="async"
+      style={{ objectPosition: position ?? undefined }}
+      onError={scheduleRetry}
+    />
+  )
+}
+
 // Touch-to-edit text (the design's contenteditable). Module-level so its
 // identity is stable across renders — defined inline it would REMOUNT on
 // every parent re-render (FAQ toggle, trailer peek, strip scroll), killing
@@ -1084,17 +1180,18 @@ export function GeneratedPortalPage({
     >
       <div className="ph-ambient" style={ambientTint(l.flatIdx + 1)} />
       <div className="glass-tint" />
-      <div
-        className="photo"
-        style={
-          l.imageUrl
-            ? {
-                backgroundImage: `url("${l.imageUrl}")`,
-                backgroundPosition: l.imagePosition ?? undefined,
-              }
-            : undefined
-        }
-      />
+      {l.imageUrl ? (
+        // A real <img> (not a CSS background) so the rail can lazy-load
+        // off-screen cards and recover from failed fetches — see LessonThumb.
+        <LessonThumb
+          src={l.imageUrl}
+          position={l.imagePosition}
+          className="photo"
+          eager={l.flatIdx === 0}
+        />
+      ) : (
+        <div className="photo" />
+      )}
       <div className="photo-shade" />
       {showChips ? (
         l.free ? (
@@ -1186,11 +1283,10 @@ export function GeneratedPortalPage({
       <div className="lc-card">
         <div className={`lc-thumb ${l.imageUrl ? '' : 'ph'}`}>
           {l.imageUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
+            <LessonThumb
               src={l.imageUrl}
-              alt=""
-              style={{ objectPosition: l.imagePosition ?? undefined }}
+              position={l.imagePosition}
+              eager={l.flatIdx === 0}
             />
           ) : (
             <>
@@ -2516,6 +2612,13 @@ export function GeneratedPortalPage({
         .gpp .filled .photo,
         .gpp .filled .photo-shade {
           display: block;
+        }
+        /* Spotlight-card stills are real <img>s (lazy-load + retry — see
+           LessonThumb); mirror the background-size:cover behaviour. */
+        .gpp .card img.photo {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
         }
         .gpp .hero.filled .ph-ambient,
         .gpp .hero.filled .hero-art,
