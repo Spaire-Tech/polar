@@ -1022,6 +1022,19 @@ async def get_preview_access(
         session, course_id=course_id, customer=customer, fire_events=False
     )
 
+    # Retire the legacy preview sandbox for this admin: one identity, not
+    # two members. Its authored content still renders (author lookups join
+    # by id, and the community resolver attributes it to the host).
+    legacy_sandbox = await customer_repo.get_by_email_and_organization(
+        f"preview+{user.id}@course-preview.invalid", course.organization_id
+    )
+    if legacy_sandbox is not None:
+        legacy_enrollment = await course_service.get_enrollment_for_customer(
+            session, legacy_sandbox.id, course_id
+        )
+        if legacy_enrollment is not None:
+            await course_service.revoke_enrollment(session, legacy_enrollment.id)
+
     token, _ = await customer_session.create_customer_session(
         session, customer
     )
