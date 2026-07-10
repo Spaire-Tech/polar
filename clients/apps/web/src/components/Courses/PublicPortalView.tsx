@@ -251,7 +251,7 @@ export function PublicPortalView({
       : recurring
         ? `Subscribe — ${priceLabel}`
         : `Buy — ${priceLabel}`
-  const freeLine = hasAccess
+  const freeLineDefault = hasAccess
     ? 'You own this Original'
     : isFreeProduct
       ? 'Free for everyone'
@@ -304,11 +304,16 @@ export function PublicPortalView({
 
   // ── AI hero copy — prefer ai_hero over the creator's raw description ─────
   const aiHero = landing.landing_overrides?.ai_hero ?? null
+  // Creator-edited price note wins over the computed default (owners keep
+  // the ownership line — the note is about buying).
+  const freeLine = hasAccess
+    ? freeLineDefault
+    : (aiHero as { free_line?: string | null } | null)?.free_line ||
+      freeLineDefault
   const heroDesc = aiHero?.description || landing.description || ''
   const heroByline = aiHero?.byline || landing.instructor_bio || ''
   const heroEyebrow = aiHero?.eyebrow || ''
-  const heroBadge =
-    aiHero?.badge || (isEpisodic ? 'New Series' : 'New Course')
+  const heroBadge = aiHero?.badge || (isEpisodic ? 'New Series' : 'New Course')
   const heroTitleLines =
     aiHero?.titleLines && aiHero.titleLines.length > 0
       ? aiHero.titleLines
@@ -395,10 +400,7 @@ export function PublicPortalView({
     return out
   }, [isEpisodic, landing.modules, flatLessons, isLocked])
 
-  const flatForClick = useMemo(
-    () => groups.flatMap((g) => g.lessons),
-    [groups],
-  )
+  const flatForClick = useMemo(() => groups.flatMap((g) => g.lessons), [groups])
   const onLessonClick = useCallback(
     (flatIdx: number) => {
       const gen = flatForClick.find((l) => l.flatIdx === flatIdx)
@@ -568,8 +570,7 @@ export function PublicPortalView({
           courseTitle={landing.title ?? product.name}
           instructorName={landing.instructor_name}
           startSec={
-            (watchState.p[watching.id] ?? 0) *
-            (watching.duration_seconds ?? 0)
+            (watchState.p[watching.id] ?? 0) * (watching.duration_seconds ?? 0)
           }
           onClose={() => setWatching(null)}
           onProgress={(frac) => onWatchProgress(watching.id, frac)}

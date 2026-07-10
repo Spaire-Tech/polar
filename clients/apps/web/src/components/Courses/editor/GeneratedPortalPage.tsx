@@ -372,6 +372,7 @@ export type EditField =
   | 'eyebrow'
   | 'badge'
   | 'bdg'
+  | 'freeLine'
   | 'instructorName'
   | 'lessonTitle'
   | 'lessonDesc'
@@ -605,12 +606,15 @@ export function GeneratedPortalPage({
   // `base` no longer matches and the persisted value becomes authoritative
   // again — so the first drag can't "stick" forever and desync from what's
   // saved (no effect-driven reset needed).
-  const [livePos, setLivePos] = useState<{ pos: string; base: string | null } | null>(
-    null,
-  )
+  const [livePos, setLivePos] = useState<{
+    pos: string
+    base: string | null
+  } | null>(null)
   const committedCoverPos = coverPosition ?? null
   const effectiveCoverPos =
-    livePos && livePos.base === committedCoverPos ? livePos.pos : committedCoverPos
+    livePos && livePos.base === committedCoverPos
+      ? livePos.pos
+      : committedCoverPos
   const onDragStart = (e: React.PointerEvent) => {
     if (!repositioning) return
     const [px, py] = parsePos(effectiveCoverPos)
@@ -714,7 +718,9 @@ export function GeneratedPortalPage({
   const [samplePlaying, setSamplePlaying] = useState(false)
   // The clip URL is minted on demand (the public payload no longer embeds it),
   // so resolve it lazily the first time the clip needs to play and cache it.
-  const [resolvedSampleUrl, setResolvedSampleUrl] = useState<string | null>(null)
+  const [resolvedSampleUrl, setResolvedSampleUrl] = useState<string | null>(
+    null,
+  )
   const sampleUrlRef = useRef<string | null>(null)
   const ensureSampleUrl = useCallback(async (): Promise<string | null> => {
     if (sampleUrlRef.current) return sampleUrlRef.current
@@ -1374,7 +1380,18 @@ export function GeneratedPortalPage({
               <button className="abtn buy" type="button" onClick={onBuy}>
                 {buyLabel}
               </button>
-              {freeLine ? <div className="band-free">{freeLine}</div> : null}
+              {freeLine || editable ? (
+                <EditText
+                  editable={editable}
+                  onEditText={onEditText}
+                  field="freeLine"
+                  value={freeLine}
+                  className="band-free"
+                  tag="div"
+                  maxLength={80}
+                  placeholder="Add a price note"
+                />
+              ) : null}
             </div>
 
             <div className="band-desc">
@@ -1440,13 +1457,15 @@ export function GeneratedPortalPage({
                     + Add
                   </button>
                 )}
-                {/* The trailer also lives here in the metadata row, alongside
-                    the badge chips (Self-paced, Captions, …). */}
-                {showTrailerButton && (
+                {/* The free SAMPLE lives here in the metadata row, alongside
+                    the badge chips — the big CTA above is already the
+                    trailer. Renders only when a real, playable sample is
+                    configured; no sample, no chip. */}
+                {hasSampleSection && (
                   <button
                     className="bd-trailer"
                     type="button"
-                    onClick={playPrimary}
+                    onClick={startSample}
                   >
                     <svg
                       width="12"
@@ -1456,7 +1475,7 @@ export function GeneratedPortalPage({
                     >
                       <path d={PLAY_PATH} />
                     </svg>
-                    Trailer
+                    Sample
                   </button>
                 )}
               </div>
@@ -1654,95 +1673,116 @@ export function GeneratedPortalPage({
       {/* ════════ INSTRUCTOR (Course Page Empty State.html) ════════ */}
       {(instructorName || instructorSub || instructorBio.length > 0) &&
         !isSectionHidden('instructor') && (
-        <section className={`instructor${editable ? ' gpp-section' : ''}`}>
-          {editable && sectionHideControl('instructor')}
-          <div className="inst-inner">
-            <div className="inst-copy">
-              <div className="inst-head">
-                <div
-                  className={`inst-avatar ${avatarUrl ? 'filled' : ''} ${
-                    editable && onEditAvatar ? 'editable-avatar' : ''
-                  }`}
-                  {...(editable && onEditAvatar
-                    ? {
-                        role: 'button',
-                        tabIndex: 0,
-                        title: 'Edit instructor photo',
-                        onClick: onEditAvatar,
-                        onKeyDown: (e: React.KeyboardEvent) => {
-                          if (e.key === 'Enter' || e.key === ' ') {
-                            e.preventDefault()
-                            onEditAvatar()
-                          }
-                        },
-                      }
-                    : {})}
-                >
-                  <div className="ph-ambient" />
-                  <div className="glass-tint" />
+          <section className={`instructor${editable ? 'gpp-section' : ''}`}>
+            {editable && sectionHideControl('instructor')}
+            <div className="inst-inner">
+              <div className="inst-copy">
+                <div className="inst-head">
                   <div
-                    className="photo"
-                    style={
-                      avatarUrl
-                        ? { backgroundImage: `url("${avatarUrl}")` }
-                        : undefined
-                    }
-                  />
-                  <svg
-                    className="av-ic"
-                    width="30"
-                    height="30"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.7"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
+                    className={`inst-avatar ${avatarUrl ? 'filled' : ''} ${
+                      editable && onEditAvatar ? 'editable-avatar' : ''
+                    }`}
+                    {...(editable && onEditAvatar
+                      ? {
+                          role: 'button',
+                          tabIndex: 0,
+                          title: 'Edit instructor photo',
+                          onClick: onEditAvatar,
+                          onKeyDown: (e: React.KeyboardEvent) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault()
+                              onEditAvatar()
+                            }
+                          },
+                        }
+                      : {})}
                   >
-                    <circle cx="12" cy="8" r="3.6" />
-                    <path d="M5 20c.8-3.6 3.7-5.6 7-5.6s6.2 2 7 5.6" />
-                  </svg>
-                  {editable && onEditAvatar && (
-                    <div className="av-edit" aria-hidden>
-                      <svg
-                        width="18"
-                        height="18"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="1.9"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <path d="M4 20h4L18.5 9.5a2.1 2.1 0 0 0-3-3L5 17v3z" />
-                        <path d="M13.5 6.5l3 3" />
-                      </svg>
-                    </div>
-                  )}
-                </div>
-                <div className="inst-id">
-                  <EditText
-                    editable={editable}
-                    onEditText={onEditText}
-                    field="instructorName"
-                    value={instructorName}
-                    className="inst-name"
-                    tag="h2"
-                  />
-                  <EditText
-                    editable={editable}
-                    onEditText={onEditText}
-                    field="instructorSub"
-                    value={instructorSub}
-                    className="inst-sub"
-                    tag="p"
-                  />
-                </div>
-              </div>
-              {instructorBio.map((p, i) =>
-                editable && onRemoveBioParagraph ? (
-                  <div key={i} className="gpp-row">
+                    <div className="ph-ambient" />
+                    <div className="glass-tint" />
+                    <div
+                      className="photo"
+                      style={
+                        avatarUrl
+                          ? { backgroundImage: `url("${avatarUrl}")` }
+                          : undefined
+                      }
+                    />
+                    <svg
+                      className="av-ic"
+                      width="30"
+                      height="30"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.7"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <circle cx="12" cy="8" r="3.6" />
+                      <path d="M5 20c.8-3.6 3.7-5.6 7-5.6s6.2 2 7 5.6" />
+                    </svg>
+                    {editable && onEditAvatar && (
+                      <div className="av-edit" aria-hidden>
+                        <svg
+                          width="18"
+                          height="18"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="1.9"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <path d="M4 20h4L18.5 9.5a2.1 2.1 0 0 0-3-3L5 17v3z" />
+                          <path d="M13.5 6.5l3 3" />
+                        </svg>
+                      </div>
+                    )}
+                  </div>
+                  <div className="inst-id">
                     <EditText
+                      editable={editable}
+                      onEditText={onEditText}
+                      field="instructorName"
+                      value={instructorName}
+                      className="inst-name"
+                      tag="h2"
+                    />
+                    <EditText
+                      editable={editable}
+                      onEditText={onEditText}
+                      field="instructorSub"
+                      value={instructorSub}
+                      className="inst-sub"
+                      tag="p"
+                    />
+                  </div>
+                </div>
+                {instructorBio.map((p, i) =>
+                  editable && onRemoveBioParagraph ? (
+                    <div key={i} className="gpp-row">
+                      <EditText
+                        editable={editable}
+                        onEditText={onEditText}
+                        field="instructorBioP"
+                        value={p}
+                        className="inst-bio"
+                        tag="p"
+                        ctx={{ idx: i }}
+                        placeholder="Add a paragraph about the instructor"
+                      />
+                      <button
+                        type="button"
+                        className="gpp-remove"
+                        title="Remove paragraph"
+                        onClick={() => onRemoveBioParagraph(i)}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ) : (
+                    <EditText
+                      key={i}
                       editable={editable}
                       onEditText={onEditText}
                       field="instructorBioP"
@@ -1750,153 +1790,132 @@ export function GeneratedPortalPage({
                       className="inst-bio"
                       tag="p"
                       ctx={{ idx: i }}
-                      placeholder="Add a paragraph about the instructor"
                     />
-                    <button
-                      type="button"
-                      className="gpp-remove"
-                      title="Remove paragraph"
-                      onClick={() => onRemoveBioParagraph(i)}
-                    >
-                      ×
-                    </button>
+                  ),
+                )}
+                {editable && onAddBioParagraph && (
+                  <button
+                    type="button"
+                    className="gpp-add"
+                    onClick={onAddBioParagraph}
+                  >
+                    + Add paragraph
+                  </button>
+                )}
+              </div>
+
+              <div
+                ref={portraitRef}
+                className={`inst-media ${portraitUrl ? 'filled' : ''} ${
+                  portraitReposing ? 'repositioning' : ''
+                }`}
+                {...portraitReposProps}
+              >
+                <div className="ph-ambient" />
+                <div className="glass-tint" />
+                <div
+                  className="photo"
+                  style={
+                    portraitUrl
+                      ? {
+                          backgroundImage: `url("${portraitUrl}")`,
+                          backgroundPosition: effectivePortraitPos || 'center',
+                        }
+                      : undefined
+                  }
+                />
+                <div className="photo-shade" />
+                {!portraitUrl && (
+                  <div className="ph-cta">
+                    {editable && onAddPortrait ? (
+                      <>
+                        <span
+                          className="ph-ic"
+                          role="button"
+                          tabIndex={0}
+                          onClick={onAddPortrait}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ')
+                              onAddPortrait()
+                          }}
+                        >
+                          <svg
+                            width="24"
+                            height="24"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="1.8"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          >
+                            <circle cx="12" cy="8" r="3.6" />
+                            <path d="M5 20c.8-3.6 3.7-5.6 7-5.6s6.2 2 7 5.6" />
+                          </svg>
+                        </span>
+                        <span className="ph-k">
+                          {portraitBusy ? 'Uploading…' : 'Add a portrait'}
+                        </span>
+                        <span className="ph-s">
+                          A square photo of you mid-lesson works best
+                        </span>
+                      </>
+                    ) : null}
                   </div>
-                ) : (
+                )}
+                {(editable || portraitCaption) && (
                   <EditText
-                    key={i}
                     editable={editable}
                     onEditText={onEditText}
-                    field="instructorBioP"
-                    value={p}
-                    className="inst-bio"
-                    tag="p"
-                    ctx={{ idx: i }}
+                    field="portraitCaption"
+                    value={portraitCaption}
+                    className="inst-caption"
+                    tag="div"
+                    placeholder="Add a caption"
                   />
-                ),
-              )}
-              {editable && onAddBioParagraph && (
-                <button
-                  type="button"
-                  className="gpp-add"
-                  onClick={onAddBioParagraph}
-                >
-                  + Add paragraph
-                </button>
-              )}
-            </div>
-
-            <div
-              ref={portraitRef}
-              className={`inst-media ${portraitUrl ? 'filled' : ''} ${
-                portraitReposing ? 'repositioning' : ''
-              }`}
-              {...portraitReposProps}
-            >
-              <div className="ph-ambient" />
-              <div className="glass-tint" />
-              <div
-                className="photo"
-                style={
-                  portraitUrl
-                    ? {
-                        backgroundImage: `url("${portraitUrl}")`,
-                        backgroundPosition: effectivePortraitPos || 'center',
-                      }
-                    : undefined
-                }
-              />
-              <div className="photo-shade" />
-              {!portraitUrl && (
-                <div className="ph-cta">
-                  {editable && onAddPortrait ? (
-                    <>
-                      <span
-                        className="ph-ic"
-                        role="button"
-                        tabIndex={0}
-                        onClick={onAddPortrait}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' || e.key === ' ')
-                            onAddPortrait()
-                        }}
-                      >
-                        <svg
-                          width="24"
-                          height="24"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="1.8"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        >
-                          <circle cx="12" cy="8" r="3.6" />
-                          <path d="M5 20c.8-3.6 3.7-5.6 7-5.6s6.2 2 7 5.6" />
-                        </svg>
-                      </span>
-                      <span className="ph-k">
-                        {portraitBusy ? 'Uploading…' : 'Add a portrait'}
-                      </span>
-                      <span className="ph-s">
-                        A square photo of you mid-lesson works best
-                      </span>
-                    </>
-                  ) : null}
-                </div>
-              )}
-              {(editable || portraitCaption) && (
-                <EditText
-                  editable={editable}
-                  onEditText={onEditText}
-                  field="portraitCaption"
-                  value={portraitCaption}
-                  className="inst-caption"
-                  tag="div"
-                  placeholder="Add a caption"
-                />
-              )}
-              {editable && onAddPortrait && portraitUrl && (
-                <button
-                  className="change-pill"
-                  type="button"
-                  onPointerDown={(e) => e.stopPropagation()}
-                  onClick={onAddPortrait}
-                >
-                  {PillImageIcon}
-                  Change
-                </button>
-              )}
-              {editable && onPortraitPosition && portraitUrl && (
-                <button
-                  className="change-pill portrait-repos-pill"
-                  type="button"
-                  onPointerDown={(e) => e.stopPropagation()}
-                  onClick={() => setPortraitReposing((v) => !v)}
-                  title="Drag the photo to reposition it"
-                >
-                  <svg
-                    width="15"
-                    height="15"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.9"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
+                )}
+                {editable && onAddPortrait && portraitUrl && (
+                  <button
+                    className="change-pill"
+                    type="button"
+                    onPointerDown={(e) => e.stopPropagation()}
+                    onClick={onAddPortrait}
                   >
-                    <path d="M5 9l-3 3 3 3M9 5l3-3 3 3M15 19l-3 3-3-3M19 9l3 3-3 3M2 12h20M12 2v20" />
-                  </svg>
-                  {portraitReposing ? 'Done' : 'Reposition'}
-                </button>
-              )}
+                    {PillImageIcon}
+                    Change
+                  </button>
+                )}
+                {editable && onPortraitPosition && portraitUrl && (
+                  <button
+                    className="change-pill portrait-repos-pill"
+                    type="button"
+                    onPointerDown={(e) => e.stopPropagation()}
+                    onClick={() => setPortraitReposing((v) => !v)}
+                    title="Drag the photo to reposition it"
+                  >
+                    <svg
+                      width="15"
+                      height="15"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.9"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M5 9l-3 3 3 3M9 5l3-3 3 3M15 19l-3 3-3-3M19 9l3 3-3 3M2 12h20M12 2v20" />
+                    </svg>
+                    {portraitReposing ? 'Done' : 'Reposition'}
+                  </button>
+                )}
+              </div>
             </div>
-          </div>
-        </section>
-      )}
+          </section>
+        )}
 
       {/* ════════ FREE SAMPLE (Course Page Empty State.html) ════════ */}
       {hasSampleSection && !isSectionHidden('sample') && (
-        <section className={`sample${editable ? ' gpp-section' : ''}`}>
+        <section className={`sample${editable ? 'gpp-section' : ''}`}>
           {editable && sectionHideControl('sample')}
           <div className="sample-eyebrow">Free Sample</div>
           <h2>Watch a free sample</h2>
@@ -2051,183 +2070,183 @@ export function GeneratedPortalPage({
       {/* ════════ LESSONS — module rows (CPES) or episode strip (MCP) ════════ */}
       {!isSectionHidden('lessons') &&
         (isEpisodic ? (
-        <div className={`lessons${editable ? ' gpp-section' : ''}`}>
-          {editable && sectionHideControl('lessons')}
-          <div className="row-head strip-rh">
-            {/* Desktop labels this "Episodes"; the mobile design uses
+          <div className={`lessons${editable ? 'gpp-section' : ''}`}>
+            {editable && sectionHideControl('lessons')}
+            <div className="row-head strip-rh">
+              {/* Desktop labels this "Episodes"; the mobile design uses
                 "Free preview". Both render, one shows per breakpoint. */}
-            <span className="rh rh-desktop">Episodes</span>
-            <span className="rh rh-mobile">Free preview</span>
-          </div>
-          <div className="strip-wrap">
-            <button
-              className={`arrow prev ${showPrev ? 'show' : ''}`}
-              aria-label="Previous"
-              type="button"
-              onClick={() => scrollStrip(-1)}
-            >
-              <svg
-                width="28"
-                height="28"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
+              <span className="rh rh-desktop">Episodes</span>
+              <span className="rh rh-mobile">Free preview</span>
+            </div>
+            <div className="strip-wrap">
+              <button
+                className={`arrow prev ${showPrev ? 'show' : ''}`}
+                aria-label="Previous"
+                type="button"
+                onClick={() => scrollStrip(-1)}
               >
-                <path d="M14.5 5l-6.5 7 6.5 7" />
-              </svg>
-            </button>
-            <button
-              className={`arrow next ${showNext ? 'show' : ''}`}
-              aria-label="Next"
-              type="button"
-              onClick={() => scrollStrip(1)}
-            >
-              <svg
-                width="28"
-                height="28"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
+                <svg
+                  width="28"
+                  height="28"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M14.5 5l-6.5 7 6.5 7" />
+                </svg>
+              </button>
+              <button
+                className={`arrow next ${showNext ? 'show' : ''}`}
+                aria-label="Next"
+                type="button"
+                onClick={() => scrollStrip(1)}
               >
-                <path d="M9.5 5l6.5 7-6.5 7" />
-              </svg>
-            </button>
-            <div className="grid" ref={stripRef}>
-              {groups.flatMap((g) => g.lessons).map((l) => card(l))}
+                <svg
+                  width="28"
+                  height="28"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M9.5 5l6.5 7-6.5 7" />
+                </svg>
+              </button>
+              <div className="grid" ref={stripRef}>
+                {groups.flatMap((g) => g.lessons).map((l) => card(l))}
+              </div>
             </div>
           </div>
-        </div>
-      ) : (
-        <div className={`lessons${editable ? ' gpp-section' : ''}`}>
-          {editable && sectionHideControl('lessons')}
-          {groups.map((g, gi) => (
-            <section className="row" key={gi}>
-              <div className="row-head">
-                <span className="mod">Module {gi + 1}</span>
-                <EditText
-                  editable={editable}
-                  onEditText={onEditText}
-                  field="moduleTitle"
-                  value={g.title ?? ''}
-                  ctx={{ groupIdx: gi }}
-                />
-              </div>
-              <div className="grid">{g.lessons.map((l) => card(l))}</div>
-            </section>
-          ))}
-        </div>
+        ) : (
+          <div className={`lessons${editable ? 'gpp-section' : ''}`}>
+            {editable && sectionHideControl('lessons')}
+            {groups.map((g, gi) => (
+              <section className="row" key={gi}>
+                <div className="row-head">
+                  <span className="mod">Module {gi + 1}</span>
+                  <EditText
+                    editable={editable}
+                    onEditText={onEditText}
+                    field="moduleTitle"
+                    value={g.title ?? ''}
+                    ctx={{ groupIdx: gi }}
+                  />
+                </div>
+                <div className="grid">{g.lessons.map((l) => card(l))}</div>
+              </section>
+            ))}
+          </div>
         ))}
 
       {/* ════════ FAQ (Course Page Empty State.html) ════════ */}
       {(faq.length > 0 || (editable && onAddFaq)) &&
         !isSectionHidden('faq') && (
-        <section className={`faq${editable ? ' gpp-section' : ''}`}>
-          {editable && sectionHideControl('faq')}
-          <div className="faq-inner">
-            <h2>Questions? Answers.</h2>
-            <div className="faq-list">
-              {faq.map((item, i) => (
-                <div
-                  className={`faq-item ${openFaq === i ? 'open' : ''}`}
-                  key={i}
-                >
-                  <button
-                    className="faq-q"
-                    type="button"
-                    onClick={() => setOpenFaq((o) => (o === i ? null : i))}
+          <section className={`faq${editable ? 'gpp-section' : ''}`}>
+            {editable && sectionHideControl('faq')}
+            <div className="faq-inner">
+              <h2>Questions? Answers.</h2>
+              <div className="faq-list">
+                {faq.map((item, i) => (
+                  <div
+                    className={`faq-item ${openFaq === i ? 'open' : ''}`}
+                    key={i}
                   >
-                    <EditText
-                      editable={editable}
-                      onEditText={onEditText}
-                      field="faqQ"
-                      value={item.q}
-                      ctx={{ idx: i }}
-                      placeholder="Add a question"
-                    />
+                    <button
+                      className="faq-q"
+                      type="button"
+                      onClick={() => setOpenFaq((o) => (o === i ? null : i))}
+                    >
+                      <EditText
+                        editable={editable}
+                        onEditText={onEditText}
+                        field="faqQ"
+                        value={item.q}
+                        ctx={{ idx: i }}
+                        placeholder="Add a question"
+                      />
+                      <svg
+                        className="chev"
+                        width="22"
+                        height="22"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2.2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <path d="M6 9l6 6 6-6" />
+                      </svg>
+                    </button>
+                    <div
+                      className="faq-a-wrap"
+                      ref={(el) => {
+                        faqWrapRefs.current[i] = el
+                      }}
+                    >
+                      <div
+                        className="faq-a-clip"
+                        ref={(el) => {
+                          faqClipRefs.current[i] = el
+                        }}
+                      >
+                        <EditText
+                          editable={editable}
+                          onEditText={onEditText}
+                          field="faqA"
+                          value={item.a}
+                          className="faq-a"
+                          tag="div"
+                          ctx={{ idx: i }}
+                          placeholder="Add an answer"
+                        />
+                      </div>
+                    </div>
+                    {editable && onRemoveFaq && (
+                      <button
+                        type="button"
+                        className="gpp-remove faq-x"
+                        title="Remove question"
+                        aria-label="Remove question"
+                        onClick={() => onRemoveFaq(i)}
+                      >
+                        ×
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+              {editable && onAddFaq && (
+                <div className="faq-add-row">
+                  <button
+                    type="button"
+                    className="faq-add-btn"
+                    onClick={onAddFaq}
+                    title="Add question"
+                    aria-label="Add question"
+                  >
                     <svg
-                      className="chev"
-                      width="22"
-                      height="22"
+                      width="20"
+                      height="20"
                       viewBox="0 0 24 24"
                       fill="none"
                       stroke="currentColor"
                       strokeWidth="2.2"
                       strokeLinecap="round"
-                      strokeLinejoin="round"
                     >
-                      <path d="M6 9l6 6 6-6" />
+                      <path d="M12 5v14M5 12h14" />
                     </svg>
                   </button>
-                  <div
-                    className="faq-a-wrap"
-                    ref={(el) => {
-                      faqWrapRefs.current[i] = el
-                    }}
-                  >
-                    <div
-                      className="faq-a-clip"
-                      ref={(el) => {
-                        faqClipRefs.current[i] = el
-                      }}
-                    >
-                      <EditText
-                        editable={editable}
-                        onEditText={onEditText}
-                        field="faqA"
-                        value={item.a}
-                        className="faq-a"
-                        tag="div"
-                        ctx={{ idx: i }}
-                        placeholder="Add an answer"
-                      />
-                    </div>
-                  </div>
-                  {editable && onRemoveFaq && (
-                    <button
-                      type="button"
-                      className="gpp-remove faq-x"
-                      title="Remove question"
-                      aria-label="Remove question"
-                      onClick={() => onRemoveFaq(i)}
-                    >
-                      ×
-                    </button>
-                  )}
                 </div>
-              ))}
+              )}
             </div>
-            {editable && onAddFaq && (
-              <div className="faq-add-row">
-                <button
-                  type="button"
-                  className="faq-add-btn"
-                  onClick={onAddFaq}
-                  title="Add question"
-                  aria-label="Add question"
-                >
-                  <svg
-                    width="20"
-                    height="20"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2.2"
-                    strokeLinecap="round"
-                  >
-                    <path d="M12 5v14M5 12h14" />
-                  </svg>
-                </button>
-              </div>
-            )}
-          </div>
-        </section>
-      )}
+          </section>
+        )}
 
       {/* ════════ HIDDEN SECTIONS (editor only) — bring any hidden body
             section back. Keeps "hide" reversible instead of destructive. ═══ */}
