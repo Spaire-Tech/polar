@@ -33,16 +33,13 @@
 </div>
 <hr />
 
-## Polar: Open Source payments infrastructure for the 21st century
+## Spaire: The Masterclass Builder for Creators
 
-Focus on building your passion, while we focus on the infrastructure to get you paid.
+Turn what you know into a Masterclass.
 
-- Sell SaaS and digital products in minutes
-- All-in-one funding & monetization platform for developers.
-- Sell access to GitHub repositories, Discord Support channels, File Downloads, License Keys & much more with Digital Products & Subscriptions.
-- We're the merchant of record handling the...
-    - ...boilerplate (billing, receipts, customer accounts etc)
-    - ...headaches (sales tax, VAT)
+- Build cinematic masterclasses with chapters, video lessons, and free previews
+- Publish a landing page where people can watch a sample before they buy
+- Sell your masterclass with checkout, receipts, and sales tax handled for you as the merchant of record
 
 ## Pricing
 

@@ -157,8 +157,8 @@ TEMPLATES: list[SequenceTemplate] = [
     },
     {
         "slug": "digital_product_launch",
-        "name": "Digital product launch",
-        "description": "6-email pre-launch + launch + post-launch flow for a new digital product. Build anticipation, launch, follow up.",
+        "name": "Masterclass launch",
+        "description": "6-email pre-launch + launch + post-launch flow for a new masterclass. Build anticipation, launch, follow up.",
         "category": "Launch",
         "trigger_type": EmailSequenceTriggerType.manual,
         "trigger_config": {},

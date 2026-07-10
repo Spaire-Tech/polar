@@ -53,7 +53,7 @@ export default function App() {
             marginHorizontal: theme.spacing['spacing-32'],
           }}
         >
-          Monetize your software
+          Turn what you know into a Masterclass
         </Text>
       </FadeInAndUp>
 
