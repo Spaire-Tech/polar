@@ -77,7 +77,7 @@ export function OverviewSheet({
   const sub = [durLabel, instructorName].filter(Boolean).join(' · ')
   return (
     <div
-      className={`sov2 sheet-overlay${dark ? 'dark' : ''}`}
+      className={`sov2 sheet-overlay ${dark ? 'dark' : ''}`}
       role="dialog"
       aria-modal="true"
       aria-label="Lesson overview"
@@ -239,7 +239,7 @@ function CommentRow({
   onHeart?: (id: string) => void
 }) {
   return (
-    <div className={`cmt${isReply ? 'is-reply' : ''}`}>
+    <div className={`cmt ${isReply ? 'is-reply' : ''}`}>
       {c.avatarUrl ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img className="cmt-av" src={c.avatarUrl} alt={c.name} />
@@ -254,7 +254,7 @@ function CommentRow({
           </div>
         )}
         <div className="cmt-top">
-          <span className={`cmt-name${c.isInstructor ? 'is-instructor' : ''}`}>
+          <span className={`cmt-name ${c.isInstructor ? 'is-instructor' : ''}`}>
             {c.name}
           </span>
           {c.isInstructor && <span className="cmt-badge">Instructor</span>}
@@ -412,7 +412,7 @@ export function CommentsPanel({
   }
   return (
     <div
-      className={`sov2 cmt-overlay${dark ? 'dark' : ''}`}
+      className={`sov2 cmt-overlay ${dark ? 'dark' : ''}`}
       role="dialog"
       aria-modal="true"
       aria-label="Discussion"
