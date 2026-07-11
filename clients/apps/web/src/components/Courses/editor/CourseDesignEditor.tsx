@@ -18,6 +18,7 @@
 // The creator edits the real page, not a parallel mock — what they see is
 // what buyers get.
 
+import { AvatarCropModal } from '@/components/Customization/InlineEdit/AvatarCropModal'
 import {
   useUploadCourseThumbnail,
   useUploadCourseTrailer,
@@ -26,11 +27,10 @@ import {
   type CourseRead,
 } from '@/hooks/queries/courses'
 import { useProduct } from '@/hooks/queries/products'
-import { AvatarCropModal } from '@/components/Customization/InlineEdit/AvatarCropModal'
 import type { schemas } from '@spaire/client'
-import { formatProductPrice, isRecurringProduct } from '../courseLandingPrice'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from '../../Toast/use-toast'
+import { formatProductPrice, isRecurringProduct } from '../courseLandingPrice'
 import {
   GeneratedPortalPage,
   type EditField,
@@ -41,14 +41,16 @@ import {
   courseTrailerUploadStore,
   useCourseTrailerUpload,
 } from './courseTrailerUploadStore'
-import type {
-  LandingEditor,
-  OverridesPatch,
-} from './useLandingEditor'
+import type { LandingEditor, OverridesPatch } from './useLandingEditor'
 
 // Default band badges. Single source so the editor seeds the exact chips the
 // renderer shows when no override exists (kept in sync with GeneratedPortalPage).
-const DEFAULT_BADGES = ['All Levels', 'Self-paced', 'Captions', 'Mobile & Desktop']
+const DEFAULT_BADGES = [
+  'All Levels',
+  'Self-paced',
+  'Captions',
+  'Mobile & Desktop',
+]
 
 function pickFile(accept: string, cb: (file: File) => void) {
   const input = document.createElement('input')
@@ -236,9 +238,7 @@ export function CourseDesignEditor({
 
   const paywallEnabled = course.paywall_enabled
   const freeCount =
-    trialMode === 'free_preview'
-      ? Math.max(0, course.paywall_position ?? 0)
-      : 0
+    trialMode === 'free_preview' ? Math.max(0, course.paywall_position ?? 0) : 0
   const isLocked = (flatIdx: number) => {
     if (!paywallEnabled) return false
     if (trialMode === 'lesson_sample') return true
@@ -305,7 +305,10 @@ export function CourseDesignEditor({
 
   const [lessonImageBusy, setLessonImageBusy] = useState<number | null>(null)
   const uploadLessonImage = useCallback(
-    async (lesson: CourseRead['modules'][number]['lessons'][number], file: File) => {
+    async (
+      lesson: CourseRead['modules'][number]['lessons'][number],
+      file: File,
+    ) => {
       const prevUrl = lesson.thumbnail_url ?? null
       const updated = await uploadLessonThumb.mutateAsync({
         lessonId: lesson.id,
@@ -556,6 +559,19 @@ export function CourseDesignEditor({
             label: 'Edit instructor name',
           })
           break
+        case 'freeLine': {
+          // The price note under the hero CTAs. Clearing it falls back to
+          // the computed default (pricing-derived).
+          const prev =
+            (ov.ai_hero as { free_line?: string | null } | undefined)
+              ?.free_line ?? null
+          commitOverrides(
+            { ai_hero: { free_line: value.trim() ? value : null } },
+            { ai_hero: { free_line: prev } },
+            'Edit price note',
+          )
+          break
+        }
         case 'desc':
         case 'byline':
         case 'eyebrow':
@@ -775,14 +791,15 @@ export function CourseDesignEditor({
     : recurring
       ? `Subscribe — ${priceLabel}`
       : `Buy — ${priceLabel}`
-  const playLabel = isFreeProduct || !paywallEnabled
-    ? 'Start Watching'
-    : trialMode === 'lesson_sample'
-      ? 'Play Sample'
-      : freeCount > 0
-        ? `Play ${unitCap} 1 Free`
-        : 'Watch Preview'
-  const freeLine = isFreeProduct
+  const playLabel =
+    isFreeProduct || !paywallEnabled
+      ? 'Start Watching'
+      : trialMode === 'lesson_sample'
+        ? 'Play Sample'
+        : freeCount > 0
+          ? `Play ${unitCap} 1 Free`
+          : 'Watch Preview'
+  const freeLineDefault = isFreeProduct
     ? 'Free for everyone'
     : !paywallEnabled
       ? `All ${unit}s free to watch · ${cadence}`
@@ -791,6 +808,10 @@ export function CourseDesignEditor({
         : freeCount > 0
           ? `${freeCount} ${unit}${freeCount === 1 ? '' : 's'} free · ${cadence}`
           : cadence
+  // Creator-edited price note wins over the computed default.
+  const freeLine =
+    (aiHero as { free_line?: string | null } | null | undefined)?.free_line ||
+    freeLineDefault
 
   const sample = course.sample
   const sampleLesson = sample?.lesson_id
@@ -818,87 +839,87 @@ export function CourseDesignEditor({
   return (
     <>
       <GeneratedPortalPage
-      brand=""
-      title={course.title ?? 'Untitled Original'}
-      titleLines={aiHero?.titleLines ?? null}
-      eyebrow={aiHero?.eyebrow || ''}
-      badge={aiHero?.badge || (isEpisodic ? 'New Series' : 'New Course')}
-      desc={aiHero?.description || course.description || ''}
-      byline={aiHero?.byline || course.instructor_bio || ''}
-      instructorName={course.instructor_name ?? ''}
-      heroVariant={course.hero_variant ?? 'cover'}
-      cardVariant={course.lesson_card_variant ?? 'catalog'}
-      structure={isEpisodic ? 'episodic' : 'modules'}
-      trialMode={trialMode}
-      paywallEnabled={paywallEnabled}
-      freeLessons={freeCount}
-      playLabel={playLabel}
-      buyLabel={buyLabel}
-      freeLine={freeLine}
-      coverUrl={course.thumbnail_url}
-      coverPosition={course.thumbnail_object_position}
-      sampleImageUrl={sampleLesson?.thumbnail_url ?? null}
-      samplePlayable={samplePlayable}
-      samplePlaybackId={sampleLesson?.mux_playback_id ?? null}
-      samplePlaybackUrl={
-        (sampleLesson as { mux_playback_url?: string | null } | null)
-          ?.mux_playback_url ?? null
-      }
-      sampleStart={sample?.start_seconds ?? 0}
-      sampleDuration={sample?.duration_seconds ?? 0}
-      // Preview the public, not-yet-enrolled state: when a clip sample is the
-      // trial, the hero leads with the trailer and the sample takes the
-      // secondary slot — the same swap the live landing does. Without this the
-      // editor never showed that arrangement.
-      playStartsSample={trialMode === 'lesson_sample' && samplePlayable}
-      groups={groups}
-      lessonCount={flatLessons.length}
-      metaDuration={metaDuration}
-      enrollPriceSub={enrollPriceSub}
-      unit={unit}
-      dark={dark}
-      onToggleDark={toggleDark}
-      editable
-      trailerUrl={course.trailer_url}
-      onAddCover={onAddCover}
-      coverBusy={coverBusy}
-      onAddTrailer={onAddTrailer}
-      trailerBusy={trailerBusy}
-      trailerPct={trailerPct}
-      onCoverPosition={onCoverPosition}
-      onAddLessonImage={onAddLessonImage}
-      onRepositionLesson={onRepositionLesson}
-      onReplaceLessonImage={onReplaceLessonImage}
-      lessonImageBusy={lessonImageBusy}
-      onConfigureSample={() => setSampleOpen(true)}
-      onEditText={onEditText}
-      onAddFaq={onAddFaq}
-      onRemoveFaq={onRemoveFaq}
-      onAddBadge={onAddBadge}
-      onRemoveBadge={onRemoveBadge}
-      onAddBioParagraph={onAddBioParagraph}
-      onRemoveBioParagraph={onRemoveBioParagraph}
-      sectionVisible={course.landing_overrides?.visible}
-      onSetSectionHidden={onSetSectionHidden}
-      avatarUrl={
-        course.landing_overrides?.instructor_avatar_url ??
-        organization?.avatar_url ??
-        null
-      }
-      onEditAvatar={pickAvatar}
-      instructorSub={aiInstructor?.sub ?? ''}
-      instructorBio={aiInstructor?.bio ?? []}
-      portraitUrl={course.landing_overrides?.portrait_url ?? null}
-      portraitPosition={
-        course.landing_overrides?.portrait_object_position ?? null
-      }
-      portraitCaption={aiInstructor?.caption ?? ''}
-      onAddPortrait={onAddPortrait}
-      onPortraitPosition={onPortraitPosition}
-      portraitBusy={portraitBusy}
-      faq={aiFaq}
-      badges={course.landing_overrides?.badges ?? undefined}
-    />
+        brand=""
+        title={course.title ?? 'Untitled Original'}
+        titleLines={aiHero?.titleLines ?? null}
+        eyebrow={aiHero?.eyebrow || ''}
+        badge={aiHero?.badge || (isEpisodic ? 'New Series' : 'New Course')}
+        desc={aiHero?.description || course.description || ''}
+        byline={aiHero?.byline || course.instructor_bio || ''}
+        instructorName={course.instructor_name ?? ''}
+        heroVariant={course.hero_variant ?? 'cover'}
+        cardVariant={course.lesson_card_variant ?? 'catalog'}
+        structure={isEpisodic ? 'episodic' : 'modules'}
+        trialMode={trialMode}
+        paywallEnabled={paywallEnabled}
+        freeLessons={freeCount}
+        playLabel={playLabel}
+        buyLabel={buyLabel}
+        freeLine={freeLine}
+        coverUrl={course.thumbnail_url}
+        coverPosition={course.thumbnail_object_position}
+        sampleImageUrl={sampleLesson?.thumbnail_url ?? null}
+        samplePlayable={samplePlayable}
+        samplePlaybackId={sampleLesson?.mux_playback_id ?? null}
+        samplePlaybackUrl={
+          (sampleLesson as { mux_playback_url?: string | null } | null)
+            ?.mux_playback_url ?? null
+        }
+        sampleStart={sample?.start_seconds ?? 0}
+        sampleDuration={sample?.duration_seconds ?? 0}
+        // Preview the public, not-yet-enrolled state: when a clip sample is the
+        // trial, the hero leads with the trailer and the sample takes the
+        // secondary slot — the same swap the live landing does. Without this the
+        // editor never showed that arrangement.
+        playStartsSample={trialMode === 'lesson_sample' && samplePlayable}
+        groups={groups}
+        lessonCount={flatLessons.length}
+        metaDuration={metaDuration}
+        enrollPriceSub={enrollPriceSub}
+        unit={unit}
+        dark={dark}
+        onToggleDark={toggleDark}
+        editable
+        trailerUrl={course.trailer_url}
+        onAddCover={onAddCover}
+        coverBusy={coverBusy}
+        onAddTrailer={onAddTrailer}
+        trailerBusy={trailerBusy}
+        trailerPct={trailerPct}
+        onCoverPosition={onCoverPosition}
+        onAddLessonImage={onAddLessonImage}
+        onRepositionLesson={onRepositionLesson}
+        onReplaceLessonImage={onReplaceLessonImage}
+        lessonImageBusy={lessonImageBusy}
+        onConfigureSample={() => setSampleOpen(true)}
+        onEditText={onEditText}
+        onAddFaq={onAddFaq}
+        onRemoveFaq={onRemoveFaq}
+        onAddBadge={onAddBadge}
+        onRemoveBadge={onRemoveBadge}
+        onAddBioParagraph={onAddBioParagraph}
+        onRemoveBioParagraph={onRemoveBioParagraph}
+        sectionVisible={course.landing_overrides?.visible}
+        onSetSectionHidden={onSetSectionHidden}
+        avatarUrl={
+          course.landing_overrides?.instructor_avatar_url ??
+          organization?.avatar_url ??
+          null
+        }
+        onEditAvatar={pickAvatar}
+        instructorSub={aiInstructor?.sub ?? ''}
+        instructorBio={aiInstructor?.bio ?? []}
+        portraitUrl={course.landing_overrides?.portrait_url ?? null}
+        portraitPosition={
+          course.landing_overrides?.portrait_object_position ?? null
+        }
+        portraitCaption={aiInstructor?.caption ?? ''}
+        onAddPortrait={onAddPortrait}
+        onPortraitPosition={onPortraitPosition}
+        portraitBusy={portraitBusy}
+        faq={aiFaq}
+        badges={course.landing_overrides?.badges ?? undefined}
+      />
       {/* Sample picker — the sheet with the live video scrub preview (episode
           picker + inline clip player + start/duration sliders). It saves
           course.sample itself via useUpdateCourse. */}

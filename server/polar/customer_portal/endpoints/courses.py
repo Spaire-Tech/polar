@@ -3,7 +3,7 @@ from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 from fastapi import Depends, HTTPException
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload
 
 log = logging.getLogger(__name__)
@@ -14,6 +14,7 @@ from polar.course import mux as mux_client
 from polar.course.repository import (
     CourseEnrollmentRepository,
     CourseLessonRepository,
+    CourseRepository,
 )
 from polar.organization.repository import OrganizationRepository
 from polar.quotas.definitions import QuotaKey
@@ -411,6 +412,52 @@ async def list_enrolled_courses(
     return result
 
 
+async def _ensure_instructor_enrollment(
+    session: AsyncSession,
+    auth_subject: AuthSubject[CustomerSubject | Member],
+    course_id: UUID,
+) -> CourseEnrollment | None:
+    """Self-healing access for org members.
+
+    An instructor signing into the portal with their own email always has
+    access to their org's courses — whether they arrived through the
+    dashboard's Preview button or through the normal email-code sign-in,
+    and regardless of whether an earlier enrollment was revoked. Anyone
+    whose email doesn't belong to an org member of the course's
+    organization gets None (the normal 404 path).
+    """
+    customer = get_customer(auth_subject)
+    email = (customer.email or "").lower()
+    if not email or email.endswith("@course-preview.invalid"):
+        return None
+    course = await CourseRepository.from_session(session).get_by_id(course_id)
+    if course is None:
+        return None
+    if email not in await _instructor_emails(session, course.organization_id):
+        return None
+    # Mirror the admin's dashboard avatar onto their portal account so the
+    # top-right avatar shows their real picture instead of initials.
+    if customer.avatar_url is None:
+        avatar_stmt = (
+            select(User.avatar_url)
+            .join(UserOrganization, UserOrganization.user_id == User.id)
+            .where(
+                UserOrganization.organization_id == course.organization_id,
+                UserOrganization.deleted_at.is_(None),
+                func.lower(User.email) == email,
+                User.avatar_url.is_not(None),
+            )
+            .limit(1)
+        )
+        avatar_url = (await session.execute(avatar_stmt)).scalar_one_or_none()
+        if avatar_url:
+            customer.avatar_url = avatar_url
+            session.add(customer)
+    return await course_service.enroll_customer(
+        session, course_id=course_id, customer=customer, fire_events=False
+    )
+
+
 @router.get(
     "/{course_id}",
     summary="Get Enrolled Course",
@@ -424,6 +471,11 @@ async def get_enrolled_course(
     enrollment = await course_service.get_enrollment_for_customer(
         session, customer_id, course_id
     )
+    if enrollment is None:
+        # Org members always have access to their own org's courses.
+        enrollment = await _ensure_instructor_enrollment(
+            session, auth_subject, course_id
+        )
     if enrollment is None:
         raise HTTPException(status_code=404, detail="Course not found or not enrolled")
 
@@ -1375,10 +1427,18 @@ async def _load_authors(
             enrollment_id=row.id,
             name=_resolve_author_name(row.name, row.email),
             avatar_url=row.avatar_url,
+            # Legacy preview-sandbox authors were the admin acting as a
+            # student — badge them as the instructor too so old comments
+            # read as one identity.
             is_instructor=bool(
-                instructor_emails
-                and row.email
-                and row.email.lower() in instructor_emails
+                row.email
+                and (
+                    row.email.lower().endswith("@course-preview.invalid")
+                    or (
+                        instructor_emails
+                        and row.email.lower() in instructor_emails
+                    )
+                )
             ),
         )
         for row in result

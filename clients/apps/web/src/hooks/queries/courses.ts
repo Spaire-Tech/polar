@@ -244,6 +244,9 @@ export type LandingOverrides = {
     description?: string | null
     byline?: string | null
     titleLines?: string[] | null
+    // Custom price note under the hero CTAs (e.g. "Sample clip free ·
+    // one-time purchase"). Empty/absent → the computed default.
+    free_line?: string | null
   } | null
   // The creator's light/dark choice from onboarding — the public page and
   // portal render in this theme.
@@ -1484,9 +1487,7 @@ export const useInstructorHeartComment = (
         ['lesson-comments', token, courseId, lessonId],
         (prev) =>
           prev?.map((c) =>
-            c.id === commentId
-              ? { ...c, instructor_hearted: res.hearted }
-              : c,
+            c.id === commentId ? { ...c, instructor_hearted: res.hearted } : c,
           ),
       )
     },

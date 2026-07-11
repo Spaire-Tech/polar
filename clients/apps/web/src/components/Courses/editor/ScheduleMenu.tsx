@@ -1,11 +1,14 @@
 'use client'
 
 import { CourseModuleRead } from '@/hooks/queries/courses'
-import CalendarTodayOutlined from '@mui/icons-material/CalendarTodayOutlined'
 import CloseOutlined from '@mui/icons-material/CloseOutlined'
 import ScheduleOutlined from '@mui/icons-material/ScheduleOutlined'
 import { cn } from '@spaire/ui/lib/utils'
 import { useEffect, useRef, useState } from 'react'
+// The community's branded date picker + label format ("Thu, Jul 12") — the
+// same design the Events tab uses, for brand consistency across schedules.
+import '../../Community/hub/hub.css'
+import { DatePicker, fmtDateLabel } from '../../Community/hub/pickers'
 
 type Mode = 'always' | 'drip' | 'release'
 
@@ -178,17 +181,8 @@ function SchedulePanel({
               description="Unlock for everyone on a fixed date."
             />
             {mode === 'release' && (
-              <div className="mt-1 ml-7 flex items-center gap-2">
-                <CalendarTodayOutlined
-                  sx={{ fontSize: 14 }}
-                  className="text-gray-400"
-                />
-                <input
-                  type="date"
-                  value={releaseAt}
-                  onChange={(e) => setReleaseAt(e.target.value)}
-                  className="focus:border-ce-accent focus:ring-ce-accent-ring rounded-lg border border-gray-300 px-2 py-1.5 text-sm focus:ring-2 focus:outline-none"
-                />
+              <div className="spaire-hub mt-1 ml-7">
+                <DatePicker value={releaseAt} onChange={setReleaseAt} />
               </div>
             )}
           </div>
@@ -247,11 +241,8 @@ function ModeRow({
 
 function describe(module: CourseModuleRead): string {
   if (module.release_at) {
-    const d = new Date(module.release_at)
-    return `Releases ${d.toLocaleDateString(undefined, {
-      month: 'short',
-      day: 'numeric',
-    })}`
+    // Same date design as community event cards ("Thu, Jul 12").
+    return `Releases ${fmtDateLabel(toLocalDateInput(module.release_at))}`
   }
   if (module.drip_days != null) {
     return `Drips ${module.drip_days}d after enrollment`

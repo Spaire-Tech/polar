@@ -470,6 +470,7 @@ export type EditField =
   | 'eyebrow'
   | 'badge'
   | 'bdg'
+  | 'freeLine'
   | 'instructorName'
   | 'lessonTitle'
   | 'lessonDesc'
@@ -1486,7 +1487,18 @@ export function GeneratedPortalPage({
               <button className="abtn buy" type="button" onClick={onBuy}>
                 {buyLabel}
               </button>
-              {freeLine ? <div className="band-free">{freeLine}</div> : null}
+              {freeLine || editable ? (
+                <EditText
+                  editable={editable}
+                  onEditText={onEditText}
+                  field="freeLine"
+                  value={freeLine}
+                  className="band-free"
+                  tag="div"
+                  maxLength={80}
+                  placeholder="Add a price note"
+                />
+              ) : null}
             </div>
 
             <div className="band-desc">
@@ -1568,13 +1580,15 @@ export function GeneratedPortalPage({
                     + Add
                   </button>
                 )}
-                {/* The trailer also lives here in the metadata row, alongside
-                    the badge chips (Self-paced, Captions, …). */}
-                {showTrailerButton && (
+                {/* The free SAMPLE lives here in the metadata row, alongside
+                    the badge chips — the big CTA above is already the
+                    trailer. Renders only when a real, playable sample is
+                    configured; no sample, no chip. */}
+                {hasSampleSection && (
                   <button
                     className="bd-trailer"
                     type="button"
-                    onClick={playPrimary}
+                    onClick={startSample}
                   >
                     <svg
                       width="12"
@@ -1584,7 +1598,7 @@ export function GeneratedPortalPage({
                     >
                       <path d={PLAY_PATH} />
                     </svg>
-                    Trailer
+                    Sample
                   </button>
                 )}
               </div>
@@ -1785,7 +1799,7 @@ export function GeneratedPortalPage({
       {/* ════════ INSTRUCTOR (Course Page Empty State.html) ════════ */}
       {(instructorName || instructorSub || instructorBio.length > 0) &&
         !isSectionHidden('instructor') && (
-          <section className={`instructor${editable ? ' gpp-section' : ''}`}>
+          <section className={`instructor${editable ? 'gpp-section' : ''}`}>
             {editable && sectionHideControl('instructor')}
             <div className="inst-inner">
               <div className="inst-copy">
@@ -2027,7 +2041,7 @@ export function GeneratedPortalPage({
 
       {/* ════════ FREE SAMPLE (Course Page Empty State.html) ════════ */}
       {hasSampleSection && !isSectionHidden('sample') && (
-        <section className={`sample${editable ? ' gpp-section' : ''}`}>
+        <section className={`sample${editable ? 'gpp-section' : ''}`}>
           {editable && sectionHideControl('sample')}
           <div className="sample-eyebrow">Free Sample</div>
           <h2>Watch a free sample</h2>
@@ -2186,7 +2200,7 @@ export function GeneratedPortalPage({
       {/* ════════ LESSONS — module rows (CPES) or episode strip (MCP) ════════ */}
       {!isSectionHidden('lessons') &&
         (isEpisodic ? (
-          <div className={`lessons${editable ? ' gpp-section' : ''}`}>
+          <div className={`lessons${editable ? 'gpp-section' : ''}`}>
             {editable && sectionHideControl('lessons')}
             <div className="row-head strip-rh">
               {/* The strip lists every episode (locked ones included), so it's
@@ -2239,7 +2253,7 @@ export function GeneratedPortalPage({
             </div>
           </div>
         ) : (
-          <div className={`lessons${editable ? ' gpp-section' : ''}`}>
+          <div className={`lessons${editable ? 'gpp-section' : ''}`}>
             {editable && sectionHideControl('lessons')}
             {groups.map((g, gi) => (
               <section className="row" key={gi}>
@@ -2262,7 +2276,7 @@ export function GeneratedPortalPage({
       {/* ════════ FAQ (Course Page Empty State.html) ════════ */}
       {(faq.length > 0 || (editable && onAddFaq)) &&
         !isSectionHidden('faq') && (
-          <section className={`faq${editable ? ' gpp-section' : ''}`}>
+          <section className={`faq${editable ? 'gpp-section' : ''}`}>
             {editable && sectionHideControl('faq')}
             <div className="faq-inner">
               <h2>Questions? Answers.</h2>
