@@ -33,6 +33,7 @@ from polar.customer_notifications.endpoints import (
 from polar.customer_portal.endpoints import router as customer_portal_router
 from polar.customer_seat.endpoints import router as customer_seat_router
 from polar.customer_session.endpoints import router as customer_session_router
+from polar.demo_portal.endpoints import router as demo_portal_router
 from polar.discount.endpoints import router as discount_router
 from polar.dispute.endpoints import router as dispute_router
 from polar.email_broadcast.endpoints import router as email_broadcast_router
@@ -191,6 +192,8 @@ router.include_router(form_router)
 router.include_router(email_update_router)
 # /customer-sessions
 router.include_router(customer_session_router)
+# /demo-portal
+router.include_router(demo_portal_router)
 # /member-sessions
 router.include_router(member_session_router)
 # /integrations/plain

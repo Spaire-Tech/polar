@@ -150,6 +150,13 @@ class Settings(BaseSettings):
     CUSTOMER_SESSION_CODE_TTL: timedelta = timedelta(minutes=30)
     CUSTOMER_SESSION_CODE_LENGTH: int = 6
 
+    # Demo portal — public, no-login access to ONE showcase org's student
+    # portal (e.g. for a YC application demo). When set to an org slug,
+    # `/{slug}/portal/demo` mints a throwaway demo session so anyone with the
+    # link can browse that org's portal without logging in. Unset (default)
+    # disables the feature entirely; every other org is always unaffected.
+    DEMO_PORTAL_ORG_SLUG: str | None = None
+
     # Impersonation session
     IMPERSONATION_COOKIE_KEY: str = "spaire_original_session"
     IMPERSONATION_INDICATOR_COOKIE_KEY: str = "spaire_is_impersonating"
