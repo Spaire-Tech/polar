@@ -40,9 +40,10 @@ import {
   SettingsGroupItem,
 } from './SettingsGroup'
 
-// Hide the raw internal account/org ID from the creator-facing profile.
-// Set to true to surface it again (e.g. for support/debugging).
-const SHOW_INTERNAL_ID = false
+// Surface the raw internal account/org ID in the creator-facing profile so
+// creators can copy their Account ID (e.g. for support/integration/debugging).
+// Set to false to hide it again.
+const SHOW_INTERNAL_ID = true
 
 interface OrganizationDetailsFormProps {
   organization: schemas['Organization']
