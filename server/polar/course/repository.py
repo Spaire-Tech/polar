@@ -65,6 +65,30 @@ class CourseRepository(
         )
         return (await self.session.execute(statement)).scalar_one()
 
+    async def get_published_ids_by_organization(
+        self, organization_id: UUID
+    ) -> Sequence[UUID]:
+        """IDs of the organization's *published* courses (>= 1 published,
+        non-soft-deleted lesson). Mirrors count_published_by_organization;
+        used by the demo portal to auto-enroll the demo student in whatever
+        the creator has actually shipped.
+        """
+        published_course_ids = (
+            select(CourseModule.course_id)
+            .join(CourseLesson, CourseLesson.module_id == CourseModule.id)
+            .where(
+                CourseLesson.published.is_(True),
+                CourseLesson.deleted_at.is_(None),
+                CourseModule.deleted_at.is_(None),
+            )
+        )
+        statement = select(Course.id).where(
+            Course.organization_id == organization_id,
+            Course.deleted_at.is_(None),
+            Course.id.in_(published_course_ids),
+        )
+        return (await self.session.execute(statement)).scalars().all()
+
     def get_readable_statement(
         self, auth_subject: AuthSubject[User | Organization]
     ) -> Select[tuple[Course]]:
