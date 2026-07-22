@@ -19,10 +19,6 @@ export function WatchPageStyles() {
         --text-2: #86868b;
         --ink: #07080a;
         --blue: #0071e3;
-        /* Watched/completed accent — matches the community hub's blue
-           (hub.css --accent) so "watched" reads as the same blue students
-           see on community/comment surfaces. */
-        --watched: #0066cc;
         --hair: rgba(0, 0, 0, 0.12);
         --ans: #4a4a4f;
         --card-bg: #ffffff;
@@ -55,8 +51,6 @@ export function WatchPageStyles() {
         --ans: rgba(245, 245, 247, 0.78);
         --card-bg: #1d1d20;
         --card-bd: rgba(245, 245, 247, 0.12);
-        /* Brighter blue on dark, mirroring the community hub's dark --accent. */
-        --watched: #2997ff;
       }
       .sow *,
       .sow *::before,
@@ -352,7 +346,7 @@ export function WatchPageStyles() {
         text-shadow: 0 2px 18px rgba(0, 0, 0, 0.5);
       }
       .sow .pt-kicker.done {
-        color: var(--watched);
+        color: #6ddb8a;
       }
       .sow .pt-h {
         font-family: var(--po);
@@ -760,7 +754,7 @@ export function WatchPageStyles() {
         backdrop-filter: blur(8px);
       }
       .sow .lc-done {
-        background: color-mix(in srgb, var(--watched) 85%, transparent);
+        background: rgba(35, 160, 80, 0.85);
       }
       .sow .lc-dur {
         position: absolute;
@@ -872,7 +866,7 @@ export function WatchPageStyles() {
         font-variant-numeric: tabular-nums;
       }
       .sow .lc-meta .ok {
-        color: var(--watched);
+        color: #23a050;
         display: inline-flex;
         align-items: center;
         gap: 5px;
@@ -1275,7 +1269,7 @@ export function WatchPageStyles() {
           background: rgba(0, 0, 0, 0.45);
         }
         .sow .ml-state.done {
-          background: color-mix(in srgb, var(--watched) 90%, transparent);
+          background: rgba(35, 160, 80, 0.9);
         }
         .sow .ml-dur {
           position: absolute;
