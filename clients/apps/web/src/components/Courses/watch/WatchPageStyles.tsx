@@ -346,7 +346,7 @@ export function WatchPageStyles() {
         text-shadow: 0 2px 18px rgba(0, 0, 0, 0.5);
       }
       .sow .pt-kicker.done {
-        color: #6ddb8a;
+        color: oklch(0.55 0.2 265);
       }
       .sow .pt-h {
         font-family: var(--po);
@@ -754,7 +754,7 @@ export function WatchPageStyles() {
         backdrop-filter: blur(8px);
       }
       .sow .lc-done {
-        background: rgba(35, 160, 80, 0.85);
+        background: oklch(0.55 0.2 265 / 0.85);
       }
       .sow .lc-dur {
         position: absolute;
@@ -866,7 +866,7 @@ export function WatchPageStyles() {
         font-variant-numeric: tabular-nums;
       }
       .sow .lc-meta .ok {
-        color: #23a050;
+        color: oklch(0.55 0.2 265);
         display: inline-flex;
         align-items: center;
         gap: 5px;
@@ -1269,7 +1269,7 @@ export function WatchPageStyles() {
           background: rgba(0, 0, 0, 0.45);
         }
         .sow .ml-state.done {
-          background: rgba(35, 160, 80, 0.9);
+          background: oklch(0.55 0.2 265 / 0.9);
         }
         .sow .ml-dur {
           position: absolute;
