@@ -38,11 +38,14 @@ const CustomerPortalOrder = ({
   order,
   customerSessionToken,
   themingPreset,
+  modalWrapperClassName,
 }: {
   api: Client
   order: schemas['CustomerOrder']
   customerSessionToken: string
   themingPreset: ThemingPresetProps
+  /** Theme scope for portaled modals (e.g. 'spaire-portal sp-dark'). */
+  modalWrapperClassName?: string
 }) => {
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false)
 
@@ -387,6 +390,7 @@ const CustomerPortalOrder = ({
         isOpen={isPaymentModalOpen}
         onClose={() => setIsPaymentModalOpen(false)}
         themingPreset={themingPreset}
+        wrapperClassName={modalWrapperClassName}
       />
     </div>
   )

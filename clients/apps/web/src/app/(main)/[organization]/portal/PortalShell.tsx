@@ -49,7 +49,7 @@ export const PortalShell = ({
   // content and the overscroll flashed white.
   useEffect(() => {
     if (immersive || auth) return
-    const bg = dark ? '#141416' : '#ffffff'
+    const bg = dark ? '#141416' : '#f5f5f7'
     const touched: { el: HTMLElement; prev: string }[] = []
     let node: HTMLElement | null = rootRef.current?.parentElement ?? null
     while (node && node !== document.body) {

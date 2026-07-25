@@ -419,6 +419,7 @@ const BillingBody = ({
         title="Add payment method"
         isShown={isAddCardOpen}
         hide={hideAddCard}
+        wrapperClassName={'spaire-portal' + (dark ? ' sp-dark' : '')}
         modalContent={
           <AddPaymentMethodModal
             api={api}

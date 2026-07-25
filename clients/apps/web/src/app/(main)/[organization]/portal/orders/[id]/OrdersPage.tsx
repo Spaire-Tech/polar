@@ -29,6 +29,7 @@ const ClientPage = ({
       order={order}
       customerSessionToken={customerSessionToken}
       themingPreset={themingPreset}
+      modalWrapperClassName={'spaire-portal' + (dark ? ' sp-dark' : '')}
     />
   )
 }

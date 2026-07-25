@@ -23,8 +23,8 @@ const COLORS = {
   line: 'oklch(0.92 0.003 280)',
   lineSoft: 'oklch(0.945 0.003 280)',
   bg2: 'oklch(0.975 0.002 280)',
-  accent: 'oklch(0.55 0.20 265)',
-  accentSoft: 'oklch(0.55 0.20 265 / 0.10)',
+  accent: '#0066cc',
+  accentSoft: 'rgba(0, 102, 204, 0.1)',
 }
 
 const buildTree = (comments: LessonCommentRead[]): CommentNode[] =>
