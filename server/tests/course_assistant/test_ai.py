@@ -175,6 +175,64 @@ class TestSampleQuestions:
         assert ai.parse_sample_questions('[{"category":"core"}]') == []
 
 
+class TestLessonDraft:
+    def test_plain_json(self) -> None:
+        draft = ai.parse_lesson_draft(
+            '{"title": "Serve Mechanics", "description": "Build a repeatable '
+            'serve from the ground up", "overview": "In this one we fix your '
+            'toss.", "takeaways": ["Anchor your stance", "Slow the toss"]}'
+        )
+        assert draft is not None
+        assert draft.title == "Serve Mechanics"
+        assert draft.description.startswith("Build a repeatable")
+        assert draft.overview == "In this one we fix your toss."
+        assert draft.takeaways == ["Anchor your stance", "Slow the toss"]
+
+    def test_fenced_json_with_prose(self) -> None:
+        draft = ai.parse_lesson_draft(
+            'Here you go!\n```json\n{"title": "T", "description": "D", '
+            '"overview": "O", "takeaways": ["a"]}\n```'
+        )
+        assert draft is not None
+        assert draft.title == "T"
+        assert draft.takeaways == ["a"]
+
+    def test_takeaways_capped_at_four_and_cleaned(self) -> None:
+        draft = ai.parse_lesson_draft(
+            '{"takeaways": ["one", "  two  ", "", null, "three", "four", "five"]}'
+        )
+        assert draft is not None
+        assert draft.takeaways == ["one", "two", "three", "four"]
+
+    def test_garbage_returns_none(self) -> None:
+        assert ai.parse_lesson_draft("not json at all") is None
+        assert ai.parse_lesson_draft("") is None
+        assert ai.parse_lesson_draft("[1, 2, 3]") is None
+
+    def test_all_empty_fields_returns_none(self) -> None:
+        assert (
+            ai.parse_lesson_draft(
+                '{"title": "", "description": " ", "overview": "", "takeaways": []}'
+            )
+            is None
+        )
+
+    def test_prompt_carries_transcript_and_field_contract(self) -> None:
+        messages = ai.build_lesson_draft_messages(
+            transcript="Today we cover the kick serve.",
+            course_title="Tennis Mastery",
+            lesson_title="The Kick Serve",
+            instructor_name="Carla",
+        )
+        assert len(messages) == 1
+        content = messages[0]["content"]
+        assert "Today we cover the kick serve." in content
+        assert "Tennis Mastery" in content
+        assert "Carla" in content
+        for key in ('"title"', '"description"', '"overview"', '"takeaways"'):
+            assert key in content
+
+
 class TestCitations:
     def test_extract(self) -> None:
         class _Cite:

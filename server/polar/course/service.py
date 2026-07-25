@@ -571,6 +571,7 @@ class CourseService:
                 "transcript": None,
                 "transcript_status": None,
                 "transcript_cues": None,
+                "ai_autofill_status": None,
             },
         )
         await self._kick_assistant_rebuild(session, lesson.id)
@@ -607,6 +608,9 @@ class CourseService:
                 "transcript": None,
                 "transcript_status": None,
                 "transcript_cues": None,
+                # Fresh video, fresh AI draft: a cancel applied to the
+                # previous upload must not stick to this one.
+                "ai_autofill_status": None,
             },
         )
         await self._kick_assistant_rebuild(session, lesson.id)
@@ -718,9 +722,22 @@ class CourseService:
                     # Optimistic: the track may still arrive; let the
                     # reconcile cron resolve it rather than giving up.
                     transcript_status = "pending"
-            await lesson_repo.update(
-                lesson, update_dict={"transcript_status": transcript_status}
-            )
+            status_update: dict = {"transcript_status": transcript_status}
+            # Queue the AI lesson draft behind the transcript — unless the
+            # creator already clicked "I'll write it myself" while the video
+            # was still transcoding, or the deployment has no AI configured
+            # (the banner must never wait on something that can't happen).
+            if lesson.ai_autofill_status != "cancelled":
+                from polar.course_assistant.service import (
+                    is_configured as assistant_is_configured,
+                )
+
+                if transcript_status == "pending" and assistant_is_configured():
+                    status_update["ai_autofill_status"] = "pending"
+                elif lesson.ai_autofill_status == "pending":
+                    # No transcript will ever come for this asset.
+                    status_update["ai_autofill_status"] = "failed"
+            await lesson_repo.update(lesson, update_dict=status_update)
             if transcript_status == "unavailable":
                 # This lesson will never yield a transcript, so it may be
                 # the last thing the assistant build was waiting on.

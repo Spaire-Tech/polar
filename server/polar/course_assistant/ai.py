@@ -89,6 +89,18 @@ class SampleQuestion:
 
 
 @dataclass(frozen=True)
+class LessonDraft:
+    """AI-written lesson copy generated from a video transcript: the fields
+    the lesson editor's "Episode details" and "Episode overview" sections
+    carry. Any field may be empty when the model couldn't produce it."""
+
+    title: str
+    description: str
+    overview: str
+    takeaways: list[str]
+
+
+@dataclass(frozen=True)
 class SampleQA:
     """A reviewed-on-the-creator-side example: the question, the answer the
     assistant would give (grounded + in voice), an optional lesson citation,
@@ -874,6 +886,93 @@ def parse_sample_qa(text: str) -> list[SampleQA]:
     return result
 
 
+# Cap the transcript fed to the lesson-draft writer. Enough for a couple of
+# hours of speech; beyond that the opening + body carry the lesson anyway,
+# and the cap keeps the call's cost bounded.
+_LESSON_DRAFT_CHAR_CAP = 80_000
+
+
+def build_lesson_draft_messages(
+    *,
+    transcript: str,
+    course_title: str,
+    lesson_title: str | None,
+    instructor_name: str | None,
+) -> list[dict[str, Any]]:
+    """One-shot "watch the lesson, write its page" prompt.
+
+    Produces the exact fields the lesson editor carries: a one-line card
+    description, the instructor-voiced overview note, and 3-4 actionable
+    takeaways — plus a title suggestion the caller may or may not use.
+    """
+    who = instructor_name or "the instructor"
+    titled = f' The creator titled it "{lesson_title.strip()}".' if lesson_title and lesson_title.strip() else ""
+    instructions = (
+        f'Below is the full transcript of one video lesson from the course '
+        f'"{course_title}", taught by {who}.{titled}\n\n'
+        "Write the lesson's page copy, grounded ONLY in what is actually "
+        "taught in this transcript — never invent content. Produce:\n"
+        '- "title": a short, specific lesson title (max 8 words, no episode '
+        "numbers, no quotes);\n"
+        '- "description": ONE sentence for the lesson card, shown under the '
+        "title (max 140 characters, no trailing period needed);\n"
+        '- "overview": a short note to students in the instructor\'s own '
+        "voice (2-4 sentences, first person, like they're talking to one "
+        "student): why this lesson matters and what to actually do — not "
+        "just watch;\n"
+        '- "takeaways": 3 or 4 bullet points a student can act on, each a '
+        "single sentence starting with a verb (max 12 words each).\n\n"
+        "Respond with ONLY a JSON object with exactly those keys. No prose, "
+        "no markdown fence.\n\n"
+        f"Transcript:\n{transcript[:_LESSON_DRAFT_CHAR_CAP]}"
+    )
+    return [{"role": "user", "content": instructions}]
+
+
+def parse_lesson_draft(text: str) -> LessonDraft | None:
+    """Parse the lesson-draft JSON, tolerating code fences / stray prose.
+    Returns None when nothing usable came back."""
+    if not text:
+        return None
+    candidate = text.strip()
+    fence = re.search(r"```(?:json)?\s*(.+?)```", candidate, re.DOTALL)
+    if fence:
+        candidate = fence.group(1).strip()
+    else:
+        start = candidate.find("{")
+        end = candidate.rfind("}")
+        if start != -1 and end != -1 and end > start:
+            candidate = candidate[start : end + 1]
+    try:
+        data = json.loads(candidate)
+    except (ValueError, TypeError):
+        return None
+    if not isinstance(data, dict):
+        return None
+
+    def _clean(value: Any, cap: int) -> str:
+        return value.strip()[:cap] if isinstance(value, str) else ""
+
+    takeaways_raw = data.get("takeaways")
+    takeaways: list[str] = []
+    if isinstance(takeaways_raw, list):
+        for item in takeaways_raw:
+            cleaned = _clean(item, 200)
+            if cleaned:
+                takeaways.append(cleaned)
+            if len(takeaways) >= 4:
+                break
+    draft = LessonDraft(
+        title=_clean(data.get("title"), 500),
+        description=_clean(data.get("description"), 500),
+        overview=_clean(data.get("overview"), 2000),
+        takeaways=takeaways,
+    )
+    if not (draft.title or draft.description or draft.overview or draft.takeaways):
+        return None
+    return draft
+
+
 def extract_citations(message: Any) -> list[dict[str, Any]]:
     """Pull citation metadata out of a finished Anthropic message."""
     citations: list[dict[str, Any]] = []
@@ -1140,6 +1239,37 @@ async def generate_sample_questions(
         if getattr(block, "type", None) == "text":
             text += getattr(block, "text", "")
     return parse_sample_questions(text)
+
+
+async def generate_lesson_draft(
+    *,
+    api_key: str,
+    model: str,
+    transcript: str,
+    course_title: str,
+    lesson_title: str | None,
+    instructor_name: str | None,
+    max_tokens: int = 1024,
+) -> LessonDraft | None:
+    """Write a lesson's page copy (title / description / overview / takeaways)
+    from its video transcript. Returns None when the model produced nothing
+    parseable — the caller decides whether that's a retry or a give-up."""
+    client = _client(api_key)
+    message = await client.messages.create(
+        model=model,
+        max_tokens=max_tokens,
+        messages=build_lesson_draft_messages(
+            transcript=transcript,
+            course_title=course_title,
+            lesson_title=lesson_title,
+            instructor_name=instructor_name,
+        ),
+    )
+    text = ""
+    for block in getattr(message, "content", None) or []:
+        if getattr(block, "type", None) == "text":
+            text += getattr(block, "text", "")
+    return parse_lesson_draft(text)
 
 
 async def generate_sample_qa(

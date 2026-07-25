@@ -22,9 +22,11 @@ import {
   CourseModuleRead,
   CourseRead,
   LessonAttachment,
+  useCancelLessonAiAutofill,
   useCreateMuxUpload,
   useDeleteLessonAttachment,
   useRemoveLessonVideo,
+  useRewriteLessonAi,
   useUpdateCourse,
   useUpdateCourseLesson,
   useUploadLessonAttachment,
@@ -281,6 +283,112 @@ export function LessonEditorV2({
     setDiscussion(v)
     queueSave({ comments_mode: v ? 'visible' : 'hidden' })
   }
+
+  // ── AI lesson draft ──
+  // While the video uploads/transcodes/transcribes, the AI is queued to write
+  // the lesson's description, overview and takeaways from the transcript.
+  // The banner tells the creator to hang tight, with an opt-out; once the
+  // transcript exists, per-section "Rewrite with AI" buttons take over.
+  const cancelAiAutofill = useCancelLessonAiAutofill()
+  const rewriteAi = useRewriteLessonAi()
+  const aiStatus = lesson.ai_autofill_status ?? null
+  // Optimistic hide so the banner disappears the instant they click.
+  const [aiCancelled, setAiCancelled] = useState(false)
+  const [rewriting, setRewriting] = useState<null | 'details' | 'overview'>(
+    null,
+  )
+  const aiDrafting =
+    hasVideo &&
+    captions &&
+    !aiCancelled &&
+    !videoErrored &&
+    !quotaExceeded &&
+    // 'pending' is authoritative once the asset attaches; before that (while
+    // the upload/transcode is still running) the status is null, so lean on
+    // the processing state to show the banner from the very first second.
+    (aiStatus === 'pending' || (aiStatus == null && processing))
+  const transcriptReady =
+    lesson.content_type === 'video' && lesson.transcript_status === 'ready'
+
+  const onCancelAi = () => {
+    setAiCancelled(true)
+    cancelAiAutofill.mutate(lesson.id, {
+      onError: () => setAiCancelled(false),
+    })
+  }
+
+  const onRewriteAi = async (section: 'details' | 'overview') => {
+    if (rewriting) return
+    setRewriting(section)
+    try {
+      const updated = await rewriteAi.mutateAsync({
+        lessonId: lesson.id,
+        section,
+      })
+      // The server already persisted the rewrite — adopt it locally (state +
+      // the autosave ref, so a queued content save can't resurrect old copy).
+      if (section === 'details') {
+        setTitle(updated.title ?? '')
+        setDesc(updated.description ?? '')
+      } else {
+        const c = (updated.content ?? {}) as LessonContent
+        setOverview(c.overview ?? '')
+        setTakeaways(
+          c.takeaways && c.takeaways.length > 0 ? c.takeaways : ['', ''],
+        )
+        contentRef.current = {
+          ...contentRef.current,
+          overview: c.overview,
+          takeaways: c.takeaways,
+        }
+      }
+      toast({
+        title:
+          section === 'details'
+            ? 'Details rewritten from the video'
+            : 'Overview rewritten from the video',
+      })
+    } catch (err) {
+      toast({
+        title: 'Rewrite failed',
+        description: apiErrorDetail(err) ?? 'Please try again.',
+      })
+    } finally {
+      setRewriting(null)
+    }
+  }
+
+  // When the AI draft lands while this editor is open, pull the freshly
+  // written copy into any still-empty local fields (mount-time seeding covers
+  // the closed-editor case). Guarded on the status *transition* so it fires
+  // exactly once and never overwrites something the creator typed meanwhile.
+  const prevAiStatus = useRef(aiStatus)
+  useEffect(() => {
+    const prev = prevAiStatus.current
+    if (aiStatus === prev) return
+    prevAiStatus.current = aiStatus
+    if (aiStatus !== 'done') return
+    const c = (lesson.content ?? {}) as LessonContent
+    if (!desc.trim() && lesson.description) {
+      setDesc(lesson.description)
+    }
+    if (!overview.trim() && c.overview) {
+      setOverview(c.overview)
+      contentRef.current = { ...contentRef.current, overview: c.overview }
+    }
+    if (
+      !takeaways.some((t) => t.trim()) &&
+      c.takeaways &&
+      c.takeaways.length > 0
+    ) {
+      setTakeaways(c.takeaways)
+      contentRef.current = { ...contentRef.current, takeaways: c.takeaways }
+    }
+    toast({
+      title: 'AI drafted this lesson from the video',
+      description: 'Review the details and overview — edit anything freely.',
+    })
+  }, [aiStatus, lesson.description, lesson.content, desc, overview, takeaways])
 
   const pickVideo = () => {
     const input = document.createElement('input')
@@ -801,9 +909,57 @@ export function LessonEditorV2({
           </div>
         </section>
 
+        {/* ════════ AI LESSON DRAFT (banner while the AI writes the page) ════════ */}
+        {aiDrafting && (
+          <section className="sec">
+            <div className="ai-banner" role="status">
+              <span className="ai-spin" aria-hidden />
+              <div className="ai-b-main">
+                <div className="ai-b-t">
+                  Our AI is writing this {unitCap.toLowerCase()} for you
+                </div>
+                <div className="ai-b-s">
+                  Once the video finishes transcribing, the description,
+                  overview and takeaways below will fill in automatically.
+                  Anything you write yourself is always kept.
+                </div>
+              </div>
+              <button
+                className="btn-glass"
+                type="button"
+                onClick={onCancelAi}
+              >
+                I’ll write it myself
+              </button>
+            </div>
+          </section>
+        )}
+
         {/* ════════ LESSON DETAILS ════════ */}
         <section className="sec">
-          <div className="sec-h">{unitCap} details</div>
+          <div className="sec-h sec-h-row">
+            <span>{unitCap} details</span>
+            {transcriptReady && (
+              <button
+                className="ai-rewrite"
+                type="button"
+                disabled={rewriting !== null}
+                onClick={() => void onRewriteAi('details')}
+              >
+                {rewriting === 'details' ? (
+                  <>
+                    <span className="ai-spin sm" aria-hidden />
+                    Rewriting…
+                  </>
+                ) : (
+                  <>
+                    <SparkleIco />
+                    Rewrite with AI
+                  </>
+                )}
+              </button>
+            )}
+          </div>
           <div className="card">
             <div className="field">
               <div className="f-label">Title</div>
@@ -832,7 +988,29 @@ export function LessonEditorV2({
 
         {/* ════════ OVERVIEW ════════ */}
         <section className="sec">
-          <div className="sec-h">{unitCap} overview</div>
+          <div className="sec-h sec-h-row">
+            <span>{unitCap} overview</span>
+            {transcriptReady && (
+              <button
+                className="ai-rewrite"
+                type="button"
+                disabled={rewriting !== null}
+                onClick={() => void onRewriteAi('overview')}
+              >
+                {rewriting === 'overview' ? (
+                  <>
+                    <span className="ai-spin sm" aria-hidden />
+                    Rewriting…
+                  </>
+                ) : (
+                  <>
+                    <SparkleIco />
+                    Rewrite with AI
+                  </>
+                )}
+              </button>
+            )}
+          </div>
           <div className="card">
             <div className="field">
               <div className="f-label">Your note to students</div>
@@ -1105,6 +1283,16 @@ export function LessonEditorV2({
 }
 
 /* ── small building blocks ── */
+
+// Four-point sparkle for the AI affordances — filled, inherits currentColor.
+function SparkleIco() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M12 2.6l2.2 5.9 5.9 2.2-5.9 2.2L12 18.8l-2.2-5.9-5.9-2.2 5.9-2.2L12 2.6z" />
+      <path d="M19.6 15.4l1 2.6 2.6 1-2.6 1-1 2.6-1-2.6-2.6-1 2.6-1 1-2.6z" />
+    </svg>
+  )
+}
 
 function Ico({
   d,
@@ -1425,6 +1613,77 @@ function LessonEditorStyles() {
         line-height: 1.5;
         color: var(--text-2);
         margin: 8px 18px 0;
+      }
+      /* Section header row: label left, "Rewrite with AI" pill right. */
+      .led .sec-h-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+      .led .ai-rewrite {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        height: 26px;
+        padding: 0 12px;
+        border-radius: 980px;
+        background: var(--color-ce-accent-tint);
+        color: var(--blue);
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+        text-transform: none;
+        white-space: nowrap;
+        transition:
+          background 0.18s,
+          opacity 0.16s;
+      }
+      .led .ai-rewrite:hover {
+        background: var(--color-ce-accent-tint-strong);
+      }
+      .led .ai-rewrite:disabled {
+        opacity: 0.55;
+        cursor: default;
+      }
+      /* "AI is writing this lesson" banner — blue-tinted glass card. */
+      .led .ai-banner {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 16px 18px;
+        border-radius: 18px;
+        background: var(--color-ce-accent-tint);
+        border: 1px solid var(--color-ce-accent-border);
+      }
+      .led .ai-b-main {
+        flex: 1;
+        min-width: 0;
+      }
+      .led .ai-b-t {
+        font-size: 14px;
+        font-weight: 650;
+        color: var(--text);
+        letter-spacing: -0.014em;
+      }
+      .led .ai-b-s {
+        font-size: 13px;
+        line-height: 1.45;
+        color: var(--text-2);
+        margin-top: 2px;
+      }
+      .led .ai-spin {
+        flex-shrink: 0;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        border: 2px solid var(--color-ce-accent-ring);
+        border-top-color: var(--blue);
+        animation: led-spin 0.8s linear infinite;
+      }
+      .led .ai-spin.sm {
+        width: 11px;
+        height: 11px;
       }
       .led .card {
         background: var(--card);

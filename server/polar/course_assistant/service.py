@@ -62,6 +62,14 @@ class AssistantNotAvailable(CourseAssistantError):
     """No live assistant exists for this course."""
 
 
+class TranscriptNotReady(CourseAssistantError):
+    """The lesson has no ready transcript to write AI lesson copy from."""
+
+
+class DraftGenerationFailed(CourseAssistantError):
+    """The model produced nothing usable for the lesson draft."""
+
+
 class NotEnrolled(CourseAssistantError):
     """The customer is not enrolled in the course."""
 
@@ -160,6 +168,9 @@ class CourseAssistantService:
                 "transcript_status": "ready" if text else "failed",
             },
         )
+        await self._resolve_autofill_after_transcript(
+            session, lesson, stored=bool(text)
+        )
         return await lesson_repo.get_course_id_for_lesson(lesson_id)
 
     async def fetch_and_store_transcript(
@@ -179,6 +190,9 @@ class CourseAssistantService:
             await lesson_repo.update(
                 lesson, update_dict={"transcript_status": "unavailable"}
             )
+            await self._resolve_autofill_after_transcript(
+                session, lesson, stored=False
+            )
             return False
         vtt = await mux_client.get_caption_vtt(
             lesson.mux_asset_id, lesson.mux_playback_id
@@ -196,6 +210,9 @@ class CourseAssistantService:
                 "transcript_status": "ready" if text else "failed",
             },
         )
+        await self._resolve_autofill_after_transcript(
+            session, lesson, stored=bool(text)
+        )
         return bool(text)
 
     async def mark_transcript_status(
@@ -206,7 +223,155 @@ class CourseAssistantService:
         if lesson is None:
             return None
         await lesson_repo.update(lesson, update_dict={"transcript_status": status})
+        if status in ("failed", "unavailable"):
+            # No transcript will ever come — the AI lesson draft can't run.
+            await self._resolve_autofill_after_transcript(
+                session, lesson, stored=False
+            )
         return await lesson_repo.get_course_id_for_lesson(lesson_id)
+
+    # ----------------------------------------------------------------- #
+    # AI lesson draft (autofill + per-section rewrite)
+    # ----------------------------------------------------------------- #
+
+    async def _resolve_autofill_after_transcript(
+        self, session: AsyncSession, lesson: CourseLesson, *, stored: bool
+    ) -> None:
+        """The transcript pipeline just resolved for this lesson: kick the AI
+        lesson draft if a transcript landed, or fail the autofill if one never
+        will. No-op unless the lesson is actually waiting on it."""
+        if lesson.ai_autofill_status != "pending":
+            return
+        if stored:
+            from polar.worker import enqueue_job
+
+            enqueue_job("course_assistant.autofill_lesson", lesson_id=lesson.id)
+        else:
+            lesson_repo = CourseLessonRepository.from_session(session)
+            await lesson_repo.update(
+                lesson, update_dict={"ai_autofill_status": "failed"}
+            )
+
+    async def _course_for_lesson(
+        self, session: AsyncSession, lesson_id: UUID
+    ) -> Course | None:
+        lesson_repo = CourseLessonRepository.from_session(session)
+        course_id = await lesson_repo.get_course_id_for_lesson(lesson_id)
+        if course_id is None:
+            return None
+        return await CourseRepository.from_session(session).get_by_id(course_id)
+
+    async def _generate_lesson_draft(
+        self, session: AsyncSession, lesson: CourseLesson
+    ) -> ai.LessonDraft | None:
+        course = await self._course_for_lesson(session, lesson.id)
+        return await ai.generate_lesson_draft(
+            api_key=settings.ANTHROPIC_API_KEY,
+            model=settings.COURSE_ASSISTANT_BUILD_MODEL,
+            transcript=lesson.transcript or "",
+            course_title=(course.title if course else None) or "this course",
+            lesson_title=lesson.title,
+            instructor_name=course.instructor_name if course else None,
+        )
+
+    async def autofill_lesson(
+        self, session: AsyncSession, *, lesson_id: UUID
+    ) -> None:
+        """Write the AI lesson draft into the lesson's EMPTY fields only —
+        description, overview note, and takeaways. Never touches anything the
+        creator already wrote (including the title — they named the lesson).
+        Terminal either way: 'done' or 'failed', so the editor's banner always
+        resolves."""
+        lesson_repo = CourseLessonRepository.from_session(session)
+        lesson = await lesson_repo.get_by_id(lesson_id)
+        if lesson is None or lesson.ai_autofill_status != "pending":
+            return
+        if not is_configured() or not (lesson.transcript or "").strip():
+            await lesson_repo.update(
+                lesson, update_dict={"ai_autofill_status": "failed"}
+            )
+            return
+
+        try:
+            draft = await self._generate_lesson_draft(session, lesson)
+        except Exception:
+            log.exception(
+                "course_assistant.autofill_failed",
+                extra={"lesson_id": str(lesson_id)},
+            )
+            draft = None
+        if draft is None:
+            await lesson_repo.update(
+                lesson, update_dict={"ai_autofill_status": "failed"}
+            )
+            return
+
+        update: dict[str, Any] = {"ai_autofill_status": "done"}
+        if draft.description and not (lesson.description or "").strip():
+            update["description"] = draft.description
+        content = dict(lesson.content or {})
+        content_changed = False
+        if draft.overview and not str(content.get("overview") or "").strip():
+            content["overview"] = draft.overview
+            content_changed = True
+        existing_takeaways = content.get("takeaways")
+        has_takeaways = isinstance(existing_takeaways, list) and any(
+            str(item or "").strip() for item in existing_takeaways
+        )
+        if draft.takeaways and not has_takeaways:
+            content["takeaways"] = draft.takeaways
+            content_changed = True
+        if content_changed:
+            update["content"] = content
+        await lesson_repo.update(lesson, update_dict=update)
+        log.info(
+            "course_assistant.autofill_done",
+            extra={
+                "lesson_id": str(lesson_id),
+                "filled": [k for k in update if k != "ai_autofill_status"],
+            },
+        )
+
+    async def rewrite_lesson_section(
+        self,
+        session: AsyncSession,
+        lesson: CourseLesson,
+        *,
+        section: str,
+    ) -> CourseLesson:
+        """Deliberately rewrite one editor section from the transcript.
+
+        'details' → title + description; 'overview' → overview note +
+        takeaways. Unlike autofill this OVERWRITES — the creator explicitly
+        clicked "Rewrite with AI" on that section."""
+        if not is_configured():
+            raise NotConfigured()
+        if lesson.transcript_status != "ready" or not (
+            lesson.transcript or ""
+        ).strip():
+            raise TranscriptNotReady()
+
+        draft = await self._generate_lesson_draft(session, lesson)
+        if draft is None:
+            raise DraftGenerationFailed()
+
+        lesson_repo = CourseLessonRepository.from_session(session)
+        update: dict[str, Any] = {}
+        if section == "details":
+            if draft.title:
+                update["title"] = draft.title
+            if draft.description:
+                update["description"] = draft.description
+        else:  # overview
+            content = dict(lesson.content or {})
+            if draft.overview:
+                content["overview"] = draft.overview
+            if draft.takeaways:
+                content["takeaways"] = draft.takeaways
+            update["content"] = content
+        if not update:
+            raise DraftGenerationFailed()
+        return await lesson_repo.update(lesson, update_dict=update)
 
     async def _buildable_lessons(
         self, session: AsyncSession, course_id: UUID

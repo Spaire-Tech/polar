@@ -75,6 +75,16 @@ async def fetch_transcript(lesson_id: UUID) -> None:
             enqueue_job("course_assistant.maybe_build", course_id=course_id)
 
 
+@actor(actor_name="course_assistant.autofill_lesson", priority=TaskPriority.LOW)
+async def autofill_lesson(lesson_id: UUID) -> None:
+    """Write the AI lesson draft (description / overview / takeaways) into a
+    lesson's empty fields, from its just-landed transcript. Gated inside the
+    service on ai_autofill_status='pending', so retries and duplicate enqueues
+    are harmless no-ops."""
+    async with AsyncSessionMaker() as session:
+        await service.autofill_lesson(session, lesson_id=lesson_id)
+
+
 @actor(actor_name="course_assistant.maybe_build", priority=TaskPriority.LOW)
 async def maybe_build(course_id: UUID) -> None:
     """Build the course's assistant if it's configured, has content, and every
@@ -130,6 +140,11 @@ async def reconcile() -> None:
                     enqueue_job("course_assistant.maybe_build", course_id=course_id)
             else:
                 enqueue_job("course_assistant.fetch_transcript", lesson_id=lesson.id)
+
+        # AI lesson drafts whose transcript landed but whose autofill enqueue
+        # was dropped — re-kick them so the editor banner always resolves.
+        for lesson in await lesson_repo.list_pending_autofills():
+            enqueue_job("course_assistant.autofill_lesson", lesson_id=lesson.id)
 
         assistant_repo = CourseAssistantRepository.from_session(session)
         for course_id in await assistant_repo.list_course_ids_needing_build():

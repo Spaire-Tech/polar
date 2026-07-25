@@ -70,6 +70,10 @@ export type CourseLessonRead = {
   // Course Assistant transcript pipeline state for video lessons:
   // pending | ready | failed | unavailable (null = not started / not a video).
   transcript_status?: string | null
+  // AI lesson-draft pipeline state — drives the lesson editor's "AI is
+  // drafting your lesson…" banner: pending | done | failed | cancelled
+  // (null = not started / not a video).
+  ai_autofill_status?: string | null
   thumbnail_url: string | null
   thumbnail_object_position: string | null
   description?: string | null
@@ -386,7 +390,20 @@ export const useCourseById = (courseId: string | undefined) =>
             l.transcript_status === 'pending',
         ),
       )
-      return hasPendingMux || hasPendingTranscript ? 5000 : false
+      // …and while the AI lesson draft is still being written (it runs
+      // right after the transcript lands), so the editor's banner resolves
+      // and the drafted fields pop in without a manual refresh.
+      const hasPendingAutofill = data.modules.some((m) =>
+        m.lessons.some(
+          (l) =>
+            l.content_type === 'video' &&
+            l.mux_status === 'ready' &&
+            l.ai_autofill_status === 'pending',
+        ),
+      )
+      return hasPendingMux || hasPendingTranscript || hasPendingAutofill
+        ? 5000
+        : false
     },
   })
 
@@ -972,6 +989,38 @@ export const useCreateMuxUpload = () =>
     // without this, replace-video on a previously-ready lesson briefly
     // shows the old video and no progress UI between XHR finishing and
     // the next ambient refetch.
+    onSuccess: invalidateCourseQueries,
+  })
+
+// "I'll write it myself": stop the AI from auto-filling this lesson's
+// details. Only the autofill is cancelled — the transcript keeps
+// generating for captions and the Course Assistant.
+export const useCancelLessonAiAutofill = () =>
+  useMutation({
+    mutationFn: (lessonId: string) =>
+      courseApiFetch<CourseLessonRead>(
+        `/v1/courses/lessons/${lessonId}/ai-autofill/cancel`,
+        { method: 'POST' },
+      ),
+    onSuccess: invalidateCourseQueries,
+  })
+
+// Rewrite one editor section from the lesson's video transcript.
+// "details" → title + description; "overview" → overview note + takeaways.
+// Overwrites that section — only offered once the transcript is ready.
+export const useRewriteLessonAi = () =>
+  useMutation({
+    mutationFn: ({
+      lessonId,
+      section,
+    }: {
+      lessonId: string
+      section: 'details' | 'overview'
+    }) =>
+      courseApiFetch<CourseLessonRead>(
+        `/v1/courses/lessons/${lessonId}/ai-rewrite`,
+        { method: 'POST', body: JSON.stringify({ section }) },
+      ),
     onSuccess: invalidateCourseQueries,
   })
 
