@@ -28,7 +28,7 @@ const MeterRing = ({
       className="h-3 w-3 rounded-full"
       title={`${Math.round(ratio * 100)}% of credited units consumed`}
       style={{
-        background: `conic-gradient(#3b82f6 ${deg}deg, var(--sp-line, #e5e7eb) ${deg}deg)`,
+        background: `conic-gradient(var(--sp-accent, #0066cc) ${deg}deg, var(--sp-line, #e5e7eb) ${deg}deg)`,
         transition: 'all 0.3s ease',
       }}
     />

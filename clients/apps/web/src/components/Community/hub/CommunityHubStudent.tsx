@@ -10,6 +10,7 @@
  * capabilities via <HubProvider viewer="member">. Read-only hero, no publish,
  * no moderation. Tabs: Feed · Activities · Events · Members · Profile.
  */
+import { PortalLoading } from '@/app/(main)/[organization]/portal/_components/PortalLoading'
 import {
   useCommunityMembers,
   useCommunitySettings,
@@ -127,6 +128,15 @@ export function CommunityHubStudent({
     [token, selfEnrollmentId],
   )
 
+  // Hold the whole hub behind the boot loader until the course detail AND
+  // community settings have landed. Rendering earlier painted the hero
+  // without its cover (then with the course thumbnail, then with the
+  // settings override + saved object-position) — the "image jumps into
+  // place" glitch on entering Community.
+  if (detailQ.isLoading || settingsQ.isLoading) {
+    return <PortalLoading />
+  }
+
   return (
     <HubProvider value={ctx}>
       <div className={`spaire-hub ${dark ? 'dark' : ''}`}>
@@ -202,7 +212,7 @@ export function CommunityHubStudent({
               token={token}
               selfName={selfName}
               selfAvatar={selfAvatar}
-              courseTitle={course?.title ?? 'your course'}
+              courseTitle={course?.title ?? 'your masterclass'}
               brandName={brand}
               lessonsCount={lessonsCount}
               onGoToCourse={goToCourse}

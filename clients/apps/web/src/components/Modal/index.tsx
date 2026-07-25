@@ -18,6 +18,10 @@ export interface ModalProps {
   hide: () => void
   modalContent: JSX.Element
   className?: string
+  /** Classes for the portaled root. The customer portal passes its theme
+   * scope ('spaire-portal sp-dark') here since the modal mounts on
+   * document.body, outside the themed tree. */
+  wrapperClassName?: string
 }
 
 export const Modal: FunctionComponent<ModalProps> = ({
@@ -26,6 +30,7 @@ export const Modal: FunctionComponent<ModalProps> = ({
   hide,
   modalContent,
   className,
+  wrapperClassName,
 }) => {
   const ref = React.useRef<HTMLDivElement>(null)
 
@@ -57,7 +62,10 @@ export const Modal: FunctionComponent<ModalProps> = ({
       <FocusLock>
         <div
           ref={ref}
-          className="fixed top-0 right-0 bottom-0 left-0 z-50 overflow-hidden focus-within:outline-none"
+          className={twMerge(
+            'fixed top-0 right-0 bottom-0 left-0 z-50 overflow-hidden focus-within:outline-none',
+            wrapperClassName,
+          )}
           aria-modal
           tabIndex={-1}
           role="dialog"

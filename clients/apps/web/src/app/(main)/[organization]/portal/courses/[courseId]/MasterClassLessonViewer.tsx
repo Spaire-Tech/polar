@@ -603,7 +603,7 @@ export const MasterClassLessonViewer = ({
                     fontSize: 11.5,
                     fontWeight: 600,
                     letterSpacing: '0.08em',
-                    color: 'oklch(0.55 0.20 265)',
+                    color: '#0066cc',
                     textTransform: 'uppercase',
                     marginBottom: 8,
                   }}
@@ -850,8 +850,7 @@ export const MasterClassLessonViewer = ({
                       width: 44,
                       height: 44,
                       borderRadius: '50%',
-                      background:
-                        'linear-gradient(135deg, oklch(0.55 0.20 265), oklch(0.62 0.16 285))',
+                      background: 'linear-gradient(135deg, #0a84ff, #0056b3)',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
@@ -942,7 +941,7 @@ export const MasterClassLessonViewer = ({
                               right: 0,
                               bottom: -1,
                               height: 2,
-                              background: 'oklch(0.55 0.20 265)',
+                              background: '#0066cc',
                               borderRadius: 2,
                             }}
                           />
@@ -1203,7 +1202,7 @@ export const MasterClassLessonViewer = ({
                                     lineHeight: 1.35,
                                     textWrap: 'pretty' as any,
                                     color: isActive
-                                      ? 'oklch(0.55 0.20 265)'
+                                      ? '#0066cc'
                                       : 'oklch(0.18 0.008 280)',
                                   }}
                                 >
@@ -1237,7 +1236,7 @@ export const MasterClassLessonViewer = ({
                         style={{
                           fontSize: 11,
                           fontWeight: 600,
-                          color: 'oklch(0.55 0.20 265)',
+                          color: '#0066cc',
                           textTransform: 'uppercase',
                           letterSpacing: '0.06em',
                           marginBottom: 4,
@@ -1339,9 +1338,9 @@ function ActionBtn({
   disabled?: boolean
   onClick?: () => void
 }) {
-  const baseBg = active ? 'oklch(0.55 0.20 265 / 0.10)' : '#ffffff'
+  const baseBg = active ? 'rgba(0, 102, 204, 0.1)' : '#ffffff'
   const baseColor = active
-    ? 'oklch(0.55 0.20 265)'
+    ? '#0066cc'
     : disabled
       ? 'oklch(0.66 0.006 280)'
       : 'oklch(0.18 0.008 280)'

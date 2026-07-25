@@ -46,9 +46,19 @@ export const usePortalTabs = (
   // token the API instance still gets built, but the underlying queries will
   // fail silently and gated tabs simply stay hidden.
   const api = React.useMemo(() => createClientSideAPI(token ?? ''), [token])
-  const { data: authenticatedUser } = usePortalAuthenticatedUser(api)
-  const { data: customer } = useAuthenticatedCustomer(api)
-  const { data: communityCourses } = useCommunityEnrolledCourses(token)
+  const { data: authenticatedUser, isLoading: userLoading } =
+    usePortalAuthenticatedUser(api)
+  const { data: customer, isLoading: customerLoading } =
+    useAuthenticatedCustomer(api)
+  const { data: communityCourses, isLoading: communityLoading } =
+    useCommunityEnrolledCourses(token)
+
+  // False until every tab-gating query has settled — PortalShell holds the
+  // whole portal behind the boot loader on this, so the gated tabs
+  // (Community / Enrollments / Billing) never pop in after the fact.
+  // (Disabled queries — no token — report isLoading: false, so a tokenless
+  // visit doesn't hang here.)
+  const ready = !userLoading && !customerLoading && !communityLoading
 
   // Community is only surfaced once at least one enrolled course has a live,
   // published community. Undefined data (still loading) keeps it hidden so we
@@ -86,7 +96,7 @@ export const usePortalTabs = (
       {
         key: 'courses',
         href: `/${slug}/portal/courses`,
-        label: 'Courses',
+        label: 'Masterclasses',
         // Don't light up Courses while inside a course's community sub-route —
         // that path belongs to the Community tab (matched below).
         matches: (p) =>
@@ -152,5 +162,6 @@ export const usePortalTabs = (
     customer,
     canAccessBilling,
     showTeam,
+    ready,
   }
 }

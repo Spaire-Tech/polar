@@ -9,6 +9,7 @@ import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import * as React from 'react'
 import { CheckIcon } from '../_components/icons'
+import { PortalLoading } from '../_components/PortalLoading'
 
 type Filter = 'all' | 'in_progress' | 'completed'
 
@@ -71,7 +72,7 @@ const CourseCard = ({
         {thumb ? (
           <img src={thumb} alt="" loading="lazy" style={{ objectPosition }} />
         ) : (
-          <div className="sp-card-media-fallback">Course</div>
+          <div className="sp-card-media-fallback">Masterclass</div>
         )}
       </div>
       <div className="sp-card-body">
@@ -107,29 +108,6 @@ const CourseCard = ({
   )
 }
 
-const CoursesSkeleton = () => (
-  <div className="sp-grid">
-    {[0, 1, 2, 3, 4, 5].map((i) => (
-      <div key={i} className="sp-card">
-        <div
-          className="sp-skel"
-          style={{ aspectRatio: '4 / 3', borderRadius: 14 }}
-        />
-        <div className="sp-card-body">
-          <div
-            className="sp-skel"
-            style={{ height: 16, marginBottom: 10, borderRadius: 6 }}
-          />
-          <div
-            className="sp-skel"
-            style={{ height: 12, width: '60%', borderRadius: 6 }}
-          />
-        </div>
-      </div>
-    ))}
-  </div>
-)
-
 const CoursesPage = ({
   organization,
   customerSessionToken,
@@ -158,18 +136,18 @@ const CoursesPage = ({
     <div className="sp-route">
       <div className="sp-page-head">
         <div>
-          <h1 className="sp-page-title">Courses</h1>
+          <h1 className="sp-page-title">Masterclasses</h1>
           {!isLoading && (
             <p className="sp-page-sub">
               {total === 0
-                ? 'Your courses will appear here once you enroll.'
-                : `${total} course${total === 1 ? '' : 's'} in your library — ${completedCount} completed`}
+                ? 'Your masterclasses will appear here once you enroll.'
+                : `${total} masterclass${total === 1 ? '' : 'es'} in your library — ${completedCount} completed`}
             </p>
           )}
         </div>
       </div>
 
-      <div className="sp-chips" role="tablist" aria-label="Course filter">
+      <div className="sp-chips" role="tablist" aria-label="Masterclass filter">
         {FILTERS.map((f) => (
           <button
             key={f.id}
@@ -185,19 +163,19 @@ const CoursesPage = ({
       </div>
 
       {isLoading ? (
-        <CoursesSkeleton />
+        <PortalLoading variant="inline" />
       ) : filtered.length === 0 ? (
         <div className="sp-empty">
           <div className="sp-empty-title">
             {total === 0
-              ? 'No courses yet'
+              ? 'No masterclasses yet'
               : filter === 'completed'
-                ? 'No completed courses yet'
+                ? 'No completed masterclasses yet'
                 : 'Nothing in progress'}
           </div>
           <div style={{ fontSize: 13, marginBottom: 16 }}>
             {total === 0
-              ? 'Courses you have access to will appear here.'
+              ? 'Masterclasses you have access to will appear here.'
               : 'Keep going — your progress will show up here.'}
           </div>
           {filter !== 'all' && total > 0 && (
@@ -206,7 +184,7 @@ const CoursesPage = ({
               className="sp-btn is-ghost"
               onClick={() => setFilter('all')}
             >
-              View all courses
+              View all masterclasses
             </button>
           )}
         </div>

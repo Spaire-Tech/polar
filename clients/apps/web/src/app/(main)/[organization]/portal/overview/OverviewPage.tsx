@@ -18,6 +18,7 @@ import { useSearchParams } from 'next/navigation'
 import { NuqsAdapter } from 'nuqs/adapters/next/app'
 import * as React from 'react'
 import { ArrowIcon, CheckIcon, PlayIcon } from '../_components/icons'
+import { PortalLoading } from '../_components/PortalLoading'
 
 const isCompleted = (e: CustomerCourseEnrollment) =>
   e.progress.total_lessons > 0 &&
@@ -75,7 +76,7 @@ const SmallCard = ({
             style={{ objectPosition }}
           />
         ) : (
-          <div className="sp-card-media-fallback">Course</div>
+          <div className="sp-card-media-fallback">Masterclass</div>
         )}
       </div>
       <div className="sp-card-body">
@@ -206,7 +207,7 @@ const OverviewBody = ({
   const focusTitle = focus?.course.title?.split(':')[0]?.trim()
 
   const stats: Array<{ label: string; value: string | number }> = [
-    { label: 'Courses started', value: list.length },
+    { label: 'Masterclasses started', value: list.length },
     { label: 'Completed', value: completed.length },
     { label: 'Minutes practiced', value: minutesPracticed },
     {
@@ -261,26 +262,7 @@ const OverviewBody = ({
       </div>
 
       {coursesLoading ? (
-        <div className="sp-grid" style={{ marginBottom: 48 }}>
-          {[0, 1, 2].map((i) => (
-            <div key={i} className="sp-card">
-              <div
-                className="sp-skel"
-                style={{ aspectRatio: '4 / 3', borderRadius: 14 }}
-              />
-              <div className="sp-card-body">
-                <div
-                  className="sp-skel"
-                  style={{ height: 16, marginBottom: 10, borderRadius: 6 }}
-                />
-                <div
-                  className="sp-skel"
-                  style={{ height: 12, width: '60%', borderRadius: 6 }}
-                />
-              </div>
-            </div>
-          ))}
-        </div>
+        <PortalLoading variant="inline" />
       ) : (
         <>
           {continueList.length > 0 && (

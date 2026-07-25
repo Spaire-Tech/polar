@@ -10,6 +10,7 @@ import {
 import { schemas } from '@spaire/client'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
+import { PortalLoading } from '../../_components/PortalLoading'
 import { MasterClassLessonViewer } from './MasterClassLessonViewer'
 
 interface FlatLesson {
@@ -143,18 +144,14 @@ const LessonViewerPage = ({
   }
 
   if (isLoading) {
-    return (
-      <div className="flex h-screen items-center justify-center bg-black">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-white border-t-transparent" />
-      </div>
-    )
+    return <PortalLoading />
   }
 
   if (error || !data) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-black p-6">
         <div className="max-w-md rounded-xl bg-red-900/30 p-6 text-red-400">
-          Could not load course. You may not have access.
+          Could not load masterclass. You may not have access.
         </div>
       </div>
     )

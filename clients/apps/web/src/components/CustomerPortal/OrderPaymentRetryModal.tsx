@@ -19,6 +19,8 @@ interface OrderPaymentRetryModalProps {
   onClose: () => void
   onSuccess?: (order: schemas['CustomerOrder']) => void
   themingPreset: ThemingPresetProps
+  /** Theme scope classes forwarded to the Modal's portaled root. */
+  wrapperClassName?: string
 }
 
 export const OrderPaymentRetryModal = ({
@@ -28,6 +30,7 @@ export const OrderPaymentRetryModal = ({
   onClose,
   onSuccess,
   themingPreset,
+  wrapperClassName,
 }: OrderPaymentRetryModalProps) => {
   const [error, setError] = useState<string>('')
   const [useNewCard, setUseNewCard] = useState<boolean>(false)
@@ -85,6 +88,7 @@ export const OrderPaymentRetryModal = ({
       title="Update Payment Method"
       isShown={isOpen}
       hide={handleClose}
+      wrapperClassName={wrapperClassName}
       modalContent={
         <>
           <div className="space-y-4 p-6">

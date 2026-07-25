@@ -442,7 +442,8 @@ function PortalProfileStyles() {
         transition: border-color 0.15s;
       }
       .po-field:focus-within {
-        border-color: oklch(0.62 0.21 265);
+        /* Portal accent (community blue) — NOT the wizard's indigo. */
+        border-color: var(--sp-accent, #0066cc);
       }
       .po-input {
         width: 100%;
@@ -451,7 +452,9 @@ function PortalProfileStyles() {
         border: 0;
         outline: 0;
         border-radius: inherit;
-        font-family: var(--font-poppins), system-ui, sans-serif;
+        font-family:
+          -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui,
+          sans-serif;
         font-size: 16px;
         font-weight: 400;
         color: #0a0a0a;
@@ -475,15 +478,17 @@ function PortalProfileStyles() {
           color 0.15s,
           top 0.15s;
       }
+      /* The floated label sits INSIDE the field (the input reserves
+         22px of top padding for it), so it needs no background chip —
+         a hardcoded white one here is what turned the "How should we
+         call you?" label into a white pill in dark mode. */
       .po-input:focus ~ .po-label,
       .po-input:not(:placeholder-shown) ~ .po-label {
         top: 10px;
         transform: none;
         font-size: 11px;
         color: rgba(0, 0, 0, 0.5);
-        background: #ffffff;
-        padding: 0 4px;
-        margin-left: -4px;
+        background: transparent;
       }
       .po-error {
         font-size: 12px;
@@ -499,7 +504,9 @@ function PortalProfileStyles() {
       .po-btn-back {
         background: none;
         border: none;
-        font-family: var(--font-poppins), system-ui, sans-serif;
+        font-family:
+          -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui,
+          sans-serif;
         font-size: 13px;
         color: rgba(0, 0, 0, 0.5);
         cursor: pointer;
@@ -514,11 +521,13 @@ function PortalProfileStyles() {
         justify-content: center;
         gap: 8px;
         padding: 13px 22px;
-        background: #0a0a0a;
-        color: #ffffff;
+        background: var(--sp-ink, #0a0a0a);
+        color: var(--sp-bg, #ffffff);
         border: none;
         border-radius: 100px;
-        font-family: var(--font-poppins), system-ui, sans-serif;
+        font-family:
+          -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui,
+          sans-serif;
         font-size: 14px;
         font-weight: 500;
         cursor: pointer;

@@ -606,6 +606,8 @@ export function PublicPortalView({
           playlist={previewPlaylist}
           currentId={watching.id}
           onSelectLesson={selectFromPlayer}
+          unitLabel={unitCap}
+          ctaVariant={heroVariant === 'marquee' ? 'marquee' : 'cover'}
         />
       )}
 

@@ -4,7 +4,9 @@ import { schemas } from '@spaire/client'
 import { usePathname, useSearchParams } from 'next/navigation'
 import { useEffect, useRef } from 'react'
 import { MobileTabBar } from './_components/MobileTabBar'
+import { PortalLoading } from './_components/PortalLoading'
 import { TopBar } from './_components/TopBar'
+import { usePortalTabs } from './_components/usePortalTabs'
 import './portal.css'
 import { usePortalTheme } from './usePortalTheme'
 
@@ -34,6 +36,10 @@ export const PortalShell = ({
     searchParams.get('member_session_token') ??
     ''
   const { dark } = usePortalTheme(organization.slug, token)
+  // Hold the whole portal behind the boot loader until the tab-gating
+  // queries settle — otherwise Overview/Masterclasses render first and the
+  // gated tabs (Community / Enrollments / Billing) pop in afterwards.
+  const { ready } = usePortalTabs(organization)
   const rootRef = useRef<HTMLDivElement | null>(null)
   const rootClass = `spaire-portal sp-app sp-app--mobile-tabs${
     dark ? ' sp-dark' : ''
@@ -49,7 +55,7 @@ export const PortalShell = ({
   // content and the overscroll flashed white.
   useEffect(() => {
     if (immersive || auth) return
-    const bg = dark ? '#141416' : '#ffffff'
+    const bg = dark ? '#141416' : '#f5f5f7'
     const touched: { el: HTMLElement; prev: string }[] = []
     let node: HTMLElement | null = rootRef.current?.parentElement ?? null
     while (node && node !== document.body) {
@@ -83,6 +89,16 @@ export const PortalShell = ({
     return (
       <div className={`spaire-portal sp-app ${signInDark ? 'sp-dark' : ''}`}>
         {children}
+      </div>
+    )
+  }
+
+  // Boot: black screen + gradient ring until the nav is fully resolved, so
+  // the portal appears in one piece instead of assembling itself.
+  if (!ready) {
+    return (
+      <div ref={rootRef} className={rootClass}>
+        <PortalLoading />
       </div>
     )
   }
