@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime
 
 import structlog
 from pydantic import HttpUrl
@@ -101,6 +102,8 @@ class CustomerSessionService(ResourceServiceReader[CustomerSession]):
         session: AsyncSession,
         customer: Customer,
         return_url: HttpUrl | None = None,
+        *,
+        expires_at: datetime | None = None,
     ) -> tuple[str, CustomerSession]:
         token, token_hash = generate_token_hash_pair(
             secret=settings.SECRET, prefix=CUSTOMER_SESSION_TOKEN_PREFIX
@@ -110,6 +113,11 @@ class CustomerSessionService(ResourceServiceReader[CustomerSession]):
             customer=customer,
             return_url=str(return_url) if return_url else None,
         )
+        # Callers may pin a custom lifetime (e.g. long-lived course preview
+        # links); otherwise the model default (utc_now + CUSTOMER_SESSION_TTL)
+        # applies, keeping normal portal logins short-lived.
+        if expires_at is not None:
+            customer_session.expires_at = expires_at
         session.add(customer_session)
         await session.flush()
 
