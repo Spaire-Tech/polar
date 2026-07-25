@@ -2,7 +2,6 @@
 
 import { CourseLessonRead } from '@/hooks/queries/courses'
 import ArrowBackOutlined from '@mui/icons-material/ArrowBackOutlined'
-import CalendarTodayOutlined from '@mui/icons-material/CalendarTodayOutlined'
 import CheckCircleOutlined from '@mui/icons-material/CheckCircleOutlined'
 import DeleteOutlineOutlined from '@mui/icons-material/DeleteOutlineOutlined'
 import LockOutlined from '@mui/icons-material/LockOutlined'
@@ -10,6 +9,10 @@ import ScheduleOutlined from '@mui/icons-material/ScheduleOutlined'
 import VisibilityOutlined from '@mui/icons-material/VisibilityOutlined'
 import { cn } from '@spaire/ui/lib/utils'
 import { ReactNode, useEffect, useRef, useState } from 'react'
+// The community's branded date picker + label format ("Thu, Jul 12") — the
+// same design the Events tab uses, for brand consistency across schedules.
+import '../../Community/hub/hub.css'
+import { DatePicker, fmtDateLabel } from '../../Community/hub/pickers'
 
 export type LessonOptionsPatch = {
   published?: boolean
@@ -23,11 +26,8 @@ type ScheduleMode = 'always' | 'drip' | 'release'
 
 export function describeLessonSchedule(lesson: CourseLessonRead): string {
   if (lesson.release_at) {
-    const d = new Date(lesson.release_at)
-    return `Releases ${d.toLocaleDateString(undefined, {
-      month: 'short',
-      day: 'numeric',
-    })}`
+    // Same date design as community event cards ("Thu, Jul 12").
+    return `Releases ${fmtDateLabel(toLocalDateInput(lesson.release_at))}`
   }
   if (lesson.drip_days != null) {
     return `Drips ${lesson.drip_days}d after enrollment`
@@ -291,17 +291,8 @@ function SchedulePanel({
               description="Unlock for everyone on a fixed date."
             />
             {mode === 'release' && (
-              <div className="mt-1 ml-7 flex items-center gap-2">
-                <CalendarTodayOutlined
-                  sx={{ fontSize: 13 }}
-                  className="text-gray-400"
-                />
-                <input
-                  type="date"
-                  value={date}
-                  onChange={(e) => setDate(e.target.value)}
-                  className="focus:border-ce-accent focus:ring-ce-accent-ring rounded-lg border border-gray-300 px-2 py-1 text-[12.5px] focus:ring-2 focus:outline-none"
-                />
+              <div className="spaire-hub mt-1 ml-7">
+                <DatePicker value={date} onChange={setDate} />
               </div>
             )}
           </div>

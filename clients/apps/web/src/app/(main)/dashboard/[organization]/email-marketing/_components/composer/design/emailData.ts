@@ -45,7 +45,11 @@ export interface PartDef {
 export interface BlockDef {
   label: string
   icon: string
-  group: string
+  // Palette group. Omit to hide the block from the add-block palette while
+  // keeping it renderable (e.g. `trailer`, dropped from the UI but still shown
+  // if an older saved email contains one). buildPalette only lists blocks whose
+  // group matches one of GROUPS.
+  group?: string
   defaults: (t: Theme) => Props
   render: (p: Props, t: Theme) => string
   inspect: (p: Props, t?: Theme) => GroupDescriptor[]
@@ -762,7 +766,9 @@ export const REG: Record<string, BlockDef> = {
   trailer: {
     label: 'Trailer',
     icon: ICO.trailer,
-    group: 'Course',
+    // No `group` → hidden from the add-block palette. Trailers don't play in
+    // email and the block is dropped from the templates; keeping the render
+    // (below) means any already-saved email that still has one won't break.
     defaults: (t) => ({
       img: 'assets/course-trailer.jpg',
       label: 'Watch the trailer',
@@ -1255,13 +1261,17 @@ export const TEMPLATES: Record<string, TemplateDef> = {
         type: 'coverHero',
         props: {
           img: 'assets/course-cover.jpg',
-          eyebrow: 'Spaire Originals',
-          // title / byline / tagline are course slots — bindCourse fills them.
+          // No brand eyebrow and no description paragraph — the cover is just
+          // the centered title, the "Taught by …" byline, and the CTA.
+          eyebrow: '',
+          // title / byline are course slots — bindCourse fills them.
           title: '',
           titleSize: 64,
+          titleAlign: 'center',
           instructor: '',
+          instructorAlign: 'center',
           tagline: '',
-          btn: { text: 'Start the course', style: 'solid', align: 'left', radius: 999 },
+          btn: { text: 'Start the course', style: 'solid', align: 'center', radius: 999 },
         },
       },
       {
@@ -1269,16 +1279,19 @@ export const TEMPLATES: Record<string, TemplateDef> = {
         props: {
           // heading + signature are filled from the course by bindCourse.
           heading: 'Welcome — you’re in.',
+          headingAlign: 'center',
+          bodyAlign: 'center',
           sign: '',
           signRole: 'Instructor',
+          // Signature sits far right, under the centered note.
+          signAlign: 'right',
           body: [
             'I’m really glad you’re here. Everything you need to get started is right inside — there’s no rush, so take it one lesson at a time and go at your own pace.',
           ],
         },
       },
-      { type: 'meta', props: {} },
-      { type: 'lessons', props: {} },
-      { type: 'trailer', props: { img: 'assets/course-trailer.jpg', label: 'Watch the trailer', sub: '2 min' } },
+      { type: 'meta', props: { align: 'center' } },
+      { type: 'lessons', props: { hAlign: 'center' } },
       { type: 'instructor', props: { img: 'assets/course-instructor.jpg' } },
       { type: 'cta', props: {} },
       { type: 'footer', props: {} },

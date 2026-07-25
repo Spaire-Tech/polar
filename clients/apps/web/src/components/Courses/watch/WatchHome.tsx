@@ -439,6 +439,7 @@ export function WatchHome({
     lesson: WatchLessonData
     playbackUrl: string | null
     playbackId: string | null
+    storyboardUrl: string | null
     startSec: number
   } | null>(null)
 
@@ -473,6 +474,7 @@ export function WatchHome({
           lesson: l,
           playbackUrl: minted.mux_playback_url ?? null,
           playbackId: minted.mux_playback_id ?? l.mux_playback_id,
+          storyboardUrl: minted.mux_storyboard_url ?? null,
           startSec,
         })
       } catch {
@@ -480,6 +482,35 @@ export function WatchHome({
       }
     },
     [fractionOf, mintUrl, onOpenTextLesson, showToast],
+  )
+
+  /* ── in-player lesson navigation (prev/next, up-next, lessons sheet) ── */
+  const playerPlaylist = useMemo(
+    () =>
+      lessons.map((l, i) => ({
+        id: l.id,
+        n: i + 1,
+        title: l.title,
+        durationSeconds: l.duration_seconds,
+        thumbnailUrl: l.thumbnail_url ?? course.thumbnail_url,
+        locked: l.locked,
+        watched: statusOf(l) === 'watched',
+      })),
+    [lessons, course.thumbnail_url, statusOf],
+  )
+  const selectFromPlayer = useCallback(
+    (lessonId: string) => {
+      const l = lessons.find((x) => x.id === lessonId)
+      if (!l) return
+      // Text/quiz lessons leave the player for the reading view — close the
+      // overlay first so it isn't left open underneath.
+      if (l.content_type !== 'video') {
+        setPlaying(null)
+        onPlayerClose?.()
+      }
+      void playLesson(l)
+    },
+    [lessons, playLesson, onPlayerClose],
   )
 
   /* ── deep-linked video (?lesson= / ?t=) opens straight in the player.
@@ -1357,6 +1388,12 @@ export function WatchHome({
 
       {playing && (
         <WatchPlayer
+          // Remount per lesson so playback state (time, completion latch,
+          // start-position seek) never leaks across in-player navigation.
+          key={playing.lesson.id}
+          playlist={playerPlaylist}
+          currentId={playing.lesson.id}
+          onSelectLesson={selectFromPlayer}
           lesson={{
             n: lessons.findIndex((l) => l.id === playing.lesson.id) + 1,
             title: playing.lesson.title,
@@ -1364,6 +1401,7 @@ export function WatchHome({
             thumbnailUrl: playing.lesson.thumbnail_url,
             muxPlaybackId: playing.playbackId,
             playbackUrl: playing.playbackUrl,
+            storyboardUrl: playing.storyboardUrl,
           }}
           courseTitle={course.title ?? ''}
           instructorName={course.instructor_name ?? organization.name}

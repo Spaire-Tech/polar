@@ -8,11 +8,13 @@ tab only ever shows actual students.
 """
 
 import pytest
+from fastapi import HTTPException
 
 from polar.auth.models import AuthSubject
 from polar.course.endpoints import get_preview_access
 from polar.course.service import course_service
 from polar.customer.repository import CustomerRepository
+from polar.customer_portal.endpoints.courses import get_enrolled_course
 from polar.models import Course, UserOrganization
 from polar.models.email_sequence import (
     EmailSequence,
@@ -170,3 +172,86 @@ async def test_enrollments_listing_shows_only_students(save_fixture, session):
 
     assert total == 1
     assert [e.customer_id for e in enrollments] == [student.id]
+
+
+@pytest.mark.asyncio
+async def test_preview_access_copies_admin_avatar(save_fixture, session):
+    org, course, user = await _course_with_admin(save_fixture)
+    user.avatar_url = "https://example.com/avatar.png"
+    await save_fixture(user)
+
+    await get_preview_access(course.id, AuthSubject(user, set(), None), session)
+
+    customer_repo = CustomerRepository.from_session(session)
+    customer = await customer_repo.get_by_email_and_organization(
+        user.email, org.id
+    )
+    assert customer is not None
+    assert customer.avatar_url == "https://example.com/avatar.png"
+
+
+@pytest.mark.asyncio
+async def test_portal_course_self_heals_for_org_members(save_fixture, session):
+    """An org member signing into the portal with their own email can open
+    their org's course even when nothing ever enrolled them (e.g. normal
+    email-code sign-in instead of the dashboard Preview button)."""
+    org, course, user = await _course_with_admin(save_fixture)
+    user.avatar_url = "https://example.com/admin.png"
+    await save_fixture(user)
+    customer = await create_customer(
+        save_fixture, organization=org, email=user.email, stripe_customer_id=None
+    )
+
+    payload = await get_enrolled_course(
+        course.id, AuthSubject(customer, set(), None), session
+    )
+
+    assert payload["course"]["id"] == str(course.id)
+    enrollment = await course_service.get_enrollment_for_customer(
+        session, customer_id=customer.id, course_id=course.id
+    )
+    assert enrollment is not None
+    # The dashboard avatar is mirrored onto the portal account.
+    assert customer.avatar_url == "https://example.com/admin.png"
+
+
+@pytest.mark.asyncio
+async def test_preview_access_retires_legacy_sandbox(save_fixture, session):
+    """Old sandbox accounts must stop appearing as a second member: the
+    preview flow revokes the sandbox's enrollment for the course."""
+    org, course, user = await _course_with_admin(save_fixture)
+    sandbox = await create_customer(
+        save_fixture,
+        organization=org,
+        email=f"preview+{user.id}@course-preview.invalid",
+        stripe_customer_id=None,
+    )
+    await course_service.enroll_customer(
+        session, course_id=course.id, customer=sandbox, fire_events=False
+    )
+
+    await get_preview_access(course.id, AuthSubject(user, set(), None), session)
+
+    assert (
+        await course_service.get_enrollment_for_customer(
+            session, customer_id=sandbox.id, course_id=course.id
+        )
+        is None
+    )
+
+
+@pytest.mark.asyncio
+async def test_portal_course_still_404s_for_strangers(save_fixture, session):
+    org, course, _user = await _course_with_admin(save_fixture)
+    stranger = await create_customer(
+        save_fixture,
+        organization=org,
+        email="stranger@example.com",
+        stripe_customer_id=None,
+    )
+
+    with pytest.raises(HTTPException) as exc:
+        await get_enrolled_course(
+            course.id, AuthSubject(stranger, set(), None), session
+        )
+    assert exc.value.status_code == 404

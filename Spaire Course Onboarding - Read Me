@@ -1,7 +1,7 @@
 # Handoff: Spaire Course Onboarding
 
 ## Overview
-A full-screen onboarding flow for Spaire — an all-in-one platform for creators to build, sell, and manage digital products. The flow guides a new user from a cinematic intro animation through three setup steps, ending in a live landing page preview of their course.
+A full-screen onboarding flow for Spaire, the masterclass builder for creators. The flow guides a new user from a cinematic intro animation through three setup steps, ending in a live landing page preview of their course.
 
 ## About the Design Files
 The files in this bundle are **high-fidelity design prototypes built in HTML/React** — they show the intended look, feel, and behavior. Your task is to **recreate these designs in your target codebase** (Next.js, React, etc.) using its established patterns, routing, and component libraries. Do not ship the HTML directly.

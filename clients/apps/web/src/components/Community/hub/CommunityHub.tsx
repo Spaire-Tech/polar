@@ -261,7 +261,6 @@ export function CommunityHub({
         onFile={onCoverFile}
         onPos={onCoverPos}
       >
-        <div className="wrap mh-brand">{organization.name}</div>
         <div className="wrap mh-head">
           <h1 className="mh-title">{name}</h1>
           <div className="mh-by">{tagline}</div>

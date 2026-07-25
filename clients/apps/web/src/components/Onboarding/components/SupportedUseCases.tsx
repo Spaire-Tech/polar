@@ -4,9 +4,8 @@ export default function SupportedUseCases() {
       <div className="flex flex-col gap-y-2">
         <p className="font-medium">Supported Usecases</p>
         <p className=" text-sm text-gray-500">
-          Digital products including ebooks, templates, courses, presets,
-          design assets, plugins, SaaS subscriptions, software licenses, and
-          other purely digital goods.
+          Masterclasses and online courses, including video lessons, chapters,
+          previews, and downloadable course materials.
         </p>
       </div>
 

@@ -9092,6 +9092,11 @@ export interface components {
        */
       slug: string
       /**
+       * Custom Domain
+       * @description Active custom storefront domain (e.g. learn.creator.com) serving the organization's landing and customer portal. Null when the storefront is served from the platform host.
+       */
+      custom_domain?: string | null
+      /**
        * Avatar Url
        * @description Avatar URL shown in checkout, customer portal, emails etc.
        */
@@ -10438,6 +10443,11 @@ export interface components {
        * @description Unique organization slug in checkout, customer portal and credit card statements.
        */
       slug: string
+      /**
+       * Custom Domain
+       * @description Active custom storefront domain (e.g. learn.creator.com) serving the organization's landing and customer portal. Null when the storefront is served from the platform host.
+       */
+      custom_domain?: string | null
       /**
        * Avatar Url
        * @description Avatar URL shown in checkout, customer portal, emails etc.
@@ -14350,6 +14360,11 @@ export interface components {
        * @description Unique organization slug in checkout, customer portal and credit card statements.
        */
       slug: string
+      /**
+       * Custom Domain
+       * @description Active custom storefront domain (e.g. learn.creator.com) serving the organization's landing and customer portal. Null when the storefront is served from the platform host.
+       */
+      custom_domain?: string | null
       /**
        * Avatar Url
        * @description Avatar URL shown in checkout, customer portal, emails etc.
@@ -21144,6 +21159,11 @@ export interface components {
        * @description Unique organization slug in checkout, customer portal and credit card statements.
        */
       slug: string
+      /**
+       * Custom Domain
+       * @description Active custom storefront domain (e.g. learn.creator.com) serving the organization's landing and customer portal. Null when the storefront is served from the platform host.
+       */
+      custom_domain?: string | null
       /**
        * Avatar Url
        * @description Avatar URL shown in checkout, customer portal, emails etc.

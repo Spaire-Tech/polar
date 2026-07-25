@@ -1,6 +1,7 @@
 'use client'
 
 import { Upload } from '@/components/FileUpload/Upload'
+import { toast } from '@/components/Toast/use-toast'
 import CloseIcon from '@mui/icons-material/Close'
 import { enums, schemas } from '@spaire/client'
 import MoneyInput from '@spaire/ui/components/atoms/MoneyInput'
@@ -1920,6 +1921,15 @@ function PFPriceRow({
   )
 }
 
+// The product_media file service only accepts these image types, up to 10 MB
+// (server/polar/file/schemas.py: ProductMediaFileCreate). Keep the picker,
+// its `accept` filter, and the client-side guards in sync with that contract
+// so uploads can't fail on the server for a file we could have rejected here
+// with a clear message.
+const PF_COVER_TYPES = /^image\/(jpeg|png|gif|webp|svg\+xml)$/
+const PF_COVER_ACCEPT = 'image/jpeg,image/png,image/gif,image/webp,image/svg+xml'
+const PF_COVER_MAX_BYTES = 10 * 1024 * 1024
+
 // ── MediaDrop (from app.jsx) — visually identical, routes upload through the
 // canonical Upload service so the file lands as a real product_media. ──────
 function PFMediaDrop({
@@ -1940,9 +1950,38 @@ function PFMediaDrop({
 
   const onFile = (file?: File | null) => {
     if (!file) return
+    // Validate against what the product_media file service actually accepts
+    // (see server/polar/file/schemas.py: ProductMediaFileCreate) BEFORE
+    // starting an upload. Without this the picker's broad selection lets
+    // through formats the API rejects (e.g. HEIC from an iPhone) and the
+    // create 422s — which used to fail silently, so nothing happened and the
+    // creator had no idea why. Same for oversized files.
+    if (!PF_COVER_TYPES.test(file.type)) {
+      toast({
+        title: 'Unsupported image format',
+        description: 'Use a JPG, PNG, GIF, WebP or SVG file for the cover.',
+      })
+      return
+    }
+    if (file.size > PF_COVER_MAX_BYTES) {
+      toast({
+        title: 'Image is too large',
+        description: 'Cover images must be under 10 MB.',
+      })
+      return
+    }
     const url = URL.createObjectURL(file)
     setLocalPreview(url)
     setUploading(true)
+    const fail = () => {
+      setUploading(false)
+      URL.revokeObjectURL(url)
+      setLocalPreview(null)
+      toast({
+        title: "Couldn't upload cover",
+        description: 'Something went wrong. Please try again.',
+      })
+    }
     const upload = new Upload({
       organization,
       service: 'product_media',
@@ -1956,13 +1995,11 @@ function PFMediaDrop({
         URL.revokeObjectURL(url)
         setLocalPreview(null)
       },
-      onFileError: () => {
-        setUploading(false)
-        URL.revokeObjectURL(url)
-        setLocalPreview(null)
-      },
+      onFileError: fail,
     })
-    upload.run()
+    // Guard the whole run: any rejection that escapes the service (e.g. a
+    // failed S3 PUT) must clear the "Uploading…" state instead of hanging.
+    upload.run().catch(fail)
   }
 
   // Uploaded — or still uploading with an instant local preview.
@@ -2019,16 +2056,20 @@ function PFMediaDrop({
       <input
         ref={inputRef}
         type="file"
-        accept="image/*,video/*"
+        accept={PF_COVER_ACCEPT}
         hidden
-        onChange={(e) => onFile(e.target.files?.[0])}
+        onChange={(e) => {
+          onFile(e.target.files?.[0])
+          // Reset so re-picking the same file (e.g. after an error) still
+          // fires onChange.
+          e.target.value = ''
+        }}
       />
       <div className="pf-media-title">
-        Drop image or video, or{' '}
-        <span className="pf-media-browse">browse</span>
+        Drop an image, or <span className="pf-media-browse">browse</span>
       </div>
       <div className="pf-media-hint">
-        PNG, JPG, MP4 · up to 10 MB · 16:9 recommended
+        PNG, JPG, WebP, GIF or SVG · up to 10 MB · 16:9 recommended
       </div>
     </div>
   )

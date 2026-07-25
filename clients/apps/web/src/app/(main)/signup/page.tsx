@@ -34,7 +34,7 @@ export default async function Page(props: {
           <div className="flex flex-col gap-y-4">
             <h1 className="text-3xl">Sign up to Spaire</h1>
             <p className=" text-xl text-gray-500">
-              Payments, tax, and billing for digital products
+              Turn what you know into a Masterclass.
             </p>
           </div>
 

@@ -327,14 +327,13 @@ export const OrganizationDetailsForm: React.FC<
         </div>
 
         <div>
-          <label className="mb-2 block text-sm font-medium">Website *</label>
+          <label className="mb-2 block text-sm font-medium">Website</label>
           <FormField
             control={control}
             name="website"
             rules={{
-              required: 'Website is required',
               validate: (value) => {
-                if (!value) return 'Website is required'
+                if (!value) return true
                 if (!value.startsWith('https://')) {
                   return 'Website must start with https://'
                 }
@@ -412,13 +411,13 @@ export const OrganizationDetailsForm: React.FC<
           <div className="space-y-6">
             <div>
               <label className="mb-2 block text-sm font-medium">
-                Describe your course *
+                Describe your masterclass *
               </label>
               <FormField
                 control={control}
                 name="details.product_description"
                 rules={{
-                  required: 'Please describe your course',
+                  required: 'Please describe your masterclass',
                   minLength: {
                     value: 20,
                     message: 'Please provide at least 20 characters',
@@ -479,6 +478,7 @@ const OrganizationProfileSettings: React.FC<
       ) || []
     const cleanedBody = {
       ...body,
+      website: body.website?.trim() ? body.website : null,
       socials: body.socials?.filter(
         (social) => social.url && social.url.trim() !== '',
       ),

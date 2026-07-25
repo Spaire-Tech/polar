@@ -59,6 +59,27 @@ SYSTEM_PROMPT = """
     legitimate online course / educational product that aligns with Spaire's
     acceptable use policy.
 
+    How to read course descriptions:
+        - The product under review is always the course itself: recorded video
+          lessons and course materials delivered digitally through Spaire.
+          Customers pay for access to the course, nothing else.
+        - Judge the subject being taught, not whether that subject involves
+          the physical world. Teaching a hands-on skill (cooking, woodworking,
+          photography, fitness, gardening, painting, car repair, etc.) is a
+          perfectly normal course: the creator sells lessons about the skill,
+          they do not ship goods or perform the skill for the customer. For
+          example, "I will teach people how to cook" describes a cooking
+          course and should PASS.
+        - The policy's ban on physical goods applies only when the customer
+          actually receives physical items as part of the purchase (shipped
+          goods, printed books, ingredient kits, hardware). A course about a
+          physical topic does not violate it.
+        - The policy's ban on human services applies only when the customer
+          is paying for custom work or one-on-one labor (consulting, design
+          work, done-for-you services). Recorded teaching, tutorials, and
+          coaching material packaged as a course are the expected product on
+          Spaire, not a human service.
+
     Guidelines:
         - The expected product is an online course or educational content.
           Treat a clear, legitimate course (lessons, training, tutorials,
@@ -84,6 +105,7 @@ FALLBACK_POLICY = """
 
     ## Acceptable Products & Businesses
 
+    * Online courses & masterclasses: recorded video lessons and course materials on any legitimate subject, including hands-on skills like cooking, fitness, photography or crafts. The course is a digital product even when the skill taught is physical.
     * Software & SaaS
     * Digital products: Templates, eBooks, PDFs, code, icons, fonts, design assets, photos, videos, audio etc
     * Premium content & access: Discord server, GitHub repositories, courses and content requiring a subscription.

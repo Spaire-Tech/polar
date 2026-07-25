@@ -310,10 +310,10 @@ const DownloadsBody = ({
           {!isLoading && (
             <p className="sp-page-sub">
               {items.length === 0
-                ? 'Digital products you purchase will show up here.'
-                : `${items.length} digital product${
+                ? 'Files from your purchases will show up here.'
+                : `${items.length} file${
                     items.length === 1 ? '' : 's'
-                  } in your library — ${downloadedCount} downloaded`}
+                  } in your library, ${downloadedCount} downloaded`}
             </p>
           )}
         </div>
@@ -350,7 +350,7 @@ const DownloadsBody = ({
         <div className="sp-empty">
           <div className="sp-empty-title">No downloads yet</div>
           <div style={{ fontSize: 13 }}>
-            Digital products you purchase will appear here.
+            Files from your purchases will appear here.
           </div>
         </div>
       ) : (

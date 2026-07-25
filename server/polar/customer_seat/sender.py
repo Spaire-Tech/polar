@@ -1,6 +1,5 @@
 import structlog
 
-from polar.config import settings
 from polar.email.react import render_email_template
 from polar.email.schemas import SeatInvitationEmail, SeatInvitationProps
 from polar.email.sender import enqueue_email
@@ -28,9 +27,8 @@ def send_seat_invitation_email(
         )
         return
 
-    claim_url = (
-        f"{settings.FRONTEND_BASE_URL}/{organization.slug}/portal/claim"
-        f"?token={seat.invitation_token}"
+    claim_url = organization.storefront_url(
+        f"/portal/claim?token={seat.invitation_token}"
     )
 
     html_content = render_email_template(

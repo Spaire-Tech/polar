@@ -9,6 +9,7 @@
 // Undo/Redo affordance the editor never had.
 
 import { CourseRead } from '@/hooks/queries/courses'
+import { storefrontLink } from '@/utils/nav'
 import { schemas } from '@spaire/client'
 import { useEffect, useState } from 'react'
 import { CourseDesignEditor } from './CourseDesignEditor'
@@ -105,7 +106,7 @@ export function CustomizeTab({
             {statusLabel}
           </span>
           <a
-            href={`/${organization.slug}/products/${course.product_id}`}
+            href={storefrontLink(organization, `products/${course.product_id}`)}
             target="_blank"
             rel="noopener noreferrer"
             className={barButton}

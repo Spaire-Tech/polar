@@ -46,6 +46,4 @@ class CustomerSession(RecordModel):
         query_string = urlencode(
             {"customer_session_token": self.raw_token, "email": self.customer.email}
         )
-        return settings.generate_frontend_url(
-            f"/{self.customer.organization.slug}/portal?{query_string}"
-        )
+        return self.customer.organization.storefront_url(f"/portal?{query_string}")

@@ -68,10 +68,13 @@ const getLoginResponse = (request: NextRequest): NextResponse => {
   return NextResponse.redirect(redirectURL)
 }
 
-const SPACE_HOSTNAME =
-  process.env.NEXT_PUBLIC_SPACE_BASE_URL
-    ? new URL(process.env.NEXT_PUBLIC_SPACE_BASE_URL).hostname
-    : 'space.spairehq.com'
+const SPACE_HOSTNAME = process.env.NEXT_PUBLIC_SPACE_BASE_URL
+  ? new URL(process.env.NEXT_PUBLIC_SPACE_BASE_URL).hostname
+  : 'space.spairehq.com'
+
+const FRONTEND_HOSTNAME = process.env.NEXT_PUBLIC_FRONTEND_BASE_URL
+  ? new URL(process.env.NEXT_PUBLIC_FRONTEND_BASE_URL).hostname
+  : '127.0.0.1'
 
 const SPACE_BLOCKED_PREFIXES = [
   '/dashboard',
@@ -85,14 +88,156 @@ const SPACE_BLOCKED_PREFIXES = [
   '/blog',
 ]
 
+// Hostnames served with the regular (slug-path) routing. Anything else is
+// treated as a candidate creator custom domain (learn.creator.com).
+const isPlatformHostname = (hostname: string): boolean =>
+  hostname === '' ||
+  hostname === FRONTEND_HOSTNAME ||
+  hostname === SPACE_HOSTNAME ||
+  hostname === 'localhost' ||
+  hostname === '127.0.0.1' ||
+  hostname.endsWith('.vercel.app') // preview deployments
+
+// Host → organization slug cache (per edge/server instance). Hits are kept
+// longer than misses so a creator finishing DNS setup isn't stuck behind a
+// stale negative entry.
+const CUSTOM_DOMAIN_HIT_TTL_MS = 5 * 60 * 1000
+const CUSTOM_DOMAIN_MISS_TTL_MS = 30 * 1000
+const customDomainCache = new Map<
+  string,
+  { slug: string | null; expiresAt: number }
+>()
+
+const resolveCustomDomainSlug = async (
+  hostname: string,
+): Promise<string | null> => {
+  const cached = customDomainCache.get(hostname)
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.slug
+  }
+
+  const apiUrl =
+    process.env.POLAR_API_URL || process.env.NEXT_PUBLIC_API_URL || ''
+  if (!apiUrl) {
+    console.error(
+      '[proxy] Custom domain lookup skipped: POLAR_API_URL and NEXT_PUBLIC_API_URL are both unset',
+    )
+    return null
+  }
+
+  try {
+    const response = await fetch(
+      `${apiUrl}/v1/storefronts/lookup/domain/${encodeURIComponent(hostname)}`,
+      { method: 'GET', cache: 'no-cache' },
+    )
+    if (response.ok) {
+      const { organization_slug: slug } = (await response.json()) as {
+        organization_slug: string
+      }
+      customDomainCache.set(hostname, {
+        slug,
+        expiresAt: Date.now() + CUSTOM_DOMAIN_HIT_TTL_MS,
+      })
+      return slug
+    }
+    if (response.status === 404) {
+      customDomainCache.set(hostname, {
+        slug: null,
+        expiresAt: Date.now() + CUSTOM_DOMAIN_MISS_TTL_MS,
+      })
+      return null
+    }
+    console.error(
+      `[proxy] Custom domain lookup for ${hostname} returned ${response.status}`,
+    )
+  } catch (error) {
+    console.error(
+      `[proxy] Custom domain lookup for ${hostname} failed: ${error}`,
+    )
+  }
+  // Transient failure: serve the stale cache entry if we have one rather
+  // than bouncing a live storefront to the main app.
+  return cached ? cached.slug : null
+}
+
+const handleCustomDomain = async (
+  request: NextRequest,
+  hostname: string,
+): Promise<NextResponse> => {
+  const { pathname } = request.nextUrl
+
+  // Analytics/docs proxying works the same on any host.
+  if (isForwardedRoute(request)) {
+    return NextResponse.next()
+  }
+
+  // Never serve dashboard/auth/checkout surfaces on a creator domain — the
+  // session cookie must stay on the platform hosts.
+  if (SPACE_BLOCKED_PREFIXES.some((prefix) => pathname.startsWith(prefix))) {
+    const mainUrl = new URL(
+      `${pathname}${request.nextUrl.search}`,
+      process.env.NEXT_PUBLIC_FRONTEND_BASE_URL || 'https://app.spairehq.com',
+    )
+    return NextResponse.redirect(mainUrl)
+  }
+
+  const slug = await resolveCustomDomainSlug(hostname)
+  if (!slug) {
+    // Unknown or not-yet-verified domain: send visitors to the main app.
+    return NextResponse.redirect(
+      new URL(
+        process.env.NEXT_PUBLIC_FRONTEND_BASE_URL || 'https://app.spairehq.com',
+      ),
+    )
+  }
+
+  // Canonical hygiene: the slug never appears in custom-domain URLs. A
+  // slug-prefixed path (from an old shared link) permanently redirects to
+  // its slug-less form on this host.
+  if (pathname === `/${slug}` || pathname.startsWith(`/${slug}/`)) {
+    const redirectURL = request.nextUrl.clone()
+    redirectURL.pathname = pathname.slice(slug.length + 1) || '/'
+    return NextResponse.redirect(redirectURL, { status: 308 })
+  }
+
+  // Serve the org's pages at slug-less paths: rewrite / → /{slug},
+  // /portal/... → /{slug}/portal/... — the app tree stays unchanged.
+  const rewriteURL = request.nextUrl.clone()
+  rewriteURL.pathname = `/${slug}${pathname === '/' ? '' : pathname}`
+
+  const requestHeaders = new Headers(request.headers)
+  requestHeaders.set('x-spaire-storefront-host', hostname)
+  requestHeaders.set('x-spaire-pathname', pathname)
+
+  const { id: distinctId, isNew: isNewDistinctId } =
+    getOrCreateDistinctId(request)
+  requestHeaders.set('x-spaire-distinct-id', distinctId)
+
+  const response = NextResponse.rewrite(rewriteURL, {
+    request: { headers: requestHeaders },
+  })
+  if (isNewDistinctId) {
+    response.cookies.set(DISTINCT_ID_COOKIE, distinctId, {
+      maxAge: DISTINCT_ID_COOKIE_MAX_AGE,
+      httpOnly: false,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+    })
+  }
+  return response
+}
+
 export async function proxy(request: NextRequest) {
-  // --- Spaire Space subdomain routing ---
   const host =
-    request.headers.get('x-forwarded-host') ??
-    request.headers.get('host') ??
-    ''
+    request.headers.get('x-forwarded-host') ?? request.headers.get('host') ?? ''
   const hostname = host.split(':')[0]
 
+  // --- Creator custom domain routing (learn.creator.com) ---
+  if (!isPlatformHostname(hostname)) {
+    return handleCustomDomain(request, hostname)
+  }
+
+  // --- Spaire Space subdomain routing ---
   if (hostname === SPACE_HOSTNAME) {
     const { pathname } = request.nextUrl
 
@@ -256,7 +401,12 @@ export async function proxy(request: NextRequest) {
       )
     } else if (!hasCookie) {
       console.error(
-        `[proxy] Auth redirect: cookie '${POLAR_AUTH_COOKIE_KEY}' not found. Available cookies: ${request.cookies.getAll().map((c) => c.name).join(', ') || 'none'}`,
+        `[proxy] Auth redirect: cookie '${POLAR_AUTH_COOKIE_KEY}' not found. Available cookies: ${
+          request.cookies
+            .getAll()
+            .map((c) => c.name)
+            .join(', ') || 'none'
+        }`,
       )
     }
     return getLoginResponse(request)

@@ -238,13 +238,27 @@ export class Upload {
 
     this.onFileCreate(this.tempId, createFileResponse)
 
-    const uploadedParts = await this.uploadMultiparts({
-      parts: upload.parts,
-      onProgress: (uploaded: number) => {
-        this.onFileUploadProgress(createFileResponse, uploaded)
-      },
-    })
+    // A failed S3 PUT (non-200, missing ETag, network drop) rejects out of
+    // uploadMultiparts. Without this guard the rejection escapes run()
+    // unhandled — callers that don't .catch() it are left stuck in their
+    // "uploading" state forever with no error. Route it through onFileError
+    // like the create/complete failures above.
+    try {
+      const uploadedParts = await this.uploadMultiparts({
+        parts: upload.parts,
+        onProgress: (uploaded: number) => {
+          this.onFileUploadProgress(createFileResponse, uploaded)
+        },
+      })
 
-    await this.complete(createFileResponse, uploadedParts)
+      await this.complete(createFileResponse, uploadedParts)
+    } catch (error) {
+      if (this.onFileError) {
+        this.onFileError(
+          createFileResponse.id,
+          error instanceof Error ? error : new Error('Failed to upload file'),
+        )
+      }
+    }
   }
 }

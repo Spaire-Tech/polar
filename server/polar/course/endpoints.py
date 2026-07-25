@@ -83,6 +83,7 @@ def _lesson_read(lesson) -> CourseLessonRead:
         # inlining it is safe — without it the editor's own Play button and
         # sample-clip preview 403 the moment signed playback is enabled.
         mux_playback_url=mux_client.playback_url(lesson.mux_playback_id),
+        mux_storyboard_url=mux_client.storyboard_url(lesson.mux_playback_id),
         mux_status=lesson.mux_status,
         transcript_status=getattr(lesson, "transcript_status", None),
         thumbnail_url=lesson.thumbnail_url,
@@ -1047,22 +1048,42 @@ async def get_preview_access(
             Customer(
                 email=user.email,
                 name=display_name,
+                # The portal's top-right avatar shows the admin's real
+                # dashboard picture, not initials.
+                avatar_url=user.avatar_url,
                 organization_id=course.organization_id,
             ),
             flush=True,
         )
-    elif not (customer.name or "").strip():
-        # Backfill a display name, but never overwrite one the customer
+    else:
+        # Backfill name/avatar, but never overwrite values the customer
         # record already carries (e.g. set via portal onboarding).
-        customer = await customer_repo.update(
-            customer, update_dict={"name": display_name}
-        )
+        updates: dict[str, str] = {}
+        if not (customer.name or "").strip():
+            updates["name"] = display_name
+        if not customer.avatar_url and user.avatar_url:
+            updates["avatar_url"] = user.avatar_url
+        if updates:
+            customer = await customer_repo.update(customer, update_dict=updates)
 
     # Don't fire enrollment events: previewing your own course must not
     # trigger the org's own email automations.
     await course_service.enroll_customer(
         session, course_id=course_id, customer=customer, fire_events=False
     )
+
+    # Retire the legacy preview sandbox for this admin: one identity, not
+    # two members. Its authored content still renders (author lookups join
+    # by id, and the community resolver attributes it to the host).
+    legacy_sandbox = await customer_repo.get_by_email_and_organization(
+        f"preview+{user.id}@course-preview.invalid", course.organization_id
+    )
+    if legacy_sandbox is not None:
+        legacy_enrollment = await course_service.get_enrollment_for_customer(
+            session, legacy_sandbox.id, course_id
+        )
+        if legacy_enrollment is not None:
+            await course_service.revoke_enrollment(session, legacy_enrollment.id)
 
     # Preview sessions get their own configurable lifetime
     # (COURSE_PREVIEW_SESSION_TTL) so a course-in-progress link can be made
@@ -1077,7 +1098,9 @@ async def get_preview_access(
         expires_at=utc_now() + settings.COURSE_PREVIEW_SESSION_TTL,
     )
 
-    portal_url = f"/{org.slug}/portal/courses/{course_id}?customer_session_token={token}"
+    portal_url = org.storefront_url(
+        f"/portal/courses/{course_id}?customer_session_token={token}"
+    )
     return {"token": token, "portal_url": portal_url}
 
 

@@ -33,6 +33,7 @@ from polar.customer_notifications.endpoints import (
 from polar.customer_portal.endpoints import router as customer_portal_router
 from polar.customer_seat.endpoints import router as customer_seat_router
 from polar.customer_session.endpoints import router as customer_session_router
+from polar.demo_portal.endpoints import router as demo_portal_router
 from polar.discount.endpoints import router as discount_router
 from polar.dispute.endpoints import router as dispute_router
 from polar.email_broadcast.endpoints import router as email_broadcast_router
@@ -71,6 +72,9 @@ from polar.order.endpoints import router as order_router
 from polar.organization.endpoints import router as organization_router
 from polar.organization_access_token.endpoints import (
     router as organization_access_token_router,
+)
+from polar.organization_custom_domain.endpoints import (
+    router as organization_custom_domain_router,
 )
 from polar.payment.endpoints import router as payment_router
 from polar.payout.endpoints import router as payout_router
@@ -112,6 +116,8 @@ router.include_router(accounts_router)
 router.include_router(stream_router)
 # /organizations
 router.include_router(organization_router)
+# /organizations/{id}/custom-domain
+router.include_router(organization_custom_domain_router)
 # /subscriptions
 router.include_router(subscription_router)
 # /transactions
@@ -186,6 +192,8 @@ router.include_router(form_router)
 router.include_router(email_update_router)
 # /customer-sessions
 router.include_router(customer_session_router)
+# /demo-portal
+router.include_router(demo_portal_router)
 # /member-sessions
 router.include_router(member_session_router)
 # /integrations/plain

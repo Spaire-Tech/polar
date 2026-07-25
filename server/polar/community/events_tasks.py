@@ -94,7 +94,6 @@ async def _build_payload(session, event) -> dict:
     # into the DB at render time. Falls back gracefully when any field
     # is missing — the renderer drops to legacy inline HTML in that
     # case (see customer_notifications.notification_types).
-    from polar.config import settings
     from polar.organization.repository import OrganizationRepository
 
     organization = (
@@ -106,9 +105,7 @@ async def _build_payload(session, event) -> dict:
     )
     event_url: str | None = None
     if organization is not None:
-        event_url = settings.generate_frontend_url(
-            f"/{organization.slug}/events/{event.id}"
-        )
+        event_url = organization.storefront_url(f"/events/{event.id}")
 
     # Host avatar with the same fallback chain the API uses:
     # user.avatar_url → organization.avatar_url. Lets every email card

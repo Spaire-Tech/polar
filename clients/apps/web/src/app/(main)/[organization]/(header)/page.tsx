@@ -1,6 +1,6 @@
 import { FormPublic } from '@/hooks/queries/forms'
 import { getServerSideAPI } from '@/utils/client/serverside'
-import { spacePageLink } from '@/utils/nav'
+import { storefrontLink } from '@/utils/nav'
 import { getStorefrontOrNotFound } from '@/utils/storefront'
 import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
@@ -29,7 +29,7 @@ export async function generateMetadata(props: {
     settings?.header_image_url ??
     organization.avatar_url ??
     `https://spairehq.com/og?org=${organization.slug}`
-  const canonicalUrl = spacePageLink(organization)
+  const canonicalUrl = storefrontLink(organization)
   // `index` defaults to true; only emit a robots directive when the creator
   // has explicitly turned indexing off.
   const indexable = settings?.index ?? true

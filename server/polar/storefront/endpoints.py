@@ -18,6 +18,7 @@ from .service import storefront as storefront_service
 class SubscribeResponse(Schema):
     success: bool = True
 
+
 router = APIRouter(prefix="/storefronts", tags=["storefronts", APITag.private])
 
 OrganizationNotFound = {
@@ -82,6 +83,24 @@ async def get_organization_slug_by_product_id(
     """Get organization slug by product ID for legacy redirect purposes."""
     organization_slug = await storefront_service.get_organization_slug_by_product_id(
         session, product_id
+    )
+    if organization_slug is None:
+        raise ResourceNotFound()
+
+    return OrganizationSlugLookup(organization_slug=organization_slug)
+
+
+@router.get(
+    "/lookup/domain/{hostname}",
+    responses={404: OrganizationNotFound},
+)
+async def get_organization_slug_by_custom_domain(
+    hostname: str, session: AsyncSession = Depends(get_db_session)
+) -> OrganizationSlugLookup:
+    """Resolve an active custom storefront domain to its organization slug.
+    Used by the frontend middleware to route custom-domain requests."""
+    organization_slug = await storefront_service.get_organization_slug_by_custom_domain(
+        session, hostname.lower().rstrip(".")
     )
     if organization_slug is None:
         raise ResourceNotFound()

@@ -197,9 +197,7 @@ class CustomerSessionService:
                         "organization": organization,
                         "code": code,
                         "code_lifetime_minutes": code_lifetime_minutes,
-                        "url": settings.generate_frontend_url(
-                            f"/{organization.slug}/portal/authenticate"
-                        ),
+                        "url": organization.storefront_url("/portal/authenticate"),
                     }
                 )
             )

@@ -38,7 +38,6 @@ export function bindCourse(
   const instructorName = (inst.name || creatorName || '').trim()
   const instructorRole = (inst.role || 'Instructor').trim()
   const instructorBio = (inst.bio || '').trim()
-  const courseTagline = (course.tagline || '').trim()
   const swapLegacy = (s: string): string => {
     let v = String(s ?? '')
     if (instructorName) v = v.split(LEGACY_INSTRUCTOR).join(instructorName)
@@ -84,8 +83,11 @@ export function bindCourse(
         } else if (instructorName) {
           p.instructor = `Taught by ${instructorName}`
         }
-        // Tagline slot → the course description; a moment tagline stays.
-        if (!p.tagline && courseTagline) p.tagline = courseTagline
+        // No description paragraph on the cover — the templates leave the
+        // tagline slot empty and we no longer back-fill it from the course, so
+        // the cover stays just title + "Taught by …" + CTA. (Templates that
+        // set an explicit moment tagline still render it — this only stops the
+        // auto-fill of an empty slot.)
         break
       }
       case 'meta': {

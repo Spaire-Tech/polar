@@ -116,6 +116,21 @@ class Settings(BaseSettings):
     # Added to CORS allowed origins with credentials.
     STOREFRONT_BASE_URL: str = ""
 
+    # Creator custom storefront domains (learn.creator.com).
+    # CNAME target creators must point their subdomain at.
+    CUSTOM_DOMAIN_CNAME_TARGET: str = "domains.spairehq.com"
+    # DNS-over-HTTPS resolver used for domain verification (RFC 8484 JSON API).
+    CUSTOM_DOMAIN_DOH_URL: str = "https://cloudflare-dns.com/dns-query"
+    # Consecutive failed re-checks before an active domain is demoted to failed.
+    CUSTOM_DOMAIN_FAILURE_THRESHOLD: int = 3
+    # Vercel project-domains API, used to attach verified custom domains to
+    # the web project so Vercel issues TLS certificates. Left empty, domain
+    # provisioning is a logged no-op (local dev / other hosting).
+    VERCEL_API_BASE_URL: str = "https://api.vercel.com"
+    VERCEL_API_TOKEN: str = ""
+    VERCEL_PROJECT_ID: str = ""
+    VERCEL_TEAM_ID: str | None = None
+
     # URL to frontend app.
     # Update to ngrok domain or similar in case you want
     # working Github badges in development.
@@ -142,6 +157,13 @@ class Settings(BaseSettings):
     # portal logins, which keep the short CUSTOMER_SESSION_TTL. Defaults to the
     # same 1 hour; override via SPAIRE_COURSE_PREVIEW_SESSION_TTL to lengthen.
     COURSE_PREVIEW_SESSION_TTL: timedelta = timedelta(hours=1)
+
+    # Demo portal — public, no-login access to ONE showcase org's student
+    # portal (e.g. for a YC application demo). When set to an org slug,
+    # `/{slug}/portal/demo` mints a throwaway demo session so anyone with the
+    # link can browse that org's portal without logging in. Unset (default)
+    # disables the feature entirely; every other org is always unaffected.
+    DEMO_PORTAL_ORG_SLUG: str | None = None
 
     # Impersonation session
     IMPERSONATION_COOKIE_KEY: str = "spaire_original_session"
@@ -253,9 +275,7 @@ class Settings(BaseSettings):
     # rest of the settings. An explicit validation_alias overrides env_prefix.
     ANTHROPIC_API_KEY: str = Field(
         default="",
-        validation_alias=AliasChoices(
-            "ANTHROPIC_API_KEY", "SPAIRE_ANTHROPIC_API_KEY"
-        ),
+        validation_alias=AliasChoices("ANTHROPIC_API_KEY", "SPAIRE_ANTHROPIC_API_KEY"),
     )
     # Strong model for student answers; cheap model for the guardrail pass.
     COURSE_ASSISTANT_ANSWER_MODEL: str = "claude-sonnet-4-6"
@@ -383,7 +403,9 @@ class Settings(BaseSettings):
         state="US-DE",
         country=CountryAlpha2("US"),
     )
-    INVOICES_ADDITIONAL_INFO: str | None = "[support@spairehq.com](mailto:support@spairehq.com)"
+    INVOICES_ADDITIONAL_INFO: str | None = (
+        "[support@spairehq.com](mailto:support@spairehq.com)"
+    )
     PAYOUT_INVOICES_PREFIX: str = "SPAIRE-"
 
     # Bank transfer details shown on invoices (all optional; section hidden if INVOICES_BANK_NAME is unset)

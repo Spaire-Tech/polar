@@ -64,6 +64,8 @@ export type CourseLessonRead = {
   // Signed (when the org uses signed playback) HLS URL for creator-side
   // playback — the editor's Play button and sample preview use this.
   mux_playback_url?: string | null
+  // Signed storyboard VTT for hover-scrub thumbnails in the preview player.
+  mux_storyboard_url?: string | null
   mux_status: string | null
   // Course Assistant transcript pipeline state for video lessons:
   // pending | ready | failed | unavailable (null = not started / not a video).
@@ -242,6 +244,9 @@ export type LandingOverrides = {
     description?: string | null
     byline?: string | null
     titleLines?: string[] | null
+    // Custom price note under the hero CTAs (e.g. "Sample clip free ·
+    // one-time purchase"). Empty/absent → the computed default.
+    free_line?: string | null
   } | null
   // The creator's light/dark choice from onboarding — the public page and
   // portal render in this theme.
@@ -288,6 +293,25 @@ async function courseApiFetch<T>(
   }
   if (res.status === 204) return undefined as T
   return res.json()
+}
+
+// Surface the server's real reason for a failed course request instead of a
+// generic toast. courseApiFetch throws `Error("API <status>: <body>")` where
+// the body is a PolarError JSON `{"error", "detail"}` — so a 402 tier-limit
+// block ("Your plan allows N lessons per course. Upgrade…") can be shown to
+// the creator rather than swallowed. Returns null when there's nothing useful
+// to show. Shared by the course editor and the lesson editor.
+export function apiErrorDetail(err: unknown): string | null {
+  if (!(err instanceof Error) || !err.message) return null
+  const m = /^API \d+:\s*(.*)$/s.exec(err.message)
+  if (!m) return err.message
+  try {
+    const parsed = JSON.parse(m[1]) as { detail?: unknown }
+    if (typeof parsed.detail === 'string') return parsed.detail
+  } catch {
+    /* not JSON */
+  }
+  return m[1] || err.message
 }
 
 // Raw, non-invalidating PATCH helpers. The landing editor (useLandingEditor)
@@ -1082,27 +1106,65 @@ export const useUploadLandingMedia = () =>
     },
   })
 
+// Multipart upload over XMLHttpRequest instead of fetch(): fetch cannot
+// report request-body progress, so a large file (a 500 MB trailer) gave
+// the UI nothing but a spinner. XHR exposes `upload.onprogress`, which we
+// forward to `onProgress` so callers can render a real percentage. Errors
+// mirror courseApiFetch's `API <status>: <body>` shape so apiErrorDetail()
+// can surface the server's message.
+export function uploadFileWithProgress<T>(
+  url: string,
+  file: File,
+  onProgress?: (pct: number) => void,
+): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const form = new FormData()
+    form.append('file', file)
+    const xhr = new XMLHttpRequest()
+    xhr.open('POST', url)
+    xhr.withCredentials = true
+    xhr.upload.onprogress = (ev) => {
+      if (ev.lengthComputable && onProgress)
+        onProgress(Math.round((ev.loaded / ev.total) * 100))
+    }
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+          resolve(
+            xhr.responseText
+              ? (JSON.parse(xhr.responseText) as T)
+              : (undefined as T),
+          )
+        } catch {
+          reject(new Error('Invalid server response'))
+        }
+      } else {
+        reject(new Error(`API ${xhr.status}: ${xhr.responseText ?? ''}`))
+      }
+    }
+    xhr.onerror = () => reject(new Error('Network error'))
+    xhr.send(form)
+  })
+}
+
 export const useUploadCourseTrailer = () =>
   useMutation({
-    mutationFn: async ({
+    mutationFn: ({
       courseId,
       file,
+      onProgress,
     }: {
       courseId: string
       file: File
-    }) => {
-      const form = new FormData()
-      form.append('file', file)
-      const res = await fetch(
+      // Called with 0–100 as the file uploads, so the editor can show a
+      // real progress bar instead of an indefinite "Uploading…".
+      onProgress?: (pct: number) => void
+    }) =>
+      uploadFileWithProgress<CourseRead>(
         `${process.env.NEXT_PUBLIC_API_URL}/v1/courses/${courseId}/trailer`,
-        { method: 'POST', body: form, credentials: 'include' },
-      )
-      if (!res.ok) {
-        const text = await res.text().catch(() => '')
-        throw new Error(`API ${res.status}: ${text}`)
-      }
-      return res.json() as Promise<CourseRead>
-    },
+        file,
+        onProgress,
+      ),
     onSuccess: (data) => {
       getQueryClient().invalidateQueries({
         queryKey: ['courses', { courseId: data.id }],
@@ -1247,6 +1309,9 @@ export const postWatchProgress = (
 export type LessonPlaybackUrlResponse = {
   mux_playback_id: string | null
   mux_playback_url: string | null
+  // Signed storyboard VTT for hover-scrub thumbnails (absent/null when
+  // the asset has no storyboard).
+  mux_storyboard_url?: string | null
 }
 
 export const useMintLessonPlaybackUrl = (
@@ -1422,9 +1487,7 @@ export const useInstructorHeartComment = (
         ['lesson-comments', token, courseId, lessonId],
         (prev) =>
           prev?.map((c) =>
-            c.id === commentId
-              ? { ...c, instructor_hearted: res.hearted }
-              : c,
+            c.id === commentId ? { ...c, instructor_hearted: res.hearted } : c,
           ),
       )
     },

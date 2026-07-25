@@ -581,6 +581,27 @@ class CommunityPostRepository(
         result = await self.session.execute(statement)
         return [(row.id, row.email, row.avatar_url) for row in result]
 
+    async def list_org_member_users(
+        self, organization_id: UUID
+    ) -> Sequence[tuple[UUID, str, str | None]]:
+        """(user_id, email, avatar_url) for the org's members. Used to
+        render an org member's portal-side posts (written from their own
+        customer account) under their instructor identity — the Host —
+        instead of as a student."""
+        from polar.models import UserOrganization
+
+        statement = (
+            select(UserModel.id, UserModel.email, UserModel.avatar_url)
+            .join(UserOrganization, UserOrganization.user_id == UserModel.id)
+            .where(
+                UserOrganization.organization_id == organization_id,
+                UserOrganization.deleted_at.is_(None),
+                UserModel.email.is_not(None),
+            )
+        )
+        result = await self.session.execute(statement)
+        return [(row.id, row.email, row.avatar_url) for row in result]
+
     async def list_course_members(
         self, course_id: UUID
     ) -> Sequence[tuple[UUID, str | None, str, str | None, datetime]]:
@@ -600,6 +621,9 @@ class CommunityPostRepository(
             .where(
                 CourseEnrollment.course_id == course_id,
                 CourseEnrollment.deleted_at.is_(None),
+                # Legacy preview-sandbox accounts must never show up as a
+                # second member next to the admin's real account.
+                Customer.email.notilike("%@course-preview.invalid"),
             )
             .order_by(CourseEnrollment.enrolled_at.desc())
         )

@@ -25,3 +25,23 @@ export const spacePageLink = (
 ): string => {
   return `${CONFIG.SPACE_BASE_URL}/${org.slug}/${path ?? ''}`
 }
+
+/**
+ * Public storefront URL for sharing, SEO and "view live" links: the
+ * creator's custom domain when one is live (slug-less paths, e.g.
+ * https://learn.creator.com/products/123), else the platform-hosted URL.
+ */
+export const storefrontLink = (
+  org:
+    | schemas['Organization']
+    | schemas['CustomerOrganization']
+    | OrganizationSDK,
+  path?: string,
+): string => {
+  const customDomain =
+    'custom_domain' in org ? (org.custom_domain ?? null) : null
+  if (customDomain) {
+    return `https://${customDomain}/${path ?? ''}`
+  }
+  return spacePageLink(org, path)
+}

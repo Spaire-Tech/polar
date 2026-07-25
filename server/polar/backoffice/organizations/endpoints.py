@@ -1477,6 +1477,11 @@ async def get(
                     description_list.DescriptionListAttrItem(
                         "slug", "Slug", clipboard=True
                     ),
+                    description_list.DescriptionListAttrItem(
+                        "custom_domain",
+                        "Custom domain (active)",
+                        clipboard=True,
+                    ),
                     description_list.DescriptionListDateTimeItem(
                         "created_at", "Created At"
                     ),

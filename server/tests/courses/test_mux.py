@@ -108,6 +108,17 @@ class TestPlaybackUrl:
     def test_thumbnail_returns_none_for_null_id(self) -> None:
         assert mux_client.thumbnail_url(None) is None
 
+    def test_storyboard_unsigned_when_keys_not_configured(self) -> None:
+        with patch.object(mux_client.settings, "MUX_SIGNING_KEY_ID", ""):
+            with patch.object(
+                mux_client.settings, "MUX_SIGNING_KEY_PRIVATE", ""
+            ):
+                url = mux_client.storyboard_url("abc123")
+        assert url == "https://image.mux.com/abc123/storyboard.vtt"
+
+    def test_storyboard_returns_none_for_null_id(self) -> None:
+        assert mux_client.storyboard_url(None) is None
+
 
 # ──────────────────────────────────────────────────────────────────────────
 # Auto-generated captions — request_auto_captions

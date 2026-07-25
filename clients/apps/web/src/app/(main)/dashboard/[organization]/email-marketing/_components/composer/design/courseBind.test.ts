@@ -45,8 +45,10 @@ describe('bindCourse', () => {
     const cover = blocks.find((b) => b.type === 'coverHero')!
     expect(cover.props.title).toBe('Italian Home Cooking')
     expect(cover.props.instructor).toBe('Taught by Marco Rossi')
-    // The cover tagline is filled from the course description, not the example.
-    expect(cover.props.tagline).toBe('Pasta from scratch.')
+    // The cover no longer carries a description paragraph: the template leaves
+    // the tagline slot empty and bindCourse doesn't back-fill it from the
+    // course. The cover is just title + "Taught by …" + CTA.
+    expect(cover.props.tagline).toBe('')
     expect(cover.props.img).toBe('https://cdn/hero.jpg')
 
     const lessons = blocks.find((b) => b.type === 'lessons')!
@@ -68,8 +70,9 @@ describe('bindCourse', () => {
     expect(note.props.sign).toBe('Marco Rossi')
     expect(note.props.signRole).toBe('Head Chef')
 
-    const trailer = blocks.find((b) => b.type === 'trailer')!
-    expect(trailer.props.playbackId).toBe('muxPB123')
+    // The enrolment template no longer includes a trailer block (trailers
+    // don't play in email), so there's nothing to bind here.
+    expect(blocks.find((b) => b.type === 'trailer')).toBeUndefined()
 
     // None of the southern-cooking example copy survives anywhere.
     const json = JSON.stringify(blocks)

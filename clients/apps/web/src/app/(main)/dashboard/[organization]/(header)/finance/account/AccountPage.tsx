@@ -26,8 +26,8 @@ import React, { useCallback, useState } from 'react'
 const payoutSteps: OnboardingStep[] = [
   {
     id: 'review',
-    label: 'Business Review',
-    description: 'Tell us about your business',
+    label: 'Creator Review',
+    description: 'Tell us about your work',
   },
   {
     id: 'validation',

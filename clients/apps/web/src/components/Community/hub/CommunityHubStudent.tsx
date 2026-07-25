@@ -134,7 +134,6 @@ export function CommunityHubStudent({
           {cover && (
             <img src={cover} alt="" style={{ objectPosition: coverPos }} />
           )}
-          <div className="wrap mh-brand">{brand}</div>
           <div className="wrap mh-head">
             <h1 className="mh-title">{title}</h1>
             <div className="mh-by">{eyebrow}</div>

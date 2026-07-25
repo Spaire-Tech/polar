@@ -58,7 +58,6 @@ def tier_from_value(value: str) -> TierKey | None:
         return None
 
 
-
 @dataclass(frozen=True)
 class TransactionFee:
     """List price for the tier's transaction fee.
@@ -322,7 +321,9 @@ _STUDIO = TierEntitlements(
         white_label_course_player=True,
         # See Pro definition.
         sandbox_mode=True,
-        custom_storefront_domain=False,
+        # Hosted (custom) storefront domain — serve the masterclass landing
+        # + customer portal from the creator's own subdomain. Studio+.
+        custom_storefront_domain=True,
         custom_checkout_domain=False,
         sso=False,
         audit_logs=False,
@@ -372,7 +373,8 @@ _SCALE = TierEntitlements(
         white_label_course_player=True,
         # See Pro definition.
         sandbox_mode=True,
-        custom_storefront_domain=False,
+        # Hosted (custom) storefront domain — Studio and above.
+        custom_storefront_domain=True,
         custom_checkout_domain=False,
         sso=False,
         audit_logs=True,

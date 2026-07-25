@@ -332,6 +332,15 @@ class Organization(RateLimitGroupMixin, RecordModel):
         JSONB, nullable=False, default=_default_storefront_settings
     )
 
+    # Active custom storefront domain (learn.creator.com), denormalized from
+    # OrganizationCustomDomain so every URL builder can read it without an
+    # extra query. Single writer: the organization_custom_domain service
+    # sets it on verification and clears it on demotion/removal/replacement.
+    # None = serve from the platform host.
+    custom_domain: Mapped[str | None] = mapped_column(
+        CITEXT, nullable=True, default=None
+    )
+
     subscription_settings: Mapped[OrganizationSubscriptionSettings] = mapped_column(
         JSONB, nullable=False, default=_default_subscription_settings
     )
@@ -485,6 +494,21 @@ class Organization(RateLimitGroupMixin, RecordModel):
     @property
     def polar_site_url(self) -> str:
         return f"{settings.FRONTEND_BASE_URL}/{self.slug}"
+
+    @property
+    def storefront_base_url(self) -> str:
+        """Public base URL of this org's storefront/portal: the verified
+        custom domain when one is live (slug-less paths), else the
+        platform host + slug."""
+        if self.custom_domain:
+            return f"https://{self.custom_domain}"
+        return f"{settings.FRONTEND_BASE_URL}/{self.slug}"
+
+    def storefront_url(self, path: str = "") -> str:
+        """Absolute storefront URL for a slug-less path like
+        "/portal/authenticate" — lands on the custom domain when live,
+        else on the platform host with the slug prefix."""
+        return f"{self.storefront_base_url}{path}"
 
     @property
     def account_url(self) -> str:
