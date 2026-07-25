@@ -51,12 +51,6 @@ export function CourseHeader({
   dark?: boolean
   onToggleDark?: () => void
 }) {
-  const moduleCount = course.modules.length
-  const lessonCount = course.modules.reduce(
-    (acc, m) => acc + m.lessons.length,
-    0,
-  )
-
   return (
     <div className="flex flex-shrink-0 flex-col">
       {/* Topbar — back · centered title · CTA */}
@@ -74,10 +68,6 @@ export function CourseHeader({
         <div className="flex flex-col items-center">
           <div className="text-[13px] font-semibold tracking-tight text-gray-900">
             {course.title ?? 'Untitled Course'}
-          </div>
-          <div className="text-[11px] text-gray-500">
-            {moduleCount} module{moduleCount === 1 ? '' : 's'} · {lessonCount}{' '}
-            lesson{lessonCount === 1 ? '' : 's'}
           </div>
         </div>
         <div className="flex items-center justify-end gap-2">
