@@ -10,6 +10,7 @@ from annotated_types import Ge
 from pydantic import (
     AfterValidator,
     AliasChoices,
+    BeforeValidator,
     DirectoryPath,
     Field,
     PostgresDsn,
@@ -48,6 +49,31 @@ def _validate_email_renderer_binary_path(value: Path) -> Path:
         )
 
     return value
+
+
+def _seconds_or_timedelta(value: object) -> object:
+    """Accept a bare number of seconds for a ``timedelta`` setting.
+
+    Env vars arrive as strings, and pydantic's ``timedelta`` parser only
+    accepts ISO-8601 durations (e.g. ``P90D``) — not a plain seconds string
+    like ``"7776000"``. This coerces an int/float (or numeric string) to
+    ``timedelta(seconds=...)`` while passing anything else through unchanged,
+    so ISO-8601 and native ``timedelta`` values still work.
+    """
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, int | float):
+        return timedelta(seconds=value)
+    if isinstance(value, str):
+        try:
+            return timedelta(seconds=float(value.strip()))
+        except ValueError:
+            return value
+    return value
+
+
+# A timedelta setting that also accepts a plain seconds value from the env.
+SecondsTimedelta = Annotated[timedelta, BeforeValidator(_seconds_or_timedelta)]
 
 
 env = Environment(os.getenv("SPAIRE_ENV", Environment.development))
@@ -156,7 +182,7 @@ class Settings(BaseSettings):
     # share a course-in-progress for a while) WITHOUT extending real customers'
     # portal logins, which keep the short CUSTOMER_SESSION_TTL. Defaults to the
     # same 1 hour; override via SPAIRE_COURSE_PREVIEW_SESSION_TTL to lengthen.
-    COURSE_PREVIEW_SESSION_TTL: timedelta = timedelta(hours=1)
+    COURSE_PREVIEW_SESSION_TTL: SecondsTimedelta = timedelta(hours=1)
 
     # Demo portal — public, no-login access to ONE showcase org's student
     # portal (e.g. for a YC application demo). When set to an org slug,
