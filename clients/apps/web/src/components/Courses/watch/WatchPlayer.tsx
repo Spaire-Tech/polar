@@ -15,11 +15,15 @@
 //   • hover-scrub thumbnails — hovering or dragging the scrub bar shows
 //     a floating frame preview from the Mux storyboard (plus timestamp);
 //     lessons without a storyboard fall back to a timestamp-only pill
-//   • Up Next — in the final seconds an autoplay card slides in (glass,
-//     thumbnail, countdown ring); the video's end advances to the next
-//     lesson unless the viewer cancelled. Rendered only when the parent
-//     passes nextLesson + onPlayNext, and it outlives the chrome fade —
-//     it's a prompt, not a control.
+//   • Up Next — Apple TV-style end screen: in the final seconds the
+//     playing video shrinks into a floating card (top right, still live)
+//     while the next lesson takes over as the hero behind it — real
+//     artwork, title, runtime, description, a countdown, and the same
+//     CTA the course hero uses (marquee or cover variant). Cancel — or
+//     tapping the mini video — restores full-screen playback; doing
+//     nothing advances at the end of the clip. Rendered only when the
+//     parent passes playlist + onSelectLesson, and it outlives the
+//     chrome fade — it's a prompt, not a control.
 //   • captions button — always present in the transport so it's
 //     discoverable on every lesson; enabled and wired to the video's text
 //     tracks when the asset carries captions (kept in lock-step with the
@@ -101,22 +105,19 @@ export type WatchLesson = {
 // tile's own aspect ratio.
 const PREVIEW_W = 164
 
-// The Up Next card appears when this little of the lesson remains…
-const UP_NEXT_WINDOW_SECONDS = 10
+// The Up Next end screen appears when this little of the lesson remains…
+const UP_NEXT_WINDOW_SECONDS = 15
 // …but never before this fraction has been watched, so a very short clip
-// (or a deep-link near the start) doesn't open with the card already up.
+// (or a deep-link near the start) doesn't open with the end screen up.
 const UP_NEXT_MIN_FRAC = 0.5
 
-// Countdown ring geometry (r=16.5 inside a 40px viewBox).
-const RING_R = 16.5
-const RING_C = 2 * Math.PI * RING_R
-
 /** One entry of the course's ordered lesson list, for in-player navigation
- * (prev/next buttons, the up-next card, and the lessons sheet). */
+ * (prev/next buttons, the Up Next end screen, and the lessons sheet). */
 export type WatchPlaylistItem = {
   id: string
   n: number
   title: string
+  description?: string | null
   durationSeconds?: number | null
   thumbnailUrl?: string | null
   locked?: boolean
@@ -189,6 +190,8 @@ export function WatchPlayer({
   playlist,
   currentId,
   onSelectLesson,
+  unitLabel = 'Lesson',
+  ctaVariant = 'cover',
 }: {
   lesson: WatchLesson
   courseTitle: string
@@ -210,6 +213,12 @@ export function WatchPlayer({
   playlist?: WatchPlaylistItem[]
   currentId?: string
   onSelectLesson?: (lessonId: string) => void
+  /** 'Lesson' or 'Episode' — drives the Up Next copy ("Play Next Episode"). */
+  unitLabel?: string
+  /** Which hero CTA the course uses — the Up Next end screen renders the
+   * SAME button (cover = white pill with the play chip; marquee = the
+   * band's rounded-rect play button). */
+  ctaVariant?: 'marquee' | 'cover'
 }) {
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const containerRef = useRef<HTMLDivElement | null>(null)
@@ -908,7 +917,9 @@ export function WatchPlayer({
 
   // Up Next: armed in the final window, unless cancelled. Derived from the
   // video clock, so scrubbing back out of the window hides it again and
-  // pausing freezes the countdown.
+  // pausing freezes the countdown. While armed the player enters "endmode":
+  // the live video shrinks into a floating card and the next lesson takes
+  // over as the hero behind it (Apple TV's continuity pattern).
   const remaining = Math.max(0, dur - t)
   const upNextVisible = Boolean(
     nextItem &&
@@ -919,15 +930,13 @@ export function WatchPlayer({
       frac >= UP_NEXT_MIN_FRAC,
   )
   const upNextCountdown = Math.ceil(Math.min(UP_NEXT_WINDOW_SECONDS, remaining))
-  const upNextRingP = Math.max(
-    0,
-    Math.min(1, remaining / UP_NEXT_WINDOW_SECONDS),
-  )
 
   return (
     <div
       ref={containerRef}
-      className={`sov2 player ${uiVisible ? '' : 'ui-hidden'}`}
+      className={`sov2 player ${uiVisible ? '' : 'ui-hidden'} ${
+        upNextVisible ? 'endmode' : ''
+      }`}
       data-watch-player
       onMouseMove={revealUiFromMouse}
       onMouseDown={revealUiFromMouse}
@@ -935,7 +944,16 @@ export function WatchPlayer({
         lastTouchAt.current = Date.now()
       }}
     >
-      <div className="player-video">
+      <div
+        className="player-video"
+        // In endmode the shrunken live video doubles as "keep watching":
+        // tapping it cancels autoplay and expands playback back out.
+        onClick={
+          upNextVisible ? () => setUpNextDismissed(true) : undefined
+        }
+        role={upNextVisible ? 'button' : undefined}
+        aria-label={upNextVisible ? 'Keep watching' : undefined}
+      >
         {isHls ? (
           <HlsVideo
             playbackId={lesson.muxPlaybackId ?? null}
@@ -1003,7 +1021,7 @@ export function WatchPlayer({
             {courseTitle}
           </div>
           <div className="pt-t">
-            {lesson.kicker ?? `Lesson ${lesson.n} · ${lesson.title}`}
+            {lesson.kicker ?? `${unitLabel} ${lesson.n} · ${lesson.title}`}
           </div>
         </div>
       </div>
@@ -1291,67 +1309,62 @@ export function WatchPlayer({
       </div>
 
       {upNextVisible && nextItem && (
-        <div className="upnext">
-          <button
-            className="upnext-card"
-            onClick={goNext}
-            aria-label={`Play next: Lesson ${nextItem.n} · ${nextItem.title}`}
-          >
-            {nextItem.thumbnailUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                className="upnext-thumb"
-                src={nextItem.thumbnailUrl}
-                alt=""
-                draggable={false}
-              />
-            ) : (
-              <span className="upnext-thumb ph">
-                <Glyph d={SF.play2} size={18} stroke={1.8} />
-              </span>
-            )}
-            <span className="upnext-main">
-              <span className="upnext-k">
-                Up next · in {upNextCountdown}s
-              </span>
-              <span className="upnext-t">
-                Lesson {nextItem.n} · {nextItem.title}
-              </span>
-            </span>
-            <span className="upnext-ring" aria-hidden>
-              <svg width="40" height="40" viewBox="0 0 40 40">
-                <circle
-                  cx="20"
-                  cy="20"
-                  r={RING_R}
-                  fill="none"
-                  stroke="rgba(255,255,255,0.22)"
-                  strokeWidth="2.5"
-                />
-                {/* Drains clockwise from 12 o'clock as the clip runs out. */}
-                <circle
-                  cx="20"
-                  cy="20"
-                  r={RING_R}
-                  fill="none"
-                  stroke="#fff"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                  strokeDasharray={RING_C}
-                  strokeDashoffset={RING_C * (1 - upNextRingP)}
-                  transform="rotate(-90 20 20)"
-                />
-              </svg>
-              <Glyph d={SF.play} size={14} fill="currentColor" />
-            </span>
-          </button>
-          <button
-            className="upnext-x"
-            onClick={() => setUpNextDismissed(true)}
-            aria-label="Cancel autoplay"
-          >
-            <Glyph d={SF.close} size={13} stroke={2.2} />
-          </button>
+        <div className="endscreen" role="dialog" aria-label="Up next">
+          {/* Real next-lesson artwork becomes the hero behind the
+              shrunken live video. */}
+          {nextItem.thumbnailUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              className="es-art"
+              src={nextItem.thumbnailUrl}
+              alt=""
+              draggable={false}
+            />
+          ) : (
+            <div className="es-art ph" />
+          )}
+          <div className="es-scrim" />
+          <div className="es-content">
+            <div className="es-k">Up next</div>
+            <h2 className="es-title">{nextItem.title}</h2>
+            <div className="es-meta">
+              {unitLabel} {nextItem.n}
+              {nextItem.durationSeconds
+                ? ` · ${fmtTime(nextItem.durationSeconds)}`
+                : ''}
+            </div>
+            {nextItem.description ? (
+              <p className="es-desc">{nextItem.description}</p>
+            ) : null}
+            <div className="es-actions">
+              {/* The SAME CTA the course hero renders — cover variant is
+                  the white pill with the play chip, marquee is the band's
+                  rounded-rect play button. */}
+              <button
+                className={`es-play ${ctaVariant}`}
+                onClick={goNext}
+                aria-label={`Play next: ${unitLabel} ${nextItem.n} · ${nextItem.title}`}
+              >
+                {ctaVariant === 'cover' ? (
+                  <span className="es-play-chip">
+                    <Glyph d={SF.play} size={15} fill="currentColor" />
+                  </span>
+                ) : (
+                  <Glyph d={SF.play} size={17} fill="currentColor" />
+                )}
+                Play Next {unitLabel}
+              </button>
+              <button
+                className="es-cancel"
+                onClick={() => setUpNextDismissed(true)}
+              >
+                Cancel
+              </button>
+            </div>
+            <div className="es-count" aria-live="polite">
+              Playing in {upNextCountdown}s
+            </div>
+          </div>
         </div>
       )}
 
@@ -1402,7 +1415,7 @@ export function WatchPlayer({
                   </span>
                   <span className="pl-info">
                     <span className="pl-num">
-                      Lesson {p.n}
+                      {unitLabel} {p.n}
                       {p.id === currentId ? ' · Now playing' : ''}
                     </span>
                     <span className="pl-title">{p.title}</span>
@@ -1422,7 +1435,7 @@ export function WatchPlayer({
           // The player is always dark, so its discussion panel is too —
           // otherwise it rendered as a white sheet over the dark video.
           dark
-          lessonLabel={`Lesson ${lesson.n} · ${lesson.title}`}
+          lessonLabel={`${unitLabel} ${lesson.n} · ${lesson.title}`}
           comments={comments!}
           canModerate={canModerateComments}
           instructorName={instructorName}

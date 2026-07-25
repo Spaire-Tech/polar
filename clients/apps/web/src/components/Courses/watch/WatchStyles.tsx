@@ -817,114 +817,231 @@ export function WatchStyles() {
         color: #fff;
       }
 
-      /* Up Next — the autoplay card in the final seconds. A sibling of the
-         chrome, deliberately NOT in the ui-hidden selectors: the prompt
-         stays up even when the controls have faded. */
-      .sov2 .upnext {
-        position: absolute;
-        right: 36px;
-        bottom: 132px;
-        z-index: 6;
-        display: flex;
-        align-items: flex-start;
-        gap: 8px;
-        animation: sov2-upnextIn 0.45s cubic-bezier(0.2, 1, 0.3, 1);
+      /* ════════ Up Next — Apple TV-style end screen ════════
+         In the final seconds the player enters .endmode: the LIVE video
+         shrinks into a floating card top-right (transform only — aspect
+         never changes, playback never stops) while the next lesson's
+         artwork takes over as the hero behind it. Deliberately NOT in
+         the ui-hidden selectors: the prompt outlives the chrome fade. */
+      .sov2 .player-video {
+        transform-origin: top right;
+        overflow: hidden;
+        transition:
+          transform 0.5s cubic-bezier(0.32, 0.72, 0, 1),
+          border-radius 0.5s cubic-bezier(0.32, 0.72, 0, 1),
+          box-shadow 0.5s ease;
       }
-      @keyframes sov2-upnextIn {
+      .sov2.player.endmode .player-video {
+        /* ~26% card pinned 40/84 from the top-right corner. Radius and
+           shadow are authored large because the scale shrinks them too. */
+        transform: translate(-40px, 84px) scale(0.26);
+        border-radius: 56px;
+        box-shadow:
+          0 60px 160px rgba(0, 0, 0, 0.55),
+          0 0 0 4px rgba(255, 255, 255, 0.14);
+        z-index: 6;
+        cursor: pointer;
+      }
+      /* End-screen chrome: transport, vignette and overlays step aside;
+         the top bar (back button) stays reachable above the artwork. */
+      .sov2.player.endmode .player-controls,
+      .sov2.player.endmode .player-vignette {
+        opacity: 0;
+        pointer-events: none;
+      }
+      .sov2.player.endmode .player-bigplay,
+      .sov2.player.endmode .player-cc,
+      .sov2.player.endmode .tap-ind,
+      .sov2.player.endmode .player-gestures {
+        display: none;
+      }
+      .sov2.player.endmode .player-top {
+        opacity: 1;
+        pointer-events: auto;
+        z-index: 8;
+      }
+      /* The outgoing lesson's title would fight the hero metadata. */
+      .sov2.player.endmode .player-title {
+        opacity: 0;
+      }
+      .sov2.player.endmode {
+        cursor: default;
+      }
+
+      .sov2 .endscreen {
+        position: absolute;
+        inset: 0;
+        z-index: 5;
+        animation: sov2-esIn 0.35s ease both;
+      }
+      @keyframes sov2-esIn {
         from {
           opacity: 0;
-          transform: translateY(14px) scale(0.97);
         }
       }
-      .sov2 .upnext-card {
+      .sov2 .es-art {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+      .sov2 .es-art.ph {
+        /* Liquid-glass ambient (the landing's placeholder) when the next
+           lesson has no still yet. */
+        background:
+          radial-gradient(42% 52% at 20% 28%, #6e7a5e 0%, transparent 70%),
+          radial-gradient(46% 56% at 76% 22%, #8a7565 0%, transparent 70%),
+          radial-gradient(52% 62% at 62% 82%, #46464c 0%, transparent 72%),
+          #57544e;
+        filter: blur(40px);
+        transform: scale(1.2);
+      }
+      .sov2 .es-scrim {
+        position: absolute;
+        inset: 0;
+        background:
+          linear-gradient(
+            0deg,
+            rgba(0, 0, 0, 0.78) 0%,
+            rgba(0, 0, 0, 0.3) 38%,
+            transparent 64%
+          ),
+          linear-gradient(100deg, rgba(0, 0, 0, 0.55) 0%, transparent 55%);
+      }
+      .sov2 .es-content {
+        position: absolute;
+        left: 56px;
+        bottom: 60px;
+        max-width: 560px;
+        z-index: 2;
+        animation: sov2-esRise 0.5s cubic-bezier(0.32, 0.72, 0, 1) both;
+        animation-delay: 0.12s;
+      }
+      @keyframes sov2-esRise {
+        from {
+          opacity: 0;
+          transform: translateY(18px);
+        }
+      }
+      .sov2 .es-k {
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, 0.65);
+      }
+      .sov2 .es-title {
+        margin: 10px 0 0;
+        font-size: clamp(28px, 3.6vw, 42px);
+        font-weight: 700;
+        letter-spacing: -0.02em;
+        line-height: 1.08;
+        color: #fff;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        overflow-wrap: anywhere;
+      }
+      .sov2 .es-meta {
+        margin-top: 10px;
+        font-size: 15px;
+        font-weight: 500;
+        color: rgba(255, 255, 255, 0.78);
+        font-variant-numeric: tabular-nums;
+      }
+      .sov2 .es-desc {
+        margin: 10px 0 0;
+        max-width: 480px;
+        font-size: 14.5px;
+        line-height: 1.5;
+        color: rgba(255, 255, 255, 0.7);
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+      }
+      .sov2 .es-actions {
         display: flex;
         align-items: center;
         gap: 12px;
-        max-width: 380px;
-        padding: 10px 14px 10px 10px;
-        border-radius: 18px;
-        background: rgba(28, 28, 32, 0.72);
-        -webkit-backdrop-filter: blur(40px) saturate(150%);
-        backdrop-filter: blur(40px) saturate(150%);
-        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5),
-          inset 0 0 0 1px rgba(255, 255, 255, 0.08);
-        color: #fff;
-        text-align: left;
-        transition: background 0.18s, transform 0.16s;
+        margin-top: 24px;
       }
-      .sov2 .upnext-card:hover {
-        background: rgba(46, 46, 52, 0.78);
-        transform: scale(1.02);
-      }
-      .sov2 .upnext-card:active {
-        transform: scale(0.98);
-      }
-      .sov2 .upnext-thumb {
-        flex: none;
-        width: 72px;
-        height: 44px;
-        border-radius: 10px;
-        object-fit: cover;
-        background: rgba(255, 255, 255, 0.08);
-      }
-      .sov2 .upnext-thumb.ph {
-        display: grid;
-        place-items: center;
-        color: rgba(255, 255, 255, 0.7);
-      }
-      .sov2 .upnext-main {
-        display: flex;
-        flex-direction: column;
-        min-width: 0;
-      }
-      .sov2 .upnext-k {
-        font-size: 11px;
-        font-weight: 700;
-        letter-spacing: 0.06em;
-        text-transform: uppercase;
-        color: rgba(255, 255, 255, 0.6);
-        font-variant-numeric: tabular-nums;
-      }
-      .sov2 .upnext-t {
-        font-size: 14px;
+      /* The hero's real CTA, both variants (WatchPageStyles .abtn.play):
+         cover = white pill with the black play chip; marquee = the band's
+         46px rounded-rect play button. */
+      .sov2 .es-play {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 15px;
         font-weight: 600;
-        margin-top: 2px;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
+        letter-spacing: -0.01em;
+        background: #fff;
+        color: #111;
+        transition:
+          transform 0.16s cubic-bezier(0.2, 1.2, 0.3, 1),
+          background 0.16s;
       }
-      .sov2 .upnext-ring {
-        position: relative;
-        flex: none;
-        width: 40px;
-        height: 40px;
-        display: grid;
-        place-items: center;
+      .sov2 .es-play:hover {
+        transform: translateY(-1px);
       }
-      .sov2 .upnext-ring svg {
-        position: absolute;
-        inset: 0;
+      .sov2 .es-play:active {
+        transform: scale(0.975);
       }
-      .sov2 .upnext-x {
-        flex: none;
-        width: 28px;
-        height: 28px;
+      .sov2 .es-play.cover {
+        gap: 11px;
+        padding: 12px 24px 12px 12px;
+        border-radius: 980px;
+      }
+      .sov2 .es-play-chip {
+        width: 32px;
+        height: 32px;
         border-radius: 50%;
-        background: rgba(28, 28, 32, 0.72);
-        -webkit-backdrop-filter: blur(40px) saturate(150%);
-        backdrop-filter: blur(40px) saturate(150%);
-        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+        background: #111;
         color: #fff;
         display: grid;
         place-items: center;
-        transition: background 0.18s, transform 0.16s;
+        flex: none;
       }
-      .sov2 .upnext-x:hover {
-        background: rgba(46, 46, 52, 0.78);
-        transform: scale(1.06);
+      .sov2 .es-play.marquee {
+        gap: 9px;
+        height: 46px;
+        padding: 0 22px;
+        border-radius: 12px;
+        box-shadow: 0 8px 26px rgba(0, 0, 0, 0.18);
       }
-      .sov2 .upnext-x:active {
-        transform: scale(0.92);
+      .sov2 .es-cancel {
+        height: 46px;
+        padding: 0 24px;
+        border-radius: 980px;
+        font-size: 15px;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+        background: rgba(255, 255, 255, 0.14);
+        color: #fff;
+        -webkit-backdrop-filter: blur(40px) saturate(150%);
+        backdrop-filter: blur(40px) saturate(150%);
+        transition:
+          background 0.18s,
+          transform 0.16s;
+      }
+      .sov2 .es-cancel:hover {
+        background: rgba(255, 255, 255, 0.24);
+      }
+      .sov2 .es-cancel:active {
+        transform: scale(0.975);
+      }
+      .sov2 .es-play.marquee ~ .es-cancel {
+        border-radius: 12px;
+      }
+      .sov2 .es-count {
+        margin-top: 16px;
+        font-size: 13px;
+        font-weight: 600;
+        color: rgba(255, 255, 255, 0.7);
+        font-variant-numeric: tabular-nums;
       }
 
       /* Captions — rendered by the player, not the browser: clean white
@@ -1276,12 +1393,20 @@ export function WatchStyles() {
         .sov2 .pvol-slider {
           display: none;
         }
-        .sov2 .upnext {
-          right: 20px;
-          bottom: 124px;
+        /* End screen on smaller viewports: the live-video card grows
+           relative to the screen and the hero metadata hugs the edges. */
+        .sov2.player.endmode .player-video {
+          transform: translate(-16px, 72px) scale(0.34);
+          border-radius: 40px;
         }
-        .sov2 .upnext-card {
-          max-width: min(320px, calc(100vw - 76px));
+        .sov2 .es-content {
+          left: 20px;
+          right: 20px;
+          bottom: 36px;
+          max-width: none;
+        }
+        .sov2 .es-title {
+          font-size: 26px;
         }
         .sov2 .xs-body {
           padding: 24px 22px 28px;
@@ -1487,14 +1612,17 @@ export function WatchStyles() {
           width: 76px;
           height: 76px;
         }
-        .sov2 .upnext {
-          left: 50%;
-          right: auto;
-          transform: translateX(-50%);
-          bottom: 150px;
-          /* The desktop entry animates transform, which would fight the
-             centering translateX here — fade only on mobile. */
-          animation: sov2-ovIn 0.3s ease;
+        /* End screen on phones: actions stack full-width under the meta. */
+        .sov2 .es-actions {
+          flex-wrap: wrap;
+        }
+        .sov2 .es-play,
+        .sov2 .es-cancel {
+          flex: 1 1 auto;
+          justify-content: center;
+        }
+        .sov2 .es-desc {
+          display: none;
         }
         .sov2 .pl-wrap {
           justify-content: stretch;

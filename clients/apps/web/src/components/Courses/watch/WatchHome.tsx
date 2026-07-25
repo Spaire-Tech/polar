@@ -491,6 +491,7 @@ export function WatchHome({
         id: l.id,
         n: i + 1,
         title: l.title,
+        description: l.description,
         durationSeconds: l.duration_seconds,
         thumbnailUrl: l.thumbnail_url ?? course.thumbnail_url,
         locked: l.locked,
@@ -1404,6 +1405,8 @@ export function WatchHome({
           playlist={playerPlaylist}
           currentId={playing.lesson.id}
           onSelectLesson={selectFromPlayer}
+          unitLabel={unitCap}
+          ctaVariant={heroVariant}
           lesson={{
             n: lessons.findIndex((l) => l.id === playing.lesson.id) + 1,
             title: playing.lesson.title,
