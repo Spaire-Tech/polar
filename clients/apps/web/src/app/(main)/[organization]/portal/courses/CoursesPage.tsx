@@ -71,7 +71,7 @@ const CourseCard = ({
         {thumb ? (
           <img src={thumb} alt="" loading="lazy" style={{ objectPosition }} />
         ) : (
-          <div className="sp-card-media-fallback">Course</div>
+          <div className="sp-card-media-fallback">Masterclass</div>
         )}
       </div>
       <div className="sp-card-body">
@@ -158,18 +158,18 @@ const CoursesPage = ({
     <div className="sp-route">
       <div className="sp-page-head">
         <div>
-          <h1 className="sp-page-title">Courses</h1>
+          <h1 className="sp-page-title">Masterclasses</h1>
           {!isLoading && (
             <p className="sp-page-sub">
               {total === 0
-                ? 'Your courses will appear here once you enroll.'
-                : `${total} course${total === 1 ? '' : 's'} in your library — ${completedCount} completed`}
+                ? 'Your masterclasses will appear here once you enroll.'
+                : `${total} masterclass${total === 1 ? '' : 'es'} in your library — ${completedCount} completed`}
             </p>
           )}
         </div>
       </div>
 
-      <div className="sp-chips" role="tablist" aria-label="Course filter">
+      <div className="sp-chips" role="tablist" aria-label="Masterclass filter">
         {FILTERS.map((f) => (
           <button
             key={f.id}
@@ -190,14 +190,14 @@ const CoursesPage = ({
         <div className="sp-empty">
           <div className="sp-empty-title">
             {total === 0
-              ? 'No courses yet'
+              ? 'No masterclasses yet'
               : filter === 'completed'
-                ? 'No completed courses yet'
+                ? 'No completed masterclasses yet'
                 : 'Nothing in progress'}
           </div>
           <div style={{ fontSize: 13, marginBottom: 16 }}>
             {total === 0
-              ? 'Courses you have access to will appear here.'
+              ? 'Masterclasses you have access to will appear here.'
               : 'Keep going — your progress will show up here.'}
           </div>
           {filter !== 'all' && total > 0 && (
@@ -206,7 +206,7 @@ const CoursesPage = ({
               className="sp-btn is-ghost"
               onClick={() => setFilter('all')}
             >
-              View all courses
+              View all masterclasses
             </button>
           )}
         </div>

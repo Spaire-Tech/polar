@@ -75,7 +75,7 @@ const SmallCard = ({
             style={{ objectPosition }}
           />
         ) : (
-          <div className="sp-card-media-fallback">Course</div>
+          <div className="sp-card-media-fallback">Masterclass</div>
         )}
       </div>
       <div className="sp-card-body">
@@ -206,7 +206,7 @@ const OverviewBody = ({
   const focusTitle = focus?.course.title?.split(':')[0]?.trim()
 
   const stats: Array<{ label: string; value: string | number }> = [
-    { label: 'Courses started', value: list.length },
+    { label: 'Masterclasses started', value: list.length },
     { label: 'Completed', value: completed.length },
     { label: 'Minutes practiced', value: minutesPracticed },
     {

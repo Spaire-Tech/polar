@@ -1089,7 +1089,11 @@ export function WatchHome({
               <path d="M9.5 5l6.5 7-6.5 7" />
             </svg>
           </button>
-          <div className="grid" ref={stripRef} onScroll={updateArrows}>
+          <div
+            className={`grid ${cardVariant === 'spotlight' ? 'spot-rail' : ''}`}
+            ref={stripRef}
+            onScroll={updateArrows}
+          >
             {lessons.map((l, i) => {
               const st = statusOf(l)
               const frac = fractionOf(l)
@@ -1101,15 +1105,14 @@ export function WatchHome({
                       }")`,
                     }
                   : undefined
+              // Watched lessons show a FULL progress bar (no check chip /
+              // "Watched" label) — the bar sitting at the end tells the story.
+              const barFrac = st === 'watched' ? 1 : frac
               const overlays = (
                 <>
                   {l.locked ? (
                     <div className="lc-state lc-lock">
                       <Glyph d={SF.locksm} size={11} stroke={2.1} />
-                    </div>
-                  ) : st === 'watched' ? (
-                    <div className="lc-state lc-done">
-                      <Glyph d={SF.check} size={11} stroke={2.8} />
                     </div>
                   ) : null}
                   {l.duration_seconds ? (
@@ -1123,9 +1126,9 @@ export function WatchHome({
                       <span>{fmtTime(l.duration_seconds)}</span>
                     </div>
                   ) : null}
-                  {frac != null && (
+                  {barFrac != null && (
                     <div className="lc-progbar">
-                      <i style={{ width: `${frac * 100}%` }} />
+                      <i style={{ width: `${barFrac * 100}%` }} />
                     </div>
                   )}
                   {!l.locked && (
@@ -1155,10 +1158,18 @@ export function WatchHome({
               const meta = l.locked ? (
                 <span>{lockedWhen ? `Unlocks ${lockedWhen}` : 'Locked'}</span>
               ) : st === 'watched' ? (
-                <span className="ok">
-                  <Glyph d={SF.check} size={13} stroke={2.6} />
-                  Watched
-                </span>
+                // No "Watched ✓" affordance — the full progress bar says it.
+                <>
+                  <Glyph
+                    d={SF.play2}
+                    size={12}
+                    fill="currentColor"
+                    stroke={0}
+                  />
+                  <span>
+                    {l.duration_seconds ? fmtTime(l.duration_seconds) : '—'}
+                  </span>
+                </>
               ) : st === 'progress' ? (
                 <span>Continue · {Math.round((frac ?? 0) * 100)}%</span>
               ) : (
@@ -1184,6 +1195,10 @@ export function WatchHome({
                     onClick={() => void playLesson(l)}
                   >
                     <div className={`spot-card ${imgStyle ? '' : 'ph'}`}>
+                      {/* Liquid-glass placeholder (landing's .ph-ambient +
+                          .glass-tint) — hidden once a still exists. */}
+                      <div className="ph-ambient" aria-hidden />
+                      <div className="glass-tint" aria-hidden />
                       <div className="img" style={imgStyle} />
                       <div className="spot-shade" />
                       {overlays}
@@ -1242,6 +1257,7 @@ export function WatchHome({
           {lessons.map((l, i) => {
             const st = statusOf(l)
             const frac = fractionOf(l)
+            const barFrac = st === 'watched' ? 1 : frac
             const thumb = l.thumbnail_url ?? course.thumbnail_url
             const moduleTitle = moduleTitleById.get(l.id)
             const prevModuleTitle =
@@ -1277,19 +1293,15 @@ export function WatchHome({
                       <span className="ml-state">
                         <Glyph d={SF.locksm} size={10} stroke={2.1} />
                       </span>
-                    ) : st === 'watched' ? (
-                      <span className="ml-state done">
-                        <Glyph d={SF.check} size={10} stroke={2.8} />
-                      </span>
                     ) : null}
                     {l.duration_seconds ? (
                       <span className="ml-dur">
                         {fmtTime(l.duration_seconds)}
                       </span>
                     ) : null}
-                    {frac != null && (
+                    {barFrac != null && (
                       <span className="ml-progbar">
-                        <i style={{ width: `${frac * 100}%` }} />
+                        <i style={{ width: `${barFrac * 100}%` }} />
                       </span>
                     )}
                   </div>
@@ -1304,13 +1316,11 @@ export function WatchHome({
                         ? lockedWhen
                           ? `Unlocks ${lockedWhen}`
                           : 'Locked'
-                        : st === 'watched'
-                          ? 'Watched'
-                          : st === 'progress'
-                            ? `Continue · ${Math.round((frac ?? 0) * 100)}%`
-                            : l.duration_seconds
-                              ? fmtTime(l.duration_seconds)
-                              : '—'}
+                        : st === 'progress'
+                          ? `Continue · ${Math.round((frac ?? 0) * 100)}%`
+                          : l.duration_seconds
+                            ? fmtTime(l.duration_seconds)
+                            : '—'}
                     </div>
                   </div>
                   <button

@@ -406,7 +406,7 @@ const BillingBody = ({
             <div className="sp-lib-eyebrow">Looking for more?</div>
             <div className="sp-lib-title">Browse {organization.name}</div>
             <div className="sp-lib-meta">
-              See what new courses and products are available.
+              See what new masterclasses and products are available.
             </div>
           </div>
           <Link href={`/${organization.slug}`} className="sp-btn is-ghost">

@@ -86,7 +86,7 @@ export const usePortalTabs = (
       {
         key: 'courses',
         href: `/${slug}/portal/courses`,
-        label: 'Courses',
+        label: 'Masterclasses',
         // Don't light up Courses while inside a course's community sub-route —
         // that path belongs to the Community tab (matched below).
         matches: (p) =>

@@ -202,7 +202,7 @@ export function CommunityHubStudent({
               token={token}
               selfName={selfName}
               selfAvatar={selfAvatar}
-              courseTitle={course?.title ?? 'your course'}
+              courseTitle={course?.title ?? 'your masterclass'}
               brandName={brand}
               lessonsCount={lessonsCount}
               onGoToCourse={goToCourse}

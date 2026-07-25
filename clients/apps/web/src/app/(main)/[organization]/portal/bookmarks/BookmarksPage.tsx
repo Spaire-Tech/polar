@@ -96,7 +96,7 @@ const BookmarkCard = ({
         </Link>
         <div className="sp-card-meta">
           <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {bookmark.courseTitle ?? 'Course'}
+            {bookmark.courseTitle ?? 'Masterclass'}
           </span>
           {bookmark.durationSeconds ? (
             <span>· {formatMinSec(bookmark.durationSeconds)}</span>

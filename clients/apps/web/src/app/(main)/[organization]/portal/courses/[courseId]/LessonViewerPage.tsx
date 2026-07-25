@@ -154,7 +154,7 @@ const LessonViewerPage = ({
     return (
       <div className="flex min-h-screen items-center justify-center bg-black p-6">
         <div className="max-w-md rounded-xl bg-red-900/30 p-6 text-red-400">
-          Could not load course. You may not have access.
+          Could not load masterclass. You may not have access.
         </div>
       </div>
     )

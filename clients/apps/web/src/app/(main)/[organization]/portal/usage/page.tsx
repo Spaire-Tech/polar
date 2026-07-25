@@ -34,7 +34,7 @@ export async function generateMetadata(props: {
           url: `https://spairehq.com/og?org=${organization.slug}`,
           width: 1200,
           height: 630,
-          alt: `${organization.name}'s courses on Spaire`,
+          alt: `${organization.name}'s masterclasses on Spaire`,
         },
       ],
       card: 'summary_large_image',

@@ -282,7 +282,9 @@ export function WatchPageStyles() {
         display: block;
         height: 100%;
         border-radius: 980px;
-        background: #fff;
+        /* Community blue with a slight light sweep toward the tip. */
+        background: linear-gradient(90deg, #0066cc 0%, #2997ff 100%);
+        transition: width 0.5s ease;
       }
 
       .sow .panel-brand {
@@ -578,10 +580,9 @@ export function WatchPageStyles() {
         display: block;
         height: 100%;
         border-radius: 980px;
-        background: var(--bt);
-        transition:
-          width 0.5s ease,
-          background 0.4s ease;
+        /* Community blue with a slight light sweep toward the tip. */
+        background: linear-gradient(90deg, #0066cc 0%, #2997ff 100%);
+        transition: width 0.5s ease;
       }
 
       /* ════════ lesson rail — catalog cards ════════ */
@@ -741,7 +742,6 @@ export function WatchPageStyles() {
         top: 12px;
         z-index: 2;
       }
-      .sow .lc-done,
       .sow .lc-lock {
         width: 25px;
         height: 25px;
@@ -752,9 +752,6 @@ export function WatchPageStyles() {
         background: rgba(0, 0, 0, 0.42);
         -webkit-backdrop-filter: blur(8px);
         backdrop-filter: blur(8px);
-      }
-      .sow .lc-done {
-        background: rgba(35, 160, 80, 0.85);
       }
       .sow .lc-dur {
         position: absolute;
@@ -787,7 +784,10 @@ export function WatchPageStyles() {
       .sow .lc-progbar i {
         display: block;
         height: 100%;
-        background: #fff;
+        border-radius: 0 980px 980px 0;
+        /* Community blue with a slight light sweep toward the tip. */
+        background: linear-gradient(90deg, #0066cc 0%, #2997ff 100%);
+        transition: width 0.4s ease;
       }
       .sow .lc-ovbtn {
         position: absolute;
@@ -865,16 +865,16 @@ export function WatchPageStyles() {
         color: var(--text-2);
         font-variant-numeric: tabular-nums;
       }
-      .sow .lc-meta .ok {
-        color: #23a050;
-        display: inline-flex;
-        align-items: center;
-        gap: 5px;
-      }
 
-      /* ── spotlight lesson card (text over the image) ── */
+      /* ── spotlight lesson card — ported 1:1 from the public landing's
+         .gpp .card (Apple TV-style episode card): 30px rail gap with a
+         400px card floor, 24px radius, liquid-glass placeholder, and the
+         frosted blur band fading up from the bottom of the still. ── */
+      .sow .grid.spot-rail {
+        gap: 30px;
+      }
       .sow .grid .lc-spot {
-        flex: 0 0 calc((100% - 60px) / 4);
+        flex: 0 0 max(calc((100% - 90px) / 4), 400px);
         min-width: 0;
         scroll-snap-align: start;
       }
@@ -886,10 +886,10 @@ export function WatchPageStyles() {
         position: relative;
         width: 100%;
         aspect-ratio: 465 / 320;
-        border-radius: 18px;
+        border-radius: 24px;
         overflow: hidden;
         background: #111;
-        box-shadow: 0 14px 14px rgba(0, 0, 0, 0.04);
+        box-shadow: 0 20px 18px rgba(0, 0, 0, 0.04);
         transition:
           transform 0.26s cubic-bezier(0.34, 1.3, 0.64, 1),
           box-shadow 0.26s;
@@ -898,6 +898,31 @@ export function WatchPageStyles() {
         transform: translateY(-5px);
         box-shadow: 0 16px 48px rgba(0, 0, 0, 0.22);
       }
+      /* liquid glass while awaiting a still (landing's placeholder) */
+      .sow .spot-card .ph-ambient {
+        display: none;
+        position: absolute;
+        inset: -15%;
+        background:
+          radial-gradient(42% 52% at 20% 28%, #6e7a5e 0%, transparent 70%),
+          radial-gradient(46% 56% at 76% 22%, #8a7565 0%, transparent 70%),
+          radial-gradient(52% 62% at 62% 82%, #46464c 0%, transparent 72%),
+          radial-gradient(36% 46% at 28% 78%, #5d6e6a 0%, transparent 70%),
+          #57544e;
+        filter: blur(40px);
+      }
+      .sow .spot-card .glass-tint {
+        display: none;
+        position: absolute;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.18);
+        -webkit-backdrop-filter: blur(60px) saturate(140%);
+        backdrop-filter: blur(60px) saturate(140%);
+      }
+      .sow .spot-card.ph .ph-ambient,
+      .sow .spot-card.ph .glass-tint {
+        display: block;
+      }
       .sow .spot-card .img {
         position: absolute;
         inset: 0;
@@ -905,11 +930,7 @@ export function WatchPageStyles() {
         background-position: center;
       }
       .sow .spot-card.ph .img {
-        background:
-          radial-gradient(42% 52% at 20% 28%, #6e7a5e 0%, transparent 70%),
-          radial-gradient(46% 56% at 76% 22%, #8a7565 0%, transparent 70%),
-          radial-gradient(52% 62% at 62% 82%, #46464c 0%, transparent 72%),
-          #57544e;
+        display: none;
       }
       .sow .spot-shade {
         position: absolute;
@@ -920,6 +941,18 @@ export function WatchPageStyles() {
           rgba(0, 0, 0, 0.4) 40%,
           rgba(0, 0, 0, 0.1) 100%
         );
+        /* Frosted blur fading up from the bottom so the episode title/meta
+           read cleanly over the still — the Apple-TV spotlight look. Masked
+           so only the lower portion blurs and the artwork stays crisp. */
+        -webkit-backdrop-filter: blur(16px);
+        backdrop-filter: blur(16px);
+        -webkit-mask-image: linear-gradient(
+          to top,
+          #000 0%,
+          #000 24%,
+          transparent 54%
+        );
+        mask-image: linear-gradient(to top, #000 0%, #000 24%, transparent 54%);
       }
       .sow .spot-info {
         position: absolute;
@@ -927,18 +960,21 @@ export function WatchPageStyles() {
         bottom: 0;
         left: 0;
         z-index: 10;
-        padding: 0 16px 14px;
+        padding: 0 20px 16px;
       }
       .sow .spot-info .lc-num {
+        font-size: 11px;
+        letter-spacing: 0.07em;
         color: rgba(235, 235, 245, 0.66);
+        margin-bottom: 0;
       }
       .sow .spot-title {
-        font-size: 16px;
+        font-size: 18px;
         font-weight: 600;
         letter-spacing: -0.015em;
         line-height: 1.2;
         color: #fff;
-        margin-top: 2px;
+        margin-top: 5px;
         display: -webkit-box;
         -webkit-line-clamp: 2;
         -webkit-box-orient: vertical;
@@ -946,35 +982,21 @@ export function WatchPageStyles() {
         overflow-wrap: anywhere;
       }
       .sow .spot-desc {
-        font-size: 13px;
+        font-size: 14px;
         line-height: 1.45;
         color: rgba(235, 235, 245, 0.72);
-        margin-top: 3px;
+        margin-top: 4px;
         display: -webkit-box;
         -webkit-line-clamp: 2;
         -webkit-box-orient: vertical;
         overflow: hidden;
-        min-height: 37px;
+        min-height: 40px;
       }
       .sow .spot-info .lc-meta {
+        font-size: 13px;
         color: rgba(235, 235, 245, 0.75);
-        margin-top: 6px;
+        margin-top: 8px;
         padding-top: 0;
-      }
-      @media (max-width: 1200px) {
-        .sow .grid .lc-spot {
-          flex-basis: calc((100% - 40px) / 3);
-        }
-      }
-      @media (max-width: 820px) {
-        .sow .grid .lc-spot {
-          flex-basis: calc((100% - 20px) / 2);
-        }
-      }
-      @media (max-width: 560px) {
-        .sow .grid .lc-spot {
-          flex-basis: 82%;
-        }
       }
 
       /* now-playing equaliser bars */
@@ -1268,9 +1290,6 @@ export function WatchPageStyles() {
           color: rgba(255, 255, 255, 0.92);
           background: rgba(0, 0, 0, 0.45);
         }
-        .sow .ml-state.done {
-          background: rgba(35, 160, 80, 0.9);
-        }
         .sow .ml-dur {
           position: absolute;
           right: 5px;
@@ -1297,7 +1316,9 @@ export function WatchPageStyles() {
         .sow .ml-progbar i {
           display: block;
           height: 100%;
-          background: #fff;
+          border-radius: 0 980px 980px 0;
+          /* Community blue with a slight light sweep toward the tip. */
+          background: linear-gradient(90deg, #0066cc 0%, #2997ff 100%);
         }
         .sow .ml-info {
           flex: 1;
