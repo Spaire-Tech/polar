@@ -14,6 +14,7 @@ import {
   HeadphonesIcon,
   VideoIcon,
 } from '../_components/icons'
+import { PortalLoading } from '../_components/PortalLoading'
 
 // Backend enriches DownloadableRead with optional product fields. Cast at the
 // boundary; ./hooks/queries's generic schema doesn't know about the new
@@ -211,35 +212,6 @@ const DownloadCard = ({
   )
 }
 
-const DownloadsSkeleton = () => (
-  <div className="sp-grid">
-    {[0, 1, 2, 3, 4, 5].map((i) => (
-      <div key={i} className="sp-card sp-dl-card">
-        <div
-          className="sp-skel"
-          style={{ aspectRatio: '4 / 3', borderRadius: 14 }}
-        />
-        <div className="sp-dl-body">
-          <div
-            className="sp-skel"
-            style={{ height: 16, marginBottom: 10, borderRadius: 6 }}
-          />
-          <div
-            className="sp-skel"
-            style={{
-              height: 12,
-              width: '60%',
-              borderRadius: 6,
-              marginBottom: 14,
-            }}
-          />
-          <div className="sp-skel" style={{ height: 36, borderRadius: 10 }} />
-        </div>
-      </div>
-    ))}
-  </div>
-)
-
 const DownloadsBody = ({
   organization: _organization,
   customerSessionToken,
@@ -345,7 +317,7 @@ const DownloadsBody = ({
       </div>
 
       {isLoading ? (
-        <DownloadsSkeleton />
+        <PortalLoading variant="inline" />
       ) : items.length === 0 ? (
         <div className="sp-empty">
           <div className="sp-empty-title">No downloads yet</div>

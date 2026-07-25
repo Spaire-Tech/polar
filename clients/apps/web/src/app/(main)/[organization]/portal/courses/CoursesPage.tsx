@@ -9,6 +9,7 @@ import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import * as React from 'react'
 import { CheckIcon } from '../_components/icons'
+import { PortalLoading } from '../_components/PortalLoading'
 
 type Filter = 'all' | 'in_progress' | 'completed'
 
@@ -107,29 +108,6 @@ const CourseCard = ({
   )
 }
 
-const CoursesSkeleton = () => (
-  <div className="sp-grid">
-    {[0, 1, 2, 3, 4, 5].map((i) => (
-      <div key={i} className="sp-card">
-        <div
-          className="sp-skel"
-          style={{ aspectRatio: '4 / 3', borderRadius: 14 }}
-        />
-        <div className="sp-card-body">
-          <div
-            className="sp-skel"
-            style={{ height: 16, marginBottom: 10, borderRadius: 6 }}
-          />
-          <div
-            className="sp-skel"
-            style={{ height: 12, width: '60%', borderRadius: 6 }}
-          />
-        </div>
-      </div>
-    ))}
-  </div>
-)
-
 const CoursesPage = ({
   organization,
   customerSessionToken,
@@ -185,7 +163,7 @@ const CoursesPage = ({
       </div>
 
       {isLoading ? (
-        <CoursesSkeleton />
+        <PortalLoading variant="inline" />
       ) : filtered.length === 0 ? (
         <div className="sp-empty">
           <div className="sp-empty-title">

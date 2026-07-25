@@ -1,5 +1,6 @@
 'use client'
 
+import { PortalLoading } from '@/app/(main)/[organization]/portal/_components/PortalLoading'
 import {
   type CommunityCourseSummary,
   useCommunityEnrolledCourses,
@@ -46,19 +47,7 @@ export function CommunityPicker({
   }, [courses, enabledCourses, router])
 
   if (isLoading) {
-    return (
-      <div className={styles.root}>
-        <main className={styles.main}>
-          <div
-            style={{
-              height: 240,
-              borderRadius: 20,
-              background: 'var(--c-panel)',
-            }}
-          />
-        </main>
-      </div>
-    )
+    return <PortalLoading />
   }
 
   // Distinguish "no enrollments" from "enrolled but no community is on"
@@ -105,8 +94,9 @@ export function CommunityPicker({
   }
 
   if (enabledCourses.length === 1) {
-    // Redirecting — render an empty shell while the navigation lands.
-    return <div className={styles.root} />
+    // Redirecting to the community hub — keep the boot loader up so the
+    // hop reads as one continuous load instead of a flash of empty page.
+    return <PortalLoading />
   }
 
   return (
