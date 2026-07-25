@@ -121,6 +121,14 @@ const MD_OPTIONS = {
   },
 }
 
+// "2:40" from a citation's start second.
+function fmtCiteTime(secs?: number | null): string | null {
+  if (secs == null || secs <= 0) return null
+  const m = Math.floor(secs / 60)
+  const s = Math.floor(secs % 60)
+  return `${m}:${String(s).padStart(2, '0')}`
+}
+
 function Citations({
   cites,
   onJump,
@@ -128,36 +136,39 @@ function Citations({
   cites?: AskCitation[]
   onJump: (c: AskCitation) => void
 }) {
-  // Prefer lesson-mapped citations; fall back to anything with a snippet.
-  const usable = (cites ?? []).filter(
-    (c) => c.lesson_id || c.lesson_title || c.cited_text || c.document_title,
-  )
+  // ONE clean card per lesson, never a transcript dump: the model returns a
+  // citation per retrieved passage, so a single answer can carry several
+  // near-identical entries for the same lesson. Keep only citations that
+  // actually open a lesson, collapse duplicates (preferring one with a
+  // timestamp), and cap the list — the cards are pointers to the source,
+  // not the source itself.
+  const byLesson = new Map<string, AskCitation>()
+  for (const c of cites ?? []) {
+    if (!c.lesson_id) continue
+    const cur = byLesson.get(c.lesson_id)
+    if (!cur || (cur.seconds == null && c.seconds != null)) {
+      byLesson.set(c.lesson_id, c)
+    }
+  }
+  const usable = [...byLesson.values()].slice(0, 3)
   if (!usable.length) return null
   return (
     <div className="m-cites">
       <div className="m-cites-h">
         <Glyph d={SF.book} size={14} stroke={1.9} /> From the course
       </div>
-      {usable.map((c, i) => {
-        const title =
-          c.lesson_title || c.document_title || 'From the course'
+      {usable.map((c) => {
+        const title = c.lesson_title || c.document_title || 'Lesson'
         const heading =
           c.lesson_number != null
             ? `Lesson ${c.lesson_number} · ${title}`
             : title
+        // "The toss · 2:40" — the moment's name and where it starts. No
+        // quoted transcript text here; the lesson itself is one tap away.
         const sub =
-          c.label ||
-          (c.cited_text
-            ? `“${c.cited_text.length > 120 ? c.cited_text.slice(0, 120) + '…' : c.cited_text}”`
-            : null)
-        const clickable = !!c.lesson_id
+          [c.label, fmtCiteTime(c.seconds)].filter(Boolean).join(' · ') || null
         return (
-          <button
-            className="cite"
-            key={i}
-            onClick={() => clickable && onJump(c)}
-            style={clickable ? undefined : { cursor: 'default' }}
-          >
+          <button className="cite" key={c.lesson_id} onClick={() => onJump(c)}>
             <span
               className={`cite-thumb${c.thumbnail_url ? '' : ' cite-thumb--empty'}`}
             >
@@ -170,11 +181,9 @@ function Citations({
               <span className="cl">{heading}</span>
               {sub ? <span className="cm">{sub}</span> : null}
             </span>
-            {clickable ? (
-              <span className="cite-go">
-                <Glyph d={SF.chevron} size={17} stroke={2.2} />
-              </span>
-            ) : null}
+            <span className="cite-go">
+              <Glyph d={SF.chevron} size={17} stroke={2.2} />
+            </span>
           </button>
         )
       })}
