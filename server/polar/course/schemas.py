@@ -69,6 +69,12 @@ class MuxUploadRead(Schema):
     upload_url: str
 
 
+class LessonAiRewriteRequest(Schema):
+    # Which editor section to rewrite from the transcript:
+    # "details" → title + description; "overview" → overview note + takeaways.
+    section: Literal["details", "overview"]
+
+
 class CourseLessonRead(TimestampedSchema):
     id: UUID4
     module_id: UUID4
@@ -96,6 +102,10 @@ class CourseLessonRead(TimestampedSchema):
     # show whether a video lesson has been transcribed yet:
     # pending | ready | failed | unavailable (null = not started / not a video).
     transcript_status: str | None = None
+    # AI lesson-draft pipeline state — drives the editor's "AI is drafting
+    # your lesson…" banner: pending | done | failed | cancelled (null = not
+    # started / not a video).
+    ai_autofill_status: str | None = None
     thumbnail_url: str | None = None
     thumbnail_object_position: str | None = None
     description: str | None = None

@@ -43,6 +43,7 @@ from .schemas import (
     CourseModuleUpdate,
     CourseRead,
     CourseUpdate,
+    LessonAiRewriteRequest,
     MuxUploadRead,
     ReorderRequest,
 )
@@ -86,6 +87,7 @@ def _lesson_read(lesson) -> CourseLessonRead:
         mux_storyboard_url=mux_client.storyboard_url(lesson.mux_playback_id),
         mux_status=lesson.mux_status,
         transcript_status=getattr(lesson, "transcript_status", None),
+        ai_autofill_status=getattr(lesson, "ai_autofill_status", None),
         thumbnail_url=lesson.thumbnail_url,
         description=getattr(lesson, "description", None),
         release_at=getattr(lesson, "release_at", None),
@@ -371,6 +373,80 @@ async def remove_lesson_video(
     if lesson is None:
         raise HTTPException(status_code=404, detail="Lesson not found")
     lesson = await course_service.clear_lesson_video(session, lesson)
+    return _lesson_read(lesson)
+
+
+@router.post(
+    "/lessons/{lesson_id}/ai-autofill/cancel",
+    response_model=CourseLessonRead,
+    summary="Cancel AI Lesson Draft",
+)
+async def cancel_lesson_ai_autofill(
+    lesson_id: UUID,
+    auth_subject: auth.CoursesWrite,
+    session: AsyncSession = Depends(get_db_session),
+) -> CourseLessonRead:
+    """The creator clicked "I'll write it myself": stop the AI from filling
+    this lesson's details. Only the autofill is cancelled — the transcript
+    keeps generating for captions and the Course Assistant."""
+    lesson_repo = CourseLessonRepository.from_session(session)
+    lesson = await lesson_repo.get_readable_by_id(lesson_id, auth_subject)
+    if lesson is None:
+        raise HTTPException(status_code=404, detail="Lesson not found")
+    # A draft that already landed can't be un-written; anything else —
+    # including the pre-attach window where the status is still null —
+    # records the opt-out so attach_ready_asset won't queue a draft.
+    if lesson.ai_autofill_status != "done":
+        lesson = await lesson_repo.update(
+            lesson, update_dict={"ai_autofill_status": "cancelled"}
+        )
+    return _lesson_read(lesson)
+
+
+@router.post(
+    "/lessons/{lesson_id}/ai-rewrite",
+    response_model=CourseLessonRead,
+    summary="Rewrite Lesson Section With AI",
+)
+async def rewrite_lesson_with_ai(
+    lesson_id: UUID,
+    rewrite: LessonAiRewriteRequest,
+    auth_subject: auth.CoursesWrite,
+    session: AsyncSession = Depends(get_db_session),
+) -> CourseLessonRead:
+    """Rewrite one editor section (details or overview) from the lesson's
+    video transcript. Overwrites that section — the creator explicitly asked.
+    409 until the transcript is ready (the editor only shows the button once
+    it is)."""
+    from polar.course_assistant.service import (
+        DraftGenerationFailed,
+        NotConfigured,
+        TranscriptNotReady,
+        course_assistant_service,
+    )
+
+    lesson_repo = CourseLessonRepository.from_session(session)
+    lesson = await lesson_repo.get_readable_by_id(lesson_id, auth_subject)
+    if lesson is None:
+        raise HTTPException(status_code=404, detail="Lesson not found")
+    try:
+        lesson = await course_assistant_service.rewrite_lesson_section(
+            session, lesson, section=rewrite.section
+        )
+    except NotConfigured:
+        raise HTTPException(
+            status_code=503, detail="AI is not configured on this deployment"
+        )
+    except TranscriptNotReady:
+        raise HTTPException(
+            status_code=409,
+            detail="This lesson's transcript isn't ready yet — try again in a minute.",
+        )
+    except DraftGenerationFailed:
+        raise HTTPException(
+            status_code=502,
+            detail="The AI couldn't draft this lesson — please try again.",
+        )
     return _lesson_read(lesson)
 
 
@@ -1359,9 +1435,12 @@ async def mux_webhook(
             if asset_id:
                 lesson = await lesson_repo.get_by_mux_asset_id(asset_id)
                 if lesson is not None:
-                    await lesson_repo.update(
-                        lesson, update_dict={"transcript_status": "unavailable"}
-                    )
+                    errored_update: dict = {"transcript_status": "unavailable"}
+                    if lesson.ai_autofill_status == "pending":
+                        # No transcript will come, so no AI draft either —
+                        # resolve the editor's banner instead of hanging it.
+                        errored_update["ai_autofill_status"] = "failed"
+                    await lesson_repo.update(lesson, update_dict=errored_update)
                     from polar.worker import enqueue_job
 
                     course_id = await lesson_repo.get_course_id_for_lesson(

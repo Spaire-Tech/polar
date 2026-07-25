@@ -326,6 +326,23 @@ class CourseLessonRepository(
         )
         return await self.get_all(statement)
 
+    async def list_pending_autofills(
+        self, limit: int = 200
+    ) -> Sequence[CourseLesson]:
+        """Lessons whose transcript is ready but whose AI lesson draft is
+        still 'pending' — i.e. the autofill enqueue was dropped. The reconcile
+        cron re-kicks these so the editor's "AI is drafting…" banner always
+        resolves."""
+        statement = (
+            self.get_base_statement()
+            .where(
+                CourseLesson.ai_autofill_status == "pending",
+                CourseLesson.transcript_status == "ready",
+            )
+            .limit(limit)
+        )
+        return await self.get_all(statement)
+
 
 class CourseEnrollmentRepository(
     RepositorySoftDeletionIDMixin[CourseEnrollment, UUID],

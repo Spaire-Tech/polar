@@ -83,6 +83,13 @@ class CourseLesson(RecordModel):
     transcript_cues: Mapped[list[dict[str, object]] | None] = mapped_column(
         JSONB, nullable=True, default=None
     )
+    # AI lesson-draft pipeline: once the transcript lands, the AI writes the
+    # lesson's description / overview / takeaways into any empty fields.
+    # pending (queued behind the transcript) | done | failed | cancelled (the
+    # creator clicked "I'll write it myself"). Null = not started / no video.
+    ai_autofill_status: Mapped[str | None] = mapped_column(
+        String(20), nullable=True, default=None
+    )
 
     thumbnail_url: Mapped[str | None] = mapped_column(
         String(2048), nullable=True, default=None
