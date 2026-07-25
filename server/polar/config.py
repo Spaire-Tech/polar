@@ -135,6 +135,14 @@ class Settings(BaseSettings):
     CUSTOMER_SESSION_CODE_TTL: timedelta = timedelta(minutes=30)
     CUSTOMER_SESSION_CODE_LENGTH: int = 6
 
+    # Course preview session — sessions minted by the course preview-access
+    # endpoint (an instructor previewing their own course). Kept SEPARATE from
+    # CUSTOMER_SESSION_TTL so preview links can be made long-lived (e.g. to
+    # share a course-in-progress for a while) WITHOUT extending real customers'
+    # portal logins, which keep the short CUSTOMER_SESSION_TTL. Defaults to the
+    # same 1 hour; override via SPAIRE_COURSE_PREVIEW_SESSION_TTL to lengthen.
+    COURSE_PREVIEW_SESSION_TTL: timedelta = timedelta(hours=1)
+
     # Impersonation session
     IMPERSONATION_COOKIE_KEY: str = "spaire_original_session"
     IMPERSONATION_INDICATOR_COOKIE_KEY: str = "spaire_is_impersonating"

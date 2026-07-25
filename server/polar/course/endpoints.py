@@ -1064,8 +1064,17 @@ async def get_preview_access(
         session, course_id=course_id, customer=customer, fire_events=False
     )
 
+    # Preview sessions get their own configurable lifetime
+    # (COURSE_PREVIEW_SESSION_TTL) so a course-in-progress link can be made
+    # long-lived without extending real customers' portal sessions, which
+    # keep the shorter CUSTOMER_SESSION_TTL.
+    from polar.config import settings
+    from polar.kit.utils import utc_now
+
     token, _ = await customer_session.create_customer_session(
-        session, customer
+        session,
+        customer,
+        expires_at=utc_now() + settings.COURSE_PREVIEW_SESSION_TTL,
     )
 
     portal_url = f"/{org.slug}/portal/courses/{course_id}?customer_session_token={token}"
