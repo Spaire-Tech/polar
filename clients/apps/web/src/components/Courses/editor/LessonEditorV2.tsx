@@ -1058,24 +1058,29 @@ export function LessonEditorV2({
           </p>
         </section>
 
-        {/* ════════ LESSON CONTENT (body) ════════ */}
-        <section className="sec">
-          <div className="sec-h">{unitCap} content</div>
-          <div className="card">
-            <div className="field">
-              <Autosize
-                className="f-area"
-                value={body}
-                onChange={onBody}
-                placeholder="Write the lesson here. Markdown is supported — this is shown on the lesson page."
-              />
+        {/* ════════ LESSON CONTENT (body) ════════
+            Video lessons don't get a long-form body editor — the video (plus
+            overview + takeaways above) IS the lesson. For text-only lessons
+            this textarea is the entire lesson body, so it stays. */}
+        {!hasVideo && (
+          <section className="sec">
+            <div className="sec-h">{unitCap} content</div>
+            <div className="card">
+              <div className="field">
+                <Autosize
+                  className="f-area"
+                  value={body}
+                  onChange={onBody}
+                  placeholder="Write the lesson here. Markdown is supported — this is shown on the lesson page."
+                />
+              </div>
             </div>
-          </div>
-          <p className="sec-sub">
-            Long-form text shown on the {unitCap.toLowerCase()} page. For a
-            text-only {unitCap.toLowerCase()}, this is the lesson body.
-          </p>
-        </section>
+            <p className="sec-sub">
+              Long-form text shown on the {unitCap.toLowerCase()} page. For a
+              text-only {unitCap.toLowerCase()}, this is the lesson body.
+            </p>
+          </section>
+        )}
 
         {/* ════════ RESOURCES ════════ */}
         <section className="sec">
