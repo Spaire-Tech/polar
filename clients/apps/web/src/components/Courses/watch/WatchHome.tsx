@@ -199,8 +199,9 @@ export function WatchHome({
   const course = data.course
   const courseId = course.id
   const dark = course.landing_overrides?.theme_mode === 'dark'
-  const isEpisodic = course.format === 'series'
-  const unitCap = isEpisodic ? 'Episode' : 'Lesson'
+  // The customer portal always says "Lesson" — the series-format 'Episode'
+  // wording is a landing-page framing, not how students navigate content.
+  const unitCap = 'Lesson'
   // Honor the hero the creator chose at onboarding — the public landing
   // already does this, the portal used to hard-render the marquee. 'cover'
   // is the full-bleed lower-left layout; 'marquee' is the frosted band.
@@ -1044,9 +1045,9 @@ export function WatchHome({
       {/* ════════ lesson rail ════════ */}
       <section className="lessons">
         <div className="row-head">
-          <span className="rh">{unitCap}s</span>
+          <span className="rh">{course.title}</span>
           <span className="rh-meta">
-            {lessons.length} {unitCap.toLowerCase()}
+            {lessons.length} lesson
             {lessons.length === 1 ? '' : 's'}
             {lessonsDone > 0 ? ` · ${lessonsDone} watched` : ''}
           </span>
