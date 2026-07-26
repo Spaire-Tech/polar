@@ -1009,17 +1009,33 @@ class CourseService:
         lesson_id: UUID,
     ) -> CourseLessonProgress:
         repo = CourseLessonProgressRepository.from_session(session)
-        existing = await repo.get_one_or_none(
-            repo.get_by_enrollment_and_lesson_statement(enrollment_id, lesson_id)
+        # Fetch INCLUDING soft-deleted rows: the (enrollment, lesson) unique
+        # constraint counts them, so a dead row (e.g. residue of an old
+        # progress reset) must be resurrected — a blind INSERT would violate
+        # the constraint and the completion would silently never stick.
+        existing = await repo.get_by_enrollment_and_lesson_including_deleted(
+            enrollment_id, lesson_id
         )
-        if existing is not None:
+        if existing is not None and existing.deleted_at is None:
             return existing
-        progress = CourseLessonProgress(
-            enrollment_id=enrollment_id,
-            lesson_id=lesson_id,
-            completed_at=datetime.now(tz=UTC),
-        )
-        progress = await repo.create(progress, flush=True)
+        if existing is not None:
+            progress = await repo.update(
+                existing,
+                update_dict={
+                    "deleted_at": None,
+                    "completed_at": datetime.now(tz=UTC),
+                },
+                flush=True,
+            )
+        else:
+            progress = await repo.create(
+                CourseLessonProgress(
+                    enrollment_id=enrollment_id,
+                    lesson_id=lesson_id,
+                    completed_at=datetime.now(tz=UTC),
+                ),
+                flush=True,
+            )
         # A completed lesson is no longer "in progress" — drop the partial
         # watch position so started/completed counts don't double-count.
         watch_repo = CourseLessonWatchProgressRepository.from_session(session)

@@ -515,6 +515,19 @@ class CourseLessonProgressRepository(
             CourseLessonProgress.lesson_id == lesson_id,
         )
 
+    async def get_by_enrollment_and_lesson_including_deleted(
+        self, enrollment_id: UUID, lesson_id: UUID
+    ) -> CourseLessonProgress | None:
+        """Fetch the (enrollment, lesson) completion row even when it is
+        soft-deleted. mark_lesson_complete needs this: the unique
+        constraint counts soft-deleted rows, so a dead row must be
+        resurrected — a blind INSERT would violate the constraint."""
+        statement = select(CourseLessonProgress).where(
+            CourseLessonProgress.enrollment_id == enrollment_id,
+            CourseLessonProgress.lesson_id == lesson_id,
+        )
+        return (await self.session.execute(statement)).scalar_one_or_none()
+
     async def hard_delete_by_enrollment(self, enrollment_id: UUID) -> None:
         """Physically remove ALL completion rows for an enrollment.
 
