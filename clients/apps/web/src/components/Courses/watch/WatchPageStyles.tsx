@@ -286,6 +286,37 @@ export function WatchPageStyles() {
         background: linear-gradient(90deg, #0066cc 0%, #2997ff 100%);
         transition: width 0.5s ease;
       }
+      /* "Reset progress" — a quiet text affordance under the bar. Colors
+         per surface: white-ish over the hero still, band ink on the band. */
+      .sow .prog-reset {
+        margin-top: 10px;
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: -0.005em;
+        background: none;
+        border: 0;
+        padding: 0;
+        cursor: pointer;
+        transition:
+          color 0.15s,
+          opacity 0.15s;
+      }
+      .sow .prog-reset:disabled {
+        opacity: 0.5;
+        cursor: default;
+      }
+      .sow .cv-progress .prog-reset {
+        color: rgba(255, 255, 255, 0.55);
+      }
+      .sow .cv-progress .prog-reset:hover {
+        color: rgba(255, 255, 255, 0.9);
+      }
+      .sow .bc-progress .prog-reset {
+        color: var(--bt3);
+      }
+      .sow .bc-progress .prog-reset:hover {
+        color: var(--bt);
+      }
 
       .sow .panel-brand {
         position: absolute;

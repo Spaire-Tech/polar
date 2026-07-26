@@ -24,6 +24,7 @@ import {
   useLikeLessonComment,
   useMintLessonPlaybackUrl,
   usePinLessonComment,
+  useResetCourseProgress,
   type CustomerCourseDetail,
 } from '@/hooks/queries/courses'
 import { schemas } from '@spaire/client'
@@ -434,6 +435,29 @@ export function WatchHome({
   /* ── overview sheet ── */
   const [overviewFor, setOverviewFor] = useState<WatchLessonData | null>(null)
 
+  /* ── reset progress — wipe server completions/positions AND the
+     per-device localStorage mirror, then start from zero ── */
+  const resetProgress = useResetCourseProgress(token, courseId)
+  const handleResetProgress = useCallback(() => {
+    if (resetProgress.isPending) return
+    if (
+      !window.confirm(
+        'Reset your progress in this masterclass? Watched lessons and resume positions all start from zero.',
+      )
+    ) {
+      return
+    }
+    resetProgress.mutate(undefined, {
+      onSuccess: () => {
+        const empty: WatchState = { p: {}, done: [] }
+        setWatchState(empty)
+        writeWatchState(courseId, empty)
+        showToast('Progress reset')
+      },
+      onError: () => showToast('Could not reset progress'),
+    })
+  }, [resetProgress, courseId, showToast])
+
   /* ── playback — mint a signed URL per play, then open the player ── */
   const mintUrl = useMintLessonPlaybackUrl(token, courseId)
   const [playing, setPlaying] = useState<{
@@ -664,6 +688,19 @@ export function WatchHome({
   const isBookmarked = bookmarks.has(ep.id)
   const epN = focus + 1
 
+  // Shown under every "Your progress" bar once there is anything to wipe.
+  const hasAnyProgress = lessonsDone > 0 || Object.keys(watchState.p).length > 0
+  const resetLink = hasAnyProgress ? (
+    <button
+      className="prog-reset"
+      type="button"
+      onClick={handleResetProgress}
+      disabled={resetProgress.isPending}
+    >
+      {resetProgress.isPending ? 'Resetting…' : 'Reset progress'}
+    </button>
+  ) : null
+
   const kicker =
     status === 'watched' ? (
       <span>
@@ -828,6 +865,7 @@ export function WatchHome({
                   }}
                 />
               </div>
+              {resetLink}
             </div>
           </div>
         ) : (
@@ -956,6 +994,7 @@ export function WatchHome({
                       }}
                     />
                   </div>
+                  {resetLink}
                 </div>
               </div>
             </div>
@@ -1038,6 +1077,7 @@ export function WatchHome({
                 }}
               />
             </div>
+            {resetLink}
           </div>
         </div>
       </header>
