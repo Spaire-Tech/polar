@@ -1248,8 +1248,11 @@ export const useSubmitQuizAttempt = (
         { method: 'POST', body: JSON.stringify({ answers }) },
       ),
     onSuccess: () => {
+      // Broad prefix on purpose: the courses LIST key
+      // (['customer-courses', token]) powers the Overview page's stats and
+      // Continue rail — a courseId-scoped key never matches it.
       getQueryClient().invalidateQueries({
-        queryKey: ['customer-courses', token, courseId],
+        queryKey: ['customer-courses', token],
       })
     },
   })
@@ -1266,8 +1269,10 @@ export const useMarkLessonComplete = (
         { method: 'POST' },
       ),
     onSuccess: () => {
+      // Broad prefix — refreshes the course detail AND the Overview page's
+      // courses list (see submit-quiz above).
       getQueryClient().invalidateQueries({
-        queryKey: ['customer-courses', token, courseId],
+        queryKey: ['customer-courses', token],
       })
     },
   })
@@ -1287,8 +1292,11 @@ export const useResetCourseProgress = (
         { method: 'DELETE' },
       ),
     onSuccess: () => {
+      // Broad prefix — the Overview page's stats/Continue rail read the
+      // courses LIST key (['customer-courses', token]), which a
+      // courseId-scoped invalidation never matches.
       getQueryClient().invalidateQueries({
-        queryKey: ['customer-courses', token, courseId],
+        queryKey: ['customer-courses', token],
       })
     },
   })
