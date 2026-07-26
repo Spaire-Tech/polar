@@ -1080,6 +1080,27 @@ class CourseService:
             if str(w.lesson_id) not in completed_lesson_ids and w.fraction > 0
         }
 
+    async def reset_progress_for_enrollment(
+        self,
+        session: AsyncSession,
+        *,
+        enrollment_id: UUID,
+    ) -> None:
+        """Wipe an enrollment's progress — completions AND partial watch
+        positions — so the student starts the course from zero. Soft
+        deletes, so the instructor-side history is recoverable and a
+        re-completed lesson simply creates a fresh row."""
+        progress_repo = CourseLessonProgressRepository.from_session(session)
+        for progress in await progress_repo.get_all(
+            progress_repo.get_by_enrollment_statement(enrollment_id)
+        ):
+            await progress_repo.soft_delete(progress)
+        watch_repo = CourseLessonWatchProgressRepository.from_session(session)
+        for watch in await watch_repo.get_all(
+            watch_repo.get_by_enrollment_statement(enrollment_id)
+        ):
+            await watch_repo.soft_delete(watch)
+
     # --- Automation event firing ---
 
     async def _fire_course_event(

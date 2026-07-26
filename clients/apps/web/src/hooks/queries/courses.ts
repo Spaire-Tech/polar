@@ -1272,6 +1272,27 @@ export const useMarkLessonComplete = (
     },
   })
 
+// Wipe ALL of the customer's progress in a course — completions and
+// partial watch positions — so they start from zero. The caller also
+// clears the per-device localStorage mirror (spaire_watch:{courseId}).
+export const useResetCourseProgress = (
+  token: string | null | undefined,
+  courseId: string | undefined,
+) =>
+  useMutation({
+    mutationFn: () =>
+      portalApiFetch<void>(
+        `/v1/customer-portal/courses/${courseId}/progress`,
+        token!,
+        { method: 'DELETE' },
+      ),
+    onSuccess: () => {
+      getQueryClient().invalidateQueries({
+        queryKey: ['customer-courses', token, courseId],
+      })
+    },
+  })
+
 // Persist a partial watch position for a video lesson. Fire-and-forget
 // from the player's throttled progress callback — no cache invalidation,
 // the local watchState already reflects the position. A plain function

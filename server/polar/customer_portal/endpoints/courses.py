@@ -857,6 +857,33 @@ async def get_course_progress(
     )
 
 
+@router.delete(
+    "/{course_id}/progress",
+    status_code=204,
+    summary="Reset Course Progress",
+)
+async def reset_course_progress(
+    course_id: UUID,
+    auth_subject: auth.CustomerPortalUnionRead,
+    session: AsyncSession = Depends(get_db_session),
+) -> None:
+    """Wipe ALL progress for the authenticated customer's enrollment in this
+    course — completed lessons and partial watch positions — so the student
+    starts from zero. The portal's "Reset progress" action; scoped to the
+    caller's own enrollment, it can never touch another student's data.
+    """
+    customer_id = get_customer_id(auth_subject)
+    enrollment_repo = CourseEnrollmentRepository.from_session(session)
+    enrollment_id = await enrollment_repo.get_active_id_for_customer_course(
+        customer_id, course_id
+    )
+    if enrollment_id is None:
+        raise HTTPException(status_code=404, detail="Course not found or not enrolled")
+    await course_service.reset_progress_for_enrollment(
+        session, enrollment_id=enrollment_id
+    )
+
+
 @router.get(
     "/{course_id}/landing",
     summary="Get Course Landing Page",
