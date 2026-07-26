@@ -1104,19 +1104,18 @@ class CourseService:
         enrollment_id: UUID,
     ) -> None:
         """Wipe an enrollment's progress — completions AND partial watch
-        positions — so the student starts the course from zero. Soft
-        deletes, so the instructor-side history is recoverable and a
-        re-completed lesson simply creates a fresh row."""
+        positions — so the student starts the course from zero.
+
+        HARD deletes, deliberately: both tables have a
+        (enrollment_id, lesson_id) unique constraint that counts
+        soft-deleted rows, so a soft-deleted completion would make the
+        next mark-complete INSERT for that lesson violate the constraint
+        and progress tracking would silently break after a reset.
+        """
         progress_repo = CourseLessonProgressRepository.from_session(session)
-        for progress in await progress_repo.get_all(
-            progress_repo.get_by_enrollment_statement(enrollment_id)
-        ):
-            await progress_repo.soft_delete(progress)
+        await progress_repo.hard_delete_by_enrollment(enrollment_id)
         watch_repo = CourseLessonWatchProgressRepository.from_session(session)
-        for watch in await watch_repo.get_all(
-            watch_repo.get_by_enrollment_statement(enrollment_id)
-        ):
-            await watch_repo.soft_delete(watch)
+        await watch_repo.hard_delete_by_enrollment(enrollment_id)
 
     # --- Automation event firing ---
 

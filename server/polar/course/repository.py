@@ -2,7 +2,7 @@ from collections.abc import Sequence
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import Select, func, select, update
+from sqlalchemy import Select, delete, func, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from polar.auth.models import AuthSubject, Organization, User, is_organization, is_user
@@ -532,6 +532,20 @@ class CourseLessonProgressRepository(
             CourseLessonProgress.lesson_id == lesson_id,
         )
 
+    async def hard_delete_by_enrollment(self, enrollment_id: UUID) -> None:
+        """Physically remove ALL completion rows for an enrollment.
+
+        Used by the portal's reset-progress action. Must be a HARD delete:
+        the (enrollment_id, lesson_id) unique constraint counts soft-deleted
+        rows too, so a soft-deleted completion would make the next
+        mark-complete INSERT violate the constraint.
+        """
+        await self.session.execute(
+            delete(CourseLessonProgress).where(
+                CourseLessonProgress.enrollment_id == enrollment_id
+            )
+        )
+
     async def completion_summary_by_enrollments(
         self, enrollment_ids: Sequence[UUID]
     ) -> dict[UUID, tuple[int, datetime | None]]:
@@ -577,6 +591,17 @@ class CourseLessonWatchProgressRepository(
     def get_by_enrollment_statement(self, enrollment_id: UUID):
         return self.get_base_statement().where(
             CourseLessonWatchProgress.enrollment_id == enrollment_id
+        )
+
+    async def hard_delete_by_enrollment(self, enrollment_id: UUID) -> None:
+        """Physically remove ALL watch-position rows for an enrollment
+        (reset-progress). Hard delete for the same reason as completions:
+        the (enrollment_id, lesson_id) unique constraint counts
+        soft-deleted rows."""
+        await self.session.execute(
+            delete(CourseLessonWatchProgress).where(
+                CourseLessonWatchProgress.enrollment_id == enrollment_id
+            )
         )
 
     def get_by_enrollment_and_lesson_statement(
