@@ -310,8 +310,12 @@ async def list_enrolled_courses(
         eid: [] for eid in enrollment_ids
     }
     if enrollment_ids:
+        # Filter soft-deleted rows — this raw select bypasses the
+        # repository's base statement, and counting dead completions made
+        # the Overview keep showing progress after a reset.
         prog_stmt = select(CourseLessonProgress).where(
-            CourseLessonProgress.enrollment_id.in_(enrollment_ids)
+            CourseLessonProgress.enrollment_id.in_(enrollment_ids),
+            CourseLessonProgress.deleted_at.is_(None),
         )
         prog_result = await session.execute(prog_stmt)
         for progress in prog_result.scalars():
