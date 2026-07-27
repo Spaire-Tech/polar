@@ -1,5 +1,17 @@
 # Platform Billing Audit — 2026-07-26
 
+> **Status update (2026-07-27):** every finding below has been addressed on
+> this branch except the two that require production access (verify the
+> scheduler process is deployed; run `scripts/reconcile_quota_usage.py` and
+> let the new `platform.lapse_legacy_trials` cron clear the stranded-trial
+> backlog after deploy). Overage (§7) was resolved by making the promise
+> honest (durable `spaire.quota.overage` audit events, docs corrected)
+> rather than silently shipping overage *billing*, which is a pricing
+> decision. One extra defect was found while fixing: reminder markers were
+> stored as a list in `user_metadata`, which crashes webhook payload
+> serialization for any subscription carrying them — now a scalar
+> comma-string.
+
 Scope: the Spaire platform-billing system (Spaire billing its own creator
 organizations — trials, plans, fees, invoices, emails) plus the settings
 billing UI. Four independent review passes: trial-to-charge trace, platform
