@@ -59,6 +59,10 @@ The biggest risk is not technical. It's that the three proposals feel generic �
 a course outline anyone could have written, wearing their thumbnails. Kill or
 confirm that risk before building anything.
 
+**Tooling:** ready to run — see `scripts/masterclass-architect-phase0/`
+(fetch → analyze → generate → blind-copy pipeline, scoring rubric, and the
+Gate A read-out criteria in its `SCORING.md`).
+
 **The bake-off:**
 
 1. Pick 10–15 real creator channels across sizes (50 videos → 1,000 videos)
