@@ -137,7 +137,7 @@ case "${1:-api}" in
         exec uv run dramatiq \
             -p 1 \
             -t 1 \
-            --queues high_priority medium_priority low_priority \
+            --queues high_priority medium_priority low_priority webhooks \
             --watch polar \
             -f polar.worker.scheduler:start \
             polar.worker.run

@@ -1607,6 +1607,12 @@ export interface components {
        */
       slug: string
       /**
+       * Custom Domain
+       * @description Active custom storefront domain (e.g. learn.creator.com) serving the organization's landing and customer portal. Null when the storefront is served from the platform host.
+       * @default null
+       */
+      custom_domain: string | null
+      /**
        * Avatar Url
        * @description Avatar URL shown in checkout, customer portal, emails etc.
        */
@@ -2130,6 +2136,40 @@ export interface components {
       order: components['schemas']['OrderEmail']
       /** Url */
       url: string
+      /**
+       * Invoice Attached
+       * @default true
+       */
+      invoice_attached: boolean
+    }
+    /** PlatformSubscriptionNoticeEmail */
+    PlatformSubscriptionNoticeEmail: {
+      /**
+       * Template
+       * @default platform_subscription_notice
+       * @constant
+       */
+      template: 'platform_subscription_notice'
+      props: components['schemas']['PlatformSubscriptionNoticeProps']
+    }
+    /**
+     * PlatformSubscriptionNoticeProps
+     * @description Spaire-branded lifecycle notice for the platform's own billing of a
+     *     creator (payment failed, plan ended, cancellation scheduled, …). One
+     *     generic branded shell; the Python side composes title/body per event so
+     *     a new lifecycle message never needs a new template.
+     */
+    PlatformSubscriptionNoticeProps: {
+      /** Email */
+      email: string
+      /** Title */
+      title: string
+      /** Body Lines */
+      body_lines: string[]
+      /** Url */
+      url: string
+      /** Cta Label */
+      cta_label: string
     }
     /**
      * PresentmentCurrency

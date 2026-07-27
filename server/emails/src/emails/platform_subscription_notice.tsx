@@ -9,38 +9,30 @@ import {
 import BodyText from '../components/BodyText'
 import Button from '../components/Button'
 import Footer from '../components/Footer'
-import OrderSummary from '../components/OrderSummary'
 import WrapperPolar from '../components/WrapperPolar'
-import { order } from '../preview'
 import type { schemas } from '../types'
 
-export function PlatformReceipt({
+export function PlatformSubscriptionNotice({
   email,
-  plan_name,
-  order,
+  title,
+  body_lines,
   url,
-  invoice_attached,
-}: schemas['PlatformReceiptProps']) {
+  cta_label,
+}: schemas['PlatformSubscriptionNoticeProps']) {
   return (
     <WrapperPolar>
-      <Preview>Your Spaire {plan_name} receipt</Preview>
+      <Preview>{title}</Preview>
       <Section>
         <Heading as="h1" className="text-xl font-bold text-gray-900">
-          Thanks for your payment
+          {title}
         </Heading>
-        <BodyText>
-          Here&apos;s your receipt for the{' '}
-          <span className="font-bold">{plan_name}</span> plan.
-          {invoice_attached
-            ? ' Your invoice is attached as a PDF.'
-            : ' You can download your invoice any time from your billing settings.'}
-        </BodyText>
+        {body_lines.map((line, index) => (
+          <BodyText key={index}>{line}</BodyText>
+        ))}
       </Section>
       <Section className="my-8 text-center">
-        <Button href={url}>Manage my plan</Button>
+        <Button href={url}>{cta_label}</Button>
       </Section>
-      <Hr />
-      <OrderSummary order={order} />
       <Hr />
       <Section className="mt-6 border-t border-gray-200 pt-6">
         <Text className="text-sm text-gray-600">
@@ -58,11 +50,15 @@ export function PlatformReceipt({
   )
 }
 
-PlatformReceipt.PreviewProps = {
+PlatformSubscriptionNotice.PreviewProps = {
   email: 'creator@example.com',
-  plan_name: 'Studio',
-  order,
-  url: 'https://app.spairehq.com/spaire/portal',
+  title: 'Your Spaire payment failed',
+  body_lines: [
+    "We couldn't charge your card for the Spaire Studio plan.",
+    'We will retry automatically over the next few days. To keep your plan, update your payment method in Settings → Plan.',
+  ],
+  url: 'https://app.spairehq.com/dashboard/spaire/settings',
+  cta_label: 'Update payment method',
 }
 
-export default PlatformReceipt
+export default PlatformSubscriptionNotice

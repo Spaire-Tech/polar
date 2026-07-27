@@ -124,9 +124,13 @@ class TierEntitlements:
     # the actual billing is driven by the platform-org subscription).
     monthly_price_cents: int
     # Soft overage grace above the limit, expressed as a percent. Legacy
-    # uses 0% (no enforcement anyway). Pro/Studio/Scale use 10% so
+    # uses 0% (no enforcement anyway). Starter/Studio/Scale use 10% so
     # creators are not surprised by abrupt blocks when they slightly
-    # exceed their cap; the overage is recorded for billing reconciliation.
+    # exceed their cap. Overage inside the grace band is recorded as
+    # `spaire.quota.overage` events for operator review — it is NOT
+    # billed automatically (the platform products carry no metered
+    # prices; shipping overage billing is a deliberate pricing decision,
+    # and these events would be its input).
     overage_grace_pct: int
 
 

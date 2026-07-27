@@ -47,6 +47,10 @@ class QuotaUsage:
     used: int  # display units (floor of storage / units_per_display)
     remaining: int | None  # display units; None = unlimited
     used_storage_units: int  # for callers that need precise arithmetic
+    # Exact usage in display units (e.g. 0.87 GB). The floored `used`
+    # renders anything under one display unit as a flat 0 — which the
+    # dashboard shows as an empty bar even when there is real usage.
+    used_exact: float = 0.0
 
     @property
     def is_unlimited(self) -> bool:
@@ -83,9 +87,7 @@ class QuotaCheckResult:
         return self.overage_storage_units > 0
 
 
-def _limit_for(
-    entitlements: TierEntitlements, quota: QuotaKey
-) -> int | None:
+def _limit_for(entitlements: TierEntitlements, quota: QuotaKey) -> int | None:
     mapping = {
         QuotaKey.video_hours_hosted: entitlements.limits.video_hours_hosted,
         QuotaKey.video_views_monthly: entitlements.limits.video_views_monthly,
@@ -125,6 +127,9 @@ class QuotasService:
             used=used_display,
             remaining=remaining_display,
             used_storage_units=used_storage,
+            used_exact=round(
+                used_storage / definition.storage_units_per_display_unit, 2
+            ),
         )
 
     async def get_all_usage(

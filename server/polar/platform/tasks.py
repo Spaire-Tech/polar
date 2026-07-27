@@ -16,6 +16,7 @@ from polar.worker import (
 )
 
 from .fee_sync import platform_fee_sync
+from .trial_lapse import lapse_stale_legacy_trials
 from .trial_notifications import check_pending_trial_reminders
 
 log: structlog.stdlib.BoundLogger = structlog.get_logger()
@@ -48,15 +49,46 @@ async def platform_fee_sync_task(organization_id: uuid.UUID) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Trial reminder emails (T-7, T-2, T-0 days before trial_end)
+# Legacy card-less trials: lapse cron + trial-consumed backfill
 # ---------------------------------------------------------------------------
 #
-# Note: there is no trial-expiry cron. The 14-day trial is card-required, so
-# at trial_end the generic subscription-cycle scheduler charges the card on
-# file (trial -> active) or, on failure, hands off to Polar's dunning
-# (past_due -> retry -> revoke -> inactive). Nothing needs to "lapse" a
-# card-less trial because card-less trials no longer exist.
+# The live 14-day trial is card-required: at trial_end the subscription-cycle
+# scheduler (polar/worker/scheduler.py + subscription/scheduler.py — Polar's
+# OWN billing engine, not Stripe) picks the subscription up and charges the
+# card on file (trial -> active), or hands off to dunning on failure.
+#
+# But the OLD design auto-created card-less local trials at org signup,
+# stamped `user_metadata.managed_by = "trial"`. Those rows are excluded from
+# the cycle scheduler on purpose (no payment method -> cycling one would emit
+# an uncollectable order), and the cron that used to end them
+# (platform.expire_trials) was deleted with the redesign — stranding any
+# leftover row in `trialing` forever: never charged, never lapsed, paid
+# entitlements granted for free, dashboard showing a stale trial date.
+# `platform.lapse_legacy_trials` is the reinstated owner of their
+# end-of-life: it revokes them through the real subscription service (so
+# webhooks, fee resync, and benefit revocation all fire) and stamps
+# `trial_consumed_at` so none of these creators gets a second free trial.
 # ---------------------------------------------------------------------------
+
+
+@actor(
+    actor_name="platform.lapse_legacy_trials",
+    cron_trigger=CronTrigger(minute=20),
+    priority=TaskPriority.LOW,
+    max_retries=0,
+)
+async def platform_lapse_legacy_trials() -> None:
+    """Hourly sweep for stranded legacy card-less trials.
+
+    Idempotent: once a row is revoked it no longer matches the query, and
+    the trial-consumed stamp is written at most once per customer. Runs
+    hourly (not daily) so a fresh deploy clears the backlog quickly; on a
+    healthy database the query returns nothing. Logic lives in
+    polar.platform.trial_lapse so it's testable with a plain session.
+    """
+    async with AsyncSessionMaker() as session:
+        counters = await lapse_stale_legacy_trials(session)
+    log.info("platform.lapse_legacy_trials.done", **counters)
 
 
 @actor(
@@ -107,9 +139,7 @@ async def email_sender_domain_reconcile() -> None:
                 organization_id=organization_id,
             )
             count += 1
-        log.info(
-            "platform.email_sender_domain.reconcile.scheduled", count=count
-        )
+        log.info("platform.email_sender_domain.reconcile.scheduled", count=count)
 
 
 @actor(

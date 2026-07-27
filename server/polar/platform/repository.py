@@ -13,16 +13,12 @@ from polar.postgres import AsyncReadSession
 class _PlatformProductRepository(RepositoryBase[Product]):
     model = Product
 
-    async def get_by_tier(
-        self, platform_org_id: UUID, tier: str
-    ) -> Product | None:
+    async def get_by_tier(self, platform_org_id: UUID, tier: str) -> Product | None:
         """Return the monthly product for a tier — kept as the default
         lookup for the startup check and any caller that doesn't care
         about billing interval. For interval-aware lookups, use
         `get_by_tier_and_interval`."""
-        return await self.get_by_tier_and_interval(
-            platform_org_id, tier, "month"
-        )
+        return await self.get_by_tier_and_interval(platform_org_id, tier, "month")
 
     async def get_by_tier_and_interval(
         self,
@@ -40,9 +36,7 @@ class _PlatformProductRepository(RepositoryBase[Product]):
             select(Product)
             .where(Product.organization_id == platform_org_id)
             .where(Product.user_metadata["tier"].astext == tier)
-            .where(
-                Product.user_metadata["billing_interval"].astext == billing_interval
-            )
+            .where(Product.user_metadata["billing_interval"].astext == billing_interval)
             .where(Product.deleted_at.is_(None))
             .where(Product.is_archived.is_(False))
         )
@@ -77,8 +71,7 @@ class _PlatformCustomerRepository(RepositoryBase[Customer]):
             select(Customer)
             .where(Customer.organization_id == platform_org_id)
             .where(
-                Customer.user_metadata["creator_org_id"].astext
-                == str(creator_org_id)
+                Customer.user_metadata["creator_org_id"].astext == str(creator_org_id)
             )
             .where(Customer.deleted_at.is_(None))
         )
@@ -93,9 +86,7 @@ class _PlatformCustomerRepository(RepositoryBase[Customer]):
 class _PlatformSubscriptionRepository(RepositoryBase[Subscription]):
     model = Subscription
 
-    async def get_active_for_customer(
-        self, customer_id: UUID
-    ) -> Subscription | None:
+    async def get_active_for_customer(self, customer_id: UUID) -> Subscription | None:
         # Returns the customer's current *billable* subscription — active,
         # trialing, OR past_due. past_due is included on purpose: while a
         # creator's Spaire charge is being retried (dunning window), they
@@ -108,9 +99,7 @@ class _PlatformSubscriptionRepository(RepositoryBase[Subscription]):
         statement = (
             select(Subscription)
             .where(Subscription.customer_id == customer_id)
-            .where(
-                Subscription.status.in_(SubscriptionStatus.billable_statuses())
-            )
+            .where(Subscription.status.in_(SubscriptionStatus.billable_statuses()))
             .where(Subscription.deleted_at.is_(None))
             .options(selectinload(Subscription.product))
             .order_by(Subscription.created_at.desc())
@@ -118,13 +107,9 @@ class _PlatformSubscriptionRepository(RepositoryBase[Subscription]):
         )
         return await self.get_one_or_none(statement)
 
-    async def list_active_for_customer(
-        self, customer_id: UUID
-    ) -> list[Subscription]:
+    async def list_active_for_customer(self, customer_id: UUID) -> list[Subscription]:
         """Every active/trialing subscription for a platform customer,
-        newest first. Used by trial supersession to cancel the leftover
-        auto-trial / Legacy subs once a paid subscription is created.
-        """
+        newest first."""
         statement = (
             select(Subscription)
             .where(Subscription.customer_id == customer_id)
@@ -132,6 +117,78 @@ class _PlatformSubscriptionRepository(RepositoryBase[Subscription]):
             .where(Subscription.deleted_at.is_(None))
             .options(selectinload(Subscription.product))
             .order_by(Subscription.created_at.desc())
+        )
+        return list(await self.get_all(statement))
+
+    async def list_billable_for_customer(self, customer_id: UUID) -> list[Subscription]:
+        """Every billable (active / trialing / past_due) subscription for a
+        platform customer, newest first. Used by trial supersession so that
+        a past_due sub in its dunning window is also superseded when the
+        creator completes a new paid checkout — otherwise its dunning
+        retries keep charging the card alongside the new subscription.
+        """
+        statement = (
+            select(Subscription)
+            .where(Subscription.customer_id == customer_id)
+            .where(Subscription.status.in_(SubscriptionStatus.billable_statuses()))
+            .where(Subscription.deleted_at.is_(None))
+            .options(selectinload(Subscription.product))
+            .order_by(Subscription.created_at.desc())
+        )
+        return list(await self.get_all(statement))
+
+    async def list_stale_legacy_trials(
+        self, platform_org_id: UUID, *, before: datetime
+    ) -> list[Subscription]:
+        """Legacy card-less local trials (``managed_by='trial'``) whose
+        trial has already ended.
+
+        These rows are deliberately excluded from the billing scheduler
+        (they carry no payment method, so cycling one would emit an
+        uncollectable order) and their former owner — the
+        ``platform.expire_trials`` cron — was removed with the card-required
+        trial redesign. Without a new owner they sit in ``trialing``
+        forever, granting paid entitlements for free. The
+        ``platform.lapse_legacy_trials`` cron is that owner.
+        """
+        statement = (
+            select(Subscription)
+            .join(Customer, Subscription.customer_id == Customer.id)
+            .where(Customer.organization_id == platform_org_id)
+            .where(Customer.deleted_at.is_(None))
+            .where(Subscription.status == SubscriptionStatus.trialing)
+            .where(Subscription.deleted_at.is_(None))
+            .where(Subscription.user_metadata["managed_by"].astext == "trial")
+            .where(Subscription.trial_end.is_not(None))
+            .where(Subscription.trial_end < before)
+            .options(
+                selectinload(Subscription.product),
+                selectinload(Subscription.customer),
+            )
+        )
+        return list(await self.get_all(statement))
+
+    async def list_legacy_trial_customers_missing_consumed(
+        self, platform_org_id: UUID
+    ) -> list[Customer]:
+        """Platform customers that held a legacy auto-attached trial
+        (``managed_by='trial'``, any status) but were never stamped with
+        ``trial_consumed_at``.
+
+        Those subscriptions were inserted directly (no
+        ``_after_subscription_created`` hook), so the one-trial-per-customer
+        stamp never happened — without a backfill each of these creators
+        would be handed a second free 14-day trial on re-subscribe.
+        """
+        statement = (
+            select(Customer)
+            .join(Subscription, Subscription.customer_id == Customer.id)
+            .where(Customer.organization_id == platform_org_id)
+            .where(Customer.deleted_at.is_(None))
+            .where(Subscription.user_metadata["managed_by"].astext == "trial")
+            .where(Subscription.deleted_at.is_(None))
+            .where(Customer.user_metadata["trial_consumed_at"].is_(None))
+            .distinct()
         )
         return list(await self.get_all(statement))
 

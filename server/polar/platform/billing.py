@@ -149,14 +149,15 @@ class PlatformBillingService:
         NOTE: this is NOT the live trial path. Org creation only provisions
         the platform Customer (``ensure_platform_customer``); the real,
         card-required 14-day trial is created through the upgrade-checkout
-        flow, which captures a payment method and opens a Stripe-backed
-        subscription so Stripe bills the card automatically at trial_end.
+        flow, which captures a payment method via a setup intent. At
+        trial_end Polar's own cycle scheduler (not Stripe — there is no
+        Stripe subscription object) charges the saved card.
 
         This helper creates a LOCAL trialing subscription with no captured
         payment method — it does not bill, and nothing in production calls
         it. It's retained only for the platform-billing tests. Do NOT wire
-        it back into org creation: such a trial would never charge and never
-        lapse (there is no longer an expire-trials cron).
+        it back into org creation: such a trial never charges; the
+        `platform.lapse_legacy_trials` cron revokes it at trial_end.
         """
         return await self.ensure_subscription(
             session, organization, tier=TierKey.starter, managed_by="trial"

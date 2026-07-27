@@ -4,9 +4,16 @@ Three reminders per trial — at T-7, T-2, and T-0 days before
 `trial_end`. Each one is sent at most once per (subscription, marker)
 pair; we record the marker in the subscription's `user_metadata` to
 keep the implementation table-less. The trial is card-required, so at
-`trial_end` Stripe charges the card on file and the subscription
-converts to `active` automatically (or to `past_due` -> dunning if the
+`trial_end` Polar's own cycle scheduler charges the card on file and the
+subscription converts to `active` (or to `past_due` -> dunning if the
 charge fails). These reminders just warn the creator before that charge.
+
+Recipient resolution goes through `polar.platform.contacts` — the
+payout-account admin when one exists, else the earliest org member — so
+creators who haven't connected payouts yet (most of them, during a
+trial) still get warned before their card is charged. When no recipient
+can be resolved the marker is NOT stamped, so the next run retries
+instead of silently swallowing the warning forever.
 
 Runs as a daily cron actor (`platform.notify_trial_reminders`).
 """
@@ -22,6 +29,7 @@ from polar.entitlements.tiers import TierKey
 from polar.kit.utils import utc_now
 from polar.models import Organization, Subscription
 from polar.organization.repository import OrganizationRepository
+from polar.platform.contacts import resolve_billing_contact_email
 from polar.platform.repository import platform_subscription_repository
 from polar.platform.service import platform as platform_service
 from polar.postgres import AsyncSession
@@ -70,21 +78,42 @@ def _due_marker(days_remaining: int) -> int | None:
     return None
 
 
+def parse_sent_markers(raw: object) -> list[int]:
+    """Decode the sent-markers metadata value.
+
+    Stored as a comma-joined string ("7,2") because webhook payload
+    schemas only allow SCALAR user_metadata values — a list here made
+    every `subscription.updated` webhook for the row blow up on
+    serialization. Legacy rows written as real lists are tolerated on
+    read and rewritten as strings on the next stamp.
+    """
+    if isinstance(raw, str):
+        result = []
+        for part in raw.split(","):
+            part = part.strip()
+            if part.lstrip("-").isdigit():
+                result.append(int(part))
+        return result
+    if isinstance(raw, list):
+        return [m for m in raw if isinstance(m, int)]
+    return []
+
+
+def encode_sent_markers(markers: list[int]) -> str:
+    return ",".join(str(m) for m in markers)
+
+
 def _already_sent(subscription: Subscription, marker: int) -> bool:
     metadata = subscription.user_metadata or {}
-    sent = metadata.get(_METADATA_KEY)
-    if not isinstance(sent, list):
-        return False
-    return marker in sent
+    return marker in parse_sent_markers(metadata.get(_METADATA_KEY))
 
 
 def _mark_sent(subscription: Subscription, marker: int) -> None:
     metadata = dict(subscription.user_metadata or {})
-    sent_raw = metadata.get(_METADATA_KEY)
-    sent: list[int] = list(sent_raw) if isinstance(sent_raw, list) else []
+    sent = parse_sent_markers(metadata.get(_METADATA_KEY))
     if marker not in sent:
         sent.append(marker)
-    metadata[_METADATA_KEY] = sent
+    metadata[_METADATA_KEY] = encode_sent_markers(sent)
     subscription.user_metadata = metadata
 
 
@@ -141,7 +170,7 @@ def _render(
 
     html_content = (
         "<!DOCTYPE html>"
-        "<html><body style=\"font-family:sans-serif;line-height:1.5;\">"
+        '<html><body style="font-family:sans-serif;line-height:1.5;">'
         f"<h2>{subject}</h2>"
         f"<p>{body}</p>"
         "<p>— Spaire</p>"
@@ -169,7 +198,14 @@ async def _notify(
     marker: int,
 ) -> bool:
     """Render + enqueue the reminder, then stamp the marker. Returns
-    True if the email was actually enqueued (org/admin resolved)."""
+    True if the email was actually enqueued.
+
+    The marker is stamped for PERMANENT skip conditions (broken metadata,
+    deleted org — retrying can't fix those) but NOT for the
+    no-recipient-resolved case, which is transient: the creator may add a
+    member / connect payouts before the next daily run, and a charge
+    warning must never be silently dropped.
+    """
     creator_org_id = _resolve_creator_org_id(subscription)
     if creator_org_id is None:
         log.warning(
@@ -190,22 +226,19 @@ async def _notify(
         _mark_sent(subscription, marker)
         return False
 
-    admin_user = await organization_repository.get_admin_user(
-        session, organization
-    )
-    if admin_user is None:
-        log.info(
-            "platform.trial_reminder.no_admin",
+    recipient = await resolve_billing_contact_email(session, organization)
+    if recipient is None:
+        log.warning(
+            "platform.trial_reminder.no_recipient",
             subscription_id=str(subscription.id),
             creator_org_id=str(creator_org_id),
             marker=marker,
         )
-        _mark_sent(subscription, marker)
         return False
 
     subject, html_content = _render(organization, subscription, marker)
     enqueue_email(
-        to_email_addr=admin_user.email,
+        to_email_addr=recipient,
         subject=subject,
         html_content=html_content,
     )
@@ -226,7 +259,14 @@ async def check_pending_trial_reminders(
     due reminder (T-7 / T-2 / T-0). Idempotent — markers stamped on
     subscription.user_metadata prevent re-sending across cron runs.
     """
-    counters = {"checked": 0, "sent": 0, "already_sent": 0, "not_due": 0}
+    counters = {
+        "checked": 0,
+        "sent": 0,
+        "already_sent": 0,
+        "not_due": 0,
+        "canceled_skipped": 0,
+        "legacy_skipped": 0,
+    }
     if not platform_service.is_configured():
         return counters
 
@@ -243,8 +283,21 @@ async def check_pending_trial_reminders(
     for subscription in candidates:
         counters["checked"] += 1
         if subscription.trial_end is None or subscription.trial_end < current:
-            # Already past trial_end — Stripe handles the charge/conversion;
-            # there's nothing left to remind about.
+            # Already past trial_end — the cycle scheduler handles the
+            # charge/conversion; there's nothing left to remind about.
+            continue
+
+        if subscription.cancel_at_period_end or subscription.canceled_at is not None:
+            # The creator already canceled: the trial runs out and nothing
+            # is charged. "Your card will be charged" copy would be a lie.
+            counters["canceled_skipped"] += 1
+            continue
+
+        if (subscription.user_metadata or {}).get("managed_by") == "trial":
+            # Legacy card-less local trial: no card on file, never charges
+            # (the lapse cron revokes it at trial_end). Charge-warning copy
+            # would be false — skip.
+            counters["legacy_skipped"] += 1
             continue
 
         marker = _due_marker(_days_remaining(subscription.trial_end, current))

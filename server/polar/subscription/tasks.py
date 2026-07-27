@@ -1,4 +1,5 @@
 import uuid
+from datetime import timedelta
 
 import structlog
 from sqlalchemy.orm import selectinload
@@ -10,7 +11,13 @@ from polar.logging import Logger
 from polar.models import Subscription, SubscriptionMeter
 from polar.product.repository import ProductRepository
 from polar.subscription.repository import SubscriptionRepository
-from polar.worker import AsyncSessionMaker, RedisMiddleware, TaskPriority, actor
+from polar.worker import (
+    AsyncSessionMaker,
+    CronTrigger,
+    RedisMiddleware,
+    TaskPriority,
+    actor,
+)
 
 from .service import subscription as subscription_service
 
@@ -73,6 +80,47 @@ async def subscription_cycle(subscription_id: uuid.UUID, force: bool = False) ->
                 return
 
             await subscription_service.cycle(session, subscription)
+
+
+@actor(
+    actor_name="subscription.reap_stale_scheduler_locks",
+    cron_trigger=CronTrigger(minute="*/15"),
+    priority=TaskPriority.LOW,
+    max_retries=0,
+)
+async def subscription_reap_stale_scheduler_locks() -> None:
+    """Rescue subscriptions stranded by a lost cycle dispatch.
+
+    The scheduler jobstore stamps `scheduler_locked_at` and then sends the
+    `subscription.cycle` message fire-and-forget; if that message is lost
+    (broker restart, worker crash after retries exhaust), the row stays
+    locked forever, is excluded from scheduling, and is silently never
+    billed again. This sweep clears locks that are over an hour old on
+    rows still due for cycling, so the jobstore re-dispatches them.
+
+    Safe against double-billing: the cycle task takes a Redis lock per
+    subscription and no-ops when `current_period_end` has already moved
+    forward, so a late-arriving duplicate message does nothing.
+    """
+    now = utc_now()
+    async with AsyncSessionMaker() as session:
+        repository = SubscriptionRepository.from_session(session)
+        stale = await repository.list_stale_scheduler_locked(
+            locked_before=now - timedelta(hours=1),
+            due_before=now,
+        )
+        for subscription in stale:
+            log.warning(
+                "Clearing stale scheduler lock on unbilled due subscription",
+                subscription_id=subscription.id,
+                scheduler_locked_at=subscription.scheduler_locked_at,
+                current_period_end=subscription.current_period_end,
+            )
+            await repository.update(
+                subscription, update_dict={"scheduler_locked_at": None}
+            )
+        if stale:
+            log.info("Reaped stale scheduler locks", count=len(stale))
 
 
 @actor(

@@ -23,6 +23,12 @@ from .service import QuotaCheckResult, quotas
 
 log: structlog.stdlib.BoundLogger = structlog.get_logger()
 
+# Audit-trail event for soft overage on paid tiers. Not a quota-feeding
+# event (no QuotaDefinition references it) and not billed automatically —
+# it exists so overage volume is queryable from the database instead of
+# only greppable from logs.
+OVERAGE_EVENT_NAME = "spaire.quota.overage"
+
 
 def _add_quota_event(
     session: AsyncSession,
@@ -158,5 +164,25 @@ async def enforce(
             limit=result.limit,
             requested_storage_units=requested_storage_units,
             overage_storage_units=result.overage_storage_units,
+        )
+        # Durable audit record (a log line is not a billing artifact):
+        # one event per overage-consuming operation, so operators can
+        # aggregate actual overage per org/quota straight from the
+        # events table when reconciling or deciding to bill for it.
+        # NOTE: overage is NOT billed automatically today — the platform
+        # products carry no metered prices. If overage billing ships,
+        # these events are its input.
+        _add_quota_event(
+            session,
+            organization_id=organization.id,
+            name=OVERAGE_EVENT_NAME,
+            metadata={
+                "quota": quota.value,
+                "overage_storage_units": int(result.overage_storage_units),
+                "requested_storage_units": int(requested_storage_units),
+                "limit_display_units": int(result.limit)
+                if result.limit is not None
+                else 0,
+            },
         )
     return result

@@ -12,6 +12,13 @@ class QuotaUsage(Schema):
         description="Tier-defined limit in display units. null = unlimited."
     )
     used: int = Field(description="Current usage in display units (rounded down).")
+    used_exact: float = Field(
+        default=0.0,
+        description=(
+            "Exact usage in display units (e.g. 0.87 GB) so usage under one "
+            "whole unit doesn't render as zero."
+        ),
+    )
     remaining: int | None = Field(
         description="Remaining capacity in display units. null = unlimited."
     )
@@ -24,6 +31,7 @@ class QuotaUsage(Schema):
             quota=source.quota,
             limit=source.limit,
             used=source.used,
+            used_exact=source.used_exact,
             remaining=source.remaining,
             is_unlimited=source.is_unlimited,
             is_exceeded=source.is_exceeded,

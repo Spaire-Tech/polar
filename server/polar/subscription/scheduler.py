@@ -124,11 +124,14 @@ class SubscriptionJobStore(BaseJobStore):
                 # Defensive: exclude any legacy local "auto-trial" sub
                 # (managed_by=trial). Those carried no payment method, so
                 # cycling one would flip it to active and emit an
-                # uncollectable order. Production no longer creates them —
-                # the live trial is a card-required, Stripe-backed
-                # subscription (no managed_by key), which Stripe bills at
-                # trial_end. `is_distinct_from` keeps rows whose metadata
-                # has no managed_by key (NULL) in scope.
+                # uncollectable order. Production no longer creates them,
+                # and the platform.lapse_legacy_trials cron owns their
+                # end-of-life (revoke at trial_end). The live trial is a
+                # card-required subscription (no managed_by key) created
+                # via checkout with a saved payment method; THIS scheduler
+                # — not Stripe — picks it up at trial_end and the cycle
+                # task charges the card. `is_distinct_from` keeps rows
+                # whose metadata has no managed_by key (NULL) in scope.
                 Subscription.user_metadata["managed_by"].astext.is_distinct_from(
                     "trial"
                 ),

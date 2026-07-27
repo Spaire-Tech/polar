@@ -58,7 +58,9 @@ class EmailSubscriberService:
         if order_clauses:
             statement = statement.order_by(*order_clauses)
 
-        return await repository.paginate(statement, limit=pagination.limit, page=pagination.page)
+        return await repository.paginate(
+            statement, limit=pagination.limit, page=pagination.page
+        )
 
     async def get_by_id(
         self,
@@ -93,10 +95,7 @@ class EmailSubscriberService:
         # forms stay unverified until a separate confirmation step ships.
         verified_now = (
             utc_now()
-            if (
-                customer_id is not None
-                or source == EmailSubscriberSource.purchase
-            )
+            if (customer_id is not None or source == EmailSubscriberSource.purchase)
             else None
         )
 
@@ -110,9 +109,7 @@ class EmailSubscriberService:
         # uncapped: they're already monetized by the transaction fee, so a
         # creator is never pushed to upgrade by their own sales. Only
         # marketing contacts count toward the email_subscribers cap.
-        is_buyer = (
-            source == EmailSubscriberSource.purchase or customer_id is not None
-        )
+        is_buyer = source == EmailSubscriberSource.purchase or customer_id is not None
 
         # Gate against the tier's email_subscribers cap on any path that
         # would result in a NEW active *marketing* subscriber:
@@ -126,9 +123,7 @@ class EmailSubscriberService:
             EmailSubscriberStatus.archived,
         )
         if not is_buyer and (existing is None or is_reactivation):
-            current = await repository.count_marketing_subscribers(
-                organization_id
-            )
+            current = await repository.count_marketing_subscribers(organization_id)
             await entitlements_service.require_under_limit(
                 session, organization_id, "email_subscribers", current=current
             )
@@ -213,7 +208,9 @@ class EmailSubscriberService:
             name=name,
             source=EmailSubscriberSource.space_signup,
         )
-        await self._trigger_on_subscribe_sequences(session, organization_id, subscriber.id)
+        await self._trigger_on_subscribe_sequences(
+            session, organization_id, subscriber.id
+        )
         return subscriber
 
     async def subscribe_from_form(
@@ -223,10 +220,13 @@ class EmailSubscriberService:
         organization_id: UUID,
         email: str,
         name: str | None = None,
+        form_id: UUID | None = None,
     ) -> EmailSubscriber:
         """Subscribe an email captured through a lead-magnet form. Tagged with
         the ``lead_magnet`` source so creators can segment form opt-ins, and
-        fires any ``on_subscribe`` sequences (e.g. a welcome / nurture drip)."""
+        fires ``on_subscribe`` sequences (e.g. a welcome / nurture drip) plus
+        any ``on_form_submit`` sequences (previously a dead trigger: it was
+        offered in the sequence builder but never fired from anywhere)."""
         subscriber = await self.create(
             session,
             organization_id=organization_id,
@@ -234,7 +234,20 @@ class EmailSubscriberService:
             name=name,
             source=EmailSubscriberSource.lead_magnet,
         )
-        await self._trigger_on_subscribe_sequences(session, organization_id, subscriber.id)
+        await self._trigger_on_subscribe_sequences(
+            session, organization_id, subscriber.id
+        )
+
+        from polar.email_sequence.service import email_sequence as sequence_service
+        from polar.models.email_sequence import EmailSequenceTriggerType
+
+        await sequence_service.enroll_for_trigger(
+            session,
+            organization_id,
+            EmailSequenceTriggerType.on_form_submit,
+            subscriber.id,
+            trigger_filter=({"form_id": str(form_id)} if form_id is not None else None),
+        )
         return subscriber
 
     async def subscribe_from_purchase(
@@ -255,10 +268,13 @@ class EmailSubscriberService:
             source=EmailSubscriberSource.purchase,
             customer_id=customer_id,
         )
-        await self._trigger_on_subscribe_sequences(session, organization_id, subscriber.id)
+        await self._trigger_on_subscribe_sequences(
+            session, organization_id, subscriber.id
+        )
         if product_id is not None:
             from polar.email_sequence.service import email_sequence as sequence_service
             from polar.models.email_sequence import EmailSequenceTriggerType
+
             await sequence_service.enroll_for_trigger(
                 session,
                 organization_id,
@@ -286,6 +302,7 @@ class EmailSubscriberService:
     ) -> None:
         from polar.email_sequence.service import email_sequence as sequence_service
         from polar.models.email_sequence import EmailSequenceTriggerType
+
         await sequence_service.enroll_for_trigger(
             session,
             organization_id,
@@ -476,9 +493,7 @@ class EmailSubscriberService:
     ) -> tuple[int, list[EmailSubscriber]]:
         """Return (matching_count, sample_subscribers) for an audience filter."""
         repository = EmailSubscriberRepository.from_session(session)
-        total = await repository.count_filter_matches(
-            organization_id, filter_rules
-        )
+        total = await repository.count_filter_matches(organization_id, filter_rules)
         sample = await repository.list_filter_matches(
             organization_id, filter_rules, limit=sample_limit
         )
@@ -493,9 +508,7 @@ class EmailSubscriberService:
     ) -> list[EmailSubscriber]:
         """Materialize the subscriber list for an audience filter."""
         repository = EmailSubscriberRepository.from_session(session)
-        return await repository.list_filter_matches(
-            organization_id, filter_rules
-        )
+        return await repository.list_filter_matches(organization_id, filter_rules)
 
     async def unsubscribe_by_id(
         self,
@@ -549,7 +562,6 @@ class EmailSubscriberService:
         subscriber.deleted_at = utc_now()
         repository = EmailSubscriberRepository.from_session(session)
         await repository.update(subscriber)
-
 
     async def get_daily_growth(
         self,

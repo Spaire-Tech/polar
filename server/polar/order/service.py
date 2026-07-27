@@ -24,7 +24,7 @@ from polar.customer_session.service import customer_session as customer_session_
 from polar.email.react import render_email_template
 from polar.email.schemas import EmailAdapter
 from polar.email.sender import Attachment, enqueue_email
-from polar.enums import PaymentProcessor, TaxBehavior, TaxBehaviorOption
+from polar.enums import PaymentProcessor, TaxBehavior
 from polar.event.service import event as event_service
 from polar.event.system import (
     BalanceCreditOrderMetadata,
@@ -78,6 +78,10 @@ from polar.organization.service import organization as organization_service
 from polar.payment.repository import PaymentRepository
 from polar.payment_method.repository import PaymentMethodRepository
 from polar.payment_method.service import payment_method as payment_method_service
+from polar.platform.contacts import (
+    is_placeholder_email,
+    resolve_billing_contact_email_by_org_id,
+)
 from polar.platform.service import platform as platform_service
 from polar.product.guard import is_custom_price, is_seat_price, is_static_price
 from polar.product.price_set import PriceSet
@@ -234,6 +238,35 @@ class SubscriptionNotTrialing(OrderError):
 
 def _is_empty_customer_address(customer_address: dict[str, Any] | None) -> bool:
     return customer_address is None or customer_address["country"] is None
+
+
+# Internal platform-billing bookkeeping keys that live on
+# Subscription.user_metadata but have no business leaking into the
+# customer-visible metadata of every order the subscription produces.
+_INTERNAL_SUBSCRIPTION_METADATA_KEYS = frozenset(
+    {"trial_reminders_sent", "superseded_by"}
+)
+
+
+def _order_metadata_from_subscription(
+    subscription: Subscription,
+) -> dict[str, Any]:
+    return {
+        key: value
+        for key, value in (subscription.user_metadata or {}).items()
+        if key not in _INTERNAL_SUBSCRIPTION_METADATA_KEYS
+    }
+
+
+def _creator_org_id_from_customer(customer: Customer) -> uuid.UUID | None:
+    """Creator org id stamped on a platform-billing Customer, if any."""
+    raw = (customer.user_metadata or {}).get("creator_org_id")
+    if not isinstance(raw, str):
+        return None
+    try:
+        return uuid.UUID(raw)
+    except ValueError:
+        return None
 
 
 class OrderService:
@@ -655,7 +688,9 @@ class OrderService:
                         subscription.currency,
                         # Stripe doesn't support calculating negative tax amounts
                         net_amount if net_amount >= 0 else -net_amount,
-                        get_tax_behavior_from_option(tax_behavior_option, billing_address),
+                        get_tax_behavior_from_option(
+                            tax_behavior_option, billing_address
+                        ),
                         product.tax_code,
                         billing_address,
                         [tax_id] if tax_id is not None else [],
@@ -739,7 +774,7 @@ class OrderService:
                     subscription=subscription,
                     checkout=None,
                     items=items,
-                    user_metadata=subscription.user_metadata,
+                    user_metadata=_order_metadata_from_subscription(subscription),
                     custom_field_data=subscription.custom_field_data,
                 ),
                 flush=True,
@@ -844,7 +879,7 @@ class OrderService:
                 discount=None,
                 subscription=subscription,
                 checkout=checkout,
-                user_metadata=subscription.user_metadata,
+                user_metadata=_order_metadata_from_subscription(subscription),
                 custom_field_data=subscription.custom_field_data,
                 items=items,
             ),
@@ -1458,16 +1493,24 @@ class OrderService:
             }
         )
 
-        # Generate invoice to attach to the email
+        # Generate invoice to attach to the email. Invoice generation must
+        # never block the receipt: if the PDF/S3 step fails, the customer
+        # was still charged and still gets their confirmation — the invoice
+        # can be regenerated/downloaded from the portal later.
         invoice_path: str | None = None
-        if invoice_path is None:
-            if order.billing_name is None or order.billing_address is None:
-                log.warning(
-                    "Cannot generate invoice, missing billing info", order_id=order.id
-                )
-            else:
+        if order.billing_name is None or order.billing_address is None:
+            log.warning(
+                "Cannot generate invoice, missing billing info", order_id=order.id
+            )
+        else:
+            try:
                 order = await self.generate_invoice(session, order)
                 invoice_path = order.invoice_path
+            except Exception:
+                log.exception(
+                    "Invoice generation failed, sending confirmation without it",
+                    order_id=order.id,
+                )
 
         attachments: list[Attachment] = []
         if invoice_path is not None:
@@ -1502,6 +1545,35 @@ class OrderService:
         subscription = order.subscription
         plan_name = product.name if product is not None else order.description
 
+        # Never send money email into the void: platform customers are
+        # provisioned with an undeliverable placeholder address, and several
+        # paths can leave it in place. Resolve a real member of the creator
+        # org instead; a charge with zero communication is the one outcome
+        # this path must not produce.
+        recipient = customer.email
+        if is_placeholder_email(recipient):
+            creator_org_id = _creator_org_id_from_customer(customer)
+            resolved = (
+                await resolve_billing_contact_email_by_org_id(session, creator_org_id)
+                if creator_org_id is not None
+                else None
+            )
+            if resolved is None:
+                log.error(
+                    "Platform billing email recipient unresolvable, not sending",
+                    order_id=order.id,
+                    customer_id=customer.id,
+                    customer_email=customer.email,
+                )
+                return
+            log.warning(
+                "Platform customer email is a placeholder, sending to resolved org member",
+                order_id=order.id,
+                customer_id=customer.id,
+                resolved_email=resolved,
+            )
+            recipient = resolved
+
         is_trial_start = (
             order.billing_reason == OrderBillingReasonInternal.subscription_create
             and order.total_amount == 0
@@ -1516,7 +1588,7 @@ class OrderService:
             email = EmailAdapter.validate_python(
                 {
                     "template": "user_welcome",
-                    "props": {"email": customer.email},
+                    "props": {"email": recipient},
                 }
             )
             subject = "Welcome to Spaire"
@@ -1530,6 +1602,31 @@ class OrderService:
                 "email": customer.email,
             }
             url = organization.storefront_url(f"/portal?{urlencode(params)}")
+
+            # Invoice generation must never block the receipt: the creator
+            # WAS charged, so the confirmation goes out with or without the
+            # PDF (the copy adapts via invoice_attached).
+            invoice_path: str | None = None
+            if order.billing_name is None or order.billing_address is None:
+                log.warning(
+                    "Cannot generate platform invoice, missing billing info",
+                    order_id=order.id,
+                )
+            else:
+                try:
+                    order = await self.generate_invoice(session, order)
+                    invoice_path = order.invoice_path
+                except Exception:
+                    log.exception(
+                        "Platform invoice generation failed, sending receipt without it",
+                        order_id=order.id,
+                    )
+            if invoice_path is not None:
+                invoice = await self.get_order_invoice(order)
+                attachments = [
+                    {"remote_url": invoice.url, "filename": order.invoice_filename}
+                ]
+
             email = EmailAdapter.validate_python(
                 {
                     "template": "platform_receipt",
@@ -1538,30 +1635,16 @@ class OrderService:
                         "plan_name": plan_name,
                         "order": order,
                         "url": url,
+                        "invoice_attached": len(attachments) > 0,
                     },
                 }
             )
             subject = f"Your Spaire {plan_name} receipt"
 
-            invoice_path: str | None = None
-            if order.billing_name is None or order.billing_address is None:
-                log.warning(
-                    "Cannot generate platform invoice, missing billing info",
-                    order_id=order.id,
-                )
-            else:
-                order = await self.generate_invoice(session, order)
-                invoice_path = order.invoice_path
-            if invoice_path is not None:
-                invoice = await self.get_order_invoice(order)
-                attachments = [
-                    {"remote_url": invoice.url, "filename": order.invoice_filename}
-                ]
-
         body = render_email_template(email)
         enqueue_email(
             **organization.email_from_reply,
-            to_email_addr=customer.email,
+            to_email_addr=recipient,
             subject=subject,
             html_content=body,
             attachments=attachments,
@@ -1768,7 +1851,14 @@ class OrderService:
         await webhook_service.send(session, organization, event_type, order)
 
     async def _on_order_created(self, session: AsyncSession, order: Order) -> None:
-        enqueue_job("order.confirmation_email", order.id)
+        # NOTE: the confirmation/receipt email is deliberately NOT sent here.
+        # Cycle orders are created `pending` and charged asynchronously — a
+        # receipt at creation time would thank the customer for a payment
+        # that may well decline seconds later (and attach an invoice for it).
+        # It fires from _on_order_paid instead, which _on_order_updated
+        # triggers exactly once when the order transitions to paid —
+        # including orders created already-paid ($0 trial orders, checkout
+        # purchases), via the paid-at-creation branch just below.
         await self.send_webhook(session, order, WebhookEventType.order_created)
 
         if order.paid:
@@ -1797,6 +1887,8 @@ class OrderService:
 
     async def _on_order_paid(self, session: AsyncSession, order: Order) -> None:
         assert order.paid
+
+        enqueue_job("order.confirmation_email", order.id)
 
         await self.send_webhook(session, order, WebhookEventType.order_paid)
 
@@ -1854,6 +1946,9 @@ class OrderService:
                 and order.billing_reason
                 == OrderBillingReasonInternal.subscription_create
             )
+            is_one_time_purchase = (
+                order.billing_reason == OrderBillingReasonInternal.purchase
+            )
             enqueue_job(
                 "email_subscriber.subscribe_from_order",
                 organization_id=order.organization.id,
@@ -1866,6 +1961,13 @@ class OrderService:
                 product_id=(
                     str(order.product_id)
                     if is_subscription_start and order.product_id is not None
+                    else None
+                ),
+                # Fires the "on purchase" automations for one-time products;
+                # renewal cycles pass None so they never re-trigger.
+                purchased_product_id=(
+                    str(order.product_id)
+                    if is_one_time_purchase and order.product_id is not None
                     else None
                 ),
             )
@@ -1898,11 +2000,16 @@ class OrderService:
                     product_id=order.product_id,
                 )
 
-        # Unlock startup perks on first successful sale
+        # Unlock startup perks on first successful sale. Skip Spaire's own
+        # platform-billing orders: a creator paying for their Spaire plan is
+        # not "the platform org's first sale", and unlocking used to notify
+        # Spaire's own members about it.
         org_repository = OrganizationRepository.from_session(session)
         organization = await org_repository.get_by_customer(order.customer_id)
-        if organization is not None and not organization.feature_settings.get(
-            "perks_unlocked", False
+        if (
+            organization is not None
+            and not platform_service.is_platform_organization(organization.id)
+            and not organization.feature_settings.get("perks_unlocked", False)
         ):
             await org_repository.update(
                 organization,

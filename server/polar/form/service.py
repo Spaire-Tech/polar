@@ -218,6 +218,7 @@ class FormService:
                 organization_id=form.organization_id,
                 email=email,
                 name=form_submit.name,
+                form_id=form.id,
             )
             subscriber_id = subscriber.id
         except TierLimitReachedError:

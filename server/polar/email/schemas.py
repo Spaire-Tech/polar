@@ -42,6 +42,7 @@ class EmailTemplate(StrEnum):
     subscription_updated = "subscription_updated"
     user_welcome = "user_welcome"
     platform_receipt = "platform_receipt"
+    platform_subscription_notice = "platform_subscription_notice"
     webhook_endpoint_disabled = "webhook_endpoint_disabled"
     notification_new_sale = "notification_new_sale"
     notification_new_subscription = "notification_new_subscription"
@@ -366,11 +367,33 @@ class PlatformReceiptProps(EmailProps):
     plan_name: str
     order: OrderEmail
     url: str
+    # False when invoice generation was skipped (missing billing details) or
+    # failed — the template must not claim "your invoice is attached".
+    invoice_attached: bool = True
 
 
 class PlatformReceiptEmail(BaseModel):
     template: Literal[EmailTemplate.platform_receipt] = EmailTemplate.platform_receipt
     props: PlatformReceiptProps
+
+
+class PlatformSubscriptionNoticeProps(EmailProps):
+    """Spaire-branded lifecycle notice for the platform's own billing of a
+    creator (payment failed, plan ended, cancellation scheduled, …). One
+    generic branded shell; the Python side composes title/body per event so
+    a new lifecycle message never needs a new template."""
+
+    title: str
+    body_lines: list[str]
+    url: str
+    cta_label: str
+
+
+class PlatformSubscriptionNoticeEmail(BaseModel):
+    template: Literal[EmailTemplate.platform_subscription_notice] = (
+        EmailTemplate.platform_subscription_notice
+    )
+    props: PlatformSubscriptionNoticeProps
 
 
 class WebhookEndpointDisabledProps(EmailProps):
@@ -557,6 +580,7 @@ Email = Annotated[
     | SubscriptionUpdatedEmail
     | UserWelcomeEmail
     | PlatformReceiptEmail
+    | PlatformSubscriptionNoticeEmail
     | WebhookEndpointDisabledEmail
     | NotificationNewSaleEmail
     | NotificationNewSubscriptionEmail

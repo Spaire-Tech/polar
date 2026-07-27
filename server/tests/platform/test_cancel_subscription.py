@@ -40,9 +40,7 @@ async def _trialing_creator(
 ) -> Organization:
     """A creator org on a trialing Starter Spaire subscription."""
     platform_org = await create_organization(save_fixture)
-    mocker.patch(
-        "polar.platform.service.settings.PLATFORM_ORG_ID", platform_org.id
-    )
+    mocker.patch("polar.platform.service.settings.PLATFORM_ORG_ID", platform_org.id)
     prices: list[PriceFixtureType] = [(4900, "usd")]
     product = await create_product(
         save_fixture,
@@ -70,7 +68,7 @@ async def _trialing_creator(
 
 @pytest.mark.asyncio
 class TestCancelSubscription:
-    async def test_cancel_trial_returns_serializable_subscription(
+    async def test_cancel_trial_keeps_access_until_trial_end(
         self,
         mocker: MockerFixture,
         session: AsyncSession,
@@ -79,17 +77,49 @@ class TestCancelSubscription:
     ) -> None:
         creator = await _trialing_creator(save_fixture, mocker)
 
-        # The real cancel path: a trialing sub is revoked immediately.
+        # The real cancel path: a trialing sub now schedules cancellation at
+        # period end — the creator keeps their remaining trial days (as the
+        # reminder emails promise) and is never charged. It must NOT be
+        # revoked on the spot.
         canceled = await platform_management.cancel_at_period_end(
             session, locker, organization=creator
         )
-        assert canceled.status == SubscriptionStatus.canceled
+        assert canceled.status == SubscriptionStatus.trialing
+        assert canceled.cancel_at_period_end is True
+        assert canceled.canceled_at is not None
+        assert canceled.ended_at is None
 
         # The exact thing that 500'd in prod — serializing what cancel
         # returns. The endpoint reloads via _serialize_subscription; must work.
         result = await _serialize_subscription(session, canceled)
         assert isinstance(result, SubscriptionSchema)
         assert result.id == canceled.id
+
+    async def test_canceled_trial_revokes_without_charging_at_trial_end(
+        self,
+        mocker: MockerFixture,
+        session: AsyncSession,
+        save_fixture: SaveFixture,
+        locker: Locker,
+    ) -> None:
+        from polar.subscription.service import (
+            subscription as subscription_service,
+        )
+
+        creator = await _trialing_creator(save_fixture, mocker)
+        canceled = await platform_management.cancel_at_period_end(
+            session, locker, organization=creator
+        )
+
+        # At trial end the scheduler cycles the subscription. A canceled
+        # trial must end (status canceled), not resurrect to `active` —
+        # the previous cycle() flipped previous_status==trialing back to
+        # active even on the revoke branch.
+        cycled = await subscription_service.cycle(
+            session, canceled, update_cycle_dates=False
+        )
+        assert cycled.status == SubscriptionStatus.canceled
+        assert cycled.ended_at is not None
 
     async def test_bare_subscription_serialization_reproduces_the_500(
         self,
