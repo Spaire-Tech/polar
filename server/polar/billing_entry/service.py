@@ -60,10 +60,15 @@ class BillingEntryService:
         async for line_item, entries in self.compute_pending_subscription_line_items(
             session, subscription
         ):
+            # net_amount is NOT NULL with no default — omitting it makes
+            # every cycle/renewal order INSERT crash, which silently
+            # killed all recurring billing (orders task retried forever,
+            # no order, no charge, no invoice).
             order_item = OrderItem(
                 id=uuid.uuid4(),
                 label=line_item.label,
                 amount=line_item.amount,
+                net_amount=line_item.amount,
                 tax_amount=0,
                 proration=line_item.proration,
                 product_price=line_item.price,

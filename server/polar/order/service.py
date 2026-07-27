@@ -917,7 +917,10 @@ class OrderService:
                 status=OrderStatus.paid,
                 subtotal_amount=subtotal_amount,
                 discount_amount=0,
-                net_amount=subtotal_amount - wallet_tax_amount,
+                # Tax is EXCLUSIVE here: the wallet transaction amount is the
+                # net (pre-tax) figure and tax is charged on top. Subtracting
+                # tax made total_amount come out short of the actual payment.
+                net_amount=subtotal_amount,
                 tax_amount=wallet_tax_amount,
                 tax_behavior=TaxBehavior.exclusive,  # TODO: add tax behavior to wallet transactions
                 applied_balance_amount=0,

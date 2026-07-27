@@ -1,7 +1,7 @@
 import uuid
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
-from typing import cast
+from typing import Any, cast
 from unittest.mock import ANY, AsyncMock, MagicMock, call
 
 import pytest
@@ -17,6 +17,7 @@ from polar.enums import (
     InvoiceNumbering,
     PaymentProcessor,
     SubscriptionRecurringInterval,
+    TaxBehavior,
     TaxProcessor,
 )
 from polar.exceptions import SpaireRequestValidationError
@@ -174,7 +175,8 @@ def calculate_tax_mock(tax_service_mock: MagicMock) -> AsyncMock:
         identifier: uuid.UUID,
         currency: str,
         amount: int,
-        stripe_product_id: str,
+        tax_behavior: Any,
+        tax_code: Any,
         address: Address,
         tax_ids: list[TaxID],
         tax_exempted: bool,
@@ -182,6 +184,8 @@ def calculate_tax_mock(tax_service_mock: MagicMock) -> AsyncMock:
         return {
             "processor_id": "TAX_PROCESSOR_ID",
             "amount": polar_round(amount * 0.20),
+            "currency": currency,
+            "tax_behavior": tax_behavior,
             "taxability_reason": TaxabilityReason.standard_rated,
             "tax_rate": None,
         }
@@ -917,6 +921,7 @@ class TestCreateSubscriptionOrder:
             order.id,
             subscription.currency,
             order.net_amount,
+            TaxBehavior.exclusive,
             product.tax_code,
             customer.billing_address,
             [],
@@ -992,6 +997,7 @@ class TestCreateSubscriptionOrder:
             order.id,
             subscription.currency,
             order.net_amount,
+            TaxBehavior.exclusive,
             product.tax_code,
             customer.billing_address,
             [],
@@ -1095,6 +1101,7 @@ class TestCreateSubscriptionOrder:
             order.id,
             subscription.currency,
             order.subtotal_amount,
+            TaxBehavior.exclusive,
             product.tax_code,
             customer.billing_address,
             [],
@@ -1529,6 +1536,7 @@ class TestCreateSubscriptionOrder:
             order.id,
             subscription.currency,
             abs(order.net_amount),
+            TaxBehavior.exclusive,
             subscription.product.tax_code,
             customer.billing_address,
             [],
@@ -1673,6 +1681,8 @@ class TestCreateSubscriptionOrder:
         calculate_tax_mock.return_value = {
             "processor_id": "TAX_PROCESSOR_ID",
             "amount": 0,
+            "currency": "usd",
+            "tax_behavior": TaxBehavior.exclusive,
             "taxability_reason": TaxabilityReason.not_subject_to_tax,
             "tax_rate": {},
         }
@@ -1733,6 +1743,8 @@ class TestCreateSubscriptionOrder:
         calculate_tax_mock.return_value = {
             "processor_id": "TAX_PROCESSOR_ID",
             "amount": 0,
+            "currency": "usd",
+            "tax_behavior": TaxBehavior.exclusive,
             "taxability_reason": TaxabilityReason.not_subject_to_tax,
             "tax_rate": {},
         }
@@ -1794,6 +1806,8 @@ class TestCreateSubscriptionOrder:
         calculate_tax_mock.return_value = {
             "processor_id": "TAX_PROCESSOR_ID",
             "amount": 0,
+            "currency": "usd",
+            "tax_behavior": TaxBehavior.exclusive,
             "taxability_reason": TaxabilityReason.not_subject_to_tax,
             "tax_rate": {},
         }
@@ -1855,6 +1869,8 @@ class TestCreateSubscriptionOrder:
         calculate_tax_mock.return_value = {
             "processor_id": "TAX_PROCESSOR_ID",
             "amount": 0,
+            "currency": "usd",
+            "tax_behavior": TaxBehavior.exclusive,
             "taxability_reason": TaxabilityReason.not_subject_to_tax,
             "tax_rate": {},
         }
@@ -2213,8 +2229,11 @@ class TestHandlePayment:
         assert updated_order.status == OrderStatus.paid
         assert updated_order.tax_transaction_processor_id == "TAX_TRANSACTION_ID"
 
-        # Verify enqueue_job was called to balance the order
-        enqueue_job_mock.assert_called_once_with(
+        # Verify enqueue_job was called to balance the order. The paid
+        # transition now also enqueues the confirmation email (receipts
+        # follow successful payment, not order creation) and the
+        # subscribe-from-order task, so assert_any_call rather than once.
+        enqueue_job_mock.assert_any_call(
             "order.balance", order_id=order.id, charge_id="stripe_payment_123"
         )
 
@@ -3119,7 +3138,12 @@ class TestTriggerPayment:
         from polar.config import settings
 
         assert len(descriptor) <= settings.stripe_descriptor_suffix_max_length
-        assert descriptor.startswith(organization.slug[:4])
+        # The slug prefix is truncated to whatever room the suffix leaves,
+        # which depends on the configured statement descriptor length.
+        slug_space = settings.stripe_descriptor_suffix_max_length - len(
+            " TRIAL OVER"
+        )
+        assert descriptor.startswith(organization.slug[:slug_space])
 
 
 @pytest.mark.asyncio
