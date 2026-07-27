@@ -8,11 +8,12 @@ interface TrialBannerProps {
   organizationSlug: string
 }
 
+// Days until the trial ends; negative once the trial end is in the past.
 const daysLeft = (trialEnd: string | null | undefined): number | null => {
   if (!trialEnd) return null
   const ms = new Date(trialEnd).getTime() - Date.now()
   if (Number.isNaN(ms)) return null
-  return Math.max(0, Math.ceil(ms / (1000 * 60 * 60 * 24)))
+  return Math.ceil(ms / (1000 * 60 * 60 * 24))
 }
 
 /**
@@ -21,7 +22,10 @@ const daysLeft = (trialEnd: string | null | undefined): number | null => {
  * the plan page to add a payment method. Renders nothing once the trial is
  * converted or expired.
  */
-const TrialBanner = ({ organizationId, organizationSlug }: TrialBannerProps) => {
+const TrialBanner = ({
+  organizationId,
+  organizationSlug,
+}: TrialBannerProps) => {
   const subscription = useSpaireSubscription(organizationId)
   const sub = subscription.data
 
@@ -30,21 +34,27 @@ const TrialBanner = ({ organizationId, organizationSlug }: TrialBannerProps) => 
   }
 
   const remaining = daysLeft(sub.trial_end)
+  // A stale 'trialing' status can outlive the trial-end date; never claim
+  // a past trial "ends today".
+  const ended = remaining !== null && remaining < 0
   const countdown =
     remaining === null
       ? 'Your free trial is active'
-      : remaining === 0
-        ? 'Your free trial ends today'
-        : remaining === 1
-          ? 'Your free trial ends tomorrow'
-          : `Your free trial ends in ${remaining} days`
+      : ended
+        ? 'Your free trial has ended'
+        : remaining === 0
+          ? 'Your free trial ends today'
+          : remaining === 1
+            ? 'Your free trial ends tomorrow'
+            : `Your free trial ends in ${remaining} days`
 
   return (
     <div className="flex flex-col items-start gap-2 border-b border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 sm:flex-row sm:items-center sm:justify-between sm:px-8">
       <span>
-        <span className="font-medium">{countdown}.</span> Your card on file is
-        charged when it ends and your plan continues — cancel any time before
-        then if you don&apos;t want to keep going.
+        <span className="font-medium">{countdown}.</span>{' '}
+        {ended
+          ? 'Head to the plan page to pick a plan and keep your access.'
+          : `Your card on file is charged when it ends and your plan continues — cancel any time before then if you don't want to keep going.`}
       </span>
       <Link
         href={`/dashboard/${organizationSlug}/settings/plan`}

@@ -3,6 +3,15 @@
 @import './editor.css';
 @import './picker.css';
 
+/*
+ * Bind the `dark:` variant to the `.dark` class instead of the OS
+ * `prefers-color-scheme` media query (Tailwind v4's default). next-themes
+ * is configured with attribute="class" and forcedTheme="light"
+ * (src/app/providers.tsx), so `.dark` is never set — without this binding,
+ * OS-dark users got dark-mode utilities leaking onto the forced-light page.
+ */
+@custom-variant dark (&:where(.dark, .dark *));
+
 @source '../../../../packages/ui/src';
 @source '../../../../packages/checkout/src';
 

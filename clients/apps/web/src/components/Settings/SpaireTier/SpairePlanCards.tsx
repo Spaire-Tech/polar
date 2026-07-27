@@ -1,16 +1,18 @@
 'use client'
 
+import { useModal } from '@/components/Modal/useModal'
 import { toast } from '@/components/Toast/use-toast'
 import {
   BillingInterval,
   breakevenGmvDollars,
   CurrentSpaireSubscription,
+  formatDollarAmount,
   formatTransactionFee,
   headlinePriceForPlan,
   PaidTierKey,
   renewalSentence,
-  TierPlan,
   tierDisplayName,
+  TierPlan,
   useCancelSpaireSubscription,
   useCreateUpgradeCheckout,
   useSpairePlans,
@@ -18,13 +20,12 @@ import {
   useSwitchSpairePlan,
 } from '@/hooks/queries/spaireTier'
 import CheckOutlined from '@mui/icons-material/CheckOutlined'
-import { useQueryClient } from '@tanstack/react-query'
-import Button from '@spaire/ui/components/atoms/Button'
 import { schemas } from '@spaire/client'
+import Button from '@spaire/ui/components/atoms/Button'
+import { useQueryClient } from '@tanstack/react-query'
 import { useCallback, useMemo, useState } from 'react'
 import { twMerge } from 'tailwind-merge'
 import { ConfirmModal } from '../../Modal/ConfirmModal'
-import { useModal } from '@/components/Modal/useModal'
 
 interface SpairePlanCardsProps {
   organization: schemas['Organization']
@@ -51,9 +52,14 @@ const SpairePlanCards = ({ organization }: SpairePlanCardsProps) => {
   const confirmCancel = useModal()
   const confirmSwitch = useModal()
   const [switchTarget, setSwitchTarget] = useState<PaidTierKey | null>(null)
-  const [interval, setInterval] = useState<BillingInterval>(
-    subscription.data?.billing_interval ?? 'month',
-  )
+  // The user's explicit toggle choice. While null, follow the
+  // subscription's own interval once it loads (so annual subscribers
+  // land on Annual instead of the 'month' default); a manual toggle
+  // takes over from then on.
+  const [intervalOverride, setIntervalOverride] =
+    useState<BillingInterval | null>(null)
+  const interval: BillingInterval =
+    intervalOverride ?? subscription.data?.billing_interval ?? 'month'
   const [pending, setPending] = useState<PaidTierKey | null>(null)
 
   const ordered = useMemo<TierPlan[]>(() => {
@@ -63,6 +69,34 @@ const SpairePlanCards = ({ organization }: SpairePlanCardsProps) => {
       .map((t) => map.get(t))
       .filter((p): p is TierPlan => Boolean(p))
   }, [plans.data])
+
+  // Annual-savings badge next to the interval toggle. Prefer the API's
+  // annual_savings_percent; fall back to computing from prices when both
+  // are available. null hides the badge rather than hardcoding a claim.
+  const annualSavings = useMemo<{
+    max: number
+    uniform: boolean
+  } | null>(() => {
+    const values = ordered
+      .map((p) => {
+        if (p.annual_savings_percent > 0)
+          return Math.round(p.annual_savings_percent)
+        if (p.annual_price_cents != null && p.monthly_price_cents > 0) {
+          const yearAtMonthly = p.monthly_price_cents * 12
+          const pct = Math.round(
+            ((yearAtMonthly - p.annual_price_cents) / yearAtMonthly) * 100,
+          )
+          return pct > 0 ? pct : null
+        }
+        return null
+      })
+      .filter((v): v is number => v !== null)
+    if (values.length === 0) return null
+    return {
+      max: Math.max(...values),
+      uniform: values.every((v) => v === values[0]),
+    }
+  }, [ordered])
 
   const currentTier = subscription.data?.tier
   const currentInterval = subscription.data?.billing_interval
@@ -130,13 +164,22 @@ const SpairePlanCards = ({ organization }: SpairePlanCardsProps) => {
     setSwitchTarget(null)
   }, [switchTarget, confirmSwitch, doSwitch])
 
+  // Trials are canceled at period end: access continues until the trial
+  // ends, no charge is made, and the plan never starts.
+  const trialEndIso = sub?.trial_end ?? sub?.current_period_end ?? null
+  const trialEndDate = trialEndIso
+    ? new Date(trialEndIso).toLocaleDateString()
+    : null
+
   const onCancel = useCallback(async () => {
     try {
       await cancelSub.mutateAsync()
       toast({
-        title: isTrial ? 'Trial ended' : 'Subscription canceled',
+        title: isTrial ? 'Trial canceled' : 'Subscription canceled',
         description: isTrial
-          ? 'Your trial has ended. Your org has no active plan — pick one any time from this page to restore access.'
+          ? trialEndDate
+            ? `Your trial continues until ${trialEndDate}. You won't be charged and your plan won't start — pick a plan any time to keep going.`
+            : "Your trial continues until it ends. You won't be charged and your plan won't start — pick a plan any time to keep going."
           : 'Your Spaire subscription will end at the close of the current billing period, after which your org will have no active plan until you pick one.',
       })
       queryClient.invalidateQueries({
@@ -147,11 +190,18 @@ const SpairePlanCards = ({ organization }: SpairePlanCardsProps) => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const detail = (err as any)?.detail ?? 'Failed to cancel.'
       toast({
-        title: isTrial ? 'End trial failed' : 'Cancel failed',
+        title: isTrial ? 'Cancel trial failed' : 'Cancel failed',
         description: String(detail),
       })
     }
-  }, [cancelSub, confirmCancel, isTrial, organization.id, queryClient])
+  }, [
+    cancelSub,
+    confirmCancel,
+    isTrial,
+    trialEndDate,
+    organization.id,
+    queryClient,
+  ])
 
   return (
     <div className="flex flex-col gap-6">
@@ -160,7 +210,8 @@ const SpairePlanCards = ({ organization }: SpairePlanCardsProps) => {
         plansLoading={plans.isLoading}
         subLoading={subscription.isLoading}
         interval={interval}
-        onInterval={setInterval}
+        onInterval={setIntervalOverride}
+        annualSavings={annualSavings}
       />
 
       {plans.isLoading ? (
@@ -201,17 +252,19 @@ const SpairePlanCards = ({ organization }: SpairePlanCardsProps) => {
       <ConfirmModal
         isShown={confirmCancel.isShown}
         hide={confirmCancel.hide}
-        title={isTrial ? 'End your trial?' : 'Cancel your Spaire plan?'}
+        title={isTrial ? 'Cancel your trial?' : 'Cancel your Spaire plan?'}
         description={
           isTrial
-            ? 'Your trial will end immediately. You will lose access until you pick a plan — you can choose one again at any time.'
+            ? trialEndDate
+              ? `Your trial continues until ${trialEndDate} — you keep access until then, you won't be charged, and your plan won't start. You can pick a plan again at any time.`
+              : "You keep access until your trial ends, you won't be charged, and your plan won't start. You can pick a plan again at any time."
             : sub?.current_period_end
               ? `Your plan stays active through ${new Date(
                   sub.current_period_end,
                 ).toLocaleDateString()}. After that your org has no active plan until you pick one.`
               : 'Your plan will be canceled at the end of the current billing period, after which your org has no active plan until you pick one.'
         }
-        destructiveText={isTrial ? 'Yes, end trial' : 'Yes, cancel'}
+        destructiveText={isTrial ? 'Yes, cancel trial' : 'Yes, cancel'}
         destructive
         onConfirm={onCancel}
       />
@@ -246,9 +299,16 @@ interface HeaderProps {
   subLoading: boolean
   interval: BillingInterval
   onInterval: (interval: BillingInterval) => void
+  annualSavings: { max: number; uniform: boolean } | null
 }
 
-const Header = ({ sub, subLoading, interval, onInterval }: HeaderProps) => {
+const Header = ({
+  sub,
+  subLoading,
+  interval,
+  onInterval,
+  annualSavings,
+}: HeaderProps) => {
   const renewal = sub ? renewalSentence(sub) : null
 
   return (
@@ -259,12 +319,17 @@ const Header = ({ sub, subLoading, interval, onInterval }: HeaderProps) => {
           <div className="h-4 w-72 animate-pulse rounded bg-gray-100" />
         ) : (
           <p className="text-sm text-gray-500">
-            {renewal ?? "Pick a plan to get started. We'll charge you when your trial ends."}
+            {renewal ??
+              "Pick a plan to get started. We'll charge you when your trial ends."}
           </p>
         )}
       </div>
 
-      <IntervalToggle interval={interval} onChange={onInterval} />
+      <IntervalToggle
+        interval={interval}
+        onChange={onInterval}
+        annualSavings={annualSavings}
+      />
     </div>
   )
 }
@@ -272,9 +337,11 @@ const Header = ({ sub, subLoading, interval, onInterval }: HeaderProps) => {
 const IntervalToggle = ({
   interval,
   onChange,
+  annualSavings,
 }: {
   interval: BillingInterval
   onChange: (interval: BillingInterval) => void
+  annualSavings: { max: number; uniform: boolean } | null
 }) => (
   <div className="inline-flex items-center gap-x-2">
     <div className="relative inline-flex rounded-full border border-gray-200 bg-white p-1">
@@ -297,9 +364,12 @@ const IntervalToggle = ({
         )
       })}
     </div>
-    <span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-500">
-      Save 20%
-    </span>
+    {annualSavings && (
+      <span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-500">
+        Save {annualSavings.uniform ? '' : 'up to '}
+        {annualSavings.max}%
+      </span>
+    )}
   </div>
 )
 
@@ -379,18 +449,16 @@ const PlanCard = ({
       {/* Price */}
       <div className="mt-6 flex flex-col">
         <span className="text-4xl font-medium tracking-tight text-gray-900">
-          ${headline.dollars}
+          ${headline.display}
         </span>
         <span className="mt-1 text-sm text-gray-500">
           {effectiveInterval === 'year'
-            ? `Per month, billed annually${
-                annualAvailable ? '' : ''
-              }`
+            ? 'Per month, billed annually'
             : 'Per month, billed monthly'}
         </span>
         {effectiveInterval === 'year' && annualAvailable && (
           <span className="mt-1 text-xs text-blue-500">
-            ${Math.round((plan.annual_price_cents ?? 0) / 100)} billed yearly
+            ${formatDollarAmount(plan.annual_price_cents ?? 0)} billed yearly
           </span>
         )}
         {plan.trial_days && !isCurrentTier && (
@@ -438,10 +506,7 @@ const PlanCard = ({
 
 const FeatureRow = ({ label }: { label: string }) => (
   <div className="flex flex-row items-start gap-x-2 text-sm text-gray-700">
-    <CheckOutlined
-      className="mt-0.5 text-gray-400"
-      style={{ fontSize: 16 }}
-    />
+    <CheckOutlined className="mt-0.5 text-gray-400" style={{ fontSize: 16 }} />
     <span>{label}</span>
   </div>
 )
@@ -474,6 +539,9 @@ const TIER_ORDER: Record<string, number> = {
   inactive: 0,
   unmanaged: 0,
   starter: 1,
+  // Legacy key — Starter originally shipped as "pro". Stale/cached subs may
+  // still report it; rank it identically so comparisons never produce NaN.
+  pro: 1,
   studio: 2,
   scale: 3,
 }
@@ -488,7 +556,8 @@ const resolveCta = (args: ResolveCtaArgs): CtaKind => {
   const isNoPlan = currentTier === 'inactive' || currentTier === 'unmanaged'
 
   // The card representing the user's exact current (tier, interval).
-  const exactlyCurrent = plan.tier === currentTier && interval === currentInterval
+  const exactlyCurrent =
+    plan.tier === currentTier && interval === currentInterval
 
   if (exactlyCurrent) {
     if (status === 'canceled' || args.cancelAtPeriodEnd) {
@@ -557,7 +626,7 @@ const PlanCardButton = ({
           className="w-full border-blue-500 text-blue-500 hover:bg-blue-50"
           onClick={onCancel}
         >
-          End trial
+          Cancel trial
         </Button>
       )
     case 'convert_trial':
@@ -651,7 +720,8 @@ const buildFeatureLines = (plan: TierPlan): string[] => {
 }
 
 const formatCount = (n: number): string => {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`
+  if (n >= 1_000_000)
+    return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`
   if (n >= 1_000) return `${Math.round(n / 1_000)}K`
   return String(n)
 }

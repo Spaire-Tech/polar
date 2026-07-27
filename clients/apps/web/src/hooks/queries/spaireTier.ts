@@ -122,6 +122,10 @@ export interface QuotaUsage {
   quota: string
   limit: number | null
   used: number
+  /** Exact usage in display units (e.g. 0.87 GB); `used` floors to 0
+   * below one whole unit. Optional for backward compatibility with
+   * older API responses. */
+  used_exact?: number
   remaining: number | null
   is_unlimited: boolean
   is_exceeded: boolean
@@ -502,25 +506,36 @@ export const formatMonthlyPrice = (cents: number, currency = 'usd'): string => {
 }
 
 /**
+ * Format a cents amount as a dollar figure for display, keeping cents
+ * only when they're non-zero (e.g. 3900 → "39", 3917 → "39.17") so we
+ * never round away real cents or imply exactness we don't have.
+ */
+export const formatDollarAmount = (cents: number): string =>
+  cents % 100 === 0 ? String(cents / 100) : (cents / 100).toFixed(2)
+
+/**
  * Headline price for a plan card, given the user-selected billing
  * interval. Annual subs are displayed as their monthly equivalent
  * (e.g. $39/mo with the "billed annually" subtitle) to match the
- * Webflow / Framer pricing-card pattern.
+ * Webflow / Framer pricing-card pattern. `display` carries cents when
+ * the monthly equivalent isn't a whole dollar (e.g. "39.17").
  */
 export const headlinePriceForPlan = (
   plan: TierPlan,
   interval: BillingInterval,
-): { dollars: number; cents: number } => {
+): { dollars: number; cents: number; display: string } => {
   if (interval === 'year' && plan.annual_price_cents != null) {
     const monthlyEquivalentCents = Math.round(plan.annual_price_cents / 12)
     return {
       cents: monthlyEquivalentCents,
       dollars: Math.round(monthlyEquivalentCents / 100),
+      display: formatDollarAmount(monthlyEquivalentCents),
     }
   }
   return {
     cents: plan.monthly_price_cents,
     dollars: Math.round(plan.monthly_price_cents / 100),
+    display: formatDollarAmount(plan.monthly_price_cents),
   }
 }
 
@@ -568,19 +583,34 @@ export const breakevenGmvDollars = (
 export const renewalSentence = (
   sub: CurrentSpaireSubscription,
 ): string | null => {
+  const formatDate = (iso: string): string =>
+    new Date(iso).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    })
+
+  if (sub.status === 'trialing') {
+    // Prefer the actual trial end; fall back to the period end.
+    const endIso = sub.trial_end ?? sub.current_period_end
+    if (!endIso) return null
+    const formatted = formatDate(endIso)
+    // Never promise a future event in the past — the backend converts
+    // expired trials, but the UI may see a stale 'trialing' status.
+    if (new Date(endIso).getTime() < Date.now()) {
+      return `Your trial ended on ${formatted}.`
+    }
+    if (sub.cancel_at_period_end) {
+      return `Your trial is canceled and continues until ${formatted}. You won't be charged and your plan won't start.`
+    }
+    return `Your trial ends on ${formatted} — your card will be charged then unless you cancel.`
+  }
+
   if (!sub.current_period_end) return null
   const cadence = sub.billing_interval === 'year' ? 'annual' : 'monthly'
-  const date = new Date(sub.current_period_end)
-  const formatted = date.toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  })
+  const formatted = formatDate(sub.current_period_end)
   if (sub.cancel_at_period_end) {
     return `This site is on a ${cadence} plan that ends on ${formatted}.`
-  }
-  if (sub.status === 'trialing') {
-    return `Your trial ends on ${formatted}. You won't be charged until then.`
   }
   return `This site is charged on a ${cadence} basis and renews on ${formatted}.`
 }

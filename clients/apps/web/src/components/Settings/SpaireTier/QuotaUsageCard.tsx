@@ -23,13 +23,13 @@ const QuotaUsageCard = ({ organization }: QuotaUsageCardProps) => {
   const sorted = useMemo(() => {
     if (!usage.data?.items) return []
     const byKey = new Map(usage.data.items.map((q) => [q.quota, q]))
-    return ORDER.map((k) => byKey.get(k)).filter(
-      (q): q is QuotaUsage => Boolean(q),
+    return ORDER.map((k) => byKey.get(k)).filter((q): q is QuotaUsage =>
+      Boolean(q),
     )
   }, [usage.data])
 
   return (
-    <div className="dark:border-polar-700 overflow-hidden rounded-2xl border border-gray-200 bg-white dark:bg-transparent">
+    <div className="dark:border-spaire-700 overflow-hidden rounded-2xl border border-gray-200 bg-white dark:bg-transparent">
       {usage.isLoading ? (
         <div className="flex flex-col gap-y-6 p-6">
           {[0, 1, 2].map((i) => (
@@ -40,7 +40,7 @@ const QuotaUsageCard = ({ organization }: QuotaUsageCardProps) => {
           ))}
         </div>
       ) : (
-        <div className="dark:divide-polar-700 divide-y divide-gray-100">
+        <div className="dark:divide-spaire-700 divide-y divide-gray-100">
           {sorted.map((q) => (
             <QuotaRow key={q.quota} quota={q} />
           ))}
@@ -56,10 +56,20 @@ const QuotaRow = ({ quota }: { quota: QuotaUsage }) => {
     unit: 'units',
   }
   const isUnlimited = quota.is_unlimited
+  // The API's `used` floors to whole display units (0.9 GB -> 0); prefer
+  // the exact figure so real-but-small usage never reads as zero.
+  const usedExact = quota.used_exact ?? quota.used
   const percent =
     isUnlimited || quota.limit === 0 || quota.limit === null
       ? 0
-      : Math.min(100, Math.round((quota.used / quota.limit) * 100))
+      : Math.min(100, Math.round((usedExact / quota.limit) * 100))
+  // Any non-zero usage renders at least a 2% sliver so tiny usage is
+  // visible on the track instead of rounding away to an empty bar.
+  const barPercent = usedExact > 0 ? Math.max(percent, 2) : percent
+  const usedLabel =
+    usedExact > 0 && usedExact < 1
+      ? usedExact.toLocaleString(undefined, { maximumFractionDigits: 2 })
+      : Math.floor(usedExact).toLocaleString()
 
   return (
     <div className="flex flex-col gap-y-2.5 px-6 py-5">
@@ -69,12 +79,12 @@ const QuotaRow = ({ quota }: { quota: QuotaUsage }) => {
         <span className="text-sm font-medium text-gray-900 dark:text-white">
           {meta.label}
         </span>
-        <span className="text-sm tabular-nums text-gray-900 dark:text-white">
+        <span className="text-sm text-gray-900 tabular-nums dark:text-white">
           {isUnlimited ? (
             'Unlimited'
           ) : (
             <>
-              {quota.used.toLocaleString()}
+              {usedLabel}
               <span className="text-gray-400">
                 {' '}
                 / {quota.limit?.toLocaleString()} {meta.unit}
@@ -85,10 +95,10 @@ const QuotaRow = ({ quota }: { quota: QuotaUsage }) => {
       </div>
 
       {!isUnlimited && (
-        <div className="dark:bg-polar-700 h-1.5 w-full overflow-hidden rounded-full bg-gray-100">
+        <div className="dark:bg-spaire-700 h-1.5 w-full overflow-hidden rounded-full bg-gray-100">
           <div
             className="h-full rounded-full bg-gray-900 transition-all dark:bg-white"
-            style={{ width: `${percent}%` }}
+            style={{ width: `${barPercent}%` }}
           />
         </div>
       )}
