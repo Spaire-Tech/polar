@@ -9,8 +9,9 @@
 A new opening to the masterclass creation flow. Instead of asking a creator to
 describe their masterclass from memory (title box, description box), we ask for
 a link to their existing body of work — a YouTube channel to start. We read
-what they've already made and come back with **three masterclasses they could
-teach**, each laid out as a season of episodes, each with receipts (the videos
+what they've already made and come back with **up to three masterclasses they
+could teach** — as many as the evidence actually supports, never padded to
+three — each laid out as a season of episodes, each with receipts (the videos
 and comments that justify it), and each with an honest split: episodes that
 already have source material vs. episodes still to film.
 
@@ -83,6 +84,9 @@ confirm that risk before building anything.
   launch blocker — launch on A regardless.
 - Which niches/sizes work well, and where the floor is (minimum videos/comments
   for a confident read) — this defines the fork threshold in Phase 2.
+- **Calibrated confidence thresholds:** what signal strength separates a
+  proposal worth showing from padding, and how often channels yield one vs.
+  two vs. three — this sets the flagship-vs-cards gate in Phase 1.
 
 **Deliverables:** the scoring results, the winning prompt/signal recipe, a
 written go/no-go on transcripts, and the minimum-channel threshold.
@@ -120,8 +124,25 @@ already has the worker/job pattern and an AI pipeline to model this on).
   replies (their voice in text — no permission needed). Transcripts plug in
   here later only if Gate A said they matter.
 - The three-signal overlap (overperformance × comment demand × subject
-  ownership) → three distinct proposal candidates, deliberately different
-  angles, not three flavors of one idea.
+  ownership) → **one to three** proposals, gated by a per-proposal confidence
+  score, deliberately different angles, never three flavors of one idea.
+  The count follows the evidence:
+  - **Below the floor** (no proposal clears the bar): no proposals at all —
+    route to the fork, warmly. Never ship a low-confidence guess.
+  - **One clears it:** single **flagship mode** — one proposal, presented
+    full-width with deeper receipts and more confident copy. One undeniable
+    beats two padded; filler proposals ("How to set up a camera") dilute the
+    credibility of the real one.
+  - **Two or three clear it:** the card view.
+  - **More than three clear it** (deep catalogues with distinct sub-topics):
+    still show only the top three at onboarding. Surplus themes are stored
+    and surfaced later as **"your next masterclass"** after the first one is
+    published — onboarding has one job (get ONE masterclass live), and a
+    ready-made second product is worth more as a retention moment than as a
+    fourth card competing for a first-time decision.
+  - Confidence thresholds (how many outlier videos, how much comment demand)
+    are **calibrated from the Phase 0 bake-off**, not invented upfront —
+    channel sizes vary too much for hardcoded constants to survive contact.
 - Per proposal: title, one-line promise, suggested structure (seasons/episodic
   — chosen by the AI from the material, not asked upfront), episode list, and
   the footage map with **three statuses per episode**, not two:
@@ -172,10 +193,12 @@ Rebuild the opening of the existing masterclass wizard. Everything downstream
 5. **Taste steps during the deep pass:** the topic-independent one-tap choices
    — hero layout, lesson-card style, trial (Free Preview / Episode Sample),
    price. Roughly the same duration as the analysis.
-6. **Three proposals, streaming in as cards** as each one finishes (never a
-   spinner if they beat the analysis). Each card: title, promise, season
-   shape, episode count, "7 of 11 episodes have source material," receipts
-   expandable underneath.
+6. **Proposals streaming in as cards** as each one finishes (never a spinner
+   if they beat the analysis). Each card: title, promise, season shape,
+   episode count, "7 of 11 episodes have source material," receipts
+   expandable underneath. The layout adapts to the count: a lone flagship
+   proposal renders full-width and confident — never as one lonely card in
+   an empty three-card grid, which would read as failure.
 7. **Pick one** → covers offered **from the thumbnails of the mapped videos**
    (their own imagery), plus upload. → Portal preview → create.
 8. Instructor step disappears as a form: bio is **pre-drafted** from the
@@ -245,6 +268,8 @@ channel, time-to-proposals, fork rate by failure reason, quota consumption.
 | "Half your course exists" overpromise | Copy standard: "N of M episodes have source material," footage map links to their own videos |
 | Old-video trap: mapping a 6-year-old clip (bad mic, old brand) into a paid product | Three-status footage map (have / worth re-filming / to film); age + resolution heuristics flag candidates; creator confirms with one tap; voice analysis weights recent uploads |
 | Small/quiet channels get confident nonsense | Phase-0-derived threshold routes them to the fork warmly |
+| Forcing three proposals pads thin channels with filler | Signal-gated count: flagship mode when only one clears the bar; fork when none do |
+| Deep catalogues (4+ real themes) under-served by a cap of three | Surplus themes stored and resurfaced as "your next masterclass" after first publish — expansion becomes a retention feature |
 | Quota/day limits under signup spikes | List-walking not search, hard caching, job queue with graceful "ready shortly," quota increase filed early |
 | YouTube data-retention terms | Store derived conclusions, not raw responses |
 | Deep pass finishes after taste steps | Proposals stream in one at a time; never a spinner |
