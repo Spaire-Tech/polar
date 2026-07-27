@@ -274,9 +274,18 @@ channel, time-to-proposals, fork rate by failure reason, quota consumption.
 | YouTube data-retention terms | Store derived conclusions, not raw responses |
 | Deep pass finishes after taste steps | Proposals stream in one at a time; never a spinner |
 
+## Decided
+
+- Name: **Masterclass Architect**. Vocabulary: masterclass / seasons / episodes.
+- Fork copy: **"I already know what I'm making"** — the confident exit and the
+  landing for every failure case.
+- Proposal count is signal-gated (0–3 + flagship mode); surplus themes deferred
+  to post-publish "next masterclass."
+- Footage map has three statuses (have / worth re-filming / to film).
+- Transcripts are not on the launch path; Gate A decides if they ever are.
+
 ## Open decisions
 
-- Exact fork copy — recommended: **"I already know what I'm making"**.
 - Whether the picked proposal feeds the existing outline generator as rich
   context (fastest) or replaces it (cleaner) — decide in Phase 2 from Phase 1
   output shape.
