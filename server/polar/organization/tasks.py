@@ -19,7 +19,7 @@ from polar.models import Organization
 from polar.platform.billing import (
     platform_billing,
 )
-from polar.platform.fee_sync import enqueue_sync as enqueue_platform_fee_sync
+from polar.platform.fee_sync import platform_fee_sync
 from polar.user.repository import UserRepository
 from polar.worker import AsyncSessionMaker, TaskPriority, actor
 
@@ -97,11 +97,15 @@ async def organization_account_set(organization_id: uuid.UUID) -> None:
         if account is None:
             raise AccountDoesNotExist(organization.account_id)
 
-        await held_balance_service.release_account(session, account)
+        # Sync the per-account fee values to the tier list rate BEFORE
+        # releasing held balances: release applies fees at release time,
+        # and running the sync as a queued job afterwards meant every
+        # held order was fee'd at the global default instead of the
+        # creator's tier rate (overcharging e.g. Studio creators on all
+        # sales made before they connected payouts).
+        await platform_fee_sync.sync_for_organization(session, organization)
 
-        # The org now has an Account that can carry per-account fee values.
-        # Sync them to the current tier list rate.
-        enqueue_platform_fee_sync(organization.id)
+        await held_balance_service.release_account(session, account)
 
 
 @actor(actor_name="organization.under_review", priority=TaskPriority.LOW)
