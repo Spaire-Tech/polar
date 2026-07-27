@@ -3008,6 +3008,86 @@ class TestTriggerPayment:
         await session.refresh(order)
         assert order.payment_lock_acquired_at is None
 
+    async def test_unrelated_invalid_request_error_keeps_payment_method(
+        self,
+        mocker: MockerFixture,
+        stripe_service_mock: MagicMock,
+        session: AsyncSession,
+        save_fixture: SaveFixture,
+        product: Product,
+        customer: Customer,
+    ) -> None:
+        # Regression guard: the detached-payment-method detection used to
+        # contain a bare string ("does not belong to the customer" without
+        # `in message`), which is always truthy — so ANY InvalidRequestError
+        # (amount too large, currency mismatch, bad descriptor...) deleted
+        # the customer's perfectly valid card and doomed every dunning
+        # retry. An unrelated InvalidRequestError must re-raise and leave
+        # the payment method alone.
+        payment_method = await create_payment_method(save_fixture, customer=customer)
+        order = await create_order(
+            save_fixture,
+            product=product,
+            customer=customer,
+            status=OrderStatus.pending,
+        )
+        await save_fixture(order)
+
+        delete_mock = mocker.patch(
+            "polar.order.service.payment_method_service.delete"
+        )
+        invalid_error = stripe_lib.InvalidRequestError(
+            message="Amount must be no more than $999,999.99",
+            param="amount",
+            json_body={
+                "error": {"message": "Amount must be no more than $999,999.99"}
+            },
+        )
+        stripe_service_mock.create_payment_intent.side_effect = invalid_error
+
+        with pytest.raises(stripe_lib.InvalidRequestError):
+            await order_service.trigger_payment(session, order, payment_method)
+
+        delete_mock.assert_not_called()
+
+    async def test_detached_payment_method_is_deleted(
+        self,
+        mocker: MockerFixture,
+        stripe_service_mock: MagicMock,
+        session: AsyncSession,
+        save_fixture: SaveFixture,
+        product: Product,
+        customer: Customer,
+    ) -> None:
+        # The genuine detached-card case must still delete the payment
+        # method and hand the order to dunning.
+        payment_method = await create_payment_method(save_fixture, customer=customer)
+        order = await create_order(
+            save_fixture,
+            product=product,
+            customer=customer,
+            status=OrderStatus.pending,
+        )
+        await save_fixture(order)
+
+        delete_mock = mocker.patch(
+            "polar.order.service.payment_method_service.delete"
+        )
+        message = (
+            "The payment method supplied does not belong to the customer."
+        )
+        invalid_error = stripe_lib.InvalidRequestError(
+            message=message,
+            param="payment_method",
+            json_body={"error": {"message": message}},
+        )
+        stripe_service_mock.create_payment_intent.side_effect = invalid_error
+
+        with pytest.raises(CardPaymentFailed):
+            await order_service.trigger_payment(session, order, payment_method)
+
+        delete_mock.assert_called_once()
+
     async def test_due_amount_less_than_50(
         self,
         stripe_service_mock: MagicMock,
