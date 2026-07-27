@@ -11,7 +11,11 @@ import structlog
 from polar.auth.models import AuthSubject, Organization, User
 from polar.config import settings
 from polar.email.react import render_email_template
-from polar.email.schemas import ClientInvoiceEmail, ClientInvoiceEmailProps, EmailAdapter
+from polar.email.schemas import (
+    ClientInvoiceEmail,
+    ClientInvoiceEmailProps,
+    EmailAdapter,
+)
 from polar.email.sender import Attachment, enqueue_email
 from polar.exceptions import PolarError
 from polar.integrations.stripe.service import stripe as stripe_service
@@ -32,7 +36,6 @@ from polar.order.repository import OrderRepository
 from polar.organization.repository import OrganizationRepository
 from polar.organization.service import organization as organization_service
 from polar.postgres import AsyncReadSession, AsyncSession
-from polar.enums import TaxBehavior
 from polar.tax.calculation import (
     TaxCalculationError,
     TaxCode,
@@ -769,6 +772,7 @@ class ClientInvoiceService:
                     order_id=order.id,
                     label=line_item.description,
                     amount=line_item.amount,
+                    net_amount=line_item.amount,
                     tax_amount=line_item.tax_amount,
                 )
             )

@@ -23,6 +23,7 @@ import OrganizationReviewed from './organization_reviewed'
 import { OrganizationUnderReview } from './organization_under_review'
 import { PersonalAccessTokenLeaked } from './personal_access_token_leaked'
 import { PlatformReceipt } from './platform_receipt'
+import { PlatformSubscriptionNotice } from './platform_subscription_notice'
 import { SeatInvitation } from './seat_invitation'
 import { SubscriptionCancellation } from './subscription_cancellation'
 import { SubscriptionConfirmation } from './subscription_confirmation'
@@ -51,6 +52,7 @@ const TEMPLATES: Record<string, React.FC<any>> = {
   personal_access_token_leaked: PersonalAccessTokenLeaked,
   seat_invitation: SeatInvitation,
   platform_receipt: PlatformReceipt,
+  platform_subscription_notice: PlatformSubscriptionNotice,
   subscription_cancellation: SubscriptionCancellation,
   subscription_confirmation: SubscriptionConfirmation,
   subscription_cycled: SubscriptionCycled,

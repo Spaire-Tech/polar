@@ -85,11 +85,16 @@ from polar.notifications.notification import (
 from polar.notifications.service import PartialNotification
 from polar.notifications.service import notifications as notifications_service
 from polar.organization.repository import OrganizationRepository
+from polar.platform.contacts import (
+    is_placeholder_email,
+    resolve_billing_contact_email,
+)
 from polar.platform.fee_sync import (
     maybe_enqueue_sync_from_subscription,
     maybe_mark_platform_trial_consumed,
     maybe_supersede_platform_trial,
 )
+from polar.platform.service import platform as platform_service
 from polar.product.guard import (
     is_custom_price,
     is_fixed_price,
@@ -738,7 +743,11 @@ class SubscriptionService:
                         ),
                     )
 
-        if previous_status == SubscriptionStatus.trialing:
+        # Trial conversion — but only on a real cycle. A trial canceled at
+        # period end takes the revoke branch above (status=canceled);
+        # flipping it to `active` here would resurrect a subscription the
+        # customer ended, with ended_at set and its benefits kept.
+        if previous_status == SubscriptionStatus.trialing and not revoke:
             subscription.status = SubscriptionStatus.active
 
         repository = SubscriptionRepository.from_session(session)
@@ -2115,6 +2124,20 @@ class SubscriptionService:
                 ),
             ),
         )
+
+        # Win-back automations ("on subscription cancelled" trigger) for the
+        # creator's own customers. Fires when the subscription actually ends
+        # (not at cancel-scheduling, which can be undone), never for Spaire's
+        # own platform billing, and never for upgrade-supersede revocations.
+        if not platform_service.is_platform_organization(
+            subscription.organization.id
+        ) and not (subscription.user_metadata or {}).get("superseded_by"):
+            enqueue_job(
+                "email_subscriber.subscription_ended",
+                organization_id=subscription.organization.id,
+                email=subscription.customer.email,
+                product_id=str(subscription.product_id),
+            )
         # Only send revoked email if the subscription is not past due,
         # as past due has its own email.
         if not past_due:
@@ -2389,6 +2412,17 @@ class SubscriptionService:
         )
         assert organization is not None
 
+        # Spaire self-billing: the seller IS the platform org, so the
+        # creator-commerce templates below would render "Spaire / Spaire"
+        # headers and Merchant-of-Record footers, and the recipient may be
+        # the undeliverable platform placeholder. Route to the Spaire-branded
+        # transactional notice instead.
+        if platform_service.is_platform_organization(organization.id):
+            await self._send_platform_lifecycle_email(
+                session, subscription, template_name=template_name
+            )
+            return
+
         if not organization.customer_email_settings[template_name]:
             return
 
@@ -2429,6 +2463,151 @@ class SubscriptionService:
             **organization.email_from_reply,
             to_email_addr=subscription.customer.email,
             subject=subject,
+            html_content=body,
+        )
+
+    async def _send_platform_lifecycle_email(
+        self,
+        session: AsyncSession,
+        subscription: Subscription,
+        *,
+        template_name: Literal[
+            "subscription_cancellation",
+            "subscription_past_due",
+            "subscription_revoked",
+            "subscription_uncanceled",
+            "subscription_updated",
+        ],
+    ) -> None:
+        """Spaire-branded lifecycle notice for the platform's own billing of
+        a creator. Money-critical transactional mail: not gated by
+        customer_email_settings, and the recipient is re-resolved to a real
+        org member when the platform Customer still carries the
+        undeliverable placeholder address."""
+        metadata = subscription.user_metadata or {}
+        if metadata.get("superseded_by") and template_name in (
+            "subscription_cancellation",
+            "subscription_revoked",
+        ):
+            # This subscription was replaced by a new paid one the creator
+            # just checked out — a "your plan was canceled" email here would
+            # read as an error, not information.
+            return
+
+        customer = subscription.customer
+        creator_org = None
+        raw_org_id = (customer.user_metadata or {}).get("creator_org_id")
+        if isinstance(raw_org_id, str):
+            try:
+                creator_org_uuid = uuid.UUID(raw_org_id)
+            except ValueError:
+                creator_org_uuid = None
+            if creator_org_uuid is not None:
+                organization_repository = OrganizationRepository.from_session(session)
+                creator_org = await organization_repository.get_by_id(creator_org_uuid)
+
+        recipient = customer.email
+        if is_placeholder_email(recipient):
+            resolved = (
+                await resolve_billing_contact_email(session, creator_org)
+                if creator_org is not None
+                else None
+            )
+            if resolved is None:
+                log.error(
+                    "subscription.platform_lifecycle_email.recipient_unresolvable",
+                    subscription_id=subscription.id,
+                    customer_id=customer.id,
+                    template=template_name,
+                )
+                return
+            recipient = resolved
+
+        plan_name = subscription.product.name if subscription.product else "Spaire"
+        settings_path = (
+            f"/dashboard/{creator_org.slug}/settings"
+            if creator_org is not None
+            else "/dashboard"
+        )
+        url = settings.generate_frontend_url(settings_path)
+
+        ends_on = (
+            subscription.ends_at.strftime("%B %-d, %Y")
+            if subscription.ends_at is not None
+            else None
+        )
+
+        title: str
+        body_lines: list[str]
+        cta_label = "Manage my plan"
+        if template_name == "subscription_past_due":
+            title = "Your Spaire payment failed"
+            body_lines = [
+                f"We couldn't charge your card for the {plan_name} plan.",
+                "We'll retry automatically over the next few days. To keep "
+                "your plan, update your payment method in Settings → Plan.",
+            ]
+            cta_label = "Update payment method"
+        elif template_name == "subscription_revoked":
+            title = "Your Spaire plan has ended"
+            body_lines = [
+                f"Your {plan_name} subscription has ended and your "
+                "organization no longer has an active plan.",
+                "Your content is kept — pick a plan any time to restore access.",
+            ]
+            cta_label = "Choose a plan"
+        elif template_name == "subscription_cancellation":
+            if subscription.trialing:
+                title = "Your Spaire trial is canceled"
+                body_lines = [
+                    f"Your {plan_name} trial keeps running"
+                    + (f" until {ends_on}" if ends_on else "")
+                    + ", but your card will NOT be charged and the plan "
+                    "won't start.",
+                    "Changed your mind? You can resume from Settings → Plan "
+                    "before the trial ends.",
+                ]
+            else:
+                title = "Your Spaire plan is set to cancel"
+                body_lines = [
+                    f"Your {plan_name} plan stays active"
+                    + (
+                        f" until {ends_on}"
+                        if ends_on
+                        else " until the end of the current billing period"
+                    )
+                    + ", then ends. You won't be charged again.",
+                    "Changed your mind? You can resume from Settings → Plan "
+                    "before then.",
+                ]
+        elif template_name == "subscription_uncanceled":
+            title = "Your Spaire plan will continue"
+            body_lines = [
+                f"The scheduled cancellation of your {plan_name} plan has "
+                "been reversed — your plan continues as before.",
+            ]
+        else:  # subscription_updated
+            title = "Your Spaire plan has changed"
+            body_lines = [
+                f"Your organization is now on the {plan_name} plan.",
+            ]
+
+        email = EmailAdapter.validate_python(
+            {
+                "template": "platform_subscription_notice",
+                "props": {
+                    "email": recipient,
+                    "title": title,
+                    "body_lines": body_lines,
+                    "url": url,
+                    "cta_label": cta_label,
+                },
+            }
+        )
+        body = render_email_template(email)
+        enqueue_email(
+            to_email_addr=recipient,
+            subject=title,
             html_content=body,
         )
 

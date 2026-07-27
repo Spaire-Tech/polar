@@ -22,7 +22,7 @@ Usage:
 
 import asyncio
 import logging.config
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from functools import wraps
 from typing import Any
 
@@ -38,7 +38,12 @@ from polar.platform.repository import (
     platform_customer_repository,
     platform_subscription_repository,
 )
-from polar.platform.service import PlatformError, platform as platform_service
+from polar.platform.service import PlatformError
+from polar.platform.service import platform as platform_service
+from polar.platform.trial_notifications import (
+    encode_sent_markers,
+    parse_sent_markers,
+)
 from polar.postgres import create_async_engine
 
 cli = typer.Typer()
@@ -49,9 +54,7 @@ def drop_all(*args: Any, **kwargs: Any) -> Any:
 
 
 structlog.configure(processors=[drop_all])
-logging.config.dictConfig(
-    {"version": 1, "disable_existing_loggers": True}
-)
+logging.config.dictConfig({"version": 1, "disable_existing_loggers": True})
 
 
 def typer_async(f):  # type: ignore
@@ -65,9 +68,7 @@ def typer_async(f):  # type: ignore
 @cli.command(help="Extend a creator org's Spaire trial.")
 @typer_async
 async def run(
-    org: str = typer.Option(
-        ..., "--org", help="Creator org slug or UUID."
-    ),
+    org: str = typer.Option(..., "--org", help="Creator org slug or UUID."),
     days: int | None = typer.Option(
         None, "--days", help="Add this many days to the current trial_end."
     ),
@@ -81,9 +82,7 @@ async def run(
     ),
 ) -> None:
     if (days is None) == (until is None):
-        typer.echo(
-            "❌ Pass exactly one of --days or --until.", err=True
-        )
+        typer.echo("❌ Pass exactly one of --days or --until.", err=True)
         raise typer.Exit(code=2)
 
     engine = create_async_engine("script")
@@ -96,9 +95,7 @@ async def run(
             raise typer.Exit(code=1) from exc
 
         # Resolve creator org by slug or UUID.
-        statement = select(Organization).where(
-            Organization.deleted_at.is_(None)
-        )
+        statement = select(Organization).where(Organization.deleted_at.is_(None))
         if "-" in org and len(org) >= 32:
             statement = statement.where(Organization.id == org)
         else:
@@ -106,15 +103,11 @@ async def run(
         result = await session.execute(statement)
         creator = result.scalar_one_or_none()
         if creator is None:
-            typer.echo(
-                f"❌ No creator organization found for '{org}'.", err=True
-            )
+            typer.echo(f"❌ No creator organization found for '{org}'.", err=True)
             raise typer.Exit(code=1)
 
         customer_repo = platform_customer_repository(session)
-        customer = await customer_repo.get_for_creator_org(
-            platform_org.id, creator.id
-        )
+        customer = await customer_repo.get_for_creator_org(platform_org.id, creator.id)
         if customer is None:
             typer.echo(
                 f"❌ '{creator.slug}' has no platform-org Customer record.",
@@ -123,9 +116,7 @@ async def run(
             raise typer.Exit(code=1)
 
         subscription_repo = platform_subscription_repository(session)
-        subscription = await subscription_repo.get_active_for_customer(
-            customer.id
-        )
+        subscription = await subscription_repo.get_active_for_customer(customer.id)
         if subscription is None:
             typer.echo(
                 f"❌ '{creator.slug}' has no active platform-org subscription.",
@@ -150,6 +141,11 @@ async def run(
             except ValueError as exc:
                 typer.echo(f"❌ Invalid --until value: {exc}", err=True)
                 raise typer.Exit(code=2) from exc
+            # A bare date ("2026-06-01") parses naive; the column and the
+            # comparison below are tz-aware. Interpret naive input as UTC
+            # instead of crashing with a naive/aware TypeError.
+            if new_trial_end.tzinfo is None:
+                new_trial_end = new_trial_end.replace(tzinfo=UTC)
         else:
             assert days is not None
             anchor = old_trial_end or utc_now()
@@ -178,15 +174,25 @@ async def run(
 
         subscription.trial_end = new_trial_end
         subscription.current_period_end = new_trial_end
-        # Reset reminder markers > new days_remaining so the daily cron
-        # can fire fresh reminders for the extended window.
+        # A subscription stranded by a lost cycle dispatch keeps
+        # scheduler_locked_at set and would never be picked up again even
+        # with a fresh trial_end — extending is also the rescue path, so
+        # clear the lock.
+        subscription.scheduler_locked_at = None
+        # Reset reminder markers for thresholds the extended window will
+        # reach AGAIN (marker < days_remaining), keeping only those already
+        # legitimately sent for the current window (marker >= days_remaining)
+        # — e.g. extending to 10 days out clears 7/2/0 so all three fire
+        # fresh; extending to 5 days out keeps a sent T-7 but re-arms T-2
+        # and T-0. (The previous filter was inverted and silenced every
+        # reminder in the extended window.)
         metadata = dict(subscription.user_metadata or {})
-        sent = metadata.get("trial_reminders_sent")
-        if isinstance(sent, list):
+        sent = parse_sent_markers(metadata.get("trial_reminders_sent"))
+        if sent:
             days_remaining = (new_trial_end - utc_now()).days
-            metadata["trial_reminders_sent"] = [
-                m for m in sent if m <= days_remaining
-            ]
+            metadata["trial_reminders_sent"] = encode_sent_markers(
+                [m for m in sent if m >= days_remaining]
+            )
             subscription.user_metadata = metadata
 
         await session.commit()

@@ -23,7 +23,9 @@ from polar.entitlements.tiers import TierKey
 from polar.exceptions import PolarError
 from polar.kit.trial import TrialInterval
 from polar.kit.utils import utc_now
+from polar.locker import Locker
 from polar.models import Checkout, Customer, Organization
+from polar.models.subscription import SubscriptionStatus
 from polar.platform.billing import platform_billing
 from polar.platform.repository import (
     platform_customer_repository,
@@ -156,13 +158,38 @@ class PlatformUpgradeService:
         # leaving the dead placeholder. The org slug is globally unique, so
         # the tagged address can't collide in turn.
         tagged = _plus_tagged_email(real_email, organization.slug)
-        if tagged is None or tagged.lower() == customer.email.lower():
-            return
-        if not await self._billing_email_taken(
+        if tagged is not None and tagged.lower() == customer.email.lower():
+            return  # already holding the tagged variant — deliverable, done
+        if tagged is not None and not await self._billing_email_taken(
             customer_repository, customer, tagged
         ):
             customer.email = tagged
             await session.flush()
+            return
+
+        # Last resort: slug-tagged variant also unusable (unparseable email
+        # or, improbably, taken too). Tag with the org id's first 8 hex
+        # chars, which cannot collide with any human-chosen tag. If even
+        # that fails, log loudly — the customer would otherwise silently
+        # keep an undeliverable placeholder and be charged with no receipt.
+        fallback = _plus_tagged_email(real_email, organization.id.hex[:8])
+        if (
+            fallback is not None
+            and fallback.lower() != customer.email.lower()
+            and not await self._billing_email_taken(
+                customer_repository, customer, fallback
+            )
+        ):
+            customer.email = fallback
+            await session.flush()
+            return
+
+        log.error(
+            "platform.upgrade.billing_email_unresolvable",
+            organization_id=str(organization.id),
+            customer_id=str(customer.id),
+            attempted_email=real_email,
+        )
 
     async def _billing_email_taken(
         self,
@@ -179,6 +206,44 @@ class PlatformUpgradeService:
         return existing is not None and existing.id != customer.id
 
     async def create_checkout(
+        self,
+        session: AsyncSession,
+        locker: Locker | None = None,
+        *,
+        organization: Organization,
+        tier: TierKey,
+        billing_interval: Literal["month", "year"] = "month",
+        success_url: str | None = None,
+        billing_email: str | None = None,
+    ) -> Checkout:
+        """Create the upgrade checkout. When a `locker` is provided the
+        whole read-decide-create sequence runs under a per-organization
+        lock, so a double-clicked upgrade button can't race two checkouts
+        through the trial/no-trial decision at once."""
+        if locker is not None:
+            async with locker.lock(
+                f"platform:upgrade_checkout:{organization.id}",
+                timeout=10.0,
+                blocking_timeout=1.0,
+            ):
+                return await self._create_checkout(
+                    session,
+                    organization=organization,
+                    tier=tier,
+                    billing_interval=billing_interval,
+                    success_url=success_url,
+                    billing_email=billing_email,
+                )
+        return await self._create_checkout(
+            session,
+            organization=organization,
+            tier=tier,
+            billing_interval=billing_interval,
+            success_url=success_url,
+            billing_email=billing_email,
+        )
+
+    async def _create_checkout(
         self,
         session: AsyncSession,
         *,
@@ -235,17 +300,18 @@ class PlatformUpgradeService:
         # Resolve the creator's current active platform subscription to
         # decide how the checkout should treat it.
         #
-        #   - Trialing (the auto-attached Starter trial, or any trial):
-        #     carry the REMAINING trial days onto the paid subscription and
-        #     leave the trial live. It is NOT revoked here — payment must
-        #     succeed first, after which maybe_supersede_platform_trial
-        #     cancels it. If the creator abandons checkout, the trial is
-        #     untouched and they keep their remaining days. Polar's
-        #     checkout uniqueness check is satisfied because the platform
-        #     org runs with allow_multiple_subscriptions enabled.
-        #   - Legacy ($0): convert it in place via Polar's upgrade-from-free
-        #     hook (`subscription_id`). No trial — a churned/grandfathered
-        #     creator pays immediately.
+        #   - Trialing: carry the REMAINING trial days onto the paid
+        #     subscription and leave the trial live. It is NOT revoked
+        #     here — payment must succeed first, after which
+        #     maybe_supersede_platform_trial revokes it. If the creator
+        #     abandons checkout, the trial is untouched and they keep
+        #     their remaining days. Polar's checkout uniqueness check is
+        #     satisfied because the platform org runs with
+        #     allow_multiple_subscriptions enabled.
+        #   - past_due (dunning window): allowed through, billed
+        #     immediately, no trial — a delinquent creator settling up
+        #     must never be blocked from paying. Supersede-on-success
+        #     revokes the past_due sub and stops its dunning.
         #   - Active on a paid tier: not an upgrade-checkout operation
         #     (use switch-plan instead).
         subscription_repo = platform_subscription_repository(session)
@@ -253,11 +319,20 @@ class PlatformUpgradeService:
 
         carryover_trial_end: datetime | None = None
         grant_fresh_trial = False
+        bill_immediately = False
         if existing_sub is not None:
             if existing_sub.trialing:
                 # Mid-trial tier switch: carry the remaining days, don't
                 # restart the clock.
                 carryover_trial_end = existing_sub.trial_end
+            elif existing_sub.status == SubscriptionStatus.past_due:
+                # Delinquent creator who WANTS to pay again: let them.
+                # Blocking with "already on a paid plan" wedged past_due
+                # creators out of ever re-paying. No trial — billed
+                # immediately; on payment success the supersede hook
+                # revokes the past_due sub, which also halts its dunning
+                # retries.
+                bill_immediately = True
             else:
                 # Active (non-trialing) on a paid tier — same tier or a
                 # different one both route through switch-plan, not here.
@@ -283,7 +358,10 @@ class PlatformUpgradeService:
         }
 
         now = utc_now()
-        if carryover_trial_end is not None and carryover_trial_end > now:
+        if bill_immediately:
+            # past_due re-subscribe: no trial under any circumstances.
+            checkout_payload["allow_trial"] = False
+        elif carryover_trial_end is not None and carryover_trial_end > now:
             # Grant only the days remaining on the original trial, not a
             # fresh 14. Round up to whole days; clamp to the schema's 1..1000.
             remaining_days = ceil((carryover_trial_end - now) / timedelta(days=1))
@@ -329,8 +407,7 @@ class PlatformUpgradeService:
             tier=tier.value,
             billing_interval=billing_interval,
             checkout_id=str(checkout.id),
-            carried_trial=carryover_trial_end is not None
-            and carryover_trial_end > now,
+            carried_trial=carryover_trial_end is not None and carryover_trial_end > now,
         )
         return checkout
 

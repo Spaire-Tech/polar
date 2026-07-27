@@ -1,5 +1,6 @@
 from collections.abc import Sequence
 from dataclasses import dataclass
+from datetime import datetime
 from typing import TYPE_CHECKING
 from uuid import UUID
 
@@ -84,6 +85,29 @@ class SubscriptionRepository(
                 Subscription.active.is_(True),
             )
             .options(*options)
+        )
+        return await self.get_all(statement)
+
+    async def list_stale_scheduler_locked(
+        self, *, locked_before: datetime, due_before: datetime
+    ) -> Sequence[Subscription]:
+        """Subscriptions the cycle scheduler marked as dispatched
+        (`scheduler_locked_at` set) that never actually cycled.
+
+        The jobstore stamps the lock and fire-and-forgets a Dramatiq
+        message; if that message is lost (broker restart, worker crash
+        after retries), the row stays locked forever and is silently
+        never billed again. Rows still due (`current_period_end` in the
+        past) with a lock older than `locked_before` are stuck, not
+        in-flight — the cycle task clears the lock within seconds when
+        it runs.
+        """
+        statement = self.get_base_statement().where(
+            Subscription.active.is_(True),
+            Subscription.scheduler_locked_at.is_not(None),
+            Subscription.scheduler_locked_at < locked_before,
+            Subscription.current_period_end.is_not(None),
+            Subscription.current_period_end < due_before,
         )
         return await self.get_all(statement)
 

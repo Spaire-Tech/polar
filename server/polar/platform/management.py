@@ -1,10 +1,13 @@
 """Server-side helpers for managing an existing Spaire subscription:
-switching between paid tiers (Pro <-> Studio <-> Scale) and canceling
-a paid subscription. Cancellation triggers auto-resubscribe-to-Legacy
-via polar.platform.fee_sync.maybe_enqueue_resubscribe_from_revoke when
-the subscription actually revokes; trialing subs are revoked
-immediately (no end-of-period schedule, since there's no payment cycle
-to wait for).
+switching between paid tiers (Starter <-> Studio <-> Scale) and
+canceling a paid subscription.
+
+Cancellation semantics: everything schedules end-of-period. A paid sub
+stays valid through the current billing window, a trialing sub keeps its
+remaining trial days (matching the reminder emails' "cancel any time
+before then" promise) — then the cycle scheduler revokes it at period /
+trial end without charging. After revocation the org has no plan and
+resolves to `inactive`; there is no automatic free fallback.
 """
 
 from typing import Literal
@@ -14,10 +17,8 @@ import structlog
 from polar.entitlements.tiers import TierKey, tier_from_value
 from polar.enums import SubscriptionProrationBehavior, SubscriptionRecurringInterval
 from polar.exceptions import PolarError
-from polar.kit.utils import utc_now
 from polar.locker import Locker
 from polar.models import Organization, Subscription
-from polar.models.subscription import SubscriptionStatus
 from polar.platform.repository import (
     platform_customer_repository,
     platform_product_repository,
@@ -85,7 +86,7 @@ class _ResolvedSubscription:
     def __init__(
         self,
         subscription: Subscription,
-        current_tier: TierKey,
+        current_tier: TierKey | None,
         current_interval: Literal["month", "year"],
     ) -> None:
         self.subscription = subscription
@@ -101,9 +102,7 @@ async def _resolve_active(
 
     platform_org_id = platform_service.get_id()
     customer_repo = platform_customer_repository(session)
-    customer = await customer_repo.get_for_creator_org(
-        platform_org_id, organization.id
-    )
+    customer = await customer_repo.get_for_creator_org(platform_org_id, organization.id)
     if customer is None:
         raise NoActiveSubscription()
 
@@ -112,12 +111,12 @@ async def _resolve_active(
     if subscription is None or subscription.product is None:
         raise NoActiveSubscription()
 
+    # Tolerate unknown/legacy tier metadata (e.g. a seed-era "legacy"
+    # product): resolve with current_tier=None instead of pretending no
+    # subscription exists. Cancel must still work on such rows — a 404
+    # here used to wedge those creators out of canceling entirely.
     tier_value = (subscription.product.user_metadata or {}).get("tier")
-    if not isinstance(tier_value, str):
-        raise NoActiveSubscription()
-    current_tier = tier_from_value(tier_value)
-    if current_tier is None:
-        raise NoActiveSubscription()
+    current_tier = tier_from_value(tier_value) if isinstance(tier_value, str) else None
 
     # Derive the current billing interval from the subscription itself
     # (single source of truth — the Product's user_metadata may not be
@@ -135,6 +134,7 @@ class PlatformManagementService:
     async def switch_plan(
         self,
         session: AsyncSession,
+        locker: Locker,
         *,
         organization: Organization,
         target_tier: TierKey,
@@ -187,12 +187,17 @@ class PlatformManagementService:
             # created every (tier, interval) pair.
             raise NoActiveSubscription()
 
-        updated = await subscription_service.update_product(
-            session,
-            resolved.subscription,
-            product_id=target_product.id,
-            proration_behavior=SubscriptionProrationBehavior.invoice,
-        )
+        # Same per-subscription lock as the canonical PATCH /subscriptions
+        # endpoint: a double-clicked switch must not run update_product
+        # twice and emit duplicate proration entries / duplicate immediate
+        # invoices.
+        async with subscription_service.lock(locker, resolved.subscription):
+            updated = await subscription_service.update_product(
+                session,
+                resolved.subscription,
+                product_id=target_product.id,
+                proration_behavior=SubscriptionProrationBehavior.invoice,
+            )
 
         log.info(
             "platform.switch_plan.done",
@@ -218,8 +223,11 @@ class PlatformManagementService:
           subscription stays valid through the current billing window, then
           revokes. The org then has no active plan and resolves to
           `inactive` (no free fallback).
-        - Trialing subs (no payment method, no billing cycle to honor) are
-          revoked immediately; the org drops to `inactive` right away.
+        - Trialing subs also schedule end-of-period cancellation: the
+          creator keeps their remaining trial days (as the reminder emails
+          promise) and is never charged — at trial_end the cycle scheduler
+          revokes instead of billing. Goes through the subscription
+          service so webhooks, benefit revocation, and fee resync all fire.
         - An org with no active paid plan is a no-op.
         """
         resolved = await _resolve_active(session, organization)
@@ -227,25 +235,19 @@ class PlatformManagementService:
         if resolved.current_tier not in _PAID_TIERS:
             return resolved.subscription
 
-        if resolved.subscription.trialing:
-            now = utc_now()
-            resolved.subscription.status = SubscriptionStatus.canceled
-            resolved.subscription.canceled_at = now
-            resolved.subscription.ended_at = now
-            resolved.subscription.cancel_at_period_end = False
-            await session.flush()
-
-            log.info(
-                "platform.cancel.trial_revoked",
-                organization_id=str(organization.id),
-                subscription_id=str(resolved.subscription.id),
-            )
-            return resolved.subscription
-
         async with subscription_service.lock(locker, resolved.subscription):
-            canceled = await subscription_service.cancel(
-                session, resolved.subscription
+            canceled = await subscription_service.cancel(session, resolved.subscription)
+
+        if canceled.trialing:
+            log.info(
+                "platform.cancel.trial_scheduled",
+                organization_id=str(organization.id),
+                subscription_id=str(canceled.id),
+                trial_end=canceled.trial_end.isoformat()
+                if canceled.trial_end
+                else None,
             )
+            return canceled
 
         log.info(
             "platform.cancel.scheduled",

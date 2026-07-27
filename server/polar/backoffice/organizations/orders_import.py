@@ -228,6 +228,7 @@ async def orders_import(
                     OrderItem(
                         label="Imported",
                         amount=subtotal_amount,
+                        net_amount=subtotal_amount,
                         tax_amount=0,  # Don't import tax to avoid perturbing our own tax reports
                         proration=False,
                     )

@@ -75,9 +75,7 @@ class PlatformFeeSyncService:
         # yet still gets bumped from `default` to `elevated` when they
         # land on Pro/Studio/Scale. Legacy maps back to `default`.
         try:
-            target_rate_limit_group = RateLimitGroup(
-                tier_entitlements.rate_limit_group
-            )
+            target_rate_limit_group = RateLimitGroup(tier_entitlements.rate_limit_group)
         except ValueError:
             log.warning(
                 "platform.fee_sync.invalid_rate_limit_group",
@@ -86,9 +84,7 @@ class PlatformFeeSyncService:
                 value=tier_entitlements.rate_limit_group,
             )
             target_rate_limit_group = organization.rate_limit_group
-        rate_limit_changed = (
-            organization.rate_limit_group != target_rate_limit_group
-        )
+        rate_limit_changed = organization.rate_limit_group != target_rate_limit_group
         if rate_limit_changed:
             organization.rate_limit_group = target_rate_limit_group
             log.info(
@@ -187,9 +183,7 @@ class PlatformFeeSyncService:
         force: bool = False,
     ) -> _SyncResult:
         repository = OrganizationRepository.from_session(session)
-        organization = await repository.get_by_id(
-            organization_id, include_blocked=True
-        )
+        organization = await repository.get_by_id(organization_id, include_blocked=True)
         if organization is None:
             return _SyncResult(changed=False, reason="org_missing")
         return await self.sync_for_organization(session, organization, force=force)
@@ -240,14 +234,30 @@ async def maybe_supersede_platform_trial(
 ) -> None:
     """When a creator's NEW paid-tier Spaire subscription is created (via
     the upgrade checkout — a first plan pick, a mid-trial tier switch, or a
-    re-subscribe after churn), cancel their OTHER active platform
+    re-subscribe after churn), revoke their OTHER billable platform
     subscriptions so they end up holding exactly one. On a mid-trial switch
     this cancels the prior trial subscription once the new one is created;
     the old one stays live until then, so an abandoned checkout leaves the
     trial untouched.
 
+    Revocation goes through the subscription service — NOT direct field
+    mutation — so the canceled sub emits its webhooks/events, revokes its
+    benefit grants, and re-triggers fee sync. `past_due` siblings are
+    included on purpose: a delinquent sub left billable would keep its
+    dunning retries charging the card alongside the new subscription
+    (dunning stops on its own once the sub reads `canceled`).
+
+    Reminder idempotency markers are carried from a superseded trial onto
+    a new trialing subscription, so a mid-trial tier switch doesn't re-send
+    the T-7/T-2 reminders the creator already received.
+
     No-op unless `subscription` is a creator's platform sub on a paid tier.
     """
+    # Late import: subscription.service imports this module at load time.
+    from polar.subscription.service import (
+        subscription as subscription_service,
+    )
+
     if not platform_service.is_configured():
         return
 
@@ -266,16 +276,32 @@ async def maybe_supersede_platform_trial(
         return
 
     subscription_repo = platform_subscription_repository(session)
-    others = await subscription_repo.list_active_for_customer(customer.id)
-    now = utc_now()
+    others = await subscription_repo.list_billable_for_customer(customer.id)
     superseded: list[str] = []
     for other in others:
         if other.id == subscription.id:
             continue
-        other.status = SubscriptionStatus.canceled
-        other.canceled_at = now
-        other.ended_at = now
-        other.cancel_at_period_end = False
+
+        _carry_trial_reminder_markers(other, subscription)
+
+        # Stamp WHY this sub is being revoked so downstream consumers
+        # (lifecycle emails, analytics) can tell an upgrade-supersede apart
+        # from a real cancellation and stay silent about it.
+        other_metadata = dict(other.user_metadata or {})
+        other_metadata["superseded_by"] = str(subscription.id)
+        other.user_metadata = other_metadata
+
+        try:
+            await subscription_service.revoke(session, other)
+        except PolarError as exc:
+            # Raced into a non-cancelable state (already ended). Not fatal —
+            # it is no longer billable, which is all supersession needs.
+            log.warning(
+                "platform.supersede_trial.revoke_failed",
+                subscription_id=str(other.id),
+                error=str(exc),
+            )
+            continue
         superseded.append(str(other.id))
 
     if superseded:
@@ -288,6 +314,35 @@ async def maybe_supersede_platform_trial(
             new_tier=tier.value,
             superseded_subscription_ids=superseded,
         )
+
+
+_TRIAL_REMINDERS_KEY = "trial_reminders_sent"
+
+
+def _carry_trial_reminder_markers(old: Subscription, new: Subscription) -> None:
+    """Copy sent-reminder markers from a superseded trial onto its
+    replacement, merging with any the new subscription already has.
+    Stored in the scalar (comma-string) encoding — see
+    trial_notifications.parse_sent_markers."""
+    from polar.platform.trial_notifications import (
+        encode_sent_markers,
+        parse_sent_markers,
+    )
+
+    if new.status != SubscriptionStatus.trialing:
+        return
+    old_markers = parse_sent_markers(
+        (old.user_metadata or {}).get(_TRIAL_REMINDERS_KEY)
+    )
+    if not old_markers:
+        return
+    metadata = dict(new.user_metadata or {})
+    merged = parse_sent_markers(metadata.get(_TRIAL_REMINDERS_KEY))
+    for marker in old_markers:
+        if marker not in merged:
+            merged.append(marker)
+    metadata[_TRIAL_REMINDERS_KEY] = encode_sent_markers(merged)
+    new.user_metadata = metadata
 
 
 async def maybe_mark_platform_trial_consumed(

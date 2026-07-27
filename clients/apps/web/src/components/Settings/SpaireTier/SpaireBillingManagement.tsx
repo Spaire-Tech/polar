@@ -52,7 +52,7 @@ const formatDate = (iso: string | null | undefined): string => {
 
 // Neutral status chip — no accent colours; the label alone carries the state.
 const StatusChip = ({ status }: { status: string }) => (
-  <span className="dark:bg-polar-700 inline-flex rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium capitalize text-gray-600 dark:text-gray-300">
+  <span className="dark:bg-spaire-700 inline-flex rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600 capitalize dark:text-gray-300">
     {status.replace(/_/g, ' ')}
   </span>
 )
@@ -97,14 +97,14 @@ const PaymentMethodRow = ({
   }
 
   return (
-    <div className="dark:border-polar-700 flex flex-col gap-y-3 rounded-2xl border border-gray-200 bg-white p-4 dark:bg-transparent sm:flex-row sm:items-center sm:justify-between">
+    <div className="dark:border-spaire-700 flex flex-col gap-y-3 rounded-2xl border border-gray-200 bg-white p-4 sm:flex-row sm:items-center sm:justify-between dark:bg-transparent">
       <div className="flex flex-col gap-y-0.5">
         <div className="flex flex-row items-center gap-x-2">
           <span className="text-sm font-medium text-gray-900 dark:text-white">
             {cardLabel(paymentMethod)}
           </span>
           {isDefault && (
-            <span className="dark:bg-polar-700 rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600 dark:text-gray-300">
+            <span className="dark:bg-spaire-700 rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600 dark:text-gray-300">
               Default
             </span>
           )}
@@ -289,7 +289,7 @@ const OrderRow = ({
   }
 
   return (
-    <tr className="dark:hover:bg-polar-800 hover:bg-gray-50">
+    <tr className="dark:hover:bg-spaire-800 hover:bg-gray-50">
       <td className="px-5 py-3.5">
         <div className="flex flex-col">
           <span className="font-medium text-gray-900 dark:text-white">
@@ -300,14 +300,14 @@ const OrderRow = ({
           </span>
         </div>
       </td>
-      <td className="px-5 py-3.5 tabular-nums whitespace-nowrap text-gray-500">
+      <td className="px-5 py-3.5 whitespace-nowrap text-gray-500 tabular-nums">
         {formatDate(order.created_at)}
       </td>
       <td className="px-5 py-3.5">
         <StatusChip status={order.status} />
       </td>
       <td
-        className={`px-5 py-3.5 text-right tabular-nums whitespace-nowrap ${
+        className={`px-5 py-3.5 text-right whitespace-nowrap tabular-nums ${
           refunded
             ? 'text-gray-400 line-through'
             : 'font-medium text-gray-900 dark:text-white'
@@ -334,7 +334,7 @@ const OrderRow = ({
 }
 
 const EmptyState = ({ children }: { children: React.ReactNode }) => (
-  <div className="rounded-2xl border border-dashed border-gray-200 p-8 text-center text-sm text-gray-500 dark:border-polar-700">
+  <div className="dark:border-spaire-700 rounded-2xl border border-dashed border-gray-200 p-8 text-center text-sm text-gray-500">
     {children}
   </div>
 )
@@ -436,11 +436,11 @@ export default function SpaireBillingManagement({
             {hasAddress ? 'Edit' : 'Add address'}
           </Button>
         </div>
-        <div className="dark:border-polar-700 rounded-2xl border border-gray-200 bg-white p-6 dark:bg-transparent">
+        <div className="dark:border-spaire-700 rounded-2xl border border-gray-200 bg-white p-6 dark:bg-transparent">
           {hasAddress ? (
             <dl className="grid grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-2">
               <div className="flex flex-col gap-y-1">
-                <dt className="text-xs font-medium uppercase tracking-wide text-gray-400">
+                <dt className="text-xs font-medium tracking-wide text-gray-400 uppercase">
                   Name
                 </dt>
                 <dd className="text-sm text-gray-900 dark:text-white">
@@ -448,7 +448,7 @@ export default function SpaireBillingManagement({
                 </dd>
               </div>
               <div className="flex flex-col gap-y-1">
-                <dt className="text-xs font-medium uppercase tracking-wide text-gray-400">
+                <dt className="text-xs font-medium tracking-wide text-gray-400 uppercase">
                   Address
                 </dt>
                 <dd className="flex flex-col text-sm text-gray-900 dark:text-white">
@@ -468,7 +468,7 @@ export default function SpaireBillingManagement({
               </div>
               {billingDetails?.tax_id && (
                 <div className="flex flex-col gap-y-1">
-                  <dt className="text-xs font-medium uppercase tracking-wide text-gray-400">
+                  <dt className="text-xs font-medium tracking-wide text-gray-400 uppercase">
                     Tax ID
                   </dt>
                   <dd className="text-sm text-gray-900 dark:text-white">
@@ -492,10 +492,10 @@ export default function SpaireBillingManagement({
         {orderItems.length === 0 ? (
           <EmptyState>No orders yet.</EmptyState>
         ) : (
-          <div className="dark:border-polar-700 overflow-x-auto rounded-2xl border border-gray-200 bg-white dark:bg-transparent">
+          <div className="dark:border-spaire-700 overflow-x-auto rounded-2xl border border-gray-200 bg-white dark:bg-transparent">
             <table className="w-full min-w-[34rem] text-sm">
               <thead>
-                <tr className="dark:border-polar-700 border-b border-gray-100 text-left text-xs uppercase tracking-wide text-gray-400">
+                <tr className="dark:border-spaire-700 border-b border-gray-100 text-left text-xs tracking-wide text-gray-400 uppercase">
                   <th className="px-5 py-3 font-medium">Description</th>
                   <th className="px-5 py-3 font-medium">Date</th>
                   <th className="px-5 py-3 font-medium">Status</th>
@@ -503,7 +503,7 @@ export default function SpaireBillingManagement({
                   <th className="px-5 py-3 text-right font-medium">Invoice</th>
                 </tr>
               </thead>
-              <tbody className="dark:divide-polar-700 divide-y divide-gray-100">
+              <tbody className="dark:divide-spaire-700 divide-y divide-gray-100">
                 {orderItems.map((order) => (
                   <OrderRow
                     key={order.id}

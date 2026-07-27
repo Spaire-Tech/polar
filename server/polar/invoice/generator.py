@@ -18,6 +18,7 @@ from polar.kit.address import Address
 from polar.kit.currency import format_currency
 from polar.kit.utils import utc_now
 from polar.models import Order
+from polar.platform.service import platform as platform_service
 from polar.tax.calculation import TaxabilityReason, TaxRate
 
 
@@ -82,6 +83,12 @@ class Invoice(BaseModel):
     checkout_link: str | None = None
     due_date: date | None = None
     on_behalf_of_label: str | None = None
+    # True when Spaire itself is the seller (platform self-billing: Spaire
+    # billing a creator for their plan). The Merchant-of-Record footer is
+    # about reselling on behalf of a creator; for a first-party invoice
+    # "issued by Spaire, Inc. on behalf of Spaire, Inc. … Merchant of
+    # Record" is legally wrong framing.
+    first_party: bool = False
 
     @property
     def total(self) -> int:
@@ -224,6 +231,11 @@ class Invoice(BaseModel):
                 )
                 for item in order.items
             ],
+            first_party=platform_service.is_platform_organization(
+                order.product.organization_id
+            )
+            if order.product is not None
+            else False,
         )
 
 
@@ -305,12 +317,16 @@ class InvoiceGenerator(FPDF):
         self.line(self.l_margin, self.get_y(), self.w - self.r_margin, self.get_y())
         self.ln(4)
 
-        # MOR legal text (centered)
-        on_behalf = self.data.on_behalf_of_label or self.data.seller_name
-        legal_text = (
-            f"This invoice is issued by Spaire, Inc. on behalf of {on_behalf}. "
-            f"Spaire, Inc. acts as the Merchant of Record for this transaction."
-        )
+        # Legal text (centered). First-party invoices (Spaire billing a
+        # creator for their own plan) carry no Merchant-of-Record framing.
+        if self.data.first_party:
+            legal_text = "This invoice is issued by Spaire, Inc."
+        else:
+            on_behalf = self.data.on_behalf_of_label or self.data.seller_name
+            legal_text = (
+                f"This invoice is issued by Spaire, Inc. on behalf of {on_behalf}. "
+                f"Spaire, Inc. acts as the Merchant of Record for this transaction."
+            )
         self.multi_cell(
             w=0,
             h=self.cell_height(self.footer_font_size),

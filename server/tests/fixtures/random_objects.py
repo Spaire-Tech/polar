@@ -873,6 +873,7 @@ async def create_order(
             OrderItem(
                 label="",
                 amount=subtotal_amount,
+                net_amount=subtotal_amount - discount_amount,
                 tax_amount=tax_amount,
                 proration=False,
             )
@@ -882,6 +883,7 @@ async def create_order(
         created_at=created_at or utc_now(),
         status=status,
         subtotal_amount=subtotal_amount,
+        net_amount=subtotal_amount - discount_amount,
         tax_amount=tax_amount,
         discount_amount=discount_amount,
         refunded_amount=refunded_amount,

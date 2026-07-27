@@ -1,21 +1,22 @@
 """Dashboard-facing endpoints for Spaire's own platform billing.
 
-  GET  /v1/platform/plans
-      Lists Pro/Studio/Scale with their pricing and entitlements.
+GET  /v1/platform/plans
+    Lists Pro/Studio/Scale with their pricing and entitlements.
 
-  GET  /v1/platform/organizations/{organization_id}/subscription
-      Current Spaire subscription state for a creator org plus the
-      resolved entitlements.
+GET  /v1/platform/organizations/{organization_id}/subscription
+    Current Spaire subscription state for a creator org plus the
+    resolved entitlements.
 
-  POST /v1/platform/organizations/{organization_id}/upgrade-checkout
-      Starts a Polar checkout for the target Pro/Studio/Scale tier.
-      Returns a URL the creator visits to enter their card and complete
-      the upgrade.
+POST /v1/platform/organizations/{organization_id}/upgrade-checkout
+    Starts a Polar checkout for the target Pro/Studio/Scale tier.
+    Returns a URL the creator visits to enter their card and complete
+    the upgrade.
 """
 
 from datetime import datetime
 from uuid import UUID
 
+import structlog
 from fastapi import Depends
 from pydantic import UUID4
 from sqlalchemy import func, select
@@ -77,6 +78,7 @@ from polar.subscription.repository import SubscriptionRepository
 from polar.subscription.schemas import Subscription as SubscriptionSchema
 
 from . import auth
+from .contacts import resolve_billing_contact_email
 from .management import platform_management
 from .repository import (
     platform_customer_repository,
@@ -101,6 +103,8 @@ from .schemas import (
 )
 from .service import platform as platform_service
 from .upgrade import platform_upgrade
+
+log: structlog.stdlib.BoundLogger = structlog.get_logger()
 
 router = APIRouter(prefix="/platform", tags=["platform", APITag.private])
 
@@ -143,6 +147,20 @@ def _annual_price_cents(annual_product: Product | None) -> int | None:
     return None
 
 
+def _annual_savings_percent(
+    monthly_price_cents: int, annual_price_cents: int | None
+) -> int:
+    """Compute the real annual-vs-monthly discount from the seeded prices
+    instead of hardcoding a marketing number that can drift from reality.
+    Falls back to the nominal 20 when annual pricing isn't seeded."""
+    if annual_price_cents is None or monthly_price_cents <= 0:
+        return 20
+    full_year = monthly_price_cents * 12
+    if full_year <= 0 or annual_price_cents >= full_year:
+        return 0
+    return round((full_year - annual_price_cents) / full_year * 100)
+
+
 async def _plan_for_tier(
     session: AsyncReadSession, platform_org_id: UUID | None, tier: TierKey
 ) -> TierPlan:
@@ -165,7 +183,9 @@ async def _plan_for_tier(
         annual_product_id=annual_product.id if annual_product is not None else None,
         monthly_price_cents=definition.monthly_price_cents,
         annual_price_cents=_annual_price_cents(annual_product),
-        annual_savings_percent=20,
+        annual_savings_percent=_annual_savings_percent(
+            definition.monthly_price_cents, _annual_price_cents(annual_product)
+        ),
         trial_days=_trial_days_from_product(monthly_product),
         transaction_fee=Entitlements.from_dataclass(definition).transaction_fee,
         features=Entitlements.from_dataclass(definition).features,
@@ -192,8 +212,7 @@ async def list_plans(
     if platform_service.is_configured():
         platform_org_id = platform_service.get_id()
     items = [
-        await _plan_for_tier(session, platform_org_id, tier)
-        for tier in _PLAN_TIERS
+        await _plan_for_tier(session, platform_org_id, tier) for tier in _PLAN_TIERS
     ]
     return TierPlanList(items=items)
 
@@ -223,6 +242,7 @@ async def get_subscription(
 
     status_label = "none"
     monthly_price_cents = entitlements_dataclass.monthly_price_cents
+    currency = "usd"
     current_period_end: datetime | None = None
     trial_end: datetime | None = None
     cancel_at_period_end = False
@@ -239,24 +259,34 @@ async def get_subscription(
         )
         if customer is not None:
             subscription_repo = platform_subscription_repository(session)
-            subscription = await subscription_repo.get_active_for_customer(
-                customer.id
-            )
+            subscription = await subscription_repo.get_active_for_customer(customer.id)
             if subscription is not None:
                 status_label = subscription.status.value
+                currency = subscription.currency
                 # `amount` on the subscription row is the per-period
                 # amount (monthly for month subs, yearly for year subs).
                 # Normalize to a monthly figure for the dashboard so the
                 # "Recurring monthly cost" copy stays accurate even on
                 # annual plans.
-                if subscription.recurring_interval == SubscriptionRecurringInterval.year:
+                if (
+                    subscription.recurring_interval
+                    == SubscriptionRecurringInterval.year
+                ):
                     billing_interval = "year"
-                    monthly_price_cents = subscription.amount // 12
+                    # Round to the nearest cent instead of truncating —
+                    # $470/yr must not display as $39.16 when marketing
+                    # says $39.17 (or vice versa).
+                    monthly_price_cents = round(subscription.amount / 12)
                 else:
                     billing_interval = "month"
                     monthly_price_cents = subscription.amount
                 current_period_end = subscription.current_period_end
-                trial_end = subscription.trial_end
+                # Only surface trial_end while actually trialing — the
+                # column keeps its historical value after conversion, and
+                # the schema documents this field as "if currently
+                # trialing". A stale date here re-lights trial banners.
+                if subscription.status == SubscriptionStatus.trialing:
+                    trial_end = subscription.trial_end
                 cancel_at_period_end = subscription.cancel_at_period_end
                 # Surface the dunning state so the dashboard can show a
                 # "payment failed, pay by {date}" banner. past_due_deadline
@@ -273,9 +303,7 @@ async def get_subscription(
                 # is_default_trial flips False. The onboarding review
                 # page reads this to verify a Stripe checkout actually
                 # completed when it sees ?upgraded=1.
-                managed_by = (subscription.user_metadata or {}).get(
-                    "managed_by"
-                )
+                managed_by = (subscription.user_metadata or {}).get("managed_by")
                 is_default_trial = managed_by == "trial"
 
     return CurrentSpaireSubscription(
@@ -283,6 +311,7 @@ async def get_subscription(
         billing_interval=billing_interval,  # type: ignore[arg-type]
         status=status_label,
         monthly_price_cents=monthly_price_cents,
+        currency=currency,
         current_period_end=current_period_end,
         trial_end=trial_end,
         cancel_at_period_end=cancel_at_period_end,
@@ -334,6 +363,7 @@ async def create_upgrade_checkout(
     body: UpgradeCheckoutCreate,
     auth_subject: auth.PlatformWrite,
     session: AsyncSession = Depends(get_db_session),
+    locker: Locker = Depends(get_locker),
 ) -> UpgradeCheckout:
     """Create a Polar checkout for the target Pro/Scale tier on the
     Spaire platform org. Returns a URL the creator visits to enter their
@@ -349,15 +379,26 @@ async def create_upgrade_checkout(
 
     # Resolve the billing email to stamp onto the platform customer.
     # Prefer an explicit value from the request; otherwise fall back to
-    # the calling user's email. With either, the synthetic placeholder
-    # email from PR 4 is replaced before checkout runs, so Stripe and
-    # the customer portal see the real address.
+    # the calling user's email; otherwise (organization tokens) resolve a
+    # real member of the org. This must never stay None: the platform
+    # Customer otherwise keeps its synthetic
+    # `creator-{slug}@billing.spairehq.internal` placeholder and every
+    # receipt, invoice, and dunning email for real charges goes to an
+    # undeliverable address.
     billing_email = body.billing_email
     if billing_email is None and is_user(auth_subject):
         billing_email = auth_subject.subject.email
+    if billing_email is None:
+        billing_email = await resolve_billing_contact_email(session, organization)
+    if billing_email is None:
+        log.warning(
+            "platform.upgrade_checkout.no_billing_email",
+            organization_id=str(organization.id),
+        )
 
     checkout = await platform_upgrade.create_checkout(
         session,
+        locker,
         organization=organization,
         tier=body.tier,
         billing_interval=body.billing_interval,
@@ -403,12 +444,13 @@ async def switch_plan(
     body: SwitchPlan,
     auth_subject: auth.PlatformWrite,
     session: AsyncSession = Depends(get_db_session),
+    locker: Locker = Depends(get_locker),
 ) -> SubscriptionSchema:
     """Switch a creator's current Spaire subscription from one paid tier
-    to another (Pro <-> Studio <-> Scale). The card on file is reused;
+    to another (Starter <-> Studio <-> Scale). The card on file is reused;
     proration is invoiced immediately. Use the upgrade-checkout endpoint
-    to convert a trialing or Legacy subscription, and the cancel endpoint
-    to end the paid subscription (org falls back to Legacy).
+    to convert a trialing subscription or start a new one, and the cancel
+    endpoint to end the paid subscription.
     """
     org_repository = OrganizationRepository.from_session(session)
     readable = org_repository.get_readable_statement(auth_subject).where(
@@ -420,6 +462,7 @@ async def switch_plan(
 
     subscription = await platform_management.switch_plan(
         session,
+        locker,
         organization=organization,
         target_tier=body.tier,
         target_interval=body.billing_interval,
@@ -439,12 +482,16 @@ async def cancel_subscription(
     session: AsyncSession = Depends(get_db_session),
     locker: Locker = Depends(get_locker),
 ) -> SubscriptionSchema:
-    """Schedule the creator's current paid Spaire subscription to cancel
-    at the end of the current billing period. When the subscription
-    revokes the org is automatically re-subscribed to Legacy (no charge,
-    no enforcement).
+    """Schedule the creator's current Spaire subscription to cancel at
+    the end of the current billing period (or, for a trialing
+    subscription, at the end of the trial — the remaining trial days are
+    kept and nothing is charged).
 
-    Canceling on Legacy is a no-op (the Legacy subscription stays active).
+    After the subscription revokes, the org has no plan and resolves to
+    `inactive`: features are gated off until a new plan is picked through
+    the upgrade-checkout flow. There is no automatic free fallback.
+
+    Canceling with no paid subscription is a no-op.
     """
     _ = body  # Body kept for future cancel-reason capture.
     org_repository = OrganizationRepository.from_session(session)
@@ -513,7 +560,9 @@ async def create_customer_portal_session(
 
     return_url = body.return_url
     token, customer_session = await customer_session_service.create_customer_session(
-        session, customer, return_url=None if return_url is None else return_url  # type: ignore[arg-type]
+        session,
+        customer,
+        return_url=None if return_url is None else return_url,  # type: ignore[arg-type]
     )
     customer_session.raw_token = token
 
@@ -587,9 +636,7 @@ async def verify_email_sender_domain(
             "the organization update endpoint."
         )
 
-    response = await resend_domains.verify_domain(
-        organization.email_sender_resend_id
-    )
+    response = await resend_domains.verify_domain(organization.email_sender_resend_id)
 
     # Update cached records (Resend sometimes returns refreshed values).
     records = response.get("records")
@@ -677,9 +724,7 @@ async def list_payment_methods(
         .order_by(PaymentMethod.created_at.desc())
     )
     results = (await session.execute(statement)).scalars().all()
-    items = [
-        CustomerPaymentMethodTypeAdapter.validate_python(pm) for pm in results
-    ]
+    items = [CustomerPaymentMethodTypeAdapter.validate_python(pm) for pm in results]
     return ListResource.from_paginated_results(items, len(items), pagination)
 
 
@@ -734,9 +779,7 @@ async def set_default_payment_method(
     if customer.stripe_customer_id is not None:
         await stripe_service.update_customer(
             customer.stripe_customer_id,
-            invoice_settings={
-                "default_payment_method": payment_method.processor_id
-            },
+            invoice_settings={"default_payment_method": payment_method.processor_id},
         )
     customer_repository = CustomerRepository.from_session(session)
     await customer_repository.update(
@@ -774,17 +817,13 @@ async def list_orders(
         .where(Order.customer_id == customer.id, Order.deleted_at.is_(None))
         .order_by(Order.created_at.desc())
     )
-    count = await session.scalar(
-        select(func.count()).select_from(base.subquery())
-    )
+    count = await session.scalar(select(func.count()).select_from(base.subquery()))
     # Order.description reads .product (and .items as a fallback); both are
     # lazy="raise", so eager-load them before serializing.
     page = (
         (
             await session.execute(
-                base.options(
-                    selectinload(Order.product), selectinload(Order.items)
-                )
+                base.options(selectinload(Order.product), selectinload(Order.items))
                 .limit(pagination.limit)
                 .offset((pagination.page - 1) * pagination.limit)
             )
@@ -821,7 +860,7 @@ async def list_orders(
 async def get_order_invoice(
     organization_id: OrganizationID,
     order_id: UUID4,
-    auth_subject: auth.PlatformWrite,
+    auth_subject: auth.PlatformRead,
     session: AsyncSession = Depends(get_db_session),
 ) -> PlatformOrderInvoice:
     """A signed URL to download a Spaire invoice PDF, generating it first

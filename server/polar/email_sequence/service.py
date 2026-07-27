@@ -30,12 +30,10 @@ log = structlog.get_logger()
 # Keys in trigger_config that participate in event matching. Settings keys
 # (skip_if_in_another, pause_on_unsubscribe, send_window) are intentionally
 # excluded — they're behavioural, not selectors.
-_TRIGGER_FILTER_KEYS = {"product_id"}
+_TRIGGER_FILTER_KEYS = {"product_id", "form_id"}
 
 
-def trigger_config_matches(
-    config: dict | None, event_filter: dict | None
-) -> bool:
+def trigger_config_matches(config: dict | None, event_filter: dict | None) -> bool:
     """Decide whether an event should fan out to a sequence.
 
     For each filter key on the sequence, the event must match. Keys outside
@@ -113,9 +111,8 @@ def apply_send_window(
                 return window_start.astimezone(UTC)
             if moment < window_end:
                 return moment.astimezone(UTC)
-        moment = (
-            moment.replace(hour=0, minute=0, second=0, microsecond=0)
-            + timedelta(days=1)
+        moment = moment.replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(
+            days=1
         )
     return candidate
 
@@ -168,13 +165,17 @@ class EmailSequenceService:
         repository = EmailSequenceRepository.from_session(session)
         statement = repository.get_readable_statement(auth_subject)
         if organization_id is not None:
-            statement = statement.where(EmailSequence.organization_id == organization_id)
+            statement = statement.where(
+                EmailSequence.organization_id == organization_id
+            )
         if course_id is not None:
             statement = statement.where(EmailSequence.course_id == course_id)
         if lesson_id is not None:
             statement = statement.where(EmailSequence.lesson_id == lesson_id)
         statement = statement.order_by(EmailSequence.created_at.desc())
-        return await repository.paginate(statement, limit=pagination.limit, page=pagination.page)
+        return await repository.paginate(
+            statement, limit=pagination.limit, page=pagination.page
+        )
 
     async def get_by_id(
         self,
@@ -575,7 +576,10 @@ class EmailSequenceService:
         repository = EmailSequenceRepository.from_session(session)
 
         existing = await repository.get_enrollment(sequence.id, subscriber_id)
-        if existing is not None and existing.status == EmailSequenceEnrollmentStatus.active:
+        if (
+            existing is not None
+            and existing.status == EmailSequenceEnrollmentStatus.active
+        ):
             raise AlreadyEnrolled()
 
         now = utc_now()
@@ -752,9 +756,7 @@ class EmailSequenceService:
             if not trigger_config_matches(sequence.trigger_config, trigger_filter):
                 continue
             flow_doc = (sequence.trigger_config or {}).get("flow_doc")
-            audience = (
-                flow_doc.get("audience") if isinstance(flow_doc, dict) else None
-            )
+            audience = flow_doc.get("audience") if isinstance(flow_doc, dict) else None
             # Honour audience.excludeTags from the flow_doc — a subscriber
             # carrying any of those tags is dropped before we enqueue.
             exclude_tags: list[str] = []
@@ -762,9 +764,7 @@ class EmailSequenceService:
                 tags = audience.get("excludeTags")
                 if isinstance(tags, list):
                     exclude_tags = [t for t in tags if isinstance(t, str) and t]
-            if exclude_tags and await has_any_tag(
-                session, subscriber_id, exclude_tags
-            ):
+            if exclude_tags and await has_any_tag(session, subscriber_id, exclude_tags):
                 continue
             # Only resolve the rule list if the editor switched to "filtered"
             # mode; defaults stay in the no-filter path so we skip the
@@ -777,9 +777,7 @@ class EmailSequenceService:
                 if subscriber is None:
                     from polar.models.email_subscriber import EmailSubscriber
 
-                    subscriber = await session.get(
-                        EmailSubscriber, subscriber_id
-                    )
+                    subscriber = await session.get(EmailSubscriber, subscriber_id)
                 if subscriber is None:
                     continue
                 if not await evaluate_audience(session, subscriber, audience):
@@ -812,7 +810,9 @@ class EmailSequenceService:
         )
         opened = engagement["opened"]
         clicked = engagement["clicked"]
-        total_sent = sum(v for k, v in send_counts.items() if k not in ("pending", "failed"))
+        total_sent = sum(
+            v for k, v in send_counts.items() if k not in ("pending", "failed")
+        )
         total_enrolled = sum(enrollment_counts.values())
 
         return {
@@ -856,9 +856,7 @@ class EmailSequenceService:
             )
             opened = engagement["opened"]
             clicked = engagement["clicked"]
-            sent = sum(
-                v for k, v in counts.items() if k not in ("pending", "failed")
-            )
+            sent = sum(v for k, v in counts.items() if k not in ("pending", "failed"))
             rows.append(
                 {
                     "step_id": step.id,
