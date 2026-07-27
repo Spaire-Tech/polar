@@ -124,8 +124,18 @@ already has the worker/job pattern and an AI pipeline to model this on).
   angles, not three flavors of one idea.
 - Per proposal: title, one-line promise, suggested structure (seasons/episodic
   — chosen by the AI from the material, not asked upfront), episode list, and
-  the footage map: each episode marked "have material: [video links]" or "to
-  film," with the receipts attached.
+  the footage map with **three statuses per episode**, not two:
+  1. **Have the material** — a recent, usable video covers it (linked).
+  2. **Worth re-filming** — the *topic* is proven by an older video, but the
+     asset predates their current quality/brand (flagged by heuristics: video
+     age and SD-vs-HD from public metadata; we cannot judge mic quality from
+     the outside, so this status is a suggestion the creator confirms).
+  3. **To film** — a gap; brand-new content required.
+  Receipts attached to all three. In the wizard, statuses are one-tap
+  reclassifiable — the creator knows their own catalogue better than any
+  heuristic, and correcting a status is itself an engagement moment.
+- Subject-ownership and voice analysis weight recent videos more heavily, so
+  a channel that rebranded two years ago is read as who they are now.
 - Cheap model for extraction/classification at scale; strongest model for the
   final synthesis of the three proposals.
 
@@ -233,6 +243,7 @@ channel, time-to-proposals, fork rate by failure reason, quota consumption.
 | Transcript permissions drag (consent flow, Google review, caption rationing) | Not on the launch path at all; only pursued if Phase 0 proves value |
 | Unofficial scrapers as a shortcut | Never. Payments company. Public API + owner consent only |
 | "Half your course exists" overpromise | Copy standard: "N of M episodes have source material," footage map links to their own videos |
+| Old-video trap: mapping a 6-year-old clip (bad mic, old brand) into a paid product | Three-status footage map (have / worth re-filming / to film); age + resolution heuristics flag candidates; creator confirms with one tap; voice analysis weights recent uploads |
 | Small/quiet channels get confident nonsense | Phase-0-derived threshold routes them to the fork warmly |
 | Quota/day limits under signup spikes | List-walking not search, hard caching, job queue with graceful "ready shortly," quota increase filed early |
 | YouTube data-retention terms | Store derived conclusions, not raw responses |
