@@ -319,6 +319,16 @@ class Settings(BaseSettings):
     # Max tokens for a single streamed answer.
     COURSE_ASSISTANT_MAX_ANSWER_TOKENS: int = 1_500
 
+    # YouTube Data API v3 (public reads only, plain API key — no OAuth) —
+    # powers the Masterclass Architect channel analysis. Empty key = the
+    # Architect is not configured and its flows are disabled.
+    YOUTUBE_API_KEY: str = Field(
+        default="",
+        validation_alias=AliasChoices("YOUTUBE_API_KEY", "SPAIRE_YOUTUBE_API_KEY"),
+    )
+    # Proposal synthesis is the heart of the feature — strongest model.
+    MASTERCLASS_ARCHITECT_MODEL: str = "claude-opus-4-8"
+
     # Stripe
     STRIPE_SECRET_KEY: str = ""
     STRIPE_PUBLISHABLE_KEY: str = ""

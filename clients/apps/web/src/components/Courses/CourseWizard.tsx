@@ -26,6 +26,13 @@ import {
   type LessonCardVariant,
   type TrialMode,
 } from '@/hooks/queries/courses'
+import {
+  useArchitectAnalysis,
+  useSetArchitectFaq,
+  useStartArchitectAnalysis,
+  type ArchitectFailureReason,
+  type ArchitectProposal,
+} from '@/hooks/queries/masterclassArchitect'
 import { useCreateProduct } from '@/hooks/queries/products'
 import { ProductEditOrCreateForm } from '@/utils/product'
 import { experimental_useObject as useObject } from '@ai-sdk/react'
@@ -35,6 +42,12 @@ import { useRouter } from 'next/navigation'
 import { useRef, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { toast } from '../Toast/use-toast'
+import {
+  ArchitectStyles,
+  StepArchitectMirror,
+  StepArchitectProposals,
+  StepArchitectSource,
+} from './CourseWizard.architect'
 import { EpisodicOutlineScreen } from './CourseWizard.episodicOutline'
 import { ModuleOutlineScreen } from './CourseWizard.moduleOutline'
 import { CreatingScreen, GeneratingScreen } from './CourseWizard.status'
@@ -62,6 +75,9 @@ import { outlineSchema } from './schemas'
 
 type WizardStep =
   | 'intro'
+  | 'source'
+  | 'mirror'
+  | 'proposals'
   | 'structure'
   | 'instructor'
   | 'course'
@@ -123,6 +139,72 @@ export default function CourseWizard({
 
   const [screen, setScreen] = useState<WizardStep>('intro')
 
+  // ── Masterclass Architect ─────────────────────────────────────────────────
+  // 'architect' = the creator pasted their channel and rides the evidence
+  // path (source → mirror → taste steps → proposals). 'manual' = the quiet
+  // "I already know what I'm making" fork, which is also the warm landing
+  // for every analysis failure — the original structure→details flow.
+  const [path, setPath] = useState<'architect' | 'manual'>('architect')
+  const [analysisId, setAnalysisId] = useState<string | null>(null)
+  const [sourceFailure, setSourceFailure] =
+    useState<ArchitectFailureReason | null>(null)
+  const [architectFaq, setArchitectFaq] = useState('')
+  const [proposalIndex, setProposalIndex] = useState<number | null>(null)
+  const startAnalysis = useStartArchitectAnalysis()
+  const setFaqMutation = useSetArchitectFaq()
+  // Polls while the engine works (2.5s), stops on completed/failed — so the
+  // mirror lands mid-step and the proposals are usually waiting by the time
+  // the creator finishes the taste steps.
+  const { data: analysis } = useArchitectAnalysis(analysisId)
+
+  const handleArchitectSubmit = async (ref: string) => {
+    setSourceFailure(null)
+    try {
+      const created = await startAnalysis.mutateAsync({
+        organization_id: organization.id,
+        ref,
+      })
+      if (created.status === 'failed') {
+        // Resolve failed (bad link, unknown channel …): stay on the source
+        // step with a warm line — the fork is right there.
+        setSourceFailure(created.failure_reason ?? 'channel_not_found')
+        return
+      }
+      setAnalysisId(created.id)
+      setProposalIndex(null)
+      setScreen('mirror')
+    } catch {
+      // Engine unreachable (503 not configured, network): the fork carries.
+      setSourceFailure('upstream_unavailable')
+    }
+  }
+
+  const handleFork = () => {
+    setPath('manual')
+    setScreen('structure')
+  }
+
+  const handleMirrorNext = () => {
+    // Fire-and-forget: the deep pass re-reads the row right before building
+    // evidence, so an answer saved now makes it into the proposals.
+    if (analysisId && architectFaq.trim()) {
+      setFaqMutation.mutate({
+        analysisId,
+        faqAnswer: architectFaq.trim(),
+      })
+    }
+    // Pre-draft the bio from the channel's own about page — shown for a
+    // quick edit instead of a blank box.
+    if (!instructor.bio && analysis?.channel?.about) {
+      setInstructor((prev) => ({
+        ...prev,
+        name: prev.name || analysis.channel?.title || '',
+        bio: analysis.channel?.about ?? '',
+      }))
+    }
+    setScreen('instructor')
+  }
+
   // ── Onboarding choices ─────────────────────────────────────────────────
   // Structure replaces the old Course/Series question. Internally it still
   // maps to the format discriminator ('course' | 'series') that drives the
@@ -155,7 +237,9 @@ export default function CourseWizard({
   // Creator edits to the AI-generated outline (title / description rewrites in
   // the outline screen) overlay the streamed object. When present they win at
   // create time. Reset whenever a fresh outline is generated.
-  const [editedOutline, setEditedOutline] = useState<PartialOutline | null>(null)
+  const [editedOutline, setEditedOutline] = useState<PartialOutline | null>(
+    null,
+  )
 
   const heroVariant: HeroVariant = heroStyle === 'Marquee' ? 'marquee' : 'cover'
   const cardVariant: LessonCardVariant =
@@ -202,7 +286,7 @@ export default function CourseWizard({
         title: 'Outline generation failed',
         description: 'Please try again.',
       })
-      setScreen('lessonCard')
+      setScreen(path === 'architect' ? 'proposals' : 'lessonCard')
     },
   })
 
@@ -251,23 +335,36 @@ export default function CourseWizard({
   }
 
   // ── Outline submission — runs AFTER every choice is made, so the AI sees
-  //    the full context: structure, trial, hero, cards, billing. ────────────
-  const startOutlineGeneration = () => {
-    form.setValue('name', course.title)
-    form.setValue('description', course.desc)
+  //    the full context: structure, trial, hero, cards, billing. In the
+  //    Architect path the picked proposal rides along as the skeleton the
+  //    generator must follow (overrides win over state because setState
+  //    hasn't flushed when the pick triggers generation). ──────────────────
+  const lastOutlinePayloadRef = useRef<Record<string, unknown> | null>(null)
+
+  const startOutlineGeneration = (overrides?: {
+    title?: string
+    desc?: string
+    format?: WizardFormat
+    architect?: Record<string, unknown>
+  }) => {
+    const effectiveTitle = overrides?.title ?? course.title
+    const effectiveDesc = overrides?.desc ?? course.desc
+    const effectiveFormat = overrides?.format ?? format
+    form.setValue('name', effectiveTitle)
+    form.setValue('description', effectiveDesc)
     const { billingType, priceLabel } = priceInfo()
 
     // A new generation supersedes any edits made to the previous outline.
     setEditedOutline(null)
     setScreen('generating-outline')
-    submitOutline({
-      title: course.title,
-      description: course.desc || '',
+    const payload = {
+      title: effectiveTitle,
+      description: effectiveDesc || '',
       targetAudience: course.targetAudience || null,
       differentiator: course.differentiator || null,
       instructorName: instructor.name || null,
       instructorBio: instructor.bio || null,
-      format,
+      format: effectiveFormat,
       paywallEnabled: paywall.paywallEnabled,
       trialMode: paywall.paywallEnabled ? trialMode : null,
       freePreviewLessons:
@@ -278,6 +375,41 @@ export default function CourseWizard({
       lessonCardVariant: cardVariant,
       billingType,
       priceLabel: billingType ? priceLabel : null,
+      architect: overrides?.architect ?? null,
+    }
+    lastOutlinePayloadRef.current = payload
+    submitOutline(payload)
+  }
+
+  // The picked proposal becomes the course: its title and promise fill the
+  // details the manual path would have typed, its shape decides the format,
+  // and the whole thing (episode list, footage statuses, receipts) seeds the
+  // outline generator as a skeleton to follow.
+  const handleProposalContinue = () => {
+    const picked: ArchitectProposal | undefined =
+      proposalIndex !== null
+        ? analysis?.proposals?.proposals?.[proposalIndex]
+        : undefined
+    if (!picked) return
+    const pickedFormat: WizardFormat =
+      picked.format === 'chapters' ? 'course' : 'series'
+    // Post seasons-rename StructureStyle values: an episodic proposal maps
+    // to 'LimitedSeries', a chaptered one to 'Seasons'.
+    setStructure(pickedFormat === 'series' ? 'LimitedSeries' : 'Seasons')
+    setCourse((prev) => ({
+      ...prev,
+      title: picked.title,
+      desc: picked.promise,
+    }))
+    startOutlineGeneration({
+      title: picked.title,
+      desc: picked.promise,
+      format: pickedFormat,
+      architect: {
+        proposal: picked,
+        channel_title: analysis?.channel?.title ?? null,
+        mirror_pattern: analysis?.proposals?.mirror_pattern ?? null,
+      },
     })
   }
 
@@ -558,11 +690,41 @@ export default function CourseWizard({
         style={{ minHeight: '100vh' }}
       >
         <SpaireOnboardingStyles />
+        <ArchitectStyles />
         <div className="spaire-shell">
           {screen === 'intro' && (
-            <Intro
-              onNext={() => setScreen('structure')}
+            <Intro onNext={() => setScreen('source')} onClose={handleClose} />
+          )}
+          {screen === 'source' && (
+            <StepArchitectSource
+              onSubmit={handleArchitectSubmit}
+              submitting={startAnalysis.isPending}
+              failureReason={sourceFailure}
+              onFork={handleFork}
+              onBack={() => setScreen('intro')}
               onClose={handleClose}
+            />
+          )}
+          {screen === 'mirror' && (
+            <StepArchitectMirror
+              analysis={analysis ?? null}
+              faq={architectFaq}
+              onFaqChange={setArchitectFaq}
+              onNext={handleMirrorNext}
+              onBack={() => setScreen('source')}
+              onClose={handleClose}
+              onFork={handleFork}
+            />
+          )}
+          {screen === 'proposals' && (
+            <StepArchitectProposals
+              analysis={analysis ?? null}
+              selectedIndex={proposalIndex}
+              onSelect={setProposalIndex}
+              onContinue={handleProposalContinue}
+              onBack={() => setScreen('lessonCard')}
+              onClose={handleClose}
+              onFork={handleFork}
             />
           )}
           {screen === 'structure' && (
@@ -570,15 +732,19 @@ export default function CourseWizard({
               value={structure}
               onChange={setStructure}
               onContinue={() => setScreen('instructor')}
-              onBack={() => setScreen('intro')}
+              onBack={() => setScreen('source')}
             />
           )}
           {screen === 'instructor' && (
             <StepInstructor
               data={instructor}
               onChange={setInstructor}
-              onNext={() => setScreen('course')}
-              onBack={() => setScreen('structure')}
+              onNext={() =>
+                setScreen(path === 'architect' ? 'pricing' : 'course')
+              }
+              onBack={() =>
+                setScreen(path === 'architect' ? 'mirror' : 'structure')
+              }
               onClose={handleClose}
               format={format}
             />
@@ -604,9 +770,11 @@ export default function CourseWizard({
               onNext={() =>
                 setScreen(paywall.paywallEnabled ? 'trial' : 'hero')
               }
-              onBack={() => setScreen('course')}
+              onBack={() =>
+                setScreen(path === 'architect' ? 'instructor' : 'course')
+              }
               onClose={handleClose}
-              courseTitle={course.title}
+              courseTitle={course.title || analysis?.channel?.title || ''}
               courseDesc={course.desc}
               courseLessons={12}
               format={format}
@@ -638,7 +806,13 @@ export default function CourseWizard({
             <LessonCardPicker
               value={cardStyle}
               onChange={setCardStyle}
-              onContinue={startOutlineGeneration}
+              // Architect path: the taste steps were filling the deep-pass
+              // wait — the proposals are (usually) ready and waiting now.
+              onContinue={() =>
+                path === 'architect'
+                  ? setScreen('proposals')
+                  : startOutlineGeneration()
+              }
               onBack={() => setScreen('hero')}
             />
           )}
@@ -655,7 +829,17 @@ export default function CourseWizard({
                   : null
               const onRegenerate = () => {
                 stopOutline()
-                startOutlineGeneration()
+                // Re-run with the exact payload of the last generation so an
+                // Architect-seeded outline regenerates with its proposal
+                // skeleton intact (state-derived rebuild would lose it).
+                const last = lastOutlinePayloadRef.current
+                if (last) {
+                  setEditedOutline(null)
+                  setScreen('generating-outline')
+                  submitOutline(last)
+                } else {
+                  startOutlineGeneration()
+                }
               }
               // Seasons → timeline outline; limited series → episode grid in
               // the card style chosen at the lesson-card step.

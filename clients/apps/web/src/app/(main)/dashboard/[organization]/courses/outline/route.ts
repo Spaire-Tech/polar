@@ -23,9 +23,9 @@ function outlineJsonSchema(): Record<string, unknown> {
   // requires everything the page renders; the client stays lenient.
   js['required'] = ['arc', 'modules', 'instructor', 'faq', 'hero']
   const moduleItems = (
-    (js['properties'] as Record<string, unknown> | undefined)?.[
-      'modules'
-    ] as Record<string, unknown> | undefined
+    (js['properties'] as Record<string, unknown> | undefined)?.['modules'] as
+      | Record<string, unknown>
+      | undefined
   )?.['items'] as Record<string, unknown> | undefined
   if (moduleItems) {
     moduleItems['required'] = ['kicker', 'title', 'description', 'lessons']
@@ -127,6 +127,10 @@ export async function POST(req: Request) {
     lessonCardVariant,
     billingType,
     priceLabel,
+    // Masterclass Architect: when the creator picked an evidence-based
+    // proposal, it arrives here as the outline's skeleton — the generator
+    // polishes it instead of inventing structure from scratch.
+    architect,
   } = await req.json()
 
   if (!title) {
@@ -145,9 +149,7 @@ export async function POST(req: Request) {
       ? `Creator's brief (SOURCE MATERIAL — distil, never echo verbatim): ${description}`
       : null,
     targetAudience ? `Audience: ${targetAudience}` : null,
-    differentiator
-      ? `What makes it different: ${differentiator}`
-      : null,
+    differentiator ? `What makes it different: ${differentiator}` : null,
     instructorName ? `Instructor name (use verbatim): ${instructorName}` : null,
     instructorBio
       ? `Instructor bio (ground the hero description + byline in this): ${instructorBio}`
@@ -187,15 +189,30 @@ export async function POST(req: Request) {
       : null,
   ].filter(Boolean)
 
+  // Masterclass Architect skeleton: the proposal's seasons/episodes were
+  // derived from the creator's real catalogue (with per-episode footage
+  // statuses), so structure-invention rules step aside — the generator's job
+  // becomes polish, not architecture.
+  const architectProposal = architect?.proposal ?? null
+  const architectBlock = architectProposal
+    ? `\nARCHITECT PROPOSAL (the skeleton — FOLLOW IT):\nThis outline was derived from the creator's real published catalogue. Reproduce its structure faithfully: one entry in the "modules" array per season (entry title = season title), its episodes as the lessons IN ORDER. Polish titles/descriptions into the register above — never reorder, drop, or invent episodes. Episodes with status "have" or "refilm" are grounded in existing videos (source ids listed) — keep their titles recognizably close to that material; status "film" episodes are new ground. All episodes are content_type "video" unless clearly conceptual.${
+        architect?.mirror_pattern
+          ? `\nAudience pattern (ground the hero copy in this): ${architect.mirror_pattern}`
+          : ''
+      }\n${JSON.stringify(architectProposal)}`
+    : ''
+
+  const structureRule = architectProposal
+    ? 'Reproduce the ARCHITECT PROPOSAL: one season entry in the "modules" array per season, its episodes as lessons, in order. If a season has more than 6 episodes, keep them all anyway — the skeleton wins over the 6-lesson cap.'
+    : isSeries
+      ? 'Always produce one season entry containing EXACTLY 6 episodes.'
+      : 'Always produce EXACTLY 4 seasons in the "modules" array, each with 3–6 lessons (never more than 6).'
+
   const intro = `${
     isSeries
       ? 'Shape the season and write every field for this Original:'
       : 'Build the course and write every field for this Original:'
-  }\n${lines.join('\n')}\n\nOUTPUT ORDER & COMPLETENESS (critical):\n- Emit "arc" FIRST (one short clause), then the "modules" array fully populated, then "hero", then "instructor" (sub + exactly 2 bio paragraphs, POLISHED from the creator's text — never invented), then "faq" (exactly 5 Q/A pairs) LAST.\n- NEVER return an empty "modules" array. ${
-    isSeries
-      ? 'Always produce one season entry containing EXACTLY 6 episodes.'
-      : 'Always produce EXACTLY 4 seasons in the "modules" array, each with 3–6 lessons (never more than 6).'
-  }\n- Every lesson/episode MUST have a non-empty "description"; every season a "kicker".\n\nReturn the JSON object now and stop. Do not add prose after the JSON.`
+  }\n${lines.join('\n')}${architectBlock}\n\nOUTPUT ORDER & COMPLETENESS (critical):\n- Emit "arc" FIRST (one short clause), then the "modules" array fully populated, then "hero", then "instructor" (sub + exactly 2 bio paragraphs, POLISHED from the creator's text — never invented), then "faq" (exactly 5 Q/A pairs) LAST.\n- NEVER return an empty "modules" array. ${structureRule}\n- Every lesson/episode MUST have a non-empty "description"; every season a "kicker".\n\nReturn the JSON object now and stop. Do not add prose after the JSON.`
 
   // ── Generation via Anthropic's native structured outputs ──────────────────
   // We DON'T use the AI SDK's streamObject here: for claude-opus-4-7 the SDK
