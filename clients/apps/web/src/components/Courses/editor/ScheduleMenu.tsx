@@ -123,7 +123,7 @@ function SchedulePanel({
   return (
     <div className="absolute top-full right-0 z-30 mt-2 w-80 rounded-2xl border border-gray-200 bg-white p-4 shadow-xl">
       <div className="mb-3 flex items-center justify-between">
-        <h4 className="text-sm font-bold text-gray-900">Module schedule</h4>
+        <h4 className="text-sm font-bold text-gray-900">Season schedule</h4>
         <button onClick={onClose} className="text-gray-400 hover:text-gray-700">
           <CloseOutlined sx={{ fontSize: 16 }} />
         </button>
@@ -133,7 +133,7 @@ function SchedulePanel({
         <div className="flex flex-col gap-3">
           <div className="rounded-xl bg-amber-50 p-3 text-xs leading-relaxed text-amber-800">
             Drip and scheduled release are available on the{' '}
-            {upgradeTier ?? 'paid'} plan and up. Upgrade to unlock a module on a
+            {upgradeTier ?? 'paid'} plan and up. Upgrade to unlock a season on a
             delay after enrollment or on a fixed date.
           </div>
           <div className="flex justify-end">
@@ -152,7 +152,7 @@ function SchedulePanel({
               selected={mode === 'always'}
               onSelect={() => setMode('always')}
               label="Available immediately"
-              description="Students see this module as soon as they enroll."
+              description="Students see this season as soon as they enroll."
             />
             <ModeRow
               selected={mode === 'drip'}
