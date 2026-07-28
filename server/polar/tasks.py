@@ -25,6 +25,7 @@ from polar.integrations.chargeback_stop import tasks as chargeback_stop
 from polar.integrations.loops import tasks as loops
 from polar.integrations.resend import tasks as resend
 from polar.integrations.stripe import tasks as stripe
+from polar.masterclass_architect import tasks as masterclass_architect
 from polar.meter import tasks as meter
 from polar.notifications import tasks as notifications
 from polar.order import tasks as order
@@ -67,6 +68,7 @@ __all__ = [
     "external_event",
     "form",
     "loops",
+    "masterclass_architect",
     "meter",
     "notifications",
     "order",

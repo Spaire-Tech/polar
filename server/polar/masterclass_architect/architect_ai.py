@@ -54,6 +54,7 @@ class AnalysisFailure(StrEnum):
     CHANNEL_NOT_FOUND = "channel_not_found"
     CHANNEL_TOO_SMALL = "channel_too_small"
     QUOTA_EXHAUSTED = "quota_exhausted"
+    UPSTREAM_UNAVAILABLE = "upstream_unavailable"
     AI_UNAVAILABLE = "ai_unavailable"
     AI_OUTPUT_INVALID = "ai_output_invalid"
 
@@ -118,9 +119,7 @@ def build_evidence_pack(
                 "definition": v.definition,
                 "duration_seconds": v.duration_seconds,
                 "description_excerpt": v.description[:500],
-                "demand_comment_count": (
-                    demand.demand_comment_count if demand else 0
-                ),
+                "demand_comment_count": (demand.demand_comment_count if demand else 0),
                 "demand_quotes": [
                     {"text": q.text, "likes": q.likes}
                     for q in (demand.quotes[:MAX_QUOTES_PER_VIDEO] if demand else [])
@@ -270,9 +269,7 @@ Produce the JSON now."""
 
 
 def build_user_prompt(pack: EvidencePack) -> str:
-    return USER_TEMPLATE.format(
-        evidence=json.dumps(pack.pack, ensure_ascii=False)
-    )
+    return USER_TEMPLATE.format(evidence=json.dumps(pack.pack, ensure_ascii=False))
 
 
 # --------------------------------------------------------------------------- #
@@ -319,9 +316,7 @@ def validate_and_gate(
             if rv.get("video_id") in pack.known_video_ids:
                 valid_videos.append(rv)
             else:
-                violations.append(
-                    f"receipt_video_fabricated:{rv.get('video_id')}"
-                )
+                violations.append(f"receipt_video_fabricated:{rv.get('video_id')}")
         valid_quotes = []
         for q in receipts.get("quotes", []):
             normalized = _normalize_quote(str(q.get("text", "")))
@@ -354,9 +349,7 @@ def validate_and_gate(
                     # overpromise the product must never make.
                     ep["status"] = "film"
                     ep["status_reason"] = ""
-                    violations.append(
-                        f"episode_demoted_no_source:{ep.get('title')}"
-                    )
+                    violations.append(f"episode_demoted_no_source:{ep.get('title')}")
         proposals.append(p)
 
     proposals = proposals[:MAX_PROPOSALS]
@@ -413,9 +406,7 @@ async def generate_proposals(
         system=SYSTEM_PROMPT,
         messages=[{"role": "user", "content": build_user_prompt(pack)}],
     )
-    raw = "".join(
-        block.text for block in response.content if hasattr(block, "text")
-    )
+    raw = "".join(block.text for block in response.content if hasattr(block, "text"))
     result = parse_architect_json(raw)
     if result is None:
         log.warning(

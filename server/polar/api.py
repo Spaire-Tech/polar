@@ -62,6 +62,9 @@ from polar.integrations.resend.endpoints import router as resend_router
 from polar.integrations.stripe.endpoints import router as stripe_router
 from polar.license_key.endpoints import router as license_key_router
 from polar.login_code.endpoints import router as login_code_router
+from polar.masterclass_architect.endpoints import (
+    router as masterclass_architect_router,
+)
 from polar.member.endpoints import router as member_router
 from polar.member_session.endpoints import router as member_session_router
 from polar.meter.endpoints import router as meter_router
@@ -223,6 +226,9 @@ router.include_router(course_router)
 
 # /course-assistant
 router.include_router(course_assistant_router)
+
+# /masterclass-architect
+router.include_router(masterclass_architect_router)
 # /community (creator-side)
 router.include_router(community_creator_router)
 # /customer-portal/community (customer-side)

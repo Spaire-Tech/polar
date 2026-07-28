@@ -111,7 +111,8 @@ class TestYouTubeReader:
         async with YouTubeReader(api_key="k") as reader:
             ids = await reader.list_upload_ids("UUplaylist")
         assert len(ids) == 60
-        assert ids[0] == "a0" and ids[-1] == "b9"
+        assert ids[0] == "a0"
+        assert ids[-1] == "b9"
 
     @pytest.mark.asyncio
     @respx.mock

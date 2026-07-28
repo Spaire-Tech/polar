@@ -91,7 +91,7 @@ class TestParsing:
     def test_plain_and_fenced_json(self) -> None:
         assert parse_architect_json('{"proposals": []}') == {"proposals": []}
         assert parse_architect_json('```json\n{"a": 1}\n```') == {"a": 1}
-        assert parse_architect_json("Sure! Here it is: {\"a\": 1} done") == {"a": 1}
+        assert parse_architect_json('Sure! Here it is: {"a": 1} done') == {"a": 1}
 
     def test_garbage_returns_none(self) -> None:
         assert parse_architect_json("no json here") is None
@@ -113,9 +113,7 @@ def proposal(
         "format": "seasons",
         "confidence": confidence,
         "receipts": {
-            "videos": [
-                {"video_id": video_id, "title": "t", "outlier_ratio": 5.0}
-            ],
+            "videos": [{"video_id": video_id, "title": "t", "outlier_ratio": 5.0}],
             "quotes": [{"text": quote, "likes": 91, "video_id": video_id}],
         },
         "seasons": [

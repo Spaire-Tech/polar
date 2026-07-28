@@ -106,9 +106,7 @@ def compute_outlier_ratios(
     videos (shorts, too recent, no baseline) keep ratio None.
     """
     now = now or datetime.now(UTC)
-    eligible = [
-        v for v in videos if not v.is_short and v.age_days(now) >= MIN_AGE_DAYS
-    ]
+    eligible = [v for v in videos if not v.is_short and v.age_days(now) >= MIN_AGE_DAYS]
     eligible.sort(key=lambda v: v.published_at)
     for idx, v in enumerate(eligible):
         lo = max(0, idx - BASELINE_WINDOW)
@@ -146,7 +144,9 @@ def mine_demand(
         video_id=video_id,
         demand_comment_count=len(hits),
         total_comments_sampled=len(comments),
-        quotes=[DemandQuote(text=t, likes=l) for t, l in hits[:max_quotes]],
+        quotes=[
+            DemandQuote(text=text, likes=likes) for text, likes in hits[:max_quotes]
+        ],
     )
 
 

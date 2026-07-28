@@ -126,7 +126,7 @@ class YouTubeReader:
         self._key = key
         self._client: httpx.AsyncClient | None = None
 
-    async def __aenter__(self) -> "YouTubeReader":
+    async def __aenter__(self) -> YouTubeReader:
         self._client = httpx.AsyncClient(base_url=API_BASE, timeout=30.0)
         return self
 
@@ -162,15 +162,11 @@ class YouTubeReader:
             title=snippet["title"],
             handle=snippet.get("customUrl", ""),
             about=snippet.get("description", ""),
-            avatar_url=(snippet.get("thumbnails", {}).get("high") or {}).get(
-                "url", ""
-            ),
+            avatar_url=(snippet.get("thumbnails", {}).get("high") or {}).get("url", ""),
             created_at=snippet.get("publishedAt", ""),
             subscriber_count=int(stats.get("subscriberCount", 0)),
             video_count=int(stats.get("videoCount", 0)),
-            uploads_playlist_id=item["contentDetails"]["relatedPlaylists"][
-                "uploads"
-            ],
+            uploads_playlist_id=item["contentDetails"]["relatedPlaylists"]["uploads"],
         )
 
     async def list_upload_ids(
@@ -187,9 +183,7 @@ class YouTubeReader:
             if page_token:
                 params["pageToken"] = page_token
             page = await self._get("playlistItems", **params)
-            ids += [
-                it["contentDetails"]["videoId"] for it in page.get("items", [])
-            ]
+            ids += [it["contentDetails"]["videoId"] for it in page.get("items", [])]
             page_token = page.get("nextPageToken", "")
             if not page_token:
                 break
@@ -219,9 +213,7 @@ class YouTubeReader:
                         views=int(stats.get("viewCount", 0)),
                         comment_count=int(stats.get("commentCount", 0)),
                         description=snippet.get("description", "")[:2000],
-                        definition=item.get("contentDetails", {}).get(
-                            "definition", ""
-                        ),
+                        definition=item.get("contentDetails", {}).get("definition", ""),
                         thumbnail_url=(
                             snippet.get("thumbnails", {}).get("high") or {}
                         ).get("url", ""),

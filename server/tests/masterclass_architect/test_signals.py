@@ -32,9 +32,7 @@ def make_video(
 class TestOutlierRatios:
     def test_planted_outlier_found_and_growth_adjusted(self) -> None:
         # Steady 10k-view channel with one 50k spike in the middle.
-        videos = [
-            make_video(i, views=10_000, days_ago=60 + i * 14) for i in range(20)
-        ]
+        videos = [make_video(i, views=10_000, days_ago=60 + i * 14) for i in range(20)]
         videos[10].views = 50_000
         ranked = compute_outlier_ratios(videos, now=NOW)
         assert ranked[0].video_id == "vid010"
@@ -46,7 +44,9 @@ class TestOutlierRatios:
         # Channel grew 10x: old era ~1k views, new era ~10k. An old 3k video
         # is a 3x outlier for ITS time even though it's below today's normal.
         old = [make_video(i, views=1_000, days_ago=2000 - i * 14) for i in range(10)]
-        new = [make_video(100 + i, views=10_000, days_ago=300 - i * 14) for i in range(10)]
+        new = [
+            make_video(100 + i, views=10_000, days_ago=300 - i * 14) for i in range(10)
+        ]
         old[5].views = 3_000
         ranked = compute_outlier_ratios(old + new, now=NOW)
         spike = next(v for v in ranked if v.video_id == "vid005")
