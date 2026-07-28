@@ -53,11 +53,25 @@ words. The modules → seasons rename ships with this project.
 
 ---
 
-## Phase 0 — Prove the magic before writing product code (~1–2 weeks)
+## Phase 0 — Smoke test (one evening; formal study waived)
 
-The biggest risk is not technical. It's that the three proposals feel generic —
-a course outline anyone could have written, wearing their thumbnails. Kill or
-confirm that risk before building anything.
+**Decision (2026-07-28):** the formal 10–15 channel blind study is waived.
+Rationale: (a) transcripts are settled by decision, not experiment — launch is
+public-data only, so the A/B's main purpose is gone; (b) proposal quality
+lives in the prompt recipe, which stays cheap to iterate after the build —
+the expensive-to-change parts (reader, outlier math, wizard) are either pure
+statistics or settled product structure; (c) the magic-is-real question moves
+to the Phase 3 beta, whose bar is unchanged. Accepted trade: a quality
+problem surfaces in week ~6 (beta) instead of week 2.
+
+**What remains of Phase 0:** the founder runs the bake-off kit
+(`scripts/masterclass-architect-phase0/`) on ~3 well-known channels and reads
+the output. One question: does any proposal produce "that IS their
+masterclass"? Yes → proceed. All generic → fix the recipe before the wizard
+ships. Runs in parallel with the build; blocks nothing.
+
+The original study design below is retained for reference — it remains the
+right instrument if the smoke test or beta disappoints.
 
 **Tooling:** ready to run — see `scripts/masterclass-architect-phase0/`
 (fetch → analyze → generate → blind-copy pipeline, scoring rubric, and the
@@ -286,7 +300,10 @@ channel, time-to-proposals, fork rate by failure reason, quota consumption.
 - Proposal count is signal-gated (0–3 + flagship mode); surplus themes deferred
   to post-publish "next masterclass."
 - Footage map has three statuses (have / worth re-filming / to film).
-- Transcripts are not on the launch path; Gate A decides if they ever are.
+- Transcripts are not on the launch path — decided outright (public data
+  only); they remain a possible post-launch quality upgrade.
+- Formal Phase 0 study waived in favor of a founder smoke test; the
+  magic-is-real validation moves to the Phase 3 beta (Gate B unchanged).
 
 ## Open decisions
 
