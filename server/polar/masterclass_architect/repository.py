@@ -4,11 +4,16 @@ from uuid import UUID
 from sqlalchemy import Select, select
 
 from polar.auth.models import AuthSubject, Organization, User, is_organization, is_user
-from polar.kit.repository import RepositoryBase, RepositorySoftDeletionMixin
+from polar.kit.repository import (
+    RepositoryBase,
+    RepositorySoftDeletionIDMixin,
+    RepositorySoftDeletionMixin,
+)
 from polar.models import MasterclassArchitectAnalysis, UserOrganization
 
 
 class MasterclassArchitectAnalysisRepository(
+    RepositorySoftDeletionIDMixin[MasterclassArchitectAnalysis, UUID],
     RepositorySoftDeletionMixin[MasterclassArchitectAnalysis],
     RepositoryBase[MasterclassArchitectAnalysis],
 ):
