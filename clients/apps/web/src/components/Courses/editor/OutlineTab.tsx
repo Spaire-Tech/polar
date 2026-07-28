@@ -433,10 +433,10 @@ export function OutlineTab({
       {showEmptyCourseState ? (
         <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-gray-200 bg-white px-6 py-16 text-center">
           <p className="text-[15px] font-semibold text-gray-900">
-            No modules yet
+            No seasons yet
           </p>
           <p className="max-w-[360px] text-[13px] text-gray-500">
-            Modules group your lessons. Create one to start building the course
+            Seasons group your lessons. Create one to start building the course
             outline.
           </p>
           {onAddModule && (
@@ -446,7 +446,7 @@ export function OutlineTab({
               className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-gray-900 px-4 py-2 text-[12.5px] font-semibold text-white hover:bg-gray-800"
             >
               <AddOutlined sx={{ fontSize: 14 }} />
-              Create first module
+              Create first season
             </button>
           )}
         </div>
@@ -524,7 +524,7 @@ export function OutlineTab({
               className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-2xl border border-dashed border-gray-300 bg-white px-4 py-4 text-[13px] font-medium text-gray-600 transition-colors hover:border-gray-400 hover:bg-gray-50"
             >
               <AddOutlined sx={{ fontSize: 16 }} />
-              Add module
+              Add season
             </button>
           )}
 
@@ -764,7 +764,7 @@ function ModuleHeader({
           type="button"
           onClick={() => onRename && setEditing(true)}
           disabled={!onRename}
-          title={onRename ? 'Rename module' : undefined}
+          title={onRename ? 'Rename season' : undefined}
           className="group flex items-baseline gap-1.5 text-left disabled:cursor-default"
         >
           <span className="text-[11px] font-semibold tracking-[0.06em] text-gray-500 uppercase group-hover:text-gray-900">
@@ -784,7 +784,7 @@ function ModuleHeader({
           <button
             type="button"
             onClick={onAddLesson}
-            title="Add lesson to this module"
+            title="Add lesson to this season"
             className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10.5px] font-medium tracking-tight text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900"
           >
             <AddOutlined sx={{ fontSize: 12 }} />
@@ -810,7 +810,7 @@ function ModuleHeader({
               )
                 onDelete()
             }}
-            title="Delete module"
+            title="Delete season"
             className="flex items-center rounded-md px-1.5 py-0.5 text-gray-400 transition-colors hover:bg-red-50 hover:text-red-600"
           >
             <DeleteOutlineOutlined sx={{ fontSize: 13 }} />

@@ -650,7 +650,7 @@ const FORMAT_OPTIONS: FormatOption[] = [
     title: 'Structured',
     oneliner: 'Step-by-step skill building.',
     description:
-      'Modules and lessons that progress from foundation to fluency.',
+      'Seasons and lessons that progress from foundation to fluency.',
     bestFor: ['Skills', 'Frameworks', 'Outcomes'],
     example: 'Persuasive writing in 22 lessons.',
     imageSrc: '/assets/course.jpg',

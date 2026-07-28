@@ -795,7 +795,7 @@ const SequenceEditorInner = ({
   const moduleOptions = courseMode
     ? (course?.modules ?? []).map((m, i) => ({
         id: m.id,
-        label: m.title || `Module ${i + 1}`,
+        label: m.title || `Season ${i + 1}`,
       }))
     : []
   const lessonOptions = courseMode
@@ -1506,8 +1506,8 @@ const SequenceEditorInner = ({
                   value={flow.goal.event}
                   onChange={(ev) => upd({ goal: { ...flow.goal, event: ev } })}
                   options={[
-                    { id: 'module-1-started', label: 'Module 1 started' },
-                    { id: 'module-1-completed', label: 'Module 1 completed' },
+                    { id: 'module-1-started', label: 'Season 1 started' },
+                    { id: 'module-1-completed', label: 'Season 1 completed' },
                     { id: 'product-purchased', label: 'Product purchased' },
                     { id: 'link-clicked', label: 'Email link clicked' },
                     { id: 'tag-added', label: 'Tag added' },

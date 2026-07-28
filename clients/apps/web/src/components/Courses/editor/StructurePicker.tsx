@@ -7,14 +7,20 @@
 //   • selection = the poster scales up 1.045 with a deep shadow; unselected
 //     cards do NOT lift on hover — only the selected card lifts
 //   • subtle glass (blur 2px / saturate 115%), shade gradient
-//   • Modules band: left-aligned pill stack; Episodic band: bottom-anchored
-//     (band low) Episode 1 pill + numbered chips
+//   • Seasons band: left-aligned pill stack; Limited Series band:
+//     bottom-anchored (band low) Episode 1 pill + numbered chips
 //   • Back / Continue footer, toast, 800px responsive collapse
-// This is the "Module or Episodic" onboarding step.
+// This is the "Seasons or Limited Series" onboarding step.
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-export type StructureStyle = 'Modules' | 'Episodic'
+export type StructureStyle = 'Seasons' | 'LimitedSeries'
+
+// Pre-rename values that may still sit in localStorage.
+const LEGACY_STYLES: Record<string, StructureStyle> = {
+  Modules: 'Seasons',
+  Episodic: 'LimitedSeries',
+}
 
 type Toast = { id: number; msg: string }
 
@@ -23,23 +29,24 @@ export function StructurePicker({
   onChange,
   onContinue,
   onBack,
-  modulesImage = '/assets/onboarding/structure-modules.jpg',
-  episodicImage = '/assets/onboarding/structure-episodic.jpg',
+  seasonsImage = '/assets/onboarding/structure-modules.jpg',
+  limitedSeriesImage = '/assets/onboarding/structure-episodic.jpg',
 }: {
   value?: StructureStyle
   onChange?: (style: StructureStyle) => void
   onContinue?: (style: StructureStyle) => void
   onBack?: () => void
-  modulesImage?: string
-  episodicImage?: string
+  seasonsImage?: string
+  limitedSeriesImage?: string
 }) {
-  const [internal, setInternal] = useState<StructureStyle>('Modules')
+  const [internal, setInternal] = useState<StructureStyle>('Seasons')
   const selected = value ?? internal
 
   useEffect(() => {
     if (value != null) return
     const s = window.localStorage.getItem('spaire_structure_style')
-    if (s === 'Modules' || s === 'Episodic') setInternal(s)
+    if (s === 'Seasons' || s === 'LimitedSeries') setInternal(s)
+    else if (s && LEGACY_STYLES[s]) setInternal(LEGACY_STYLES[s])
   }, [value])
 
   const select = useCallback(
@@ -88,51 +95,51 @@ export function StructurePicker({
       <div className="head">
         <h1>Choose your structure</h1>
         <p>
-          How should the lessons flow? <b>Modules</b> group them into chapters
-          by theme. <b>Episodic</b> runs them in order, like a season.
+          How should the lessons flow? <b>Seasons</b> group them into themed
+          arcs. <b>Limited Series</b> runs them in order, start to finish.
         </p>
       </div>
 
       <div className="cards">
-        {/* MODULES */}
+        {/* SEASONS */}
         <div
-          className={`card${selected === 'Modules' ? ' sel' : ''}`}
-          onClick={() => select('Modules')}
+          className={`card${selected === 'Seasons' ? ' sel' : ''}`}
+          onClick={() => select('Seasons')}
         >
           <div className="poster">
             <div
               className="art"
               style={{
-                backgroundImage: `url('${modulesImage}')`,
+                backgroundImage: `url('${seasonsImage}')`,
                 backgroundPosition: '78% 32%',
               }}
             />
             <div className="glass" />
             <div className="shade" />
             <div className="band left">
-              <span className="pill">Module 1 · Foundations</span>
-              <span className="pill ghost">Module 2 · Technique</span>
-              <span className="pill ghost">Module 3 · Strategy</span>
+              <span className="pill">Season 1 · Foundations</span>
+              <span className="pill ghost">Season 2 · Technique</span>
+              <span className="pill ghost">Season 3 · Strategy</span>
             </div>
             <div className="ring" />
             <div className="check">{CheckIcon}</div>
           </div>
           <div className="cap">
-            <div className="cap-name">Modules</div>
+            <div className="cap-name">Seasons</div>
             <div className="cap-desc">Grouped by theme, explored freely.</div>
           </div>
         </div>
 
-        {/* EPISODIC */}
+        {/* LIMITED SERIES */}
         <div
-          className={`card${selected === 'Episodic' ? ' sel' : ''}`}
-          onClick={() => select('Episodic')}
+          className={`card${selected === 'LimitedSeries' ? ' sel' : ''}`}
+          onClick={() => select('LimitedSeries')}
         >
           <div className="poster">
             <div
               className="art"
               style={{
-                backgroundImage: `url('${episodicImage}')`,
+                backgroundImage: `url('${limitedSeriesImage}')`,
                 backgroundPosition: 'center 30%',
               }}
             />
@@ -150,7 +157,7 @@ export function StructurePicker({
             <div className="check">{CheckIcon}</div>
           </div>
           <div className="cap">
-            <div className="cap-name">Episodic</div>
+            <div className="cap-name">Limited Series</div>
             <div className="cap-desc">Watched in order, one after another.</div>
           </div>
         </div>
@@ -166,7 +173,11 @@ export function StructurePicker({
           onClick={() =>
             onContinue
               ? onContinue(selected)
-              : toast(`Continuing with ${selected}`)
+              : toast(
+                  `Continuing with ${
+                    selected === 'LimitedSeries' ? 'Limited Series' : 'Seasons'
+                  }`,
+                )
           }
         >
           Continue

@@ -111,7 +111,7 @@ export function pickCadenceDemos(
 // shape it expects (4 sections, 6 learn_items, 7 faq_items, 4 guarantees,
 // 4 value_props).
 
-const PLACEHOLDER_SECTION = { title: 'Module' }
+const PLACEHOLDER_SECTION = { title: 'Season' }
 const PLACEHOLDER_VALUE_PROP = { title: '', description: '' }
 const PLACEHOLDER_LEARN = { title: '', description: '' }
 const PLACEHOLDER_FAQ = { question: '', answer: '' }

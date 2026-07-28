@@ -244,7 +244,7 @@ export default function CourseEditor({
   }
 
   const handleAddModule = async () => {
-    const title = window.prompt('New module title:', 'New module')
+    const title = window.prompt('New season title:', 'New season')
     if (!title || !title.trim()) return
     try {
       await addModule.mutateAsync({
@@ -253,7 +253,7 @@ export default function CourseEditor({
       })
       invalidateCourse()
     } catch {
-      toast({ title: 'Failed to add module' })
+      toast({ title: 'Failed to add season' })
     }
   }
 
@@ -265,7 +265,7 @@ export default function CourseEditor({
       })
       invalidateCourse()
     } catch {
-      toast({ title: 'Failed to rename module' })
+      toast({ title: 'Failed to rename season' })
     }
   }
 
@@ -291,7 +291,7 @@ export default function CourseEditor({
       }
       invalidateCourse()
     } catch {
-      toast({ title: 'Failed to delete module' })
+      toast({ title: 'Failed to delete season' })
     }
   }
 
@@ -408,7 +408,7 @@ export default function CourseEditor({
       })
       await handleAddLesson(mod)
     } catch {
-      toast({ title: 'Failed to add module' })
+      toast({ title: 'Failed to add season' })
     }
   }
 
