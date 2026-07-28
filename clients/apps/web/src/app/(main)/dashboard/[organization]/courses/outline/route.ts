@@ -154,8 +154,8 @@ export async function POST(req: Request) {
       : `Instructor bio: (none provided — keep the hero description about the work, not invented credentials)`,
     `Structure: ${
       isSeries
-        ? 'limited series — one season of self-contained episodes'
-        : 'seasons — themed groups of lessons'
+        ? 'limited series — one complete run of self-contained episodes, finished at launch'
+        : 'seasons — groups of lessons released on a schedule, watched together'
     }`,
     typeof paywallEnabled === 'boolean'
       ? `Paywall: ${paywallEnabled ? 'enabled' : isSeries ? 'disabled (free series)' : 'disabled (free course)'}`

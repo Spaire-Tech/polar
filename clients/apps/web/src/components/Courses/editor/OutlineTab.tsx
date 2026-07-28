@@ -436,8 +436,8 @@ export function OutlineTab({
             No seasons yet
           </p>
           <p className="max-w-[360px] text-[13px] text-gray-500">
-            Seasons group your lessons. Create one to start building the course
-            outline.
+            Seasons group your lessons and set when they release. Create one to
+            start building the outline.
           </p>
           {onAddModule && (
             <button

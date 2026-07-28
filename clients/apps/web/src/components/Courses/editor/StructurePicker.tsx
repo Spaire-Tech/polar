@@ -95,8 +95,10 @@ export function StructurePicker({
       <div className="head">
         <h1>Choose your structure</h1>
         <p>
-          How should the lessons flow? <b>Seasons</b> group them into themed
-          arcs. <b>Limited Series</b> runs them in order, start to finish.
+          A <b>Season</b> is something people join — episodes land on a
+          schedule, everyone watches together, and the conversation is live. A{' '}
+          <b>Limited Series</b> is something people buy — complete on day one,
+          watched alone at any pace.
         </p>
       </div>
 
@@ -117,16 +119,18 @@ export function StructurePicker({
             <div className="glass" />
             <div className="shade" />
             <div className="band left">
-              <span className="pill">Season 1 · Foundations</span>
-              <span className="pill ghost">Season 2 · Technique</span>
-              <span className="pill ghost">Season 3 · Strategy</span>
+              <span className="pill">Season 1 · Airing now</span>
+              <span className="pill ghost">Episode 4 · This week</span>
+              <span className="pill ghost">Episode 5 · Next week</span>
             </div>
             <div className="ring" />
             <div className="check">{CheckIcon}</div>
           </div>
           <div className="cap">
             <div className="cap-name">Seasons</div>
-            <div className="cap-desc">Grouped by theme, explored freely.</div>
+            <div className="cap-desc">
+              Airs on a schedule — everyone watches together.
+            </div>
           </div>
         </div>
 
@@ -158,7 +162,9 @@ export function StructurePicker({
           </div>
           <div className="cap">
             <div className="cap-name">Limited Series</div>
-            <div className="cap-desc">Watched in order, one after another.</div>
+            <div className="cap-desc">
+              Complete at launch — watched at your own pace.
+            </div>
           </div>
         </div>
       </div>
