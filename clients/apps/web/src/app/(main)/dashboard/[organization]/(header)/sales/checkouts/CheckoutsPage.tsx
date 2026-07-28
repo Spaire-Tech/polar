@@ -220,7 +220,7 @@ const ClientPage: React.FC<ClientPageProps> = ({
       id: 'products',
       enableSorting: false,
       header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="Product" />
+        <DataTableColumnHeader column={column} title="Masterclass" />
       ),
       cell: ({
         row: {

@@ -107,14 +107,14 @@ export const ProductPage = ({ organization, product }: ProductPageProps) => {
 
     if (error) {
       apiErrorToast(error, toast, {
-        title: 'Error Archiving Product',
+        title: 'Error Archiving Masterclass',
       })
       return
     }
 
     toast({
-      title: 'Product Archived',
-      description: 'Product has been successfully archived',
+      title: 'Masterclass Archived',
+      description: 'Masterclass has been successfully archived',
     })
   }, [product, updateProduct])
 
@@ -126,14 +126,14 @@ export const ProductPage = ({ organization, product }: ProductPageProps) => {
 
     if (error) {
       apiErrorToast(error, toast, {
-        title: 'Error Unarchiving Product',
+        title: 'Error Unarchiving Masterclass',
       })
       return
     }
 
     toast({
-      title: 'Product Unarchived',
-      description: 'Product has been successfully unarchived',
+      title: 'Masterclass Unarchived',
+      description: 'Masterclass has been successfully unarchived',
     })
   }, [product, updateProduct])
 
@@ -150,7 +150,7 @@ export const ProductPage = ({ organization, product }: ProductPageProps) => {
             <div className="flex flex-row items-center gap-4">
               <Status
                 status={
-                  product.is_recurring ? 'Subscription' : 'One-time Product'
+                  product.is_recurring ? 'Subscription' : 'One-time Masterclass'
                 }
                 className={
                   ProductTypeDisplayColor[
@@ -168,22 +168,9 @@ export const ProductPage = ({ organization, product }: ProductPageProps) => {
           </div>
         }
         header={
-          <div className="flex flex-row items-center justify-between gap-2">
-            {product.is_archived ? null : (
-              <div>
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  onClick={() => {
-                    router.push(
-                      `/dashboard/${organization.slug}/products/${product.id}/edit`,
-                    )
-                  }}
-                >
-                  Edit Product
-                </Button>
-              </div>
-            )}
+          <div className="flex flex-row items-center justify-end gap-2">
+            {/* "Edit Product" is gone on purpose: the masterclass builder owns
+                title, description, pricing, and media now. */}
             <div>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -192,32 +179,8 @@ export const ProductPage = ({ organization, product }: ProductPageProps) => {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem
-                    onClick={() => {
-                      if (typeof navigator !== 'undefined') {
-                        navigator.clipboard.writeText(product.id)
-
-                        toast({
-                          title: 'Product ID Copied',
-                          description: 'Product ID copied to clipboard',
-                        })
-                      }
-                    }}
-                  >
-                    Copy Product ID
-                  </DropdownMenuItem>
                   {!product.is_archived && (
                     <>
-                      <DropdownMenuItem
-                        onClick={() => {
-                          router.push(
-                            `/dashboard/${organization.slug}/onboarding/integrate?productId=${product.id}`,
-                          )
-                        }}
-                      >
-                        Integrate Checkout
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
                       <DropdownMenuItem
                         onClick={() => {
                           router.push(
@@ -225,11 +188,11 @@ export const ProductPage = ({ organization, product }: ProductPageProps) => {
                           )
                         }}
                       >
-                        Duplicate Product
+                        Duplicate
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem destructive onClick={showArchiveModal}>
-                        Archive Product
+                        Archive
                       </DropdownMenuItem>
                     </>
                   )}
@@ -237,7 +200,7 @@ export const ProductPage = ({ organization, product }: ProductPageProps) => {
                     <>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem onClick={showUnarchiveModal}>
-                        Unarchive Product
+                        Unarchive
                       </DropdownMenuItem>
                     </>
                   )}
@@ -268,8 +231,8 @@ export const ProductPage = ({ organization, product }: ProductPageProps) => {
           />
         </TabsContent>
         <ConfirmModal
-          title="Archive Product"
-          description="Archiving a product will not affect its current customers, only prevent new subscribers and purchases."
+          title="Archive Masterclass"
+          description="Archiving a masterclass will not affect its current customers, only prevent new subscribers and purchases."
           onConfirm={handleArchiveProduct}
           isShown={isArchiveModalShown}
           hide={hideArchiveModal}
@@ -277,8 +240,8 @@ export const ProductPage = ({ organization, product }: ProductPageProps) => {
           destructive
         />
         <ConfirmModal
-          title="Unarchive Product"
-          description="Unarchiving this product will make it available for new subscribers and purchases again."
+          title="Unarchive Masterclass"
+          description="Unarchiving this masterclass will make it available for new subscribers and purchases again."
           onConfirm={handleUnarchiveProduct}
           isShown={isUnarchiveModalShown}
           hide={hideUnarchiveModal}

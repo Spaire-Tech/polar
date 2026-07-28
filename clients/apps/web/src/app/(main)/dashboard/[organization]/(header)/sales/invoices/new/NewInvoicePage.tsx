@@ -374,7 +374,7 @@ const InvoiceItemsSection = ({
   const products = useMemo(() => productsData?.items ?? [], [productsData])
 
   return (
-    <Section compact title="Items" description="Add products from your catalog or type a custom description">
+    <Section compact title="Items" description="Add masterclasses from your catalog or type a custom description">
       <div className="flex w-full flex-col gap-y-6">
         {fields.map((field, index) => (
           <div key={field.id} className="flex flex-col gap-y-3">
@@ -410,9 +410,9 @@ const InvoiceItemsSection = ({
                 </div>
               )}
               isLoading={isLoadingProducts}
-              placeholder="Select a product…"
-              searchPlaceholder="Search products…"
-              emptyLabel="No products found"
+              placeholder="Select a masterclass…"
+              searchPlaceholder="Search masterclasses…"
+              emptyLabel="No masterclasses found"
             />
 
             <div className="grid grid-cols-[1fr_80px_120px_32px] items-start gap-x-3">

@@ -205,14 +205,14 @@ export const ALL_METRICS: {
     display_name: 'Net Average Order Value',
   },
   { slug: 'orders', display_name: 'Orders' },
-  { slug: 'one_time_products', display_name: 'One-Time Products' },
+  { slug: 'one_time_products', display_name: 'One-Time Masterclasses' },
   {
     slug: 'one_time_products_revenue',
-    display_name: 'One-Time Products Revenue',
+    display_name: 'One-Time Masterclass Revenue',
   },
   {
     slug: 'one_time_products_net_revenue',
-    display_name: 'One-Time Products Net Revenue',
+    display_name: 'One-Time Masterclass Net Revenue',
   },
   { slug: 'new_subscriptions', display_name: 'New Subscriptions' },
   {
