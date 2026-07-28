@@ -200,37 +200,10 @@ export const ProductListItem = ({
                     align="end"
                     className="bg-gray-50 shadow-lg"
                   >
-                    <DropdownMenuItem
-                      onClick={handleContextMenuCallback(() => {
-                        if (typeof navigator !== 'undefined') {
-                          navigator.clipboard.writeText(product.id)
-                        }
-                      })}
-                    >
-                      Copy Product ID
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={handleContextMenuCallback(() => {
-                        router.push(
-                          `/dashboard/${organization.slug}/onboarding/integrate?productId=${product.id}`,
-                        )
-                      })}
-                    >
-                      Integrate Checkout
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    {product.is_archived ? null : (
-                      <DropdownMenuItem
-                        onClick={handleContextMenuCallback(() => {
-                          router.push(
-                            `/dashboard/${organization.slug}/products/${product.id}/edit`,
-                          )
-                        })}
-                      >
-                        Edit Product
-                      </DropdownMenuItem>
-                    )}
-
+                    {/* Editing, checkout integration, and raw product ids are
+                        builder-era leftovers — the masterclass builder owns
+                        all of that now, so the menu keeps only duplicate and
+                        archive. */}
                     <DropdownMenuItem
                       onClick={handleContextMenuCallback(() => {
                         router.push(
@@ -238,14 +211,14 @@ export const ProductListItem = ({
                         )
                       })}
                     >
-                      Duplicate Product
+                      Duplicate
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
                       destructive
                       onClick={handleContextMenuCallback(showModal)}
                     >
-                      Archive Product
+                      Archive
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -258,7 +231,7 @@ export const ProductListItem = ({
         isShown={isConfirmModalShown}
         hide={hideModal}
         title={`Archive "${product.name}"`}
-        description="Are you sure you want to archive this product? This action cannot be undone."
+        description="Are you sure you want to archive this masterclass? This action cannot be undone."
         onConfirm={onArchiveProduct}
         destructive
         destructiveText="Yes, archive"

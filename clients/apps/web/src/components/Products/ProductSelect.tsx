@@ -169,7 +169,7 @@ const ProductSelect: React.FC<ProductSelectProps> = ({
 
   const buttonLabel = useMemo(() => {
     if (value.length === 0) {
-      return emptyLabel || 'All products'
+      return emptyLabel || 'All masterclasses'
     }
     if (value.length === 1) {
       return selectedProducts?.[0].name
@@ -234,7 +234,7 @@ const ProductSelect: React.FC<ProductSelectProps> = ({
         <Command shouldFilter={false}>
           <CommandInput
             className="border-none focus:ring-transparent"
-            placeholder="Search products…"
+            placeholder="Search masterclasses…"
             value={query}
             onValueChange={setQuery}
           />

@@ -201,7 +201,7 @@ class NetAverageOrderValueMetric(SQLMetric):
 
 class OneTimeProductsMetric(SQLMetric):
     slug = "one_time_products"
-    display_name = "One-Time Products"
+    display_name = "One-Time Masterclasses"
     type = MetricType.scalar
     query = MetricQuery.orders
 
@@ -218,7 +218,7 @@ class OneTimeProductsMetric(SQLMetric):
 
 class OneTimeProductsRevenueMetric(SQLMetric):
     slug = "one_time_products_revenue"
-    display_name = "One-Time Products Revenue"
+    display_name = "One-Time Masterclass Revenue"
     type = MetricType.currency
     query = MetricQuery.orders
 
@@ -235,7 +235,7 @@ class OneTimeProductsRevenueMetric(SQLMetric):
 
 class OneTimeProductsNetRevenueMetric(SQLMetric):
     slug = "one_time_products_net_revenue"
-    display_name = "One-Time Products Net Revenue"
+    display_name = "One-Time Masterclass Net Revenue"
     type = MetricType.currency
     query = MetricQuery.orders
 
@@ -1155,7 +1155,7 @@ class TBNetAverageOrderValueMetric(TinybirdMetric):
 
 class TBOneTimeProductsMetric(TinybirdMetric):
     slug = "one_time_products"
-    display_name = "One-Time Products"
+    display_name = "One-Time Masterclasses"
     type = MetricType.scalar
     query = TinybirdQuery.events
 
@@ -1166,7 +1166,7 @@ class TBOneTimeProductsMetric(TinybirdMetric):
 
 class TBOneTimeProductsRevenueMetric(TinybirdMetric):
     slug = "one_time_products_revenue"
-    display_name = "One-Time Products Revenue"
+    display_name = "One-Time Masterclass Revenue"
     type = MetricType.currency
     query = TinybirdQuery.events
 
@@ -1177,7 +1177,7 @@ class TBOneTimeProductsRevenueMetric(TinybirdMetric):
 
 class TBOneTimeProductsNetRevenueMetric(TinybirdMetric):
     slug = "one_time_products_net_revenue"
-    display_name = "One-Time Products Net Revenue"
+    display_name = "One-Time Masterclass Net Revenue"
     type = MetricType.currency
     query = TinybirdQuery.events
 

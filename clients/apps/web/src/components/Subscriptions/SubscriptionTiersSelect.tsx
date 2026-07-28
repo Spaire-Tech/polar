@@ -27,7 +27,7 @@ const SubscriptionTiersSelect: React.FC<SubscriptionTiersSelectProps> = ({
       </SelectTrigger>
       <SelectContent>
         <SelectItem value="all">
-          <span className="whitespace-nowrap">All products</span>
+          <span className="whitespace-nowrap">All masterclasses</span>
         </SelectItem>
         <SelectSeparator />
         {products.map((product) => (

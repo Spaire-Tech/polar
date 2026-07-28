@@ -277,7 +277,7 @@ const ClientPage: React.FC<ClientPageProps> = ({
       id: 'product',
       enableSorting: true,
       header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="Product" />
+        <DataTableColumnHeader column={column} title="Masterclass" />
       ),
       cell: (props) => {
         const tier = props.getValue() as schemas['Product']
