@@ -95,10 +95,10 @@ export function StructurePicker({
       <div className="head">
         <h1>Choose your structure</h1>
         <p>
-          A <b>Season</b> is something people join — episodes land on a
-          schedule, everyone watches together, and the conversation is live. A{' '}
-          <b>Limited Series</b> is something people buy — complete on day one,
-          watched alone at any pace.
+          A <b>Season</b> unfolds over time. New episodes arrive on their own
+          release dates, so the masterclass keeps going after launch. A{' '}
+          <b>Limited Series</b> is complete at launch. Every episode is there
+          from day one.
         </p>
       </div>
 
@@ -128,9 +128,7 @@ export function StructurePicker({
           </div>
           <div className="cap">
             <div className="cap-name">Seasons</div>
-            <div className="cap-desc">
-              Airs on a schedule — everyone watches together.
-            </div>
+            <div className="cap-desc">New episodes on a release schedule.</div>
           </div>
         </div>
 
@@ -162,9 +160,7 @@ export function StructurePicker({
           </div>
           <div className="cap">
             <div className="cap-name">Limited Series</div>
-            <div className="cap-desc">
-              Complete at launch — watched at your own pace.
-            </div>
+            <div className="cap-desc">Every episode ready at launch.</div>
           </div>
         </div>
       </div>
