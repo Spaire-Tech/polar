@@ -93,9 +93,7 @@ def _lesson_read(lesson) -> CourseLessonRead:
         release_at=getattr(lesson, "release_at", None),
         drip_days=getattr(lesson, "drip_days", None),
         comments_mode=getattr(lesson, "comments_mode", "visible"),
-        thumbnail_object_position=getattr(
-            lesson, "thumbnail_object_position", None
-        ),
+        thumbnail_object_position=getattr(lesson, "thumbnail_object_position", None),
         created_at=lesson.created_at,
         modified_at=lesson.modified_at,
     )
@@ -150,7 +148,9 @@ def _course_read(course) -> CourseRead:
     )
 
 
-async def _user_in_org(session: AsyncSession, user_id: UUID, organization_id: UUID) -> bool:
+async def _user_in_org(
+    session: AsyncSession, user_id: UUID, organization_id: UUID
+) -> bool:
     stmt = select(UserOrganization).where(
         UserOrganization.user_id == user_id,
         UserOrganization.organization_id == organization_id,
@@ -269,6 +269,25 @@ async def update_course(
     return _course_read(course)
 
 
+# Limited series (format='series') are a single invisible season, complete at
+# launch. The editor hides season and scheduling controls for them; these
+# guards make the invariant real for any client.
+_LIMITED_SERIES_SEASON_DETAIL = (
+    "A limited series has a single season; seasons can't be added or removed."
+)
+_LIMITED_SERIES_SCHEDULE_DETAIL = (
+    "A limited series is complete at launch; release scheduling is only "
+    "available on season-format courses."
+)
+
+
+async def _series_course_for_module(session: AsyncSession, course_id: UUID) -> bool:
+    """True when the module's parent course is a limited series."""
+    repo = CourseRepository.from_session(session)
+    course = await repo.get_by_id(course_id)
+    return course is not None and course.format == "series"
+
+
 @router.post("/{course_id}/modules", response_model=CourseModuleRead, status_code=201)
 async def add_module(
     course_id: UUID,
@@ -280,6 +299,18 @@ async def add_module(
     course = await repo.get_readable_by_id(course_id, auth_subject)
     if course is None:
         raise HTTPException(status_code=404, detail="Course not found")
+    if course.format == "series":
+        # The single season container may still be bootstrapped (the editor
+        # creates it on the first "Add episode"), but never a second one —
+        # and never with a release schedule.
+        if module_create.release_at is not None or module_create.drip_days is not None:
+            raise HTTPException(status_code=400, detail=_LIMITED_SERIES_SCHEDULE_DETAIL)
+        module_repo = CourseModuleRepository.from_session(session)
+        existing = await module_repo.count(
+            module_repo.get_by_course_statement(course_id)
+        )
+        if existing >= 1:
+            raise HTTPException(status_code=400, detail=_LIMITED_SERIES_SEASON_DETAIL)
     module = await course_service.add_module(session, course, module_create)
     return _module_read(module)
 
@@ -295,6 +326,11 @@ async def update_module(
     module = await module_repo.get_readable_by_id(module_id, auth_subject)
     if module is None:
         raise HTTPException(status_code=404, detail="Module not found")
+    changes = module_update.model_dump(exclude_unset=True)
+    if (
+        changes.get("release_at") is not None or changes.get("drip_days") is not None
+    ) and await _series_course_for_module(session, module.course_id):
+        raise HTTPException(status_code=400, detail=_LIMITED_SERIES_SCHEDULE_DETAIL)
     module = await course_service.update_module(session, module, module_update)
     return _module_read(module)
 
@@ -309,6 +345,8 @@ async def delete_module(
     module = await module_repo.get_readable_by_id(module_id, auth_subject)
     if module is None:
         raise HTTPException(status_code=404, detail="Module not found")
+    if await _series_course_for_module(session, module.course_id):
+        raise HTTPException(status_code=400, detail=_LIMITED_SERIES_SEASON_DETAIL)
     await course_service.delete_module(session, module)
 
 
@@ -325,6 +363,10 @@ async def add_lesson(
     module = await module_repo.get_readable_by_id(module_id, auth_subject)
     if module is None:
         raise HTTPException(status_code=404, detail="Module not found")
+    if (
+        lesson_create.release_at is not None or lesson_create.drip_days is not None
+    ) and await _series_course_for_module(session, module.course_id):
+        raise HTTPException(status_code=400, detail=_LIMITED_SERIES_SCHEDULE_DETAIL)
     lesson = await course_service.add_lesson(session, module, lesson_create)
     return _lesson_read(lesson)
 
@@ -340,6 +382,17 @@ async def update_lesson(
     lesson = await lesson_repo.get_readable_by_id(lesson_id, auth_subject)
     if lesson is None:
         raise HTTPException(status_code=404, detail="Lesson not found")
+    lesson_changes = lesson_update.model_dump(exclude_unset=True)
+    if (
+        lesson_changes.get("release_at") is not None
+        or lesson_changes.get("drip_days") is not None
+    ):
+        module_repo = CourseModuleRepository.from_session(session)
+        parent = await module_repo.get_by_id(lesson.module_id)
+        if parent is not None and await _series_course_for_module(
+            session, parent.course_id
+        ):
+            raise HTTPException(status_code=400, detail=_LIMITED_SERIES_SCHEDULE_DETAIL)
     lesson = await course_service.update_lesson(session, lesson, lesson_update)
     return _lesson_read(lesson)
 
@@ -614,9 +667,7 @@ async def create_staged_mux_upload(
         if auth_subject.subject.id != organization_id:
             raise HTTPException(status_code=403, detail="Forbidden")
     elif is_user(auth_subject):
-        if not await _user_in_org(
-            session, auth_subject.subject.id, organization_id
-        ):
+        if not await _user_in_org(session, auth_subject.subject.id, organization_id):
             raise HTTPException(status_code=403, detail="Forbidden")
 
     # Same quota gate as the per-lesson endpoint — duration isn't known
@@ -672,18 +723,14 @@ async def upload_staged_media(
         if auth_subject.subject.id != organization_id:
             raise HTTPException(status_code=403, detail="Forbidden")
     elif is_user(auth_subject):
-        if not await _user_in_org(
-            session, auth_subject.subject.id, organization_id
-        ):
+        if not await _user_in_org(session, auth_subject.subject.id, organization_id):
             raise HTTPException(status_code=403, detail="Forbidden")
 
     content_type = file.content_type or "application/octet-stream"
     is_image = content_type.startswith("image/")
     is_video = content_type.startswith("video/")
     if not (is_image or is_video):
-        raise HTTPException(
-            status_code=400, detail="File must be an image or video"
-        )
+        raise HTTPException(status_code=400, detail="File must be an image or video")
 
     data = await file.read()
     max_bytes = (500 if is_video else 10) * 1024 * 1024
@@ -752,9 +799,7 @@ async def create_mux_upload(
                     requested_storage_units=_ESTIMATED_LESSON_SECONDS,
                 )
             except QuotaExceededError as exc:
-                raise HTTPException(
-                    status_code=402, detail=exc.message
-                ) from exc
+                raise HTTPException(status_code=402, detail=exc.message) from exc
 
     try:
         result = await mux_client.create_direct_upload()
@@ -816,7 +861,9 @@ async def upload_lesson_thumbnail(
     s3.upload(data, path, content_type)
     thumbnail_url = s3.get_public_url(path)
 
-    lesson = await lesson_repo.update(lesson, update_dict={"thumbnail_url": thumbnail_url})
+    lesson = await lesson_repo.update(
+        lesson, update_dict={"thumbnail_url": thumbnail_url}
+    )
     return _lesson_read(lesson)
 
 
@@ -941,9 +988,7 @@ async def upload_course_landing_media(
     is_image = content_type.startswith("image/")
     is_video = content_type.startswith("video/")
     if not (is_image or is_video):
-        raise HTTPException(
-            status_code=400, detail="File must be an image or video"
-        )
+        raise HTTPException(status_code=400, detail="File must be an image or video")
 
     data = await file.read()
     max_bytes = (500 if is_video else 10) * 1024 * 1024
@@ -1089,14 +1134,14 @@ async def get_preview_access(
     could already do through the portal's email-code flow.
     """
     if not is_user(auth_subject):
-        raise HTTPException(status_code=400, detail="Preview requires user authentication")
+        raise HTTPException(
+            status_code=400, detail="Preview requires user authentication"
+        )
 
     user = auth_subject.subject
 
     course_repo = CourseRepository.from_session(session)
-    stmt = course_repo.get_base_statement().where(
-        course_repo.model.id == course_id
-    )
+    stmt = course_repo.get_base_statement().where(course_repo.model.id == course_id)
     course = await course_repo.get_one_or_none(stmt)
     if course is None:
         raise HTTPException(status_code=404, detail="Course not found")
@@ -1247,9 +1292,7 @@ async def mux_webhook(
         duration = data.get("duration")
 
         if upload_id and asset_id and playback_id:
-            activity_submission = await _find_activity_submission_by_upload(
-                upload_id
-            )
+            activity_submission = await _find_activity_submission_by_upload(upload_id)
             if activity_submission is not None:
                 activity_submission.mux_asset_id = asset_id
                 activity_submission.mux_playback_id = playback_id
@@ -1291,9 +1334,7 @@ async def mux_webhook(
     elif event_type in ("video.upload.errored", "video.asset.errored"):
         upload_id = data.get("upload_id") or data.get("id")
         if upload_id:
-            activity_submission = await _find_activity_submission_by_upload(
-                upload_id
-            )
+            activity_submission = await _find_activity_submission_by_upload(upload_id)
             if activity_submission is not None:
                 activity_submission.mux_status = "errored"
                 session.add(activity_submission)
@@ -1306,9 +1347,7 @@ async def mux_webhook(
                 return
             lesson = await _find_lesson_by_upload(upload_id)
             if lesson:
-                await lesson_repo.update(
-                    lesson, update_dict={"mux_status": "errored"}
-                )
+                await lesson_repo.update(lesson, update_dict={"mux_status": "errored"})
 
     elif event_type in (
         "video.asset.created",
@@ -1317,9 +1356,7 @@ async def mux_webhook(
     ):
         upload_id = data.get("upload_id") or data.get("id")
         if upload_id:
-            activity_submission = await _find_activity_submission_by_upload(
-                upload_id
-            )
+            activity_submission = await _find_activity_submission_by_upload(upload_id)
             if activity_submission is not None:
                 if activity_submission.mux_status != "ready":
                     activity_submission.mux_status = "processing"
@@ -1341,9 +1378,7 @@ async def mux_webhook(
     elif event_type == "video.asset.deleted":
         upload_id = data.get("upload_id")
         if upload_id:
-            activity_submission = await _find_activity_submission_by_upload(
-                upload_id
-            )
+            activity_submission = await _find_activity_submission_by_upload(upload_id)
             if activity_submission is not None:
                 activity_submission.mux_status = "deleted"
                 activity_submission.mux_playback_id = None
@@ -1374,10 +1409,8 @@ async def mux_webhook(
                 # asset had reached ready (i.e. its duration had been
                 # counted in the first place).
                 if previously_ready and previous_duration:
-                    organization_id = (
-                        await lesson_repo.get_organization_id_for_lesson(
-                            lesson.id
-                        )
+                    organization_id = await lesson_repo.get_organization_id_for_lesson(
+                        lesson.id
                     )
                     if organization_id is not None:
                         emit_video_uploaded(
@@ -1443,9 +1476,7 @@ async def mux_webhook(
                     await lesson_repo.update(lesson, update_dict=errored_update)
                     from polar.worker import enqueue_job
 
-                    course_id = await lesson_repo.get_course_id_for_lesson(
-                        lesson.id
-                    )
+                    course_id = await lesson_repo.get_course_id_for_lesson(lesson.id)
                     if course_id is not None:
                         enqueue_job(
                             "course_assistant.maybe_build",

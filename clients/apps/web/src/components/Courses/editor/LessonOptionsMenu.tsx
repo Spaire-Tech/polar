@@ -41,6 +41,7 @@ export function LessonOptionsMenu({
   onDelete,
   onClose,
   canSchedule = true,
+  allowSchedule = true,
   upgradeTier,
 }: {
   lesson: CourseLessonRead
@@ -49,6 +50,9 @@ export function LessonOptionsMenu({
   onClose: () => void
   // Drip scheduling is a paid feature; gate the schedule view behind it.
   canSchedule?: boolean
+  // Limited series are complete at launch — scheduling doesn't exist for
+  // them at all, so the entry is removed entirely (not upsold).
+  allowSchedule?: boolean
   upgradeTier?: string
 }) {
   const ref = useRef<HTMLDivElement>(null)
@@ -98,21 +102,23 @@ export function LessonOptionsMenu({
           onClose()
         }}
       />
-      <MenuItem
-        icon={
-          canSchedule ? (
-            <ScheduleOutlined sx={{ fontSize: 14 }} />
-          ) : (
-            <LockOutlined sx={{ fontSize: 14 }} />
-          )
-        }
-        label={
-          canSchedule
-            ? describeLessonSchedule(lesson)
-            : `Drip & scheduling · ${upgradeTier ?? 'paid plan'}`
-        }
-        onClick={() => setView('schedule')}
-      />
+      {allowSchedule && (
+        <MenuItem
+          icon={
+            canSchedule ? (
+              <ScheduleOutlined sx={{ fontSize: 14 }} />
+            ) : (
+              <LockOutlined sx={{ fontSize: 14 }} />
+            )
+          }
+          label={
+            canSchedule
+              ? describeLessonSchedule(lesson)
+              : `Drip & scheduling · ${upgradeTier ?? 'paid plan'}`
+          }
+          onClick={() => setView('schedule')}
+        />
+      )}
       <MenuItem
         icon={<VisibilityOutlined sx={{ fontSize: 14 }} />}
         label={
