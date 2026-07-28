@@ -20,6 +20,21 @@
 
 import { useEffect, useMemo, useState } from 'react'
 
+// A waiting screen must never be able to wait forever: after `ms` of
+// continuous `active`, this flips true so the step can surface the fork.
+// Recovery is state-driven — if the awaited data lands later, the render
+// conditions that check it first simply win again.
+function useStalled(active: boolean, ms: number): boolean {
+  const [stalled, setStalled] = useState(false)
+  useEffect(() => {
+    // Both arms set state asynchronously (timer callbacks), never in the
+    // effect body itself — the reset just uses a zero-delay timer.
+    const t = window.setTimeout(() => setStalled(active), active ? ms : 0)
+    return () => window.clearTimeout(t)
+  }, [active, ms])
+  return stalled
+}
+
 import {
   footageCounts,
   type ArchitectAnalysis,
@@ -498,16 +513,21 @@ export function StepArchitectMirror({
   const failed = analysis?.status === 'failed'
   const highlights = analysis?.mirror?.highlights ?? []
   const mirrorLanded = highlights.length > 0
+  // The fast pass should land in ~20s; if nothing has arrived after 75s the
+  // engine is stuck (worker down, quota) — stop shimmering and offer the
+  // fork. If the mirror lands later anyway, mirrorLanded wins again.
+  const stalled = useStalled(!failed && !mirrorLanded, 75_000)
+  const showFallback = failed || (stalled && !mirrorLanded)
 
   return (
     <StepShell
       step={1}
       total={4}
       title="Here’s what your audience has been telling you"
-      onNext={failed ? onFork : onNext}
+      onNext={showFallback ? onFork : onNext}
       onBack={onBack}
       onClose={onClose}
-      nextLabel={failed ? 'Build it with me instead' : 'Continue'}
+      nextLabel={showFallback ? 'Build it with me instead' : 'Continue'}
     >
       <div className="arch-confirm">
         {analysis?.channel?.avatar_url ? (
@@ -529,9 +549,11 @@ export function StepArchitectMirror({
         </div>
       </div>
 
-      {failed ? (
+      {showFallback ? (
         <div className="arch-fallback">
-          {architectFailureCopy(analysis?.failure_reason)}
+          {failed
+            ? architectFailureCopy(analysis?.failure_reason)
+            : 'The read is taking longer than it should. You can keep waiting — or build it with us directly and not lose a minute.'}
         </div>
       ) : (
         <div className="arch-stats">
@@ -565,7 +587,7 @@ export function StepArchitectMirror({
         </div>
       )}
 
-      {!failed && (
+      {!showFallback && (
         <div className="so-fields" style={{ marginBottom: 8 }}>
           <div>
             <span
@@ -701,7 +723,10 @@ export function StepArchitectProposals({
     if (flagship && selectedIndex === null) onSelect(0)
   }, [flagship, selectedIndex, onSelect])
 
-  const deadEnd = failed || emptyCompleted
+  // The deep pass targets a few minutes; past 10 the engine is stuck —
+  // stop shimmering and surface the fork instead of an endless wait.
+  const stalled = useStalled(stillReading, 10 * 60_000)
+  const deadEnd = failed || emptyCompleted || (stalled && stillReading)
   const title = deadEnd
     ? 'Let’s build it together'
     : flagship
@@ -725,8 +750,10 @@ export function StepArchitectProposals({
         <div className="arch-fallback">
           {failed
             ? architectFailureCopy(analysis?.failure_reason)
-            : result?.no_proposal_reason ||
-              'Your catalogue reads as genuinely varied — too varied for us to call one masterclass with confidence. That’s a fork in the road, not a wall: tell us what you want to teach and we’ll shape it with you.'}
+            : stalled && stillReading
+              ? 'The deep read is taking longer than it should. You can keep waiting — or build it with us directly and not lose a minute.'
+              : result?.no_proposal_reason ||
+                'Your catalogue reads as genuinely varied — too varied for us to call one masterclass with confidence. That’s a fork in the road, not a wall: tell us what you want to teach and we’ll shape it with you.'}
         </div>
       ) : stillReading ? (
         <>
