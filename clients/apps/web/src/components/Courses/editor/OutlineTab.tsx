@@ -113,6 +113,7 @@ function LessonCard({
   isSelected,
   isReorderable,
   canSchedule = true,
+  allowSchedule = true,
   scheduleUpgradeTier,
   onSelect,
   onUpdate,
@@ -124,6 +125,7 @@ function LessonCard({
   isSelected: boolean
   isReorderable: boolean
   canSchedule?: boolean
+  allowSchedule?: boolean
   scheduleUpgradeTier?: string
   onSelect: () => void
   onUpdate: (patch: LessonOptionsPatch) => void
@@ -239,6 +241,7 @@ function LessonCard({
                 onDelete={onDelete}
                 onClose={() => setMenuOpen(false)}
                 canSchedule={canSchedule}
+                allowSchedule={allowSchedule}
                 upgradeTier={scheduleUpgradeTier}
               />
             )}
@@ -307,6 +310,8 @@ export function OutlineTab({
   canSchedule = true,
   scheduleUpgradeTier,
   onUpdateModuleSchedule,
+  episodic = false,
+  onAddEpisode,
 }: {
   course: CourseRead
   selectedLessonId: string | null
@@ -331,6 +336,11 @@ export function OutlineTab({
     module: CourseModuleRead,
     edits: ScheduleEdits,
   ) => void
+  // Limited series: the single season container is invisible — no season
+  // headers or season actions, episode vocabulary, and no release
+  // scheduling (a limited series is complete at launch).
+  episodic?: boolean
+  onAddEpisode?: () => void
 }) {
   const [query, setQuery] = useState('')
   const previewAccess = usePreviewAccess()
@@ -433,32 +443,47 @@ export function OutlineTab({
       {showEmptyCourseState ? (
         <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-gray-200 bg-white px-6 py-16 text-center">
           <p className="text-[15px] font-semibold text-gray-900">
-            No modules yet
+            {episodic ? 'No episodes yet' : 'No seasons yet'}
           </p>
           <p className="max-w-[360px] text-[13px] text-gray-500">
-            Modules group your lessons. Create one to start building the course
-            outline.
+            {episodic
+              ? 'A limited series is complete at launch — every episode ready on day one. Add your first.'
+              : 'Seasons group your lessons and set when they release. Create one to start building the outline.'}
           </p>
-          {onAddModule && (
-            <button
-              type="button"
-              onClick={onAddModule}
-              className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-gray-900 px-4 py-2 text-[12.5px] font-semibold text-white hover:bg-gray-800"
-            >
-              <AddOutlined sx={{ fontSize: 14 }} />
-              Create first module
-            </button>
-          )}
+          {episodic
+            ? onAddEpisode && (
+                <button
+                  type="button"
+                  onClick={onAddEpisode}
+                  className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-gray-900 px-4 py-2 text-[12.5px] font-semibold text-white hover:bg-gray-800"
+                >
+                  <AddOutlined sx={{ fontSize: 14 }} />
+                  Add first episode
+                </button>
+              )
+            : onAddModule && (
+                <button
+                  type="button"
+                  onClick={onAddModule}
+                  className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-gray-900 px-4 py-2 text-[12.5px] font-semibold text-white hover:bg-gray-800"
+                >
+                  <AddOutlined sx={{ fontSize: 14 }} />
+                  Create first season
+                </button>
+              )}
         </div>
       ) : (
         <>
           {/* Section: Free preview (or All when searching) */}
           <SectionPill
-            text={showPaywall ? 'Free Preview' : 'Lessons'}
+            text={
+              showPaywall ? 'Free Preview' : episodic ? 'Episodes' : 'Lessons'
+            }
             count={freeItems.length}
           />
           <ModuleGroups
             groups={freeGroups}
+            episodic={episodic}
             canSchedule={canSchedule}
             scheduleUpgradeTier={scheduleUpgradeTier}
             onUpdateModuleSchedule={onUpdateModuleSchedule}
@@ -481,6 +506,7 @@ export function OutlineTab({
               <SectionPill text="Members Only" count={paidItems.length} />
               <ModuleGroups
                 groups={paidGroups}
+                episodic={episodic}
                 canSchedule={canSchedule}
                 scheduleUpgradeTier={scheduleUpgradeTier}
                 onUpdateModuleSchedule={onUpdateModuleSchedule}
@@ -498,8 +524,10 @@ export function OutlineTab({
             </>
           )}
 
-          {/* Modules with no lessons — show only when not searching. */}
-          {!trimmed && emptyModules.length > 0 && (
+          {/* Seasons with no lessons — show only when not searching. In a
+              limited series the single container is invisible, so an empty
+              one renders nothing. */}
+          {!episodic && !trimmed && emptyModules.length > 0 && (
             <ModuleGroups
               groups={emptyModules}
               canSchedule={canSchedule}
@@ -517,14 +545,14 @@ export function OutlineTab({
             />
           )}
 
-          {!trimmed && onAddModule && (
+          {!trimmed && (episodic ? onAddEpisode : onAddModule) && (
             <button
               type="button"
-              onClick={onAddModule}
+              onClick={episodic ? onAddEpisode : onAddModule}
               className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-2xl border border-dashed border-gray-300 bg-white px-4 py-4 text-[13px] font-medium text-gray-600 transition-colors hover:border-gray-400 hover:bg-gray-50"
             >
               <AddOutlined sx={{ fontSize: 16 }} />
-              Add module
+              {episodic ? 'Add episode' : 'Add season'}
             </button>
           )}
 
@@ -554,10 +582,12 @@ function ModuleGroups({
   canSchedule = true,
   scheduleUpgradeTier,
   onUpdateModuleSchedule,
+  episodic = false,
 }: {
   groups: ModuleGroup[]
   locked: boolean
   isReorderable: boolean
+  episodic?: boolean
   selectedLessonId: string | null
   onSelectLesson: (lessonId: string) => void
   onAddLesson?: (
@@ -619,6 +649,7 @@ function ModuleGroups({
                 isReorderable={canReorder && group.items.length > 1}
                 isSelected={selectedLessonId === lesson.id}
                 canSchedule={canSchedule}
+                allowSchedule={!episodic}
                 scheduleUpgradeTier={scheduleUpgradeTier}
                 onSelect={() => onSelectLesson(lesson.id)}
                 onUpdate={(patch) => onUpdateLesson(lesson, patch)}
@@ -630,30 +661,36 @@ function ModuleGroups({
 
         return (
           <div key={group.module.id}>
-            <ModuleHeader
-              module={group.module}
-              count={group.items.length}
-              onAddLesson={
-                onAddLesson
-                  ? () => onAddLesson(group.module, 'video')
-                  : undefined
-              }
-              onRename={
-                onRenameModule
-                  ? (title) => onRenameModule(group.module, title)
-                  : undefined
-              }
-              onDelete={
-                onDeleteModule ? () => onDeleteModule(group.module) : undefined
-              }
-              canSchedule={canSchedule}
-              scheduleUpgradeTier={scheduleUpgradeTier}
-              onUpdateSchedule={
-                onUpdateModuleSchedule
-                  ? (edits) => onUpdateModuleSchedule(group.module, edits)
-                  : undefined
-              }
-            />
+            {/* Limited series: the single season container is invisible —
+                episodes render as one flat grid with no header. */}
+            {!episodic && (
+              <ModuleHeader
+                module={group.module}
+                count={group.items.length}
+                onAddLesson={
+                  onAddLesson
+                    ? () => onAddLesson(group.module, 'video')
+                    : undefined
+                }
+                onRename={
+                  onRenameModule
+                    ? (title) => onRenameModule(group.module, title)
+                    : undefined
+                }
+                onDelete={
+                  onDeleteModule
+                    ? () => onDeleteModule(group.module)
+                    : undefined
+                }
+                canSchedule={canSchedule}
+                scheduleUpgradeTier={scheduleUpgradeTier}
+                onUpdateSchedule={
+                  onUpdateModuleSchedule
+                    ? (edits) => onUpdateModuleSchedule(group.module, edits)
+                    : undefined
+                }
+              />
+            )}
             {canReorder && group.items.length > 1 ? (
               <DndContext
                 sensors={sensors}
@@ -764,7 +801,7 @@ function ModuleHeader({
           type="button"
           onClick={() => onRename && setEditing(true)}
           disabled={!onRename}
-          title={onRename ? 'Rename module' : undefined}
+          title={onRename ? 'Rename season' : undefined}
           className="group flex items-baseline gap-1.5 text-left disabled:cursor-default"
         >
           <span className="text-[11px] font-semibold tracking-[0.06em] text-gray-500 uppercase group-hover:text-gray-900">
@@ -784,7 +821,7 @@ function ModuleHeader({
           <button
             type="button"
             onClick={onAddLesson}
-            title="Add lesson to this module"
+            title="Add lesson to this season"
             className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10.5px] font-medium tracking-tight text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900"
           >
             <AddOutlined sx={{ fontSize: 12 }} />
@@ -810,7 +847,7 @@ function ModuleHeader({
               )
                 onDelete()
             }}
-            title="Delete module"
+            title="Delete season"
             className="flex items-center rounded-md px-1.5 py-0.5 text-gray-400 transition-colors hover:bg-red-50 hover:text-red-600"
           >
             <DeleteOutlineOutlined sx={{ fontSize: 13 }} />

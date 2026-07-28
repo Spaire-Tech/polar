@@ -6,7 +6,7 @@
 // (the same surface buyers and students see) IS the landing now, so the
 // wizard collects presentation choices instead of generating copy:
 //
-//   intro → structure (Modules/Episodic) → instructor → details →
+//   intro → structure (Seasons/Limited Series) → instructor → details →
 //   cover + pricing → trial (Free Preview / Lesson Sample) →
 //   hero (Marquee/Cover) → lesson card (Spotlight/Catalog) →
 //   AI outline → portal preview → create.
@@ -209,8 +209,9 @@ export default function CourseWizard({
   // Structure replaces the old Course/Series question. Internally it still
   // maps to the format discriminator ('course' | 'series') that drives the
   // AI prompt branch and downstream portal behavior.
-  const [structure, setStructure] = useState<StructureStyle>('Modules')
-  const format: WizardFormat = structure === 'Episodic' ? 'series' : 'course'
+  const [structure, setStructure] = useState<StructureStyle>('Seasons')
+  const format: WizardFormat =
+    structure === 'LimitedSeries' ? 'series' : 'course'
 
   const [instructor, setInstructor] = useState<InstructorState>({
     name: organization.name ?? '',
@@ -392,7 +393,9 @@ export default function CourseWizard({
     if (!picked) return
     const pickedFormat: WizardFormat =
       picked.format === 'chapters' ? 'course' : 'series'
-    setStructure(pickedFormat === 'series' ? 'Episodic' : 'Modules')
+    // Post seasons-rename StructureStyle values: an episodic proposal maps
+    // to 'LimitedSeries', a chaptered one to 'Seasons'.
+    setStructure(pickedFormat === 'series' ? 'LimitedSeries' : 'Seasons')
     setCourse((prev) => ({
       ...prev,
       title: picked.title,
@@ -838,8 +841,8 @@ export default function CourseWizard({
                   startOutlineGeneration()
                 }
               }
-              // Modules → timeline outline; episodic → episode grid in the
-              // card style chosen at the lesson-card step.
+              // Seasons → timeline outline; limited series → episode grid in
+              // the card style chosen at the lesson-card step.
               return format === 'course' ? (
                 <ModuleOutlineScreen
                   title={course.title}

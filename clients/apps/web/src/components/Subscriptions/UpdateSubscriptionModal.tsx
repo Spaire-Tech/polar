@@ -711,7 +711,7 @@ const UpdateSubscriptionModal = ({
       </div>
       <Tabs defaultValue="product">
         <TabsList className="mb-8">
-          <TabsTrigger value="product">Product</TabsTrigger>
+          <TabsTrigger value="product">Masterclass</TabsTrigger>
           <TabsTrigger value="discount">Discount</TabsTrigger>
           {isActive && <TabsTrigger value="trial">Trial</TabsTrigger>}
           {isActive && (

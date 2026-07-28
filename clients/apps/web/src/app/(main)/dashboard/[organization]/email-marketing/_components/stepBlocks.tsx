@@ -503,8 +503,8 @@ export const WaitStepBody = ({
             value={value.event ?? 'module-1-started'}
             onChange={(ev) => upd({ event: ev })}
             options={[
-              { id: 'module-1-started', label: 'Module 1 started' },
-              { id: 'module-1-completed', label: 'Module 1 completed' },
+              { id: 'module-1-started', label: 'Season 1 started' },
+              { id: 'module-1-completed', label: 'Season 1 completed' },
               { id: 'product-purchased', label: 'Any product purchased' },
               { id: 'link-clicked', label: 'Email link clicked' },
             ]}
@@ -650,8 +650,8 @@ export const BranchStepBody = ({
       )}
       {value.field === 'module-completed' && (
         <Field
-          label="Module"
-          hint="Yes path runs once every published lesson in the module is complete"
+          label="Season"
+          hint="Yes path runs once every published lesson in the season is complete"
         >
           {moduleOptions.length === 0 ? (
             <div
@@ -874,8 +874,8 @@ export const GoalStepBody = ({
           value={value.event}
           onChange={(ev) => onChange({ event: ev })}
           options={[
-            { id: 'module-1-started', label: 'Module 1 started' },
-            { id: 'module-1-completed', label: 'Module 1 completed' },
+            { id: 'module-1-started', label: 'Season 1 started' },
+            { id: 'module-1-completed', label: 'Season 1 completed' },
             { id: 'product-purchased', label: 'Product purchased' },
             { id: 'link-clicked', label: 'Specific link clicked' },
             { id: 'tag-added', label: 'Tag added' },

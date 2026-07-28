@@ -185,6 +185,11 @@ export default function CourseEditor({
   const canSchedule = entitlements.hasFeature('drip_scheduling')
   const scheduleUpgradeTier = entitlements.requiredTierFor('drip_scheduling')
 
+  // Limited series: one invisible season, complete at launch. The outline
+  // hides every season control and all release scheduling; the server
+  // enforces the same rules.
+  const isEpisodic = course.format === 'series'
+
   const invalidateCourse = useCallback(() => {
     getQueryClient().invalidateQueries({ queryKey: ['courses', { courseId }] })
   }, [courseId])
@@ -244,7 +249,7 @@ export default function CourseEditor({
   }
 
   const handleAddModule = async () => {
-    const title = window.prompt('New module title:', 'New module')
+    const title = window.prompt('New season title:', 'New season')
     if (!title || !title.trim()) return
     try {
       await addModule.mutateAsync({
@@ -253,7 +258,7 @@ export default function CourseEditor({
       })
       invalidateCourse()
     } catch {
-      toast({ title: 'Failed to add module' })
+      toast({ title: 'Failed to add season' })
     }
   }
 
@@ -265,7 +270,7 @@ export default function CourseEditor({
       })
       invalidateCourse()
     } catch {
-      toast({ title: 'Failed to rename module' })
+      toast({ title: 'Failed to rename season' })
     }
   }
 
@@ -291,7 +296,7 @@ export default function CourseEditor({
       }
       invalidateCourse()
     } catch {
-      toast({ title: 'Failed to delete module' })
+      toast({ title: 'Failed to delete season' })
     }
   }
 
@@ -408,7 +413,9 @@ export default function CourseEditor({
       })
       await handleAddLesson(mod)
     } catch {
-      toast({ title: 'Failed to add module' })
+      toast({
+        title: isEpisodic ? 'Failed to add episode' : 'Failed to add season',
+      })
     }
   }
 
@@ -449,12 +456,16 @@ export default function CourseEditor({
           onDeleteLesson={handleDeleteLesson}
           onReorderLessons={handleReorderLessons}
           onEditPaywall={() => setActiveTab('pricing')}
-          onAddModule={handleAddModule}
-          onRenameModule={handleRenameModule}
-          onDeleteModule={handleDeleteModule}
+          episodic={isEpisodic}
+          onAddEpisode={isEpisodic ? handleAddContent : undefined}
+          onAddModule={isEpisodic ? undefined : handleAddModule}
+          onRenameModule={isEpisodic ? undefined : handleRenameModule}
+          onDeleteModule={isEpisodic ? undefined : handleDeleteModule}
           canSchedule={canSchedule}
           scheduleUpgradeTier={scheduleUpgradeTier}
-          onUpdateModuleSchedule={handleUpdateModuleSchedule}
+          onUpdateModuleSchedule={
+            isEpisodic ? undefined : handleUpdateModuleSchedule
+          }
         />
       )
     }

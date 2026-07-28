@@ -5,9 +5,9 @@
 // editorial timeline: one hairline rail across the middle, tiny nodes, and
 // up to four 16:10 poster cards hanging above/below in an alternating
 // zig-zag. Posters carry the blurred ambient placeholder from the design
-// (hue-rotated per stop), a "Module 01" pill and a ring. Clicking a card
+// (hue-rotated per stop), a "Season 01" pill and a ring. Clicking a card
 // opens the detail sheet: blurred cover, kicker + title, lesson rows —
-// the module title and each lesson title are editable in place.
+// the season title and each lesson title are editable in place.
 // Footer: Regenerate / "Looks good — continue".
 //
 // The header subtitle is a fixed reassurance line ("This outline is a
@@ -36,7 +36,7 @@ type PartialOutline = {
 // carries the subtitle slot directly under the title (replacing the
 // AI-written "Four modules, shaped from your answers — …" line).
 const STARTING_POINT_NOTE =
-  'This outline is a starting point — you can reshape modules, lessons, and content anytime after your course is created.'
+  'This outline is a starting point — you can reshape seasons, lessons, and content anytime after your course is created.'
 
 // A contenteditable field that commits on blur. Committing on blur (not on
 // every keystroke) keeps the caret stable — React never re-renders the node
@@ -206,7 +206,7 @@ export function ModuleOutlineScreen({
                       style={{ filter: `blur(34px) hue-rotate(${i * 34}deg)` }}
                     />
                     <div className="no">
-                      Module {String(i + 1).padStart(2, '0')}
+                      Season {String(i + 1).padStart(2, '0')}
                     </div>
                     <div className="ring" />
                   </div>
@@ -283,7 +283,7 @@ export function ModuleOutlineScreen({
                 style={{ filter: `blur(34px) hue-rotate(${openIdx * 34}deg)` }}
               />
               <div className="sheet-no">
-                Module {String(openIdx + 1).padStart(2, '0')}
+                Season {String(openIdx + 1).padStart(2, '0')}
               </div>
               <button
                 className="sheet-close"

@@ -323,3 +323,66 @@ comment ("no payment method") is outdated.
 6. Fix the theme system + usage display + stale trial copy (§11–13).
 7. Decide overage billing: wire the meters correctly or remove the promise
    (§7).
+
+---
+
+# Addendum: creator-subscription renewal & payout audit — 2026-07-27
+
+Question audited: when a creator sells a MONTHLY subscription to their own
+customer, does the charge happen every month and does the creator receive
+the money?
+
+**Verdict: yes, on this branch — the chain is intact end-to-end** (checkout
+saves the card off-session → scheduler picks the sub up at period end →
+cycle → order with correct amounts → off-session charge → creator's Account
+credited minus fees → withdrawable payout). Load-bearing prerequisite: the
+`net_amount` fix (54446ba) — before it, every renewal order INSERT crashed
+and no recurring revenue existed at all.
+
+Verified with targeted runs: scheduler/cycle/order/dunning suites, the
+transaction ledger suites (payment, balance, platform_fee, processor_fee),
+held-balance release, payout service incl. the fork's delinquency hold.
+
+Fixed in this pass:
+
+1. **Renewal errors deleted valid cards** — `order/service.py` detached-
+   payment-method detection contained a bare string (`"does not belong to
+   the customer"` missing `in message`), always truthy: ANY
+   `InvalidRequestError` during a renewal force-deleted the customer's
+   payment method (locally and at Stripe) and doomed every dunning retry →
+   guaranteed churn. Fixed + regression tests.
+2. **Checkout metadata could disable billing** — the scheduler's
+   `managed_by=trial` exclusion applied to ALL subscriptions, but
+   subscription metadata is copied verbatim from creator-controlled
+   checkout metadata: `{"managed_by": "trial"}` made a customer's
+   subscription silently unbillable forever. Exclusion now scoped to the
+   platform org (`subscription/scheduler.py`), with tests.
+3. **Held balances fee'd at the wrong rate** — sales made before a creator
+   connected payouts were released at account-connect time BEFORE the tier
+   fee sync ran, so they were fee'd at the global default instead of the
+   creator's tier rate. `organization/tasks.py` now syncs fees
+   synchronously before releasing.
+
+Known behaviors (not bugs, but decisions to be aware of):
+
+- **No automatic payout**: the balance grows monthly; money reaches the
+  creator's bank only when they initiate a withdrawal (min $10). The hourly
+  cron only processes already-created payouts.
+- **First-sale review gate**: every creator's first sale marks their org
+  UNDER_REVIEW; payouts are blocked until a human approves in backoffice.
+  This requires ops staffing or the gate reconfigured.
+- **Effective fees exceed the advertised tier rate**: upstream Polar adds a
+  0.5% subscription surcharge per renewal, and payout fees ($2/active
+  month + 0.25% + 25¢, US) are charged to the creator. Example: one
+  $10/month Starter subscriber nets the creator $8.95/month in balance and
+  ≈$15.61 in the bank after two months' withdrawal. Spaire eats the Stripe
+  processing fee (~59¢) out of its ~105¢ gross take. If PRICING.md
+  advertises flat "7% + 30¢", this is a disclosure mismatch to resolve.
+- **Residual risks (documented, not engineered around)**: order
+  `payment_lock_acquired_at` has no reaper (a renewal whose Stripe webhook
+  is lost past ~20 task retries stays pending until manual intervention —
+  loud, not silent), and SCA/3DS-required renewals land in dunning by
+  design (no pre-cycle authentication flow).
+- **Production-only checks**: Stripe webhooks registered
+  (`charge.succeeded` etc.), Connect transfers enabled, worker + scheduler
+  processes running.

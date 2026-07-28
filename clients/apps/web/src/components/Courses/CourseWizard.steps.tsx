@@ -646,24 +646,24 @@ type FormatOption = {
 const FORMAT_OPTIONS: FormatOption[] = [
   {
     id: 'course',
-    badge: 'COURSE',
-    title: 'Structured',
-    oneliner: 'Step-by-step skill building.',
+    badge: 'SEASON',
+    title: 'Season',
+    oneliner: 'Something people join.',
     description:
-      'Modules and lessons that progress from foundation to fluency.',
-    bestFor: ['Skills', 'Frameworks', 'Outcomes'],
-    example: 'Persuasive writing in 22 lessons.',
+      'Episodes land on a schedule and everyone is on the same one — the conversation stays live because nobody has seen ahead.',
+    bestFor: ['Cohort energy', 'Accountability', 'Finishing'],
+    example: 'Persuasive writing, one episode a week.',
     imageSrc: '/assets/course.jpg',
     tone: 'warm',
   },
   {
     id: 'series',
-    badge: 'SERIES',
-    title: 'Narrative',
-    oneliner: 'Episodic, in your voice.',
+    badge: 'LIMITED SERIES',
+    title: 'Limited Series',
+    oneliner: 'Something people buy.',
     description:
-      'Self-contained episodes that orbit a single theme. Watched like a documentary.',
-    bestFor: ['Mindset', 'Story', 'Identity', 'Behind the scenes'],
+      'Complete on day one. One subject, one sitting — watched alone, at whatever speed they want.',
+    bestFor: ['Workshops', 'Intensives', 'Deep dives'],
     example: 'An Olympian on the seven days before a final.',
     imageSrc: '/assets/series.jpg',
     tone: 'cool',
@@ -731,9 +731,9 @@ export function StepFormat({
           <div className="fmt-header">
             <h2 className="fmt-title">Pick your format</h2>
             <p className="fmt-lede">
-              Not all knowledge is step-based. Choose a Course if you&apos;re
-              teaching a skill, a Series if you&apos;re sharing a story or a
-              way of seeing the world.
+              A Season is something people join — the audience moves through it
+              together. A Limited Series is something people buy — finished
+              before anyone arrives.
             </p>
           </div>
 

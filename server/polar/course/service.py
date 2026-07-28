@@ -20,7 +20,11 @@ from polar.models.customer import Customer
 from polar.models.lesson_comment import LessonComment
 from polar.models.lesson_comment_like import LessonCommentLike
 from polar.models.product_benefit import ProductBenefit
+from polar.models.webhook_endpoint import WebhookEventType
+from polar.organization.repository import OrganizationRepository
 from polar.postgres import AsyncSession
+from polar.product.repository import ProductRepository
+from polar.webhook.service import webhook as webhook_service
 
 from .landing import merge_landing_overrides, validate_landing_overrides
 from .repository import (
@@ -42,7 +46,6 @@ from .schemas import (
     CourseModuleUpdate,
     CourseUpdate,
 )
-
 
 log = logging.getLogger(__name__)
 
@@ -142,12 +145,14 @@ class CourseService:
         modules_to_add = create_schema.modules
         if not modules_to_add:
             # Create implicit module for flat lesson structure
-            modules_to_add = [CourseModuleCreate(
-                title='Lessons',
-                description=None,
-                position=0,
-                lessons=[],
-            )]
+            modules_to_add = [
+                CourseModuleCreate(
+                    title="Lessons",
+                    description=None,
+                    position=0,
+                    lessons=[],
+                )
+            ]
 
         # Drafts are free; the published_courses cap only applies once a
         # course actually goes live. A course can be created already-public
@@ -155,9 +160,7 @@ class CourseService:
         # cap up front when any seed lesson is published. Counts the org's
         # *other* published courses — this one isn't persisted yet.
         will_be_published = any(
-            lesson.published
-            for module in modules_to_add
-            for lesson in module.lessons
+            lesson.published for module in modules_to_add for lesson in module.lessons
         )
         if will_be_published:
             current = await repo.count_published_by_organization(
@@ -211,14 +214,11 @@ class CourseService:
 
         # Already wired? Match on (organization, course_id property) so we
         # don't create duplicates if a benefit was created out-of-band.
-        existing_stmt = (
-            select(Benefit)
-            .where(
-                Benefit.type == BenefitType.course_access,
-                Benefit.organization_id == course.organization_id,
-                Benefit.deleted_at.is_(None),
-                Benefit.properties["course_id"].astext == str(course.id),
-            )
+        existing_stmt = select(Benefit).where(
+            Benefit.type == BenefitType.course_access,
+            Benefit.organization_id == course.organization_id,
+            Benefit.deleted_at.is_(None),
+            Benefit.properties["course_id"].astext == str(course.id),
         )
         result = await session.execute(existing_stmt)
         benefit = result.scalar_one_or_none()
@@ -295,14 +295,50 @@ class CourseService:
             sample_dict = update_dict["sample"]
             lesson_id_str = sample_dict.get("lesson_id")
             lesson_ids = {
-                str(lesson.id)
-                for module in course.modules
-                for lesson in module.lessons
+                str(lesson.id) for module in course.modules for lesson in module.lessons
             }
             if lesson_id_str not in lesson_ids:
                 update_dict["sample"] = None
 
-        return await repo.update(course, update_dict=update_dict)
+        course = await repo.update(course, update_dict=update_dict)
+
+        # The builder edits the Course, but every surface outside it — the
+        # storefront catalog, product cards, checkout, receipts — renders the
+        # linked Product's name/description. Keep them in sync so a rename in
+        # the builder doesn't leave the old title live everywhere else.
+        # (Creation already seeds product.name from the course title; this
+        # closes the same loop for later edits.)
+        if course.product_id is not None and (
+            "title" in update_dict or "description" in update_dict
+        ):
+            product_repo = ProductRepository.from_session(session)
+            product = await product_repo.get_by_id(course.product_id)
+            if product is not None:
+                product_changed = False
+                new_title = update_dict.get("title")
+                if "title" in update_dict and new_title and new_title != product.name:
+                    product.name = new_title
+                    product_changed = True
+                if (
+                    "description" in update_dict
+                    and update_dict["description"] != product.description
+                ):
+                    product.description = update_dict["description"]
+                    product_changed = True
+                if product_changed:
+                    session.add(product)
+                    await session.flush()
+                    org_repo = OrganizationRepository.from_session(session)
+                    organization = await org_repo.get_by_id(product.organization_id)
+                    if organization is not None:
+                        await webhook_service.send(
+                            session,
+                            organization,
+                            WebhookEventType.product_updated,
+                            product,
+                        )
+
+        return course
 
     async def add_module(
         self,
@@ -355,9 +391,7 @@ class CourseService:
         module_repo = CourseModuleRepository.from_session(session)
         return await module_repo.get_by_id(module_id)
 
-    async def delete_module(
-        self, session: AsyncSession, module: CourseModule
-    ) -> None:
+    async def delete_module(self, session: AsyncSession, module: CourseModule) -> None:
         module_repo = CourseModuleRepository.from_session(session)
         await module_repo.soft_delete(module)
 
@@ -436,9 +470,7 @@ class CourseService:
         if await lesson_repo.count_published_by_course(course_id) > 0:
             return
         course_repo = CourseRepository.from_session(session)
-        current = await course_repo.count_published_by_organization(
-            organization_id
-        )
+        current = await course_repo.count_published_by_organization(organization_id)
         await entitlements_service.require_under_limit(
             session, organization_id, "published_courses", current=current
         )
@@ -523,9 +555,7 @@ class CourseService:
         if lesson.mux_status != "ready" or not lesson.duration_seconds:
             return
         lesson_repo = CourseLessonRepository.from_session(session)
-        organization_id = await lesson_repo.get_organization_id_for_lesson(
-            lesson.id
-        )
+        organization_id = await lesson_repo.get_organization_id_for_lesson(lesson.id)
         if organization_id is not None:
             emit_video_uploaded(
                 session,
@@ -741,13 +771,9 @@ class CourseService:
             if transcript_status == "unavailable":
                 # This lesson will never yield a transcript, so it may be
                 # the last thing the assistant build was waiting on.
-                course_id = await lesson_repo.get_course_id_for_lesson(
-                    lesson.id
-                )
+                course_id = await lesson_repo.get_course_id_for_lesson(lesson.id)
                 if course_id is not None:
-                    enqueue_job(
-                        "course_assistant.maybe_build", course_id=course_id
-                    )
+                    enqueue_job("course_assistant.maybe_build", course_id=course_id)
 
         if (
             not previously_ready
@@ -761,9 +787,7 @@ class CourseService:
                 duration_seconds=int(duration),
             )
 
-    async def delete_lesson(
-        self, session: AsyncSession, lesson: CourseLesson
-    ) -> None:
+    async def delete_lesson(self, session: AsyncSession, lesson: CourseLesson) -> None:
         # Enqueue Mux cleanup before soft-delete so we still have the
         # asset/upload ids available, and refund the quota the asset was
         # consuming. The workers are idempotent (404 from Mux counts as
@@ -960,9 +984,7 @@ class CourseService:
         query: str | None = None,
     ) -> tuple[Sequence[CourseEnrollment], int]:
         repo = CourseEnrollmentRepository.from_session(session)
-        statement = repo.get_students_for_course_statement(
-            course_id, organization_id
-        )
+        statement = repo.get_students_for_course_statement(course_id, organization_id)
         if query:
             # Server-side search — the tab is paginated, so filtering the
             # loaded page client-side would miss students on other pages.
@@ -1057,9 +1079,7 @@ class CourseService:
         # watch position so started/completed counts don't double-count.
         watch_repo = CourseLessonWatchProgressRepository.from_session(session)
         watch = await watch_repo.get_one_or_none(
-            watch_repo.get_by_enrollment_and_lesson_statement(
-                enrollment_id, lesson_id
-            )
+            watch_repo.get_by_enrollment_and_lesson_statement(enrollment_id, lesson_id)
         )
         if watch is not None:
             await watch_repo.soft_delete(watch)
@@ -1250,9 +1270,9 @@ class CourseService:
         per-lesson event, plus derived events (first lesson, mid-course
         checkpoint, course complete) when their thresholds are crossed.
         """
-        enrollment = await CourseEnrollmentRepository.from_session(
-            session
-        ).get_by_id(enrollment_id)
+        enrollment = await CourseEnrollmentRepository.from_session(session).get_by_id(
+            enrollment_id
+        )
         if enrollment is None:
             return
 
@@ -1286,10 +1306,8 @@ class CourseService:
         if lesson is not None:
             module_total = await lesson_repo.count_by_module(lesson.module_id)
             if module_total > 0:
-                module_completed = (
-                    await progress_repo.count_by_enrollment_in_module(
-                        enrollment_id, lesson.module_id
-                    )
+                module_completed = await progress_repo.count_by_enrollment_in_module(
+                    enrollment_id, lesson.module_id
                 )
                 if module_completed >= module_total:
                     await self._fire_course_event(
@@ -1459,9 +1477,7 @@ class CourseService:
             await repo.update(comment, update_dict={"pinned_at": None})
             return False
         await repo.clear_pins_for_lesson(comment.lesson_id)
-        await repo.update(
-            comment, update_dict={"pinned_at": datetime.now(tz=UTC)}
-        )
+        await repo.update(comment, update_dict={"pinned_at": datetime.now(tz=UTC)})
         return True
 
     async def toggle_instructor_heart(
@@ -1567,7 +1583,6 @@ class CourseService:
         if locks:
             return False, max(locks)
         return True, None
-
 
     # ── Notes ────────────────────────────────────────────────────────────────
 

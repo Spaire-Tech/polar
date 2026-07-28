@@ -2258,7 +2258,7 @@ export function GeneratedPortalPage({
             {groups.map((g, gi) => (
               <section className="row" key={gi}>
                 <div className="row-head">
-                  <span className="mod">Module {gi + 1}</span>
+                  <span className="mod">Season {gi + 1}</span>
                   <EditText
                     editable={editable}
                     onEditText={onEditText}

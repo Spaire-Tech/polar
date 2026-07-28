@@ -5,9 +5,10 @@ import structlog
 from apscheduler.job import Job
 from apscheduler.jobstores.base import BaseJobStore
 from apscheduler.triggers.date import DateTrigger
-from sqlalchemy import Select, select, update
+from sqlalchemy import Select, or_, select, update
 from sqlalchemy.orm import Session
 
+from polar.config import settings
 from polar.kit.utils import utc_now
 from polar.logging import Logger
 from polar.models import Customer, Organization, Subscription
@@ -110,7 +111,7 @@ class SubscriptionJobStore(BaseJobStore):
         return jobs
 
     def _get_base_statement(self) -> Select[tuple[Subscription]]:
-        return (
+        statement = (
             select(Subscription)
             .join(Customer, onclause=Customer.id == Subscription.customer_id)
             .join(Organization, onclause=Organization.id == Customer.organization_id)
@@ -121,20 +122,34 @@ class SubscriptionJobStore(BaseJobStore):
                 Subscription.scheduler_locked_at.is_(None),
                 Subscription.active.is_(True),
                 Subscription.current_period_end.is_not(None),
-                # Defensive: exclude any legacy local "auto-trial" sub
-                # (managed_by=trial). Those carried no payment method, so
-                # cycling one would flip it to active and emit an
-                # uncollectable order. Production no longer creates them,
-                # and the platform.lapse_legacy_trials cron owns their
-                # end-of-life (revoke at trial_end). The live trial is a
-                # card-required subscription (no managed_by key) created
-                # via checkout with a saved payment method; THIS scheduler
-                # — not Stripe — picks it up at trial_end and the cycle
-                # task charges the card. `is_distinct_from` keeps rows
-                # whose metadata has no managed_by key (NULL) in scope.
-                Subscription.user_metadata["managed_by"].astext.is_distinct_from(
-                    "trial"
-                ),
             )
             .order_by(Subscription.current_period_end.asc())
         )
+        # Defensive: exclude any legacy local "auto-trial" sub
+        # (managed_by=trial) ON THE PLATFORM ORG. Those carried no payment
+        # method, so cycling one would flip it to active and emit an
+        # uncollectable order. Production no longer creates them, and the
+        # platform.lapse_legacy_trials cron owns their end-of-life (revoke
+        # at trial_end). The live trial is a card-required subscription
+        # (no managed_by key) created via checkout with a saved payment
+        # method; THIS scheduler — not Stripe — picks it up at trial_end
+        # and the cycle task charges the card.
+        #
+        # The exclusion is scoped to the platform org on purpose:
+        # Subscription.user_metadata is copied verbatim from
+        # checkout.user_metadata, which creators (and their API
+        # integrations) control. An unscoped filter would let
+        # `{"managed_by": "trial"}` in a creator's checkout metadata make
+        # that customer's subscription silently unbillable forever.
+        # `is_distinct_from` keeps rows whose metadata has no managed_by
+        # key (NULL) in scope.
+        if settings.PLATFORM_ORG_ID is not None:
+            statement = statement.where(
+                or_(
+                    Organization.id != settings.PLATFORM_ORG_ID,
+                    Subscription.user_metadata["managed_by"].astext.is_distinct_from(
+                        "trial"
+                    ),
+                )
+            )
+        return statement
