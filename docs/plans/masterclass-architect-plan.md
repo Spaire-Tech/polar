@@ -233,17 +233,25 @@ without typing anything except (optionally) the "keep asking you" answer.
 
 ---
 
-## Phase 3 — Private beta and Gate B (~2 weeks)
+## Phase 3 — Launch is the beta (decision 2026-07-28: no private beta)
 
-- 20–50 hand-picked creators through the real flow.
-- Watch the funnel (below), read every generated proposal set by hand, log
-  every fork-landing and its reason.
-- Tune: outlier thresholds, proposal diversity, threshold for the fork,
-  copy of the receipts.
+There is no existing customer base to recruit a beta from — so the private
+beta is waived and launch itself carries the validation. What replaces it:
 
-**Gate B — go/no-go for general availability:** majority of beta creators pick
-a proposal (rather than forking out), and picked proposals lead to more
-published masterclasses than the current manual flow's baseline.
+- **Ship instrumented.** The funnel (below) is non-negotiable at launch;
+  it is the only way to know whether the magic lands.
+- **Read the early cohort by hand.** For roughly the first 50–100 real
+  channels analyzed, the generated proposals and every fork-landing get
+  human eyes (founder or whoever owns the prompts). Tune the recipe, the
+  fork threshold, and the receipts copy from what they show.
+- **Gate B becomes a dashboard, not a gate:** the same success bar — do
+  creators pick proposals rather than fork out, and do picked proposals get
+  published — now read continuously from live data instead of once from a
+  cohort. If the numbers say the proposals feel generic, the recipe is
+  still just a prompt: iterate in place.
+- Per-user risk stays covered by the product's own insurance: signal-gating
+  (weak channels get the fork, not a guess), receipts (a bad proposal fails
+  visibly), and the fork (nobody is trapped).
 
 ---
 
@@ -302,8 +310,12 @@ channel, time-to-proposals, fork rate by failure reason, quota consumption.
 - Footage map has three statuses (have / worth re-filming / to film).
 - Transcripts are not on the launch path — decided outright (public data
   only); they remain a possible post-launch quality upgrade.
-- Formal Phase 0 study waived in favor of a founder smoke test; the
-  magic-is-real validation moves to the Phase 3 beta (Gate B unchanged).
+- Formal Phase 0 study waived in favor of a founder smoke test.
+- Private beta waived (no existing customers to recruit from): launch is the
+  beta — ship instrumented, hand-read the first ~50–100 real analyses,
+  Gate B's bar tracked continuously from live funnel data.
+- The outreach engine (the mirror as a shareable report) is promoted from
+  growth experiment to primary customer-acquisition candidate.
 
 ## Open decisions
 
