@@ -126,6 +126,14 @@ type PartialOutline = {
   faq?: PartialFaqItem[]
 }
 
+// Masterclass Architect kill switch. The evidence path (source → mirror →
+// proposals) is fully built but hidden until the product direction firms up:
+// set NEXT_PUBLIC_MASTERCLASS_ARCHITECT=1 to re-enable. While off, the wizard
+// runs the original manual flow (intro → structure → …) and the Architect
+// screens are unreachable; the backend endpoints stay dormant and cost
+// nothing unused.
+const ARCHITECT_ENABLED = process.env.NEXT_PUBLIC_MASTERCLASS_ARCHITECT === '1'
+
 // ─── Main wizard ─────────────────────────────────────────────────────────────
 
 export default function CourseWizard({
@@ -144,7 +152,9 @@ export default function CourseWizard({
   // path (source → mirror → taste steps → proposals). 'manual' = the quiet
   // "I already know what I'm making" fork, which is also the warm landing
   // for every analysis failure — the original structure→details flow.
-  const [path, setPath] = useState<'architect' | 'manual'>('architect')
+  const [path, setPath] = useState<'architect' | 'manual'>(
+    ARCHITECT_ENABLED ? 'architect' : 'manual',
+  )
   const [analysisId, setAnalysisId] = useState<string | null>(null)
   const [sourceFailure, setSourceFailure] =
     useState<ArchitectFailureReason | null>(null)
@@ -693,7 +703,12 @@ export default function CourseWizard({
         <ArchitectStyles />
         <div className="spaire-shell">
           {screen === 'intro' && (
-            <Intro onNext={() => setScreen('source')} onClose={handleClose} />
+            <Intro
+              onNext={() =>
+                setScreen(ARCHITECT_ENABLED ? 'source' : 'structure')
+              }
+              onClose={handleClose}
+            />
           )}
           {screen === 'source' && (
             <StepArchitectSource
@@ -732,7 +747,7 @@ export default function CourseWizard({
               value={structure}
               onChange={setStructure}
               onContinue={() => setScreen('instructor')}
-              onBack={() => setScreen('source')}
+              onBack={() => setScreen(ARCHITECT_ENABLED ? 'source' : 'intro')}
             />
           )}
           {screen === 'instructor' && (
