@@ -351,12 +351,19 @@ function txtPart(
   alignKey: string | null,
   min?: number,
   max?: number,
+  // When set, the part inspector shows an editable Text field for this prop.
+  // Without it, a slot that starts empty (a cover eyebrow / description) had
+  // no way to be written, and clearing one made it vanish permanently.
+  contentKey?: string,
 ): PartDef {
   return {
     label,
     icon: icon || ICO.text,
     groups: () => {
-      const g = [txtTypo(label, fontKey, sizeKey, colorKey, min, max)]
+      const g: GroupDescriptor[] = []
+      if (contentKey)
+        g.push({ kind: 'group', title: label, ctls: [{ kind: 'field', label: 'Text', key: contentKey, ph: `Add ${label.toLowerCase()}…` }] })
+      g.push(txtTypo(label, fontKey, sizeKey, colorKey, min, max))
       if (alignKey) g.push(txtAlign(alignKey))
       return g
     },
@@ -527,10 +534,10 @@ export const REG: Record<string, BlockDef> = {
       grpColors([['Overlay tint', 'overlayColor']]),
     ],
     parts: {
-      eyebrow: txtPart('Eyebrow', ICO.text, 'eyebrowFont', 'eyebrowSize', 'eyebrowColor', 'eyebrowAlign', 9, 24),
-      title: txtPart('Title', ICO.heading, 'titleFont', 'titleSize', 'titleColor', 'titleAlign', 24, 96),
-      byline: txtPart('Byline', ICO.instructor, 'instructorFont', 'instructorSize', 'instructorColor', 'instructorAlign', 11, 28),
-      description: txtPart('Description', ICO.text, 'taglineFont', 'taglineSize', 'taglineColor', 'taglineAlign', 12, 30),
+      eyebrow: txtPart('Eyebrow', ICO.text, 'eyebrowFont', 'eyebrowSize', 'eyebrowColor', 'eyebrowAlign', 9, 24, 'eyebrow'),
+      title: txtPart('Title', ICO.heading, 'titleFont', 'titleSize', 'titleColor', 'titleAlign', 24, 96, 'title'),
+      byline: txtPart('Byline', ICO.instructor, 'instructorFont', 'instructorSize', 'instructorColor', 'instructorAlign', 11, 28, 'instructor'),
+      description: txtPart('Description', ICO.text, 'taglineFont', 'taglineSize', 'taglineColor', 'taglineAlign', 12, 30, 'tagline'),
       button: { label: 'Button', icon: ICO.button, groups: () => btnGroups('btn', true) },
     },
   },

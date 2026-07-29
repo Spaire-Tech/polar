@@ -36,6 +36,9 @@ export interface BroadcastEditorDesignProps {
   /** Student-facing course URL + creator catalog URL — bound into template
    *  CTA buttons so they never ship as dead "#" links. */
   links?: CourseLinks
+  /** For a lesson-completed trigger: the exact lesson chosen, so the
+   *  specific-lesson email names it instead of guessing. */
+  triggerLesson?: string
   /** The host's last background write failed — surface it in the status chip
    *  instead of leaving a stale "Saved". */
   saveFailed?: boolean
@@ -64,6 +67,7 @@ export function BroadcastEditorDesign({
   initialSubject,
   initialState,
   links,
+  triggerLesson,
   saveFailed,
   onUploadImage,
   onSendTest,
@@ -75,8 +79,8 @@ export function BroadcastEditorDesign({
   const handleRef = useRef<EditorHandle | null>(null)
 
   // Keep the latest callbacks/data without re-mounting the imperative engine.
-  const cbRef = useRef({ onUploadImage, onSendTest, onSave, onAutosave, onClose, course, creatorName, links })
-  cbRef.current = { onUploadImage, onSendTest, onSave, onAutosave, onClose, course, creatorName, links }
+  const cbRef = useRef({ onUploadImage, onSendTest, onSave, onAutosave, onClose, course, creatorName, links, triggerLesson })
+  cbRef.current = { onUploadImage, onSendTest, onSave, onAutosave, onClose, course, creatorName, links, triggerLesson }
 
   // Surface the host's async save failures in the engine's status chip; on
   // recovery, restore "Saved" (the engine ignores this while edits are dirty).
@@ -115,6 +119,7 @@ export function BroadcastEditorDesign({
           cbRef.current.creatorName,
           trigger,
           cbRef.current.links,
+          cbRef.current.triggerLesson,
         ),
       onUploadImage: (file) => cbRef.current.onUploadImage!(file),
       onSendTest: cbRef.current.onSendTest
@@ -133,8 +138,17 @@ export function BroadcastEditorDesign({
       handle.destroy()
       handleRef.current = null
     }
+    // enrolledCount is deliberately NOT a dependency: it can resolve after the
+    // editor has mounted, and remounting would drop the caret/selection
+    // mid-edit. It's pushed in live via the handle below instead.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [courseKey, courseName, initialTrigger, lockTrigger, enrolledCount, creatorName])
+  }, [courseKey, courseName, initialTrigger, lockTrigger, creatorName])
+
+  // Push a late-arriving (or changed) enrolled total into the live engine
+  // without remounting it.
+  useEffect(() => {
+    handleRef.current?.setEnrolledCount(enrolledCount ?? null)
+  }, [enrolledCount])
 
   return <div className="bedesign" ref={ref} />
 }

@@ -1125,6 +1125,7 @@ export function AutomationSequenceBuilder({
               organization={organization}
               courseId={courseId}
               moment={trigger.type}
+              triggerLesson={trigger.type === 'lesson' ? trigger.lesson : undefined}
               sequenceName={name}
               initialSubject={st.subject}
               initialContentJson={st.content_json}

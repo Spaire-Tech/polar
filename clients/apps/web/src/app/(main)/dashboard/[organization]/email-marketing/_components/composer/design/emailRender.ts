@@ -310,10 +310,19 @@ const BLOCK: Record<string, (p: Props, t: Theme, r: Resolver) => string> = {
 
 export function buildEmailHTML(
   blocks: Block[],
-  t: Theme,
+  theme: Theme,
   broadcast: BroadcastMeta,
   resolveAsset: Resolver = (k) => k,
 ): string {
+  // Defend against a saved email whose email/backdrop background is 'none'
+  // (older saves, before the picker disallowed it): a transparent page
+  // background renders as bgcolor="none" / white-broken in the inbox. Coerce
+  // to a real colour so the sent email always has a solid page.
+  const t: Theme = {
+    ...theme,
+    emailBg: theme.emailBg && theme.emailBg !== 'none' ? theme.emailBg : '#ffffff',
+    outerBg: theme.outerBg && theme.outerBg !== 'none' ? theme.outerBg : '#ffffff',
+  }
   const body = blocks
     .map((b) => (BLOCK[b.type] ? BLOCK[b.type](b.props, t, resolveAsset) : ''))
     .join('\n')

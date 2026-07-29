@@ -40,6 +40,7 @@ export function SequenceEmailModal({
   organization,
   courseId,
   moment,
+  triggerLesson,
   initialSubject,
   initialContentJson,
   saveFailed,
@@ -50,6 +51,9 @@ export function SequenceEmailModal({
   organization: schemas['Organization']
   courseId?: string
   moment?: string
+  /** For a lesson-completed trigger: the exact lesson chosen, so the email
+   *  names THAT lesson instead of guessing a representative one. */
+  triggerLesson?: string
   sequenceName?: string
   initialSubject?: string
   initialContentJson?: Record<string, unknown> | null
@@ -95,7 +99,7 @@ export function SequenceEmailModal({
 
   const upload = useUploadEmailImage(organization.id)
   const sendTest = useSendTestEmail(organization.id)
-  const { data: courseRead } = useCourseById(courseId)
+  const { data: courseRead, isError: courseError } = useCourseById(courseId)
   const course = courseRead ? mapCourse(courseRead) : undefined
   // Follow the course's own light/dark setting (the toggle in the course
   // editor, persisted to landing_overrides.theme_mode). Putting `dark` on the
@@ -183,11 +187,22 @@ export function SequenceEmailModal({
   // could otherwise let placeholder content get authored and shipped. Hold on
   // a loading overlay until the course is in hand.
   if (courseId && !courseRead) {
+    // A failed course load used to leave the modal stuck on "Loading course…"
+    // forever with no way out. Show the error state and always offer a close.
     return createPortal(
       <div
         className={`fixed inset-0 z-50 grid place-items-center bg-black text-sm text-white/60${dark ? ' dark' : ''}`}
       >
-        Loading course…
+        <div className="flex flex-col items-center gap-4">
+          <span>{courseError ? 'Couldn’t load this course.' : 'Loading course…'}</span>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-full border border-white/25 px-4 py-1.5 text-xs font-medium text-white/80 hover:bg-white/10"
+          >
+            {courseError ? 'Close' : 'Cancel'}
+          </button>
+        </div>
       </div>,
       document.body,
     )
@@ -207,6 +222,7 @@ export function SequenceEmailModal({
         initialSubject={initialSubject}
         initialState={initialState}
         links={{ courseUrl, catalogUrl, portalUrl }}
+        triggerLesson={triggerLesson}
         saveFailed={saveFailed}
         onUploadImage={async (file) => (await upload.mutateAsync(file)).url}
         onSendTest={async (v) => {

@@ -38,6 +38,9 @@ export function bindCourse(
   creatorName?: string,
   trigger?: string,
   links?: CourseLinks,
+  /** For a lesson-completed trigger: the exact lesson title chosen in the
+   *  automation, so the byline names it instead of a guessed "pivotal" one. */
+  triggerLesson?: string,
 ): Block[] {
   if (!course) return blocks
   const hasLessons = course.lessons.length > 0
@@ -62,6 +65,9 @@ export function bindCourse(
       case 'firstLesson':
         return hasLessons ? course.lessons[0].title : null
       case 'specificLesson':
+        // Prefer the exact lesson the automation triggers on; fall back to a
+        // representative one only when the trigger didn't name one.
+        if (triggerLesson && triggerLesson.trim()) return triggerLesson.trim()
         return hasLessons ? course.lessons[pivotalLessonIndex(lessonCount)].title : null
       case 'enrolment':
         return instructorName ? `Taught by ${instructorName}` : course.title

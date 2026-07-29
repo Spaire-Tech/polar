@@ -100,6 +100,9 @@ export interface EditorHandle {
   /** The host reports the outcome of its (async, debounced) write so the
    *  status chip never claims "Saved" after a failed request. */
   notifySaveResult: (ok: boolean) => void
+  /** Update the real enrolled total after it loads, WITHOUT remounting the
+   *  engine (a remount would drop the caret/selection mid-edit). */
+  setEnrolledCount: (n: number | null) => void
   destroy: () => void
 }
 
@@ -107,12 +110,12 @@ const uid = () => 'b' + Math.random().toString(36).slice(2, 8)
 
 /* the six behavioural triggers in the sequence */
 const TRIGGERS = [
-  { key: 'enrolment', name: 'Enrolment', desc: 'Sent the moment access is granted', subject: 'Welcome to Southern Cooking', preview: 'Your course is ready. Here is your first lesson.', audience: 'New enrollments', count: '1,204' },
-  { key: 'firstLesson', name: 'First lesson completed', desc: 'Fires on their first finish', subject: 'You finished your first lesson', preview: 'One down — here is what comes next.', audience: 'Finished lesson 1', count: '860' },
-  { key: 'specificLesson', name: 'Specific lesson completed', desc: 'Fires when they clear a chosen lesson', subject: 'You hit the turning point', preview: 'The hardest lesson is behind you.', audience: 'Finished a key lesson', count: '612' },
-  { key: 'halfway', name: 'Halfway', desc: 'Fires at 50% — the retention email', subject: 'You are halfway through Southern Cooking', preview: 'Don’t stop now — the best is still ahead.', audience: 'Reached 50%', count: '494' },
-  { key: 'courseComplete', name: 'Course completed', desc: 'Fires when every lesson is done', subject: 'You finished Southern Cooking', preview: 'Look how far you have come.', audience: 'Completed the course', count: '237' },
-  { key: 'inactive', name: 'Inactive for N days', desc: 'Win-back after a quiet stretch', subject: 'Your class is waiting', preview: 'Pick up right where you left off.', audience: 'Inactive 7+ days', count: '318' },
+  { key: 'enrolment', name: 'Enrolment', desc: 'Sent the moment access is granted', subject: 'Welcome to Southern Cooking', preview: 'Your course is ready. Here is your first lesson.', audience: 'New enrollments', count: '' },
+  { key: 'firstLesson', name: 'First lesson completed', desc: 'Fires on their first finish', subject: 'You finished your first lesson', preview: 'One down — here is what comes next.', audience: 'Finished lesson 1', count: '' },
+  { key: 'specificLesson', name: 'Specific lesson completed', desc: 'Fires when they clear a chosen lesson', subject: 'You hit the turning point', preview: 'The hardest lesson is behind you.', audience: 'Finished a key lesson', count: '' },
+  { key: 'halfway', name: 'Halfway', desc: 'Fires at 50% — the retention email', subject: 'You are halfway through Southern Cooking', preview: 'Don’t stop now — the best is still ahead.', audience: 'Reached 50%', count: '' },
+  { key: 'courseComplete', name: 'Course completed', desc: 'Fires when every lesson is done', subject: 'You finished Southern Cooking', preview: 'Look how far you have come.', audience: 'Completed the course', count: '' },
+  { key: 'inactive', name: 'Inactive for N days', desc: 'Win-back after a quiet stretch', subject: 'Your class is waiting', preview: 'Pick up right where you left off.', audience: 'Inactive 7+ days', count: '' },
 ]
 
 /* tool icons (block hover toolbar) */
@@ -161,6 +164,17 @@ export function createEditor(root: HTMLElement, opts: CreateEditorOpts = {}): Ed
   const qa = (sel: string) => Array.from(root.querySelectorAll(sel)) as HTMLElement[]
 
   /* ---------- state ---------- */
+  // The whole editor is scaled with CSS `zoom` to fit narrow widths (see
+  // fitToWidth). `zoom` also scales the coordinate space of the fixed-position
+  // popovers appended inside root, so a viewport coord from
+  // getBoundingClientRect() must be divided by this factor before it's written
+  // as a style.left/top — otherwise the bubble/picker/menu drift further from
+  // their anchor the smaller the window. Positioners route through place().
+  let zoomFactor = 1
+  const place = (node: HTMLElement, left: number, top: number) => {
+    node.style.left = left / zoomFactor + 'px'
+    node.style.top = top / zoomFactor + 'px'
+  }
   let blocks: Block[] = []
   // Structural undo/redo. Text edits keep the browser's native per-field undo;
   // this stack covers add / delete / duplicate / move / drag-reorder, which
@@ -198,16 +212,22 @@ export function createEditor(root: HTMLElement, opts: CreateEditorOpts = {}): Ed
   const broadcast: BroadcastMeta = {
     from: opts.fromName || 'Spaire',
     audience: 'New enrollments',
-    count: '1,204',
+    // Never fabricated: the count is the course's real enrolled total, shown
+    // only once it loads. The old design's placeholder numbers (1,204/860/…)
+    // and the per-moment fake counts were pure fiction.
+    count: '',
     subject: 'Welcome to Southern Cooking',
     preview: 'Your class is ready. Here is your first lesson.',
   }
+  // The real enrolled total can arrive after mount (async query); keep it here
+  // so a later update can refresh the label WITHOUT remounting the engine.
+  let enrolledTotal: number | null = opts.enrolledCount ?? null
   let currentTrigger = 'enrolment'
 
   const courseName = opts.courseName || 'Southern Cooking'
-  // Real enrolled count (commas) when known, else the design's placeholder.
+  // Real enrolled count (commas) when known, else null — we never invent one.
   const fmtCount = (n: number) => n.toLocaleString()
-  const realCount = () => (opts.enrolledCount != null ? fmtCount(opts.enrolledCount) : null)
+  const realCount = () => (enrolledTotal != null ? fmtCount(enrolledTotal) : null)
   const cleanups: Array<() => void> = []
   const trailerHls: Array<{ destroy: () => void }> = []
   const on = (target: any, ev: string, fn: any, capture?: boolean) => {
@@ -220,7 +240,11 @@ export function createEditor(root: HTMLElement, opts: CreateEditorOpts = {}): Ed
     const m = triggerMeta(currentTrigger)
     const cn = q('#crumbName'); if (cn) cn.textContent = m.name
     const course = q('.tb-course'); if (course) course.textContent = courseName
-    const am = q('#audienceMeta'); if (am) am.innerHTML = `${svg('<path d="M17 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9.5" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path>', 14)} ${broadcast.count} enrolled`
+    // Top-bar context: the course's real enrolled total (not the per-moment
+    // send count, which we can't compute). Shown only once it's known.
+    const am = q('#audienceMeta'); if (am) am.innerHTML = broadcast.count
+      ? `${svg('<path d="M17 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9.5" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path>', 14)} ${broadcast.count} enrolled`
+      : ''
   }
 
   let saveTimer: any
@@ -281,7 +305,7 @@ export function createEditor(root: HTMLElement, opts: CreateEditorOpts = {}): Ed
     closeFloat(); floatEl = node; root.appendChild(node)
     const r = anchor.getBoundingClientRect(); const width = w || node.offsetWidth || 220
     let left = r.right - width; if (left < 10) left = 10
-    node.style.left = left + 'px'; node.style.top = r.bottom + 8 + 'px'
+    place(node, left, r.bottom + 8)
     setTimeout(() => document.addEventListener('mousedown', onFloatOutside, true), 0)
     window.addEventListener('resize', closeFloat)
   }
@@ -347,7 +371,7 @@ export function createEditor(root: HTMLElement, opts: CreateEditorOpts = {}): Ed
     const aud = el('div', 'ss-field')
     aud.appendChild(el('div', 'ss-l', 'Audience'))
     const ar = el('div', 'ss-readonly')
-    ar.innerHTML = `<span class="ss-dot"></span><span>${broadcast.audience} · ${broadcast.count}</span><span class="ss-lock">Set by trigger</span>`
+    ar.innerHTML = `<span class="ss-dot"></span><span>${broadcast.audience}</span><span class="ss-lock">Set by trigger</span>`
     aud.appendChild(ar); rows.appendChild(aud)
     sheet.appendChild(rows)
     const foot = el('div', 'ss-foot')
@@ -372,7 +396,9 @@ export function createEditor(root: HTMLElement, opts: CreateEditorOpts = {}): Ed
       toast('Sending test…')
       opts
         .onSendTest({ subject: broadcast.subject, preview: broadcast.preview, html: buildHTML() })
-        .then(() => toast('Test sent to your inbox'))
+        // The API call only confirms the test was accepted for delivery, not
+        // that it landed — say so honestly ("on its way", not "sent").
+        .then(() => toast('Test on its way to your inbox'))
         .catch(() => toast('Couldn’t send the test'))
     })
   }
@@ -398,7 +424,7 @@ export function createEditor(root: HTMLElement, opts: CreateEditorOpts = {}): Ed
     // one so the lifecycle copy matches the course it's bound to.
     const swap = (s: string) => s.split('Southern Cooking').join(courseName)
     broadcast.subject = swap(m.subject); broadcast.preview = swap(m.preview); broadcast.audience = m.audience
-    broadcast.count = realCount() ?? m.count
+    broadcast.count = realCount() ?? ''
     themeKey = tpl.theme
     // A freshly-loaded template starts from its own theme with no overrides.
     Object.keys(themeOverrides).forEach((k) => delete themeOverrides[k])
@@ -426,7 +452,7 @@ export function createEditor(root: HTMLElement, opts: CreateEditorOpts = {}): Ed
       m.appendChild(it)
     })
     const crumb = q('#crumbBtn')
-    if (crumb) { openFloat(crumb, m, 296); const r = crumb.getBoundingClientRect(); m.style.left = r.left + 'px' }
+    if (crumb) { openFloat(crumb, m, 296); const r = crumb.getBoundingClientRect(); m.style.left = r.left / zoomFactor + 'px' }
   }
 
   function applyTheme() {
@@ -620,18 +646,25 @@ export function createEditor(root: HTMLElement, opts: CreateEditorOpts = {}): Ed
   /* ---------- broadcast details (subject / preview / from / audience) ---------- */
   function buildBroadcastGroup() {
     const g = el('div', 'ig'); g.appendChild(el('div', 'ig-h', 'Details'))
-    const field = (label: string, key: keyof BroadcastMeta, oninput?: () => void) => {
+    const field = (label: string, key: keyof BroadcastMeta, oninput?: () => void, mergeable?: boolean) => {
       const c = el('div', 'ctl'); const l = el('div', 'ctl-l'); l.appendChild(el('span', undefined, label)); c.appendChild(l)
       const i = el('input', 'fld') as HTMLInputElement; i.value = broadcast[key] as string; i.spellcheck = false
       on(i, 'input', () => { (broadcast as any)[key] = i.value; (oninput || flagSaving)() })
+      // Mark subject/preview as merge-tag targets so a personalization chip can
+      // drop {{first_name}} into them (the server substitutes tokens in the
+      // subject too, but there was no UI path to put one there).
+      if (mergeable) { i.dataset.bkey = key; on(i, 'focusin', () => { lastFieldEl = i; lastEditEl = null }) }
       c.appendChild(i); return c
     }
-    g.appendChild(field('Subject', 'subject', () => { const cn = q('#crumbName'); if (cn && broadcast.subject) cn.textContent = triggerMeta(currentTrigger).name; flagSaving() }))
-    g.appendChild(field('Preview text', 'preview'))
+    g.appendChild(field('Subject', 'subject', () => { const cn = q('#crumbName'); if (cn && broadcast.subject) cn.textContent = triggerMeta(currentTrigger).name; flagSaving() }, true))
+    g.appendChild(field('Preview text', 'preview', undefined, true))
     g.appendChild(field('From name', 'from'))
     const ca = el('div', 'ctl'); const la = el('div', 'ctl-l'); la.appendChild(el('span', undefined, 'Audience')); ca.appendChild(la)
     const pill = el('button', 'aud-pill') as HTMLButtonElement; pill.type = 'button'
-    pill.innerHTML = `<span class="aud-dot"></span><span class="aud-name">${broadcast.audience}</span><span class="aud-cnt">${broadcast.count}</span>`
+    // The audience label describes WHO receives it; we don't show a number
+    // here because the per-moment recipient count isn't something we can
+    // compute (the old fixed number next to e.g. "Reached 50%" was a guess).
+    pill.innerHTML = `<span class="aud-dot"></span><span class="aud-name">${broadcast.audience}</span>`
     on(pill, 'click', () => toast('Audience is set by the ' + triggerMeta(currentTrigger).name + ' trigger'))
     ca.appendChild(pill); g.appendChild(ca)
     return g
@@ -768,7 +801,11 @@ export function createEditor(root: HTMLElement, opts: CreateEditorOpts = {}): Ed
     r.append(main, sw); c.appendChild(r); return c
   }
   function ctlColorGlobal(label: string, prop: string) {
-    return colorTrigger(label, (theme() as any)[prop], (v) => { themeOverrides[prop] = v; applyTheme(); renderCanvas(); flagSaving() })
+    // The email/backdrop backgrounds can't be "None": a transparent email
+    // background renders as bgcolor="none" (invalid) and shows white/broken in
+    // the inbox. Force a real colour for these two.
+    const allowNone = prop !== 'emailBg' && prop !== 'outerBg'
+    return colorTrigger(label, (theme() as any)[prop], (v) => { themeOverrides[prop] = v; applyTheme(); renderCanvas(); flagSaving() }, allowNone)
   }
 
   /* ============================================================ COLOUR PICKER */
@@ -785,17 +822,17 @@ export function createEditor(root: HTMLElement, opts: CreateEditorOpts = {}): Ed
     set.forEach((c) => { const k = String(c).toLowerCase(); if (c && k !== 'none' && !seen[k]) { seen[k] = 1; out.push(c) } })
     return out.slice(0, 10)
   }
-  function colorTrigger(label: string, initial: any, onPick: (v: string) => void) {
+  function colorTrigger(label: string, initial: any, onPick: (v: string) => void, allowNone = true) {
     const c = row(label)
     const t = el('button', 'color-trigger') as HTMLButtonElement; t.type = 'button'
     const sw = el('span', 'ct-sw'); const hex = el('span', 'ct-hex')
     let cur = initial
     const refresh = () => { if (!cur || cur === 'none') { sw.classList.add('none'); sw.style.background = ''; hex.textContent = 'None' } else { sw.classList.remove('none'); sw.style.background = cur; hex.textContent = String(cur).toUpperCase() } }
     refresh(); t.append(sw, hex)
-    on(t, 'click', () => { if (pickerEl && (pickerEl as any)._anchor === t) { closePicker(); return } openPicker(t, cur, (v) => { cur = v; onPick(v); refresh() }) })
+    on(t, 'click', () => { if (pickerEl && (pickerEl as any)._anchor === t) { closePicker(); return } openPicker(t, cur, (v) => { cur = v; onPick(v); refresh() }, allowNone) })
     c.appendChild(t); return c
   }
-  function openPicker(anchor: HTMLElement, current: any, onChange: (v: string) => void) {
+  function openPicker(anchor: HTMLElement, current: any, onChange: (v: string) => void, allowNone = true) {
     closePicker()
     let hsv = hexToHsv(current && current !== 'none' ? current : '#808080')
     pickerEl = el('div', 'color-pop'); (pickerEl as any)._anchor = anchor
@@ -821,7 +858,7 @@ export function createEditor(root: HTMLElement, opts: CreateEditorOpts = {}): Ed
     const eyeBtn = pickerEl.querySelector('.cp-eye') as HTMLButtonElement | null
     if (eyeBtn) eyeBtn.addEventListener('click', async () => { try { const res = await (new (window as any).EyeDropper()).open(); hsv = hexToHsv(res.sRGBHex); paint(true) } catch { /* cancelled */ } })
     const pre = pickerEl.querySelector('.cp-presets') as HTMLElement
-    const noneB = el('button', 'cp-chip cp-none') as HTMLButtonElement; noneB.type = 'button'; noneB.title = 'None'; noneB.addEventListener('click', () => onChange('none')); pre.appendChild(noneB)
+    if (allowNone) { const noneB = el('button', 'cp-chip cp-none') as HTMLButtonElement; noneB.type = 'button'; noneB.title = 'None'; noneB.addEventListener('click', () => onChange('none')); pre.appendChild(noneB) }
     presetColors().forEach((cl) => { const b = el('button', 'cp-chip') as HTMLButtonElement; b.type = 'button'; b.style.background = cl; b.title = cl; b.addEventListener('click', () => { hsv = hexToHsv(cl); paint(true) }); pre.appendChild(b) })
     paint(false)
     const inspEl = q('.inspector')
@@ -830,7 +867,7 @@ export function createEditor(root: HTMLElement, opts: CreateEditorOpts = {}): Ed
     const w = 232
     let left = insp.left - w - 10; if (left < 10) left = Math.max(10, r.left - w)
     const top = clampN(r.top - 4, 10, window.innerHeight - 312)
-    pickerEl.style.left = left + 'px'; pickerEl.style.top = top + 'px'
+    place(pickerEl, left, top)
     setTimeout(() => document.addEventListener('mousedown', onPickerOutside, true), 0)
     window.addEventListener('resize', closePicker)
   }
@@ -917,6 +954,9 @@ export function createEditor(root: HTMLElement, opts: CreateEditorOpts = {}): Ed
   // variable in build_variables, so {{company}} rendered blank for everyone.
   const MERGE: [string, string][] = [['First name', 'first_name'], ['Last name', 'last_name'], ['Email', 'email']]
   let lastEditEl: HTMLElement | null = null
+  // The most recently focused broadcast detail field (subject / preview), so a
+  // merge chip can insert a token into it as well as into body text.
+  let lastFieldEl: HTMLInputElement | null = null
   function buildMerge() {
     const w = q('#mergeWrap'); if (!w) return
     MERGE.forEach((m) => {
@@ -928,12 +968,26 @@ export function createEditor(root: HTMLElement, opts: CreateEditorOpts = {}): Ed
   }
   function insertMerge(tag: string) {
     const token = `{{${tag}}}`
+    // A detail field (subject / preview) was the last thing focused → insert at
+    // its caret.
+    if (lastFieldEl && document.contains(lastFieldEl)) {
+      const i = lastFieldEl
+      const s = i.selectionStart ?? i.value.length
+      const e = i.selectionEnd ?? i.value.length
+      i.value = i.value.slice(0, s) + token + i.value.slice(e)
+      const key = i.dataset.bkey as keyof BroadcastMeta | undefined
+      if (key) (broadcast as any)[key] = i.value
+      const caret = s + token.length
+      i.focus(); i.setSelectionRange(caret, caret)
+      flagSaving()
+      return
+    }
     if (lastEditEl && document.contains(lastEditEl)) {
       lastEditEl.focus(); document.execCommand('insertText', false, token)
       const b = blocks.find((x) => x.id === selId)
       if (b && lastEditEl.dataset.edit) setPath(b.props, lastEditEl.dataset.edit, lastEditEl.innerHTML)
       flagSaving()
-    } else toast('Click into a text block first')
+    } else toast('Click into the subject or a text block first')
   }
 
   /* ============================================================ FLOATING FORMAT BUBBLE
@@ -1012,7 +1066,7 @@ export function createEditor(root: HTMLElement, opts: CreateEditorOpts = {}): Ed
     left = Math.max(8, Math.min(window.innerWidth - bw - 8, left))
     const arrowX = rect.left + rect.width / 2 - left
     b.style.setProperty('--arrow', Math.max(14, Math.min(bw - 14, arrowX)) + 'px')
-    b.style.left = left + 'px'; b.style.top = top + 'px'
+    place(b, left, top)
   }
 
   function updateFmtState() {
@@ -1159,7 +1213,7 @@ export function createEditor(root: HTMLElement, opts: CreateEditorOpts = {}): Ed
       e.preventDefault(); const i = blocks.findIndex((x) => x.id === selId); if (i > -1) delBlock(i)
     }
   })
-  on(root, 'focusin', (e: FocusEvent) => { const t = e.target as HTMLElement; if (t.matches && t.matches('[contenteditable][data-edit]')) lastEditEl = t })
+  on(root, 'focusin', (e: FocusEvent) => { const t = e.target as HTMLElement; if (t.matches && t.matches('[contenteditable][data-edit]')) { lastEditEl = t; lastFieldEl = null } })
 
   // Paste hygiene: the browser default would inject the clipboard's full
   // styled markup (Word/Docs fonts, sizes, spans) straight into the stored
@@ -1192,11 +1246,17 @@ export function createEditor(root: HTMLElement, opts: CreateEditorOpts = {}): Ed
     const avail = host ? host.getBoundingClientRect().width : window.innerWidth
     if (!avail) return
     const z = Math.max(MIN_ZOOM, Math.min(1, avail / NATURAL_W))
+    zoomFactor = z
     // `zoom` (unlike transform: scale) reflows the layout, so the columns lay
     // out at full design width and then render scaled — no squish, fills width.
     ;(root.style as any).zoom = z === 1 ? '' : String(z)
     // zoom scales height too; compensate so the editor still fills the viewport.
     root.style.height = z === 1 ? '' : 100 / z + 'vh'
+    // Re-place an open format bubble so it tracks its anchor after a resize
+    // instead of freezing at the pre-resize offset (its coord space just
+    // rescaled).
+    if (fmtBubble && fmtBubble.classList.contains('show') && fmtRect)
+      positionFmtBubble(fmtRect)
   }
   fitToWidth()
   const fitRO =
@@ -1213,6 +1273,14 @@ export function createEditor(root: HTMLElement, opts: CreateEditorOpts = {}): Ed
     notifySaveResult(ok: boolean) {
       if (!ok) setStatus("Couldn't save — check your connection")
       else if (!dirty) setStatus('<span class="saved-dot"></span>Saved')
+    },
+    setEnrolledCount(n: number | null) {
+      enrolledTotal = n
+      const rc = realCount()
+      if (rc) broadcast.count = rc
+      // Refresh only the count label; never re-render the canvas (that would
+      // steal focus). No dirty flag — a count arriving isn't a creator edit.
+      updateCrumb()
     },
     destroy() {
       // Persist any debounced-but-unsent edit before tearing down, so an
