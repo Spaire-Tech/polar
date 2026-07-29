@@ -76,12 +76,15 @@ export interface CreateEditorOpts {
   applyCourse?: (blocks: Block[], trigger: string) => Block[]
   /** Upload a chosen image file, returning its hosted URL (S3). */
   onUploadImage?: (file: File) => Promise<string>
-  /** Persist: subject + inbox HTML + serialisable JSON + trigger. */
-  onSave?: (v: { subject: string; preview: string; html: string; json: EditorState; trigger: string }) => void
+  /** Persist: subject + inbox HTML + serialisable JSON + trigger. Return
+   *  `false` when the host could NOT persist (e.g. the automation itself
+   *  hasn't been created yet) so the status tells the truth. */
+  onSave?: (v: { subject: string; preview: string; html: string; json: EditorState; trigger: string }) => void | boolean
   /** Persist edits in the background WITHOUT closing the editor. When wired,
    *  the engine autosaves on a debounce after every edit (and flushes on close)
-   *  so the "Saved" status is truthful and work is never lost on Back. */
-  onAutosave?: (v: { subject: string; preview: string; html: string; json: EditorState; trigger: string }) => void
+   *  so the "Saved" status is truthful and work is never lost on Back. Return
+   *  `false` when the edits could not be persisted yet. */
+  onAutosave?: (v: { subject: string; preview: string; html: string; json: EditorState; trigger: string }) => void | boolean
   /** Back / close. */
   onClose?: () => void
   /** Fired on every content/structure change (autosave hint). */
@@ -93,6 +96,9 @@ export interface CreateEditorOpts {
 export interface EditorHandle {
   getState: () => EditorState
   getHTML: () => string
+  /** The host reports the outcome of its (async, debounced) write so the
+   *  status chip never claims "Saved" after a failed request. */
+  notifySaveResult: (ok: boolean) => void
   destroy: () => void
 }
 
@@ -206,8 +212,9 @@ export function createEditor(root: HTMLElement, opts: CreateEditorOpts = {}): Ed
   function runAutosave() {
     if (!dirty) return
     dirty = false
+    let persisted: void | boolean = true
     if (opts.onAutosave) {
-      opts.onAutosave({
+      persisted = opts.onAutosave({
         subject: broadcast.subject,
         preview: broadcast.preview,
         html: buildHTML(),
@@ -215,7 +222,11 @@ export function createEditor(root: HTMLElement, opts: CreateEditorOpts = {}): Ed
         trigger: currentTrigger,
       })
     }
-    setStatus('<span class="saved-dot"></span>Saved')
+    // The host tells us whether it could actually write (a new, never-saved
+    // automation can't). Showing "Saved" regardless was a lie that cost real
+    // work on refresh/close.
+    if (persisted === false) setStatus('Not saved yet — save the automation to keep it')
+    else setStatus('<span class="saved-dot"></span>Saved')
   }
   // Force any pending autosave to run now (on Back / unmount) so the last edit
   // is never dropped by the debounce.
@@ -275,13 +286,19 @@ export function createEditor(root: HTMLElement, opts: CreateEditorOpts = {}): Ed
   function refreshDetails() { if (!selId) renderInspector() }
   function commitSave() {
     closeSave()
-    if (opts.onSave) opts.onSave({ subject: broadcast.subject, preview: broadcast.preview, html: buildHTML(), json: getState(), trigger: currentTrigger })
+    let persisted: void | boolean = true
+    if (opts.onSave) persisted = opts.onSave({ subject: broadcast.subject, preview: broadcast.preview, html: buildHTML(), json: getState(), trigger: currentTrigger })
     // The explicit save already persisted everything — cancel any pending
     // autosave and mark clean (don't call flagSaving, which would re-dirty it).
     dirty = false
     clearTimeout(saveTimer)
-    setStatus('<span class="saved-dot"></span>Saved')
-    toast('Saved to the sequence')
+    if (persisted === false) {
+      setStatus('Not saved yet — save the automation to keep it')
+      toast('Staged — save the automation to keep it')
+    } else {
+      setStatus('<span class="saved-dot"></span>Saved')
+      toast('Saved to the sequence')
+    }
   }
   function openSaveConfirm() {
     closeSave()
@@ -802,12 +819,12 @@ export function createEditor(root: HTMLElement, opts: CreateEditorOpts = {}): Ed
 
   /* ============================================================ BLOCK OPS */
   function moveBlock(i: number, dir: number) { const j = i + dir; if (j < 0 || j >= blocks.length) return; [blocks[i], blocks[j]] = [blocks[j], blocks[i]]; renderCanvas(); flagSaving() }
-  function dupBlock(i: number) { const copy = makeBlock(blocks[i].type, JSON.parse(JSON.stringify(blocks[i].props))); blocks.splice(i + 1, 0, copy); renderCanvas(); select(copy.id); toast('Block duplicated') }
+  function dupBlock(i: number) { const copy = makeBlock(blocks[i].type, JSON.parse(JSON.stringify(blocks[i].props))); blocks.splice(i + 1, 0, copy); renderCanvas(); select(copy.id); toast('Block duplicated'); flagSaving() }
   function delBlock(i: number) { const wasSel = blocks[i].id === selId; blocks.splice(i, 1); renderCanvas(); if (wasSel) deselect(); flagSaving() }
   function addBlock(type: string, atIndex?: number) {
     const b = makeBoundBlock(type)
     const idx = atIndex != null ? atIndex : selId ? blocks.findIndex((x) => x.id === selId) + 1 : blocks.length
-    blocks.splice(idx, 0, b); renderCanvas(); select(b.id)
+    blocks.splice(idx, 0, b); renderCanvas(); select(b.id); flagSaving()
     const node = q(`.blk[data-id="${b.id}"]`)
     const cv = q('#canvas')
     if (node && cv) { const r = node.getBoundingClientRect(), cr = cv.getBoundingClientRect(); if (r.bottom > cr.bottom || r.top < cr.top) cv.scrollBy({ top: r.top - cr.top - 120, behavior: 'smooth' }) }
@@ -1136,6 +1153,10 @@ export function createEditor(root: HTMLElement, opts: CreateEditorOpts = {}): Ed
   return {
     getState,
     getHTML: buildHTML,
+    notifySaveResult(ok: boolean) {
+      if (!ok) setStatus("Couldn't save — check your connection")
+      else if (!dirty) setStatus('<span class="saved-dot"></span>Saved')
+    },
     destroy() {
       // Persist any debounced-but-unsent edit before tearing down, so an
       // unmount (route change, parent close) never drops the last change.

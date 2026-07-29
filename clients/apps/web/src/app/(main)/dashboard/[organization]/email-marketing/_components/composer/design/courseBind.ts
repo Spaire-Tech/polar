@@ -23,11 +23,19 @@ const LEGACY_TITLE = 'Southern Cooking'
 const pivotalLessonIndex = (n: number): number =>
   Math.min(Math.max(0, n - 1), Math.max(0, Math.floor(n / 3)))
 
+export type CourseLinks = {
+  /** Student-facing course page (the portal watch page). */
+  courseUrl?: string
+  /** The creator's public catalog/storefront, for "explore more" CTAs. */
+  catalogUrl?: string
+}
+
 export function bindCourse(
   blocks: Block[],
   course: CourseData | undefined,
   creatorName?: string,
   trigger?: string,
+  links?: CourseLinks,
 ): Block[] {
   if (!course) return blocks
   const hasLessons = course.lessons.length > 0
@@ -157,6 +165,21 @@ export function bindCourse(
         else if (p.by) p.by = swapLegacy(p.by)
         break
       }
+    }
+
+    // Every CTA needs a real destination: templates ship buttons with no href,
+    // and an empty href renders as a dead "#" link in the sent email. Point
+    // course CTAs at the student's course page; the course-complete "what's
+    // next" CTA goes to the creator's catalog instead. Only empty/'#' hrefs
+    // are filled — a hand-typed link always wins.
+    const isExploreCta = b.type === 'cta' && trigger === 'courseComplete'
+    const dest =
+      (isExploreCta ? links?.catalogUrl : links?.courseUrl) || links?.courseUrl
+    if (dest) {
+      const btn = p.btn as { href?: string } | undefined
+      if (btn && typeof btn === 'object' && (!btn.href || btn.href === '#'))
+        btn.href = dest
+      if (b.type === 'button' && (!p.href || p.href === '#')) p.href = dest
     }
   }
   return blocks

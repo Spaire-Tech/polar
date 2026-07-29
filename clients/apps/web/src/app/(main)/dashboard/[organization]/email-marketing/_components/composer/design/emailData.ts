@@ -1456,7 +1456,9 @@ export const TEMPLATES: Record<string, TemplateDef> = {
           // byline shows the course name — bindCourse fills it from the course.
           instructor: '',
           tagline: 'Every lesson, done. What you built here is yours now.',
-          btn: { text: 'Get your certificate', style: 'solid', align: 'left', radius: 999 },
+          // No certificates exist on the platform — the completion CTA sends
+          // them back into the course they now own.
+          btn: { text: 'Rewatch your favorites', style: 'solid', align: 'left', radius: 999 },
         },
       },
       { type: 'progress', props: { label: 'Course progress', value: 12, total: 12 } },

@@ -15,6 +15,7 @@ import { BroadcastEditorDesign } from '@/app/(main)/dashboard/[organization]/ema
 import type { EditorState } from '@/app/(main)/dashboard/[organization]/email-marketing/_components/composer/design/emailEngine'
 import { mapCourse } from '@/app/(main)/dashboard/[organization]/email-marketing/_components/composer/v3/courseMap'
 import { useCourseById, useCourseEnrollments } from '@/hooks/queries/courses'
+import { organizationPageLink, storefrontLink } from '@/utils/nav'
 import {
   useSendTestEmail,
   useUploadEmailImage,
@@ -41,6 +42,7 @@ export function SequenceEmailModal({
   moment,
   initialSubject,
   initialContentJson,
+  saveFailed,
   onSave,
   onAutosave,
   onClose,
@@ -51,17 +53,21 @@ export function SequenceEmailModal({
   sequenceName?: string
   initialSubject?: string
   initialContentJson?: Record<string, unknown> | null
+  /** The host's last background write failed — shown in the editor's status. */
+  saveFailed?: boolean
+  /** Return `false` when the step could not actually be persisted yet (new,
+   *  never-saved automation) so the editor's "Saved" status stays honest. */
   onSave: (v: {
     subject: string
     content_html: string
     content_json: Record<string, unknown>
-  }) => void
+  }) => void | boolean
   /** Silently persist edits into the step as the creator types (no close). */
   onAutosave?: (v: {
     subject: string
     content_html: string
     content_json: Record<string, unknown>
-  }) => void
+  }) => void | boolean
   onClose: () => void
 }) {
   // Lock page scroll while the full-screen editor is open.
@@ -95,6 +101,20 @@ export function SequenceEmailModal({
   const enrolledCount = enrollments?.pagination.total_count
 
   const initialTrigger = moment ? MOMENT_TO_TRIGGER[moment] ?? 'enrolment' : 'enrolment'
+
+  // Real destinations for the templates' CTA buttons: the student's course
+  // page (custom domain when live, else the platform host + slug — mirrors the
+  // server's storefront_url), and the public catalog for "what's next" CTAs.
+  const customDomain =
+    'custom_domain' in organization
+      ? ((organization as { custom_domain?: string | null }).custom_domain ?? null)
+      : null
+  const courseUrl = courseId
+    ? customDomain
+      ? `https://${customDomain}/portal/courses/${courseId}`
+      : organizationPageLink(organization, `portal/courses/${courseId}`)
+    : undefined
+  const catalogUrl = storefrontLink(organization)
 
   // Only restore state the design editor itself wrote (version 3). Emails
   // authored in earlier composers use a different shape and start fresh from
@@ -135,6 +155,8 @@ export function SequenceEmailModal({
         }
         initialSubject={initialSubject}
         initialState={initialState}
+        links={{ courseUrl, catalogUrl }}
+        saveFailed={saveFailed}
         onUploadImage={async (file) => (await upload.mutateAsync(file)).url}
         onSendTest={async (v) => {
           await sendTest.mutateAsync({
@@ -151,12 +173,13 @@ export function SequenceEmailModal({
           })
         }
         onSave={(p) => {
-          onSave({
+          const persisted = onSave({
             subject: p.subject,
             content_html: p.html,
             content_json: p.json as unknown as Record<string, unknown>,
           })
           onClose()
+          return persisted
         }}
         onClose={onClose}
       />
