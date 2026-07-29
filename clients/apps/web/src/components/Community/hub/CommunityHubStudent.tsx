@@ -30,28 +30,9 @@ import { ProfileTab } from './Profile'
 
 const { useState, useRef, useCallback, useMemo, useEffect } = React
 
-// Follow the portal's resolved theme without importing from the app route
-// group. usePortalTheme caches the resolved value in localStorage as
-// `sp_theme:{slug}` and broadcasts changes via the `sp-theme-change` event.
-function usePortalDark(slug: string): boolean {
-  const [dark, setDark] = useState(false)
-  useEffect(() => {
-    const read = () => {
-      try {
-        setDark(window.localStorage.getItem(`sp_theme:${slug}`) === 'dark')
-      } catch {
-        setDark(false)
-      }
-    }
-    read()
-    window.addEventListener('sp-theme-change', read)
-    window.addEventListener('storage', read)
-    return () => {
-      window.removeEventListener('sp-theme-change', read)
-      window.removeEventListener('storage', read)
-    }
-  }, [slug])
-  return dark
+// The customer portal (this student community view included) is always dark.
+function usePortalDark(_slug: string): boolean {
+  return true
 }
 
 type StudentTab = 'feed' | 'brief' | 'events' | 'members' | 'profile'

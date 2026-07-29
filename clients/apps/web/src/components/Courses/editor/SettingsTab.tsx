@@ -1,5 +1,16 @@
 'use client'
 
+/**
+ * Course editor — Settings tab.
+ *
+ * Uses the community-hub grouped-list design (Apple-style .glist / .grow rows,
+ * .card form-cards, the hub Toggle) so Settings matches the Community tab 1:1.
+ * Text fields persist on blur; the assistant toggle / scope persist
+ * immediately — there is no separate save bar, exactly like community settings.
+ *
+ * The custom-domain block keeps its own layout and renders outside the
+ * `.spaire-hub` wrapper (its Tailwind utilities are themed by `.editor-dark`).
+ */
 import {
   AssistantStrictness,
   CourseRead,
@@ -7,44 +18,125 @@ import {
   useUploadCourseThumbnail,
 } from '@/hooks/queries/courses'
 import { getQueryClient } from '@/utils/api/query'
-import ImageOutlined from '@mui/icons-material/ImageOutlined'
 import { schemas } from '@spaire/client'
-import Switch from '@spaire/ui/components/atoms/Switch'
 import { useEffect, useRef, useState } from 'react'
 import { toast } from '../../Toast/use-toast'
+import { CoverDrop, Field, Toggle } from '../../Community/hub/atoms'
+import '../../Community/hub/hub.css'
+import '../../Community/hub/hub-extra.css'
 import { CustomDomainSection } from './CustomDomainSection'
-import { ThumbnailPositioner } from './ThumbnailPositioner'
 
 export type CourseSettingsEdits = {
   title?: string | null
   description?: string | null
   instructor_name?: string | null
   instructor_bio?: string | null
-  // Paywall lives on the PRICING tab; Settings no longer sends these.
   paywall_enabled?: boolean
   paywall_position?: number | null
   thumbnail_object_position?: string | null
 }
 
+/** A grouped-list text field: full-width input inside a form-card Field,
+ *  committed on blur (and on Enter). */
+function TextField({
+  label,
+  hint,
+  value,
+  placeholder,
+  onCommit,
+}: {
+  label: string
+  hint?: string
+  value: string
+  placeholder?: string
+  onCommit: (v: string) => void
+}) {
+  const [v, setV] = useState(value)
+  useEffect(() => setV(value), [value])
+  const commit = () => {
+    if (v !== value) onCommit(v)
+  }
+  return (
+    <Field label={label} hint={hint}>
+      <input
+        className="input"
+        value={v}
+        placeholder={placeholder}
+        onChange={(e) => setV(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') (e.target as HTMLInputElement).blur()
+        }}
+      />
+    </Field>
+  )
+}
+
+function TextAreaField({
+  label,
+  hint,
+  value,
+  placeholder,
+  onCommit,
+}: {
+  label: string
+  hint?: string
+  value: string
+  placeholder?: string
+  onCommit: (v: string) => void
+}) {
+  const [v, setV] = useState(value)
+  useEffect(() => setV(value), [value])
+  const commit = () => {
+    if (v !== value) onCommit(v)
+  }
+  return (
+    <Field label={label} hint={hint}>
+      <textarea
+        className="textarea"
+        value={v}
+        placeholder={placeholder}
+        onChange={(e) => setV(e.target.value)}
+        onBlur={commit}
+      />
+    </Field>
+  )
+}
+
+function ToggleRow({
+  label,
+  hint,
+  on,
+  onToggle,
+}: {
+  label: string
+  hint: string
+  on: boolean
+  onToggle: () => void
+}) {
+  return (
+    <div className="grow">
+      <div className="grow-main">
+        <div className="gl">{label}</div>
+        <div className="gs">{hint}</div>
+      </div>
+      <div className="grow-ctl">
+        <Toggle on={on} onClick={onToggle} />
+      </div>
+    </div>
+  )
+}
+
 export function SettingsTab({
   course,
   organization,
-  onSave,
-  isSaving,
 }: {
   course: CourseRead
   organization: schemas['Organization']
-  onSave: (edits: CourseSettingsEdits) => void
-  isSaving: boolean
+  // Settings persists inline; these props are unused (kept for the caller).
+  onSave?: (edits: CourseSettingsEdits) => void
+  isSaving?: boolean
 }) {
-  const [title, setTitle] = useState(course.title ?? '')
-  const [description, setDescription] = useState(course.description ?? '')
-  const [instructorName, setInstructorName] = useState(
-    course.instructor_name ?? '',
-  )
-  const [instructorBio, setInstructorBio] = useState(
-    course.instructor_bio ?? '',
-  )
   const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(
     course.thumbnail_url ?? null,
   )
@@ -57,423 +149,175 @@ export function SettingsTab({
   const [strictness, setStrictness] = useState<AssistantStrictness>(
     course.assistant_strictness,
   )
-  const thumbnailInputRef = useRef<HTMLInputElement>(null)
   const uploadThumbnail = useUploadCourseThumbnail()
   const updateCourse = useUpdateCourse()
-
-  // The assistant toggle / strictness save immediately (not via the bottom
-  // Save bar, which is for the editable text fields). Optimistic local state,
-  // reverted on failure.
-  const persistAssistant = async (patch: {
-    assistant_enabled?: boolean
-    assistant_strictness?: AssistantStrictness
-  }) => {
-    try {
-      await updateCourse.mutateAsync({ courseId: course.id, body: patch })
-      getQueryClient().invalidateQueries({
-        queryKey: ['courses', { courseId: course.id }],
-      })
-    } catch {
-      // Revert optimistic state to the server's last-known values.
-      setAssistantEnabled(course.assistant_enabled)
-      setStrictness(course.assistant_strictness)
-      toast({ title: 'Failed to update the course assistant' })
-    }
-  }
-
-  const handleToggleAssistant = (next: boolean) => {
-    setAssistantEnabled(next)
-    persistAssistant({ assistant_enabled: next })
-  }
-
-  const handleSetStrictness = (next: AssistantStrictness) => {
-    if (next === strictness) return
-    setStrictness(next)
-    persistAssistant({ assistant_strictness: next })
-  }
-
-  const handleRemoveThumbnail = async () => {
-    try {
-      // Send `thumbnail_url: null` so the server clears the column.
-      // CourseUpdate uses exclude_unset so an explicit null persists.
-      await updateCourse.mutateAsync({
-        courseId: course.id,
-        body: { thumbnail_url: null, thumbnail_object_position: null },
-      })
-      setThumbnailUrl(null)
-      setThumbnailPosition(null)
-      toast({ title: 'Thumbnail removed' })
-    } catch (err) {
-      toast({
-        title: 'Failed to remove thumbnail',
-        description: err instanceof Error ? err.message : undefined,
-      })
-    }
-  }
+  const posTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
-    setTitle(course.title ?? '')
-    setDescription(course.description ?? '')
-    setInstructorName(course.instructor_name ?? '')
-    setInstructorBio(course.instructor_bio ?? '')
     setThumbnailUrl(course.thumbnail_url ?? null)
     setThumbnailPosition(course.thumbnail_object_position ?? null)
     setAssistantEnabled(course.assistant_enabled)
     setStrictness(course.assistant_strictness)
   }, [
     course.id,
-    course.title,
-    course.description,
-    course.instructor_name,
-    course.instructor_bio,
     course.thumbnail_url,
     course.thumbnail_object_position,
     course.assistant_enabled,
     course.assistant_strictness,
   ])
 
-  const handleThumbnailChange = async (
-    e: React.ChangeEvent<HTMLInputElement>,
+  // Silent inline persist (matches community settings: no toast, no save bar).
+  const patch = async (
+    body: Parameters<typeof updateCourse.mutateAsync>[0]['body'],
   ) => {
-    const file = e.target.files?.[0]
-    if (!file) return
+    try {
+      await updateCourse.mutateAsync({ courseId: course.id, body })
+      getQueryClient().invalidateQueries({
+        queryKey: ['courses', { courseId: course.id }],
+      })
+    } catch {
+      toast({ title: 'Could not save that change' })
+    }
+  }
+
+  const persistAssistant = async (body: {
+    assistant_enabled?: boolean
+    assistant_strictness?: AssistantStrictness
+  }) => {
+    try {
+      await updateCourse.mutateAsync({ courseId: course.id, body })
+      getQueryClient().invalidateQueries({
+        queryKey: ['courses', { courseId: course.id }],
+      })
+    } catch {
+      setAssistantEnabled(course.assistant_enabled)
+      setStrictness(course.assistant_strictness)
+      toast({ title: 'Could not update the assistant' })
+    }
+  }
+
+  const onCoverFile = async (file: File, dataUrl: string) => {
+    setThumbnailUrl(dataUrl) // optimistic
     try {
       const updated = await uploadThumbnail.mutateAsync({
         courseId: course.id,
         file,
       })
       setThumbnailUrl(updated.thumbnail_url ?? null)
+      toast({ title: 'Thumbnail updated' })
     } catch {
-      // mutation surfaces error
+      setThumbnailUrl(course.thumbnail_url ?? null)
+      toast({ title: 'Could not upload that image' })
     }
-    e.target.value = ''
   }
 
-  const titleTrim = title.trim()
-  const titleError = titleTrim.length === 0
-  const detailsDirty =
-    titleTrim !== (course.title ?? '').trim() ||
-    description.trim() !== (course.description ?? '').trim() ||
-    instructorName.trim() !== (course.instructor_name ?? '').trim() ||
-    instructorBio.trim() !== (course.instructor_bio ?? '').trim()
-  const dirty =
-    detailsDirty ||
-    (thumbnailPosition ?? null) !== (course.thumbnail_object_position ?? null)
-
-  const handleSave = () => {
-    if (titleError) return
-    onSave({
-      title: titleTrim,
-      description: description.trim() || null,
-      instructor_name: instructorName.trim() || null,
-      instructor_bio: instructorBio.trim() || null,
-      thumbnail_object_position: thumbnailPosition,
-    })
-  }
-
-  const handleReset = () => {
-    setTitle(course.title ?? '')
-    setDescription(course.description ?? '')
-    setInstructorName(course.instructor_name ?? '')
-    setInstructorBio(course.instructor_bio ?? '')
-    setThumbnailPosition(course.thumbnail_object_position ?? null)
+  const onCoverPos = (pos: string) => {
+    setThumbnailPosition(pos) // instant preview
+    if (posTimer.current) clearTimeout(posTimer.current)
+    posTimer.current = setTimeout(
+      () => patch({ thumbnail_object_position: pos }),
+      450,
+    )
   }
 
   return (
     <div className="mx-auto w-full max-w-3xl px-8 py-8">
-      <div className="mb-8">
-        <h1 className="text-lg font-medium text-gray-900">Course settings</h1>
-        <p className="mt-1 text-gray-500">
-          The course title, description, instructor and thumbnail used on the
-          landing page.
-        </p>
-      </div>
-
-      <section className="mb-6 rounded-2xl border border-gray-200 bg-white p-6">
-        <div className="mb-4">
-          <h2 className="text-lg font-medium text-gray-900">Details</h2>
-          <p className="mt-1 text-gray-500">
-            Shown on the course landing and student portal.
-          </p>
-        </div>
-
-        <div className="flex flex-col gap-4">
+      <div className="spaire-hub dark">
+        <div className="cr-head">
           <div>
-            <label className="block text-sm font-medium text-gray-900">
-              Course title
-            </label>
-            <input
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              aria-invalid={titleError}
-              className={
-                'mt-2 w-full rounded-xl border px-3.5 py-2.5 text-sm text-gray-900 focus:ring-2 focus:outline-none ' +
-                (titleError
-                  ? 'border-red-400 focus:border-red-500 focus:ring-red-100'
-                  : 'focus:border-ce-accent focus:ring-ce-accent-ring border-gray-300')
-              }
-              placeholder="e.g. The Art of Persuasive Writing"
-            />
-            {titleError && (
-              <p className="mt-1 text-xs text-red-500">Title is required.</p>
-            )}
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-900">
-              Course description
-            </label>
-            <p className="mt-0.5 text-xs text-gray-500">
-              A short paragraph describing what the course covers — shown in
-              meta tags and product previews.
-            </p>
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              rows={4}
-              className="focus:border-ce-accent focus:ring-ce-accent-ring mt-2 w-full rounded-xl border border-gray-300 px-3.5 py-2.5 text-sm text-gray-900 focus:ring-2 focus:outline-none"
-              placeholder="What learners walk away with."
-            />
+            <div className="h">Settings</div>
+            <div className="s">How this course looks and runs.</div>
           </div>
         </div>
-      </section>
 
-      <section className="mb-6 rounded-2xl border border-gray-200 bg-white p-6">
-        <div className="mb-4">
-          <h2 className="text-lg font-medium text-gray-900">Instructor</h2>
-          <p className="mt-1 text-gray-500">
-            Used in the hero, instructor section, and pull-quote attribution.
-          </p>
-        </div>
-
-        <div className="flex flex-col gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-900">
-              Instructor name
-            </label>
-            <input
-              type="text"
-              value={instructorName}
-              onChange={(e) => setInstructorName(e.target.value)}
-              className="focus:border-ce-accent focus:ring-ce-accent-ring mt-2 w-full rounded-xl border border-gray-300 px-3.5 py-2.5 text-sm text-gray-900 focus:ring-2 focus:outline-none"
-              placeholder="e.g. Dr. Lena Marchetti"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-900">
-              Instructor bio
-            </label>
-            <textarea
-              value={instructorBio}
-              onChange={(e) => setInstructorBio(e.target.value)}
-              rows={4}
-              className="focus:border-ce-accent focus:ring-ce-accent-ring mt-2 w-full rounded-xl border border-gray-300 px-3.5 py-2.5 text-sm text-gray-900 focus:ring-2 focus:outline-none"
-              placeholder="Short third-person bio."
-            />
-          </div>
-        </div>
-      </section>
-
-      <section className="mb-6 rounded-2xl border border-gray-200 bg-white p-6">
-        <div className="mb-4">
-          <h2 className="text-lg font-medium text-gray-900">
-            Course thumbnail
-          </h2>
-          <p className="mt-1 text-gray-500">
-            Shown on the course card and the student portal. JPG or PNG with a
-            non-transparent background. Recommended dimensions{' '}
-            <span className="font-medium text-gray-700">1280×720</span>.
-          </p>
-        </div>
-
-        <input
-          ref={thumbnailInputRef}
-          type="file"
-          accept="image/jpeg,image/png,image/webp"
-          className="hidden"
-          onChange={handleThumbnailChange}
-        />
-
-        {thumbnailUrl ? (
-          <div className="flex flex-col gap-3">
-            <ThumbnailPositioner
+        {/* Cover */}
+        <div className="glist-label">Cover</div>
+        <div className="card form-card" style={{ marginBottom: 26 }}>
+          <Field label="Thumbnail" hint="Shown on the card and portal.">
+            <CoverDrop
               src={thumbnailUrl}
-              value={thumbnailPosition}
-              onChange={setThumbnailPosition}
+              onFile={onCoverFile}
+              pos={thumbnailPosition}
+              onPos={onCoverPos}
             />
-            <p className="text-xs text-gray-500">
-              Drag the image to choose the focal point shown on the landing page
-              hero.
-            </p>
-            <div className="flex justify-end gap-2">
-              <button
-                type="button"
-                disabled={updateCourse.isPending || uploadThumbnail.isPending}
-                onClick={handleRemoveThumbnail}
-                className="rounded-full border border-gray-300 px-4 py-2 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-50"
-              >
-                {updateCourse.isPending ? 'Removing…' : 'Remove'}
-              </button>
-              <button
-                type="button"
-                disabled={uploadThumbnail.isPending}
-                onClick={() => thumbnailInputRef.current?.click()}
-                className="rounded-full bg-gray-900 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-gray-800 disabled:opacity-50"
-              >
-                {uploadThumbnail.isPending ? 'Uploading…' : 'Replace image'}
-              </button>
-            </div>
-          </div>
-        ) : (
-          <div
-            className="flex cursor-pointer items-center gap-4 rounded-xl border border-gray-200 bg-gray-50 p-4 transition-colors hover:border-gray-300"
-            onClick={() => thumbnailInputRef.current?.click()}
-          >
-            <div className="flex h-20 w-32 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-gray-200 bg-white">
-              <ImageOutlined className="text-gray-300" sx={{ fontSize: 32 }} />
-            </div>
-            <div className="flex-1">
-              <p className="text-sm font-medium text-gray-900">
-                Upload an image
-              </p>
-              <p className="mt-0.5 text-xs text-gray-500">
-                {uploadThumbnail.isPending
-                  ? 'Uploading…'
-                  : 'Click to select a file'}
-              </p>
-            </div>
-            <button
-              type="button"
-              disabled={uploadThumbnail.isPending}
-              className="rounded-full bg-gray-900 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-gray-800 disabled:opacity-50"
-            >
-              {uploadThumbnail.isPending ? 'Uploading…' : 'Select image'}
-            </button>
-          </div>
-        )}
-      </section>
-
-      <section className="mb-6 rounded-2xl border border-gray-200 bg-white p-6">
-        <div className="mb-4">
-          <h2 className="text-lg font-medium text-gray-900">
-            Course assistant
-          </h2>
-          <p className="mt-1 text-gray-500">
-            An AI teaching assistant your students can chat with inside the
-            course. It answers from your material and explains concepts on
-            demand — available the moment you publish.
-          </p>
+          </Field>
         </div>
 
-        <div className="flex items-center justify-between gap-4 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
-          <div>
-            <div className="text-sm font-medium text-gray-900">
-              Enable for students
-            </div>
-            <div className="mt-0.5 text-xs text-gray-500">
-              Shows the assistant chat inside the course player.
-            </div>
-          </div>
-          <Switch
-            checked={assistantEnabled}
-            onCheckedChange={handleToggleAssistant}
-            disabled={updateCourse.isPending}
-            aria-label="Enable the course assistant"
-            className="data-[state=checked]:bg-ce-accent"
+        {/* Details */}
+        <div className="glist-label">Details</div>
+        <div className="card form-card" style={{ marginBottom: 26 }}>
+          <TextField
+            label="Title"
+            value={course.title ?? ''}
+            placeholder="Course title"
+            onCommit={(v) => patch({ title: v.trim() })}
+          />
+          <TextAreaField
+            label="Description"
+            hint="Shown on the landing page and previews."
+            value={course.description ?? ''}
+            placeholder="What learners walk away with."
+            onCommit={(v) => patch({ description: v.trim() || null })}
           />
         </div>
 
-        {assistantEnabled && (
-          <div className="mt-4">
-            <label className="block text-sm font-medium text-gray-900">
-              How closely should it stick to your course?
-            </label>
-            <p className="mt-0.5 text-xs text-gray-500">
-              Choose how far the assistant may go beyond your material when a
-              student asks something the course doesn’t cover.
-            </p>
-            <div className="mt-3 flex flex-col gap-2">
-              {(
-                [
-                  {
-                    value: 'course_plus_general' as const,
-                    title: 'Course + general knowledge',
-                    sub: 'Answers from your course first, then falls back to general knowledge about the subject — clearly labeled when it does.',
-                  },
-                  {
-                    value: 'course_only' as const,
-                    title: 'Course only',
-                    sub: 'Sticks strictly to your material and points students to the relevant lesson instead of improvising. Best for proprietary or opinionated methods.',
-                  },
-                ] satisfies {
-                  value: AssistantStrictness
-                  title: string
-                  sub: string
-                }[]
-              ).map((opt) => {
-                const active = strictness === opt.value
-                return (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    disabled={updateCourse.isPending}
-                    onClick={() => handleSetStrictness(opt.value)}
-                    className={
-                      'flex items-start gap-3 rounded-xl border p-3.5 text-left transition-colors disabled:opacity-50 ' +
-                      (active
-                        ? 'border-ce-accent bg-ce-accent-tint ring-ce-accent-ring ring-1'
-                        : 'border-gray-200 hover:border-gray-300')
-                    }
-                  >
-                    <span
-                      className={
-                        'mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border ' +
-                        (active ? 'border-ce-accent' : 'border-gray-300')
-                      }
-                    >
-                      {active && (
-                        <span className="bg-ce-accent h-2 w-2 rounded-full" />
-                      )}
-                    </span>
-                    <span>
-                      <span className="block text-sm font-medium text-gray-900">
-                        {opt.title}
-                      </span>
-                      <span className="mt-0.5 block text-xs text-gray-500">
-                        {opt.sub}
-                      </span>
-                    </span>
-                  </button>
-                )
-              })}
+        {/* Instructor */}
+        <div className="glist-label">Instructor</div>
+        <div className="card form-card" style={{ marginBottom: 26 }}>
+          <TextField
+            label="Name"
+            value={course.instructor_name ?? ''}
+            placeholder="Instructor name"
+            onCommit={(v) => patch({ instructor_name: v.trim() || null })}
+          />
+          <TextAreaField
+            label="Bio"
+            value={course.instructor_bio ?? ''}
+            placeholder="Short third-person bio."
+            onCommit={(v) => patch({ instructor_bio: v.trim() || null })}
+          />
+        </div>
+
+        {/* Assistant */}
+        <div className="glist-label">Assistant</div>
+        <div className="card glist" style={{ marginBottom: 26 }}>
+          <ToggleRow
+            label="Course assistant"
+            hint="An AI tutor that answers from your material."
+            on={assistantEnabled}
+            onToggle={() => {
+              const next = !assistantEnabled
+              setAssistantEnabled(next)
+              persistAssistant({ assistant_enabled: next })
+            }}
+          />
+          {assistantEnabled && (
+            <div className="grow">
+              <div className="grow-main">
+                <div className="gl">Scope</div>
+                <div className="gs">How far it can go beyond your course.</div>
+              </div>
+              <div className="grow-ctl">
+                <select
+                  className="input"
+                  value={strictness}
+                  onChange={(e) => {
+                    const next = e.target.value as AssistantStrictness
+                    setStrictness(next)
+                    persistAssistant({ assistant_strictness: next })
+                  }}
+                >
+                  <option value="course_plus_general">Course + general</option>
+                  <option value="course_only">Course only</option>
+                </select>
+              </div>
             </div>
-          </div>
-        )}
-      </section>
-
-      <CustomDomainSection organization={organization} />
-
-      <div className="sticky bottom-0 z-10 -mx-2 mt-6 flex justify-end gap-2 rounded-2xl border border-gray-200 bg-white/85 px-4 py-3 backdrop-blur">
-        <button
-          type="button"
-          disabled={!dirty || isSaving}
-          onClick={handleReset}
-          className="rounded-full border border-gray-300 px-4 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-        >
-          Reset
-        </button>
-        <button
-          type="button"
-          disabled={!dirty || isSaving || titleError}
-          onClick={handleSave}
-          title={titleError ? 'Title is required' : undefined}
-          className="rounded-full bg-gray-900 px-4 py-2 text-xs font-semibold text-white hover:bg-gray-800 disabled:opacity-50"
-        >
-          {isSaving ? 'Saving…' : 'Save'}
-        </button>
+          )}
+        </div>
       </div>
+
+      {/* Custom domain — keeps its own layout, themed by .editor-dark. */}
+      <CustomDomainSection organization={organization} />
     </div>
   )
 }

@@ -39,7 +39,7 @@ export const ProfileHubSheet = ({
   buildHref: (href: string) => string
 }) => {
   const router = useRouter()
-  const { dark, toggle } = usePortalTheme(organization.slug, token ?? '')
+  const { dark } = usePortalTheme(organization.slug, token ?? '')
   const [settingsOpen, setSettingsOpen] = React.useState(false)
 
   const { data: metersData } = useCustomerCustomerMeters(api)
@@ -155,14 +155,6 @@ export const ProfileHubSheet = ({
             <ChevronIcon />
           </button>
         )}
-        <button type="button" className="sp-hub-item" onClick={toggle}>
-          <span className="sp-hub-icon" aria-hidden>
-            {dark ? <SunGlyph /> : <MoonGlyph />}
-          </span>
-          Appearance
-          <span className="sp-hub-spacer" />
-          <span className="sp-hub-value">{dark ? 'Dark' : 'Light'}</span>
-        </button>
         <div className="sp-hub-sep" role="separator" />
         <button
           type="button"
@@ -241,17 +233,6 @@ const GearGlyph = () => (
   <svg {...glyphProps} aria-hidden>
     <circle cx="12" cy="12" r="3" />
     <path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1.03 1.56V21a2 2 0 1 1-4 0v-.09A1.7 1.7 0 0 0 8.9 19.4a1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.56-1.03H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.6 8.9a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34H9a1.7 1.7 0 0 0 1.03-1.56V3a2 2 0 1 1 4 0v.09c0 .68.4 1.3 1.03 1.56a1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87v.09c.26.63.88 1.03 1.56 1.03H21a2 2 0 1 1 0 4h-.09c-.68 0-1.3.4-1.51 1.03Z" />
-  </svg>
-)
-const SunGlyph = () => (
-  <svg {...glyphProps} aria-hidden>
-    <circle cx="12" cy="12" r="4" />
-    <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
-  </svg>
-)
-const MoonGlyph = () => (
-  <svg {...glyphProps} aria-hidden>
-    <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z" />
   </svg>
 )
 const LogOutGlyph = () => (

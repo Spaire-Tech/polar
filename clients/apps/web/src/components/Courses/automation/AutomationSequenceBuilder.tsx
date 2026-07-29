@@ -236,21 +236,9 @@ export function AutomationSequenceBuilder({
   const [steps, setSteps] = useState<Step[]>(initial?.steps ?? [])
   const [live, setLive] = useState(Boolean(initial?.live))
 
-  // Dark mode. This is a standalone route (outside the course editor's
-  // `.editor-dark` root), so it carries its own theme — read once from the
-  // shared `spaire_theme` key (so it matches whatever the creator last chose in
-  // the course editor) and let the in-bar toggle persist back to the same key.
-  const [dark, setDark] = useState(false)
-  useEffect(() => {
-    setDark(localStorage.getItem('spaire_theme') === 'dark')
-  }, [])
-  const toggleDark = useCallback(() => {
-    setDark((d) => {
-      const next = !d
-      localStorage.setItem('spaire_theme', next ? 'dark' : 'light')
-      return next
-    })
-  }, [])
+  // The course builder (this automation editor included) is always dark — no
+  // light option.
+  const dark = true
   const [saveState, setSaveState] = useState<'saved' | 'saving' | 'unsaved'>(
     'saved',
   )
@@ -773,14 +761,6 @@ export function AutomationSequenceBuilder({
               : 'Saved'}
         </span>
         <div className="tb-actions">
-          <button
-            className="tb-theme"
-            type="button"
-            onClick={toggleDark}
-            aria-label={dark ? 'Switch to light mode' : 'Switch to dark mode'}
-          >
-            <Svg d={dark ? IC.sun : IC.moon} s={17} w={2} />
-          </button>
           {/* Context-aware actions. When live: Save changes (keeps it running)
               + an explicit Turn off. When draft: Save draft + Turn on. The old
               UI only had "Save as draft" (which silently turned a live sequence

@@ -68,7 +68,7 @@ const MetricChart = ({
       {
         key: 'current',
         label: 'Current Period',
-        color: isDark ? '#004664' : '#635BFF',
+        color: isDark ? '#2997ff' : '#0066cc',
       },
     ],
     [previousData, isDark],

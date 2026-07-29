@@ -20,7 +20,7 @@ import '@/styles/editor-dark.css'
 import { getQueryClient } from '@/utils/api/query'
 import { schemas } from '@spaire/client'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useState } from 'react'
 import { toast } from '../Toast/use-toast'
 import { AuthTab } from './editor/AuthTab'
 import { AutomationsPanel } from './editor/AutomationsPanel'
@@ -154,20 +154,10 @@ export default function CourseEditor({
   }
   const [isSaving, setIsSaving] = useState(false)
 
-  // Universal editor theme. Persisted under one key shared with the community
-  // hub so a single toggle drives both surfaces (and the dark matches the
-  // community/landing palette).
-  const [dark, setDark] = useState(false)
-  useEffect(() => {
-    setDark(localStorage.getItem('spaire_theme') === 'dark')
-  }, [])
-  const toggleDark = useCallback(() => {
-    setDark((d) => {
-      const next = !d
-      localStorage.setItem('spaire_theme', next ? 'dark' : 'light')
-      return next
-    })
-  }, [])
+  // The course builder is always dark — no light option. (The landing page
+  // keeps its own light/dark choice, set from the Landing tab; that is a
+  // separate `theme_mode` on the course and does not affect this chrome.)
+  const dark = true
 
   const addLesson = useAddCourseLesson()
   const updateLesson = useUpdateCourseLesson()
@@ -543,8 +533,6 @@ export default function CourseEditor({
         onAddContent={handleAddContent}
         onBack={handleBack}
         onClose={handleClose}
-        dark={dark}
-        onToggleDark={toggleDark}
       />
       <div className="flex-1 overflow-y-auto">{mainContent}</div>
     </div>

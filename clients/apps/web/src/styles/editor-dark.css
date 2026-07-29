@@ -11,7 +11,14 @@
    it gets adjusted here in one place. */
 
 .editor-dark {
-  background: #141416 !important;
+  background-color: #141416 !important;
+  /* Dotted canvas — the same 22px dot grid used by the automation tree,
+     applied across the whole builder as its backdrop. */
+  background-image: radial-gradient(
+    rgba(255, 255, 255, 0.05) 1px,
+    transparent 1px
+  ) !important;
+  background-size: 22px 22px !important;
   color: #f5f5f7;
   color-scheme: dark;
 

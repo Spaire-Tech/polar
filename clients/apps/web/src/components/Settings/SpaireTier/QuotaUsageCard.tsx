@@ -95,9 +95,11 @@ const QuotaRow = ({ quota }: { quota: QuotaUsage }) => {
       </div>
 
       {!isUnlimited && (
-        <div className="dark:bg-spaire-700 h-1.5 w-full overflow-hidden rounded-full bg-gray-100">
+        <div className="dark:bg-spaire-700 h-2 w-full overflow-hidden rounded-full bg-gray-100">
           <div
-            className="h-full rounded-full bg-gray-900 transition-all dark:bg-white"
+            className={`h-full rounded-full transition-all ${
+              quota.is_exceeded ? 'bg-red-500' : 'bg-blue-500'
+            }`}
             style={{ width: `${barPercent}%` }}
           />
         </div>
@@ -119,7 +121,7 @@ const QuotaRow = ({ quota }: { quota: QuotaUsage }) => {
       {quota.is_exceeded && (
         <a
           href="#plans"
-          className="text-xs font-medium text-gray-700 underline underline-offset-2 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white"
+          className="text-xs font-medium text-blue-500 underline underline-offset-2 hover:text-blue-600"
         >
           Upgrade your plan to raise this limit
         </a>

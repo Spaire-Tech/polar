@@ -50,12 +50,23 @@ const formatDate = (iso: string | null | undefined): string => {
   }
 }
 
-// Neutral status chip — no accent colours; the label alone carries the state.
-const StatusChip = ({ status }: { status: string }) => (
-  <span className="dark:bg-spaire-700 inline-flex rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600 capitalize dark:text-gray-300">
-    {status.replace(/_/g, ' ')}
-  </span>
-)
+// Status chip — coloured by state: paid green, pending amber, refunded/other
+// neutral.
+const StatusChip = ({ status }: { status: string }) => {
+  const s = status.toLowerCase()
+  const tone = /paid|complete|succeed|active/.test(s)
+    ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-400'
+    : /pending|processing|past_due|unpaid/.test(s)
+      ? 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400'
+      : 'dark:bg-spaire-700 bg-gray-100 text-gray-600 dark:text-gray-300'
+  return (
+    <span
+      className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium capitalize ${tone}`}
+    >
+      {status.replace(/_/g, ' ')}
+    </span>
+  )
+}
 
 const cardLabel = (pm: SpairePaymentMethod): string => {
   if (pm.type !== 'card') return pm.type.replace(/_/g, ' ')
@@ -321,8 +332,21 @@ const OrderRow = ({
             type="button"
             onClick={onDownload}
             disabled={getInvoice.isPending}
-            className="text-sm font-medium text-gray-500 underline underline-offset-2 hover:text-gray-900 disabled:opacity-50 dark:hover:text-white"
+            className="inline-flex items-center gap-1.5 rounded-full bg-blue-500 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-blue-600 disabled:opacity-50"
           >
+            <svg
+              width="13"
+              height="13"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden
+            >
+              <path d="M12 3v12m0 0 4-4m-4 4-4-4M5 21h14" />
+            </svg>
             {getInvoice.isPending ? 'Preparing…' : 'Download'}
           </button>
         ) : (
@@ -438,45 +462,59 @@ export default function SpaireBillingManagement({
         </div>
         <div className="dark:border-spaire-700 rounded-2xl border border-gray-200 bg-white p-6 dark:bg-transparent">
           {hasAddress ? (
-            <dl className="grid grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-2">
-              <div className="flex flex-col gap-y-1">
-                <dt className="text-xs font-medium tracking-wide text-gray-400 uppercase">
-                  Name
-                </dt>
-                <dd className="text-sm text-gray-900 dark:text-white">
-                  {billingDetails?.billing_name || '—'}
-                </dd>
-              </div>
-              <div className="flex flex-col gap-y-1">
-                <dt className="text-xs font-medium tracking-wide text-gray-400 uppercase">
-                  Address
-                </dt>
-                <dd className="flex flex-col text-sm text-gray-900 dark:text-white">
-                  {address?.line1 && <span>{address.line1}</span>}
-                  {address?.line2 && <span>{address.line2}</span>}
-                  <span>
-                    {[address?.postal_code, address?.city]
-                      .filter(Boolean)
-                      .join(' ') || '—'}
+            <div className="flex flex-col gap-y-5">
+              <div className="flex items-start gap-x-4">
+                <div className="dark:bg-blue-500/15 flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-500">
+                  <svg
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden
+                  >
+                    <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" />
+                    <circle cx="12" cy="10" r="3" />
+                  </svg>
+                </div>
+                <div className="flex min-w-0 flex-col gap-y-0.5">
+                  <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                    {billingDetails?.billing_name || 'Billing contact'}
                   </span>
-                  <span className="text-gray-500">
-                    {[address?.state, address?.country]
+                  <span className="text-sm leading-relaxed text-gray-500">
+                    {[
+                      address?.line1,
+                      address?.line2,
+                      [address?.postal_code, address?.city]
+                        .filter(Boolean)
+                        .join(' '),
+                      [address?.state, address?.country]
+                        .filter(Boolean)
+                        .join(', '),
+                    ]
                       .filter(Boolean)
-                      .join(', ')}
+                      .map((part, i) => (
+                        <span key={i} className="block">
+                          {part}
+                        </span>
+                      ))}
                   </span>
-                </dd>
+                </div>
               </div>
               {billingDetails?.tax_id && (
-                <div className="flex flex-col gap-y-1">
-                  <dt className="text-xs font-medium tracking-wide text-gray-400 uppercase">
+                <div className="dark:border-spaire-700 flex items-center justify-between border-t border-gray-100 pt-4">
+                  <span className="text-xs font-medium tracking-wide text-gray-400 uppercase">
                     Tax ID
-                  </dt>
-                  <dd className="text-sm text-gray-900 dark:text-white">
+                  </span>
+                  <span className="text-sm font-medium text-gray-900 tabular-nums dark:text-white">
                     {billingDetails.tax_id[0]}
-                  </dd>
+                  </span>
                 </div>
               )}
-            </dl>
+            </div>
           ) : (
             <p className="text-sm text-gray-500">No billing address on file.</p>
           )}
