@@ -13,8 +13,12 @@
 
 import { FONTS, hexA, type Props, type Theme } from './emailData'
 import type { Block, BroadcastMeta } from './emailEngine'
+import { scrubHtml } from './sanitizeHtml'
 
-const esc = (s: any): string => String(s == null ? '' : s)
+// Rich-HTML props are scrubbed (executable markup removed, formatting kept)
+// before they ship in the sent email — previously this was an identity
+// function and pasted/stored markup went out verbatim.
+const esc = (s: any): string => scrubHtml(s)
 const escAttr = (s: any): string =>
   String(s == null ? '' : s).replace(/"/g, '&quot;').replace(/</g, '&lt;')
 // Email clients (notably Gmail) don't support CSS custom properties, and an

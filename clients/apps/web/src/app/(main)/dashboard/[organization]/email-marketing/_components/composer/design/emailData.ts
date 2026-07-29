@@ -8,6 +8,8 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+import { scrubHtml } from './sanitizeHtml'
+
 export type Props = Record<string, any>
 
 export interface Theme {
@@ -64,7 +66,11 @@ export interface TemplateDef {
   blocks: { type: string; props: Props }[]
 }
 
-const esc = (s: any): string => String(s == null ? '' : s)
+// Stored block props are rich HTML (format-bubble output), so this is a
+// scrub, not an entity-escape: formatting survives, anything executable is
+// removed before the canvas re-emits it. (It used to be an identity function,
+// which made every stored prop a stored-XSS vector in the dashboard.)
+const esc = (s: any): string => scrubHtml(s)
 
 /* Asset resolution is injected by the host (engine maps design asset keys
    such as 'assets/course-cover.jpg' to real course media or a neutral

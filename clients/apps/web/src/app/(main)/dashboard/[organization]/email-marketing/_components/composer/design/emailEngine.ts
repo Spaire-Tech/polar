@@ -28,6 +28,7 @@ import {
   type Theme,
 } from './emailData'
 import { buildEmailHTML } from './emailRender'
+import { pastedTextToHtml, sanitizePastedHtml } from './sanitizeHtml'
 
 export interface Block {
   id: string
@@ -1118,6 +1119,21 @@ export function createEditor(root: HTMLElement, opts: CreateEditorOpts = {}): Ed
     }
   })
   on(root, 'focusin', (e: FocusEvent) => { const t = e.target as HTMLElement; if (t.matches && t.matches('[contenteditable][data-edit]')) lastEditEl = t })
+
+  // Paste hygiene: the browser default would inject the clipboard's full
+  // styled markup (Word/Docs fonts, sizes, spans) straight into the stored
+  // props — and from there verbatim into the sent email. Reduce every paste
+  // to structural formatting (bold/italic/underline/strike/safe links/breaks);
+  // plain-text clipboards keep their line breaks.
+  on(root, 'paste', (e: ClipboardEvent) => {
+    const t = e.target as HTMLElement
+    if (!t || !t.closest || !t.closest('[contenteditable]')) return
+    e.preventDefault()
+    const html = e.clipboardData?.getData('text/html') || ''
+    const text = e.clipboardData?.getData('text/plain') || ''
+    const safe = html ? sanitizePastedHtml(html) : pastedTextToHtml(text)
+    if (safe) document.execCommand('insertHTML', false, safe)
+  }, true)
 
   /* ---------- fit-to-width ----------
      The design is a fixed three-column layout (palette 296 + 640px email stage
