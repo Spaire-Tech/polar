@@ -19,8 +19,8 @@ from polar.models import Discount, Organization, Product, Subscription
 from polar.models.discount import DiscountDuration, DiscountType
 from polar.models.order import OrderStatus
 from polar.models.subscription import SubscriptionStatus
-from polar.order.service import order as order_service
 from polar.order.service import OrderBillingReasonInternal
+from polar.order.service import order as order_service
 from polar.postgres import AsyncSession
 from polar.subscription.scheduler import SubscriptionJobStore
 from polar.subscription.service import subscription as subscription_service
@@ -44,9 +44,7 @@ async def _expired_forever_discount_trial(
 ) -> tuple[Organization, Product, Discount, Subscription]:
     platform_org = await create_organization(save_fixture)
     mocker.patch.object(settings, "PLATFORM_ORG_ID", platform_org.id)
-    mocker.patch(
-        "polar.platform.service.settings.PLATFORM_ORG_ID", platform_org.id
-    )
+    mocker.patch("polar.platform.service.settings.PLATFORM_ORG_ID", platform_org.id)
     product = await create_product(
         save_fixture,
         organization=platform_org,
@@ -127,3 +125,27 @@ class TestExpiredForeverDiscountTrial:
         assert order.total_amount == 0
         assert order.status == OrderStatus.paid
         assert order.next_payment_attempt_at is None
+
+    async def test_cycle_survives_legacy_list_reminder_markers(
+        self,
+        mocker: MockerFixture,
+        session: AsyncSession,
+        save_fixture: SaveFixture,
+    ) -> None:
+        """Direct reproduction of the production crash:
+
+        subscription.cycle → ValidationError on the subscription.updated
+        webhook payload because trial_reminders_sent was stored as a JSON
+        list by the old reminder code. The cycle must heal the metadata
+        in place and complete.
+        """
+        _, _, _, subscription = await _expired_forever_discount_trial(
+            save_fixture, mocker
+        )
+        subscription.user_metadata = {"trial_reminders_sent": [7, 2, 0]}
+        await save_fixture(subscription)
+
+        cycled = await subscription_service.cycle(session, subscription)
+
+        assert cycled.status == SubscriptionStatus.active
+        assert cycled.user_metadata.get("trial_reminders_sent") == "7,2,0"

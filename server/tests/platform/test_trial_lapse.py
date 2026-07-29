@@ -170,7 +170,8 @@ class TestLapseStaleLegacyTrials:
         second = await lapse_stale_legacy_trials(session)
 
         assert first["lapsed"] == 1
-        assert second == {"lapsed": 0, "trial_consumed_stamped": 0}
+        assert second["lapsed"] == 0
+        assert second["trial_consumed_stamped"] == 0
 
     async def test_unconfigured_platform_is_noop(
         self,
@@ -179,7 +180,41 @@ class TestLapseStaleLegacyTrials:
     ) -> None:
         mocker.patch("polar.platform.service.settings.PLATFORM_ORG_ID", None)
         counters = await lapse_stale_legacy_trials(session)
-        assert counters == {"lapsed": 0, "trial_consumed_stamped": 0}
+        assert counters["lapsed"] == 0
+        assert counters["trial_consumed_stamped"] == 0
+
+    async def test_sweep_heals_legacy_list_markers(
+        self,
+        mocker: MockerFixture,
+        session: AsyncSession,
+        save_fixture: SaveFixture,
+    ) -> None:
+        # Rows written by the old code carry trial_reminders_sent as a
+        # JSON list, which fails scalar-only webhook metadata validation
+        # and crashes every lifecycle event on the row. The hourly sweep
+        # must rewrite them to the comma-string encoding.
+        platform_org, product = await _platform_setup(save_fixture, mocker)
+        customer = await create_customer(
+            save_fixture, organization=platform_org, email="legacy@example.com"
+        )
+        subscription = await create_subscription(
+            save_fixture,
+            product=product,
+            customer=customer,
+            status=SubscriptionStatus.trialing,
+            trial_end=datetime.now(UTC) + timedelta(days=1),
+            current_period_end=datetime.now(UTC) + timedelta(days=1),
+            user_metadata={"trial_reminders_sent": [7, 2, 0]},
+        )
+
+        counters = await lapse_stale_legacy_trials(session)
+
+        assert counters["markers_healed"] == 1
+        await session.refresh(subscription)
+        assert subscription.user_metadata.get("trial_reminders_sent") == "7,2,0"
+        # Idempotent: second run heals nothing.
+        again = await lapse_stale_legacy_trials(session)
+        assert again["markers_healed"] == 0
 
 
 @pytest.mark.asyncio

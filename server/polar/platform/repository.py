@@ -1,7 +1,7 @@
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.orm import selectinload
 
 from polar.kit.repository import RepositoryBase
@@ -167,6 +167,40 @@ class _PlatformSubscriptionRepository(RepositoryBase[Subscription]):
             )
         )
         return list(await self.get_all(statement))
+
+    async def normalize_legacy_reminder_marker_metadata(self) -> int:
+        """Rewrite legacy list-encoded ``trial_reminders_sent`` metadata to
+        the scalar comma-string encoding, on subscriptions AND on orders
+        that copied the subscription metadata before it was scrubbed.
+
+        The list encoding fails webhook payload validation (scalar-only
+        metadata), crashing every lifecycle event on the row — trial
+        conversion included. Returns the number of rows healed.
+        """
+        healed = 0
+        for table in ("subscriptions", "orders"):
+            result = await self.session.execute(
+                text(
+                    f"""
+                    UPDATE {table}
+                    SET user_metadata = jsonb_set(
+                        user_metadata,
+                        '{{trial_reminders_sent}}',
+                        to_jsonb(coalesce((
+                            SELECT string_agg(value, ',')
+                            FROM jsonb_array_elements_text(
+                                user_metadata->'trial_reminders_sent'
+                            )
+                        ), ''))
+                    )
+                    WHERE jsonb_typeof(
+                        user_metadata->'trial_reminders_sent'
+                    ) = 'array'
+                    """
+                )
+            )
+            healed += result.rowcount or 0
+        return healed
 
     async def list_legacy_trial_customers_missing_consumed(
         self, platform_org_id: UUID

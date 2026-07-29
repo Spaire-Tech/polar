@@ -103,6 +103,26 @@ def encode_sent_markers(markers: list[int]) -> str:
     return ",".join(str(m) for m in markers)
 
 
+def normalize_reminder_markers_metadata(subscription: Subscription) -> bool:
+    """Heal a legacy list-encoded markers value in place.
+
+    Old code stored ``trial_reminders_sent`` as a JSON list (``[7, 2, 0]``).
+    Webhook payload schemas only accept SCALAR metadata values, so any
+    lifecycle event on such a row — including the cycle that converts the
+    trial — crashed on payload serialization and the whole operation
+    rolled back and retried forever. Rewrites the value to the scalar
+    comma-string encoding. Returns True when a change was made.
+    """
+    metadata = subscription.user_metadata or {}
+    raw = metadata.get(_METADATA_KEY)
+    if not isinstance(raw, list):
+        return False
+    healed = dict(metadata)
+    healed[_METADATA_KEY] = encode_sent_markers(parse_sent_markers(raw))
+    subscription.user_metadata = healed
+    return True
+
+
 def _already_sent(subscription: Subscription, marker: int) -> bool:
     metadata = subscription.user_metadata or {}
     return marker in parse_sent_markers(metadata.get(_METADATA_KEY))
