@@ -229,6 +229,18 @@
   --blue: #2997ff !important;
 }
 
+/* ---- embedded community-hub panels (Settings / Pricing tabs) ----
+   The hub normally paints its own page background + fixed radial ambience.
+   Embedded as a tab panel that reads as a boxed-in slab over the dotted
+   editor canvas — make it transparent so the grouped-list cards float
+   directly on the dots. */
+.editor-dark .spaire-hub.hub-embed {
+  background: transparent !important;
+}
+.editor-dark .spaire-hub.hub-embed::before {
+  display: none;
+}
+
 /* ---- elevation reads softer on a dark canvas ---- */
 .editor-dark .shadow-sm,
 .editor-dark .shadow,

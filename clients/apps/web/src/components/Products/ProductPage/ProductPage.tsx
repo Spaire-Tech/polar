@@ -31,7 +31,7 @@ import { ProductOverview } from './ProductOverview'
 const ProductTypeDisplayColor: Record<string, string> = {
   subscription: 'bg-emerald-100 text-emerald-500',
   one_time:
-    'bg-indigo-100 text-indigo-500 ',
+    'bg-blue-100 text-blue-500 ',
 }
 
 export interface ProductPageProps {

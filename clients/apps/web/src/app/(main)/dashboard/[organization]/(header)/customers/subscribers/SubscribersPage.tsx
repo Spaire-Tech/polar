@@ -356,11 +356,11 @@ export default function SubscribersPage({
             >
               <div
                 style={{ mixBlendMode: 'multiply' }}
-                className="absolute top-0 left-0 h-14 w-14 rounded-2xl bg-indigo-300"
+                className="absolute top-0 left-0 h-14 w-14 rounded-2xl bg-blue-300"
               />
               <div
                 style={{ mixBlendMode: 'multiply' }}
-                className="absolute bottom-0 right-0 h-14 w-14 rounded-full bg-violet-300"
+                className="absolute bottom-0 right-0 h-14 w-14 rounded-full bg-sky-300"
               />
             </div>
             <div className="flex max-w-lg flex-col gap-3">
@@ -529,7 +529,7 @@ function SubscriberChart({
           {
             key: 'subscribers',
             label: 'Subscribers',
-            color: '#6366f1',
+            color: '#0066cc',
           },
         ]}
         xAxisKey="day"

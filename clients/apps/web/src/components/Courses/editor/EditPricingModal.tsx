@@ -12,6 +12,7 @@ import { ProductEditOrCreateForm } from '@/utils/product'
 import { isValidationError, schemas } from '@spaire/client'
 import { Form } from '@spaire/ui/components/ui/form'
 import { useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useForm } from 'react-hook-form'
 import { toast } from '../../Toast/use-toast'
 import {
@@ -115,7 +116,13 @@ export function EditPricingModal({
     }
   }
 
-  return (
+  // Rendered from inside the course editor, which is always dark
+  // (`.editor-dark` remaps inputs/surfaces with !important). This overlay is
+  // the LIGHT onboarding pricing design, so portal it to <body> — outside the
+  // editor-dark scope — or the wizard renders light chrome with dark boxes.
+  if (typeof document === 'undefined') return null
+
+  return createPortal(
     <Form {...form}>
       <form
         onSubmit={(e) => e.preventDefault()}
@@ -147,6 +154,7 @@ export function EditPricingModal({
           />
         </div>
       </form>
-    </Form>
+    </Form>,
+    document.body,
   )
 }

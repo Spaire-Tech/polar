@@ -229,7 +229,7 @@ export const AnalyticsScreen = ({
               <h3 className="h2">Open & click rate</h3>
             </div>
             <div style={{ display: 'flex', gap: 16, fontSize: 12 }}>
-              <Legend color="#4f46e5" label="Open rate" />
+              <Legend color="#0066cc" label="Open rate" />
               <Legend color="#ec4899" label="Click rate" />
             </div>
           </div>
@@ -276,7 +276,7 @@ export const AnalyticsScreen = ({
               style={{
                 fontSize: 13,
                 fontWeight: 500,
-                color: '#4f46e5',
+                color: '#0066cc',
               }}
               title={`Net new in the last ${days} days. Prior ${days}d: ${priorNetNew >= 0 ? '+' : ''}${priorNetNew}.`}
             >
@@ -399,7 +399,7 @@ export const AnalyticsScreen = ({
                         style={{
                           height: '100%',
                           width: `${rate}%`,
-                          background: 'linear-gradient(90deg,#6366f1,#4f46e5)',
+                          background: 'linear-gradient(90deg,#4998fe,#0066cc)',
                           borderRadius: 3,
                         }}
                       />
@@ -584,9 +584,9 @@ export const AnalyticsScreen = ({
                           height: '100%',
                           width: `${(ratio * 100).toFixed(2)}%`,
                           background:
-                            ['#4f46e5', '#6366f1', '#818cf8', '#a5b4fc', '#c7d2fe'][
+                            ['#0054b1', '#0066cc', '#4998fe', '#8fc9ff', '#b9dfff'][
                               i
-                            ] || '#c7d2fe',
+                            ] || '#b9dfff',
                           borderRadius: 3,
                         }}
                       />
@@ -756,7 +756,7 @@ const LineChart = ({
       <path
         d={path(yOpen)}
         fill="none"
-        stroke="#4f46e5"
+        stroke="#0066cc"
         strokeWidth="2.2"
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -767,7 +767,7 @@ const LineChart = ({
             cx={xs[xs.length - 1]}
             cy={yOpen[yOpen.length - 1]}
             r="4"
-            fill="#4f46e5"
+            fill="#0066cc"
             stroke="#fff"
             strokeWidth="2"
           />
@@ -851,7 +851,7 @@ const AreaChart = ({ data }: { data: { day: string; count: number }[] }) => {
       <path
         d={path}
         fill="none"
-        stroke="#4f46e5"
+        stroke="#0066cc"
         strokeWidth="2"
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -861,7 +861,7 @@ const AreaChart = ({ data }: { data: { day: string; count: number }[] }) => {
           cx={xs[xs.length - 1]}
           cy={ys[ys.length - 1]}
           r="4"
-          fill="#4f46e5"
+          fill="#0066cc"
           stroke="#fff"
           strokeWidth="2"
         />

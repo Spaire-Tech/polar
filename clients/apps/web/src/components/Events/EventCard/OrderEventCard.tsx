@@ -40,7 +40,7 @@ export const OrderEventCard = ({ event }: OrderEventCardProps) => {
           order.status === 'partially_refunded'
             ? 'Partially Refunded'
             : 'Refunded',
-          'bg-violet-100 text-violet-500 ',
+          'bg-blue-100 text-blue-500 ',
         ]
       default:
         return null

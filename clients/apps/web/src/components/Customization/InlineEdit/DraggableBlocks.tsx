@@ -138,7 +138,7 @@ const LinkLayoutMenu = ({
                 <Icon style={{ fontSize: 16 }} />
                 {label}
                 {value === v && (
-                  <span className="ml-auto text-[#6e56ff]">✓</span>
+                  <span className="ml-auto text-[#0066cc]">✓</span>
                 )}
               </button>
             ))}
