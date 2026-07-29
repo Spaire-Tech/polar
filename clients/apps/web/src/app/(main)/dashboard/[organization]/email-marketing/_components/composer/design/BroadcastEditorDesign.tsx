@@ -9,7 +9,7 @@
 import { useEffect, useRef } from 'react'
 
 import type { CourseData } from '../v3/courseData'
-import { bindCourse, makeAssetResolver } from './courseBind'
+import { bindCourse, makeAssetResolver, type CourseLinks } from './courseBind'
 import './design.css'
 import { createEditor, type EditorHandle, type EditorState } from './emailEngine'
 import { SHELL_HTML } from './shellMarkup'
@@ -33,15 +33,26 @@ export interface BroadcastEditorDesignProps {
   initialSubject?: string
   /** Previously-saved editor state to restore instead of a fresh template. */
   initialState?: EditorState | null
+  /** Student-facing course URL + creator catalog URL — bound into template
+   *  CTA buttons so they never ship as dead "#" links. */
+  links?: CourseLinks
+  /** For a lesson-completed trigger: the exact lesson chosen, so the
+   *  specific-lesson email names it instead of guessing. */
+  triggerLesson?: string
+  /** The host's last background write failed — surface it in the status chip
+   *  instead of leaving a stale "Saved". */
+  saveFailed?: boolean
   /** Upload a chosen image → hosted URL (S3). */
   onUploadImage?: (file: File) => Promise<string>
   /** Send a test of the current email to the creator's inbox. */
   onSendTest?: (v: { subject: string; preview: string; html: string }) => Promise<void>
-  /** Persist the authored email. */
-  onSave?: (v: { subject: string; preview: string; html: string; json: EditorState }) => void
+  /** Persist the authored email. Return `false` when the host cannot persist
+   *  yet (uncreated automation) so the editor's status tells the truth. */
+  onSave?: (v: { subject: string; preview: string; html: string; json: EditorState }) => void | boolean
   /** Persist edits in the background (debounced) without closing — makes the
-   *  "Saved" status truthful and prevents losing work on Back. */
-  onAutosave?: (v: { subject: string; preview: string; html: string; json: EditorState }) => void
+   *  "Saved" status truthful and prevents losing work on Back. Return `false`
+   *  when the edits could not be persisted yet. */
+  onAutosave?: (v: { subject: string; preview: string; html: string; json: EditorState }) => void | boolean
   /** Back / close. */
   onClose?: () => void
 }
@@ -55,6 +66,9 @@ export function BroadcastEditorDesign({
   creatorName,
   initialSubject,
   initialState,
+  links,
+  triggerLesson,
+  saveFailed,
   onUploadImage,
   onSendTest,
   onSave,
@@ -65,8 +79,14 @@ export function BroadcastEditorDesign({
   const handleRef = useRef<EditorHandle | null>(null)
 
   // Keep the latest callbacks/data without re-mounting the imperative engine.
-  const cbRef = useRef({ onUploadImage, onSendTest, onSave, onAutosave, onClose, course, creatorName })
-  cbRef.current = { onUploadImage, onSendTest, onSave, onAutosave, onClose, course, creatorName }
+  const cbRef = useRef({ onUploadImage, onSendTest, onSave, onAutosave, onClose, course, creatorName, links, triggerLesson })
+  cbRef.current = { onUploadImage, onSendTest, onSave, onAutosave, onClose, course, creatorName, links, triggerLesson }
+
+  // Surface the host's async save failures in the engine's status chip; on
+  // recovery, restore "Saved" (the engine ignores this while edits are dirty).
+  useEffect(() => {
+    if (saveFailed != null) handleRef.current?.notifySaveResult(!saveFailed)
+  }, [saveFailed])
 
   // Re-mount the engine only when the bound course identity changes (e.g. the
   // async course query resolves once). Edits haven't begun at that point.
@@ -93,7 +113,14 @@ export function BroadcastEditorDesign({
       initialState: seededState,
       resolveAsset: makeAssetResolver(cbRef.current.course),
       applyCourse: (blocks, trigger) =>
-        bindCourse(blocks, cbRef.current.course, cbRef.current.creatorName, trigger),
+        bindCourse(
+          blocks,
+          cbRef.current.course,
+          cbRef.current.creatorName,
+          trigger,
+          cbRef.current.links,
+          cbRef.current.triggerLesson,
+        ),
       onUploadImage: (file) => cbRef.current.onUploadImage!(file),
       onSendTest: cbRef.current.onSendTest
         ? (v) => cbRef.current.onSendTest!(v)
@@ -111,8 +138,17 @@ export function BroadcastEditorDesign({
       handle.destroy()
       handleRef.current = null
     }
+    // enrolledCount is deliberately NOT a dependency: it can resolve after the
+    // editor has mounted, and remounting would drop the caret/selection
+    // mid-edit. It's pushed in live via the handle below instead.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [courseKey, courseName, initialTrigger, lockTrigger, enrolledCount, creatorName])
+  }, [courseKey, courseName, initialTrigger, lockTrigger, creatorName])
+
+  // Push a late-arriving (or changed) enrolled total into the live engine
+  // without remounting it.
+  useEffect(() => {
+    handleRef.current?.setEnrolledCount(enrolledCount ?? null)
+  }, [enrolledCount])
 
   return <div className="bedesign" ref={ref} />
 }

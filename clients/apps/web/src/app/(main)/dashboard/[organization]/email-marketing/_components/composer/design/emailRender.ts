@@ -13,8 +13,12 @@
 
 import { FONTS, hexA, type Props, type Theme } from './emailData'
 import type { Block, BroadcastMeta } from './emailEngine'
+import { scrubHtml } from './sanitizeHtml'
 
-const esc = (s: any): string => String(s == null ? '' : s)
+// Rich-HTML props are scrubbed (executable markup removed, formatting kept)
+// before they ship in the sent email — previously this was an identity
+// function and pasted/stored markup went out verbatim.
+const esc = (s: any): string => scrubHtml(s)
 const escAttr = (s: any): string =>
   String(s == null ? '' : s).replace(/"/g, '&quot;').replace(/</g, '&lt;')
 // Email clients (notably Gmail) don't support CSS custom properties, and an
@@ -284,10 +288,19 @@ const BLOCK: Record<string, (p: Props, t: Theme, r: Resolver) => string> = {
   },
 
   footer(p, t) {
-    const inner = `<p style="margin:0 0 24px;text-align:${p.linksAlign};font-family:${ff(p.linksFont)};font-size:${p.linksSize}px;font-weight:500;color:${p.linksColor}">${esc(p.links)}</p>
+    // Empty slots are omitted rather than shipped as blank paragraphs — in
+    // particular the postal address, which has no default any more (a
+    // fabricated default address in real sends was a CAN-SPAM liability).
+    const linksLine = esc(p.links)
+      ? `<p style="margin:0 0 24px;text-align:${p.linksAlign};font-family:${ff(p.linksFont)};font-size:${p.linksSize}px;font-weight:500;color:${p.linksColor}">${esc(p.links)}</p>`
+      : ''
+    const addressLine = esc(p.address)
+      ? `<p style="margin:0 0 14px;font-family:${ff(p.fpFont)};font-size:11px;line-height:1.5;color:${p.addressColor}">${esc(p.address)}</p>`
+      : ''
+    const inner = `${linksLine}
       <div style="text-align:${p.fpAlign}">
         <p style="margin:0 ${p.fpAlign === 'center' ? 'auto' : '0'} 8px;max-width:340px;font-family:${ff(p.fpFont)};font-size:${p.fpSize}px;line-height:1.6;color:${p.taglineColor}">${esc(p.tagline)}</p>
-        <p style="margin:0 0 14px;font-family:${ff(p.fpFont)};font-size:11px;line-height:1.5;color:${p.addressColor}">${esc(p.address)}</p>
+        ${addressLine}
         <p style="margin:0;font-family:${ff(p.fpFont)};font-size:11px;color:${p.unsubColor}"><a href="{{unsubscribe_url}}" style="color:${p.unsubColor};text-decoration:underline">${esc(p.unsub)}</a></p>
       </div>`
     const border = p.borderTop ? `border-top:1px solid ${p.borderColor};` : ''
@@ -297,13 +310,33 @@ const BLOCK: Record<string, (p: Props, t: Theme, r: Resolver) => string> = {
 
 export function buildEmailHTML(
   blocks: Block[],
-  t: Theme,
+  theme: Theme,
   broadcast: BroadcastMeta,
   resolveAsset: Resolver = (k) => k,
 ): string {
+  // Defend against a saved email whose email/backdrop background is 'none'
+  // (older saves, before the picker disallowed it): a transparent page
+  // background renders as bgcolor="none" / white-broken in the inbox. Coerce
+  // to a real colour so the sent email always has a solid page.
+  const t: Theme = {
+    ...theme,
+    emailBg: theme.emailBg && theme.emailBg !== 'none' ? theme.emailBg : '#ffffff',
+    outerBg: theme.outerBg && theme.outerBg !== 'none' ? theme.outerBg : '#ffffff',
+  }
   const body = blocks
     .map((b) => (BLOCK[b.type] ? BLOCK[b.type](b.props, t, resolveAsset) : ''))
     .join('\n')
+    // Links typed via the format bubble arrive as bare <a> tags inside rich
+    // text; the document-level a{text-decoration:none} reset would render
+    // them indistinguishable from plain text in the inbox (the editor shows
+    // the browser's default link styling, so what you saw was NOT what they
+    // got). Give any style-less anchor the theme's link colour + underline;
+    // anchors the renderers author (buttons, unsubscribe) carry their own
+    // style attribute and are untouched.
+    .replace(
+      /<a (?![^>]*style=)/gi,
+      `<a style="color:${t.link};text-decoration:underline;text-underline-offset:2px" `,
+    )
   return `<!DOCTYPE html>
 <html lang="en" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
 <head>

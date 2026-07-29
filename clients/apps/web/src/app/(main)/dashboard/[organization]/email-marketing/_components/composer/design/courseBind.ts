@@ -23,11 +23,24 @@ const LEGACY_TITLE = 'Southern Cooking'
 const pivotalLessonIndex = (n: number): number =>
   Math.min(Math.max(0, n - 1), Math.max(0, Math.floor(n / 3)))
 
+export type CourseLinks = {
+  /** Student-facing course page (the portal watch page). */
+  courseUrl?: string
+  /** The creator's public catalog/storefront, for "explore more" CTAs. */
+  catalogUrl?: string
+  /** The student's portal home ("My courses"). */
+  portalUrl?: string
+}
+
 export function bindCourse(
   blocks: Block[],
   course: CourseData | undefined,
   creatorName?: string,
   trigger?: string,
+  links?: CourseLinks,
+  /** For a lesson-completed trigger: the exact lesson title chosen in the
+   *  automation, so the byline names it instead of a guessed "pivotal" one. */
+  triggerLesson?: string,
 ): Block[] {
   if (!course) return blocks
   const hasLessons = course.lessons.length > 0
@@ -52,6 +65,9 @@ export function bindCourse(
       case 'firstLesson':
         return hasLessons ? course.lessons[0].title : null
       case 'specificLesson':
+        // Prefer the exact lesson the automation triggers on; fall back to a
+        // representative one only when the trigger didn't name one.
+        if (triggerLesson && triggerLesson.trim()) return triggerLesson.trim()
         return hasLessons ? course.lessons[pivotalLessonIndex(lessonCount)].title : null
       case 'enrolment':
         return instructorName ? `Taught by ${instructorName}` : course.title
@@ -109,13 +125,22 @@ export function bindCourse(
       }
       case 'progress': {
         // Re-base the lifecycle ratio onto the real lesson count so "halfway"
-        // stays ~50% (e.g. 6/12 → 3/6) instead of breaking to 6/6.
+        // stays ~50% (e.g. 6/12 → 3/6) instead of breaking to 6/6. Clamp so
+        // a started ratio never rounds down to 0 (a 5-lesson course used to
+        // turn the first-lesson email into "0 of 5 · 0%") and a mid-course
+        // ratio never rounds up to "complete".
         const newTotal = course.progress.total || lessonCount
         if (newTotal) {
           const oldTotal = Math.max(1, Number(p.total) || newTotal)
-          const ratio = (Number(p.value) || 0) / oldTotal
+          const oldValue = Number(p.value) || 0
+          const ratio = oldValue / oldTotal
           p.total = newTotal
-          p.value = Math.round(ratio * newTotal)
+          let v = Math.round(ratio * newTotal)
+          // "in progress" must stay strictly between 0 and total (unless the
+          // course has a single lesson, where started == finished).
+          if (oldValue < oldTotal && newTotal > 1) v = Math.min(newTotal - 1, v)
+          if (oldValue > 0) v = Math.max(1, v)
+          p.value = Math.max(0, Math.min(newTotal, v))
         }
         break
       }
@@ -157,6 +182,34 @@ export function bindCourse(
         else if (p.by) p.by = swapLegacy(p.by)
         break
       }
+      case 'footer': {
+        // The template's "My courses · Help" line was decorative text with
+        // no anchors — non-clickable in the sent email, and "Help" had no
+        // destination at all. Bind the still-default line to a real portal
+        // link; a creator-edited line (or one already carrying links) is
+        // left alone.
+        const raw = String(p.links || '')
+        if (links?.portalUrl && /My courses/.test(raw) && !/<a\b/i.test(raw))
+          // Inline style (inherit) keeps the line in the footer's muted colour
+          // instead of the theme link colour the bare-anchor fallback applies.
+          p.links = `<a href="${links.portalUrl}" style="color:inherit;text-decoration:underline;text-underline-offset:2px">My courses</a>`
+        break
+      }
+    }
+
+    // Every CTA needs a real destination: templates ship buttons with no href,
+    // and an empty href renders as a dead "#" link in the sent email. Point
+    // course CTAs at the student's course page; the course-complete "what's
+    // next" CTA goes to the creator's catalog instead. Only empty/'#' hrefs
+    // are filled — a hand-typed link always wins.
+    const isExploreCta = b.type === 'cta' && trigger === 'courseComplete'
+    const dest =
+      (isExploreCta ? links?.catalogUrl : links?.courseUrl) || links?.courseUrl
+    if (dest) {
+      const btn = p.btn as { href?: string } | undefined
+      if (btn && typeof btn === 'object' && (!btn.href || btn.href === '#'))
+        btn.href = dest
+      if (b.type === 'button' && (!p.href || p.href === '#')) p.href = dest
     }
   }
   return blocks

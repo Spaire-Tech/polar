@@ -261,6 +261,9 @@ export function AutomationSequenceBuilder({
   const [dirty, setDirty] = useState(false)
   // "Leave with unsaved changes" prompt (uncreated sequence + edits).
   const [leavePrompt, setLeavePrompt] = useState(false)
+  // The last background write failed — surfaced inside the email editor's
+  // status chip (its own toast renders behind the full-screen editor portal).
+  const [lastSaveFailed, setLastSaveFailed] = useState(false)
   const [toastMsg, setToastMsg] = useState<string | null>(null)
   const [menu, setMenu] = useState<{
     path: Path
@@ -366,9 +369,11 @@ export function AutomationSequenceBuilder({
         }
         setDirty(false)
         setSaveState('saved')
+        setLastSaveFailed(false)
         return true
       } catch {
         setSaveState('unsaved')
+        setLastSaveFailed(true)
         showToast('Could not save')
         return false
       }
@@ -567,6 +572,21 @@ export function AutomationSequenceBuilder({
     void saveNow({ live: true })
     showToast('Sequence is on')
   }
+
+  // Browser-close guard: the in-app Back path prompts below, but a refresh,
+  // tab close, or crash used to silently destroy an unsaved (or mid-save)
+  // automation — including a fully authored email — while the editor said
+  // "Saved". Warn whenever anything hasn't reached the server yet.
+  useEffect(() => {
+    const unsaved = dirty || saveState !== 'saved'
+    if (!unsaved) return
+    const warn = (e: BeforeUnloadEvent) => {
+      e.preventDefault()
+      e.returnValue = ''
+    }
+    window.addEventListener('beforeunload', warn)
+    return () => window.removeEventListener('beforeunload', warn)
+  }, [dirty, saveState])
 
   // Back guard: a NEW automation with unsaved edits asks whether to keep it
   // as a draft before leaving, instead of having silently auto-created one.
@@ -1105,11 +1125,13 @@ export function AutomationSequenceBuilder({
               organization={organization}
               courseId={courseId}
               moment={trigger.type}
+              triggerLesson={trigger.type === 'lesson' ? trigger.lesson : undefined}
               sequenceName={name}
               initialSubject={st.subject}
               initialContentJson={st.content_json}
+              saveFailed={lastSaveFailed}
               onClose={() => setEmailEditing(null)}
-              onAutosave={(v) =>
+              onAutosave={(v) => {
                 patchStep(st.id, {
                   subject: v.subject,
                   content_json: v.content_json,
@@ -1117,7 +1139,10 @@ export function AutomationSequenceBuilder({
                   // keep the node title in sync with the subject
                   name: v.subject || st.name,
                 } as Partial<Step>)
-              }
+                // A new, never-saved automation can't persist steps — tell the
+                // editor so its status doesn't claim "Saved".
+                return !organizationId || Boolean(seqIdRef.current)
+              }}
               onSave={(v) => {
                 patchStep(st.id, {
                   subject: v.subject,
@@ -1126,7 +1151,13 @@ export function AutomationSequenceBuilder({
                   // keep the node title in sync with the subject
                   name: v.subject || st.name,
                 } as Partial<Step>)
-                showToast('Email saved')
+                const persisted = !organizationId || Boolean(seqIdRef.current)
+                showToast(
+                  persisted
+                    ? 'Email saved'
+                    : 'Email staged — save the automation to keep it',
+                )
+                return persisted
               }}
             />
           )

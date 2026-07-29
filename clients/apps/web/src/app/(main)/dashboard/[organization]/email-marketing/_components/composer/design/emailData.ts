@@ -8,6 +8,8 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+import { scrubHtml } from './sanitizeHtml'
+
 export type Props = Record<string, any>
 
 export interface Theme {
@@ -64,7 +66,11 @@ export interface TemplateDef {
   blocks: { type: string; props: Props }[]
 }
 
-const esc = (s: any): string => String(s == null ? '' : s)
+// Stored block props are rich HTML (format-bubble output), so this is a
+// scrub, not an entity-escape: formatting survives, anything executable is
+// removed before the canvas re-emits it. (It used to be an identity function,
+// which made every stored prop a stored-XSS vector in the dashboard.)
+const esc = (s: any): string => scrubHtml(s)
 
 /* Asset resolution is injected by the host (engine maps design asset keys
    such as 'assets/course-cover.jpg' to real course media or a neutral
@@ -345,12 +351,19 @@ function txtPart(
   alignKey: string | null,
   min?: number,
   max?: number,
+  // When set, the part inspector shows an editable Text field for this prop.
+  // Without it, a slot that starts empty (a cover eyebrow / description) had
+  // no way to be written, and clearing one made it vanish permanently.
+  contentKey?: string,
 ): PartDef {
   return {
     label,
     icon: icon || ICO.text,
     groups: () => {
-      const g = [txtTypo(label, fontKey, sizeKey, colorKey, min, max)]
+      const g: GroupDescriptor[] = []
+      if (contentKey)
+        g.push({ kind: 'group', title: label, ctls: [{ kind: 'field', label: 'Text', key: contentKey, ph: `Add ${label.toLowerCase()}…` }] })
+      g.push(txtTypo(label, fontKey, sizeKey, colorKey, min, max))
       if (alignKey) g.push(txtAlign(alignKey))
       return g
     },
@@ -521,10 +534,10 @@ export const REG: Record<string, BlockDef> = {
       grpColors([['Overlay tint', 'overlayColor']]),
     ],
     parts: {
-      eyebrow: txtPart('Eyebrow', ICO.text, 'eyebrowFont', 'eyebrowSize', 'eyebrowColor', 'eyebrowAlign', 9, 24),
-      title: txtPart('Title', ICO.heading, 'titleFont', 'titleSize', 'titleColor', 'titleAlign', 24, 96),
-      byline: txtPart('Byline', ICO.instructor, 'instructorFont', 'instructorSize', 'instructorColor', 'instructorAlign', 11, 28),
-      description: txtPart('Description', ICO.text, 'taglineFont', 'taglineSize', 'taglineColor', 'taglineAlign', 12, 30),
+      eyebrow: txtPart('Eyebrow', ICO.text, 'eyebrowFont', 'eyebrowSize', 'eyebrowColor', 'eyebrowAlign', 9, 24, 'eyebrow'),
+      title: txtPart('Title', ICO.heading, 'titleFont', 'titleSize', 'titleColor', 'titleAlign', 24, 96, 'title'),
+      byline: txtPart('Byline', ICO.instructor, 'instructorFont', 'instructorSize', 'instructorColor', 'instructorAlign', 11, 28, 'instructor'),
+      description: txtPart('Description', ICO.text, 'taglineFont', 'taglineSize', 'taglineColor', 'taglineAlign', 12, 30, 'tagline'),
       button: { label: 'Button', icon: ICO.button, groups: () => btnGroups('btn', true) },
     },
   },
@@ -1173,7 +1186,10 @@ export const REG: Record<string, BlockDef> = {
       taglineColor: t.muted,
       links: 'My courses    ·    Help',
       linksColor: t.muted,
-      address: '410 Townsend Street · San Francisco, CA 94107',
+      // Deliberately empty: shipping a made-up default address in real emails
+      // is a CAN-SPAM problem. The canvas shows an inline nudge (data-ph) and
+      // the sent render simply omits the line until the creator fills it in.
+      address: '',
       addressColor: t.muted,
       unsub: 'Unsubscribe',
       unsubColor: t.muted,
@@ -1198,7 +1214,7 @@ export const REG: Record<string, BlockDef> = {
           <p data-part="links" data-edit="links" contenteditable="true" style="margin:0 0 24px;text-align:${p.linksAlign};font-family:${ff(p.linksFont)};font-size:${p.linksSize}px;font-weight:500;letter-spacing:.02em;color:${p.linksColor}">${esc(p.links)}</p>
           <div data-part="fineprint" style="text-align:${p.fpAlign}">
           <p data-edit="tagline" contenteditable="true" style="margin:0 ${p.fpAlign === 'center' ? 'auto' : '0'} 8px;max-width:340px;font-family:${ff(p.fpFont)};font-size:${p.fpSize}px;line-height:1.6;color:${p.taglineColor}">${esc(p.tagline)}</p>
-          <p data-edit="address" contenteditable="true" style="margin:0 0 14px;font-family:${ff(p.fpFont)};font-size:11px;line-height:1.5;color:${p.addressColor}">${esc(p.address)}</p>
+          <p data-edit="address" data-ph="Add your business postal address (required by anti-spam law)" contenteditable="true" style="margin:0 0 14px;font-family:${ff(p.fpFont)};font-size:11px;line-height:1.5;min-height:1em;color:${p.addressColor}">${esc(p.address)}</p>
           <p style="margin:0;font-family:${ff(p.fpFont)};font-size:11px;color:${p.unsubColor}"><a data-edit="unsub" contenteditable="true" href="#" onclick="return false" style="color:${p.unsubColor};text-decoration:underline;text-underline-offset:2px">${esc(p.unsub)}</a></p>
           </div>
         </div>`
@@ -1332,7 +1348,7 @@ export const TEMPLATES: Record<string, TemplateDef> = {
       {
         type: 'cta',
         props: {
-          heading: 'Lesson two is ready.',
+          heading: 'Your next lesson is ready.',
           body: 'Pick up where you left off.',
           btn: { text: 'Continue the course', style: 'solid', size: 14.5, align: 'center' },
         },
@@ -1376,7 +1392,7 @@ export const TEMPLATES: Record<string, TemplateDef> = {
         type: 'cta',
         props: {
           heading: 'There’s more where that came from.',
-          body: 'Lesson five is ready when you are.',
+          body: 'The next lesson is ready when you are.',
           btn: { text: 'Resume the course', style: 'solid', size: 14.5, align: 'center' },
         },
       },
@@ -1431,7 +1447,7 @@ export const TEMPLATES: Record<string, TemplateDef> = {
       {
         type: 'cta',
         props: {
-          heading: 'Lesson seven is ready.',
+          heading: 'The next lesson is ready.',
           body: 'Begin whenever you’re ready.',
           btn: { text: 'Resume the course', style: 'solid', size: 14.5, align: 'center' },
         },
@@ -1456,7 +1472,9 @@ export const TEMPLATES: Record<string, TemplateDef> = {
           // byline shows the course name — bindCourse fills it from the course.
           instructor: '',
           tagline: 'Every lesson, done. What you built here is yours now.',
-          btn: { text: 'Get your certificate', style: 'solid', align: 'left', radius: 999 },
+          // No certificates exist on the platform — the completion CTA sends
+          // them back into the course they now own.
+          btn: { text: 'Rewatch your favorites', style: 'solid', align: 'left', radius: 999 },
         },
       },
       { type: 'progress', props: { label: 'Course progress', value: 12, total: 12 } },
@@ -1501,7 +1519,9 @@ export const TEMPLATES: Record<string, TemplateDef> = {
           btn: { text: 'Pick up where you left off', style: 'solid', align: 'left', radius: 999 },
         },
       },
-      { type: 'progress', props: { label: 'Where you left off', value: 5, total: 12 } },
+      // No progress bar here: unlike the lifecycle moments (first lesson /
+      // halfway / complete), an inactivity email says nothing about how far
+      // the recipient actually got — a fixed bar would be a lie for everyone.
       {
         type: 'note',
         props: {
@@ -1517,7 +1537,7 @@ export const TEMPLATES: Record<string, TemplateDef> = {
         type: 'cta',
         props: {
           heading: 'Whenever you’re ready.',
-          body: 'Lesson five is cued up.',
+          body: 'Your next lesson is cued up.',
           btn: { text: 'Resume the course', style: 'solid', size: 14.5, align: 'center' },
         },
       },

@@ -132,6 +132,47 @@ describe('bindCourse', () => {
     const after = bindCourse(blocksFor('enrolment'), undefined, undefined, 'enrolment')
     expect(after[0].props.title).toBe(before[0].props.title)
   })
+
+  it('fills empty/# CTA button hrefs with the course link', () => {
+    const links = { courseUrl: 'https://learn.test/portal/courses/c1', catalogUrl: 'https://learn.test' }
+    const blocks = bindCourse(blocksFor('enrolment'), course, undefined, 'enrolment', links)
+    const cover = blocks.find((b) => b.type === 'coverHero')!
+    expect(cover.props.btn.href).toBe('https://learn.test/portal/courses/c1')
+    const cta = blocks.find((b) => b.type === 'cta')
+    if (cta) expect(cta.props.btn.href).toBe('https://learn.test/portal/courses/c1')
+  })
+
+  it('points the course-complete "what next" CTA at the catalog', () => {
+    const links = { courseUrl: 'https://learn.test/portal/courses/c1', catalogUrl: 'https://learn.test' }
+    const blocks = bindCourse(blocksFor('courseComplete'), course, undefined, 'courseComplete', links)
+    const cta = blocks.find((b) => b.type === 'cta')!
+    expect(cta.props.btn.href).toBe('https://learn.test')
+  })
+
+  it('never rounds an in-progress bar to 0% or 100%', () => {
+    // A 5-lesson course rebasing the first-lesson template (value 1 / total 12).
+    const small: CourseData = { ...course, lessons: course.lessons.slice(0, 5), progress: { completed: 0, total: 5 } }
+    const blocks = bindCourse(blocksFor('firstLesson'), small, undefined, 'firstLesson')
+    const prog = blocks.find((b) => b.type === 'progress')!
+    expect(prog.props.value).toBeGreaterThanOrEqual(1)
+    expect(prog.props.value).toBeLessThan(prog.props.total)
+  })
+
+  it('names the exact trigger lesson on the specific-lesson email', () => {
+    const blocks = bindCourse(
+      blocksFor('specificLesson'), course, undefined, 'specificLesson', undefined, 'Mother Sauces',
+    )
+    const cover = blocks.find((b) => b.type === 'coverHero')!
+    expect(cover.props.instructor).toBe('Mother Sauces')
+  })
+
+  it('turns the still-decorative footer "My courses" into a real portal link', () => {
+    const blocks = bindCourse(
+      blocksFor('enrolment'), course, undefined, 'enrolment', { portalUrl: 'https://learn.test/portal' },
+    )
+    const footer = blocks.find((b) => b.type === 'footer')!
+    expect(footer.props.links).toContain('href="https://learn.test/portal"')
+  })
 })
 
 describe('makeAssetResolver', () => {

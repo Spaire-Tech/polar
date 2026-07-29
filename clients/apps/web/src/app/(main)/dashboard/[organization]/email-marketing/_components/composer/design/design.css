@@ -343,6 +343,15 @@ to { opacity: 1; transform: none; }
 .bedesign .ih-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
 .bedesign .ih-k { font-size: 10.5px; font-weight: 500; letter-spacing: .08em; text-transform: uppercase; color: var(--be-text-3); }
 .bedesign .ih-k:empty { display: none; }
+/* Editor-only nudge for empty required slots (e.g. the footer's postal
+   address, which no longer ships a fabricated default): the hint lives in
+   CSS, never in the stored content, so it can't leak into a sent email. */
+.bedesign [contenteditable][data-ph]:empty::before {
+  content: attr(data-ph);
+  opacity: 0.45;
+  font-style: italic;
+  pointer-events: none;
+}
 .bedesign .ih-t { font-size: 17px; font-weight: 600; letter-spacing: -.022em; line-height: 1.1; }
 .bedesign .insp-body { padding: 2px 22px 26px; }
 .bedesign .ig { padding: 19px 0; border-top: 1px solid var(--be-hair-2); }
