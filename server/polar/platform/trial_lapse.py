@@ -35,13 +35,24 @@ async def lapse_stale_legacy_trials(session: AsyncSession) -> dict[str, int]:
     """
     from polar.subscription.service import subscription as subscription_service
 
-    counters = {"lapsed": 0, "trial_consumed_stamped": 0}
+    counters = {"lapsed": 0, "trial_consumed_stamped": 0, "markers_healed": 0}
+    repository = platform_subscription_repository(session)
+
+    # Data repair, runs regardless of platform configuration: legacy
+    # list-encoded reminder markers crash webhook serialization for any
+    # lifecycle event on the row (see
+    # trial_notifications.normalize_reminder_markers_metadata). Heal them
+    # in bulk so stuck cycle retries succeed without waiting to be
+    # individually touched.
+    counters[
+        "markers_healed"
+    ] = await repository.normalize_legacy_reminder_marker_metadata()
+
     if not platform_service.is_configured():
         return counters
 
     platform_org_id = platform_service.get_id()
     now = utc_now()
-    repository = platform_subscription_repository(session)
 
     for subscription in await repository.list_stale_legacy_trials(
         platform_org_id, before=now

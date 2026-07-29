@@ -95,6 +95,7 @@ from polar.platform.fee_sync import (
     maybe_supersede_platform_trial,
 )
 from polar.platform.service import platform as platform_service
+from polar.platform.trial_notifications import normalize_reminder_markers_metadata
 from polar.product.guard import (
     is_custom_price,
     is_fixed_price,
@@ -817,6 +818,8 @@ class SubscriptionService:
     async def _after_subscription_created(
         self, session: AsyncSession, subscription: Subscription
     ) -> None:
+        normalize_reminder_markers_metadata(subscription)
+
         await self._send_webhook(
             session, subscription, WebhookEventType.subscription_created
         )
@@ -1938,6 +1941,12 @@ class SubscriptionService:
         previous_status: SubscriptionStatus,
         previous_is_canceled: bool,
     ) -> None:
+        # Heal legacy list-encoded reminder markers BEFORE any webhook
+        # payload is built: the old encoding fails scalar-only metadata
+        # validation and would crash (and roll back) this whole lifecycle
+        # transition — including trial-conversion cycles.
+        normalize_reminder_markers_metadata(subscription)
+
         await self._on_subscription_updated(session, subscription)
 
         became_activated = subscription.active and not SubscriptionStatus.is_active(
