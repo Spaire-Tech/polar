@@ -8,7 +8,7 @@
 // authored subject + inbox-correct HTML + editor JSON back to the sequence.
 
 import type { schemas } from '@spaire/client'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 
 import { BroadcastEditorDesign } from '@/app/(main)/dashboard/[organization]/email-marketing/_components/composer/design/BroadcastEditorDesign'
@@ -79,6 +79,12 @@ export function SequenceEmailModal({
     }
   }, [])
 
+  // An email authored in an older editor can't be restored here — opening it
+  // rebuilds from a fresh template, and the first keystroke would overwrite the
+  // old design. Gate that behind an explicit confirmation instead of silently
+  // discarding the creator's previous work.
+  const [ackLegacy, setAckLegacy] = useState(false)
+
   // The editor is a full-viewport overlay. It MUST render as a direct child of
   // <body>, not inline in the dashboard tree: the dashboard content lives inside
   // framer-motion / overflow wrappers (DashboardLayout) that become the
@@ -127,8 +133,50 @@ export function SequenceEmailModal({
       ? (initialContentJson as unknown as EditorState)
       : null
 
+  // Prior content exists but in a shape this editor can't restore → opening
+  // will replace it. (No content, or content this editor wrote, needs no
+  // warning.)
+  const hasLegacyContent =
+    !!initialContentJson &&
+    (initialContentJson as { version?: number }).version !== 3
+
   // 'use client' + mounted only on user interaction ⇒ always client-side here.
   if (typeof document === 'undefined') return null
+
+  if (hasLegacyContent && !ackLegacy) {
+    return createPortal(
+      <div
+        className={`fixed inset-0 z-50 grid place-items-center bg-black/90 p-6${dark ? ' dark' : ''}`}
+      >
+        <div className="w-full max-w-md rounded-2xl bg-white p-6 text-center shadow-xl">
+          <h2 className="text-base font-semibold text-gray-900">
+            This email was built in an older editor
+          </h2>
+          <p className="mt-2 text-sm text-gray-500">
+            Opening it here starts from a fresh template for this moment. The
+            previous design can’t be carried over, and saving will replace it.
+          </p>
+          <div className="mt-6 flex justify-center gap-3">
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-full border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+            >
+              Keep the old email
+            </button>
+            <button
+              type="button"
+              onClick={() => setAckLegacy(true)}
+              className="rounded-full bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800"
+            >
+              Start fresh
+            </button>
+          </div>
+        </div>
+      </div>,
+      document.body,
+    )
+  }
 
   // Don't mount the editor with the design's placeholder course (Southern
   // Cooking / Adaeze Bello) before the real course resolves — a slow query

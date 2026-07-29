@@ -162,6 +162,30 @@ export function createEditor(root: HTMLElement, opts: CreateEditorOpts = {}): Ed
 
   /* ---------- state ---------- */
   let blocks: Block[] = []
+  // Structural undo/redo. Text edits keep the browser's native per-field undo;
+  // this stack covers add / delete / duplicate / move / drag-reorder, which
+  // were previously irreversible (a stray Backspace deleted a block for good).
+  const undoStack: Block[][] = []
+  const redoStack: Block[][] = []
+  const UNDO_LIMIT = 60
+  const snapshot = (): Block[] =>
+    blocks.map((b) => ({ id: b.id, type: b.type, props: JSON.parse(JSON.stringify(b.props)) }))
+  // Record the state BEFORE a structural change so it can be restored.
+  function pushHistory() {
+    undoStack.push(snapshot())
+    if (undoStack.length > UNDO_LIMIT) undoStack.shift()
+    redoStack.length = 0
+  }
+  function restoreHistory(from: Block[][], to: Block[][]) {
+    if (!from.length) return
+    to.push(snapshot())
+    blocks = from.pop()!
+    renderCanvas()
+    deselect()
+    flagSaving()
+  }
+  const undo = () => restoreHistory(undoStack, redoStack)
+  const redo = () => restoreHistory(redoStack, undoStack)
   let selId: string | null = null
   let selPart: string | null = null
   let themeKey = 'studio'
@@ -380,6 +404,9 @@ export function createEditor(root: HTMLElement, opts: CreateEditorOpts = {}): Ed
     Object.keys(themeOverrides).forEach((k) => delete themeOverrides[k])
     blocks = tpl.blocks.map((s) => makeBlock(s.type, s.props))
     if (opts.applyCourse) blocks = opts.applyCourse(blocks, key)
+    // A template switch is a clean slate — old structural history no longer
+    // maps onto the new block set.
+    undoStack.length = 0; redoStack.length = 0
     applyTheme(); updateCrumb(); renderCanvas(); deselect()
   }
 
@@ -819,10 +846,11 @@ export function createEditor(root: HTMLElement, opts: CreateEditorOpts = {}): Ed
   }
 
   /* ============================================================ BLOCK OPS */
-  function moveBlock(i: number, dir: number) { const j = i + dir; if (j < 0 || j >= blocks.length) return; [blocks[i], blocks[j]] = [blocks[j], blocks[i]]; renderCanvas(); flagSaving() }
-  function dupBlock(i: number) { const copy = makeBlock(blocks[i].type, JSON.parse(JSON.stringify(blocks[i].props))); blocks.splice(i + 1, 0, copy); renderCanvas(); select(copy.id); toast('Block duplicated'); flagSaving() }
-  function delBlock(i: number) { const wasSel = blocks[i].id === selId; blocks.splice(i, 1); renderCanvas(); if (wasSel) deselect(); flagSaving() }
+  function moveBlock(i: number, dir: number) { const j = i + dir; if (j < 0 || j >= blocks.length) return; pushHistory(); [blocks[i], blocks[j]] = [blocks[j], blocks[i]]; renderCanvas(); flagSaving() }
+  function dupBlock(i: number) { pushHistory(); const copy = makeBlock(blocks[i].type, JSON.parse(JSON.stringify(blocks[i].props))); blocks.splice(i + 1, 0, copy); renderCanvas(); select(copy.id); toast('Block duplicated'); flagSaving() }
+  function delBlock(i: number) { pushHistory(); const wasSel = blocks[i].id === selId; blocks.splice(i, 1); renderCanvas(); if (wasSel) deselect(); flagSaving() }
   function addBlock(type: string, atIndex?: number) {
+    pushHistory()
     const b = makeBoundBlock(type)
     const idx = atIndex != null ? atIndex : selId ? blocks.findIndex((x) => x.id === selId) + 1 : blocks.length
     blocks.splice(idx, 0, b); renderCanvas(); select(b.id); flagSaving()
@@ -857,6 +885,7 @@ export function createEditor(root: HTMLElement, opts: CreateEditorOpts = {}): Ed
     if (dragType == null && dragId == null) return
     e.preventDefault()
     const idx = dropIndex != null ? dropIndex : blocks.length
+    pushHistory()
     if (dragType) { const b = makeBoundBlock(dragType); blocks.splice(idx, 0, b); renderCanvas(); select(b.id); toast(REG[dragType].label + ' added') }
     else if (dragId) { const from = blocks.findIndex((x) => x.id === dragId); if (from > -1) { const [m] = blocks.splice(from, 1); let target = idx; if (from < idx) target--; blocks.splice(target, 0, m); renderCanvas(); select(m.id) } }
     endDrag(); flagSaving()
@@ -1114,7 +1143,19 @@ export function createEditor(root: HTMLElement, opts: CreateEditorOpts = {}): Ed
 
   on(root, 'keydown', (e: KeyboardEvent) => {
     if (e.key === 'Escape') { closeFloat(); closeSave(); closePicker(); hideFmtBubble(); deselect() }
-    if ((e.key === 'Backspace' || e.key === 'Delete') && selId && !(e.target as HTMLElement).closest('[contenteditable]') && !/INPUT|TEXTAREA|SELECT/.test((e.target as HTMLElement).tagName)) {
+    const tgt = e.target as HTMLElement
+    const inText = !!(tgt.closest && tgt.closest('[contenteditable]')) || /INPUT|TEXTAREA|SELECT/.test(tgt.tagName)
+    // Structural undo/redo — only when NOT inside a text field, so the browser's
+    // native per-field text undo keeps working while you're typing.
+    if ((e.metaKey || e.ctrlKey) && (e.key === 'z' || e.key === 'Z') && !inText) {
+      e.preventDefault()
+      if (e.shiftKey) redo(); else undo()
+      return
+    }
+    if ((e.metaKey || e.ctrlKey) && (e.key === 'y' || e.key === 'Y') && !inText) {
+      e.preventDefault(); redo(); return
+    }
+    if ((e.key === 'Backspace' || e.key === 'Delete') && selId && !inText) {
       e.preventDefault(); const i = blocks.findIndex((x) => x.id === selId); if (i > -1) delBlock(i)
     }
   })
