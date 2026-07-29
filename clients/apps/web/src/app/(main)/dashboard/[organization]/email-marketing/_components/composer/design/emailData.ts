@@ -1173,7 +1173,10 @@ export const REG: Record<string, BlockDef> = {
       taglineColor: t.muted,
       links: 'My courses    ·    Help',
       linksColor: t.muted,
-      address: '410 Townsend Street · San Francisco, CA 94107',
+      // Deliberately empty: shipping a made-up default address in real emails
+      // is a CAN-SPAM problem. The canvas shows an inline nudge (data-ph) and
+      // the sent render simply omits the line until the creator fills it in.
+      address: '',
       addressColor: t.muted,
       unsub: 'Unsubscribe',
       unsubColor: t.muted,
@@ -1198,7 +1201,7 @@ export const REG: Record<string, BlockDef> = {
           <p data-part="links" data-edit="links" contenteditable="true" style="margin:0 0 24px;text-align:${p.linksAlign};font-family:${ff(p.linksFont)};font-size:${p.linksSize}px;font-weight:500;letter-spacing:.02em;color:${p.linksColor}">${esc(p.links)}</p>
           <div data-part="fineprint" style="text-align:${p.fpAlign}">
           <p data-edit="tagline" contenteditable="true" style="margin:0 ${p.fpAlign === 'center' ? 'auto' : '0'} 8px;max-width:340px;font-family:${ff(p.fpFont)};font-size:${p.fpSize}px;line-height:1.6;color:${p.taglineColor}">${esc(p.tagline)}</p>
-          <p data-edit="address" contenteditable="true" style="margin:0 0 14px;font-family:${ff(p.fpFont)};font-size:11px;line-height:1.5;color:${p.addressColor}">${esc(p.address)}</p>
+          <p data-edit="address" data-ph="Add your business postal address (required by anti-spam law)" contenteditable="true" style="margin:0 0 14px;font-family:${ff(p.fpFont)};font-size:11px;line-height:1.5;min-height:1em;color:${p.addressColor}">${esc(p.address)}</p>
           <p style="margin:0;font-family:${ff(p.fpFont)};font-size:11px;color:${p.unsubColor}"><a data-edit="unsub" contenteditable="true" href="#" onclick="return false" style="color:${p.unsubColor};text-decoration:underline;text-underline-offset:2px">${esc(p.unsub)}</a></p>
           </div>
         </div>`
@@ -1332,7 +1335,7 @@ export const TEMPLATES: Record<string, TemplateDef> = {
       {
         type: 'cta',
         props: {
-          heading: 'Lesson two is ready.',
+          heading: 'Your next lesson is ready.',
           body: 'Pick up where you left off.',
           btn: { text: 'Continue the course', style: 'solid', size: 14.5, align: 'center' },
         },
@@ -1376,7 +1379,7 @@ export const TEMPLATES: Record<string, TemplateDef> = {
         type: 'cta',
         props: {
           heading: 'There’s more where that came from.',
-          body: 'Lesson five is ready when you are.',
+          body: 'The next lesson is ready when you are.',
           btn: { text: 'Resume the course', style: 'solid', size: 14.5, align: 'center' },
         },
       },
@@ -1431,7 +1434,7 @@ export const TEMPLATES: Record<string, TemplateDef> = {
       {
         type: 'cta',
         props: {
-          heading: 'Lesson seven is ready.',
+          heading: 'The next lesson is ready.',
           body: 'Begin whenever you’re ready.',
           btn: { text: 'Resume the course', style: 'solid', size: 14.5, align: 'center' },
         },
@@ -1503,7 +1506,9 @@ export const TEMPLATES: Record<string, TemplateDef> = {
           btn: { text: 'Pick up where you left off', style: 'solid', align: 'left', radius: 999 },
         },
       },
-      { type: 'progress', props: { label: 'Where you left off', value: 5, total: 12 } },
+      // No progress bar here: unlike the lifecycle moments (first lesson /
+      // halfway / complete), an inactivity email says nothing about how far
+      // the recipient actually got — a fixed bar would be a lie for everyone.
       {
         type: 'note',
         props: {
@@ -1519,7 +1524,7 @@ export const TEMPLATES: Record<string, TemplateDef> = {
         type: 'cta',
         props: {
           heading: 'Whenever you’re ready.',
-          body: 'Lesson five is cued up.',
+          body: 'Your next lesson is cued up.',
           btn: { text: 'Resume the course', style: 'solid', size: 14.5, align: 'center' },
         },
       },

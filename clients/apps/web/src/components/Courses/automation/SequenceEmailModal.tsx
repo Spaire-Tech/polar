@@ -115,6 +115,9 @@ export function SequenceEmailModal({
       : organizationPageLink(organization, `portal/courses/${courseId}`)
     : undefined
   const catalogUrl = storefrontLink(organization)
+  const portalUrl = customDomain
+    ? `https://${customDomain}/portal`
+    : organizationPageLink(organization, 'portal')
 
   // Only restore state the design editor itself wrote (version 3). Emails
   // authored in earlier composers use a different shape and start fresh from
@@ -155,7 +158,7 @@ export function SequenceEmailModal({
         }
         initialSubject={initialSubject}
         initialState={initialState}
-        links={{ courseUrl, catalogUrl }}
+        links={{ courseUrl, catalogUrl, portalUrl }}
         saveFailed={saveFailed}
         onUploadImage={async (file) => (await upload.mutateAsync(file)).url}
         onSendTest={async (v) => {

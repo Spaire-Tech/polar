@@ -284,10 +284,19 @@ const BLOCK: Record<string, (p: Props, t: Theme, r: Resolver) => string> = {
   },
 
   footer(p, t) {
-    const inner = `<p style="margin:0 0 24px;text-align:${p.linksAlign};font-family:${ff(p.linksFont)};font-size:${p.linksSize}px;font-weight:500;color:${p.linksColor}">${esc(p.links)}</p>
+    // Empty slots are omitted rather than shipped as blank paragraphs — in
+    // particular the postal address, which has no default any more (a
+    // fabricated default address in real sends was a CAN-SPAM liability).
+    const linksLine = esc(p.links)
+      ? `<p style="margin:0 0 24px;text-align:${p.linksAlign};font-family:${ff(p.linksFont)};font-size:${p.linksSize}px;font-weight:500;color:${p.linksColor}">${esc(p.links)}</p>`
+      : ''
+    const addressLine = esc(p.address)
+      ? `<p style="margin:0 0 14px;font-family:${ff(p.fpFont)};font-size:11px;line-height:1.5;color:${p.addressColor}">${esc(p.address)}</p>`
+      : ''
+    const inner = `${linksLine}
       <div style="text-align:${p.fpAlign}">
         <p style="margin:0 ${p.fpAlign === 'center' ? 'auto' : '0'} 8px;max-width:340px;font-family:${ff(p.fpFont)};font-size:${p.fpSize}px;line-height:1.6;color:${p.taglineColor}">${esc(p.tagline)}</p>
-        <p style="margin:0 0 14px;font-family:${ff(p.fpFont)};font-size:11px;line-height:1.5;color:${p.addressColor}">${esc(p.address)}</p>
+        ${addressLine}
         <p style="margin:0;font-family:${ff(p.fpFont)};font-size:11px;color:${p.unsubColor}"><a href="{{unsubscribe_url}}" style="color:${p.unsubColor};text-decoration:underline">${esc(p.unsub)}</a></p>
       </div>`
     const border = p.borderTop ? `border-top:1px solid ${p.borderColor};` : ''
@@ -304,6 +313,17 @@ export function buildEmailHTML(
   const body = blocks
     .map((b) => (BLOCK[b.type] ? BLOCK[b.type](b.props, t, resolveAsset) : ''))
     .join('\n')
+    // Links typed via the format bubble arrive as bare <a> tags inside rich
+    // text; the document-level a{text-decoration:none} reset would render
+    // them indistinguishable from plain text in the inbox (the editor shows
+    // the browser's default link styling, so what you saw was NOT what they
+    // got). Give any style-less anchor the theme's link colour + underline;
+    // anchors the renderers author (buttons, unsubscribe) carry their own
+    // style attribute and are untouched.
+    .replace(
+      /<a (?![^>]*style=)/gi,
+      `<a style="color:${t.link};text-decoration:underline;text-underline-offset:2px" `,
+    )
   return `<!DOCTYPE html>
 <html lang="en" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
 <head>
