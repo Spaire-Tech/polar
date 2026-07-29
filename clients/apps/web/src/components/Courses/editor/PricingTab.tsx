@@ -1,48 +1,51 @@
 'use client'
 
+/**
+ * Course editor — Pricing tab.
+ *
+ * Community-hub grouped-list design (.glist / .grow rows, hub Toggle) so it
+ * matches the Settings / Community tabs. The paywall toggle and position
+ * persist inline — no save bar, exactly like community settings.
+ */
 import LegacyRecurringProductPrices from '@/components/Products/LegacyRecurringProductPrices'
 import ProductPriceLabel from '@/components/Products/ProductPriceLabel'
-import { CourseRead } from '@/hooks/queries/courses'
+import { CourseRead, useUpdateCourse } from '@/hooks/queries/courses'
 import { useOrganizationPaymentStatus } from '@/hooks/queries/org'
 import { useProduct } from '@/hooks/queries/products'
+import { getQueryClient } from '@/utils/api/query'
 import { hasLegacyRecurringPrices } from '@/utils/product'
-import ArrowForwardOutlined from '@mui/icons-material/ArrowForwardOutlined'
-import EditOutlined from '@mui/icons-material/EditOutlined'
 import { schemas } from '@spaire/client'
-import Button from '@spaire/ui/components/atoms/Button'
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
+import { toast } from '../../Toast/use-toast'
+import { Toggle } from '../../Community/hub/atoms'
+import '../../Community/hub/hub.css'
+import '../../Community/hub/hub-extra.css'
 import { EditPricingModal } from './EditPricingModal'
 import { CourseSettingsEdits } from './SettingsTab'
+
+export type { CourseSettingsEdits }
 
 export function PricingTab({
   organization,
   course,
-  onSave,
-  isSaving,
 }: {
   organization: schemas['Organization']
   course: CourseRead
-  onSave: (edits: CourseSettingsEdits) => void
-  isSaving: boolean
+  onSave?: (edits: CourseSettingsEdits) => void
+  isSaving?: boolean
 }) {
   const { data: paymentStatus } = useOrganizationPaymentStatus(organization.id)
   const { data: product } = useProduct(course.product_id)
+  const updateCourse = useUpdateCourse()
 
   const [enabled, setEnabled] = useState(course.paywall_enabled)
-  const [editingPrice, setEditingPrice] = useState(false)
-
-  // Flatten lessons from all modules
-  const allLessons = course.modules.flatMap((m) => m.lessons)
-
-  // The paywall position is the positional free-preview cutoff. Lessons after
-  // it that are explicitly flagged "free preview" are ALSO free (the flag
-  // wins, matching the public landing) — surfaced as a note below, NOT folded
-  // into the saved position. Folding it in silently shifted the paywall every
-  // time the creator re-saved.
   const [position, setPosition] = useState<number | null>(
     course.paywall_position ?? 0,
   )
+  const [editingPrice, setEditingPrice] = useState(false)
+
+  const allLessons = course.modules.flatMap((m) => m.lessons)
 
   useEffect(() => {
     setEnabled(course.paywall_enabled)
@@ -54,10 +57,6 @@ export function PricingTab({
     return allLessons.slice(cut).filter((l) => l.is_free_preview).length
   }, [allLessons, position])
 
-  const dirty =
-    enabled !== course.paywall_enabled ||
-    position !== (course.paywall_position ?? 0)
-
   const lockedCount =
     enabled && position != null
       ? Math.max(0, allLessons.length - position - flaggedAfterPaywall)
@@ -65,165 +64,149 @@ export function PricingTab({
 
   const showPayoutBanner = paymentStatus && !paymentStatus.payment_ready
 
+  // Silent inline persist (matches community settings).
+  const persist = async (body: {
+    paywall_enabled?: boolean
+    paywall_position?: number | null
+  }) => {
+    try {
+      await updateCourse.mutateAsync({ courseId: course.id, body })
+      getQueryClient().invalidateQueries({
+        queryKey: ['courses', { courseId: course.id }],
+      })
+    } catch {
+      setEnabled(course.paywall_enabled)
+      setPosition(course.paywall_position ?? 0)
+      toast({ title: 'Could not save the paywall' })
+    }
+  }
+
+  const toggleEnabled = () => {
+    const next = !enabled
+    setEnabled(next)
+    persist({
+      paywall_enabled: next,
+      paywall_position: next ? (position ?? 0) : null,
+    })
+  }
+
+  const commitPosition = (raw: string) => {
+    const parsed = raw === '' ? 0 : parseInt(raw, 10)
+    if (!Number.isFinite(parsed)) return
+    const clamped = Math.max(0, Math.min(allLessons.length, parsed))
+    setPosition(clamped)
+    if (clamped !== (course.paywall_position ?? 0))
+      persist({ paywall_enabled: true, paywall_position: clamped })
+  }
+
   return (
     <div className="mx-auto w-full max-w-3xl px-8 py-8">
-      {showPayoutBanner && (
-        <div className="border-ce-accent-border bg-ce-accent-tint mb-6 flex flex-col gap-4 rounded-2xl border p-6 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex flex-col gap-y-1">
-            <h3 className="text-sm font-medium text-gray-900">
-              Complete your profile to start receiving payouts
-            </h3>
-            <p className="text-sm text-gray-500">
-              Set up your payout account so you can get paid when customers
-              purchase your products.
-            </p>
-          </div>
-          <Link
-            href={`/dashboard/${organization.slug}/finance/account`}
-            className="shrink-0"
-          >
-            <Button size="sm">
-              <span>Set Up Payouts</span>
-              <ArrowForwardOutlined className="ml-1.5" fontSize="small" />
-            </Button>
-          </Link>
-        </div>
-      )}
-
-      <div className="mb-6">
-        <h1 className="text-lg font-medium text-gray-900">Pricing</h1>
-        <p className="mt-1 text-gray-500">
-          The price students see at checkout, plus where the paywall sits in
-          your lesson list.
-        </p>
-      </div>
-
-      {/* Current offer */}
-      <section className="mb-4 overflow-hidden rounded-2xl border border-gray-200 bg-white">
-        <div className="flex items-start justify-between gap-3 border-b border-gray-100 px-5 py-4">
+      <div className="spaire-hub dark">
+        <div className="cr-head">
           <div>
-            <h2 className="text-lg font-medium text-gray-900">Current offer</h2>
-            <p className="mt-1 text-gray-500">
-              The price your students see at checkout for this course.
-            </p>
+            <div className="h">Pricing</div>
+            <div className="s">The price and where the paywall sits.</div>
           </div>
-          {product && (
-            <button
-              type="button"
-              onClick={() => setEditingPrice(true)}
-              className="flex h-8 items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-50"
-            >
-              <EditOutlined sx={{ fontSize: 13 }} />
-              Edit price
-            </button>
-          )}
         </div>
-        <div className="px-5 py-4">
-          {product ? (
-            <div className="flex items-baseline gap-3">
-              <span className="text-lg font-medium text-gray-900">
-                {hasLegacyRecurringPrices(product) ? (
-                  <LegacyRecurringProductPrices product={product} />
-                ) : (
-                  <ProductPriceLabel product={product} />
-                )}
-              </span>
+
+        {showPayoutBanner && (
+          <div className="card glist" style={{ marginBottom: 26 }}>
+            <div className="grow">
+              <div className="grow-main">
+                <div className="gl">Set up payouts</div>
+                <div className="gs">
+                  Finish your payout account to get paid.
+                </div>
+              </div>
+              <div className="grow-ctl">
+                <Link
+                  href={`/dashboard/${organization.slug}/finance/account`}
+                  className="btn btn-primary btn-sm"
+                >
+                  Set up
+                </Link>
+              </div>
             </div>
-          ) : (
-            <div className="h-6 w-28 animate-pulse rounded bg-gray-100" />
-          )}
-        </div>
-      </section>
-
-      {/* Paywall */}
-      <section className="overflow-hidden rounded-2xl border border-gray-200 bg-white">
-        <div className="flex items-start gap-4 px-5 py-4">
-          <div className="flex-1">
-            <h2 className="text-lg font-medium text-gray-900">Paywall</h2>
-            <p className="mt-1 text-gray-500">
-              Place a paywall between lessons. Lessons above are free preview;
-              everything after is locked until purchase.
-            </p>
-          </div>
-          <Toggle checked={enabled} onChange={setEnabled} />
-        </div>
-
-        {enabled && (
-          <div className="border-t border-gray-100 px-5 py-4">
-            <label className="block text-sm font-medium text-gray-900">
-              Paywall position
-            </label>
-            <p className="mt-0.5 text-xs text-gray-500">
-              Number of lessons visible before the paywall. Lessons after this
-              count are locked.
-            </p>
-            <div className="mt-3 flex items-center gap-3">
-              <input
-                type="number"
-                min={0}
-                max={allLessons.length}
-                value={position ?? ''}
-                onChange={(e) => {
-                  const raw = e.target.value
-                  if (raw === '') {
-                    setPosition(null)
-                    return
-                  }
-                  const parsed = parseInt(raw, 10)
-                  if (!Number.isFinite(parsed)) return
-                  setPosition(Math.max(0, Math.min(allLessons.length, parsed)))
-                }}
-                onBlur={() => {
-                  if (position == null) setPosition(0)
-                }}
-                className="focus:border-ce-accent focus:ring-ce-accent-ring w-24 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:outline-none"
-              />
-              <span className="text-sm text-gray-600">
-                of {allLessons.length} lessons visible
-              </span>
-            </div>
-            {flaggedAfterPaywall > 0 && (
-              <p className="mt-2 text-xs text-gray-500">
-                Includes {flaggedAfterPaywall} lesson
-                {flaggedAfterPaywall === 1 ? '' : 's'} marked as free preview
-                from the lesson menu.
-              </p>
-            )}
-
-            {lockedCount === 0 && position != null && (
-              <p className="mt-3 text-xs text-amber-600">
-                With this position, no lessons are locked — every lesson is a
-                free preview.
-              </p>
-            )}
           </div>
         )}
 
-        <div className="flex items-center justify-end gap-2 border-t border-gray-100 px-5 py-3">
-          <button
-            disabled={!dirty || isSaving}
-            onClick={() => {
-              setEnabled(course.paywall_enabled)
-              setPosition(course.paywall_position ?? 0)
-            }}
-            className="rounded-full border border-gray-300 px-4 py-2 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-50"
-          >
-            Reset
-          </button>
-          <button
-            disabled={!dirty || isSaving}
-            onClick={() =>
-              onSave({
-                paywall_enabled: enabled,
-                paywall_position: enabled ? position : null,
-              })
-            }
-            className="rounded-full bg-gray-900 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-gray-800 disabled:opacity-50"
-          >
-            {isSaving ? 'Saving…' : 'Save'}
-          </button>
+        {/* Price */}
+        <div className="glist-label">Price</div>
+        <div className="card glist" style={{ marginBottom: 26 }}>
+          <div className="grow">
+            <div className="grow-main">
+              <div className="gl">
+                {product ? (
+                  hasLegacyRecurringPrices(product) ? (
+                    <LegacyRecurringProductPrices product={product} />
+                  ) : (
+                    <ProductPriceLabel product={product} />
+                  )
+                ) : (
+                  '—'
+                )}
+              </div>
+              <div className="gs">What students pay at checkout.</div>
+            </div>
+            <div className="grow-ctl">
+              {product && (
+                <button
+                  className="btn btn-quiet btn-sm"
+                  onClick={() => setEditingPrice(true)}
+                >
+                  Edit price
+                </button>
+              )}
+            </div>
+          </div>
         </div>
-      </section>
+
+        {/* Paywall */}
+        <div className="glist-label">Paywall</div>
+        <div className="card glist">
+          <div className="grow">
+            <div className="grow-main">
+              <div className="gl">Paywall</div>
+              <div className="gs">
+                Free preview above, locked below.
+              </div>
+            </div>
+            <div className="grow-ctl">
+              <Toggle on={enabled} onClick={toggleEnabled} />
+            </div>
+          </div>
+
+          {enabled && (
+            <div className="grow">
+              <div className="grow-main">
+                <div className="gl">Free lessons</div>
+                <div className="gs">
+                  {lockedCount === 0
+                    ? 'Every lesson is a free preview.'
+                    : `${lockedCount} of ${allLessons.length} locked` +
+                      (flaggedAfterPaywall > 0
+                        ? ` · ${flaggedAfterPaywall} more free by tag`
+                        : '')}
+                </div>
+              </div>
+              <div className="grow-ctl">
+                <input
+                  className="input num"
+                  type="number"
+                  min={0}
+                  max={allLessons.length}
+                  value={position ?? ''}
+                  onChange={(e) => setPosition(
+                    e.target.value === '' ? null : parseInt(e.target.value, 10),
+                  )}
+                  onBlur={(e) => commitPosition(e.target.value)}
+                  style={{ width: 90, minWidth: 90, textAlign: 'center' }}
+                />
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
 
       {editingPrice && product && (
         <EditPricingModal
@@ -233,31 +216,5 @@ export function PricingTab({
         />
       )}
     </div>
-  )
-}
-
-function Toggle({
-  checked,
-  onChange,
-}: {
-  checked: boolean
-  onChange: (next: boolean) => void
-}) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      onClick={() => onChange(!checked)}
-      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none ${
-        checked ? 'bg-ce-accent' : 'bg-gray-200'
-      }`}
-    >
-      <span
-        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition ${
-          checked ? 'translate-x-5' : 'translate-x-0'
-        }`}
-      />
-    </button>
   )
 }

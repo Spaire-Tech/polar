@@ -237,7 +237,7 @@ const MetricChartBox = ({
           {!compact && (
             <div className="flex flex-col gap-x-6 gap-y-2 md:flex-row md:items-center">
               <div className="flex flex-row items-center gap-x-2 text-sm">
-                <span className="h-2.5 w-2.5 rounded-full bg-[#635BFF]" />
+                <span className="h-2.5 w-2.5 rounded-full bg-[#0066cc]" />
                 {hoveredPeriod ? (
                   <FormattedDateTime
                     datetime={hoveredPeriod.timestamp}

@@ -95,7 +95,7 @@ const ProfitChart = forwardRef<HTMLDivElement, ProfitChartProps>(
                 },
                 profit: {
                   label: 'Profit',
-                  color: '#004664',
+                  color: '#0066cc',
                 },
 
                 metric: {
