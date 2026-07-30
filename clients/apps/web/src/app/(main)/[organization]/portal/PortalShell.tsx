@@ -6,6 +6,7 @@ import { useEffect, useRef } from 'react'
 import { MobileTabBar } from './_components/MobileTabBar'
 import { PortalLoading } from './_components/PortalLoading'
 import { TopBar } from './_components/TopBar'
+import { useHideOnScroll } from './_components/useHideOnScroll'
 import { usePortalTabs } from './_components/usePortalTabs'
 import './portal.css'
 import { usePortalTheme } from './usePortalTheme'
@@ -41,9 +42,13 @@ export const PortalShell = ({
   // gated tabs (Community / Enrollments / Billing) pop in afterwards.
   const { ready } = usePortalTabs(organization)
   const rootRef = useRef<HTMLDivElement | null>(null)
+  // Hide-on-scroll lives here (not inside TopBar) so the root can carry the
+  // state as a class — sticky sub-bars (the community hub tabs) read it to
+  // pin at the very top while the bar is hidden instead of floating 56px down.
+  const topbarHidden = useHideOnScroll()
   const rootClass = `spaire-portal sp-app sp-app--mobile-tabs${
     dark ? ' sp-dark' : ''
-  }`
+  }${topbarHidden ? ' sp-app--topbar-hidden' : ''}`
   // Only the in-lesson player is immersive (full-bleed, no portal nav). The
   // course portal page itself keeps the standard TopBar.
   const immersive = isCourseRoute(pathname) && !!searchParams.get('lesson')
@@ -108,7 +113,7 @@ export const PortalShell = ({
   if (isCourseRoute(pathname)) {
     return (
       <div ref={rootRef} className={rootClass}>
-        <TopBar organization={organization} />
+        <TopBar organization={organization} hidden={topbarHidden} />
         <main className="sp-course-portal">{children}</main>
         <MobileTabBar organization={organization} />
       </div>
@@ -117,7 +122,7 @@ export const PortalShell = ({
 
   return (
     <div ref={rootRef} className={rootClass}>
-      <TopBar organization={organization} />
+      <TopBar organization={organization} hidden={topbarHidden} />
       <main className="sp-page">{children}</main>
       <MobileTabBar organization={organization} />
     </div>
