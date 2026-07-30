@@ -5,7 +5,7 @@ import { useDocHistory } from './useDocHistory'
 
 const ACCENT_SWATCHES = [
   '#1d1d1f',
-  '#4f46e5',
+  '#2997ff',
   '#0066CC',
   '#1A7A3E',
   '#D6336C',

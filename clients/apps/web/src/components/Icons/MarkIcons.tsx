@@ -4,8 +4,8 @@
 import { ReactElement } from 'react'
 
 const MARK_PALETTE = {
-  violet: '#635bff',
-  violetDk: '#4f46db',
+  violet: '#0066cc',
+  violetDk: '#0054b1',
   cyan: '#3aa6c9',
   green: '#3aa37a',
   greenDk: '#247055',

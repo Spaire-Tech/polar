@@ -195,7 +195,7 @@ const ProfileTitleCombo = ({
         onFocus={() => setShowDropdown(true)}
         onBlur={() => setTimeout(() => setShowDropdown(false), 200)}
         placeholder={placeholder}
-        className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-[#6e56ff] focus:outline-none focus:ring-0"
+        className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-[#0066cc] focus:outline-none focus:ring-0"
       />
       {mounted &&
         showDropdown &&
@@ -1103,7 +1103,7 @@ export const EditableProfileCard = ({
               value={contactDraft}
               onChange={(e) => setContactDraft(e.target.value)}
               placeholder=""
-              className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-[#6e56ff] focus:outline-none focus:ring-0"
+              className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-[#0066cc] focus:outline-none focus:ring-0"
             />
           </div>
         )}

@@ -443,7 +443,7 @@ const TemplateGallery = ({
                 fontWeight: 500,
                 letterSpacing: '0.18em',
                 textTransform: 'uppercase',
-                color: '#a5b4fc',
+                color: '#2997ff',
                 marginBottom: 18,
               }}
             >
@@ -929,7 +929,7 @@ const FlowMiniature = ({
   const cardBg = dark ? 'rgba(255,255,255,0.08)' : '#fff'
   const cardBorder = dark ? 'rgba(255,255,255,0.18)' : 'var(--line)'
   const ink = dark ? '#fff' : 'var(--ink)'
-  const accentColor = accent || (dark ? '#a5b4fc' : 'var(--indigo)')
+  const accentColor = accent || (dark ? '#2997ff' : 'var(--indigo)')
   return (
     <svg
       viewBox="0 0 280 200"

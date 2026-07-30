@@ -22,7 +22,7 @@ const orderStatusBadgeClassNames = (order: schemas['Order']) => {
       return 'bg-yellow-50 text-yellow-500'
     case 'refunded':
     case 'partially_refunded':
-      return 'bg-violet-50 text-violet-500 '
+      return 'bg-blue-50 text-blue-500 '
   }
 }
 

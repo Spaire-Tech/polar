@@ -77,7 +77,7 @@ export default function StartupStackPage() {
           around the world.
         </p>
         {!perksUnlocked && (
-          <p className="text-sm text-violet-500">
+          <p className="text-sm text-blue-500">
             Perks unlock after your first successful sale through Spaire. This
             helps ensure the program supports founders who are actively building
             and launching their products.

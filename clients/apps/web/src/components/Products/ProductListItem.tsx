@@ -54,7 +54,7 @@ const CATEGORY_PILLS: Record<
   { label: string; className: string }
 > = {
   ebook: { label: 'eBook', className: 'bg-amber-100 text-amber-700' },
-  template: { label: 'Template', className: 'bg-violet-100 text-violet-700' },
+  template: { label: 'Template', className: 'bg-cyan-100 text-cyan-700' },
   assets: { label: 'Assets', className: 'bg-pink-100 text-pink-700' },
   course: { label: 'Course', className: 'bg-sky-100 text-sky-700' },
   guide: { label: 'Guide', className: 'bg-emerald-100 text-emerald-700' },
@@ -62,7 +62,7 @@ const CATEGORY_PILLS: Record<
   video: { label: 'Video', className: 'bg-red-100 text-red-700' },
   photo: { label: 'Photo', className: 'bg-orange-100 text-orange-700' },
   software: { label: 'Software', className: 'bg-blue-100 text-blue-700' },
-  coaching: { label: 'Coaching', className: 'bg-purple-100 text-purple-700' },
+  coaching: { label: 'Coaching', className: 'bg-lime-100 text-lime-700' },
   membership: {
     label: 'Membership',
     className: 'bg-teal-100 text-teal-700',

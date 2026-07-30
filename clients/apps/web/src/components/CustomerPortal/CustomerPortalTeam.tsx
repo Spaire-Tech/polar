@@ -34,7 +34,7 @@ interface CustomerPortalTeamProps {
 const roleDisplayNames: Record<string, [string, string]> = {
   owner: [
     'Owner',
-    'bg-purple-100 text-purple-600 ',
+    'bg-blue-100 text-blue-600 ',
   ],
   billing_manager: [
     'Billing Manager',

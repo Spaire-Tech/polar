@@ -343,9 +343,8 @@ export function AskAssistant({ courseId, token }: AskAssistantProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
 
-  // Default to dark so the sheet reads on the (black) portal — respects an
-  // existing choice under the shared theme key.
-  const [dark, setDark] = useState(true)
+  // The customer portal is always dark — the sheet follows, no toggle.
+  const dark = true
   const [open, setOpen] = useState(false)
   const [closing, setClosing] = useState(false)
   const [msgs, setMsgs] = useState<ChatMessage[]>([])
@@ -364,15 +363,6 @@ export function AskAssistant({ courseId, token }: AskAssistantProps) {
   const shownRef = useRef(0)
   const rafRef = useRef<number | null>(null)
   const streamDoneRef = useRef(false)
-
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem('spaire_theme')
-      if (stored) setDark(stored === 'dark')
-    } catch {
-      /* ignore */
-    }
-  }, [])
 
   const disclaimer =
     status?.disclaimer || 'AI assistant · double-check anything important.'
@@ -529,18 +519,6 @@ export function AskAssistant({ courseId, token }: AskAssistantProps) {
     [],
   )
 
-  const toggleDark = useCallback(() => {
-    setDark((d) => {
-      const next = !d
-      try {
-        localStorage.setItem('spaire_theme', next ? 'dark' : 'light')
-      } catch {
-        /* ignore */
-      }
-      return next
-    })
-  }, [])
-
   if (!status?.available) return null
 
   const autosize = (el: HTMLTextAreaElement) => {
@@ -571,13 +549,6 @@ export function AskAssistant({ courseId, token }: AskAssistantProps) {
               <div className="ta-sub">AI assistant</div>
             </div>
             <div className="ta-head-btns">
-              <button
-                className="ta-iconbtn"
-                onClick={toggleDark}
-                aria-label="Toggle theme"
-              >
-                <Glyph d={dark ? SF.sun : SF.moon} size={16} stroke={2} />
-              </button>
               <button
                 className="ta-iconbtn"
                 onClick={doClose}

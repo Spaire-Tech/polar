@@ -32,19 +32,20 @@
 
   /* Primary blue — anchored to the course-builder blue (#0066cc at 500) so
      the dashboard shares the exact blue used across the builder, portal and
-     community. Hue 255.83 (a true blue, not the old cyan-leaning 235). */
+     community. Hue 255.83 (a true blue, not the old cyan-leaning 235).
+     Keep in sync with the :root override further down. */
   --color-blue-50: oklch(0.97 0.018 255.83);
-  --color-blue-100: oklch(0.932 0.04 255.83);
-  --color-blue-200: oklch(0.882 0.074 255.83);
-  --color-blue-300: oklch(0.809 0.119 255.83);
-  --color-blue-400: oklch(0.707 0.163 255.83);
+  --color-blue-100: oklch(0.94 0.045 255.83);
+  --color-blue-200: oklch(0.895 0.082 255.83);
+  --color-blue-300: oklch(0.825 0.125 255.83);
+  --color-blue-400: oklch(0.68 0.17 255.83);
   --color-blue-500: oklch(0.522 0.177 255.83);
-  --color-blue-600: oklch(0.372 0.103 255.83);
-  --color-blue-700: oklch(0.35 0.113 255.83);
-  --color-blue-800: oklch(0.3 0.094 255.83);
-  --color-blue-900: oklch(0.265 0.075 255.83);
-  --color-blue-950: oklch(0.2 0.05 255.83);
-  --color-blue: var(--color-blue-600);
+  --color-blue-600: oklch(0.46 0.165 255.83);
+  --color-blue-700: oklch(0.405 0.145 255.83);
+  --color-blue-800: oklch(0.335 0.115 255.83);
+  --color-blue-900: oklch(0.272 0.09 255.83);
+  --color-blue-950: oklch(0.205 0.062 255.83);
+  --color-blue: var(--color-blue-500);
 
   --color-green-50: oklch(0.979 0.021 166.113);
   --color-green-100: oklch(0.95 0.052 163.051);
@@ -225,19 +226,21 @@
   }
 }
 
-/* Light mode: remap blue → purple (Stripe-style, shifted more purple) */
+/* Main accent: the course-builder blue (#0066cc at 500). This replaces the
+   old purple (Stripe-style hue 272) remap — the dashboard now shares the
+   exact blue used across the builder, portal and community. */
 :root {
-  --color-blue-50: oklch(0.97 0.02 272);
-  --color-blue-100: oklch(0.94 0.042 272);
-  --color-blue-200: oklch(0.895 0.08 272);
-  --color-blue-300: oklch(0.825 0.135 272);
-  --color-blue-400: oklch(0.73 0.185 272);
-  --color-blue-500: oklch(0.558 0.225 272);
-  --color-blue-600: oklch(0.48 0.195 272);
-  --color-blue-700: oklch(0.405 0.165 272);
-  --color-blue-800: oklch(0.335 0.135 272);
-  --color-blue-900: oklch(0.272 0.105 272);
-  --color-blue-950: oklch(0.205 0.078 272);
+  --color-blue-50: oklch(0.97 0.018 255.83);
+  --color-blue-100: oklch(0.94 0.045 255.83);
+  --color-blue-200: oklch(0.895 0.082 255.83);
+  --color-blue-300: oklch(0.825 0.125 255.83);
+  --color-blue-400: oklch(0.68 0.17 255.83);
+  --color-blue-500: oklch(0.522 0.177 255.83);
+  --color-blue-600: oklch(0.46 0.165 255.83);
+  --color-blue-700: oklch(0.405 0.145 255.83);
+  --color-blue-800: oklch(0.335 0.115 255.83);
+  --color-blue-900: oklch(0.272 0.09 255.83);
+  --color-blue-950: oklch(0.205 0.062 255.83);
   --color-blue: var(--color-blue-500);
 }
 

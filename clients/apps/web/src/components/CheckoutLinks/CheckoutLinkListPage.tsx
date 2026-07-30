@@ -397,7 +397,7 @@ function StripeStyleEmptyState({ onCreateClick }: { onCreateClick: () => void })
       {/* Geometric icon — Venn-diagram circles */}
       <div style={{ isolation: 'isolate' }} className="relative h-14 w-24">
         <div style={{ mixBlendMode: 'multiply' }} className="absolute top-0 left-0 h-14 w-14 rounded-full bg-cyan-300" />
-        <div style={{ mixBlendMode: 'multiply' }} className="absolute top-0 right-0 h-14 w-14 rounded-full bg-violet-300" />
+        <div style={{ mixBlendMode: 'multiply' }} className="absolute top-0 right-0 h-14 w-14 rounded-full bg-blue-300" />
       </div>
 
       {/* Title + description */}

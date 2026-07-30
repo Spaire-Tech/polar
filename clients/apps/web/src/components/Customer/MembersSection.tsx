@@ -15,7 +15,7 @@ const roleDisplayConfig = {
   ],
   billing_manager: [
     'Billing Manager',
-    'bg-purple-100 text-purple-600 ',
+    'bg-sky-100 text-sky-600 ',
   ],
   member: [
     'Member',

@@ -222,7 +222,7 @@ export function SettingsTab({
 
   return (
     <div className="mx-auto w-full max-w-3xl px-8 py-8">
-      <div className="spaire-hub dark">
+      <div className="spaire-hub dark hub-embed">
         <div className="cr-head">
           <div>
             <div className="h">Settings</div>

@@ -34,17 +34,17 @@
   --red-soft: oklch(0.936 0.032 17.717);   /* red-100 */
   --amber: oklch(0.55 0.13 75);
   --amber-soft: oklch(0.96 0.05 90);
-  --blue: oklch(0.580 0.140 235.243);      /* blue-500 */
-  --blue-soft: oklch(0.932 0.032 235.243); /* blue-100 */
+  --blue: var(--color-blue-500);
+  --blue-soft: var(--color-blue-100);
 
-  /* Accent — was Stripe indigo, now dashboard blue. Kept under the same
-     variable names because TSX files reference `var(--indigo*)` in many
-     inline-style sites. */
-  --indigo: oklch(0.580 0.140 235.243);          /* blue-500 */
-  --indigo-2: oklch(0.372 0.079 235.243);        /* blue-600 */
-  --indigo-soft: oklch(0.970 0.014 235.243);     /* blue-50  */
-  --indigo-soft-2: oklch(0.932 0.032 235.243);   /* blue-100 */
-  --indigo-line: oklch(0.882 0.059 235.243);     /* blue-200 */
+  /* Accent — follows the global blue tokens (the course-builder blue).
+     Kept under the same variable names because TSX files reference
+     `var(--indigo*)` in many inline-style sites. */
+  --indigo: var(--color-blue-500);
+  --indigo-2: var(--color-blue-600);
+  --indigo-soft: var(--color-blue-50);
+  --indigo-soft-2: var(--color-blue-100);
+  --indigo-line: var(--color-blue-200);
   --pink: oklch(0.704 0.191 22.216);             /* red-400 */
 
   /* Radii — match Tailwind rounded-lg / -xl / -2xl. */

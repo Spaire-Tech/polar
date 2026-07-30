@@ -4,7 +4,7 @@ import { twMerge } from 'tailwind-merge'
 const getEventSourceStyle = (source: schemas['Event']['source']) => {
   switch (source) {
     case 'system':
-      return 'text-indigo-500 bg-indigo-50 '
+      return 'text-blue-500 bg-blue-50 '
     case 'user':
       return 'text-emerald-500 bg-emerald-50 '
     default:

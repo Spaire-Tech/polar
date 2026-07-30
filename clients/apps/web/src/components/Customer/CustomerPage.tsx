@@ -515,7 +515,7 @@ export const CustomerPage: React.FC<CustomerPageProps> = ({
                   <Status
                     className={twMerge(
                       customer.type === 'team'
-                        ? 'bg-purple-100 text-purple-600 '
+                        ? 'bg-blue-100 text-blue-600 '
                         : ' bg-gray-100 text-gray-600',
                       'w-fit text-xs',
                     )}

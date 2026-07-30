@@ -193,7 +193,7 @@ const Checkout = ({
     const isDenied = paymentStatus?.organization_status === 'denied'
 
     return (
-      <div className="rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-sm text-violet-700  ">
+      <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800  ">
         <span className="font-medium">Payments are currently unavailable. </span>
         {isDenied
           ? `${checkout.organization.name} doesn't allow payments.`

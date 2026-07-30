@@ -61,7 +61,7 @@ export const FormTab = ({
                   style={{
                     backgroundImage: form.image_url
                       ? `url(${form.image_url})`
-                      : 'linear-gradient(135deg, #4f46e5, #818cf8)',
+                      : 'linear-gradient(135deg, #0054b1, #4998fe)',
                   }}
                 >
                   {!form.image_url && (title[0]?.toUpperCase() ?? '·')}

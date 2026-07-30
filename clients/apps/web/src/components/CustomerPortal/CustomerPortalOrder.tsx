@@ -28,9 +28,9 @@ const statusColors = {
   pending:
     'bg-yellow-100 text-yellow-500 ',
   refunded:
-    'bg-violet-100 text-violet-500 ',
+    'bg-blue-100 text-blue-500 ',
   partially_refunded:
-    'bg-violet-100 text-violet-500 ',
+    'bg-blue-100 text-blue-500 ',
 }
 
 const CustomerPortalOrder = ({
