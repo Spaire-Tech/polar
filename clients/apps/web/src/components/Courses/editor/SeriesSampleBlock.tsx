@@ -443,17 +443,17 @@ export function SampleSettingsPopover({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="right"
-        className="w-[480px] overflow-y-auto border-l border-white/10 p-0 sm:max-w-[480px]"
+        className="w-[92vw] max-w-[92vw] overflow-y-auto border-l border-white/10 p-0 sm:w-[720px] sm:max-w-[720px]"
         style={{ background: UI.bg, colorScheme: 'dark' }}
       >
         <div
           style={{
             fontFamily: FONT_VAR,
-            padding: '28px 26px 26px',
+            padding: '32px 32px 30px',
             color: UI.text,
             display: 'flex',
             flexDirection: 'column',
-            gap: 16,
+            gap: 18,
           }}
         >
           <div>
@@ -515,90 +515,100 @@ export function SampleSettingsPopover({
             </div>
           ) : (
             <>
-              {/* Enable toggle — builder-style switch */}
+              {/* Toggle + source picker share a row on the wide sheet; the
+                  toggle takes the full row when the picker is hidden. */}
               <div
                 style={{
-                  ...uiCard,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: 16,
+                  display: 'grid',
+                  gridTemplateColumns: lockedLessonId ? '1fr' : '1fr 1fr',
+                  gap: 14,
                 }}
               >
-                <div>
-                  <div
-                    style={{ fontSize: 14, fontWeight: 500, color: UI.text }}
-                  >
-                    Show on landing
-                  </div>
-                  <div style={{ fontSize: 12, color: UI.sub, marginTop: 3 }}>
-                    Plays automatically when scrolled into view.
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={enabled}
-                  aria-label="Show the free sample on the landing page"
-                  onClick={() => setEnabled((v) => !v)}
+                {/* Enable toggle — builder-style switch */}
+                <div
                   style={{
-                    flex: 'none',
-                    width: 44,
-                    height: 26,
-                    borderRadius: 999,
-                    border: 'none',
-                    padding: 2,
-                    cursor: 'pointer',
-                    background: enabled
-                      ? UI.accent
-                      : 'rgba(255, 255, 255, 0.16)',
-                    transition: 'background 0.18s',
+                    ...uiCard,
                     display: 'flex',
-                    justifyContent: enabled ? 'flex-end' : 'flex-start',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: 16,
                   }}
                 >
-                  <span
-                    style={{
-                      width: 22,
-                      height: 22,
-                      borderRadius: '50%',
-                      background: '#fff',
-                      boxShadow: '0 1px 4px rgba(0, 0, 0, 0.4)',
-                    }}
-                  />
-                </button>
-              </div>
-
-              {/* Episode picker — hidden when the editor is locked to one
-                  lesson (opened from inside that lesson). */}
-              {!lockedLessonId && (
-                <div style={uiCard}>
-                  <div style={{ ...uiKicker, marginBottom: 10 }}>
-                    Source {unit}
+                  <div>
+                    <div
+                      style={{ fontSize: 14, fontWeight: 500, color: UI.text }}
+                    >
+                      Show on landing
+                    </div>
+                    <div style={{ fontSize: 12, color: UI.sub, marginTop: 3 }}>
+                      Plays automatically when scrolled into view.
+                    </div>
                   </div>
-                  <select
-                    value={lessonId ?? ''}
-                    onChange={(e) => setLessonId(e.target.value || null)}
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={enabled}
+                    aria-label="Show the free sample on the landing page"
+                    onClick={() => setEnabled((v) => !v)}
                     style={{
-                      width: '100%',
-                      padding: '11px 12px',
-                      borderRadius: 10,
-                      border: `1px solid ${UI.border}`,
-                      background: UI.cardRaised,
-                      fontSize: 13.5,
-                      fontFamily: FONT_VAR,
-                      color: UI.text,
-                      colorScheme: 'dark',
+                      flex: 'none',
+                      width: 44,
+                      height: 26,
+                      borderRadius: 999,
+                      border: 'none',
+                      padding: 2,
+                      cursor: 'pointer',
+                      background: enabled
+                        ? UI.accent
+                        : 'rgba(255, 255, 255, 0.16)',
+                      transition: 'background 0.18s',
+                      display: 'flex',
+                      justifyContent: enabled ? 'flex-end' : 'flex-start',
                     }}
                   >
-                    {playableLessons.map(({ lesson, index }) => (
-                      <option key={lesson.id} value={lesson.id}>
-                        {`${unitCap} ${String(index + 1).padStart(2, '0')} · ${lesson.title}`}
-                      </option>
-                    ))}
-                  </select>
+                    <span
+                      style={{
+                        width: 22,
+                        height: 22,
+                        borderRadius: '50%',
+                        background: '#fff',
+                        boxShadow: '0 1px 4px rgba(0, 0, 0, 0.4)',
+                      }}
+                    />
+                  </button>
                 </div>
-              )}
+
+                {/* Episode picker — hidden when the editor is locked to one
+                    lesson (opened from inside that lesson). */}
+                {!lockedLessonId && (
+                  <div style={uiCard}>
+                    <div style={{ ...uiKicker, marginBottom: 10 }}>
+                      Source {unit}
+                    </div>
+                    <select
+                      value={lessonId ?? ''}
+                      onChange={(e) => setLessonId(e.target.value || null)}
+                      style={{
+                        width: '100%',
+                        padding: '11px 12px',
+                        borderRadius: 10,
+                        border: `1px solid ${UI.border}`,
+                        background: UI.cardRaised,
+                        fontSize: 13.5,
+                        fontFamily: FONT_VAR,
+                        color: UI.text,
+                        colorScheme: 'dark',
+                      }}
+                    >
+                      {playableLessons.map(({ lesson, index }) => (
+                        <option key={lesson.id} value={lesson.id}>
+                          {`${unitCap} ${String(index + 1).padStart(2, '0')} · ${lesson.title}`}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+              </div>
 
               {/* Inline scrub preview */}
               {selectedLesson && (
