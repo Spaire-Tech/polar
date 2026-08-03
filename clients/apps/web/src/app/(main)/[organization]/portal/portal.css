@@ -2043,6 +2043,34 @@
   min-height: 100%;
 }
 
+/* ── Community hub tab bar (Feed · Activities · Events · Members · Profile) ──
+   Pin it while scrolling, coordinated with the hide-on-scroll top bar: glued
+   to the bar's bottom edge while the bar is visible, rising to the very top
+   of the viewport when the bar slides away (sp-app--topbar-hidden on the
+   shell root). Without this the tabs sat 56px down over a dead gap whenever
+   the top bar hid. z-index stays below the top bar so the bar slides back
+   in OVER the pinned tabs on scroll-up, then releases them back down. */
+.spaire-portal .spaire-hub .tabs {
+  position: sticky;
+  top: 56px;
+  z-index: 30;
+  transition:
+    top 0.3s ease,
+    background 0.4s ease,
+    border-color 0.4s ease;
+}
+.spaire-portal.sp-app--topbar-hidden .spaire-hub .tabs {
+  top: 0;
+}
+@media (max-width: 720px) {
+  .spaire-portal .spaire-hub .tabs {
+    top: 52px; /* mobile top bar is 52px tall */
+  }
+  .spaire-portal.sp-app--topbar-hidden .spaire-hub .tabs {
+    top: 0;
+  }
+}
+
 /* ============================================================
    ACCENT REMAP — globals.css re-points tailwind's blue-* palette at a
    purple ramp, so embedded dashboard components (usage meter, team
