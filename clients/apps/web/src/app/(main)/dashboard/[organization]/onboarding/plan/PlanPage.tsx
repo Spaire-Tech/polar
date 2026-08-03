@@ -13,8 +13,9 @@ import { twMerge } from 'tailwind-merge'
  * Final visible step of onboarding: it sits after OrganizationStep
  * ("Profile basics", at /dashboard/create).
  *
- * Visual port of the "Choose your plan" design — a full-screen dark
- * liquid-glass pricing stage with Studio as the bright recommended card.
+ * Visual port of the "Choose your plan" design — a full-screen light
+ * pricing stage (white background, blue CTAs, matching the OrganizationStep
+ * look) with Studio as the highlighted recommended card.
  * The creator picks a tier + billing interval, and clicking a card's CTA
  * hands off to upgrade-checkout which converts the trialing subscription in
  * place and redirects to the Polar-hosted checkout. Success returns to
@@ -332,7 +333,7 @@ function ShieldIcon() {
 }
 
 // ── Scoped styles (ported from the design, scoped under .spaire-plan-picker
-//    so the dark/full-screen rules don't leak onto the rest of the app) ──────
+//    so the full-screen rules don't leak onto the rest of the app) ───────────
 
 function SpairePlanPickerStyles() {
   return (
@@ -340,12 +341,15 @@ function SpairePlanPickerStyles() {
       .spaire-plan-picker {
         --ink: #1d1d1f;
         --gray: #86868b;
+        --muted: #6b7280;
+        --blue: #2563eb;
+        --blue-hover: #1d4ed8;
         --sf: -apple-system, BlinkMacSystemFont, 'SF Pro Display',
           'SF Pro Text', system-ui, sans-serif;
         --po: var(--font-poppins), 'Poppins', -apple-system,
           BlinkMacSystemFont, system-ui, sans-serif;
         font-family: var(--sf);
-        color: #fff;
+        color: var(--ink);
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
         letter-spacing: -0.01em;
@@ -360,7 +364,7 @@ function SpairePlanPickerStyles() {
         overflow-y: auto;
         display: flex;
         flex-direction: column;
-        background: #000;
+        background: #fff;
       }
       .spaire-plan-picker .stage {
         margin: auto;
@@ -396,18 +400,17 @@ function SpairePlanPickerStyles() {
         font-weight: 600;
         letter-spacing: -0.03em;
         line-height: 1.05;
-        text-shadow: 0 1px 30px rgba(0, 0, 0, 0.3);
+        color: var(--ink);
       }
       .spaire-plan-picker .head p {
         font-size: 17px;
         line-height: 1.5;
-        color: rgba(255, 255, 255, 0.82);
+        color: var(--muted);
         font-weight: 400;
         margin-top: 14px;
         max-width: 540px;
         margin-left: auto;
         margin-right: auto;
-        text-shadow: 0 1px 16px rgba(0, 0, 0, 0.3);
       }
 
       /* ---------- billing toggle (centered) ---------- */
@@ -423,10 +426,8 @@ function SpairePlanPickerStyles() {
         gap: 3px;
         padding: 4px;
         border-radius: 980px;
-        background: rgba(0, 0, 0, 0.32);
-        -webkit-backdrop-filter: blur(24px) saturate(160%);
-        backdrop-filter: blur(24px) saturate(160%);
-        box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.16);
+        background: #f3f4f6;
+        box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.04);
       }
       .spaire-plan-picker .seg button {
         height: 38px;
@@ -435,23 +436,22 @@ function SpairePlanPickerStyles() {
         font-size: 15px;
         font-weight: 500;
         letter-spacing: -0.01em;
-        color: rgba(255, 255, 255, 0.72);
+        color: var(--muted);
         transition: color 0.2s, background 0.2s, box-shadow 0.2s;
       }
       .spaire-plan-picker .seg button.on {
         color: var(--ink);
-        background: rgba(255, 255, 255, 0.96);
-        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.28);
+        background: #fff;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
       }
       .spaire-plan-picker .save-note {
         font-size: 13px;
         font-weight: 500;
-        color: rgba(255, 255, 255, 0.72);
-        text-shadow: 0 1px 12px rgba(0, 0, 0, 0.3);
+        color: var(--muted);
         transition: opacity 0.25s;
       }
       .spaire-plan-picker .save-note b {
-        color: #fff;
+        color: var(--ink);
         font-weight: 600;
       }
 
@@ -465,32 +465,28 @@ function SpairePlanPickerStyles() {
         align-items: stretch;
       }
 
-      /* base = dark liquid glass */
+      /* base = white card with soft border + shadow (OrganizationStep look) */
       .spaire-plan-picker .card {
         position: relative;
         display: flex;
         flex-direction: column;
         border-radius: 24px;
         padding: 32px 28px 30px;
-        background: rgba(16, 18, 22, 0.34);
-        -webkit-backdrop-filter: blur(44px) saturate(170%);
-        backdrop-filter: blur(44px) saturate(170%);
-        box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.14),
-          0 24px 50px -28px rgba(0, 0, 0, 0.5);
-        color: #fff;
+        background: #fff;
+        box-shadow: inset 0 0 0 1px #f3f4f6,
+          0 1px 2px rgba(0, 0, 0, 0.05);
+        color: var(--ink);
         transition: transform 0.3s cubic-bezier(0.2, 1, 0.3, 1);
       }
       .spaire-plan-picker .card:hover {
         transform: translateY(-4px);
       }
 
-      /* recommended = bright frosted-white focal card */
+      /* recommended = elevated focal card with blue ring */
       .spaire-plan-picker .card.rec {
-        background: rgba(255, 255, 255, 0.92);
-        -webkit-backdrop-filter: blur(44px) saturate(180%);
-        backdrop-filter: blur(44px) saturate(180%);
-        box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.6),
-          0 34px 70px -26px rgba(0, 0, 0, 0.55);
+        background: #fff;
+        box-shadow: inset 0 0 0 2px var(--blue),
+          0 24px 50px -24px rgba(37, 99, 235, 0.35);
         color: var(--ink);
         transform: translateY(-12px);
       }
@@ -510,8 +506,8 @@ function SpairePlanPickerStyles() {
         font-weight: 600;
         letter-spacing: 0.04em;
         text-transform: uppercase;
-        color: var(--ink);
-        background: rgba(0, 0, 0, 0.08);
+        color: var(--blue);
+        background: #eff6ff;
       }
       .spaire-plan-picker .tier-spacer {
         height: 36px;
@@ -545,23 +541,17 @@ function SpairePlanPickerStyles() {
       .spaire-plan-picker .price .per {
         font-size: 14px;
         font-weight: 400;
-        color: rgba(255, 255, 255, 0.6);
+        color: var(--gray);
         align-self: flex-end;
         margin-left: 4px;
         margin-bottom: 6px;
       }
-      .spaire-plan-picker .card.rec .price .per {
-        color: var(--gray);
-      }
       .spaire-plan-picker .bill {
         font-size: 13px;
         line-height: 1.4;
-        color: rgba(255, 255, 255, 0.62);
+        color: var(--gray);
         margin-top: 8px;
         min-height: 18px;
-      }
-      .spaire-plan-picker .card.rec .bill {
-        color: var(--gray);
       }
       .spaire-plan-picker .bill .was {
         text-decoration: line-through;
@@ -569,7 +559,7 @@ function SpairePlanPickerStyles() {
         margin-right: 5px;
       }
 
-      /* CTA */
+      /* CTA — solid blue, like the step-1 "Continue" button */
       .spaire-plan-picker .cta {
         display: inline-flex;
         align-items: center;
@@ -581,66 +571,45 @@ function SpairePlanPickerStyles() {
         font-size: 15px;
         font-weight: 600;
         letter-spacing: -0.01em;
-        background: rgba(255, 255, 255, 0.16);
+        background: var(--blue);
         color: #fff;
-        box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.2);
         transition: transform 0.16s, background 0.16s, opacity 0.16s;
       }
       .spaire-plan-picker .cta:hover {
-        background: rgba(255, 255, 255, 0.26);
+        background: var(--blue-hover);
         transform: scale(1.015);
       }
       .spaire-plan-picker .cta:active {
         transform: scale(0.98);
       }
-      .spaire-plan-picker .card.rec .cta {
-        background: var(--ink);
-        color: #fff;
-        box-shadow: none;
-      }
-      .spaire-plan-picker .card.rec .cta:hover {
-        background: #000;
-      }
       .spaire-plan-picker .cta:disabled {
         cursor: not-allowed;
-        opacity: 0.55;
+        background: #d1d5db;
         transform: none;
       }
 
       .spaire-plan-picker .cta-note {
         font-size: 11.5px;
         line-height: 1.4;
-        color: rgba(255, 255, 255, 0.5);
+        color: var(--gray);
         text-align: center;
         margin-top: 11px;
-      }
-      .spaire-plan-picker .card.rec .cta-note {
-        color: var(--gray);
       }
 
       /* feature list */
       .spaire-plan-picker .divider {
         height: 1px;
-        background: rgba(255, 255, 255, 0.16);
+        background: rgba(0, 0, 0, 0.08);
         margin: 24px 0 18px;
-      }
-      .spaire-plan-picker .card.rec .divider {
-        background: rgba(0, 0, 0, 0.1);
       }
       .spaire-plan-picker .incl {
         font-size: 13px;
         font-weight: 600;
         margin-bottom: 16px;
-        color: rgba(255, 255, 255, 0.92);
-      }
-      .spaire-plan-picker .card.rec .incl {
         color: var(--ink);
       }
       .spaire-plan-picker .incl .from {
         font-weight: 400;
-        color: rgba(255, 255, 255, 0.6);
-      }
-      .spaire-plan-picker .card.rec .incl .from {
         color: var(--gray);
       }
       .spaire-plan-picker .feats {
@@ -654,28 +623,17 @@ function SpairePlanPickerStyles() {
         gap: 10px;
         font-size: 14px;
         line-height: 1.4;
-        color: rgba(255, 255, 255, 0.92);
-      }
-      .spaire-plan-picker .card.rec .feat {
         color: var(--ink);
       }
       .spaire-plan-picker .feat svg {
         flex-shrink: 0;
         margin-top: 2px;
-        color: #fff;
-        opacity: 0.92;
-      }
-      .spaire-plan-picker .card.rec .feat svg {
-        color: var(--ink);
-        opacity: 1;
+        color: var(--blue);
       }
       .spaire-plan-picker .feat b {
         font-weight: 600;
       }
       .spaire-plan-picker .feat .sub {
-        color: rgba(255, 255, 255, 0.55);
-      }
-      .spaire-plan-picker .card.rec .feat .sub {
         color: var(--gray);
       }
 
