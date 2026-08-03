@@ -75,6 +75,12 @@ function Preview() {
   const fakeSample = params.get('fakesample') === '1'
   const [sampleUrl, setSampleUrl] = useState<string | null>(null)
   const [lessonPos, setLessonPos] = useState<Record<number, string>>({})
+  // Local stand-in for landing_overrides.hero_title_width / hero_desc_width so
+  // the creator-bar Width control is exercisable in this preview.
+  const [heroWidths, setHeroWidths] = useState<{
+    title: number | null
+    desc: number | null
+  }>({ title: null, desc: null })
   useEffect(() => {
     if (!fakeSample || sampleUrl) return
     const canvas = document.createElement('canvas')
@@ -192,6 +198,13 @@ function Preview() {
                 window as unknown as { __coverPos?: string }
               ).__coverPos = pos
             }
+          : undefined
+      }
+      heroTitleWidth={heroWidths.title}
+      heroDescWidth={heroWidths.desc}
+      onHeroWidth={
+        editable
+          ? (which, pct) => setHeroWidths((w) => ({ ...w, [which]: pct }))
           : undefined
       }
       onAddLessonImage={editable ? () => {} : undefined}

@@ -22,6 +22,10 @@ type Props = {
   // editor's `.space-dark` root), so it carries its own marker class — its
   // Tailwind utilities then theme via the shared space-dark remap.
   dark?: boolean
+  // 'builder' renders the masterclass builder's chrome (always-dark surfaces
+  // with the ce-accent blue) — used by the course landing editor, which lives
+  // inside the always-dark course builder. The default keeps the Space look.
+  variant?: 'space' | 'builder'
 }
 
 /**
@@ -44,7 +48,9 @@ export const AvatarCropModal = ({
   onReplace,
   onDelete,
   dark = false,
+  variant = 'space',
 }: Props) => {
+  const builder = variant === 'builder'
   const [imgUrl, setImgUrl] = useState<string | null>(null)
   const [imgEl, setImgEl] = useState<HTMLImageElement | null>(null)
   const [zoom, setZoom] = useState(1)
@@ -204,31 +210,66 @@ export const AvatarCropModal = ({
       aria-label="Position your avatar"
     >
       <div
-        className={`flex w-[420px] max-w-full flex-col gap-4 rounded-2xl bg-white p-6 shadow-2xl${
-          dark ? ' space-dark' : ''
-        }`}
+        className={
+          builder
+            ? 'flex w-[440px] max-w-full flex-col gap-5 rounded-2xl bg-[#1c1c1e] p-7 text-[#f5f5f7] shadow-2xl ring-1 ring-white/10'
+            : `flex w-[420px] max-w-full flex-col gap-4 rounded-2xl bg-white p-6 shadow-2xl${
+                dark ? ' space-dark' : ''
+              }`
+        }
       >
         <div>
-          <h2 className="text-lg font-semibold text-gray-900">
+          {builder && (
+            <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#2997ff]">
+              Profile picture
+            </div>
+          )}
+          <h2
+            className={
+              builder
+                ? 'text-xl font-semibold tracking-tight text-[#f5f5f7]'
+                : 'text-lg font-semibold text-gray-900'
+            }
+          >
             Position your avatar
           </h2>
-          <p className="mt-1 text-sm text-gray-500">
+          <p
+            className={
+              builder
+                ? 'mt-1.5 text-[13px] leading-relaxed text-[#9a9aa2]'
+                : 'mt-1 text-sm text-gray-500'
+            }
+          >
             Drag to reposition, slide to zoom. Saved at 512×512.
           </p>
         </div>
 
         {error ? (
-          <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">
+          <div
+            className={
+              builder
+                ? 'rounded-xl bg-red-500/10 px-4 py-3 text-sm text-red-400 ring-1 ring-red-500/25'
+                : 'rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700'
+            }
+          >
             {error}
           </div>
         ) : !imgEl ? (
           <div
-            className="self-center animate-pulse rounded-2xl bg-gray-100"
+            className={
+              builder
+                ? 'self-center animate-pulse rounded-2xl bg-white/10'
+                : 'self-center animate-pulse rounded-2xl bg-gray-100'
+            }
             style={{ width: CROP_FRAME, height: CROP_FRAME }}
           />
         ) : (
           <div
-            className="relative self-center cursor-grab overflow-hidden rounded-2xl bg-gray-900 select-none active:cursor-grabbing"
+            className={
+              builder
+                ? 'relative self-center cursor-grab overflow-hidden rounded-2xl bg-black select-none ring-1 ring-white/10 active:cursor-grabbing'
+                : 'relative self-center cursor-grab overflow-hidden rounded-2xl bg-gray-900 select-none active:cursor-grabbing'
+            }
             style={{ width: CROP_FRAME, height: CROP_FRAME, touchAction: 'none' }}
             onPointerDown={onPointerDown}
             onPointerMove={onPointerMove}
@@ -262,8 +303,15 @@ export const AvatarCropModal = ({
           </div>
         )}
 
-        <div className="flex flex-col gap-1">
-          <label htmlFor="avatar-zoom" className="text-xs font-medium text-gray-700">
+        <div className={builder ? 'flex flex-col gap-2' : 'flex flex-col gap-1'}>
+          <label
+            htmlFor="avatar-zoom"
+            className={
+              builder
+                ? 'text-[11px] font-semibold uppercase tracking-[0.12em] text-[#9a9aa2]'
+                : 'text-xs font-medium text-gray-700'
+            }
+          >
             Zoom
           </label>
           <input
@@ -276,6 +324,7 @@ export const AvatarCropModal = ({
             onChange={(e) => setZoom(parseFloat(e.target.value))}
             disabled={!imgEl}
             className="w-full"
+            style={builder ? { accentColor: '#2997ff' } : undefined}
           />
         </div>
 
@@ -286,7 +335,11 @@ export const AvatarCropModal = ({
               type="button"
               onClick={onReplace}
               disabled={saving}
-              className="rounded-xl bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200 disabled:opacity-50"
+              className={
+                builder
+                  ? 'rounded-full bg-white/10 px-4 py-2 text-sm font-medium text-[#f5f5f7] hover:bg-white/15 disabled:opacity-50'
+                  : 'rounded-xl bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200 disabled:opacity-50'
+              }
             >
               Replace
             </button>
@@ -295,7 +348,11 @@ export const AvatarCropModal = ({
                 type="button"
                 onClick={onDelete}
                 disabled={saving}
-                className="rounded-xl px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 disabled:opacity-50"
+                className={
+                  builder
+                    ? 'rounded-full px-4 py-2 text-sm font-medium text-red-400 hover:bg-red-500/10 disabled:opacity-50'
+                    : 'rounded-xl px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 disabled:opacity-50'
+                }
               >
                 Delete
               </button>
@@ -306,7 +363,11 @@ export const AvatarCropModal = ({
               type="button"
               onClick={onCancel}
               disabled={saving}
-              className="rounded-xl px-4 py-2 text-sm font-medium text-gray-500 hover:bg-gray-100 disabled:opacity-50"
+              className={
+                builder
+                  ? 'rounded-full px-4 py-2 text-sm font-medium text-[#9a9aa2] hover:bg-white/10 disabled:opacity-50'
+                  : 'rounded-xl px-4 py-2 text-sm font-medium text-gray-500 hover:bg-gray-100 disabled:opacity-50'
+              }
             >
               Cancel
             </button>
@@ -314,7 +375,11 @@ export const AvatarCropModal = ({
               type="button"
               onClick={handleSave}
               disabled={!imgEl || saving}
-              className="rounded-xl bg-blue-500 px-4 py-2 text-sm font-medium text-white hover:bg-blue-600 disabled:opacity-50"
+              className={
+                builder
+                  ? 'rounded-full bg-[#2997ff] px-5 py-2 text-sm font-semibold text-white hover:bg-[#1a85f0] disabled:opacity-50'
+                  : 'rounded-xl bg-blue-500 px-4 py-2 text-sm font-medium text-white hover:bg-blue-600 disabled:opacity-50'
+              }
             >
               {saving ? 'Saving…' : 'Save'}
             </button>

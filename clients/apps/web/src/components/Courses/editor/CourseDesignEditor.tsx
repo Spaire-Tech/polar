@@ -182,6 +182,33 @@ export function CourseDesignEditor({
     [course.thumbnail_object_position, commit],
   )
 
+  // ── hero container widths (debounced commit; one undo step per adjust,
+  //    mirrors onCoverPosition). `null` resets a knob to the design default —
+  //    the overrides merge deletes the key on null. ──────────────────────────
+  const heroWidthTimers = useRef<{
+    title?: ReturnType<typeof setTimeout>
+    desc?: ReturnType<typeof setTimeout>
+  }>({})
+  const onHeroWidth = useCallback(
+    (which: 'title' | 'desc', pct: number | null) => {
+      const key = which === 'title' ? 'hero_title_width' : 'hero_desc_width'
+      const timers = heroWidthTimers.current
+      if (timers[which]) clearTimeout(timers[which])
+      const prev = course.landing_overrides?.[key] ?? null
+      timers[which] = setTimeout(() => {
+        if (pct === prev) return
+        commitOverrides(
+          { [key]: pct },
+          { [key]: prev },
+          which === 'title'
+            ? 'Adjust title width'
+            : 'Adjust description width',
+        )
+      }, 600)
+    },
+    [course.landing_overrides, commitOverrides],
+  )
+
   // ── trailer ───────────────────────────────────────────────────────────────
   // The in-flight trailer upload lives in a module-level store keyed by
   // course id, NOT component state — the customize editor unmounts when you
@@ -887,6 +914,9 @@ export function CourseDesignEditor({
         trailerBusy={trailerBusy}
         trailerPct={trailerPct}
         onCoverPosition={onCoverPosition}
+        heroTitleWidth={course.landing_overrides?.hero_title_width ?? null}
+        heroDescWidth={course.landing_overrides?.hero_desc_width ?? null}
+        onHeroWidth={onHeroWidth}
         onAddLessonImage={onAddLessonImage}
         onRepositionLesson={onRepositionLesson}
         onReplaceLessonImage={onReplaceLessonImage}
@@ -935,7 +965,7 @@ export function CourseDesignEditor({
       {avatarEditFile && (
         <AvatarCropModal
           src={avatarEditFile}
-          dark={dark}
+          variant="builder"
           onSave={onAvatarCropSave}
           onCancel={() => setAvatarEditFile(null)}
           onReplace={pickAvatar}
