@@ -301,6 +301,83 @@ function EditText({
   )
 }
 
+// Drag-to-resize wrapper for the hero title / description containers (editor
+// only). The inner box hugs its text (width: fit-content) and carries the
+// creator-set max-width; a grab handle on its right edge appears on hover or
+// while the text is selected. Dragging maps the pointer to a 20–100% width of
+// the wrapper (the hero's content area) and reports it live via onPct — the
+// host debounces the persist. Double-click resets to the design default.
+function ResizableWidth({
+  enabled,
+  pct,
+  onPct,
+  innerStyle,
+  label,
+  children,
+}: {
+  enabled: boolean
+  /** Effective width (percent) — null while on the design default. */
+  pct: number | null
+  onPct: (pct: number | null) => void
+  /** Width constraint for the inner box (the container being resized). */
+  innerStyle?: React.CSSProperties
+  label: string
+  children: React.ReactNode
+}) {
+  const wrapRef = useRef<HTMLDivElement | null>(null)
+  const [dragging, setDragging] = useState(false)
+  if (!enabled) return <>{children}</>
+  const move = (e: React.PointerEvent) => {
+    if (!dragging) return
+    const wrap = wrapRef.current
+    if (!wrap) return
+    const r = wrap.getBoundingClientRect()
+    if (r.width <= 0) return
+    const next = Math.round(
+      Math.min(100, Math.max(20, ((e.clientX - r.left) / r.width) * 100)),
+    )
+    if (next !== pct) onPct(next)
+  }
+  return (
+    <div ref={wrapRef} className={`gpp-rz ${dragging ? 'dragging' : ''}`}>
+      <div className="gpp-rz-inner" style={innerStyle}>
+        {children}
+        <div
+          className="gpp-rz-handle"
+          role="separator"
+          aria-orientation="vertical"
+          aria-label={`Resize the ${label} container`}
+          title="Drag to resize · double-click to reset"
+          onPointerDown={(e) => {
+            e.preventDefault()
+            e.stopPropagation()
+            ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
+            setDragging(true)
+          }}
+          onPointerMove={move}
+          onPointerUp={(e) => {
+            ;(e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId)
+            setDragging(false)
+          }}
+          onPointerCancel={() => setDragging(false)}
+          onClick={(e) => e.stopPropagation()}
+          onDoubleClick={(e) => {
+            e.stopPropagation()
+            onPct(null)
+          }}
+        >
+          <span className="gpp-rz-grip" />
+          {dragging && (
+            <span className="gpp-rz-badge">
+              {pct != null ? `${pct}%` : 'Auto'}
+            </span>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export type GeneratedLesson = {
   /** Source lesson id, when known — lets the host resolve a click to the exact
    *  lesson instead of matching by title (which collides on duplicate titles). */
@@ -1020,11 +1097,11 @@ export function GeneratedPortalPage({
     strip.scrollBy({ left: dir * strip.clientWidth, behavior: 'smooth' })
   }
 
-  // ── hero container widths — the creator-bar Width control. Live values are
-  //    tagged with the committed value they were adjusted from (same pattern
-  //    as the cover reposition), so a debounced commit or a server refetch
-  //    naturally takes back over once it lands. `null` = design default.
-  const [widthPanelOpen, setWidthPanelOpen] = useState(false)
+  // ── hero container widths — resized by dragging the handle on the title /
+  //    description container edge. Live values are tagged with the committed
+  //    value they were adjusted from (same pattern as the cover reposition),
+  //    so a debounced commit or a server refetch naturally takes back over
+  //    once it lands. `null` = design default ("Auto").
   const [liveTitleW, setLiveTitleW] = useState<{
     v: number | null
     base: number | null
@@ -1048,17 +1125,18 @@ export function GeneratedPortalPage({
     else setLiveDescW({ v: pct, base: committedDescW })
     onHeroWidth?.(which, pct)
   }
-  // The width the sliders display while a knob is still on "Auto" — roughly
-  // where the design defaults sit, so grabbing the slider starts near the
-  // current look instead of jumping.
-  const WIDTH_MIN = 20
-  const WIDTH_MAX = 100
-  const autoTitleW = heroVariant === 'marquee' ? 45 : 60
-  const autoDescW = heroVariant === 'marquee' ? 80 : 55
-  // Inline width overrides for the hero text containers. Marquee title +
-  // description keep their design ch-caps until the creator sets a width; the
-  // cover unlocks its 760px content cap only when a width is set, keeping the
-  // title / description at their old effective bounds otherwise.
+  // Whether the drag-to-resize wrappers render. On the public page (and any
+  // non-editable surface) the saved widths are applied straight to the text
+  // elements instead — no wrapper markup.
+  const widthEditable = editable && Boolean(onHeroWidth)
+  // Lifts the text element's own design cap (14ch / 62ch / 580px) so the
+  // wrapper's creator-set width governs the wrap point.
+  const UNCAP: React.CSSProperties = { maxWidth: 'none' }
+  // Public-page inline overrides, applied directly to the text elements.
+  // Marquee title + description keep their design ch-caps until the creator
+  // sets a width; the cover unlocks its 760px content cap only when a width
+  // is set, keeping the title / description at their old effective bounds
+  // otherwise.
   const titleWidthStyle: React.CSSProperties | undefined =
     effTitleW != null ? { maxWidth: `${effTitleW}%` } : undefined
   const descWidthStyle: React.CSSProperties | undefined =
@@ -1075,52 +1153,6 @@ export function GeneratedPortalPage({
         : undefined
   const coverDescStyle: React.CSSProperties | undefined =
     effDescW != null ? { maxWidth: `${effDescW}%` } : undefined
-
-  const widthRow = (
-    which: 'title' | 'desc',
-    label: string,
-    eff: number | null,
-    auto: number,
-  ) => (
-    <div className="hw-row">
-      <div className="hw-row-head">
-        <span className="hw-label">{label}</span>
-        <span className="hw-value">{eff != null ? `${eff}%` : 'Auto'}</span>
-        <button
-          type="button"
-          className="hw-reset"
-          disabled={eff == null}
-          onClick={() => setHeroWidth(which, null)}
-          title="Reset to the design default"
-        >
-          Reset
-        </button>
-      </div>
-      <input
-        type="range"
-        min={WIDTH_MIN}
-        max={WIDTH_MAX}
-        step={1}
-        value={eff ?? auto}
-        onChange={(e) => setHeroWidth(which, Number(e.target.value))}
-        aria-label={`${label} container width`}
-      />
-    </div>
-  )
-
-  // Floating panel under the creator bar — builder chrome (dark, blue accent).
-  const widthPanel =
-    editable && onHeroWidth && widthPanelOpen ? (
-      <div className="hero-width-panel" onPointerDown={(e) => e.stopPropagation()}>
-        <div className="hw-title">Container width</div>
-        <div className="hw-sub">
-          Narrow the container to wrap the text onto more lines; widen it to
-          let it run longer.
-        </div>
-        {widthRow('title', 'Title', effTitleW, autoTitleW)}
-        {widthRow('desc', 'Description', effDescW, autoDescW)}
-      </div>
-    ) : null
 
   const themeToggle = onToggleDark ? (
     <button
@@ -1216,31 +1248,6 @@ export function GeneratedPortalPage({
           ⤧ {repositioning ? 'Done' : 'Reposition'}
         </button>
       )}
-      {editable && onHeroWidth && (
-        <button
-          className={`add-pill is-width ${widthPanelOpen ? 'active' : ''}`}
-          type="button"
-          onClick={() => {
-            setWidthPanelOpen((o) => !o)
-            setTrailerPeek(false)
-          }}
-          title="Adjust the title and description container width"
-        >
-          <svg
-            width="13"
-            height="13"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M8 8l-5 4 5 4M16 8l5 4-5 4M3 12h18" />
-          </svg>
-          <span>{widthPanelOpen ? 'Done' : 'Width'}</span>
-        </button>
-      )}
       {editable && onAddTrailer && (
         <button
           className="add-pill"
@@ -1269,7 +1276,6 @@ export function GeneratedPortalPage({
         </button>
       )}
       {themeToggle}
-      {widthPanel}
     </div>
   )
 
@@ -1607,15 +1613,31 @@ export function GeneratedPortalPage({
               className="pt-eyebrow rise d1"
               tag="div"
             />
-            <EditText
-              editable={editable}
-              onEditText={onEditText}
-              field="title"
-              value={title}
-              className="pt-h rise d1"
-              tag="h1"
-              style={titleWidthStyle}
-            />
+            <ResizableWidth
+              enabled={widthEditable}
+              pct={effTitleW}
+              onPct={(p) => setHeroWidth('title', p)}
+              innerStyle={
+                effTitleW != null ? { maxWidth: `${effTitleW}%` } : undefined
+              }
+              label="title"
+            >
+              <EditText
+                editable={editable}
+                onEditText={onEditText}
+                field="title"
+                value={title}
+                className="pt-h rise d1"
+                tag="h1"
+                style={
+                  widthEditable
+                    ? effTitleW != null
+                      ? UNCAP
+                      : undefined
+                    : titleWidthStyle
+                }
+              />
+            </ResizableWidth>
           </div>
 
           <div className="band rise d2">
@@ -1654,15 +1676,33 @@ export function GeneratedPortalPage({
                   descExpanded || editable ? '' : 'clamped'
                 }`}
               >
-                <EditText
-                  editable={editable}
-                  onEditText={onEditText}
-                  field="desc"
-                  value={desc}
-                  className="bd-text"
-                  tag="p"
-                  style={descWidthStyle}
-                />
+                <ResizableWidth
+                  enabled={widthEditable}
+                  pct={effDescW}
+                  onPct={(p) => setHeroWidth('desc', p)}
+                  innerStyle={
+                    effDescW != null
+                      ? { maxWidth: `${effDescW}%` }
+                      : undefined
+                  }
+                  label="description"
+                >
+                  <EditText
+                    editable={editable}
+                    onEditText={onEditText}
+                    field="desc"
+                    value={desc}
+                    className="bd-text"
+                    tag="p"
+                    style={
+                      widthEditable
+                        ? effDescW != null
+                          ? UNCAP
+                          : undefined
+                        : descWidthStyle
+                    }
+                  />
+                </ResizableWidth>
                 {!editable && !descExpanded && (
                   <button
                     className="bd-more"
@@ -1862,21 +1902,35 @@ export function GeneratedPortalPage({
               // present (one row per line), else the course title. Multiline so
               // the two-line break is preserved and editable, instead of
               // editing a flat title the public page would ignore.
-              <EditText
-                editable={editable}
-                onEditText={onEditText}
-                field="heroTitle"
-                value={
-                  titleLines && titleLines.length > 0
-                    ? titleLines.join('\n')
-                    : title
+              <ResizableWidth
+                enabled={widthEditable}
+                pct={effTitleW}
+                onPct={(p) => setHeroWidth('title', p)}
+                innerStyle={
+                  effTitleW != null
+                    ? { maxWidth: `${effTitleW}%` }
+                    : coverAnyWidth
+                      ? { maxWidth: 760 }
+                      : undefined
                 }
-                className="hero-title"
-                tag="h1"
-                multiline
-                placeholder="Add a headline"
-                style={coverTitleStyle}
-              />
+                label="title"
+              >
+                <EditText
+                  editable={editable}
+                  onEditText={onEditText}
+                  field="heroTitle"
+                  value={
+                    titleLines && titleLines.length > 0
+                      ? titleLines.join('\n')
+                      : title
+                  }
+                  className="hero-title"
+                  tag="h1"
+                  multiline
+                  placeholder="Add a headline"
+                  style={widthEditable ? undefined : coverTitleStyle}
+                />
+              </ResizableWidth>
             ) : (
               <h1 className="hero-title" style={coverTitleStyle}>
                 {titleLines && titleLines.length > 1
@@ -1890,20 +1944,39 @@ export function GeneratedPortalPage({
               </h1>
             )}
 
-            <p className="hero-desc" style={coverDescStyle}>
-              <EditText
-                editable={editable}
-                onEditText={onEditText}
-                field="desc"
-                value={desc}
-              />{' '}
-              {/* The cover byline is always just "With <instructor>" — it
+            <ResizableWidth
+              enabled={widthEditable}
+              pct={effDescW}
+              onPct={(p) => setHeroWidth('desc', p)}
+              innerStyle={
+                effDescW != null ? { maxWidth: `${effDescW}%` } : undefined
+              }
+              label="description"
+            >
+              <p
+                className="hero-desc"
+                style={
+                  widthEditable
+                    ? effDescW != null
+                      ? UNCAP
+                      : undefined
+                    : coverDescStyle
+                }
+              >
+                <EditText
+                  editable={editable}
+                  onEditText={onEditText}
+                  field="desc"
+                  value={desc}
+                />{' '}
+                {/* The cover byline is always just "With <instructor>" — it
                   mirrors the instructor name, not the AI credential line (that
                   credential still runs bottom-right on the Marquee). */}
-              {instructorName ? (
-                <span className="with">— With {instructorName}</span>
-              ) : null}
-            </p>
+                {instructorName ? (
+                  <span className="with">— With {instructorName}</span>
+                ) : null}
+              </p>
+            </ResizableWidth>
 
             <div className="hero-actions">
               {showTrailerButton && (
@@ -3613,82 +3686,88 @@ export function GeneratedPortalPage({
           transform: scale(0.94);
         }
 
-        /* ── Container-width panel — builder chrome (dark, ce-accent blue).
-           Anchored under the creator bar; sliders drive the hero title /
-           description max-widths live. ── */
-        .gpp .hero-width-panel {
+        /* ── Drag-to-resize container width (hero title / description).
+           The inner box hugs the text and carries the creator-set width; the
+           grab handle rides its right edge and appears on hover or while the
+           text is selected. Builder accent (#2997ff) while engaged. ── */
+        .gpp .gpp-rz {
+          position: relative;
+        }
+        .gpp .gpp-rz-inner {
+          position: relative;
+          width: fit-content;
+          max-width: 100%;
+        }
+        .gpp .gpp-rz-handle {
           position: absolute;
-          top: calc(100% + 12px);
-          right: 0;
-          width: 264px;
-          padding: 16px 16px 8px;
-          border-radius: 14px;
-          background: rgba(28, 28, 30, 0.92);
-          -webkit-backdrop-filter: blur(24px) saturate(150%);
-          backdrop-filter: blur(24px) saturate(150%);
+          top: 50%;
+          right: -26px;
+          transform: translateY(-50%);
+          width: 26px;
+          height: 64px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: ew-resize;
+          opacity: 0;
+          transition: opacity 0.15s;
+          z-index: 6;
+          touch-action: none;
+          user-select: none;
+        }
+        .gpp .gpp-rz:hover .gpp-rz-handle,
+        .gpp .gpp-rz-inner:focus-within .gpp-rz-handle,
+        .gpp .gpp-rz.dragging .gpp-rz-handle {
+          opacity: 1;
+        }
+        .gpp .gpp-rz-grip {
+          width: 6px;
+          height: 46px;
+          border-radius: 999px;
+          background: rgba(255, 255, 255, 0.9);
+          box-shadow:
+            0 2px 10px rgba(0, 0, 0, 0.45),
+            inset 0 0 0 1px rgba(0, 0, 0, 0.18);
+          transition: background 0.15s, transform 0.15s;
+        }
+        .gpp .gpp-rz-handle:hover .gpp-rz-grip,
+        .gpp .gpp-rz.dragging .gpp-rz-grip {
+          background: #2997ff;
+          transform: scaleY(1.08);
+        }
+        /* Dashed container outline while resizing — shows the box being sized,
+           not just the text. */
+        .gpp .gpp-rz.dragging .gpp-rz-inner {
+          outline: 1.5px dashed rgba(41, 151, 255, 0.85);
+          outline-offset: 10px;
+          border-radius: 4px;
+        }
+        .gpp .gpp-rz-badge {
+          position: absolute;
+          top: -14px;
+          left: 50%;
+          transform: translate(-50%, -100%);
+          padding: 4px 9px;
+          border-radius: 8px;
+          background: #1c1c1e;
+          color: #2997ff;
+          font-size: 11.5px;
+          font-weight: 600;
+          font-variant-numeric: tabular-nums;
+          white-space: nowrap;
           box-shadow:
             inset 0 0 0 1px rgba(255, 255, 255, 0.1),
-            0 24px 60px -18px rgba(0, 0, 0, 0.6);
-          color: #f5f5f7;
-          text-align: left;
-          cursor: default;
+            0 10px 30px -10px rgba(0, 0, 0, 0.6);
         }
-        .gpp .hero-width-panel .hw-title {
-          font-size: 13px;
-          font-weight: 600;
-          letter-spacing: -0.01em;
-        }
-        .gpp .hero-width-panel .hw-sub {
-          font-size: 11.5px;
-          line-height: 1.45;
-          color: #9a9aa2;
-          margin-top: 3px;
-          margin-bottom: 6px;
-        }
-        .gpp .hero-width-panel .hw-row {
-          padding: 10px 0;
-        }
-        .gpp .hero-width-panel .hw-row + .hw-row {
-          border-top: 1px solid rgba(255, 255, 255, 0.08);
-        }
-        .gpp .hero-width-panel .hw-row-head {
-          display: flex;
-          align-items: baseline;
-          gap: 8px;
-          margin-bottom: 8px;
-        }
-        .gpp .hero-width-panel .hw-label {
-          font-size: 12px;
-          font-weight: 500;
-          color: #d2d2d7;
-        }
-        .gpp .hero-width-panel .hw-value {
-          margin-left: auto;
-          font-size: 11.5px;
-          font-variant-numeric: tabular-nums;
-          color: #2997ff;
-          font-weight: 600;
-        }
-        .gpp .hero-width-panel .hw-reset {
-          font-size: 11px;
-          font-weight: 500;
-          color: #9a9aa2;
-          padding: 2px 6px;
-          border-radius: 6px;
-          transition: color 0.15s, background 0.15s;
-        }
-        .gpp .hero-width-panel .hw-reset:hover:not(:disabled) {
-          color: #f5f5f7;
-          background: rgba(255, 255, 255, 0.1);
-        }
-        .gpp .hero-width-panel .hw-reset:disabled {
-          opacity: 0.35;
-          cursor: default;
-        }
-        .gpp .hero-width-panel input[type='range'] {
-          width: 100%;
-          accent-color: #2997ff;
-          cursor: pointer;
+        /* Resizing is a desktop-drag affordance; on phones the wrapper goes
+           full-width so the heroes' centered mobile layouts hold. */
+        @media (max-width: 820px) {
+          .gpp .gpp-rz-handle {
+            display: none;
+          }
+          .gpp .gpp-rz-inner {
+            width: 100%;
+          }
         }
 
         .gpp .hero-content {
