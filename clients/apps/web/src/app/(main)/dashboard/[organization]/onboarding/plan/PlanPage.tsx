@@ -1,5 +1,7 @@
 'use client'
 
+import { OnboardingProgressBar } from '@/components/Onboarding/OnboardingProgressBar'
+import LogoIcon from '@/components/Brand/LogoIcon'
 import { toast } from '@/components/Toast/use-toast'
 import { BillingInterval, PaidTierKey } from '@/hooks/queries/spaireTier'
 import { OrganizationContext } from '@/providers/maintainerOrganization'
@@ -11,11 +13,9 @@ import { twMerge } from 'tailwind-merge'
  * Plan + checkout step of the new-signup flow.
  *
  * Final visible step of onboarding: it sits after OrganizationStep
- * ("Profile basics", at /dashboard/create).
- *
- * Visual port of the "Choose your plan" design — a full-screen light
- * pricing stage (white background, blue CTAs, matching the OrganizationStep
- * look) with Studio as the highlighted recommended card.
+ * ("Profile basics", at /dashboard/create) and reuses its exact design
+ * language — white page, gray-100 bordered cards with shadow-sm, gray-500
+ * supporting text and the same blue-600 rounded-full CTA.
  * The creator picks a tier + billing interval, and clicking a card's CTA
  * hands off to upgrade-checkout which converts the trialing subscription in
  * place and redirects to the Polar-hosted checkout. Success returns to
@@ -23,7 +23,7 @@ import { twMerge } from 'tailwind-merge'
  * onboarding complete, and forwards the creator into the course wizard.
  */
 
-// ── Tier copy (matches the provided design exactly) ─────────────────────────
+// ── Tier copy ───────────────────────────────────────────────────────────────
 
 interface DesignFeature {
   label: ReactNode
@@ -50,13 +50,7 @@ const TIERS: DesignTier[] = [
     includes: 'Includes',
     features: [
       { label: <>Merchant of Record — Spaire handles tax &amp; VAT</>, shield: true },
-      {
-        label: (
-          <>
-            <b>7% + $0.30</b> per transaction
-          </>
-        ),
-      },
+      { label: <>7% + $0.30 per transaction</> },
       { label: <>5 published courses</> },
       { label: <>10K email subscribers</> },
       { label: <>25 hours of hosted video</> },
@@ -72,15 +66,15 @@ const TIERS: DesignTier[] = [
     recommended: true,
     includes: (
       <>
-        Everything in Starter, <span className="from">plus</span>
+        Everything in Starter, <span className="text-gray-400">plus</span>
       </>
     ),
     features: [
       {
         label: (
           <>
-            <b>5% + $0.30</b> per transaction{' '}
-            <span className="sub">(saves 2%)</span>
+            5% + $0.30 per transaction{' '}
+            <span className="text-gray-400">(saves 2%)</span>
           </>
         ),
       },
@@ -100,15 +94,15 @@ const TIERS: DesignTier[] = [
     recommended: false,
     includes: (
       <>
-        Everything in Studio, <span className="from">plus</span>
+        Everything in Studio, <span className="text-gray-400">plus</span>
       </>
     ),
     features: [
       {
         label: (
           <>
-            <b>3% + $0.30</b> per transaction{' '}
-            <span className="sub">(saves 4%)</span>
+            3% + $0.30 per transaction{' '}
+            <span className="text-gray-400">(saves 4%)</span>
           </>
         ),
       },
@@ -129,8 +123,8 @@ export default function PlanPage() {
   const [interval, setInterval] = useState<BillingInterval>('month')
   const [pending, setPending] = useState<PaidTierKey | null>(null)
 
-  // Restore the creator's last-picked billing cycle (matches the design's
-  // localStorage persistence). Read after mount to avoid hydration mismatch.
+  // Restore the creator's last-picked billing cycle. Read after mount to
+  // avoid hydration mismatch.
   useEffect(() => {
     const saved = window.localStorage.getItem(BILLING_STORAGE_KEY)
     if (saved === 'annual') setInterval('year')
@@ -194,104 +188,143 @@ export default function PlanPage() {
   const isAnnual = interval === 'year'
 
   return (
-    <div className="spaire-plan-picker">
-      <div className="stage">
-        <div className="head">
-          <h1>Choose your plan</h1>
-          <p>
+    <div className="flex h-full w-full flex-1 flex-col items-center overflow-y-auto bg-white px-4 py-12">
+      {/* Progress bar */}
+      <div className="mb-12 w-full max-w-lg">
+        <OnboardingProgressBar currentStep={2} totalSteps={2} />
+      </div>
+
+      <div className="flex w-full max-w-5xl flex-col gap-8">
+        {/* Logo — mobile only */}
+        <div className="flex justify-center md:hidden">
+          <LogoIcon size={32} />
+        </div>
+
+        {/* Heading */}
+        <div className="flex flex-col gap-y-2 text-center">
+          <h1 className="text-2xl font-bold tracking-tight text-gray-900">
+            Choose your plan
+          </h1>
+          <p className="mx-auto max-w-lg text-sm text-gray-500">
             Every plan starts with a 14-day free trial. You won&rsquo;t be
             charged during the trial — switch or cancel anytime from Settings.
           </p>
         </div>
 
-        <div className="toggle-wrap">
-        <div className="seg" role="tablist" aria-label="Billing period">
-          <button
-            type="button"
-            role="tab"
-            aria-selected={!isAnnual}
-            className={isAnnual ? '' : 'on'}
-            onClick={() => selectInterval('month')}
+        {/* Billing toggle */}
+        <div className="flex flex-col items-center gap-2.5">
+          <div
+            className="inline-flex rounded-full bg-gray-100 p-1"
+            role="tablist"
+            aria-label="Billing period"
           >
-            Monthly
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={isAnnual}
-            className={isAnnual ? 'on' : ''}
-            onClick={() => selectInterval('year')}
-          >
-            Annual
-          </button>
-        </div>
-        <span className="save-note" style={{ opacity: isAnnual ? 0 : 1 }}>
-          Save <b>20%</b> with annual billing
-        </span>
-      </div>
-
-      <div className="cards">
-        {TIERS.map((t) => {
-          const amount = isAnnual ? t.annual : t.monthly
-          const isPending = pending === t.tier
-          const disabled = pending !== null && pending !== t.tier
-          return (
-            <div
-              key={t.tier}
-              className={twMerge('card', t.recommended && 'rec')}
-              data-tier={t.name}
-            >
-              {t.recommended ? (
-                <div className="rec-label">Recommended</div>
-              ) : (
-                <div className="tier-spacer" />
+            <button
+              type="button"
+              role="tab"
+              aria-selected={!isAnnual}
+              className={twMerge(
+                'rounded-full px-5 py-1.5 text-sm transition-colors',
+                isAnnual
+                  ? 'text-gray-500 hover:text-gray-900'
+                  : 'bg-white text-gray-900 shadow-sm',
               )}
-              <div className="tier">{t.name}</div>
+              onClick={() => selectInterval('month')}
+            >
+              Monthly
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={isAnnual}
+              className={twMerge(
+                'rounded-full px-5 py-1.5 text-sm transition-colors',
+                isAnnual
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'text-gray-500 hover:text-gray-900',
+              )}
+              onClick={() => selectInterval('year')}
+            >
+              Annual
+            </button>
+          </div>
+          <span
+            className="text-xs text-gray-500 transition-opacity"
+            style={{ opacity: isAnnual ? 0 : 1 }}
+          >
+            Save 20% with annual billing
+          </span>
+        </div>
 
-              <div className="price">
-                <span className="cur">$</span>
-                <span className="amt">{amount}</span>
-                <span className="per">/mo</span>
-              </div>
-              <div className="bill">
-                {isAnnual ? (
-                  <>
-                    <span className="was">${t.monthly}</span>Billed annually
-                  </>
-                ) : (
-                  'Billed monthly'
-                )}
-              </div>
-
-              <button
-                type="button"
-                className="cta"
-                disabled={disabled || isPending}
-                onClick={() => startCheckout(t.tier)}
+        {/* Cards */}
+        <div className="grid w-full grid-cols-1 items-stretch gap-4 md:grid-cols-3">
+          {TIERS.map((t) => {
+            const amount = isAnnual ? t.annual : t.monthly
+            const isPending = pending === t.tier
+            const disabled = pending !== null && pending !== t.tier
+            return (
+              <div
+                key={t.tier}
+                className="flex flex-col rounded-2xl border border-gray-100 bg-white p-5 shadow-sm"
+                data-tier={t.name}
               >
-                {isPending ? 'Starting…' : 'Start free trial'}
-              </button>
-              <div className="cta-note">
-                Card required. Won&rsquo;t be charged during the 14-day trial.
-              </div>
+                {t.recommended ? (
+                  <div className="mb-2 text-xs text-blue-600">Recommended</div>
+                ) : (
+                  <div className="mb-2 h-4" />
+                )}
+                <div className="text-lg font-medium text-gray-900">
+                  {t.name}
+                </div>
 
-              <div className="divider" />
-              <div className="incl">{t.includes}</div>
-              <div className="feats">
-                {t.features.map((feature, i) => (
-                  <div className="feat" key={i}>
-                    {feature.shield ? <ShieldIcon /> : <CheckIcon />}
-                    <span>{feature.label}</span>
-                  </div>
-                ))}
+                <div className="mt-3 flex items-baseline gap-0.5 text-gray-900">
+                  <span className="text-lg">$</span>
+                  <span className="text-3xl tracking-tight tabular-nums">
+                    {amount}
+                  </span>
+                  <span className="ml-1 text-sm text-gray-400">/mo</span>
+                </div>
+                <div className="mt-1.5 min-h-4 text-xs text-gray-400">
+                  {isAnnual ? (
+                    <>
+                      <span className="mr-1 line-through">${t.monthly}</span>
+                      Billed annually
+                    </>
+                  ) : (
+                    'Billed monthly'
+                  )}
+                </div>
+
+                <button
+                  type="button"
+                  disabled={disabled || isPending}
+                  onClick={() => startCheckout(t.tier)}
+                  className="mt-5 w-full rounded-full bg-blue-600 py-4 text-sm font-semibold text-white transition-all hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-300"
+                >
+                  {isPending ? 'Starting…' : 'Start free trial'}
+                </button>
+                <div className="mt-2.5 text-center text-xs text-gray-400">
+                  Card required. Won&rsquo;t be charged during the 14-day
+                  trial.
+                </div>
+
+                <div className="my-5 border-t border-gray-100" />
+                <div className="mb-4 text-sm text-gray-900">{t.includes}</div>
+                <div className="flex flex-col gap-3">
+                  {t.features.map((feature, i) => (
+                    <div
+                      className="flex items-start gap-2.5 text-sm text-gray-600"
+                      key={i}
+                    >
+                      {feature.shield ? <ShieldIcon /> : <CheckIcon />}
+                      <span>{feature.label}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
-          )
-        })}
+            )
+          })}
         </div>
       </div>
-
-      <SpairePlanPickerStyles />
     </div>
   )
 }
@@ -308,6 +341,7 @@ function CheckIcon() {
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden
+      className="mt-0.5 shrink-0 text-gray-400"
     >
       <path d="M5 12.5l4.5 4.5L19 7" />
     </svg>
@@ -326,333 +360,9 @@ function ShieldIcon() {
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden
+      className="mt-0.5 shrink-0 text-gray-400"
     >
       <path d="M12 2 4 5v6c0 5 3.4 8 8 11 4.6-3 8-6 8-11V5l-8-3Z" />
     </svg>
-  )
-}
-
-// ── Scoped styles (ported from the design, scoped under .spaire-plan-picker
-//    so the full-screen rules don't leak onto the rest of the app) ───────────
-
-function SpairePlanPickerStyles() {
-  return (
-    <style jsx global>{`
-      .spaire-plan-picker {
-        --ink: #1d1d1f;
-        --gray: #86868b;
-        --muted: #6b7280;
-        --blue: #2563eb;
-        --blue-hover: #1d4ed8;
-        --sf: -apple-system, BlinkMacSystemFont, 'SF Pro Display',
-          'SF Pro Text', system-ui, sans-serif;
-        --po: var(--font-poppins), 'Poppins', -apple-system,
-          BlinkMacSystemFont, system-ui, sans-serif;
-        font-family: var(--sf);
-        color: var(--ink);
-        -webkit-font-smoothing: antialiased;
-        -moz-osx-font-smoothing: grayscale;
-        letter-spacing: -0.01em;
-        /* The onboarding layout is "flex flex-row" and the dashboard shell is
-           "md:h-screen" — so we claim the full row (flex:1) and become our own
-           vertical scroll container. Centering lives on .stage via margin:auto
-           so tall content (small viewports) top-aligns and scrolls instead of
-           being clipped, while short content stays centered. */
-        flex: 1;
-        width: 100%;
-        min-height: 100vh;
-        overflow-y: auto;
-        display: flex;
-        flex-direction: column;
-        background: #fff;
-      }
-      .spaire-plan-picker .stage {
-        margin: auto;
-        width: 100%;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        padding: 72px 32px;
-      }
-      .spaire-plan-picker *,
-      .spaire-plan-picker *::before,
-      .spaire-plan-picker *::after {
-        box-sizing: border-box;
-        margin: 0;
-        padding: 0;
-      }
-      .spaire-plan-picker button {
-        font-family: inherit;
-        cursor: pointer;
-        border: none;
-        background: none;
-        color: inherit;
-      }
-
-      /* ---------- header ---------- */
-      .spaire-plan-picker .head {
-        text-align: center;
-        margin-bottom: 26px;
-      }
-      .spaire-plan-picker .head h1 {
-        font-family: var(--po);
-        font-size: clamp(32px, 3.4vw, 46px);
-        font-weight: 600;
-        letter-spacing: -0.03em;
-        line-height: 1.05;
-        color: var(--ink);
-      }
-      .spaire-plan-picker .head p {
-        font-size: 17px;
-        line-height: 1.5;
-        color: var(--muted);
-        font-weight: 400;
-        margin-top: 14px;
-        max-width: 540px;
-        margin-left: auto;
-        margin-right: auto;
-      }
-
-      /* ---------- billing toggle (centered) ---------- */
-      .spaire-plan-picker .toggle-wrap {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 11px;
-        margin-bottom: 40px;
-      }
-      .spaire-plan-picker .seg {
-        display: inline-flex;
-        gap: 3px;
-        padding: 4px;
-        border-radius: 980px;
-        background: #f3f4f6;
-        box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.04);
-      }
-      .spaire-plan-picker .seg button {
-        height: 38px;
-        padding: 0 26px;
-        border-radius: 980px;
-        font-size: 15px;
-        font-weight: 500;
-        letter-spacing: -0.01em;
-        color: var(--muted);
-        transition: color 0.2s, background 0.2s, box-shadow 0.2s;
-      }
-      .spaire-plan-picker .seg button.on {
-        color: var(--ink);
-        background: #fff;
-        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
-      }
-      .spaire-plan-picker .save-note {
-        font-size: 13px;
-        font-weight: 500;
-        color: var(--muted);
-        transition: opacity 0.25s;
-      }
-      .spaire-plan-picker .save-note b {
-        color: var(--ink);
-        font-weight: 600;
-      }
-
-      /* ---------- cards ---------- */
-      .spaire-plan-picker .cards {
-        display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 18px;
-        width: 100%;
-        max-width: 1060px;
-        align-items: stretch;
-      }
-
-      /* base = white card with soft border + shadow (OrganizationStep look) */
-      .spaire-plan-picker .card {
-        position: relative;
-        display: flex;
-        flex-direction: column;
-        border-radius: 24px;
-        padding: 32px 28px 30px;
-        background: #fff;
-        box-shadow: inset 0 0 0 1px #f3f4f6,
-          0 1px 2px rgba(0, 0, 0, 0.05);
-        color: var(--ink);
-        transition: transform 0.3s cubic-bezier(0.2, 1, 0.3, 1);
-      }
-      .spaire-plan-picker .card:hover {
-        transform: translateY(-4px);
-      }
-
-      /* recommended = elevated focal card with blue ring */
-      .spaire-plan-picker .card.rec {
-        background: #fff;
-        box-shadow: inset 0 0 0 2px var(--blue),
-          0 24px 50px -24px rgba(37, 99, 235, 0.35);
-        color: var(--ink);
-        transform: translateY(-12px);
-      }
-      .spaire-plan-picker .card.rec:hover {
-        transform: translateY(-16px);
-      }
-
-      .spaire-plan-picker .rec-label {
-        display: inline-flex;
-        align-items: center;
-        align-self: flex-start;
-        height: 24px;
-        padding: 0 11px;
-        border-radius: 980px;
-        margin-bottom: 12px;
-        font-size: 11.5px;
-        font-weight: 600;
-        letter-spacing: 0.04em;
-        text-transform: uppercase;
-        color: var(--blue);
-        background: #eff6ff;
-      }
-      .spaire-plan-picker .tier-spacer {
-        height: 36px;
-      }
-      .spaire-plan-picker .tier {
-        font-family: var(--po);
-        font-size: 21px;
-        font-weight: 600;
-        letter-spacing: -0.02em;
-      }
-
-      /* price */
-      .spaire-plan-picker .price {
-        display: flex;
-        align-items: flex-start;
-        gap: 2px;
-        margin-top: 16px;
-      }
-      .spaire-plan-picker .price .cur {
-        font-size: 20px;
-        font-weight: 500;
-        margin-top: 5px;
-      }
-      .spaire-plan-picker .price .amt {
-        font-size: 46px;
-        font-weight: 600;
-        line-height: 1;
-        letter-spacing: -0.03em;
-        font-variant-numeric: tabular-nums;
-      }
-      .spaire-plan-picker .price .per {
-        font-size: 14px;
-        font-weight: 400;
-        color: var(--gray);
-        align-self: flex-end;
-        margin-left: 4px;
-        margin-bottom: 6px;
-      }
-      .spaire-plan-picker .bill {
-        font-size: 13px;
-        line-height: 1.4;
-        color: var(--gray);
-        margin-top: 8px;
-        min-height: 18px;
-      }
-      .spaire-plan-picker .bill .was {
-        text-decoration: line-through;
-        opacity: 0.65;
-        margin-right: 5px;
-      }
-
-      /* CTA — solid blue, like the step-1 "Continue" button */
-      .spaire-plan-picker .cta {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        width: 100%;
-        height: 46px;
-        border-radius: 980px;
-        margin-top: 22px;
-        font-size: 15px;
-        font-weight: 600;
-        letter-spacing: -0.01em;
-        background: var(--blue);
-        color: #fff;
-        transition: transform 0.16s, background 0.16s, opacity 0.16s;
-      }
-      .spaire-plan-picker .cta:hover {
-        background: var(--blue-hover);
-        transform: scale(1.015);
-      }
-      .spaire-plan-picker .cta:active {
-        transform: scale(0.98);
-      }
-      .spaire-plan-picker .cta:disabled {
-        cursor: not-allowed;
-        background: #d1d5db;
-        transform: none;
-      }
-
-      .spaire-plan-picker .cta-note {
-        font-size: 11.5px;
-        line-height: 1.4;
-        color: var(--gray);
-        text-align: center;
-        margin-top: 11px;
-      }
-
-      /* feature list */
-      .spaire-plan-picker .divider {
-        height: 1px;
-        background: rgba(0, 0, 0, 0.08);
-        margin: 24px 0 18px;
-      }
-      .spaire-plan-picker .incl {
-        font-size: 13px;
-        font-weight: 600;
-        margin-bottom: 16px;
-        color: var(--ink);
-      }
-      .spaire-plan-picker .incl .from {
-        font-weight: 400;
-        color: var(--gray);
-      }
-      .spaire-plan-picker .feats {
-        display: flex;
-        flex-direction: column;
-        gap: 12px;
-      }
-      .spaire-plan-picker .feat {
-        display: flex;
-        align-items: flex-start;
-        gap: 10px;
-        font-size: 14px;
-        line-height: 1.4;
-        color: var(--ink);
-      }
-      .spaire-plan-picker .feat svg {
-        flex-shrink: 0;
-        margin-top: 2px;
-        color: var(--blue);
-      }
-      .spaire-plan-picker .feat b {
-        font-weight: 600;
-      }
-      .spaire-plan-picker .feat .sub {
-        color: var(--gray);
-      }
-
-      @media (max-width: 860px) {
-        .spaire-plan-picker .stage {
-          padding: 56px 22px;
-        }
-        .spaire-plan-picker .cards {
-          grid-template-columns: 1fr;
-          max-width: 420px;
-          gap: 16px;
-        }
-        .spaire-plan-picker .card.rec {
-          transform: none;
-        }
-        .spaire-plan-picker .card.rec:hover {
-          transform: translateY(-4px);
-        }
-      }
-    `}</style>
   )
 }
