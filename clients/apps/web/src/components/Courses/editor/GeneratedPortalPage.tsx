@@ -204,6 +204,7 @@ function EditText({
   multiline = false,
   maxLength,
   placeholder,
+  style,
 }: {
   field: EditField
   value: string
@@ -225,6 +226,8 @@ function EditText({
   /** Shown (via CSS) when the field is empty, instead of persisting the
    *  placeholder as real content. */
   placeholder?: string
+  /** Extra inline styles (e.g. the creator-set hero container width). */
+  style?: React.CSSProperties
 }) {
   const ref = useRef<HTMLElement | null>(null)
   const focusedRef = useRef(false)
@@ -239,7 +242,11 @@ function EditText({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value, multiline])
   if (!editable || !onEditText) {
-    return <Tag className={className}>{value}</Tag>
+    return (
+      <Tag className={className} style={style}>
+        {value}
+      </Tag>
+    )
   }
   const normalize = (raw: string) => {
     let next = multiline
@@ -257,7 +264,7 @@ function EditText({
       suppressContentEditableWarning
       spellCheck={false}
       data-placeholder={placeholder || undefined}
-      style={multiline ? { whiteSpace: 'pre-line' } : undefined}
+      style={multiline ? { whiteSpace: 'pre-line', ...style } : style}
       onPointerDown={(e: React.PointerEvent) => e.stopPropagation()}
       onClick={(e: React.MouseEvent) => e.stopPropagation()}
       onFocus={() => {
@@ -407,6 +414,14 @@ export type GeneratedPortalPageProps = {
   /** Live object-position updates while the creator drags the cover.
    *  Commit/debounce is the caller's job. */
   onCoverPosition?: (pos: string) => void
+  /** Hero title / description container widths (percent of the hero's
+   *  content area, 20–100). Absent → the design's default max-widths. */
+  heroTitleWidth?: number | null
+  heroDescWidth?: number | null
+  /** Live width updates from the creator-bar Width control. `null` resets
+   *  the knob to the design default. Commit/debounce is the caller's job
+   *  (mirrors onCoverPosition). */
+  onHeroWidth?: (which: 'title' | 'desc', pct: number | null) => void
   onAddLessonImage?: (flatIdx: number) => void
   /** Live object-position updates while the creator drags a lesson still in
    *  the reposition overlay. Commit/debounce is the caller's job (mirrors
@@ -537,6 +552,9 @@ export function GeneratedPortalPage({
   trailerBusy = false,
   trailerPct = null,
   onCoverPosition,
+  heroTitleWidth = null,
+  heroDescWidth = null,
+  onHeroWidth,
   onAddLessonImage,
   onRepositionLesson,
   onReplaceLessonImage,
@@ -1002,6 +1020,108 @@ export function GeneratedPortalPage({
     strip.scrollBy({ left: dir * strip.clientWidth, behavior: 'smooth' })
   }
 
+  // ── hero container widths — the creator-bar Width control. Live values are
+  //    tagged with the committed value they were adjusted from (same pattern
+  //    as the cover reposition), so a debounced commit or a server refetch
+  //    naturally takes back over once it lands. `null` = design default.
+  const [widthPanelOpen, setWidthPanelOpen] = useState(false)
+  const [liveTitleW, setLiveTitleW] = useState<{
+    v: number | null
+    base: number | null
+  } | null>(null)
+  const [liveDescW, setLiveDescW] = useState<{
+    v: number | null
+    base: number | null
+  } | null>(null)
+  const committedTitleW = heroTitleWidth ?? null
+  const committedDescW = heroDescWidth ?? null
+  const effTitleW =
+    liveTitleW && liveTitleW.base === committedTitleW
+      ? liveTitleW.v
+      : committedTitleW
+  const effDescW =
+    liveDescW && liveDescW.base === committedDescW
+      ? liveDescW.v
+      : committedDescW
+  const setHeroWidth = (which: 'title' | 'desc', pct: number | null) => {
+    if (which === 'title') setLiveTitleW({ v: pct, base: committedTitleW })
+    else setLiveDescW({ v: pct, base: committedDescW })
+    onHeroWidth?.(which, pct)
+  }
+  // The width the sliders display while a knob is still on "Auto" — roughly
+  // where the design defaults sit, so grabbing the slider starts near the
+  // current look instead of jumping.
+  const WIDTH_MIN = 20
+  const WIDTH_MAX = 100
+  const autoTitleW = heroVariant === 'marquee' ? 45 : 60
+  const autoDescW = heroVariant === 'marquee' ? 80 : 55
+  // Inline width overrides for the hero text containers. Marquee title +
+  // description keep their design ch-caps until the creator sets a width; the
+  // cover unlocks its 760px content cap only when a width is set, keeping the
+  // title / description at their old effective bounds otherwise.
+  const titleWidthStyle: React.CSSProperties | undefined =
+    effTitleW != null ? { maxWidth: `${effTitleW}%` } : undefined
+  const descWidthStyle: React.CSSProperties | undefined =
+    effDescW != null ? { maxWidth: `${effDescW}%` } : undefined
+  const coverAnyWidth = effTitleW != null || effDescW != null
+  const coverContentStyle: React.CSSProperties | undefined = coverAnyWidth
+    ? { maxWidth: 'none' }
+    : undefined
+  const coverTitleStyle: React.CSSProperties | undefined =
+    effTitleW != null
+      ? { maxWidth: `${effTitleW}%` }
+      : coverAnyWidth
+        ? { maxWidth: 760 }
+        : undefined
+  const coverDescStyle: React.CSSProperties | undefined =
+    effDescW != null ? { maxWidth: `${effDescW}%` } : undefined
+
+  const widthRow = (
+    which: 'title' | 'desc',
+    label: string,
+    eff: number | null,
+    auto: number,
+  ) => (
+    <div className="hw-row">
+      <div className="hw-row-head">
+        <span className="hw-label">{label}</span>
+        <span className="hw-value">{eff != null ? `${eff}%` : 'Auto'}</span>
+        <button
+          type="button"
+          className="hw-reset"
+          disabled={eff == null}
+          onClick={() => setHeroWidth(which, null)}
+          title="Reset to the design default"
+        >
+          Reset
+        </button>
+      </div>
+      <input
+        type="range"
+        min={WIDTH_MIN}
+        max={WIDTH_MAX}
+        step={1}
+        value={eff ?? auto}
+        onChange={(e) => setHeroWidth(which, Number(e.target.value))}
+        aria-label={`${label} container width`}
+      />
+    </div>
+  )
+
+  // Floating panel under the creator bar — builder chrome (dark, blue accent).
+  const widthPanel =
+    editable && onHeroWidth && widthPanelOpen ? (
+      <div className="hero-width-panel" onPointerDown={(e) => e.stopPropagation()}>
+        <div className="hw-title">Container width</div>
+        <div className="hw-sub">
+          Narrow the container to wrap the text onto more lines; widen it to
+          let it run longer.
+        </div>
+        {widthRow('title', 'Title', effTitleW, autoTitleW)}
+        {widthRow('desc', 'Description', effDescW, autoDescW)}
+      </div>
+    ) : null
+
   const themeToggle = onToggleDark ? (
     <button
       className="theme-toggle"
@@ -1096,6 +1216,31 @@ export function GeneratedPortalPage({
           ⤧ {repositioning ? 'Done' : 'Reposition'}
         </button>
       )}
+      {editable && onHeroWidth && (
+        <button
+          className={`add-pill is-width ${widthPanelOpen ? 'active' : ''}`}
+          type="button"
+          onClick={() => {
+            setWidthPanelOpen((o) => !o)
+            setTrailerPeek(false)
+          }}
+          title="Adjust the title and description container width"
+        >
+          <svg
+            width="13"
+            height="13"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M8 8l-5 4 5 4M16 8l5 4-5 4M3 12h18" />
+          </svg>
+          <span>{widthPanelOpen ? 'Done' : 'Width'}</span>
+        </button>
+      )}
       {editable && onAddTrailer && (
         <button
           className="add-pill"
@@ -1124,6 +1269,7 @@ export function GeneratedPortalPage({
         </button>
       )}
       {themeToggle}
+      {widthPanel}
     </div>
   )
 
@@ -1468,6 +1614,7 @@ export function GeneratedPortalPage({
               value={title}
               className="pt-h rise d1"
               tag="h1"
+              style={titleWidthStyle}
             />
           </div>
 
@@ -1514,6 +1661,7 @@ export function GeneratedPortalPage({
                   value={desc}
                   className="bd-text"
                   tag="p"
+                  style={descWidthStyle}
                 />
                 {!editable && !descExpanded && (
                   <button
@@ -1688,7 +1836,7 @@ export function GeneratedPortalPage({
             </button>
           )}
 
-          <div className="hero-content">
+          <div className="hero-content" style={coverContentStyle}>
             <div className="hero-meta">
               <EditText
                 editable={editable}
@@ -1727,9 +1875,10 @@ export function GeneratedPortalPage({
                 tag="h1"
                 multiline
                 placeholder="Add a headline"
+                style={coverTitleStyle}
               />
             ) : (
-              <h1 className="hero-title">
+              <h1 className="hero-title" style={coverTitleStyle}>
                 {titleLines && titleLines.length > 1
                   ? titleLines.map((line, i) => (
                       <span key={i}>
@@ -1741,7 +1890,7 @@ export function GeneratedPortalPage({
               </h1>
             )}
 
-            <p className="hero-desc">
+            <p className="hero-desc" style={coverDescStyle}>
               <EditText
                 editable={editable}
                 onEditText={onEditText}
@@ -3462,6 +3611,84 @@ export function GeneratedPortalPage({
         }
         .gpp .creator-bar .theme-toggle:active {
           transform: scale(0.94);
+        }
+
+        /* ── Container-width panel — builder chrome (dark, ce-accent blue).
+           Anchored under the creator bar; sliders drive the hero title /
+           description max-widths live. ── */
+        .gpp .hero-width-panel {
+          position: absolute;
+          top: calc(100% + 12px);
+          right: 0;
+          width: 264px;
+          padding: 16px 16px 8px;
+          border-radius: 14px;
+          background: rgba(28, 28, 30, 0.92);
+          -webkit-backdrop-filter: blur(24px) saturate(150%);
+          backdrop-filter: blur(24px) saturate(150%);
+          box-shadow:
+            inset 0 0 0 1px rgba(255, 255, 255, 0.1),
+            0 24px 60px -18px rgba(0, 0, 0, 0.6);
+          color: #f5f5f7;
+          text-align: left;
+          cursor: default;
+        }
+        .gpp .hero-width-panel .hw-title {
+          font-size: 13px;
+          font-weight: 600;
+          letter-spacing: -0.01em;
+        }
+        .gpp .hero-width-panel .hw-sub {
+          font-size: 11.5px;
+          line-height: 1.45;
+          color: #9a9aa2;
+          margin-top: 3px;
+          margin-bottom: 6px;
+        }
+        .gpp .hero-width-panel .hw-row {
+          padding: 10px 0;
+        }
+        .gpp .hero-width-panel .hw-row + .hw-row {
+          border-top: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .gpp .hero-width-panel .hw-row-head {
+          display: flex;
+          align-items: baseline;
+          gap: 8px;
+          margin-bottom: 8px;
+        }
+        .gpp .hero-width-panel .hw-label {
+          font-size: 12px;
+          font-weight: 500;
+          color: #d2d2d7;
+        }
+        .gpp .hero-width-panel .hw-value {
+          margin-left: auto;
+          font-size: 11.5px;
+          font-variant-numeric: tabular-nums;
+          color: #2997ff;
+          font-weight: 600;
+        }
+        .gpp .hero-width-panel .hw-reset {
+          font-size: 11px;
+          font-weight: 500;
+          color: #9a9aa2;
+          padding: 2px 6px;
+          border-radius: 6px;
+          transition: color 0.15s, background 0.15s;
+        }
+        .gpp .hero-width-panel .hw-reset:hover:not(:disabled) {
+          color: #f5f5f7;
+          background: rgba(255, 255, 255, 0.1);
+        }
+        .gpp .hero-width-panel .hw-reset:disabled {
+          opacity: 0.35;
+          cursor: default;
+        }
+        .gpp .hero-width-panel input[type='range'] {
+          width: 100%;
+          accent-color: #2997ff;
+          cursor: pointer;
         }
 
         .gpp .hero-content {

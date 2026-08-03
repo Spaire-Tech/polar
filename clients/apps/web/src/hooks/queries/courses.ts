@@ -277,6 +277,12 @@ export type LandingOverrides = {
   // The hero band's badge chips ("All Levels", "Self-paced", …) — creator
   // editable; absent means the design defaults.
   badges?: string[] | null
+  // Hero title / description container widths, as a percentage (20–100) of
+  // the hero's content area. Set from the landing editor's Width control so
+  // the creator decides where the headline wraps. Absent → the design's
+  // default max-widths. Landing page only (marquee + cover heroes).
+  hero_title_width?: number | null
+  hero_desc_width?: number | null
 }
 
 async function courseApiFetch<T>(
