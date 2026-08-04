@@ -1,50 +1,26 @@
 'use client'
 
-// iPhone chrome specifically for the course landing preview. Same shell as
-// `MobilePreviewFrame` (bezel + dynamic island + home indicator), but the
-// inner scroll has zero padding so the mobile landing components (which
-// already manage their own gutters) render edge-to-edge inside the screen.
+// iPhone chrome for the course landing's phone canvas. The canvas renders
+// INLINE (no iframe): the child is the real landing component wearing the
+// mobile stylesheet via its `.gpp-m` class, so it loads instantly and the
+// text renders at native resolution — nothing is ever bitmap-scaled.
 //
-// The screen is ALWAYS iPhone 14 logical size (390 × 844) so an iframe
-// inside sees a real phone viewport — then the whole phone is scaled down
-// as one unit to fit the available space. Scaling (instead of clamping
-// width/height independently) keeps the proportions of a real phone; the
-// old max-height clamp squashed it into a squat rectangle on short
-// windows.
+// The screen is a fixed 430px logical width (iPhone Pro Max class — big
+// and readable) and fills the available height; the page scrolls inside
+// it like a phone. The screen is a SIZE CONTAINER: the mobile stylesheet's
+// class variant uses container units (cqh/cqw) where the media variant
+// uses viewport units, so "100svh heroes" fill the phone screen, not the
+// browser window.
 
-import { useLayoutEffect, useRef, useState, type ReactNode } from 'react'
+import type { ReactNode } from 'react'
 
-const SCREEN_W = 390
-const SCREEN_H = 844
+const SCREEN_W = 430
 const BEZEL = 11
-const FRAME_W = SCREEN_W + BEZEL * 2
-const FRAME_H = SCREEN_H + BEZEL * 2
 
 export function CoursePhoneFrame({ children }: { children: ReactNode }) {
-  const holderRef = useRef<HTMLDivElement | null>(null)
-  const [scale, setScale] = useState(1)
-
-  useLayoutEffect(() => {
-    const el = holderRef.current
-    if (!el) return
-    const measure = () => {
-      const r = el.getBoundingClientRect()
-      if (r.width <= 0 || r.height <= 0) return
-      setScale(Math.min(1, r.width / FRAME_W, r.height / FRAME_H))
-    }
-    measure()
-    const ro = new ResizeObserver(measure)
-    ro.observe(el)
-    return () => ro.disconnect()
-  }, [])
-
   return (
-    <div ref={holderRef} className="course-phone-holder">
-      <div
-        className="course-phone-frame"
-        style={{ transform: `scale(${scale})` }}
-        aria-label="Mobile preview (iPhone)"
-      >
+    <div className="course-phone-holder">
+      <div className="course-phone-frame" aria-label="Mobile preview (iPhone)">
         <div className="course-phone-frame__island" aria-hidden />
         <div className="course-phone-frame__screen">
           <div className="course-phone-frame__scroll">{children}</div>
@@ -55,21 +31,15 @@ export function CoursePhoneFrame({ children }: { children: ReactNode }) {
         .course-phone-holder {
           width: 100%;
           height: 100%;
-          /* Flex centering (not grid place-items): the frame's LAYOUT box is
-             the full 412×866 even when scaled down, and a grid auto-track
-             hugs that box start-aligned — flex centers the overflow both
-             ways so the scaled phone sits in the middle. */
           display: flex;
-          align-items: center;
+          align-items: stretch;
           justify-content: center;
           overflow: hidden;
         }
         .course-phone-frame {
           position: relative;
-          width: ${FRAME_W}px;
-          height: ${FRAME_H}px;
+          width: ${SCREEN_W + BEZEL * 2}px;
           flex-shrink: 0;
-          transform-origin: center;
           background: #0c0c14;
           border-radius: 56px;
           padding: ${BEZEL}px;
@@ -105,11 +75,14 @@ export function CoursePhoneFrame({ children }: { children: ReactNode }) {
         .course-phone-frame__screen {
           position: relative;
           width: ${SCREEN_W}px;
-          height: ${SCREEN_H}px;
+          height: 100%;
           background: white;
           border-radius: 46px;
           overflow: hidden;
           isolation: isolate;
+          /* Size container: the mobile stylesheet's class variant sizes
+             heroes with cqh/cqw against THIS box (the phone screen). */
+          container-type: size;
         }
         .course-phone-frame__scroll {
           width: 100%;

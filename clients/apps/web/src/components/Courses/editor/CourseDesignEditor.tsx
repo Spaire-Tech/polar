@@ -91,9 +91,11 @@ export function CourseDesignEditor({
   /**
    * 'full' — the desktop canvas: every creator affordance.
    * 'reposition' — the phone canvas: renders exactly what a phone visitor
-   * sees, with direct manipulation kept for the edits that matter on a
-   * phone screen (drag the cover / lesson stills / portrait into place).
-   * No pills, no theme toggle, no touch-to-edit text.
+   * sees (the mobile stylesheet applied via GeneratedPortalPage's
+   * phoneCanvas class), with direct manipulation kept for the edits that
+   * matter at phone size: drag the cover / lesson stills / portrait into
+   * place, and drag the hero width containers. No pills, no theme toggle,
+   * no touch-to-edit text.
    */
   mode?: 'full' | 'reposition'
 }) {
@@ -950,7 +952,7 @@ export function CourseDesignEditor({
         onCoverPosition={onCoverPosition}
         heroTitleWidth={course.landing_overrides?.hero_title_width ?? null}
         heroDescWidth={course.landing_overrides?.hero_desc_width ?? null}
-        onHeroWidth={repositionOnly ? undefined : onHeroWidth}
+        onHeroWidth={onHeroWidth}
         heroTitleFont={course.landing_overrides?.hero_title_font ?? null}
         onHeroTitleFont={repositionOnly ? undefined : onHeroTitleFont}
         onAddLessonImage={repositionOnly ? undefined : onAddLessonImage}
