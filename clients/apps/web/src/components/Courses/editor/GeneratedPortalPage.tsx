@@ -1177,10 +1177,7 @@ export function GeneratedPortalPage({
         onPointerDown={(e) => e.stopPropagation()}
       >
         <div className="hf-title">Title style</div>
-        <div className="hf-sub">
-          The typeface your title wears — on the landing page and in the
-          member portal.
-        </div>
+        <div className="hf-sub">The typeface your title wears.</div>
         <button
           type="button"
           className={`hf-row ${!heroTitleFont ? 'active' : ''}`}

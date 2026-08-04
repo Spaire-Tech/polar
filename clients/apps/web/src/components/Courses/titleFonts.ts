@@ -8,44 +8,24 @@
 // "Classic" (key null/absent) is the design's default typography.
 
 import {
-  Abril_Fatface,
-  Alfa_Slab_One,
-  Anton,
-  Bebas_Neue,
   Cinzel,
-  Monoton,
   Orbitron,
   Playfair_Display,
-  Righteous,
   Special_Elite,
 } from 'next/font/google'
 
-const marquee = Bebas_Neue({ weight: '400', subsets: ['latin'], display: 'swap' })
-const blockbuster = Anton({ weight: '400', subsets: ['latin'], display: 'swap' })
 const premiere = Playfair_Display({
   weight: '700',
   subsets: ['latin'],
   display: 'swap',
 })
 const epic = Cinzel({ weight: '700', subsets: ['latin'], display: 'swap' })
-const matinee = Abril_Fatface({
-  weight: '400',
-  subsets: ['latin'],
-  display: 'swap',
-})
 const dossier = Special_Elite({
   weight: '400',
   subsets: ['latin'],
   display: 'swap',
 })
 const orbit = Orbitron({ weight: '700', subsets: ['latin'], display: 'swap' })
-const neon = Monoton({ weight: '400', subsets: ['latin'], display: 'swap' })
-const retro = Righteous({ weight: '400', subsets: ['latin'], display: 'swap' })
-const frontier = Alfa_Slab_One({
-  weight: '400',
-  subsets: ['latin'],
-  display: 'swap',
-})
 
 export type TitleFont = {
   key: string
@@ -57,16 +37,10 @@ export type TitleFont = {
 }
 
 export const TITLE_FONTS: TitleFont[] = [
-  { key: 'marquee', label: 'Marquee', mood: 'Poster', fontFamily: marquee.style.fontFamily },
-  { key: 'blockbuster', label: 'Blockbuster', mood: 'Bold', fontFamily: blockbuster.style.fontFamily },
   { key: 'premiere', label: 'Premiere', mood: 'Elegant', fontFamily: premiere.style.fontFamily },
   { key: 'epic', label: 'Epic', mood: 'Monumental', fontFamily: epic.style.fontFamily },
-  { key: 'matinee', label: 'Matinée', mood: 'Editorial', fontFamily: matinee.style.fontFamily },
   { key: 'dossier', label: 'Dossier', mood: 'Typewritten', fontFamily: dossier.style.fontFamily },
   { key: 'orbit', label: 'Orbit', mood: 'Sci-fi', fontFamily: orbit.style.fontFamily },
-  { key: 'neon', label: 'Neon', mood: 'Retro glow', fontFamily: neon.style.fontFamily },
-  { key: 'retro', label: 'Retro', mood: 'Seventies', fontFamily: retro.style.fontFamily },
-  { key: 'frontier', label: 'Frontier', mood: 'Slab', fontFamily: frontier.style.fontFamily },
 ]
 
 /** CSS font-family for a stored title-style key; undefined for Classic /
