@@ -1285,51 +1285,81 @@ export function WatchHome({
           )
         })()}
 
-        {/* ════ Trailers — portal-only rail at the very bottom. Desktop rail
-            hides ≤720px (the m-list carries its own trailer row there). ════ */}
+        {/* ════ Trailers — portal-only rail at the very bottom. The card
+            wears the SAME variant the creator chose at onboarding (spotlight
+            or catalog), exactly like the lesson cards. Desktop rail hides
+            ≤720px (the m-list carries its own trailer row there). ════ */}
         {course.trailer_url && (
           <div className="max-[720px]:hidden" style={{ marginTop: 42 }}>
             <div className="row-head">
               <span className="rh">Trailers</span>
             </div>
-            <RailStrip spot={false}>
-              <div
-                className="lc-catalog"
-                onClick={() => setTrailerPlaying(true)}
-              >
-                <div className="lc-card">
-                  <div className="lc-thumb">
-                    <div
-                      className={`img ${course.thumbnail_url ? '' : 'ph'}`}
-                      style={
-                        course.thumbnail_url
-                          ? {
-                              backgroundImage: `url("${course.thumbnail_url}")`,
-                            }
-                          : undefined
-                      }
+            <RailStrip spot={cardVariant === 'spotlight'}>
+              {(() => {
+                const imgStyle = course.thumbnail_url
+                  ? { backgroundImage: `url("${course.thumbnail_url}")` }
+                  : undefined
+                const playOverlay = (
+                  <div className="lc-play">
+                    <div className="lc-play-btn">
+                      <Glyph d={SF.play} size={18} fill="currentColor" />
+                    </div>
+                  </div>
+                )
+                const trailerMeta = (
+                  <div className="lc-meta">
+                    <Glyph
+                      d={SF.play2}
+                      size={12}
+                      fill="currentColor"
+                      stroke={0}
                     />
-                    <div className="lc-play">
-                      <div className="lc-play-btn">
-                        <Glyph d={SF.play} size={18} fill="currentColor" />
+                    <span>Official trailer</span>
+                  </div>
+                )
+                if (cardVariant === 'spotlight') {
+                  return (
+                    <div
+                      className="lc-spot"
+                      onClick={() => setTrailerPlaying(true)}
+                    >
+                      <div className={`spot-card ${imgStyle ? '' : 'ph'}`}>
+                        <div className="ph-ambient" aria-hidden />
+                        <div className="glass-tint" aria-hidden />
+                        <div className="img" style={imgStyle} />
+                        <div className="spot-shade" />
+                        {playOverlay}
+                        <div className="spot-info">
+                          <div className="lc-num">Trailer</div>
+                          <div className="spot-title">{course.title}</div>
+                          {trailerMeta}
+                        </div>
+                      </div>
+                    </div>
+                  )
+                }
+                return (
+                  <div
+                    className="lc-catalog"
+                    onClick={() => setTrailerPlaying(true)}
+                  >
+                    <div className="lc-card">
+                      <div className="lc-thumb">
+                        <div
+                          className={`img ${imgStyle ? '' : 'ph'}`}
+                          style={imgStyle}
+                        />
+                        {playOverlay}
+                      </div>
+                      <div className="lc-info">
+                        <div className="lc-num">Trailer</div>
+                        <div className="lc-title">{course.title}</div>
+                        {trailerMeta}
                       </div>
                     </div>
                   </div>
-                  <div className="lc-info">
-                    <div className="lc-num">Trailer</div>
-                    <div className="lc-title">{course.title}</div>
-                    <div className="lc-meta">
-                      <Glyph
-                        d={SF.play2}
-                        size={12}
-                        fill="currentColor"
-                        stroke={0}
-                      />
-                      <span>Official trailer</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
+                )
+              })()}
             </RailStrip>
           </div>
         )}
