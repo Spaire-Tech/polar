@@ -117,7 +117,14 @@ export default function WatchHomeEmbed() {
       hero_variant: params.get('hero') === 'marquee' ? 'marquee' : 'cover',
       lesson_card_variant:
         params.get('card') === 'spotlight' ? 'spotlight' : 'catalog',
-      landing_overrides: { theme_mode: dark ? 'dark' : 'light' },
+      // ?font=<key> — a Spaire Title Style, to verify it styles the HERO
+      // title only (never card titles). ?trailer=1 adds a trailer so the
+      // Trailers rail renders.
+      landing_overrides: {
+        theme_mode: dark ? 'dark' : 'light',
+        hero_title_font: params.get('font') ?? null,
+      },
+      trailer_url: params.get('trailer') === '1' ? 'fake-trailer.mp4' : null,
       modules: [],
       lessons: [],
     },

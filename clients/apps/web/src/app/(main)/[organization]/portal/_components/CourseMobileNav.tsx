@@ -62,15 +62,10 @@ export const CourseMobileNav = ({
     ? initialsFor(customerProfile?.name ?? customer.name, customer.email ?? '')
     : '·'
 
-  const menuItems = [
-    ...tabs,
-    {
-      key: 'bookmarks' as const,
-      href: `/${organization.slug}/portal/bookmarks`,
-      label: 'Bookmarks',
-      matches: (p: string) => p.includes('/portal/bookmarks'),
-    },
-  ]
+  // Same split as the bottom tab bar: only the mobile tabs live here.
+  // Everything else (Enrollments, Team, Bookmarks, Settings, Log out) is in
+  // the profile hub the account row opens — no destination twice.
+  const menuItems = tabs.filter((t) => t.mobile)
 
   return (
     <>
