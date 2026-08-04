@@ -209,6 +209,21 @@ export function CourseDesignEditor({
     [course.landing_overrides, commitOverrides],
   )
 
+  // ── title style (Spaire Title Styles — the "movie title" typeface for the
+  //    hero headline). One overrides commit per pick; `null` = Classic. ──────
+  const onHeroTitleFont = useCallback(
+    (key: string | null) => {
+      const prev = course.landing_overrides?.hero_title_font ?? null
+      if (key === prev) return
+      commitOverrides(
+        { hero_title_font: key },
+        { hero_title_font: prev },
+        'Change title style',
+      )
+    },
+    [course.landing_overrides?.hero_title_font, commitOverrides],
+  )
+
   // ── trailer ───────────────────────────────────────────────────────────────
   // The in-flight trailer upload lives in a module-level store keyed by
   // course id, NOT component state — the customize editor unmounts when you
@@ -917,6 +932,8 @@ export function CourseDesignEditor({
         heroTitleWidth={course.landing_overrides?.hero_title_width ?? null}
         heroDescWidth={course.landing_overrides?.hero_desc_width ?? null}
         onHeroWidth={onHeroWidth}
+        heroTitleFont={course.landing_overrides?.hero_title_font ?? null}
+        onHeroTitleFont={onHeroTitleFont}
         onAddLessonImage={onAddLessonImage}
         onRepositionLesson={onRepositionLesson}
         onReplaceLessonImage={onReplaceLessonImage}

@@ -26,6 +26,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { HlsVideo } from '../HlsVideo'
+import { TITLE_FONTS, titleFontFamily } from '../titleFonts'
 import { RepositionInPortal } from '../watch/RepositionInPortal'
 
 const PLAY_PATH =
@@ -495,6 +496,11 @@ export type GeneratedPortalPageProps = {
    *  content area, 20–100). Absent → the design's default max-widths. */
   heroTitleWidth?: number | null
   heroDescWidth?: number | null
+  /** Spaire Title Style key (titleFonts.ts) for the hero headline.
+   *  Absent/null → Classic (the design default). */
+  heroTitleFont?: string | null
+  /** Editor only — pick a title style; `null` resets to Classic. */
+  onHeroTitleFont?: (key: string | null) => void
   /** Live width updates from the creator-bar Width control. `null` resets
    *  the knob to the design default. Commit/debounce is the caller's job
    *  (mirrors onCoverPosition). */
@@ -631,6 +637,8 @@ export function GeneratedPortalPage({
   onCoverPosition,
   heroTitleWidth = null,
   heroDescWidth = null,
+  heroTitleFont = null,
+  onHeroTitleFont,
   onHeroWidth,
   onAddLessonImage,
   onRepositionLesson,
@@ -1154,6 +1162,53 @@ export function GeneratedPortalPage({
   const coverDescStyle: React.CSSProperties | undefined =
     effDescW != null ? { maxWidth: `${effDescW}%` } : undefined
 
+  // ── Spaire Title Style — the creator-picked "movie title" typeface for
+  //    the hero headline. Classic (null) keeps the design's own font. ──
+  const [fontPanelOpen, setFontPanelOpen] = useState(false)
+  const heroFontFamily = titleFontFamily(heroTitleFont)
+  const titleFontStyle: React.CSSProperties | undefined = heroFontFamily
+    ? { fontFamily: heroFontFamily }
+    : undefined
+
+  const fontPanel =
+    editable && onHeroTitleFont && fontPanelOpen ? (
+      <div
+        className="hero-font-panel"
+        onPointerDown={(e) => e.stopPropagation()}
+      >
+        <div className="hf-title">Title style</div>
+        <div className="hf-sub">
+          The typeface your title wears — on the landing page and in the
+          member portal.
+        </div>
+        <button
+          type="button"
+          className={`hf-row ${!heroTitleFont ? 'active' : ''}`}
+          onClick={() => onHeroTitleFont(null)}
+        >
+          <span className="hf-name">
+            Classic <em>Default</em>
+          </span>
+          <span className="hf-preview">{title}</span>
+        </button>
+        {TITLE_FONTS.map((f) => (
+          <button
+            key={f.key}
+            type="button"
+            className={`hf-row ${heroTitleFont === f.key ? 'active' : ''}`}
+            onClick={() => onHeroTitleFont(f.key)}
+          >
+            <span className="hf-name">
+              {f.label} <em>{f.mood}</em>
+            </span>
+            <span className="hf-preview" style={{ fontFamily: f.fontFamily }}>
+              {title}
+            </span>
+          </button>
+        ))}
+      </div>
+    ) : null
+
   const themeToggle = onToggleDark ? (
     <button
       className="theme-toggle"
@@ -1248,6 +1303,31 @@ export function GeneratedPortalPage({
           ⤧ {repositioning ? 'Done' : 'Reposition'}
         </button>
       )}
+      {editable && onHeroTitleFont && (
+        <button
+          className={`add-pill is-font ${fontPanelOpen ? 'active' : ''}`}
+          type="button"
+          onClick={() => {
+            setFontPanelOpen((o) => !o)
+            setTrailerPeek(false)
+          }}
+          title="Pick a title style"
+        >
+          <svg
+            width="13"
+            height="13"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M4 20L12 4l8 16M7 14h10" />
+          </svg>
+          <span>{fontPanelOpen ? 'Done' : 'Title style'}</span>
+        </button>
+      )}
       {editable && onAddTrailer && (
         <button
           className="add-pill"
@@ -1276,6 +1356,7 @@ export function GeneratedPortalPage({
         </button>
       )}
       {themeToggle}
+      {fontPanel}
     </div>
   )
 
@@ -1577,7 +1658,7 @@ export function GeneratedPortalPage({
           ref={heroRef as React.RefObject<HTMLElement>}
           className={`panel ${coverUrl ? 'filled' : ''} ${
             repositioning ? 'repositioning' : ''
-          } ${trailerPeek ? 'peeking' : ''}`}
+          }`}
           {...heroHoverProps}
           {...repositionProps}
         >
@@ -1652,13 +1733,14 @@ export function GeneratedPortalPage({
                 value={title}
                 className="pt-h rise d1"
                 tag="h1"
-                style={
-                  widthEditable
+                style={{
+                  ...(widthEditable
                     ? effTitleW != null
                       ? UNCAP
                       : undefined
-                    : titleWidthStyle
-                }
+                    : titleWidthStyle),
+                  ...titleFontStyle,
+                }}
               />
             </ResizableWidth>
           </div>
@@ -1842,7 +1924,7 @@ export function GeneratedPortalPage({
           ref={heroRef as React.RefObject<HTMLElement>}
           className={`hero ${coverUrl ? 'filled' : ''} ${
             repositioning ? 'repositioning' : ''
-          } ${trailerPeek ? 'peeking' : ''}`}
+          }`}
           {...heroHoverProps}
           {...repositionProps}
         >
@@ -1951,11 +2033,17 @@ export function GeneratedPortalPage({
                   tag="h1"
                   multiline
                   placeholder="Add a headline"
-                  style={widthEditable ? undefined : coverTitleStyle}
+                  style={{
+                    ...(widthEditable ? undefined : coverTitleStyle),
+                    ...titleFontStyle,
+                  }}
                 />
               </ResizableWidth>
             ) : (
-              <h1 className="hero-title" style={coverTitleStyle}>
+              <h1
+                className="hero-title"
+                style={{ ...coverTitleStyle, ...titleFontStyle }}
+              >
                 {titleLines && titleLines.length > 1
                   ? titleLines.map((line, i) => (
                       <span key={i}>
@@ -3654,30 +3742,6 @@ export function GeneratedPortalPage({
         .gpp .trailer-layer.on {
           opacity: 1;
         }
-        /* While the peek plays, the hero copy steps aside so the video is the
-           focus (streaming-detail-page style): the marquee dims only its
-           headline block, the cover clears everything — badge, meta, title,
-           description, actions and the top-left eyebrow. 250ms both ways.
-           A text field being edited (focus-within) stays visible so the
-           builder's touch-to-edit never types into an invisible element. */
-        .gpp .panel-title,
-        .gpp .hero-content,
-        .gpp .hero-eyebrow {
-          transition: opacity 0.25s ease;
-        }
-        .gpp .panel.peeking .panel-title {
-          opacity: 0;
-        }
-        .gpp .panel.peeking .panel-title:focus-within {
-          opacity: 1;
-        }
-        .gpp .hero.peeking .hero-content,
-        .gpp .hero.peeking .hero-eyebrow {
-          opacity: 0;
-        }
-        .gpp .hero.peeking .hero-content:focus-within {
-          opacity: 1;
-        }
 
         /* ── reposition mode ── */
         .gpp .panel.repositioning,
@@ -3731,6 +3795,88 @@ export function GeneratedPortalPage({
         }
         .gpp .creator-bar .theme-toggle:active {
           transform: scale(0.94);
+        }
+
+        /* ── Title-style picker — builder chrome (dark, ce-accent blue).
+           Anchored under the creator bar; each row previews the course
+           title in that face. ── */
+        .gpp .hero-font-panel {
+          position: absolute;
+          top: calc(100% + 12px);
+          right: 0;
+          width: 316px;
+          max-height: min(70vh, 560px);
+          overflow-y: auto;
+          padding: 16px 12px 12px;
+          border-radius: 14px;
+          background: rgba(28, 28, 30, 0.94);
+          -webkit-backdrop-filter: blur(24px) saturate(150%);
+          backdrop-filter: blur(24px) saturate(150%);
+          box-shadow:
+            inset 0 0 0 1px rgba(255, 255, 255, 0.1),
+            0 24px 60px -18px rgba(0, 0, 0, 0.6);
+          color: #f5f5f7;
+          text-align: left;
+          cursor: default;
+        }
+        .gpp .hero-font-panel .hf-title {
+          font-size: 13px;
+          font-weight: 600;
+          letter-spacing: -0.01em;
+          padding: 0 6px;
+        }
+        .gpp .hero-font-panel .hf-sub {
+          font-size: 11.5px;
+          line-height: 1.45;
+          color: #9a9aa2;
+          margin: 3px 0 10px;
+          padding: 0 6px;
+        }
+        .gpp .hero-font-panel .hf-row {
+          display: flex;
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 3px;
+          width: 100%;
+          padding: 9px 10px 10px;
+          border-radius: 10px;
+          text-align: left;
+          transition: background 0.15s;
+        }
+        .gpp .hero-font-panel .hf-row:hover {
+          background: rgba(255, 255, 255, 0.07);
+        }
+        .gpp .hero-font-panel .hf-row.active {
+          background: rgba(41, 151, 255, 0.14);
+          box-shadow: inset 0 0 0 1px rgba(41, 151, 255, 0.4);
+        }
+        .gpp .hero-font-panel .hf-name {
+          font-size: 11px;
+          font-weight: 600;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          color: #9a9aa2;
+        }
+        .gpp .hero-font-panel .hf-row.active .hf-name {
+          color: #2997ff;
+        }
+        .gpp .hero-font-panel .hf-name em {
+          font-style: normal;
+          font-weight: 500;
+          letter-spacing: 0.02em;
+          text-transform: none;
+          color: #7e7e86;
+          margin-left: 4px;
+        }
+        .gpp .hero-font-panel .hf-preview {
+          font-size: 21px;
+          line-height: 1.15;
+          color: #f5f5f7;
+          overflow: hidden;
+          display: -webkit-box;
+          -webkit-line-clamp: 1;
+          -webkit-box-orient: vertical;
+          max-width: 100%;
         }
 
         /* ── Drag-to-resize container width (hero title / description).

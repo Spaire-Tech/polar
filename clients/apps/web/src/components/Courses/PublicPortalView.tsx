@@ -518,6 +518,7 @@ export function PublicPortalView({
         coverPosition={landing.thumbnail_object_position}
         heroTitleWidth={landing.landing_overrides?.hero_title_width ?? null}
         heroDescWidth={landing.landing_overrides?.hero_desc_width ?? null}
+        heroTitleFont={landing.landing_overrides?.hero_title_font ?? null}
         trailerUrl={landing.trailer_url ?? null}
         sampleImageUrl={sample?.thumbnail_url ?? null}
         samplePlayable={samplePlayable}

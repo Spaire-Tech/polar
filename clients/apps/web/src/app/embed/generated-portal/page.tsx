@@ -81,6 +81,9 @@ function Preview() {
     title: number | null
     desc: number | null
   }>({ title: null, desc: null })
+  // Local stand-in for landing_overrides.hero_title_font so the Title-style
+  // picker is exercisable in this preview.
+  const [heroTitleFont, setHeroTitleFont] = useState<string | null>(null)
   useEffect(() => {
     if (!fakeSample || sampleUrl) return
     const canvas = document.createElement('canvas')
@@ -202,6 +205,8 @@ function Preview() {
       }
       heroTitleWidth={heroWidths.title}
       heroDescWidth={heroWidths.desc}
+      heroTitleFont={heroTitleFont}
+      onHeroTitleFont={editable ? setHeroTitleFont : undefined}
       onHeroWidth={
         editable
           ? (which, pct) => setHeroWidths((w) => ({ ...w, [which]: pct }))
