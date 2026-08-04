@@ -302,6 +302,719 @@ function EditText({
   )
 }
 
+// ─── Mobile stylesheet, defined once and served two ways ───────────────────
+// Real phones get it behind the media queries below (unchanged behavior).
+// The dashboard's phone canvas renders inline on a desktop window, where
+// viewport media queries can't fire — so the SAME css is re-emitted scoped
+// under `.gpp.gpp-m` (the class the canvas sets), with viewport units
+// converted to container units (the phone frame's screen is a size
+// container). One source of truth: the canvas can't drift from what a
+// phone visitor sees.
+const MOBILE_820_CSS = `
+          .gpp {
+            --gut: 22px;
+          }
+          .gpp .band {
+            grid-template-columns: 1fr;
+            gap: 18px;
+            padding-bottom: 28px;
+          }
+          .gpp .band-desc {
+            display: none;
+          }
+          .gpp .strip-wrap .grid .lc-catalog,
+          .gpp .strip-wrap .grid .card {
+            flex-basis: min(465px, 84%);
+          }
+        `
+
+const MOBILE_640_CSS = `
+          /* The mobile designs put EVERY section on one 20px axis (--gut)
+             and cap the page at a centered 520px column. The gut override
+             is load-bearing: the hero title, the band's CTA buttons, and
+             the rails all reference it — miss it and the buttons sit on a
+             different axis than the text above them. */
+          .gpp {
+            --gut: 20px;
+            max-width: 520px;
+            margin: 0 auto;
+          }
+
+          /* ── cover hero ── design port ("Spaire Cover Hero Mobile"):
+             full-bleed photo with everything overlaid — one deep bottom
+             shade feathered upward plus a soft top shade, film grain,
+             gentle Ken Burns on the cover, and side-by-side pill CTAs.
+             Same fields as desktop: AI badge/headline/description, the
+             course's lesson count/duration, trailer, and price. ── */
+          .gpp .hero {
+            height: 100svh;
+            min-height: 660px;
+            max-height: none;
+          }
+          /* Ken Burns on the creator's cover. Kept subtler than the demo's
+             1.32× so the saved focal crop stays honored; parked while the
+             builder's reposition drag is active. */
+          .gpp .hero .photo {
+            animation: gpp-kb 26s ease-out forwards;
+          }
+          .gpp .hero.repositioning .photo {
+            animation: none;
+          }
+          /* THE overlay — the design's exact two-layer shade: deep at the
+             bottom where the content sits (.92 → transparent at 74%), plus
+             a soft darkening at the very top for the brand/status bar. */
+          .gpp .hero .photo-shade {
+            background:
+              linear-gradient(
+                0deg,
+                rgba(5, 5, 8, 0.92) 0%,
+                rgba(5, 5, 8, 0.82) 16%,
+                rgba(5, 5, 8, 0.5) 36%,
+                rgba(5, 5, 8, 0.18) 56%,
+                transparent 74%
+              ),
+              linear-gradient(180deg, rgba(5, 5, 8, 0.34) 0%, transparent 22%);
+          }
+          .gpp .hero .hero-grain {
+            display: block;
+            position: absolute;
+            inset: 0;
+            z-index: 2;
+            opacity: 0.05;
+            pointer-events: none;
+            mix-blend-mode: overlay;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+          }
+          .gpp .hero-ph {
+            top: 44%;
+          }
+          .gpp .hero-blend {
+            height: 40px;
+          }
+          .gpp .hero-eyebrow {
+            top: 22px;
+            left: 26px;
+            font-size: 11px;
+          }
+          .gpp .hero-eyebrow .dot {
+            width: 6px;
+            height: 6px;
+          }
+          /* The cover design sits the content on a 26px inset (its own
+             --gut), deeper 44px off the bottom edge. */
+          .gpp .hero-content {
+            left: 26px;
+            right: 26px;
+            bottom: 44px;
+          }
+          .gpp .hero-meta {
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 20px;
+          }
+          .gpp .badge {
+            font-size: 10.5px;
+            font-weight: 800;
+            padding: 6px 13px;
+            background: rgba(255, 255, 255, 0.94);
+          }
+          .gpp .meta-line {
+            font-size: 13.5px;
+            gap: 8px;
+            color: rgba(255, 255, 255, 0.82);
+            text-shadow: 0 1px 12px rgba(0, 0, 0, 0.5);
+          }
+          .gpp .meta-line .sep {
+            opacity: 0.5;
+          }
+          .gpp .hero-title {
+            font-family: var(--po);
+            font-size: clamp(44px, 14vw, 60px);
+            line-height: 0.98;
+            letter-spacing: -0.03em;
+            text-shadow: 0 4px 50px rgba(0, 0, 0, 0.55);
+          }
+          .gpp .hero-desc {
+            margin-top: 18px;
+            font-size: 15.5px;
+            line-height: 1.55;
+            color: rgba(255, 255, 255, 0.9);
+            text-shadow: 0 2px 20px rgba(0, 0, 0, 0.5);
+            text-wrap: pretty;
+          }
+          /* Full-width stacked pills. Side-by-side half-width pills wrapped
+             real labels mid-button ("Play Trailer" → two lines, "Buy — $129"
+             → two lines, and a "Subscribe — $89 / month" label is worse), so
+             stack them: each label stays on one line and the tap targets are
+             bigger. */
+          .gpp .hero-actions {
+            flex-direction: column;
+            align-items: stretch;
+            gap: 12px;
+            margin-top: 28px;
+          }
+          .gpp .btn-trailer,
+          .gpp .btn-enroll {
+            width: 100%;
+            justify-content: center;
+            height: 56px;
+            font-size: 16px;
+            white-space: nowrap;
+          }
+          .gpp .btn-trailer {
+            padding: 0 16px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.28);
+          }
+          .gpp .btn-trailer .play {
+            width: 34px;
+            height: 34px;
+          }
+          .gpp .btn-enroll {
+            padding: 0 22px;
+            /* A near-opaque fill so the enroll CTA is legible on ANY cover
+               even where backdrop-filter is unsupported (Google's in-app
+               browser, some Android WebViews) — the translucent glass relied
+               on that filter and vanished without it. */
+            background: rgba(12, 14, 18, 0.64);
+            -webkit-backdrop-filter: blur(18px) saturate(140%);
+            backdrop-filter: blur(18px) saturate(140%);
+            box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.4);
+          }
+          .gpp .btn-enroll:active {
+            background: rgba(40, 40, 46, 0.72);
+          }
+
+          /* creator controls → 44px icon pills; Add-cover is the centered
+             .hero-cta (rendered separately in editable mode). */
+          .gpp .creator-bar {
+            top: 14px;
+            right: 14px;
+            gap: 8px;
+          }
+          .gpp .creator-bar .add-pill {
+            width: 44px;
+            height: 44px;
+            padding: 0;
+            border-radius: 50%;
+            justify-content: center;
+          }
+          .gpp .creator-bar .add-pill span {
+            display: none;
+          }
+          .gpp .creator-bar .add-pill svg {
+            width: 16px;
+            height: 16px;
+          }
+          /* the labelled Add cover + Reposition pills collapse on phones;
+             cover upload lives in the centered .hero-cta, reposition is a
+             desktop-drag affordance. */
+          .gpp .creator-bar .add-pill.is-cover,
+          .gpp .creator-bar .add-pill.is-reposition {
+            display: none;
+          }
+          .gpp .panel .creator-bar {
+            top: 14px;
+            right: 14px;
+          }
+          .gpp .creator-bar .theme-toggle {
+            width: 44px;
+            height: 44px;
+          }
+          .gpp .hero-cta {
+            display: inline-flex;
+          }
+
+          /* ── instructor → single column ── */
+          .gpp .instructor {
+            padding: 64px 20px 8px;
+          }
+          .gpp .inst-inner {
+            grid-template-columns: 1fr;
+            gap: 0;
+          }
+          .gpp .inst-head {
+            grid-template-columns: 76px 1fr;
+            gap: 16px;
+            margin-bottom: 24px;
+          }
+          .gpp .inst-avatar {
+            width: 76px;
+            height: 76px;
+          }
+          .gpp .inst-name {
+            font-size: 30px;
+          }
+          .gpp .inst-sub {
+            margin-top: 8px;
+            font-size: 14px;
+          }
+          .gpp .inst-bio {
+            font-size: 16px;
+          }
+          .gpp .inst-bio + .inst-bio {
+            margin-top: 16px;
+          }
+          .gpp .inst-media {
+            margin-top: 32px;
+            border-radius: 24px;
+          }
+          .gpp .inst-caption {
+            left: 16px;
+            bottom: 16px;
+            font-size: 12.5px;
+          }
+
+          /* ── free sample ── */
+          .gpp .sample {
+            padding: 56px 20px 8px;
+          }
+          .gpp .sample-eyebrow {
+            font-size: 11px;
+            margin-bottom: 10px;
+          }
+          .gpp .sample h2 {
+            font-size: 27px;
+          }
+          .gpp .sample-sub {
+            font-size: 15px;
+            margin-top: 8px;
+          }
+          .gpp .sample-screen {
+            aspect-ratio: 16 / 10;
+            margin-top: 24px;
+            border-radius: 18px;
+            box-shadow: 0 24px 22px rgba(0, 0, 0, 0.05);
+          }
+          .gpp .ph-cta .ph-ic {
+            width: 56px;
+            height: 56px;
+          }
+          .gpp .ph-cta .ph-k {
+            font-size: 14px;
+          }
+          .gpp .ph-cta .ph-s {
+            font-size: 12px;
+            margin-top: -7px;
+          }
+
+          /* ── lesson rails — one card at a time ── */
+          .gpp .lessons {
+            padding: 40px 20px 64px;
+          }
+          .gpp .row {
+            margin-top: 36px;
+          }
+          .gpp .row-head,
+          .gpp .strip-rh {
+            font-size: 17px;
+            margin-bottom: 12px;
+          }
+          .gpp .row .grid,
+          .gpp .strip-wrap .grid {
+            gap: 14px;
+            scroll-padding-inline: 20px;
+            margin: 0 -20px;
+            padding: 0 20px;
+          }
+          /* module rows show 82% spotlight cards; the episode strip shows
+             78% catalog cards (per the two mobile designs). */
+          .gpp .row .grid .card,
+          .gpp .row .grid .lc-catalog {
+            flex: 0 0 82%;
+          }
+          .gpp .strip-wrap .grid .card,
+          .gpp .strip-wrap .grid .lc-catalog {
+            flex: 0 0 78%;
+          }
+          .gpp .card {
+            border-radius: 18px;
+            box-shadow: 0 14px 14px rgba(0, 0, 0, 0.04);
+          }
+          .gpp .card-info {
+            padding: 0 16px 13px;
+          }
+          .gpp .card .title {
+            font-size: 16px;
+            margin-top: 4px;
+          }
+          .gpp .card .desc {
+            font-size: 13px;
+            min-height: 37px;
+          }
+
+          /* ── faq ── */
+          .gpp .faq {
+            padding: 16px 20px 88px;
+          }
+          .gpp .faq h2 {
+            font-size: clamp(34px, 10.5vw, 44px);
+            white-space: normal;
+            margin-bottom: 36px;
+          }
+          .gpp .faq-q {
+            padding: 20px 2px;
+            font-size: 17px;
+            gap: 16px;
+          }
+          .gpp .faq-a {
+            padding: 0 28px 6px 2px;
+            font-size: 15px;
+          }
+          .gpp .faq-item.open .faq-a {
+            padding-bottom: 24px;
+          }
+
+          /* ── marquee hero (Marquee Course Page Mobile) ── */
+          /* The panel becomes a bottom-anchored flex column, and the title +
+             band live in NORMAL FLOW (not absolute) so a long 3-line title
+             can never run under the CTA buttons — it pushes the band down
+             instead. Everything else (art, scrim, brand, toggle) stays
+             absolute, so only these two are flow children. */
+          .gpp .panel {
+            height: 100svh;
+            min-height: 640px;
+            max-height: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+          }
+          .gpp .panel-scrim {
+            background: linear-gradient(
+              180deg,
+              rgba(0, 0, 0, 0.34) 0%,
+              transparent 26%,
+              transparent 52%,
+              rgba(0, 0, 0, 0.2) 74%
+            );
+          }
+          .gpp .panel-brand {
+            top: 24px;
+            font-size: 11px;
+          }
+          .gpp .panel .creator-bar {
+            top: 14px;
+            right: 14px;
+          }
+          /* Design port ("Marquee Course Page Mobile"): centered title with
+             the AI eyebrow re-seated BELOW it as a genre line, side-by-side
+             pill CTAs with the free line beneath, and the description
+             restored as a two-line clamp with an inline MORE expander
+             (desktop hides it at 820px; phones get the full stack back).
+             Same fields as desktop — eyebrow/title/desc/badges are the AI
+             landing content, price and trailer come from the course. */
+          .gpp .panel-title {
+            position: relative;
+            left: auto;
+            right: auto;
+            bottom: auto;
+            margin: 0 var(--gut) 14px;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+          }
+          .gpp .pt-h {
+            font-size: clamp(33px, 9.4vw, 42px);
+            line-height: 0.96;
+            letter-spacing: -0.035em;
+            max-width: 13ch;
+            margin: 0 auto;
+            text-shadow: 0 4px 50px rgba(0, 0, 0, 0.55);
+            text-wrap: balance;
+          }
+          /* The AI eyebrow ("Documentary Series · Golf") reads as the genre
+             line under the title on phones — same field, new seat. */
+          .gpp .pt-eyebrow {
+            order: 2;
+            margin: 16px 0 0;
+            font-size: 14px;
+            font-weight: 600;
+            letter-spacing: -0.01em;
+            color: rgba(255, 255, 255, 0.88);
+            text-shadow: 0 2px 18px rgba(0, 0, 0, 0.55);
+          }
+          /* band → in-flow, single column, pulled up under the title. The
+             frosted fade moves to a ::before backdrop layer so it never
+             tints the buttons or text. */
+          .gpp .band {
+            position: relative;
+            left: auto;
+            right: auto;
+            bottom: auto;
+            margin-top: -46px;
+            display: flex;
+            flex-direction: column;
+            /* reset the desktop grid's align-items: start — without this the
+               CTA buttons shrink to their text width and float off-axis
+               instead of filling the 20px-gutter column like the design */
+            align-items: stretch;
+            gap: 16px;
+            padding: 50px var(--gut) 26px;
+            -webkit-backdrop-filter: none;
+            backdrop-filter: none;
+            background: none;
+            -webkit-mask-image: none;
+            mask-image: none;
+          }
+          .gpp .band::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            z-index: -1;
+            pointer-events: none;
+            -webkit-backdrop-filter: blur(32px) saturate(140%);
+            backdrop-filter: blur(32px) saturate(140%);
+            background: linear-gradient(
+              0deg,
+              rgba(var(--band), 1) 46%,
+              rgba(var(--band), 0.92) 64%,
+              rgba(var(--band), 0.6) 80%,
+              rgba(var(--band), 0.22) 92%,
+              rgba(var(--band), 0) 100%
+            );
+            -webkit-mask-image: linear-gradient(
+              0deg,
+              #000 64%,
+              rgba(0, 0, 0, 0.55) 84%,
+              transparent 100%
+            );
+            mask-image: linear-gradient(
+              0deg,
+              #000 64%,
+              rgba(0, 0, 0, 0.55) 84%,
+              transparent 100%
+            );
+          }
+          .gpp .band-actions {
+            flex-direction: row;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
+            gap: 14px;
+          }
+          .gpp .band-actions .abtn {
+            flex: 1 1 0;
+            height: 54px;
+            padding: 0 22px;
+            border-radius: 980px;
+            font-size: 16px;
+          }
+          .gpp .band-actions .abtn.play {
+            box-shadow: 0 8px 26px rgba(0, 0, 0, 0.2);
+          }
+          .gpp .band-free {
+            flex-basis: 100%;
+            text-align: center;
+            margin-top: 2px;
+          }
+          .gpp .band-desc {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            padding-top: 0;
+          }
+          .gpp .bd-descwrap {
+            margin-top: 4px;
+          }
+          .gpp .band-desc .bd-text {
+            display: block;
+            font-size: 15px;
+            font-weight: 500;
+            line-height: 1.5;
+            text-wrap: pretty;
+          }
+          .gpp .bd-descwrap.clamped .bd-text {
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+          }
+          .gpp .bd-descwrap.clamped .bd-more {
+            display: inline-flex;
+            position: absolute;
+            right: 0;
+            bottom: 0;
+            align-items: center;
+            padding: 3px 0 3px 22px;
+            font-size: 13px;
+            font-weight: 600;
+            letter-spacing: 0.01em;
+            color: var(--bt);
+            background: linear-gradient(
+              90deg,
+              rgba(var(--band), 0) 0%,
+              rgba(var(--band), 0.97) 30%
+            );
+          }
+          .gpp .bd-more span {
+            background: rgba(125, 125, 135, 0.2);
+            border-radius: 980px;
+            padding: 3px 11px;
+          }
+          .gpp.dark .bd-more span {
+            background: rgba(255, 255, 255, 0.16);
+          }
+          .gpp .bd-meta {
+            font-size: 13px;
+            text-align: left;
+            margin-top: 0;
+          }
+          .gpp .bd-meta-eyebrow {
+            display: none;
+          }
+          .gpp .bd-badges {
+            justify-content: flex-start;
+            margin-top: 0;
+          }
+          .gpp .band-cast {
+            display: none;
+          }
+          /* the strip arrows are a desktop hover affordance — no place on
+             touch, where the rail scroll-snaps one card at a time. */
+          .gpp .arrow {
+            display: none;
+          }
+          /* (dark-mode catalog card darkening now lives in the base rules so it
+             applies on every breakpoint — matching the customer portal.) */
+          /* free-preview strip header + card sizing. The header sits at the
+             page's 20px inset (the .lessons padding); the grid breaks out of
+             that padding and re-pads itself so the rail scrolls full-bleed
+             with a 20px card inset (no double-inset). */
+          .gpp .strip-rh {
+            margin: 0 0 14px;
+          }
+          .gpp .strip-rh .rh {
+            font-size: 19px;
+          }
+          .gpp .strip-wrap .grid {
+            overscroll-behavior-x: contain;
+            margin: 0 -20px;
+            padding: 4px 20px 16px;
+          }
+          .gpp .lc-card {
+            border-radius: 16px;
+          }
+          .gpp .lc-info {
+            padding: 15px 16px 16px;
+          }
+          .gpp .lc-num {
+            font-size: 10px;
+            letter-spacing: 0.08em;
+            margin-bottom: 5px;
+          }
+          .gpp .lc-title {
+            font-size: 17px;
+            margin-bottom: 6px;
+          }
+          .gpp .lc-desc {
+            font-size: 13.5px;
+            line-height: 1.5;
+            min-height: 40px;
+          }
+          .gpp .lc-meta {
+            padding-top: 10px;
+            font-size: 12.5px;
+          }
+
+          /* ── episodic (marquee) section rhythm — its design spaces the
+             instructor / strip / FAQ tighter than the module-course page ── */
+          .gpp.epi .instructor {
+            padding: 56px var(--gut) 8px;
+          }
+          .gpp.epi .lessons {
+            padding: 52px var(--gut) 8px;
+          }
+          .gpp.epi .faq {
+            padding-top: 44px;
+          }
+
+          /* ── enroll sheet → bottom sheet (the mobile design slides it up
+             from the bottom edge, full-width, rounded top corners) ── */
+          .gpp .enroll-overlay {
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            padding: 0;
+          }
+          .gpp .enroll-sheet {
+            width: 100%;
+            max-width: 520px;
+            max-height: 92svh;
+            border-radius: 24px 24px 0 0;
+            box-shadow: 0 -20px 60px rgba(0, 0, 0, 0.35);
+            transform: translateY(100%);
+            transition:
+              transform 0.46s cubic-bezier(0.2, 1, 0.3, 1),
+              background 0.4s ease;
+            padding-bottom: env(safe-area-inset-bottom, 0px);
+          }
+          .gpp .enroll-overlay.show .enroll-sheet {
+            transform: none;
+          }
+          .gpp .es-grab {
+            display: block;
+          }
+          .gpp .es-cover {
+            aspect-ratio: 16 / 9;
+          }
+          .gpp .es-eyebrow {
+            top: 24px;
+            left: 20px;
+            font-size: 10px;
+          }
+          .gpp .es-title {
+            font-size: 23px;
+            left: 20px;
+            right: 64px;
+            bottom: 16px;
+          }
+          .gpp .es-close {
+            top: 14px;
+            right: 14px;
+            width: 36px;
+            height: 36px;
+          }
+          .gpp .es-body {
+            padding: 26px 22px 30px;
+          }
+          .gpp .es-h {
+            font-size: 23px;
+            margin-top: 9px;
+          }
+          .gpp .es-sub {
+            font-size: 14px;
+            max-width: 340px;
+            margin-top: 9px;
+          }
+          .gpp .es-price {
+            font-size: 36px;
+            margin-top: 18px;
+          }
+          .gpp .es-actions {
+            gap: 12px;
+            margin-top: 20px;
+          }
+          .gpp .es-enroll {
+            max-width: none;
+            font-size: 16px;
+          }
+        `
+
+const classifyMobileCss = (css: string) =>
+  css
+    .replace(/\.gpp(?![\w-])/g, '.gpp.gpp-m')
+    .replace(/(\d)svh/g, '$1cqh')
+    .replace(/(\d)vw/g, '$1cqw')
+
+// The media-query variant is assembled HERE (not inline in the style
+// template): styled-jsx's compiler silently drops `@media { ${expr} }`
+// blocks, but passes whole-string `${expr}` interpolations through intact.
+// (~640px is the full phone layout — a faithful port of "Course Page Empty
+// State (Mobile).html".)
+const MOBILE_MEDIA_CSS = `
+        @media (max-width: 820px) {${MOBILE_820_CSS}}
+        @media (max-width: 640px) {${MOBILE_640_CSS}}
+`
+
 // Drag-to-resize wrapper for the hero title / description containers (editor
 // only). The inner box hugs its text (width: fit-content) and carries the
 // creator-set max-width; a grab handle on its right edge appears on hover or
@@ -469,9 +1182,11 @@ export type GeneratedPortalPageProps = {
   dark: boolean
   /** Theme toggle (creator-facing). Omit to hide (public page). */
   onToggleDark?: () => void
-  /** The dashboard's phone canvas — re-enables the reposition affordances
-   *  that the ≤820px styles hide (they're mouse-driven, and the phone
-   *  canvas is a mouse surface). */
+  /** The dashboard's phone canvas — applies the mobile stylesheet via the
+   *  `.gpp-m` class (the canvas renders inline on a desktop window, where
+   *  the viewport media queries can't fire) and keeps the mouse-driven
+   *  creator affordances (reposition, width handles) that the media path
+   *  collapses for real phones. */
   phoneCanvas?: boolean
   showTrailerButton?: boolean
   onPlay?: () => void
@@ -1655,7 +2370,7 @@ export function GeneratedPortalPage({
   return (
     <div
       className={`gpp ${dark ? 'dark' : ''} ${isEpisodic ? 'epi' : ''} ${
-        phoneCanvas ? 'phone-canvas' : ''
+        phoneCanvas ? 'gpp-m' : ''
       }`}
     >
       {/* ════════ MARQUEE HERO (Marquee Course Page.html) ════════ */}
@@ -5206,709 +5921,36 @@ export function GeneratedPortalPage({
             padding: 40px 40px 72px;
           }
         }
-        @media (max-width: 820px) {
-          .gpp {
-            --gut: 22px;
-          }
-          .gpp .band {
-            grid-template-columns: 1fr;
-            gap: 18px;
-            padding-bottom: 28px;
-          }
-          .gpp .band-desc {
-            display: none;
-          }
-          .gpp .strip-wrap .grid .lc-catalog,
-          .gpp .strip-wrap .grid .card {
-            flex-basis: min(465px, 84%);
-          }
+        ${MOBILE_MEDIA_CSS}
+        ${classifyMobileCss(MOBILE_820_CSS)}
+        ${classifyMobileCss(MOBILE_640_CSS)}
+
+        /* ── Phone-canvas exceptions ── the canvas is a mouse surface, so
+           the creator affordances keep their desktop shapes even though the
+           mobile stylesheet collapses or hides them for real phones. Emitted
+           AFTER the classified mobile css so equal-specificity rules lose. */
+        .gpp.gpp-m .creator-bar .add-pill {
+          width: auto;
+          height: 40px;
+          padding: 0 16px;
+          border-radius: 980px;
         }
-        /* ============================================================ MOBILE
-           Full phone layout — a faithful port of "Course Page Empty State
-           (Mobile).html". ~390px-first; the page caps content width and the
-           sections restack: cover hero with a centered Add-cover button +
-           icon-pill creator bar, single-column instructor, 82%-wide card
-           rail, and the compact sample + FAQ. */
-        @media (max-width: 640px) {
-          /* The mobile designs put EVERY section on one 20px axis (--gut)
-             and cap the page at a centered 520px column. The gut override
-             is load-bearing: the hero title, the band's CTA buttons, and
-             the rails all reference it — miss it and the buttons sit on a
-             different axis than the text above them. */
-          .gpp {
-            --gut: 20px;
-            max-width: 520px;
-            margin: 0 auto;
-          }
-
-          /* ── cover hero ── design port ("Spaire Cover Hero Mobile"):
-             full-bleed photo with everything overlaid — one deep bottom
-             shade feathered upward plus a soft top shade, film grain,
-             gentle Ken Burns on the cover, and side-by-side pill CTAs.
-             Same fields as desktop: AI badge/headline/description, the
-             course's lesson count/duration, trailer, and price. ── */
-          .gpp .hero {
-            height: 100svh;
-            min-height: 660px;
-            max-height: none;
-          }
-          /* Ken Burns on the creator's cover. Kept subtler than the demo's
-             1.32× so the saved focal crop stays honored; parked while the
-             builder's reposition drag is active. */
-          .gpp .hero .photo {
-            animation: gpp-kb 26s ease-out forwards;
-          }
-          .gpp .hero.repositioning .photo {
-            animation: none;
-          }
-          /* THE overlay — the design's exact two-layer shade: deep at the
-             bottom where the content sits (.92 → transparent at 74%), plus
-             a soft darkening at the very top for the brand/status bar. */
-          .gpp .hero .photo-shade {
-            background:
-              linear-gradient(
-                0deg,
-                rgba(5, 5, 8, 0.92) 0%,
-                rgba(5, 5, 8, 0.82) 16%,
-                rgba(5, 5, 8, 0.5) 36%,
-                rgba(5, 5, 8, 0.18) 56%,
-                transparent 74%
-              ),
-              linear-gradient(180deg, rgba(5, 5, 8, 0.34) 0%, transparent 22%);
-          }
-          .gpp .hero .hero-grain {
-            display: block;
-            position: absolute;
-            inset: 0;
-            z-index: 2;
-            opacity: 0.05;
-            pointer-events: none;
-            mix-blend-mode: overlay;
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-          }
-          .gpp .hero-ph {
-            top: 44%;
-          }
-          .gpp .hero-blend {
-            height: 40px;
-          }
-          .gpp .hero-eyebrow {
-            top: 22px;
-            left: 26px;
-            font-size: 11px;
-          }
-          .gpp .hero-eyebrow .dot {
-            width: 6px;
-            height: 6px;
-          }
-          /* The cover design sits the content on a 26px inset (its own
-             --gut), deeper 44px off the bottom edge. */
-          .gpp .hero-content {
-            left: 26px;
-            right: 26px;
-            bottom: 44px;
-          }
-          .gpp .hero-meta {
-            flex-wrap: wrap;
-            gap: 12px;
-            margin-bottom: 20px;
-          }
-          .gpp .badge {
-            font-size: 10.5px;
-            font-weight: 800;
-            padding: 6px 13px;
-            background: rgba(255, 255, 255, 0.94);
-          }
-          .gpp .meta-line {
-            font-size: 13.5px;
-            gap: 8px;
-            color: rgba(255, 255, 255, 0.82);
-            text-shadow: 0 1px 12px rgba(0, 0, 0, 0.5);
-          }
-          .gpp .meta-line .sep {
-            opacity: 0.5;
-          }
-          .gpp .hero-title {
-            font-family: var(--po);
-            font-size: clamp(44px, 14vw, 60px);
-            line-height: 0.98;
-            letter-spacing: -0.03em;
-            text-shadow: 0 4px 50px rgba(0, 0, 0, 0.55);
-          }
-          .gpp .hero-desc {
-            margin-top: 18px;
-            font-size: 15.5px;
-            line-height: 1.55;
-            color: rgba(255, 255, 255, 0.9);
-            text-shadow: 0 2px 20px rgba(0, 0, 0, 0.5);
-            text-wrap: pretty;
-          }
-          /* Full-width stacked pills. Side-by-side half-width pills wrapped
-             real labels mid-button ("Play Trailer" → two lines, "Buy — $129"
-             → two lines, and a "Subscribe — $89 / month" label is worse), so
-             stack them: each label stays on one line and the tap targets are
-             bigger. */
-          .gpp .hero-actions {
-            flex-direction: column;
-            align-items: stretch;
-            gap: 12px;
-            margin-top: 28px;
-          }
-          .gpp .btn-trailer,
-          .gpp .btn-enroll {
-            width: 100%;
-            justify-content: center;
-            height: 56px;
-            font-size: 16px;
-            white-space: nowrap;
-          }
-          .gpp .btn-trailer {
-            padding: 0 16px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.28);
-          }
-          .gpp .btn-trailer .play {
-            width: 34px;
-            height: 34px;
-          }
-          .gpp .btn-enroll {
-            padding: 0 22px;
-            /* A near-opaque fill so the enroll CTA is legible on ANY cover
-               even where backdrop-filter is unsupported (Google's in-app
-               browser, some Android WebViews) — the translucent glass relied
-               on that filter and vanished without it. */
-            background: rgba(12, 14, 18, 0.64);
-            -webkit-backdrop-filter: blur(18px) saturate(140%);
-            backdrop-filter: blur(18px) saturate(140%);
-            box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.4);
-          }
-          .gpp .btn-enroll:active {
-            background: rgba(40, 40, 46, 0.72);
-          }
-
-          /* creator controls → 44px icon pills; Add-cover is the centered
-             .hero-cta (rendered separately in editable mode). */
-          .gpp .creator-bar {
-            top: 14px;
-            right: 14px;
-            gap: 8px;
-          }
-          .gpp .creator-bar .add-pill {
-            width: 44px;
-            height: 44px;
-            padding: 0;
-            border-radius: 50%;
-            justify-content: center;
-          }
-          .gpp .creator-bar .add-pill span {
-            display: none;
-          }
-          .gpp .creator-bar .add-pill svg {
-            width: 16px;
-            height: 16px;
-          }
-          /* the labelled Add cover + Reposition pills collapse on phones;
-             cover upload lives in the centered .hero-cta, reposition is a
-             desktop-drag affordance. */
-          .gpp .creator-bar .add-pill.is-cover,
-          .gpp .creator-bar .add-pill.is-reposition {
-            display: none;
-          }
-          /* …except on the dashboard's phone canvas, which IS mouse-driven —
-             there the Reposition pill is the whole point. Restore its
-             labelled-pill shape (the generic mobile rule above squashes
-             add-pills into 44px icon circles). */
-          .gpp.phone-canvas .creator-bar .add-pill.is-reposition {
-            display: inline-flex;
-            width: auto;
-            height: 40px;
-            padding: 0 16px;
-            border-radius: 980px;
-          }
-          .gpp .panel .creator-bar {
-            top: 14px;
-            right: 14px;
-          }
-          .gpp .creator-bar .theme-toggle {
-            width: 44px;
-            height: 44px;
-          }
-          .gpp .hero-cta {
-            display: inline-flex;
-          }
-
-          /* ── instructor → single column ── */
-          .gpp .instructor {
-            padding: 64px 20px 8px;
-          }
-          .gpp .inst-inner {
-            grid-template-columns: 1fr;
-            gap: 0;
-          }
-          .gpp .inst-head {
-            grid-template-columns: 76px 1fr;
-            gap: 16px;
-            margin-bottom: 24px;
-          }
-          .gpp .inst-avatar {
-            width: 76px;
-            height: 76px;
-          }
-          .gpp .inst-name {
-            font-size: 30px;
-          }
-          .gpp .inst-sub {
-            margin-top: 8px;
-            font-size: 14px;
-          }
-          .gpp .inst-bio {
-            font-size: 16px;
-          }
-          .gpp .inst-bio + .inst-bio {
-            margin-top: 16px;
-          }
-          .gpp .inst-media {
-            margin-top: 32px;
-            border-radius: 24px;
-          }
-          .gpp .inst-caption {
-            left: 16px;
-            bottom: 16px;
-            font-size: 12.5px;
-          }
-
-          /* ── free sample ── */
-          .gpp .sample {
-            padding: 56px 20px 8px;
-          }
-          .gpp .sample-eyebrow {
-            font-size: 11px;
-            margin-bottom: 10px;
-          }
-          .gpp .sample h2 {
-            font-size: 27px;
-          }
-          .gpp .sample-sub {
-            font-size: 15px;
-            margin-top: 8px;
-          }
-          .gpp .sample-screen {
-            aspect-ratio: 16 / 10;
-            margin-top: 24px;
-            border-radius: 18px;
-            box-shadow: 0 24px 22px rgba(0, 0, 0, 0.05);
-          }
-          .gpp .ph-cta .ph-ic {
-            width: 56px;
-            height: 56px;
-          }
-          .gpp .ph-cta .ph-k {
-            font-size: 14px;
-          }
-          .gpp .ph-cta .ph-s {
-            font-size: 12px;
-            margin-top: -7px;
-          }
-
-          /* ── lesson rails — one card at a time ── */
-          .gpp .lessons {
-            padding: 40px 20px 64px;
-          }
-          .gpp .row {
-            margin-top: 36px;
-          }
-          .gpp .row-head,
-          .gpp .strip-rh {
-            font-size: 17px;
-            margin-bottom: 12px;
-          }
-          .gpp .row .grid,
-          .gpp .strip-wrap .grid {
-            gap: 14px;
-            scroll-padding-inline: 20px;
-            margin: 0 -20px;
-            padding: 0 20px;
-          }
-          /* module rows show 82% spotlight cards; the episode strip shows
-             78% catalog cards (per the two mobile designs). */
-          .gpp .row .grid .card,
-          .gpp .row .grid .lc-catalog {
-            flex: 0 0 82%;
-          }
-          .gpp .strip-wrap .grid .card,
-          .gpp .strip-wrap .grid .lc-catalog {
-            flex: 0 0 78%;
-          }
-          .gpp .card {
-            border-radius: 18px;
-            box-shadow: 0 14px 14px rgba(0, 0, 0, 0.04);
-          }
-          .gpp .card-info {
-            padding: 0 16px 13px;
-          }
-          .gpp .card .title {
-            font-size: 16px;
-            margin-top: 4px;
-          }
-          .gpp .card .desc {
-            font-size: 13px;
-            min-height: 37px;
-          }
-
-          /* ── faq ── */
-          .gpp .faq {
-            padding: 16px 20px 88px;
-          }
-          .gpp .faq h2 {
-            font-size: clamp(34px, 10.5vw, 44px);
-            white-space: normal;
-            margin-bottom: 36px;
-          }
-          .gpp .faq-q {
-            padding: 20px 2px;
-            font-size: 17px;
-            gap: 16px;
-          }
-          .gpp .faq-a {
-            padding: 0 28px 6px 2px;
-            font-size: 15px;
-          }
-          .gpp .faq-item.open .faq-a {
-            padding-bottom: 24px;
-          }
-
-          /* ── marquee hero (Marquee Course Page Mobile) ── */
-          /* The panel becomes a bottom-anchored flex column, and the title +
-             band live in NORMAL FLOW (not absolute) so a long 3-line title
-             can never run under the CTA buttons — it pushes the band down
-             instead. Everything else (art, scrim, brand, toggle) stays
-             absolute, so only these two are flow children. */
-          .gpp .panel {
-            height: 100svh;
-            min-height: 640px;
-            max-height: none;
-            display: flex;
-            flex-direction: column;
-            justify-content: flex-end;
-          }
-          .gpp .panel-scrim {
-            background: linear-gradient(
-              180deg,
-              rgba(0, 0, 0, 0.34) 0%,
-              transparent 26%,
-              transparent 52%,
-              rgba(0, 0, 0, 0.2) 74%
-            );
-          }
-          .gpp .panel-brand {
-            top: 24px;
-            font-size: 11px;
-          }
-          .gpp .panel .creator-bar {
-            top: 14px;
-            right: 14px;
-          }
-          /* Design port ("Marquee Course Page Mobile"): centered title with
-             the AI eyebrow re-seated BELOW it as a genre line, side-by-side
-             pill CTAs with the free line beneath, and the description
-             restored as a two-line clamp with an inline MORE expander
-             (desktop hides it at 820px; phones get the full stack back).
-             Same fields as desktop — eyebrow/title/desc/badges are the AI
-             landing content, price and trailer come from the course. */
-          .gpp .panel-title {
-            position: relative;
-            left: auto;
-            right: auto;
-            bottom: auto;
-            margin: 0 var(--gut) 14px;
-            text-align: center;
-            display: flex;
-            flex-direction: column;
-          }
-          .gpp .pt-h {
-            font-size: clamp(33px, 9.4vw, 42px);
-            line-height: 0.96;
-            letter-spacing: -0.035em;
-            max-width: 13ch;
-            margin: 0 auto;
-            text-shadow: 0 4px 50px rgba(0, 0, 0, 0.55);
-            text-wrap: balance;
-          }
-          /* The AI eyebrow ("Documentary Series · Golf") reads as the genre
-             line under the title on phones — same field, new seat. */
-          .gpp .pt-eyebrow {
-            order: 2;
-            margin: 16px 0 0;
-            font-size: 14px;
-            font-weight: 600;
-            letter-spacing: -0.01em;
-            color: rgba(255, 255, 255, 0.88);
-            text-shadow: 0 2px 18px rgba(0, 0, 0, 0.55);
-          }
-          /* band → in-flow, single column, pulled up under the title. The
-             frosted fade moves to a ::before backdrop layer so it never
-             tints the buttons or text. */
-          .gpp .band {
-            position: relative;
-            left: auto;
-            right: auto;
-            bottom: auto;
-            margin-top: -46px;
-            display: flex;
-            flex-direction: column;
-            /* reset the desktop grid's align-items: start — without this the
-               CTA buttons shrink to their text width and float off-axis
-               instead of filling the 20px-gutter column like the design */
-            align-items: stretch;
-            gap: 16px;
-            padding: 50px var(--gut) 26px;
-            -webkit-backdrop-filter: none;
-            backdrop-filter: none;
-            background: none;
-            -webkit-mask-image: none;
-            mask-image: none;
-          }
-          .gpp .band::before {
-            content: '';
-            position: absolute;
-            inset: 0;
-            z-index: -1;
-            pointer-events: none;
-            -webkit-backdrop-filter: blur(32px) saturate(140%);
-            backdrop-filter: blur(32px) saturate(140%);
-            background: linear-gradient(
-              0deg,
-              rgba(var(--band), 1) 46%,
-              rgba(var(--band), 0.92) 64%,
-              rgba(var(--band), 0.6) 80%,
-              rgba(var(--band), 0.22) 92%,
-              rgba(var(--band), 0) 100%
-            );
-            -webkit-mask-image: linear-gradient(
-              0deg,
-              #000 64%,
-              rgba(0, 0, 0, 0.55) 84%,
-              transparent 100%
-            );
-            mask-image: linear-gradient(
-              0deg,
-              #000 64%,
-              rgba(0, 0, 0, 0.55) 84%,
-              transparent 100%
-            );
-          }
-          .gpp .band-actions {
-            flex-direction: row;
-            flex-wrap: wrap;
-            align-items: center;
-            justify-content: center;
-            gap: 14px;
-          }
-          .gpp .band-actions .abtn {
-            flex: 1 1 0;
-            height: 54px;
-            padding: 0 22px;
-            border-radius: 980px;
-            font-size: 16px;
-          }
-          .gpp .band-actions .abtn.play {
-            box-shadow: 0 8px 26px rgba(0, 0, 0, 0.2);
-          }
-          .gpp .band-free {
-            flex-basis: 100%;
-            text-align: center;
-            margin-top: 2px;
-          }
-          .gpp .band-desc {
-            display: flex;
-            flex-direction: column;
-            gap: 16px;
-            padding-top: 0;
-          }
-          .gpp .bd-descwrap {
-            margin-top: 4px;
-          }
-          .gpp .band-desc .bd-text {
-            display: block;
-            font-size: 15px;
-            font-weight: 500;
-            line-height: 1.5;
-            text-wrap: pretty;
-          }
-          .gpp .bd-descwrap.clamped .bd-text {
-            display: -webkit-box;
-            -webkit-line-clamp: 2;
-            -webkit-box-orient: vertical;
-            overflow: hidden;
-          }
-          .gpp .bd-descwrap.clamped .bd-more {
-            display: inline-flex;
-            position: absolute;
-            right: 0;
-            bottom: 0;
-            align-items: center;
-            padding: 3px 0 3px 22px;
-            font-size: 13px;
-            font-weight: 600;
-            letter-spacing: 0.01em;
-            color: var(--bt);
-            background: linear-gradient(
-              90deg,
-              rgba(var(--band), 0) 0%,
-              rgba(var(--band), 0.97) 30%
-            );
-          }
-          .gpp .bd-more span {
-            background: rgba(125, 125, 135, 0.2);
-            border-radius: 980px;
-            padding: 3px 11px;
-          }
-          .gpp.dark .bd-more span {
-            background: rgba(255, 255, 255, 0.16);
-          }
-          .gpp .bd-meta {
-            font-size: 13px;
-            text-align: left;
-            margin-top: 0;
-          }
-          .gpp .bd-meta-eyebrow {
-            display: none;
-          }
-          .gpp .bd-badges {
-            justify-content: flex-start;
-            margin-top: 0;
-          }
-          .gpp .band-cast {
-            display: none;
-          }
-          /* the strip arrows are a desktop hover affordance — no place on
-             touch, where the rail scroll-snaps one card at a time. */
-          .gpp .arrow {
-            display: none;
-          }
-          /* (dark-mode catalog card darkening now lives in the base rules so it
-             applies on every breakpoint — matching the customer portal.) */
-          /* free-preview strip header + card sizing. The header sits at the
-             page's 20px inset (the .lessons padding); the grid breaks out of
-             that padding and re-pads itself so the rail scrolls full-bleed
-             with a 20px card inset (no double-inset). */
-          .gpp .strip-rh {
-            margin: 0 0 14px;
-          }
-          .gpp .strip-rh .rh {
-            font-size: 19px;
-          }
-          .gpp .strip-wrap .grid {
-            overscroll-behavior-x: contain;
-            margin: 0 -20px;
-            padding: 4px 20px 16px;
-          }
-          .gpp .lc-card {
-            border-radius: 16px;
-          }
-          .gpp .lc-info {
-            padding: 15px 16px 16px;
-          }
-          .gpp .lc-num {
-            font-size: 10px;
-            letter-spacing: 0.08em;
-            margin-bottom: 5px;
-          }
-          .gpp .lc-title {
-            font-size: 17px;
-            margin-bottom: 6px;
-          }
-          .gpp .lc-desc {
-            font-size: 13.5px;
-            line-height: 1.5;
-            min-height: 40px;
-          }
-          .gpp .lc-meta {
-            padding-top: 10px;
-            font-size: 12.5px;
-          }
-
-          /* ── episodic (marquee) section rhythm — its design spaces the
-             instructor / strip / FAQ tighter than the module-course page ── */
-          .gpp.epi .instructor {
-            padding: 56px var(--gut) 8px;
-          }
-          .gpp.epi .lessons {
-            padding: 52px var(--gut) 8px;
-          }
-          .gpp.epi .faq {
-            padding-top: 44px;
-          }
-
-          /* ── enroll sheet → bottom sheet (the mobile design slides it up
-             from the bottom edge, full-width, rounded top corners) ── */
-          .gpp .enroll-overlay {
-            display: flex;
-            align-items: flex-end;
-            justify-content: center;
-            padding: 0;
-          }
-          .gpp .enroll-sheet {
-            width: 100%;
-            max-width: 520px;
-            max-height: 92svh;
-            border-radius: 24px 24px 0 0;
-            box-shadow: 0 -20px 60px rgba(0, 0, 0, 0.35);
-            transform: translateY(100%);
-            transition:
-              transform 0.46s cubic-bezier(0.2, 1, 0.3, 1),
-              background 0.4s ease;
-            padding-bottom: env(safe-area-inset-bottom, 0px);
-          }
-          .gpp .enroll-overlay.show .enroll-sheet {
-            transform: none;
-          }
-          .gpp .es-grab {
-            display: block;
-          }
-          .gpp .es-cover {
-            aspect-ratio: 16 / 9;
-          }
-          .gpp .es-eyebrow {
-            top: 24px;
-            left: 20px;
-            font-size: 10px;
-          }
-          .gpp .es-title {
-            font-size: 23px;
-            left: 20px;
-            right: 64px;
-            bottom: 16px;
-          }
-          .gpp .es-close {
-            top: 14px;
-            right: 14px;
-            width: 36px;
-            height: 36px;
-          }
-          .gpp .es-body {
-            padding: 26px 22px 30px;
-          }
-          .gpp .es-h {
-            font-size: 23px;
-            margin-top: 9px;
-          }
-          .gpp .es-sub {
-            font-size: 14px;
-            max-width: 340px;
-            margin-top: 9px;
-          }
-          .gpp .es-price {
-            font-size: 36px;
-            margin-top: 18px;
-          }
-          .gpp .es-actions {
-            gap: 12px;
-            margin-top: 20px;
-          }
-          .gpp .es-enroll {
-            max-width: none;
-            font-size: 16px;
-          }
+        .gpp.gpp-m .creator-bar .add-pill span {
+          display: inline;
+        }
+        .gpp.gpp-m .creator-bar .add-pill svg {
+          width: 13px;
+          height: 13px;
+        }
+        .gpp.gpp-m .creator-bar .add-pill.is-cover,
+        .gpp.gpp-m .creator-bar .add-pill.is-reposition {
+          display: inline-flex;
+        }
+        .gpp.gpp-m .gpp-rz-handle {
+          display: flex;
+        }
+        .gpp.gpp-m .gpp-rz-inner {
+          width: fit-content;
         }
       `}</style>
     </div>

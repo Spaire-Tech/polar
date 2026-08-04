@@ -11,7 +11,6 @@
 import { CourseRead } from '@/hooks/queries/courses'
 import { storefrontLink } from '@/utils/nav'
 import { schemas } from '@spaire/client'
-import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { CourseDesignEditor } from './CourseDesignEditor'
 import { CoursePhoneFrame } from './CoursePhoneFrame'
@@ -30,24 +29,14 @@ export function CustomizeTab({
   const editor = useLandingEditor(course)
   const [uploadBusy, setUploadBusy] = useState(false)
   const { undo, redo, canUndo, canRedo, status } = editor
-  const queryClient = useQueryClient()
 
-  // Desktop / Phone canvas. Phone renders the real landing inside an iframe
-  // at true iPhone size (390×844, scaled to fit) — the iframe is its own
-  // viewport, so the mobile media queries genuinely apply and the canvas IS
-  // what a phone visitor sees. Editing is direct, like desktop, scoped to
-  // what matters at phone size: dragging the cover / lesson stills /
-  // portrait into place. Edits land on the same server; switching back
-  // refetches so the desktop canvas picks them up.
+  // Desktop / Phone canvas — the SAME component, the same edit pipeline, the
+  // same query cache; the phone canvas just renders it inline inside iPhone
+  // chrome wearing the mobile stylesheet (GeneratedPortalPage's `.gpp-m`
+  // class serves the exact css real phones get behind media queries). No
+  // iframe: it loads instantly, text is native-resolution crisp, and
+  // Undo/Redo/status in this bar drive both canvases.
   const [viewport, setViewport] = useState<'desktop' | 'phone'>('desktop')
-  const selectViewport = (next: 'desktop' | 'phone') => {
-    setViewport((prev) => {
-      if (prev === 'phone' && next === 'desktop') {
-        void queryClient.invalidateQueries({ queryKey: ['courses'] })
-      }
-      return next
-    })
-  }
   const phone = viewport === 'phone'
 
   // ⌘Z / ⌘⇧Z (and Ctrl+Y) drive undo/redo — but only when the focus isn't in
@@ -106,7 +95,7 @@ export function CustomizeTab({
             <button
               key={v}
               type="button"
-              onClick={() => selectViewport(v)}
+              onClick={() => setViewport(v)}
               className={`px-3 py-[4px] text-[13px] tracking-tight transition-colors ${
                 viewport === v
                   ? 'text-ce-accent font-medium'
@@ -123,8 +112,8 @@ export function CustomizeTab({
               type="button"
               className={barButton}
               onClick={undo}
-              disabled={phone || !canUndo}
-              title={phone ? 'Undo inside the phone with ⌘Z' : 'Undo (⌘Z)'}
+              disabled={!canUndo}
+              title="Undo (⌘Z)"
             >
               Undo
             </button>
@@ -132,8 +121,8 @@ export function CustomizeTab({
               type="button"
               className={barButton}
               onClick={redo}
-              disabled={phone || !canRedo}
-              title={phone ? 'Redo inside the phone with ⌘⇧Z' : 'Redo (⌘⇧Z)'}
+              disabled={!canRedo}
+              title="Redo (⌘⇧Z)"
             >
               Redo
             </button>
@@ -143,7 +132,7 @@ export function CustomizeTab({
             role="status"
             aria-live="polite"
           >
-            {phone ? 'Drag images to reposition' : statusLabel}
+            {statusLabel}
           </span>
           <a
             href={storefrontLink(organization, `products/${course.product_id}`)}
@@ -159,10 +148,12 @@ export function CustomizeTab({
       {phone ? (
         <div className="min-h-0 flex-1 overflow-hidden bg-gray-100 p-4">
           <CoursePhoneFrame>
-            <iframe
-              src={`/dashboard/${organization.slug}/courses/${course.id}/landing-mobile`}
-              title="Mobile landing — drag images to reposition"
-              className="block h-full w-full border-0"
+            <CourseDesignEditor
+              course={course}
+              organization={organization}
+              editor={editor}
+              onBusyChange={setUploadBusy}
+              mode="reposition"
             />
           </CoursePhoneFrame>
         </div>
