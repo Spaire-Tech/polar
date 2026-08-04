@@ -1577,7 +1577,7 @@ export function GeneratedPortalPage({
           ref={heroRef as React.RefObject<HTMLElement>}
           className={`panel ${coverUrl ? 'filled' : ''} ${
             repositioning ? 'repositioning' : ''
-          } ${trailerPeek ? 'peeking' : ''}`}
+          }`}
           {...heroHoverProps}
           {...repositionProps}
         >
@@ -1842,7 +1842,7 @@ export function GeneratedPortalPage({
           ref={heroRef as React.RefObject<HTMLElement>}
           className={`hero ${coverUrl ? 'filled' : ''} ${
             repositioning ? 'repositioning' : ''
-          } ${trailerPeek ? 'peeking' : ''}`}
+          }`}
           {...heroHoverProps}
           {...repositionProps}
         >
@@ -3652,30 +3652,6 @@ export function GeneratedPortalPage({
           z-index: 1;
         }
         .gpp .trailer-layer.on {
-          opacity: 1;
-        }
-        /* While the peek plays, the hero copy steps aside so the video is the
-           focus (streaming-detail-page style): the marquee dims only its
-           headline block, the cover clears everything — badge, meta, title,
-           description, actions and the top-left eyebrow. 250ms both ways.
-           A text field being edited (focus-within) stays visible so the
-           builder's touch-to-edit never types into an invisible element. */
-        .gpp .panel-title,
-        .gpp .hero-content,
-        .gpp .hero-eyebrow {
-          transition: opacity 0.25s ease;
-        }
-        .gpp .panel.peeking .panel-title {
-          opacity: 0;
-        }
-        .gpp .panel.peeking .panel-title:focus-within {
-          opacity: 1;
-        }
-        .gpp .hero.peeking .hero-content,
-        .gpp .hero.peeking .hero-eyebrow {
-          opacity: 0;
-        }
-        .gpp .hero.peeking .hero-content:focus-within {
           opacity: 1;
         }
 
