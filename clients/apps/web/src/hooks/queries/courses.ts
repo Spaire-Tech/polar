@@ -283,6 +283,10 @@ export type LandingOverrides = {
   // default max-widths. Landing page only (marquee + cover heroes).
   hero_title_width?: number | null
   hero_desc_width?: number | null
+  // Spaire Title Style key (see components/Courses/titleFonts.ts) — the
+  // "movie title" typeface for the hero headline and the course title in
+  // the portal hero. Absent → Classic (the design default).
+  hero_title_font?: string | null
 }
 
 async function courseApiFetch<T>(

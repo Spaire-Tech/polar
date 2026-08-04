@@ -29,6 +29,7 @@ import {
 } from '@/hooks/queries/courses'
 import { schemas } from '@spaire/client'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { titleFontFamily } from '../titleFonts'
 import { Glyph, SF, fmtTime } from './WatchGlyphs'
 import { WatchPageStyles } from './WatchPageStyles'
 import { WatchPlayer } from './WatchPlayer'
@@ -212,6 +213,14 @@ export function WatchHome({
   // the landing — Spotlight (text over the image) or Catalog (text under).
   const cardVariant: 'spotlight' | 'catalog' =
     course.lesson_card_variant === 'spotlight' ? 'spotlight' : 'catalog'
+  // The creator's Spaire Title Style — the course title in the hero wears
+  // the same "movie title" face as the landing headline.
+  const courseTitleFont = titleFontFamily(
+    course.landing_overrides?.hero_title_font,
+  )
+  const courseTitleStyle: React.CSSProperties | undefined = courseTitleFont
+    ? { fontFamily: courseTitleFont }
+    : undefined
 
   const completedIds = useMemo(
     () => new Set(Object.keys(data.progress?.completed ?? {})),
@@ -788,7 +797,7 @@ export function WatchHome({
                     : `${unitCap} ${epN}`}
               </span>
               <span className="meta-line">
-                <span>{course.title}</span>
+                <span style={courseTitleStyle}>{course.title}</span>
                 <span className="sep">·</span>
                 <span>
                   {lessons.length} {unitCap.toLowerCase()}
@@ -937,7 +946,8 @@ export function WatchHome({
               <div className="band-desc">
                 <p className="bd-text">{ep.description ?? ''}</p>
                 <div className="bd-meta">
-                  {course.title}&nbsp;&nbsp;·&nbsp;&nbsp;{lessons.length}{' '}
+                  <span style={courseTitleStyle}>{course.title}</span>
+                  &nbsp;&nbsp;·&nbsp;&nbsp;{lessons.length}{' '}
                   {unitCap.toLowerCase()}
                   {lessons.length === 1 ? '' : 's'}&nbsp;&nbsp;·&nbsp;&nbsp;
                   {fmtRuntime(totalRuntime)}
@@ -1019,7 +1029,8 @@ export function WatchHome({
           </div>
           <h1 className="m-hero-title">{ep.title}</h1>
           <div className="m-hero-meta">
-            {course.title} · {lessons.length} {unitCap.toLowerCase()}
+            <span style={courseTitleStyle}>{course.title}</span> ·{' '}
+            {lessons.length} {unitCap.toLowerCase()}
             {lessons.length === 1 ? '' : 's'} · {fmtRuntime(totalRuntime)}
           </div>
           <div className="m-hero-actions">
