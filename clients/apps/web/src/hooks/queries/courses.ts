@@ -599,6 +599,9 @@ export const useUpdateCourseLesson = () =>
       lessonId: string
       body: {
         title?: string
+        // Move the lesson to another module of the same course (the
+        // outline's cross-season drag).
+        module_id?: string
         description?: string | null
         content_type?: string
         content?: Record<string, unknown> | null

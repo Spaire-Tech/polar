@@ -1194,11 +1194,6 @@ export function StepInstructor({
             />
           </label>
         </div>
-        <span className="so-hint">
-          Your background, experience, and what makes you the right person to
-          teach this. The more you share, the more personalized your experience
-          will be.
-        </span>
       </div>
     </StepShell>
   )

@@ -302,6 +302,38 @@ export default function CourseEditor({
     }
   }
 
+  // Drag a lesson into another season: re-parent it, then re-pack both
+  // seasons' orders (target first so the moved lesson lands where it was
+  // dropped, then the source so its remaining lessons close the gap).
+  const handleMoveLesson = async (
+    lessonId: string,
+    fromModule: CourseModuleRead,
+    toModule: CourseModuleRead,
+    targetOrderedIds: string[],
+    sourceOrderedIds: string[],
+  ) => {
+    try {
+      await updateLesson.mutateAsync({
+        lessonId,
+        body: { module_id: toModule.id },
+      })
+      await reorderLessons.mutateAsync({
+        moduleId: toModule.id,
+        orderedIds: targetOrderedIds,
+      })
+      if (sourceOrderedIds.length > 0) {
+        await reorderLessons.mutateAsync({
+          moduleId: fromModule.id,
+          orderedIds: sourceOrderedIds,
+        })
+      }
+      invalidateCourse()
+    } catch {
+      toast({ title: 'Failed to move lesson' })
+      invalidateCourse()
+    }
+  }
+
   const handleSaveSettings = async (edits: CourseSettingsEdits) => {
     try {
       await updateCourse.mutateAsync({
@@ -445,6 +477,7 @@ export default function CourseEditor({
           onUpdateLesson={handleUpdateLessonOptions}
           onDeleteLesson={handleDeleteLesson}
           onReorderLessons={handleReorderLessons}
+          onMoveLesson={handleMoveLesson}
           onEditPaywall={() => setActiveTab('pricing')}
           episodic={isEpisodic}
           onAddEpisode={isEpisodic ? handleAddContent : undefined}

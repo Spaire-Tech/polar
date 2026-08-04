@@ -393,6 +393,21 @@ async def update_lesson(
             session, parent.course_id
         ):
             raise HTTPException(status_code=400, detail=_LIMITED_SERIES_SCHEDULE_DETAIL)
+    # Moving the lesson to another module (the outline's cross-season drag):
+    # the target must exist, be writable by this subject, and belong to the
+    # same course — a lesson can never hop between courses.
+    target_module_id = lesson_changes.get("module_id")
+    if target_module_id is not None and target_module_id != lesson.module_id:
+        module_repo = CourseModuleRepository.from_session(session)
+        target = await module_repo.get_readable_by_id(target_module_id, auth_subject)
+        if target is None:
+            raise HTTPException(status_code=404, detail="Target module not found")
+        current = await module_repo.get_by_id(lesson.module_id)
+        if current is None or target.course_id != current.course_id:
+            raise HTTPException(
+                status_code=400,
+                detail="Lessons can only move between modules of the same course",
+            )
     lesson = await course_service.update_lesson(session, lesson, lesson_update)
     return _lesson_read(lesson)
 

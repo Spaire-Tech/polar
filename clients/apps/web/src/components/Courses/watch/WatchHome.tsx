@@ -631,26 +631,34 @@ export function WatchHome({
     [courseId, onMarkComplete],
   )
 
-  /* ── rail arrows ── */
-  const stripRef = useRef<HTMLDivElement | null>(null)
-  const [canPrev, setCanPrev] = useState(false)
-  const [canNext, setCanNext] = useState(true)
-  const updateArrows = useCallback(() => {
-    const s = stripRef.current
-    if (!s) return
-    setCanPrev(s.scrollLeft > 2)
-    setCanNext(s.scrollLeft < s.scrollWidth - s.clientWidth - 2)
-  }, [])
-  useEffect(() => {
-    updateArrows()
-    window.addEventListener('resize', updateArrows)
-    return () => window.removeEventListener('resize', updateArrows)
-  }, [updateArrows])
-  const scrollBy = (dir: number) =>
-    stripRef.current?.scrollBy({
-      left: dir * stripRef.current.clientWidth,
-      behavior: 'smooth',
-    })
+  /* ── season rails ── */
+  // Flat index per lesson id — the hero focus and overview numbering use the
+  // course-wide position even when the rails are split per season.
+  const flatIndexById = useMemo(
+    () => new Map(lessons.map((l, i) => [l.id, i])),
+    [lessons],
+  )
+  // One rail per season when the course has more than one (Apple-TV-style
+  // "Season 1 / Season 2 / …" rows). A single-module course — including a
+  // limited series — keeps the one flat rail it always had.
+  const seasonRails = useMemo(() => {
+    const modules = [...(course.modules ?? [])].sort(
+      (a, b) => a.position - b.position,
+    )
+    if (modules.length <= 1) return null
+    const byId = new Map(lessons.map((l) => [l.id, l]))
+    const rails = modules.map((m, index) => ({
+      module: m,
+      index,
+      items: m.lessons
+        .map((ml) => byId.get(ml.id))
+        .filter((x): x is WatchLessonData => Boolean(x)),
+    }))
+    return rails.filter((r) => r.items.length > 0)
+  }, [course.modules, lessons])
+
+  /* ── trailer (portal-only rail at the very bottom) ── */
+  const [trailerPlaying, setTrailerPlaying] = useState(false)
 
   if (!ep) {
     return (
@@ -1082,214 +1090,249 @@ export function WatchHome({
         </div>
       </header>
 
-      {/* ════════ lesson rail ════════ */}
+      {/* ════════ lesson rails — one per season (single flat rail for
+          one-season courses and limited series) ════════ */}
       <section className="lessons">
-        <div className="row-head">
-          <span className="rh">{course.title}</span>
-          <span className="rh-meta">
-            {lessons.length} lesson
-            {lessons.length === 1 ? '' : 's'}
-            {lessonsDone > 0 ? ` · ${lessonsDone} watched` : ''}
-          </span>
-        </div>
-        <div className="strip-wrap" onMouseEnter={updateArrows}>
-          <button
-            className={`arrow prev ${canPrev ? 'show' : ''}`}
-            type="button"
-            aria-label="Previous"
-            onClick={() => scrollBy(-1)}
-          >
-            <svg
-              width="28"
-              height="28"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M14.5 5l-6.5 7 6.5 7" />
-            </svg>
-          </button>
-          <button
-            className={`arrow next ${canNext ? 'show' : ''}`}
-            type="button"
-            aria-label="Next"
-            onClick={() => scrollBy(1)}
-          >
-            <svg
-              width="28"
-              height="28"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M9.5 5l6.5 7-6.5 7" />
-            </svg>
-          </button>
-          <div
-            className={`grid ${cardVariant === 'spotlight' ? 'spot-rail' : ''}`}
-            ref={stripRef}
-            onScroll={updateArrows}
-          >
-            {lessons.map((l, i) => {
-              const st = statusOf(l)
-              const frac = fractionOf(l)
-              const imgStyle =
-                l.thumbnail_url || course.thumbnail_url
-                  ? {
-                      backgroundImage: `url("${
-                        l.thumbnail_url ?? course.thumbnail_url
-                      }")`,
-                    }
-                  : undefined
-              // Watched lessons show a FULL progress bar (no check chip /
-              // "Watched" label) — the bar sitting at the end tells the story.
-              const barFrac = st === 'watched' ? 1 : frac
-              const overlays = (
-                <>
-                  {l.locked ? (
-                    <div className="lc-state lc-lock">
-                      <Glyph d={SF.locksm} size={11} stroke={2.1} />
-                    </div>
-                  ) : null}
-                  {l.duration_seconds ? (
-                    <div className="lc-dur">
-                      <Glyph
-                        d={SF.play2}
-                        size={11}
-                        fill="currentColor"
-                        stroke={0}
-                      />
-                      <span>{fmtTime(l.duration_seconds)}</span>
-                    </div>
-                  ) : null}
-                  {barFrac != null && (
-                    <div className="lc-progbar">
-                      <i style={{ width: `${barFrac * 100}%` }} />
-                    </div>
-                  )}
-                  {!l.locked && (
-                    <div className="lc-play">
-                      <div className="lc-play-btn">
-                        <Glyph d={SF.play} size={18} fill="currentColor" />
-                      </div>
-                    </div>
-                  )}
-                  <button
-                    className="lc-ovbtn"
-                    type="button"
-                    aria-label="Lesson overview"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      setFocus(i)
-                      setOverviewFor(l)
-                    }}
-                  >
-                    <Glyph d={SF.info} size={17} stroke={1.9} />
-                  </button>
-                </>
-              )
-              const lockedWhen = l.locked
-                ? unlockDateLabel(l.locked_until)
-                : null
-              const meta = l.locked ? (
-                <span>{lockedWhen ? `Unlocks ${lockedWhen}` : 'Locked'}</span>
-              ) : st === 'watched' ? (
-                // No "Watched ✓" affordance — the full progress bar says it.
-                <>
-                  <Glyph
-                    d={SF.play2}
-                    size={12}
-                    fill="currentColor"
-                    stroke={0}
-                  />
-                  <span>
-                    {l.duration_seconds ? fmtTime(l.duration_seconds) : '—'}
-                  </span>
-                </>
-              ) : st === 'progress' ? (
-                <span>Continue · {Math.round((frac ?? 0) * 100)}%</span>
-              ) : (
-                <>
-                  <Glyph
-                    d={SF.play2}
-                    size={12}
-                    fill="currentColor"
-                    stroke={0}
-                  />
-                  <span>
-                    {l.duration_seconds ? fmtTime(l.duration_seconds) : '—'}
-                  </span>
-                </>
-              )
-
-              if (cardVariant === 'spotlight') {
-                return (
-                  <div
-                    className="lc-spot"
-                    key={l.id}
-                    onMouseEnter={() => setFocus(i)}
-                    onClick={() => void playLesson(l)}
-                  >
-                    <div className={`spot-card ${imgStyle ? '' : 'ph'}`}>
-                      {/* Liquid-glass placeholder (landing's .ph-ambient +
-                          .glass-tint) — hidden once a still exists. */}
-                      <div className="ph-ambient" aria-hidden />
-                      <div className="glass-tint" aria-hidden />
-                      <div className="img" style={imgStyle} />
-                      <div className="spot-shade" />
-                      {overlays}
-                      <div className="spot-info">
-                        <div className="lc-num">
-                          {unitCap} {i + 1}
-                          {bookmarks.has(l.id) ? ' · Saved' : ''}
-                        </div>
-                        <div className="spot-title">{l.title}</div>
-                        {l.description && (
-                          <div className="spot-desc">{l.description}</div>
-                        )}
-                        <div className="lc-meta">{meta}</div>
-                      </div>
+        {(() => {
+          const renderRailCard = (l: WatchLessonData, railN: number) => {
+            const flatIdx = flatIndexById.get(l.id) ?? 0
+            const st = statusOf(l)
+            const frac = fractionOf(l)
+            const imgStyle =
+              l.thumbnail_url || course.thumbnail_url
+                ? {
+                    backgroundImage: `url("${
+                      l.thumbnail_url ?? course.thumbnail_url
+                    }")`,
+                  }
+                : undefined
+            // Watched lessons show a FULL progress bar (no check chip /
+            // "Watched" label) — the bar sitting at the end tells the story.
+            const barFrac = st === 'watched' ? 1 : frac
+            const overlays = (
+              <>
+                {l.locked ? (
+                  <div className="lc-state lc-lock">
+                    <Glyph d={SF.locksm} size={11} stroke={2.1} />
+                  </div>
+                ) : null}
+                {l.duration_seconds ? (
+                  <div className="lc-dur">
+                    <Glyph
+                      d={SF.play2}
+                      size={11}
+                      fill="currentColor"
+                      stroke={0}
+                    />
+                    <span>{fmtTime(l.duration_seconds)}</span>
+                  </div>
+                ) : null}
+                {barFrac != null && (
+                  <div className="lc-progbar">
+                    <i style={{ width: `${barFrac * 100}%` }} />
+                  </div>
+                )}
+                {!l.locked && (
+                  <div className="lc-play">
+                    <div className="lc-play-btn">
+                      <Glyph d={SF.play} size={18} fill="currentColor" />
                     </div>
                   </div>
-                )
-              }
+                )}
+                <button
+                  className="lc-ovbtn"
+                  type="button"
+                  aria-label="Lesson overview"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setFocus(flatIdx)
+                    setOverviewFor(l)
+                  }}
+                >
+                  <Glyph d={SF.info} size={17} stroke={1.9} />
+                </button>
+              </>
+            )
+            const lockedWhen = l.locked
+              ? unlockDateLabel(l.locked_until)
+              : null
+            const meta = l.locked ? (
+              <span>{lockedWhen ? `Unlocks ${lockedWhen}` : 'Locked'}</span>
+            ) : st === 'watched' ? (
+              // No "Watched ✓" affordance — the full progress bar says it.
+              <>
+                <Glyph d={SF.play2} size={12} fill="currentColor" stroke={0} />
+                <span>
+                  {l.duration_seconds ? fmtTime(l.duration_seconds) : '—'}
+                </span>
+              </>
+            ) : st === 'progress' ? (
+              <span>Continue · {Math.round((frac ?? 0) * 100)}%</span>
+            ) : (
+              <>
+                <Glyph d={SF.play2} size={12} fill="currentColor" stroke={0} />
+                <span>
+                  {l.duration_seconds ? fmtTime(l.duration_seconds) : '—'}
+                </span>
+              </>
+            )
 
+            if (cardVariant === 'spotlight') {
               return (
                 <div
-                  className="lc-catalog"
+                  className="lc-spot"
                   key={l.id}
-                  onMouseEnter={() => setFocus(i)}
+                  onMouseEnter={() => setFocus(flatIdx)}
                   onClick={() => void playLesson(l)}
                 >
-                  <div className="lc-card">
-                    <div className="lc-thumb">
-                      <div
-                        className={`img ${imgStyle ? '' : 'ph'}`}
-                        style={imgStyle}
-                      />
-                      {overlays}
-                    </div>
-                    <div className="lc-info">
+                  <div className={`spot-card ${imgStyle ? '' : 'ph'}`}>
+                    {/* Liquid-glass placeholder (landing's .ph-ambient +
+                        .glass-tint) — hidden once a still exists. */}
+                    <div className="ph-ambient" aria-hidden />
+                    <div className="glass-tint" aria-hidden />
+                    <div className="img" style={imgStyle} />
+                    <div className="spot-shade" />
+                    {overlays}
+                    <div className="spot-info">
                       <div className="lc-num">
-                        {unitCap} {i + 1}
+                        {unitCap} {railN}
                         {bookmarks.has(l.id) ? ' · Saved' : ''}
                       </div>
-                      <div className="lc-title">{l.title}</div>
-                      <div className="lc-desc">{l.description ?? ''}</div>
+                      <div className="spot-title">{l.title}</div>
+                      {l.description && (
+                        <div className="spot-desc">{l.description}</div>
+                      )}
                       <div className="lc-meta">{meta}</div>
                     </div>
                   </div>
                 </div>
               )
-            })}
+            }
+
+            return (
+              <div
+                className="lc-catalog"
+                key={l.id}
+                onMouseEnter={() => setFocus(flatIdx)}
+                onClick={() => void playLesson(l)}
+              >
+                <div className="lc-card">
+                  <div className="lc-thumb">
+                    <div
+                      className={`img ${imgStyle ? '' : 'ph'}`}
+                      style={imgStyle}
+                    />
+                    {overlays}
+                  </div>
+                  <div className="lc-info">
+                    <div className="lc-num">
+                      {unitCap} {railN}
+                      {bookmarks.has(l.id) ? ' · Saved' : ''}
+                    </div>
+                    <div className="lc-title">{l.title}</div>
+                    <div className="lc-desc">{l.description ?? ''}</div>
+                    <div className="lc-meta">{meta}</div>
+                  </div>
+                </div>
+              </div>
+            )
+          }
+
+          const spot = cardVariant === 'spotlight'
+
+          if (seasonRails) {
+            return seasonRails.map((r, ri) => {
+              const watched = r.items.filter(
+                (l) => statusOf(l) === 'watched',
+              ).length
+              return (
+                <div
+                  key={r.module.id}
+                  style={ri > 0 ? { marginTop: 42 } : undefined}
+                >
+                  <div className="row-head">
+                    <span className="rh">
+                      {r.module.title || `Season ${r.index + 1}`}
+                    </span>
+                    <span className="rh-meta">
+                      {r.items.length} lesson
+                      {r.items.length === 1 ? '' : 's'}
+                      {watched > 0 ? ` · ${watched} watched` : ''}
+                    </span>
+                  </div>
+                  <RailStrip spot={spot}>
+                    {r.items.map((l, idx) => renderRailCard(l, idx + 1))}
+                  </RailStrip>
+                </div>
+              )
+            })
+          }
+
+          return (
+            <>
+              <div className="row-head">
+                <span className="rh">{course.title}</span>
+                <span className="rh-meta">
+                  {lessons.length} lesson
+                  {lessons.length === 1 ? '' : 's'}
+                  {lessonsDone > 0 ? ` · ${lessonsDone} watched` : ''}
+                </span>
+              </div>
+              <RailStrip spot={spot}>
+                {lessons.map((l, i) => renderRailCard(l, i + 1))}
+              </RailStrip>
+            </>
+          )
+        })()}
+
+        {/* ════ Trailers — portal-only rail at the very bottom. Desktop rail
+            hides ≤720px (the m-list carries its own trailer row there). ════ */}
+        {course.trailer_url && (
+          <div className="max-[720px]:hidden" style={{ marginTop: 42 }}>
+            <div className="row-head">
+              <span className="rh">Trailers</span>
+            </div>
+            <RailStrip spot={false}>
+              <div
+                className="lc-catalog"
+                onClick={() => setTrailerPlaying(true)}
+              >
+                <div className="lc-card">
+                  <div className="lc-thumb">
+                    <div
+                      className={`img ${course.thumbnail_url ? '' : 'ph'}`}
+                      style={
+                        course.thumbnail_url
+                          ? {
+                              backgroundImage: `url("${course.thumbnail_url}")`,
+                            }
+                          : undefined
+                      }
+                    />
+                    <div className="lc-play">
+                      <div className="lc-play-btn">
+                        <Glyph d={SF.play} size={18} fill="currentColor" />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="lc-info">
+                    <div className="lc-num">Trailer</div>
+                    <div className="lc-title">{course.title}</div>
+                    <div className="lc-meta">
+                      <Glyph
+                        d={SF.play2}
+                        size={12}
+                        fill="currentColor"
+                        stroke={0}
+                      />
+                      <span>Official trailer</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </RailStrip>
           </div>
-        </div>
+        )}
 
         {/* ════ mobile vertical lesson list (YouTube-playlist style) —
            WatchPageStyles shows this ≤720px and hides the horizontal rail
@@ -1380,6 +1423,40 @@ export function WatchHome({
               </div>
             )
           })}
+          {/* Trailer — the mobile counterpart of the desktop Trailers rail. */}
+          {course.trailer_url && (
+            <div>
+              <div className="ml-module">Trailers</div>
+              <div
+                className="ml-row"
+                role="button"
+                tabIndex={0}
+                onClick={() => setTrailerPlaying(true)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    setTrailerPlaying(true)
+                  }
+                }}
+              >
+                <div className="ml-thumb">
+                  <div
+                    className={`img ${course.thumbnail_url ? '' : 'ph'}`}
+                    style={
+                      course.thumbnail_url
+                        ? { backgroundImage: `url("${course.thumbnail_url}")` }
+                        : undefined
+                    }
+                  />
+                </div>
+                <div className="ml-info">
+                  <div className="ml-num">Trailer</div>
+                  <div className="ml-title">{course.title}</div>
+                  <div className="ml-meta">Official trailer</div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </section>
 
@@ -1438,6 +1515,25 @@ export function WatchHome({
         />
       )}
 
+      {/* Trailer overlay — plays the course trailer in the same full
+          player, standalone (no playlist, no progress). */}
+      {trailerPlaying && !playing && course.trailer_url && (
+        <WatchPlayer
+          key="trailer"
+          lesson={{
+            n: 0,
+            title: 'Trailer',
+            kicker: 'Trailer',
+            muxPlaybackId: null,
+            playbackUrl: course.trailer_url,
+            thumbnailUrl: course.thumbnail_url,
+          }}
+          courseTitle={course.title ?? ''}
+          instructorName={course.instructor_name ?? organization.name}
+          onClose={() => setTrailerPlaying(false)}
+        />
+      )}
+
       {playing && (
         <WatchPlayer
           // Remount per lesson so playback state (time, completion latch,
@@ -1480,6 +1576,85 @@ export function WatchHome({
       )}
 
       <WatchPageStyles />
+    </div>
+  )
+}
+
+// One horizontal card strip with its own scroll state and hover arrows —
+// each season rail (and the Trailers rail) gets an independent instance.
+function RailStrip({
+  spot,
+  children,
+}: {
+  spot: boolean
+  children: React.ReactNode
+}) {
+  const stripRef = useRef<HTMLDivElement | null>(null)
+  const [canPrev, setCanPrev] = useState(false)
+  const [canNext, setCanNext] = useState(true)
+  const updateArrows = useCallback(() => {
+    const s = stripRef.current
+    if (!s) return
+    setCanPrev(s.scrollLeft > 2)
+    setCanNext(s.scrollLeft < s.scrollWidth - s.clientWidth - 2)
+  }, [])
+  useEffect(() => {
+    updateArrows()
+    window.addEventListener('resize', updateArrows)
+    return () => window.removeEventListener('resize', updateArrows)
+  }, [updateArrows])
+  const scrollBy = (dir: number) =>
+    stripRef.current?.scrollBy({
+      left: dir * stripRef.current.clientWidth,
+      behavior: 'smooth',
+    })
+  return (
+    <div className="strip-wrap" onMouseEnter={updateArrows}>
+      <button
+        className={`arrow prev ${canPrev ? 'show' : ''}`}
+        type="button"
+        aria-label="Previous"
+        onClick={() => scrollBy(-1)}
+      >
+        <svg
+          width="28"
+          height="28"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M14.5 5l-6.5 7 6.5 7" />
+        </svg>
+      </button>
+      <button
+        className={`arrow next ${canNext ? 'show' : ''}`}
+        type="button"
+        aria-label="Next"
+        onClick={() => scrollBy(1)}
+      >
+        <svg
+          width="28"
+          height="28"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M9.5 5l6.5 7-6.5 7" />
+        </svg>
+      </button>
+      <div
+        className={`grid ${spot ? 'spot-rail' : ''}`}
+        ref={stripRef}
+        onScroll={updateArrows}
+      >
+        {children}
+      </div>
     </div>
   )
 }
