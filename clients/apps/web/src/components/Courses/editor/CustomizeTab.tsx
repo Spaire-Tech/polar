@@ -33,13 +33,13 @@ export function CustomizeTab({
   const queryClient = useQueryClient()
 
   // Desktop / Phone canvas. Phone renders the real landing inside an iframe
-  // sized like an iPhone — the iframe is its own viewport, so the mobile media
-  // queries genuinely apply. It opens in Preview (exactly what a visitor sees,
-  // zero editor chrome); the Edit switch swaps the same document into the
-  // touch-to-edit canvas. Edits land on the same server; switching back
+  // at true iPhone size (390×844, scaled to fit) — the iframe is its own
+  // viewport, so the mobile media queries genuinely apply and the canvas IS
+  // what a phone visitor sees. Editing is direct, like desktop, scoped to
+  // what matters at phone size: dragging the cover / lesson stills /
+  // portrait into place. Edits land on the same server; switching back
   // refetches so the desktop canvas picks them up.
   const [viewport, setViewport] = useState<'desktop' | 'phone'>('desktop')
-  const [phoneMode, setPhoneMode] = useState<'preview' | 'edit'>('preview')
   const selectViewport = (next: 'desktop' | 'phone') => {
     setViewport((prev) => {
       if (prev === 'phone' && next === 'desktop') {
@@ -49,7 +49,6 @@ export function CustomizeTab({
     })
   }
   const phone = viewport === 'phone'
-  const phoneEditing = phone && phoneMode === 'edit'
 
   // ⌘Z / ⌘⇧Z (and Ctrl+Y) drive undo/redo — but only when the focus isn't in
   // an editable field, so native text-undo keeps working while you're typing.
@@ -99,17 +98,19 @@ export function CustomizeTab({
             {course.title ?? 'Untitled course'}
           </span>
         </div>
-        {/* Canvas viewport — Desktop or Phone, centered in the bar. */}
-        <div className="flex items-center rounded-md border border-gray-200 bg-white p-0.5">
+        {/* Canvas viewport — Desktop or Phone, centered in the bar. Same
+            treatment as the section tabs: the active one wears the accent
+            text, no filled chip. */}
+        <div className="flex items-center gap-1">
           {(['desktop', 'phone'] as const).map((v) => (
             <button
               key={v}
               type="button"
               onClick={() => selectViewport(v)}
-              className={`rounded px-3 py-[4px] text-[12px] font-medium transition-colors ${
+              className={`px-3 py-[4px] text-[13px] tracking-tight transition-colors ${
                 viewport === v
-                  ? 'bg-ce-accent text-white'
-                  : 'text-gray-600 hover:bg-gray-50'
+                  ? 'text-ce-accent font-medium'
+                  : 'text-gray-500 hover:text-gray-900'
               }`}
             >
               {v === 'desktop' ? 'Desktop' : 'Phone'}
@@ -117,26 +118,6 @@ export function CustomizeTab({
           ))}
         </div>
         <div className="flex items-center justify-end gap-3">
-          {phone && (
-            // Phone opens as a faithful visitor preview; Edit swaps the same
-            // document into the touch-to-edit canvas.
-            <div className="flex items-center rounded-md border border-gray-200 bg-white p-0.5">
-              {(['preview', 'edit'] as const).map((m) => (
-                <button
-                  key={m}
-                  type="button"
-                  onClick={() => setPhoneMode(m)}
-                  className={`rounded px-2.5 py-[4px] text-[12px] font-medium transition-colors ${
-                    phoneMode === m
-                      ? 'bg-ce-accent text-white'
-                      : 'text-gray-600 hover:bg-gray-50'
-                  }`}
-                >
-                  {m === 'preview' ? 'Preview' : 'Edit'}
-                </button>
-              ))}
-            </div>
-          )}
           <div className="flex items-center gap-1.5">
             <button
               type="button"
@@ -162,11 +143,7 @@ export function CustomizeTab({
             role="status"
             aria-live="polite"
           >
-            {phone
-              ? phoneEditing
-                ? 'Editing in phone'
-                : 'Viewing as a visitor'
-              : statusLabel}
+            {phone ? 'Drag images to reposition' : statusLabel}
           </span>
           <a
             href={storefrontLink(organization, `products/${course.product_id}`)}
@@ -180,18 +157,11 @@ export function CustomizeTab({
       </div>
 
       {phone ? (
-        <div className="flex flex-1 items-center justify-center overflow-hidden bg-gray-100 py-6">
+        <div className="min-h-0 flex-1 overflow-hidden bg-gray-100 p-4">
           <CoursePhoneFrame>
             <iframe
-              key={phoneMode}
-              src={`/dashboard/${organization.slug}/courses/${course.id}/landing-mobile${
-                phoneEditing ? '?edit=1' : ''
-              }`}
-              title={
-                phoneEditing
-                  ? 'Mobile landing (editable)'
-                  : 'Mobile landing preview'
-              }
+              src={`/dashboard/${organization.slug}/courses/${course.id}/landing-mobile`}
+              title="Mobile landing — drag images to reposition"
               className="block h-full w-full border-0"
             />
           </CoursePhoneFrame>

@@ -80,7 +80,7 @@ export function CourseDesignEditor({
   organization,
   editor,
   onBusyChange,
-  readOnly = false,
+  mode = 'full',
 }: {
   course: CourseRead
   organization?: schemas['Organization']
@@ -89,12 +89,15 @@ export function CourseDesignEditor({
   /** Reports in-flight uploads so the host status bar can show "Saving…". */
   onBusyChange?: (saving: boolean) => void
   /**
-   * Render exactly what a visitor sees — no edit affordances, no creator
-   * pills, no theme toggle. Used by the phone preview so it mirrors the
-   * real mobile landing instead of the editing canvas.
+   * 'full' — the desktop canvas: every creator affordance.
+   * 'reposition' — the phone canvas: renders exactly what a phone visitor
+   * sees, with direct manipulation kept for the edits that matter on a
+   * phone screen (drag the cover / lesson stills / portrait into place).
+   * No pills, no theme toggle, no touch-to-edit text.
    */
-  readOnly?: boolean
+  mode?: 'full' | 'reposition'
 }) {
+  const repositionOnly = mode === 'reposition'
   const uploadThumb = useUploadCourseThumbnail()
   const uploadTrailer = useUploadCourseTrailer()
   const uploadLessonThumb = useUploadLessonThumbnail()
@@ -927,48 +930,53 @@ export function CourseDesignEditor({
         enrollPriceSub={enrollPriceSub}
         unit={unit}
         dark={dark}
-        onToggleDark={readOnly ? undefined : toggleDark}
-        editable={!readOnly}
-        // Mirror the public page's trailer-button rule in preview mode
-        // (editor mode keeps the default so the "Add trailer" slot shows).
+        onToggleDark={repositionOnly ? undefined : toggleDark}
+        editable
+        phoneCanvas={repositionOnly}
+        // Mirror the public page's trailer-button rule on the phone canvas
+        // (the full editor keeps the default so the "Add trailer" slot shows).
         showTrailerButton={
-          readOnly
+          repositionOnly
             ? !!course.trailer_url ||
               (trialMode === 'lesson_sample' && samplePlayable)
             : undefined
         }
         trailerUrl={course.trailer_url}
-        onAddCover={onAddCover}
+        onAddCover={repositionOnly ? undefined : onAddCover}
         coverBusy={coverBusy}
-        onAddTrailer={onAddTrailer}
+        onAddTrailer={repositionOnly ? undefined : onAddTrailer}
         trailerBusy={trailerBusy}
         trailerPct={trailerPct}
         onCoverPosition={onCoverPosition}
         heroTitleWidth={course.landing_overrides?.hero_title_width ?? null}
         heroDescWidth={course.landing_overrides?.hero_desc_width ?? null}
-        onHeroWidth={onHeroWidth}
+        onHeroWidth={repositionOnly ? undefined : onHeroWidth}
         heroTitleFont={course.landing_overrides?.hero_title_font ?? null}
-        onHeroTitleFont={onHeroTitleFont}
-        onAddLessonImage={onAddLessonImage}
+        onHeroTitleFont={repositionOnly ? undefined : onHeroTitleFont}
+        onAddLessonImage={repositionOnly ? undefined : onAddLessonImage}
         onRepositionLesson={onRepositionLesson}
         onReplaceLessonImage={onReplaceLessonImage}
         lessonImageBusy={lessonImageBusy}
-        onConfigureSample={() => setSampleOpen(true)}
-        onEditText={onEditText}
-        onAddFaq={onAddFaq}
-        onRemoveFaq={onRemoveFaq}
-        onAddBadge={onAddBadge}
-        onRemoveBadge={onRemoveBadge}
-        onAddBioParagraph={onAddBioParagraph}
-        onRemoveBioParagraph={onRemoveBioParagraph}
+        onConfigureSample={
+          repositionOnly ? undefined : () => setSampleOpen(true)
+        }
+        onEditText={repositionOnly ? undefined : onEditText}
+        onAddFaq={repositionOnly ? undefined : onAddFaq}
+        onRemoveFaq={repositionOnly ? undefined : onRemoveFaq}
+        onAddBadge={repositionOnly ? undefined : onAddBadge}
+        onRemoveBadge={repositionOnly ? undefined : onRemoveBadge}
+        onAddBioParagraph={repositionOnly ? undefined : onAddBioParagraph}
+        onRemoveBioParagraph={
+          repositionOnly ? undefined : onRemoveBioParagraph
+        }
         sectionVisible={course.landing_overrides?.visible}
-        onSetSectionHidden={onSetSectionHidden}
+        onSetSectionHidden={repositionOnly ? undefined : onSetSectionHidden}
         avatarUrl={
           course.landing_overrides?.instructor_avatar_url ??
           organization?.avatar_url ??
           null
         }
-        onEditAvatar={pickAvatar}
+        onEditAvatar={repositionOnly ? undefined : pickAvatar}
         instructorSub={aiInstructor?.sub ?? ''}
         instructorBio={aiInstructor?.bio ?? []}
         portraitUrl={course.landing_overrides?.portrait_url ?? null}
@@ -976,7 +984,7 @@ export function CourseDesignEditor({
           course.landing_overrides?.portrait_object_position ?? null
         }
         portraitCaption={aiInstructor?.caption ?? ''}
-        onAddPortrait={onAddPortrait}
+        onAddPortrait={repositionOnly ? undefined : onAddPortrait}
         onPortraitPosition={onPortraitPosition}
         portraitBusy={portraitBusy}
         faq={aiFaq}

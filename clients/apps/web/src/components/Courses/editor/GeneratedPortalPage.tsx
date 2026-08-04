@@ -469,6 +469,10 @@ export type GeneratedPortalPageProps = {
   dark: boolean
   /** Theme toggle (creator-facing). Omit to hide (public page). */
   onToggleDark?: () => void
+  /** The dashboard's phone canvas — re-enables the reposition affordances
+   *  that the ≤820px styles hide (they're mouse-driven, and the phone
+   *  canvas is a mouse surface). */
+  phoneCanvas?: boolean
   showTrailerButton?: boolean
   onPlay?: () => void
   onBuy?: () => void
@@ -621,6 +625,7 @@ export function GeneratedPortalPage({
   unit,
   dark,
   onToggleDark,
+  phoneCanvas = false,
   showTrailerButton = true,
   onPlay,
   onBuy,
@@ -1648,7 +1653,11 @@ export function GeneratedPortalPage({
   const card = cardVariant === 'spotlight' ? spotlightCard : catalogCard
 
   return (
-    <div className={`gpp ${dark ? 'dark' : ''} ${isEpisodic ? 'epi' : ''}`}>
+    <div
+      className={`gpp ${dark ? 'dark' : ''} ${isEpisodic ? 'epi' : ''} ${
+        phoneCanvas ? 'phone-canvas' : ''
+      }`}
+    >
       {/* ════════ MARQUEE HERO (Marquee Course Page.html) ════════ */}
       {heroVariant === 'marquee' ? (
         <header
@@ -1773,9 +1782,11 @@ export function GeneratedPortalPage({
             </div>
 
             <div className="band-desc">
+              {/* Unclamp only when the text is actually editable — the
+                  reposition-only phone canvas keeps the visitor's clamp. */}
               <div
                 className={`bd-descwrap ${
-                  descExpanded || editable ? '' : 'clamped'
+                  descExpanded || (editable && onEditText) ? '' : 'clamped'
                 }`}
               >
                 <ResizableWidth
@@ -1805,7 +1816,7 @@ export function GeneratedPortalPage({
                     }
                   />
                 </ResizableWidth>
-                {!editable && !descExpanded && (
+                {!(editable && onEditText) && !descExpanded && (
                   <button
                     className="bd-more"
                     type="button"
@@ -5401,6 +5412,17 @@ export function GeneratedPortalPage({
           .gpp .creator-bar .add-pill.is-cover,
           .gpp .creator-bar .add-pill.is-reposition {
             display: none;
+          }
+          /* …except on the dashboard's phone canvas, which IS mouse-driven —
+             there the Reposition pill is the whole point. Restore its
+             labelled-pill shape (the generic mobile rule above squashes
+             add-pills into 44px icon circles). */
+          .gpp.phone-canvas .creator-bar .add-pill.is-reposition {
+            display: inline-flex;
+            width: auto;
+            height: 40px;
+            padding: 0 16px;
+            border-radius: 980px;
           }
           .gpp .panel .creator-bar {
             top: 14px;
