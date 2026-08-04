@@ -8,9 +8,8 @@
 //
 // The hamburger opens a sheet with the portal destinations (the tabs the
 // bottom bar used to carry, plus Bookmarks); the right button opens the
-// existing "You" profile hub (settings, enrollments, log out…). The bar
-// floats over the hero on its own gradient scrim and hides while scrolling
-// down, so the content keeps the full screen.
+// existing "You" profile hub (settings, enrollments, log out…). The bar is
+// a solid portal-dark strip pinned to the top — always visible.
 
 import { schemas } from '@spaire/client'
 import Link from 'next/link'
@@ -20,7 +19,6 @@ import { usePortalTheme } from '../usePortalTheme'
 import { PortalSheet } from './PortalSheet'
 import { ProfileHubSheet } from './ProfileHubSheet'
 import { type CustomerWithProfile } from './ProfileOnboarding'
-import { useHideOnScroll } from './useHideOnScroll'
 import { usePortalTabs } from './usePortalTabs'
 
 const initialsFor = (name: string | null | undefined, email: string) => {
@@ -37,7 +35,6 @@ export const CourseMobileNav = ({
   organization: schemas['CustomerOrganization']
 }) => {
   const pathname = usePathname()
-  const hidden = useHideOnScroll()
   const [menuOpen, setMenuOpen] = React.useState(false)
   const [hubOpen, setHubOpen] = React.useState(false)
 
@@ -79,9 +76,7 @@ export const CourseMobileNav = ({
 
   return (
     <>
-      <header
-        className={'sp-cnav' + (hidden && !menuOpen ? ' sp-cnav--hidden' : '')}
-      >
+      <header className="sp-cnav">
         <button
           type="button"
           className="sp-cnav-btn"

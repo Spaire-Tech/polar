@@ -32,6 +32,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { titleFontFamily } from '../titleFonts'
 import { Glyph, SF, fmtTime } from './WatchGlyphs'
 import { WatchPageStyles } from './WatchPageStyles'
+import { WatchStyles } from './WatchStyles'
 import { WatchPlayer } from './WatchPlayer'
 import {
   CommentsPanel,
@@ -1562,6 +1563,12 @@ export function WatchHome({
       )}
 
       <WatchPageStyles />
+      {/* The overview sheet + comments panel are styled by WatchStyles
+          (.sov2), which normally mounts with the player. When either opens
+          straight from the course page — no player — the styles must come
+          along, or the sheet renders unstyled at the bottom of the document
+          (invisible on phones without scrolling). */}
+      {(overviewFor || (showComments && !playing)) && <WatchStyles />}
     </div>
   )
 }
