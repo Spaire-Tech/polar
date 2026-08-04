@@ -3,6 +3,7 @@
 import { schemas } from '@spaire/client'
 import { usePathname, useSearchParams } from 'next/navigation'
 import { useEffect, useRef } from 'react'
+import { CourseMobileNav } from './_components/CourseMobileNav'
 import { MobileTabBar } from './_components/MobileTabBar'
 import { PortalLoading } from './_components/PortalLoading'
 import { TopBar } from './_components/TopBar'
@@ -111,9 +112,14 @@ export const PortalShell = ({
   // The course portal page renders its own full-bleed layout (cinematic hero
   // + module rows) and so opts out of the standard .sp-page max-width wrapper.
   if (isCourseRoute(pathname)) {
+    // On phones the course page swaps the standard chrome for its own:
+    // the top-left hamburger + creator-name bar (CourseMobileNav) replaces
+    // both the top bar and the bottom tab bar (portal.css hides them under
+    // .sp-course-route ≤720px), so the page reads like a streaming app.
     return (
-      <div ref={rootRef} className={rootClass}>
+      <div ref={rootRef} className={`${rootClass} sp-course-route`}>
         <TopBar organization={organization} hidden={topbarHidden} />
+        <CourseMobileNav organization={organization} />
         <main className="sp-course-portal">{children}</main>
         <MobileTabBar organization={organization} />
       </div>

@@ -730,18 +730,34 @@ export function WatchPageStyles() {
         background: #111;
         overflow: hidden;
       }
+      .sow .lc-thumb.ph {
+        background: none;
+      }
       .sow .lc-thumb .img {
         position: absolute;
         inset: 0;
         background-size: cover;
         background-position: center;
       }
-      .sow .lc-thumb .img.ph {
+      /* Liquid-glass placeholder — the landing's exact treatment, so an
+         unfilled tile looks the same here as on the public page. */
+      .sow .lc-thumb .ph-ambient {
+        position: absolute;
+        inset: -15%;
         background:
           radial-gradient(42% 52% at 20% 28%, #6e7a5e 0%, transparent 70%),
           radial-gradient(46% 56% at 76% 22%, #8a7565 0%, transparent 70%),
           radial-gradient(52% 62% at 62% 82%, #46464c 0%, transparent 72%),
+          radial-gradient(36% 46% at 28% 78%, #5d6e6a 0%, transparent 70%),
           #57544e;
+        filter: blur(40px);
+      }
+      .sow .lc-thumb .glass-tint {
+        position: absolute;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.18);
+        -webkit-backdrop-filter: blur(60px) saturate(140%);
+        backdrop-filter: blur(60px) saturate(140%);
       }
       .sow .lc-play {
         position: absolute;
@@ -845,22 +861,24 @@ export function WatchPageStyles() {
       .sow .lc-ovbtn:hover {
         background: rgba(0, 0, 0, 0.66);
       }
+      /* Info block — the landing catalog card's exact metrics, so the same
+         card reads identically on the public page and in the portal. */
       .sow .lc-info {
         flex: 1;
         display: flex;
         flex-direction: column;
-        padding: 16px 18px 18px;
+        padding: 18px 20px 20px;
       }
       .sow .lc-num {
-        font-size: 10px;
+        font-size: 11px;
         font-weight: 600;
-        letter-spacing: 0.08em;
+        letter-spacing: 0.07em;
         text-transform: uppercase;
         color: var(--text-2);
-        margin-bottom: 5px;
+        margin-bottom: 6px;
       }
       .sow .lc-title {
-        font-size: 17px;
+        font-size: 18px;
         font-weight: 600;
         letter-spacing: -0.02em;
         line-height: 1.2;
@@ -875,23 +893,23 @@ export function WatchPageStyles() {
         transition: color 0.4s ease;
       }
       .sow .lc-desc {
-        font-size: 13.5px;
+        font-size: 14px;
         color: var(--text-2);
-        line-height: 1.5;
+        line-height: 1.45;
         text-wrap: pretty;
         display: -webkit-box;
         -webkit-line-clamp: 2;
         -webkit-box-orient: vertical;
         overflow: hidden;
-        min-height: 40px;
+        min-height: 41px;
       }
       .sow .lc-meta {
         display: flex;
         align-items: center;
         gap: 6px;
         margin-top: auto;
-        padding-top: 11px;
-        font-size: 12.5px;
+        padding-top: 12px;
+        font-size: 13px;
         font-weight: 500;
         color: var(--text-2);
         font-variant-numeric: tabular-nums;
@@ -1135,21 +1153,22 @@ export function WatchPageStyles() {
         }
       }
 
-      /* ════════ mobile course home (≤720) — Netflix-mobile treatment ════════
-         The desktop cover/marquee hero blocks and the horizontal rail hide;
-         a variant-independent poster hero (.m-hero) and a vertical lesson
-         list (.m-list) take over. Markup for both is always rendered by
-         WatchHome — visibility is purely these media rules. */
+      /* ════════ mobile course home (≤720) — the landing's cinematic
+         treatment. The desktop cover/marquee hero blocks and the horizontal
+         rails hide; a tall variant-independent hero (.m-hero over the course
+         cover .m-hero-art) and a full-width stack of the SAME landing-style
+         lesson cards (.m-cards) take over. Markup for all of it is always
+         rendered by WatchHome — visibility is purely these media rules. */
       .sow .m-hero {
         display: none;
       }
-      .sow .m-list {
+      .sow .m-hero-art {
         display: none;
       }
       @media (max-width: 720px) {
         .sow .panel {
           height: auto;
-          min-height: min(72svh, 620px);
+          min-height: min(88svh, 780px);
         }
         .sow .panel .hero-content,
         .sow .panel-title,
@@ -1171,70 +1190,124 @@ export function WatchPageStyles() {
           );
         }
 
+        /* Full-bleed COURSE cover behind the mobile hero — the landing's
+           poster, not the focused lesson's still. Painted after the lesson
+           layers in the DOM, so it covers them; its own bottom scrim keeps
+           the centered stack readable. */
+        .sow .m-hero-art {
+          display: block;
+          position: absolute;
+          inset: 0;
+          background-size: cover;
+          background-position: center;
+        }
+        .sow .m-hero-art::after {
+          content: '';
+          position: absolute;
+          inset: 0;
+          background: linear-gradient(
+            to top,
+            rgba(0, 0, 0, 0.92) 0%,
+            rgba(0, 0, 0, 0.5) 34%,
+            rgba(0, 0, 0, 0.1) 66%,
+            transparent 100%
+          );
+        }
+        /* Centered bottom stack — title in the creator's Title Style, meta
+           line, white Play pill + round overview button, then progress. */
         .sow .m-hero {
           display: flex;
           flex-direction: column;
+          align-items: center;
+          text-align: center;
           position: relative;
           z-index: 4;
           margin: 0 var(--gut);
-          padding-bottom: 24px;
+          padding-bottom: 26px;
           color: #fff;
         }
+        .sow .m-hero .pt-kicker {
+          justify-content: center;
+        }
         .sow .m-hero-title {
-          margin: 0;
+          margin: 6px 0 0;
           font-family: var(--po);
-          font-size: clamp(28px, 8vw, 38px);
+          font-size: clamp(34px, 10.5vw, 48px);
           font-weight: 700;
-          line-height: 1.05;
+          line-height: 1.02;
           letter-spacing: -0.025em;
+          text-wrap: balance;
           display: -webkit-box;
           -webkit-line-clamp: 3;
           -webkit-box-orient: vertical;
           overflow: hidden;
           overflow-wrap: anywhere;
-          text-shadow: 0 2px 24px rgba(0, 0, 0, 0.45);
+          text-shadow: 0 2px 28px rgba(0, 0, 0, 0.5);
         }
         .sow .m-hero-meta {
           margin-top: 10px;
-          font-size: 13px;
-          font-weight: 500;
-          color: rgba(255, 255, 255, 0.78);
+          font-size: 14px;
+          font-weight: 600;
+          color: rgba(255, 255, 255, 0.85);
+          text-shadow: 0 1px 14px rgba(0, 0, 0, 0.45);
         }
         .sow .m-hero-actions {
           display: flex;
           flex-direction: column;
+          align-items: center;
           gap: 10px;
           margin-top: 18px;
+          width: 100%;
         }
         /* Always light-on-image (the hero sits over a photo on both
            variants), so colours are fixed like the cover hero's, not
            theme vars. */
-        .sow .m-hero-actions .abtn {
-          width: 100%;
-          height: 48px;
-          border-radius: 12px;
-        }
-        .sow .m-hero-actions .abtn.play {
-          background: #fff;
-          color: #111;
-        }
-        .sow .m-hero-row {
+        .sow .m-hero-cta {
           display: flex;
           gap: 10px;
+          width: 100%;
         }
-        .sow .m-hero-row .abtn.glass {
+        .sow .m-hero-cta .abtn.play {
           flex: 1;
-          background: rgba(255, 255, 255, 0.14);
+          height: 52px;
+          border-radius: 980px;
+          background: #fff;
+          color: #111;
+          font-size: 16px;
+        }
+        .sow .m-hero-ov {
+          flex: none;
+          width: 52px;
+          height: 52px;
+          border-radius: 50%;
+          display: grid;
+          place-items: center;
+          background: rgba(255, 255, 255, 0.16);
           color: #fff;
-          box-shadow: none;
           -webkit-backdrop-filter: blur(30px) saturate(150%);
           backdrop-filter: blur(30px) saturate(150%);
         }
+        .sow .m-hero-next {
+          font-size: 12.5px;
+          font-weight: 500;
+          color: rgba(255, 255, 255, 0.72);
+          max-width: 100%;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+          text-shadow: 0 1px 12px rgba(0, 0, 0, 0.45);
+        }
+        .sow .m-hero-row {
+          display: flex;
+          justify-content: center;
+          gap: 10px;
+          margin-top: 2px;
+        }
         .sow .m-hero-row .icon-glass {
           flex: none;
-          width: 48px;
-          height: 48px;
-          border-radius: 12px;
+          width: 44px;
+          height: 44px;
+          border-radius: 50%;
           background: rgba(255, 255, 255, 0.14);
           color: #fff;
           box-shadow: none;
@@ -1246,150 +1319,31 @@ export function WatchPageStyles() {
         /* Progress is part of the mobile hero on both variants — never
            hidden by a breakpoint again. */
         .sow .m-hero .cv-progress {
-          margin-top: 20px;
+          margin-top: 18px;
           max-width: none;
+          width: 100%;
         }
 
-        /* ── vertical lesson list ── */
+        /* ── lesson rails on phones — the SAME swipeable strips the landing
+           uses. Scroll-snap does the paging; only the hover arrows hide.
+           One card fills most of the view so the swipe reads card-by-card. ── */
         .sow .lessons {
           padding: 26px var(--gut) 80px;
         }
-        .sow .strip-wrap {
+        .sow .arrow {
           display: none;
         }
-        .sow .m-list {
-          display: flex;
-          flex-direction: column;
-          gap: 6px;
-        }
-        .sow .ml-module {
-          margin: 18px 0 8px;
-          font-size: 12px;
-          font-weight: 700;
-          letter-spacing: 0.08em;
-          text-transform: uppercase;
-          color: var(--text-2);
-        }
-        .sow .ml-row {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          padding: 8px;
-          border-radius: 14px;
-          cursor: pointer;
-          transition: background 0.15s;
-          -webkit-tap-highlight-color: transparent;
-        }
-        .sow .ml-row:active {
-          background: rgba(125, 125, 135, 0.14);
-        }
-        .sow .ml-row.locked {
-          opacity: 0.62;
-        }
-        .sow .ml-thumb {
-          position: relative;
-          flex: none;
-          width: 118px;
-          aspect-ratio: 16 / 9;
-          border-radius: 10px;
-          overflow: hidden;
-          background: #111;
-        }
-        .sow .ml-thumb .img {
-          position: absolute;
-          inset: 0;
-          background-size: cover;
-          background-position: center;
-        }
-        .sow .ml-thumb .img.ph {
-          background:
-            radial-gradient(42% 52% at 20% 28%, #6e7a5e 0%, transparent 70%),
-            radial-gradient(46% 56% at 76% 22%, #8a7565 0%, transparent 70%),
-            radial-gradient(52% 62% at 62% 82%, #46464c 0%, transparent 72%),
-            #57544e;
-        }
-        .sow .ml-state {
-          position: absolute;
-          left: 6px;
-          top: 6px;
-          z-index: 2;
-          width: 20px;
-          height: 20px;
-          border-radius: 50%;
-          display: grid;
-          place-items: center;
-          color: rgba(255, 255, 255, 0.92);
-          background: rgba(0, 0, 0, 0.45);
-        }
-        .sow .ml-dur {
-          position: absolute;
-          right: 5px;
-          bottom: 5px;
-          z-index: 2;
-          font-size: 10.5px;
-          font-weight: 600;
-          color: #fff;
-          font-variant-numeric: tabular-nums;
-          background: rgba(0, 0, 0, 0.6);
-          padding: 2px 6px;
-          border-radius: 6px;
-        }
-        .sow .ml-progbar {
-          position: absolute;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          height: 3px;
-          background: rgba(255, 255, 255, 0.28);
-          z-index: 3;
-          display: block;
-        }
-        .sow .ml-progbar i {
-          display: block;
-          height: 100%;
-          border-radius: 0 980px 980px 0;
-          /* Community blue with a slight light sweep toward the tip. */
-          background: linear-gradient(90deg, #0066cc 0%, #2997ff 100%);
-        }
-        .sow .ml-info {
-          flex: 1;
+        .sow .grid .lc-catalog,
+        .sow .grid .lc-spot {
+          flex: 0 0 84%;
           min-width: 0;
+          scroll-snap-align: start;
         }
-        .sow .ml-num {
-          font-size: 10px;
-          font-weight: 600;
-          letter-spacing: 0.08em;
-          text-transform: uppercase;
-          color: var(--text-2);
-          margin-bottom: 3px;
+        .sow .row-head .rh {
+          font-size: 17px;
         }
-        .sow .ml-title {
-          font-size: 14.5px;
-          font-weight: 600;
-          letter-spacing: -0.015em;
-          line-height: 1.25;
-          color: var(--text);
-          display: -webkit-box;
-          -webkit-line-clamp: 2;
-          -webkit-box-orient: vertical;
-          overflow: hidden;
-          overflow-wrap: anywhere;
-        }
-        .sow .ml-meta {
-          margin-top: 4px;
-          font-size: 12px;
-          font-weight: 500;
-          color: var(--text-2);
-          font-variant-numeric: tabular-nums;
-        }
-        .sow .ml-ov {
-          flex: none;
-          width: 40px;
-          height: 40px;
-          border-radius: 50%;
-          display: grid;
-          place-items: center;
-          color: var(--text-2);
+        .sow .row-head .rh-meta {
+          font-size: 12.5px;
         }
       }
     `}</style>

@@ -2095,3 +2095,113 @@
 .spaire-portal .focus\:ring-blue-100:focus {
   --tw-ring-color: var(--sp-accent-ring);
 }
+
+/* ============================================================
+   Course-page mobile chrome — the hamburger / creator / student bar
+   (CourseMobileNav). Desktop keeps the standard TopBar; ≤720px the
+   course route swaps to this bar and drops the bottom tab bar.
+   ============================================================ */
+.spaire-portal .sp-cnav {
+  display: none;
+}
+@media (max-width: 720px) {
+  .spaire-portal.sp-course-route .sp-topbar {
+    display: none;
+  }
+  .spaire-portal.sp-course-route .sp-tabbar {
+    display: none;
+  }
+  .spaire-portal.sp-course-route.sp-app--mobile-tabs .sp-course-portal {
+    padding-bottom: 0;
+  }
+  .spaire-portal.sp-course-route .sp-cnav {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 60;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: calc(10px + env(safe-area-inset-top, 0px)) 14px 18px;
+    /* Own scrim so the white glyphs read over the hero AND over light
+       content when the bar reappears mid-page. */
+    background: linear-gradient(
+      to bottom,
+      rgba(0, 0, 0, 0.6) 0%,
+      rgba(0, 0, 0, 0.28) 62%,
+      transparent 100%
+    );
+    color: #fff;
+    transition: transform 0.3s ease, opacity 0.3s ease;
+    pointer-events: none;
+  }
+  .spaire-portal.sp-course-route .sp-cnav > * {
+    pointer-events: auto;
+  }
+  .spaire-portal.sp-course-route .sp-cnav--hidden {
+    transform: translateY(-100%);
+    opacity: 0;
+    pointer-events: none;
+  }
+  .spaire-portal .sp-cnav-btn {
+    flex: none;
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    background: rgba(20, 20, 22, 0.42);
+    color: #fff;
+    backdrop-filter: blur(16px) saturate(150%);
+    -webkit-backdrop-filter: blur(16px) saturate(150%);
+    border: none;
+    cursor: pointer;
+  }
+  .spaire-portal .sp-cnav-title {
+    flex: 1;
+    min-width: 0;
+    text-align: center;
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-shadow: 0 1px 12px rgba(0, 0, 0, 0.45);
+  }
+  .spaire-portal .sp-cnav-you {
+    overflow: hidden;
+    font-size: 12.5px;
+    font-weight: 700;
+  }
+  .spaire-portal .sp-cnav-you img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 50%;
+  }
+}
+/* Hamburger sheet — one destination per row, portal-themed. */
+.sp-cnav-menu {
+  display: flex;
+  flex-direction: column;
+  padding: 4px 0 8px;
+}
+.sp-cnav-item {
+  display: block;
+  padding: 13px 6px;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--sp-ink);
+  border-bottom: 1px solid var(--sp-line);
+  text-decoration: none;
+}
+.sp-cnav-item:last-child {
+  border-bottom: none;
+}
+.sp-cnav-item.is-active {
+  color: var(--sp-accent, #0066cc);
+}
