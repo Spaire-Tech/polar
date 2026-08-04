@@ -80,6 +80,7 @@ export function CourseDesignEditor({
   organization,
   editor,
   onBusyChange,
+  readOnly = false,
 }: {
   course: CourseRead
   organization?: schemas['Organization']
@@ -87,6 +88,12 @@ export function CourseDesignEditor({
   editor: LandingEditor
   /** Reports in-flight uploads so the host status bar can show "Saving…". */
   onBusyChange?: (saving: boolean) => void
+  /**
+   * Render exactly what a visitor sees — no edit affordances, no creator
+   * pills, no theme toggle. Used by the phone preview so it mirrors the
+   * real mobile landing instead of the editing canvas.
+   */
+  readOnly?: boolean
 }) {
   const uploadThumb = useUploadCourseThumbnail()
   const uploadTrailer = useUploadCourseTrailer()
@@ -920,8 +927,16 @@ export function CourseDesignEditor({
         enrollPriceSub={enrollPriceSub}
         unit={unit}
         dark={dark}
-        onToggleDark={toggleDark}
-        editable
+        onToggleDark={readOnly ? undefined : toggleDark}
+        editable={!readOnly}
+        // Mirror the public page's trailer-button rule in preview mode
+        // (editor mode keeps the default so the "Add trailer" slot shows).
+        showTrailerButton={
+          readOnly
+            ? !!course.trailer_url ||
+              (trialMode === 'lesson_sample' && samplePlayable)
+            : undefined
+        }
         trailerUrl={course.trailer_url}
         onAddCover={onAddCover}
         coverBusy={coverBusy}

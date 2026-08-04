@@ -2097,9 +2097,9 @@
 }
 
 /* ============================================================
-   Course-page mobile chrome — the hamburger / creator / student bar
-   (CourseMobileNav). Desktop keeps the standard TopBar; ≤720px the
-   course route swaps to this bar and drops the bottom tab bar.
+   Course-page mobile chrome — the floating hamburger (CourseMobileNav).
+   Desktop keeps the standard TopBar; ≤720px the course route swaps to
+   this and drops the bottom tab bar.
    ============================================================ */
 .spaire-portal .sp-cnav {
   display: none;
@@ -2114,6 +2114,7 @@
   .spaire-portal.sp-course-route.sp-app--mobile-tabs .sp-course-portal {
     padding-bottom: 0;
   }
+  /* Transparent, pinned — just the hamburger floating over the hero. */
   .spaire-portal.sp-course-route .sp-cnav {
     position: fixed;
     top: 0;
@@ -2122,30 +2123,14 @@
     z-index: 60;
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    padding: calc(10px + env(safe-area-inset-top, 0px)) 14px 18px;
-    /* Own scrim so the white glyphs read over the hero AND over light
-       content when the bar reappears mid-page. */
-    background: linear-gradient(
-      to bottom,
-      rgba(0, 0, 0, 0.6) 0%,
-      rgba(0, 0, 0, 0.28) 62%,
-      transparent 100%
-    );
+    height: calc(50px + env(safe-area-inset-top, 0px));
+    padding: env(safe-area-inset-top, 0px) 14px 0;
+    background: transparent;
+    pointer-events: none;
     color: #fff;
-    transition: transform 0.3s ease, opacity 0.3s ease;
-    pointer-events: none;
-  }
-  .spaire-portal.sp-course-route .sp-cnav > * {
-    pointer-events: auto;
-  }
-  .spaire-portal.sp-course-route .sp-cnav--hidden {
-    transform: translateY(-100%);
-    opacity: 0;
-    pointer-events: none;
   }
   .spaire-portal .sp-cnav-btn {
+    pointer-events: auto;
     flex: none;
     width: 38px;
     height: 38px;
@@ -2153,34 +2138,11 @@
     display: grid;
     place-items: center;
     background: rgba(20, 20, 22, 0.42);
+    -webkit-backdrop-filter: blur(14px) saturate(160%);
+    backdrop-filter: blur(14px) saturate(160%);
     color: #fff;
-    backdrop-filter: blur(16px) saturate(150%);
-    -webkit-backdrop-filter: blur(16px) saturate(150%);
     border: none;
     cursor: pointer;
-  }
-  .spaire-portal .sp-cnav-title {
-    flex: 1;
-    min-width: 0;
-    text-align: center;
-    font-size: 15px;
-    font-weight: 600;
-    letter-spacing: -0.01em;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    text-shadow: 0 1px 12px rgba(0, 0, 0, 0.45);
-  }
-  .spaire-portal .sp-cnav-you {
-    overflow: hidden;
-    font-size: 12.5px;
-    font-weight: 700;
-  }
-  .spaire-portal .sp-cnav-you img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    border-radius: 50%;
   }
 }
 /* Hamburger sheet — one destination per row, portal-themed. */
@@ -2204,4 +2166,54 @@
 }
 .sp-cnav-item.is-active {
   color: var(--sp-accent, #0066cc);
+}
+/* Account row at the foot of the hamburger sheet — avatar + student name,
+   opens the profile hub. Rendered as a button, so reset button chrome. */
+.sp-cnav-account {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  margin-top: 6px;
+  padding: 13px 6px;
+  background: none;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+}
+.sp-cnav-avatar {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  background: var(--sp-accent-tint, rgba(0, 102, 204, 0.12));
+  color: var(--sp-accent, #0066cc);
+  font-size: 14px;
+  font-weight: 700;
+}
+.sp-cnav-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.sp-cnav-account-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.sp-cnav-account-name {
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--sp-ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sp-cnav-account-sub {
+  font-size: 12.5px;
+  color: var(--sp-muted, rgba(0, 0, 0, 0.5));
 }
