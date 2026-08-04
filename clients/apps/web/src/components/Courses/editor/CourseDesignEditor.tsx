@@ -170,7 +170,9 @@ export function CourseDesignEditor({
     })
   }, [course.id, course.thumbnail_url, uploadThumb, record])
 
-  // ── reposition (debounced commit; one undo step per drag gesture) ─────────
+  // ── reposition (debounced commit; one undo step per drag gesture). The
+  //    phone canvas writes the MOBILE-scoped override key instead of the
+  //    course field, so a phone reposition never moves the desktop cover. ──
   const repositionTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const onCoverPosition = useCallback(
     (pos: string) => {
@@ -178,6 +180,18 @@ export function CourseDesignEditor({
       // Capture the pre-gesture value now (the cache isn't optimistically
       // moved during the drag — livePos handles the live preview), so undo
       // restores where the cover started.
+      if (repositionOnly) {
+        const prev = course.landing_overrides?.hero_cover_pos_m ?? null
+        repositionTimer.current = setTimeout(() => {
+          if (pos === prev) return
+          commitOverrides(
+            { hero_cover_pos_m: pos },
+            { hero_cover_pos_m: prev },
+            'Reposition cover (phone)',
+          )
+        }, 600)
+        return
+      }
       const prev = course.thumbnail_object_position ?? null
       repositionTimer.current = setTimeout(() => {
         if (pos === prev) return
@@ -191,7 +205,13 @@ export function CourseDesignEditor({
         })
       }, 600)
     },
-    [course.thumbnail_object_position, commit],
+    [
+      course.thumbnail_object_position,
+      course.landing_overrides?.hero_cover_pos_m,
+      repositionOnly,
+      commit,
+      commitOverrides,
+    ],
   )
 
   // ── hero container widths (debounced commit; one undo step per adjust,
@@ -203,7 +223,16 @@ export function CourseDesignEditor({
   }>({})
   const onHeroWidth = useCallback(
     (which: 'title' | 'desc', pct: number | null) => {
-      const key = which === 'title' ? 'hero_title_width' : 'hero_desc_width'
+      // The phone canvas adjusts the MOBILE width keys only — a phone width
+      // never re-wraps the desktop hero and vice-versa.
+      const key =
+        which === 'title'
+          ? repositionOnly
+            ? 'hero_title_width_m'
+            : 'hero_title_width'
+          : repositionOnly
+            ? 'hero_desc_width_m'
+            : 'hero_desc_width'
       const timers = heroWidthTimers.current
       if (timers[which]) clearTimeout(timers[which])
       const prev = course.landing_overrides?.[key] ?? null
@@ -218,7 +247,7 @@ export function CourseDesignEditor({
         )
       }, 600)
     },
-    [course.landing_overrides, commitOverrides],
+    [course.landing_overrides, commitOverrides, repositionOnly],
   )
 
   // ── title style (Spaire Title Styles — the "movie title" typeface for the
@@ -312,8 +341,15 @@ export function CourseDesignEditor({
         ? `${Math.floor(totalSecs / 3600)}h ${Math.round((totalSecs % 3600) / 60)}m`
         : `${Math.round(totalSecs / 60)} min`
 
+  const lessonPosMobile = course.landing_overrides?.lesson_pos_m ?? undefined
   const groups: GeneratedGroup[] = useMemo(() => {
     let flat = 0
+    // On the phone canvas each still shows (and edits) its MOBILE focal
+    // point, inheriting the desktop one until a phone-specific drag lands.
+    const posFor = (l: (typeof flatLessons)[number]) =>
+      repositionOnly
+        ? (lessonPosMobile?.[l.id] ?? l.thumbnail_object_position ?? null)
+        : (l.thumbnail_object_position ?? null)
     if (isEpisodic) {
       return [
         {
@@ -325,7 +361,7 @@ export function CourseDesignEditor({
               description: l.description ?? '',
               flatIdx,
               imageUrl: l.thumbnail_url ?? null,
-              imagePosition: l.thumbnail_object_position ?? null,
+              imagePosition: posFor(l),
               durationLabel: fmtDur(l.duration_seconds),
               free: !isLocked(flatIdx),
               locked: isLocked(flatIdx),
@@ -347,7 +383,7 @@ export function CourseDesignEditor({
               description: l.description ?? '',
               flatIdx,
               imageUrl: l.thumbnail_url ?? null,
-              imagePosition: l.thumbnail_object_position ?? null,
+              imagePosition: posFor(l),
               durationLabel: fmtDur(l.duration_seconds),
               free: !isLocked(flatIdx),
               locked: isLocked(flatIdx),
@@ -355,7 +391,15 @@ export function CourseDesignEditor({
           }),
       }))
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [course.modules, isEpisodic, paywallEnabled, trialMode, freeCount])
+  }, [
+    course.modules,
+    isEpisodic,
+    paywallEnabled,
+    trialMode,
+    freeCount,
+    repositionOnly,
+    lessonPosMobile,
+  ])
 
   const [lessonImageBusy, setLessonImageBusy] = useState<number | null>(null)
   const uploadLessonImage = useCallback(
@@ -405,12 +449,26 @@ export function CourseDesignEditor({
   )
 
   // Per-lesson still reposition — debounced commit; one undo step per drag.
+  // On the phone canvas the focal point lands in the mobile-only map
+  // (landing_overrides.lesson_pos_m) so desktop stills never move.
   const lessonReposTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const onRepositionLesson = useCallback(
     (flatIdx: number, pos: string) => {
       const lesson = flatLessons[flatIdx]
       if (!lesson) return
       if (lessonReposTimer.current) clearTimeout(lessonReposTimer.current)
+      if (repositionOnly) {
+        const prev = course.landing_overrides?.lesson_pos_m?.[lesson.id] ?? null
+        lessonReposTimer.current = setTimeout(() => {
+          if (pos === prev) return
+          commitOverrides(
+            { lesson_pos_m: { [lesson.id]: pos } },
+            { lesson_pos_m: { [lesson.id]: prev } },
+            `Reposition ${unit} image (phone)`,
+          )
+        }, 600)
+        return
+      }
       const prev = lesson.thumbnail_object_position ?? null
       lessonReposTimer.current = setTimeout(() => {
         if (pos === prev) return
@@ -429,7 +487,14 @@ export function CourseDesignEditor({
         })
       }, 600)
     },
-    [flatLessons, commit, unit],
+    [
+      flatLessons,
+      course.landing_overrides?.lesson_pos_m,
+      repositionOnly,
+      commit,
+      commitOverrides,
+      unit,
+    ],
   )
 
   // Replace a still from inside the reposition overlay (it hands back a File).
@@ -506,17 +571,19 @@ export function CourseDesignEditor({
   const onPortraitPosition = useCallback(
     (pos: string) => {
       if (portraitReposTimer.current) clearTimeout(portraitReposTimer.current)
-      const prev = course.landing_overrides?.portrait_object_position ?? null
+      // Phone canvas → mobile-only key (see onCoverPosition).
+      const key = repositionOnly ? 'portrait_pos_m' : 'portrait_object_position'
+      const prev = course.landing_overrides?.[key] ?? null
       portraitReposTimer.current = setTimeout(() => {
         if (pos === prev) return
         commitOverrides(
-          { portrait_object_position: pos },
-          { portrait_object_position: prev },
-          'Reposition portrait',
+          { [key]: pos },
+          { [key]: prev },
+          repositionOnly ? 'Reposition portrait (phone)' : 'Reposition portrait',
         )
       }, 600)
     },
-    [course.landing_overrides?.portrait_object_position, commitOverrides],
+    [course.landing_overrides, repositionOnly, commitOverrides],
   )
 
   // ── instructor avatar (round) — reuses the Space avatar crop editor
@@ -911,7 +978,14 @@ export function CourseDesignEditor({
         buyLabel={buyLabel}
         freeLine={freeLine}
         coverUrl={course.thumbnail_url}
-        coverPosition={course.thumbnail_object_position}
+        // The phone canvas shows (and edits) the mobile focal point,
+        // inheriting the desktop one until a phone-specific drag lands.
+        coverPosition={
+          repositionOnly
+            ? (course.landing_overrides?.hero_cover_pos_m ??
+              course.thumbnail_object_position)
+            : course.thumbnail_object_position
+        }
         sampleImageUrl={sampleLesson?.thumbnail_url ?? null}
         samplePlayable={samplePlayable}
         samplePlaybackId={sampleLesson?.mux_playback_id ?? null}
@@ -950,8 +1024,19 @@ export function CourseDesignEditor({
         trailerBusy={trailerBusy}
         trailerPct={trailerPct}
         onCoverPosition={onCoverPosition}
-        heroTitleWidth={course.landing_overrides?.hero_title_width ?? null}
-        heroDescWidth={course.landing_overrides?.hero_desc_width ?? null}
+        // Widths are per-surface: the phone canvas reads/writes the mobile
+        // keys (default = the mobile design, full-width centered), desktop
+        // the desktop keys.
+        heroTitleWidth={
+          repositionOnly
+            ? (course.landing_overrides?.hero_title_width_m ?? null)
+            : (course.landing_overrides?.hero_title_width ?? null)
+        }
+        heroDescWidth={
+          repositionOnly
+            ? (course.landing_overrides?.hero_desc_width_m ?? null)
+            : (course.landing_overrides?.hero_desc_width ?? null)
+        }
         onHeroWidth={onHeroWidth}
         heroTitleFont={course.landing_overrides?.hero_title_font ?? null}
         onHeroTitleFont={repositionOnly ? undefined : onHeroTitleFont}
@@ -983,7 +1068,11 @@ export function CourseDesignEditor({
         instructorBio={aiInstructor?.bio ?? []}
         portraitUrl={course.landing_overrides?.portrait_url ?? null}
         portraitPosition={
-          course.landing_overrides?.portrait_object_position ?? null
+          repositionOnly
+            ? (course.landing_overrides?.portrait_pos_m ??
+              course.landing_overrides?.portrait_object_position ??
+              null)
+            : (course.landing_overrides?.portrait_object_position ?? null)
         }
         portraitCaption={aiInstructor?.caption ?? ''}
         onAddPortrait={repositionOnly ? undefined : onAddPortrait}

@@ -77,10 +77,20 @@ function Preview() {
   const [lessonPos, setLessonPos] = useState<Record<number, string>>({})
   // Local stand-in for landing_overrides.hero_title_width / hero_desc_width so
   // the creator-bar Width control is exercisable in this preview.
+  // `?tw=40` seeds a desktop title width; `?twm=60` / `?dwm=70` exercise the
+  // MOBILE-scoped widths; `?coverpos=` / `?coverposm=` the split cover focal
+  // points (e.g. coverpos=50%25%2010%25 for "50% 10%").
   const [heroWidths, setHeroWidths] = useState<{
     title: number | null
     desc: number | null
-  }>({ title: null, desc: null })
+  }>(() => {
+    const tw = params.get('tw')
+    return { title: tw ? parseInt(tw, 10) : null, desc: null }
+  })
+  const twMobile = params.get('twm') ? parseInt(params.get('twm')!, 10) : null
+  const dwMobile = params.get('dwm') ? parseInt(params.get('dwm')!, 10) : null
+  const coverPos = params.get('coverpos')
+  const coverPosMobile = params.get('coverposm')
   // Local stand-in for landing_overrides.hero_title_font so the Title-style
   // picker is exercisable in this preview.
   const [heroTitleFont, setHeroTitleFont] = useState<string | null>(null)
@@ -171,6 +181,8 @@ function Preview() {
       dark={dark}
       onToggleDark={() => setDark((d) => !d)}
       coverUrl={withCover ? '/assets/onboarding/cover-hero.jpg' : undefined}
+      coverPosition={coverPos}
+      coverPositionMobile={coverPosMobile}
       avatarUrl={withCover ? '/assets/onboarding/cover-hero.jpg' : null}
       instructorSub="Two-time major champion and 14-season PGA Tour veteran. Holds the tour record for most strokes gained around the green over a single season."
       instructorBio={[
@@ -205,6 +217,8 @@ function Preview() {
       }
       heroTitleWidth={heroWidths.title}
       heroDescWidth={heroWidths.desc}
+      heroTitleWidthMobile={twMobile}
+      heroDescWidthMobile={dwMobile}
       heroTitleFont={heroTitleFont}
       onHeroTitleFont={editable ? setHeroTitleFont : undefined}
       onHeroWidth={

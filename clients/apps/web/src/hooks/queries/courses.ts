@@ -283,6 +283,16 @@ export type LandingOverrides = {
   // default max-widths. Landing page only (marquee + cover heroes).
   hero_title_width?: number | null
   hero_desc_width?: number | null
+  // Mobile-scoped overrides — set from the Landing tab's PHONE canvas and
+  // applied ONLY at phone size (≤640px). Desktop edits never touch these,
+  // phone edits never touch the desktop fields. Positions inherit the
+  // desktop value until a mobile one is set; widths default to the mobile
+  // design (full-width, centered) until set.
+  hero_title_width_m?: number | null
+  hero_desc_width_m?: number | null
+  hero_cover_pos_m?: string | null
+  portrait_pos_m?: string | null
+  lesson_pos_m?: Record<string, string> | null
   // Spaire Title Style key (see components/Courses/titleFonts.ts) — the
   // "movie title" typeface for the hero headline and the course title in
   // the portal hero. Absent → Classic (the design default).

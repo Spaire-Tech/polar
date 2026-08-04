@@ -439,6 +439,10 @@ export function PublicPortalView({
       // looked right in the studio and rendered at the default crop for
       // every visitor.
       imagePosition: l.thumbnail_object_position ?? null,
+      // Phone-only crop from the phone canvas; the mobile stylesheet
+      // applies it at ≤640px, falling back to the desktop crop.
+      imagePositionMobile:
+        landing.landing_overrides?.lesson_pos_m?.[l.id] ?? null,
       durationLabel: l.duration_seconds
         ? `${Math.max(1, Math.round(l.duration_seconds / 60))}m`
         : null,
@@ -477,7 +481,13 @@ export function PublicPortalView({
       }
     }
     return out
-  }, [isEpisodic, landing.modules, flatLessons, isLocked])
+  }, [
+    isEpisodic,
+    landing.modules,
+    flatLessons,
+    isLocked,
+    landing.landing_overrides?.lesson_pos_m,
+  ])
 
   const flatForClick = useMemo(() => groups.flatMap((g) => g.lessons), [groups])
   const onLessonClick = useCallback(
@@ -516,8 +526,15 @@ export function PublicPortalView({
         freeLine={freeLine}
         coverUrl={landing.thumbnail_url}
         coverPosition={landing.thumbnail_object_position}
+        coverPositionMobile={landing.landing_overrides?.hero_cover_pos_m ?? null}
         heroTitleWidth={landing.landing_overrides?.hero_title_width ?? null}
         heroDescWidth={landing.landing_overrides?.hero_desc_width ?? null}
+        heroTitleWidthMobile={
+          landing.landing_overrides?.hero_title_width_m ?? null
+        }
+        heroDescWidthMobile={
+          landing.landing_overrides?.hero_desc_width_m ?? null
+        }
         heroTitleFont={landing.landing_overrides?.hero_title_font ?? null}
         trailerUrl={landing.trailer_url ?? null}
         sampleImageUrl={sample?.thumbnail_url ?? null}
@@ -541,6 +558,9 @@ export function PublicPortalView({
         portraitUrl={portraitUrl}
         portraitPosition={
           landing.landing_overrides?.portrait_object_position ?? null
+        }
+        portraitPositionMobile={
+          landing.landing_overrides?.portrait_pos_m ?? null
         }
         portraitCaption={aiInstructor?.caption ?? ''}
         faq={aiFaq}

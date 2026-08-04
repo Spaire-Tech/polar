@@ -109,11 +109,15 @@ const LockChip = () => (
 function LessonThumb({
   src,
   position,
+  positionMobile,
   className,
   eager = false,
 }: {
   src: string
   position?: string | null
+  /** Mobile-only focal point — applied for phone visitors via the
+   *  `.gpp-mpos` mobile-stylesheet rule (falls back to `position`). */
+  positionMobile?: string | null
   className?: string
   eager?: boolean
 }) {
@@ -177,12 +181,15 @@ function LessonThumb({
     // eslint-disable-next-line @next/next/no-img-element
     <img
       ref={imgRef}
-      className={className}
+      className={`${className ?? ''} gpp-mpos`}
       src={visible ? url : undefined}
       alt=""
       loading={eager ? 'eager' : 'lazy'}
       decoding="async"
-      style={{ objectPosition: position ?? undefined }}
+      style={{
+        objectPosition: position ?? undefined,
+        ...mobilePosVars(position ?? 'center', positionMobile),
+      }}
       onError={scheduleRetry}
     />
   )
@@ -997,6 +1004,18 @@ const MOBILE_640_CSS = `
             max-width: none;
             font-size: 16px;
           }
+
+          /* ── Centered mobile heroes ── phone hero content sits in the
+             middle (both variants), matching the portal's mobile hero. */
+          .gpp .hero-content {
+            text-align: center;
+          }
+          .gpp .hero-meta {
+            justify-content: center;
+          }
+          .gpp .panel-title {
+            align-items: center;
+          }
         `
 
 const classifyMobileCss = (css: string) =>
@@ -1005,6 +1024,59 @@ const classifyMobileCss = (css: string) =>
     .replace(/(\d)svh/g, '$1cqh')
     .replace(/(\d)vw/g, '$1cqw')
 
+// CSS custom property helper — React.CSSProperties doesn't type --vars.
+const cssVar = (
+  name: string,
+  value: string | null | undefined,
+): React.CSSProperties =>
+  value ? ({ [name]: value } as React.CSSProperties) : {}
+
+// Vars carrying the desktop + mobile focal points for a repositionable
+// image. Desktop keeps the plain inline background/object-position; the
+// visitor-mobile rule (MOBILE_VISITOR_CSS) swaps in --pos-m when set.
+const mobilePosVars = (
+  desktop: string,
+  mobile: string | null | undefined,
+): React.CSSProperties =>
+  ({
+    '--pos-d': desktop,
+    ...(mobile ? { '--pos-m': mobile } : {}),
+  }) as React.CSSProperties
+
+// Visitor-phone-only rules (inside the ≤640 media query, NEVER classified
+// into the canvas variant — the phone canvas swaps values in React instead).
+// They exist so mobile-scoped edits are real for visitors:
+// * repositionable images honor the mobile focal point (falling back to the
+//   desktop one) — !important beats the desktop inline style;
+// * hero title/desc containers honor ONLY the mobile width — a desktop
+//   width never leaks into phones, and a narrowed container stays centered.
+const MOBILE_VISITOR_CSS = `
+          .gpp .gpp-mpos {
+            background-position: var(--pos-m, var(--pos-d, center)) !important;
+            object-position: var(--pos-m, var(--pos-d, center)) !important;
+          }
+          .gpp .pt-h {
+            max-width: var(--tw-m, 13ch) !important;
+            margin-left: auto !important;
+            margin-right: auto !important;
+          }
+          .gpp .hero-title {
+            max-width: var(--tw-m, none) !important;
+            margin-left: auto !important;
+            margin-right: auto !important;
+          }
+          .gpp .band-desc .bd-text {
+            max-width: var(--dw-m, none) !important;
+            margin-left: auto !important;
+            margin-right: auto !important;
+          }
+          .gpp .hero-desc {
+            max-width: var(--dw-m, none) !important;
+            margin-left: auto !important;
+            margin-right: auto !important;
+          }
+`
+
 // The media-query variant is assembled HERE (not inline in the style
 // template): styled-jsx's compiler silently drops `@media { ${expr} }`
 // blocks, but passes whole-string `${expr}` interpolations through intact.
@@ -1012,7 +1084,8 @@ const classifyMobileCss = (css: string) =>
 // State (Mobile).html".)
 const MOBILE_MEDIA_CSS = `
         @media (max-width: 820px) {${MOBILE_820_CSS}}
-        @media (max-width: 640px) {${MOBILE_640_CSS}}
+        @media (max-width: 640px) {${MOBILE_640_CSS}
+${MOBILE_VISITOR_CSS}}
 `
 
 // Drag-to-resize wrapper for the hero title / description containers (editor
@@ -1103,6 +1176,9 @@ export type GeneratedLesson = {
   imageUrl?: string | null
   /** object-position for the lesson still (creator-set via Reposition). */
   imagePosition?: string | null
+  /** Mobile-only object-position (set from the phone canvas); applied for
+   *  phone visitors via the mobile stylesheet's CSS-variable rule. */
+  imagePositionMobile?: string | null
   durationLabel?: string | null
   free: boolean
   locked: boolean
@@ -1139,6 +1215,10 @@ export type GeneratedPortalPageProps = {
   freeLine: string
   coverUrl?: string | null
   coverPosition?: string | null
+  /** Mobile-only cover focal point — applied for phone visitors only (the
+   *  phone canvas instead swaps `coverPosition` itself). Falls back to the
+   *  desktop position when unset. */
+  coverPositionMobile?: string | null
   /** Real sample poster/clip (public page); placeholder otherwise. */
   sampleImageUrl?: string | null
   samplePlayable?: boolean
@@ -1163,6 +1243,8 @@ export type GeneratedPortalPageProps = {
   portraitUrl?: string | null
   /** Focal point for the square portrait (CSS object-position). */
   portraitPosition?: string | null
+  /** Mobile-only portrait focal point (phone visitors; see coverPositionMobile). */
+  portraitPositionMobile?: string | null
   portraitCaption?: string
   onAddPortrait?: () => void
   portraitBusy?: boolean
@@ -1215,6 +1297,11 @@ export type GeneratedPortalPageProps = {
    *  content area, 20–100). Absent → the design's default max-widths. */
   heroTitleWidth?: number | null
   heroDescWidth?: number | null
+  /** Mobile-only hero widths — applied for phone visitors only. Unset →
+   *  the mobile design default (full-width, centered). The phone canvas
+   *  instead swaps heroTitleWidth/heroDescWidth itself. */
+  heroTitleWidthMobile?: number | null
+  heroDescWidthMobile?: number | null
   /** Spaire Title Style key (titleFonts.ts) for the hero headline.
    *  Absent/null → Classic (the design default). */
   heroTitleFont?: string | null
@@ -1316,6 +1403,7 @@ export function GeneratedPortalPage({
   freeLine,
   coverUrl,
   coverPosition,
+  coverPositionMobile = null,
   sampleImageUrl,
   samplePlayable = false,
   samplePlaybackId = null,
@@ -1328,6 +1416,7 @@ export function GeneratedPortalPage({
   instructorBio = [],
   portraitUrl = null,
   portraitPosition = null,
+  portraitPositionMobile = null,
   portraitCaption = '',
   onAddPortrait,
   portraitBusy = false,
@@ -1356,6 +1445,8 @@ export function GeneratedPortalPage({
   trailerPct = null,
   onCoverPosition,
   heroTitleWidth = null,
+  heroTitleWidthMobile = null,
+  heroDescWidthMobile = null,
   heroDescWidth = null,
   heroTitleFont = null,
   onHeroTitleFont,
@@ -1881,6 +1972,16 @@ export function GeneratedPortalPage({
         : undefined
   const coverDescStyle: React.CSSProperties | undefined =
     effDescW != null ? { maxWidth: `${effDescW}%` } : undefined
+  // Mobile-scoped widths, carried as CSS vars — the visitor-mobile rules
+  // (MOBILE_VISITOR_CSS) apply them ONLY at phone size.
+  const twMobileVar = cssVar(
+    '--tw-m',
+    heroTitleWidthMobile != null ? `${heroTitleWidthMobile}%` : null,
+  )
+  const dwMobileVar = cssVar(
+    '--dw-m',
+    heroDescWidthMobile != null ? `${heroDescWidthMobile}%` : null,
+  )
 
   // ── Spaire Title Style — the creator-picked "movie title" typeface for
   //    the hero headline. Classic (null) keeps the design's own font. ──
@@ -2165,6 +2266,7 @@ export function GeneratedPortalPage({
         <LessonThumb
           src={l.imageUrl}
           position={l.imagePosition}
+          positionMobile={l.imagePositionMobile}
           className="photo"
           eager={l.flatIdx === 0}
         />
@@ -2265,6 +2367,7 @@ export function GeneratedPortalPage({
             <LessonThumb
               src={l.imageUrl}
               position={l.imagePosition}
+              positionMobile={l.imagePositionMobile}
               eager={l.flatIdx === 0}
             />
           ) : (
@@ -2386,10 +2489,14 @@ export function GeneratedPortalPage({
           {coverUrl ? (
             <>
               <div
-                className="panel-art"
+                className="panel-art gpp-mpos"
                 style={{
                   backgroundImage: `url('${coverUrl}')`,
                   backgroundPosition: effectiveCoverPos || 'center 18%',
+                  ...mobilePosVars(
+                    effectiveCoverPos || 'center 18%',
+                    coverPositionMobile,
+                  ),
                 }}
               />
               {trailerLayer}
@@ -2461,6 +2568,7 @@ export function GeneratedPortalPage({
                       : undefined
                     : titleWidthStyle),
                   ...titleFontStyle,
+                  ...twMobileVar,
                 }}
               />
             </ResizableWidth>
@@ -2522,13 +2630,14 @@ export function GeneratedPortalPage({
                     value={desc}
                     className="bd-text"
                     tag="p"
-                    style={
-                      widthEditable
+                    style={{
+                      ...(widthEditable
                         ? effDescW != null
                           ? UNCAP
                           : undefined
-                        : descWidthStyle
-                    }
+                        : descWidthStyle),
+                      ...dwMobileVar,
+                    }}
                   />
                 </ResizableWidth>
                 {!(editable && onEditText) && !descExpanded && (
@@ -2654,12 +2763,16 @@ export function GeneratedPortalPage({
           <div className="ph-ambient" />
           <div className="hero-art" />
           <div
-            className="photo"
+            className="photo gpp-mpos"
             style={
               coverUrl
                 ? {
                     backgroundImage: `url("${coverUrl}")`,
                     backgroundPosition: effectiveCoverPos || 'center',
+                    ...mobilePosVars(
+                      effectiveCoverPos || 'center',
+                      coverPositionMobile,
+                    ),
                   }
                 : undefined
             }
@@ -2759,23 +2872,49 @@ export function GeneratedPortalPage({
                   style={{
                     ...(widthEditable ? undefined : coverTitleStyle),
                     ...titleFontStyle,
+                    ...twMobileVar,
                   }}
                 />
               </ResizableWidth>
             ) : (
-              <h1
-                className="hero-title"
-                style={{ ...coverTitleStyle, ...titleFontStyle }}
+              // Width wrapper here too — the phone canvas renders this
+              // branch (editable without text editing) and must still offer
+              // the title-width drag handle.
+              <ResizableWidth
+                enabled={widthEditable}
+                pct={effTitleW}
+                onPct={(p) => setHeroWidth('title', p)}
+                innerStyle={
+                  effTitleW != null
+                    ? { maxWidth: `${effTitleW}%` }
+                    : coverAnyWidth
+                      ? { maxWidth: 760 }
+                      : undefined
+                }
+                label="title"
               >
-                {titleLines && titleLines.length > 1
-                  ? titleLines.map((line, i) => (
-                      <span key={i}>
-                        {i > 0 && <br />}
-                        {line}
-                      </span>
-                    ))
-                  : title}
-              </h1>
+                <h1
+                  className="hero-title"
+                  style={{
+                    ...(widthEditable
+                      ? effTitleW != null
+                        ? UNCAP
+                        : undefined
+                      : coverTitleStyle),
+                    ...titleFontStyle,
+                    ...twMobileVar,
+                  }}
+                >
+                  {titleLines && titleLines.length > 1
+                    ? titleLines.map((line, i) => (
+                        <span key={i}>
+                          {i > 0 && <br />}
+                          {line}
+                        </span>
+                      ))
+                    : title}
+                </h1>
+              </ResizableWidth>
             )}
 
             <ResizableWidth
@@ -2789,13 +2928,14 @@ export function GeneratedPortalPage({
             >
               <p
                 className="hero-desc"
-                style={
-                  widthEditable
+                style={{
+                  ...(widthEditable
                     ? effDescW != null
                       ? UNCAP
                       : undefined
-                    : coverDescStyle
-                }
+                    : coverDescStyle),
+                  ...dwMobileVar,
+                }}
               >
                 <EditText
                   editable={editable}
@@ -2996,12 +3136,16 @@ export function GeneratedPortalPage({
                 <div className="ph-ambient" />
                 <div className="glass-tint" />
                 <div
-                  className="photo"
+                  className="photo gpp-mpos"
                   style={
                     portraitUrl
                       ? {
                           backgroundImage: `url("${portraitUrl}")`,
                           backgroundPosition: effectivePortraitPos || 'center',
+                          ...mobilePosVars(
+                            effectivePortraitPos || 'center',
+                            portraitPositionMobile,
+                          ),
                         }
                       : undefined
                   }
@@ -5951,6 +6095,10 @@ export function GeneratedPortalPage({
         }
         .gpp.gpp-m .gpp-rz-inner {
           width: fit-content;
+          /* Mobile hero content is centered — keep the sized box centered
+             too (a fit-content block would otherwise hug the left edge). */
+          margin-left: auto;
+          margin-right: auto;
         }
       `}</style>
     </div>
