@@ -1147,9 +1147,6 @@ export function WatchPageStyles() {
       .sow .m-hero-art {
         display: none;
       }
-      .sow .m-cards {
-        display: none;
-      }
       @media (max-width: 720px) {
         .sow .panel {
           height: auto;
@@ -1309,40 +1306,26 @@ export function WatchPageStyles() {
           width: 100%;
         }
 
-        /* ── mobile card stack — the SAME landing-style cards the desktop
-           rails use, one per row, grouped under season headings. ── */
+        /* ── lesson rails on phones — the SAME swipeable strips the landing
+           uses. Scroll-snap does the paging; only the hover arrows hide.
+           One card fills most of the view so the swipe reads card-by-card. ── */
         .sow .lessons {
           padding: 26px var(--gut) 80px;
         }
-        .sow .strip-wrap,
-        .sow .row-head {
+        .sow .arrow {
           display: none;
         }
-        .sow .m-cards {
-          display: flex;
-          flex-direction: column;
-          gap: 10px;
-        }
-        .sow .ml-module {
-          margin: 18px 0 10px;
-          font-size: 12px;
-          font-weight: 700;
-          letter-spacing: 0.08em;
-          text-transform: uppercase;
-          color: var(--text-2);
-        }
-        .sow .m-cards-stack {
-          display: flex;
-          flex-direction: column;
-          gap: 14px;
-        }
-        .sow .m-cards-stack .lc-catalog,
-        .sow .m-cards-stack .lc-spot {
-          width: 100%;
+        .sow .grid .lc-catalog,
+        .sow .grid .lc-spot {
+          flex: 0 0 84%;
           min-width: 0;
+          scroll-snap-align: start;
         }
-        .sow .m-cards-stack .spot-card {
-          width: 100%;
+        .sow .row-head .rh {
+          font-size: 17px;
+        }
+        .sow .row-head .rh-meta {
+          font-size: 12.5px;
         }
       }
     `}</style>

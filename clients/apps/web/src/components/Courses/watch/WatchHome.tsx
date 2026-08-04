@@ -1340,7 +1340,6 @@ export function WatchHome({
               return (
                 <div
                   key={r.module.id}
-                  className="max-[720px]:hidden"
                   style={ri > 0 ? { marginTop: 42 } : undefined}
                 >
                   <div className="row-head">
@@ -1375,50 +1374,17 @@ export function WatchHome({
             </>
           )
 
-          // Mobile (≤720): the SAME landing-style cards, stacked full-width
-          // under season headings — not thumbnail rows. Trailers close the
-          // page. WatchPageStyles swaps .m-cards in for the rails there.
-          const mobileCards = (
-            <div className="m-cards">
-              {seasonRails ? (
-                seasonRails.map((r) => (
-                  <div key={r.module.id}>
-                    <div className="ml-module">
-                      {r.module.title || `Season ${r.index + 1}`}
-                    </div>
-                    <div className="m-cards-stack">
-                      {r.items.map((l, idx) => renderRailCard(l, idx + 1))}
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className="m-cards-stack">
-                  {lessons.map((l, i) => renderRailCard(l, i + 1))}
-                </div>
-              )}
-              {trailerCard && (
-                <div>
-                  <div className="ml-module">Trailers</div>
-                  <div className="m-cards-stack">{trailerCard}</div>
-                </div>
-              )}
-            </div>
-          )
-
-          return (
-            <>
-              {rails}
-              {mobileCards}
-            </>
-          )
+          // Mobile shows these SAME rails — swipeable strips, exactly like
+          // the landing (scroll-snap does the work; only the hover arrows
+          // hide). No separate mobile list.
+          return rails
         })()}
 
         {/* ════ Trailers — portal-only rail at the very bottom. The card
             wears the SAME variant the creator chose at onboarding (spotlight
-            or catalog), exactly like the lesson cards. Desktop rail hides
-            ≤720px (the mobile card stack carries its own Trailers group). ════ */}
+            or catalog), exactly like the lesson cards. ════ */}
         {trailerCard && (
-          <div className="max-[720px]:hidden" style={{ marginTop: 42 }}>
+          <div style={{ marginTop: 42 }}>
             <div className="row-head">
               <span className="rh">Trailers</span>
             </div>
