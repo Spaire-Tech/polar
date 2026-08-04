@@ -1,20 +1,17 @@
 'use client'
 
 // The course landing, alone on the page — the document the Landing tab's
-// phone frame iframes. Two modes, driven by ?edit:
-//
-//   (default)  Preview — exactly what a phone visitor sees. No edit
-//              affordances, no creator pills, no status chip.
-//   ?edit=1    Edit — the same touch-to-edit canvas as desktop, with its
-//              own edit pipeline (optimistic saves, undo/redo via ⌘Z/⌘⇧Z)
-//              against the same server; the desktop side refetches when
-//              the creator switches back.
+// phone frame iframes. It renders exactly what a phone visitor sees, with
+// direct manipulation kept for the edits that matter at phone size: drag
+// the cover / lesson stills / portrait into place. Repositions run through
+// the same edit pipeline as the desktop canvas (optimistic saves, ⌘Z/⌘⇧Z
+// undo) against the same server; the desktop side refetches when the
+// creator switches back.
 
 import { CourseDesignEditor } from '@/components/Courses/editor/CourseDesignEditor'
 import { useLandingEditor } from '@/components/Courses/editor/useLandingEditor'
 import { useCourseById } from '@/hooks/queries/courses'
 import { schemas } from '@spaire/client'
-import { useSearchParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
 
 function StatusChip({ label, error }: { label: string; error: boolean }) {
@@ -34,11 +31,9 @@ function StatusChip({ label, error }: { label: string; error: boolean }) {
 function Editor({
   organization,
   course,
-  readOnly,
 }: {
   organization: schemas['Organization']
   course: NonNullable<ReturnType<typeof useCourseById>['data']>
-  readOnly: boolean
 }) {
   const editor = useLandingEditor(course)
   const [uploadBusy, setUploadBusy] = useState(false)
@@ -46,7 +41,6 @@ function Editor({
 
   // Same ⌘Z / ⌘⇧Z handling as the desktop Landing tab, scoped to this frame.
   useEffect(() => {
-    if (readOnly) return
     const onKey = (e: KeyboardEvent) => {
       const mod = e.metaKey || e.ctrlKey
       if (!mod) return
@@ -68,7 +62,7 @@ function Editor({
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [undo, redo, readOnly])
+  }, [undo, redo])
 
   const saving = uploadBusy || status === 'saving'
   const label = saving
@@ -86,11 +80,9 @@ function Editor({
         organization={organization}
         editor={editor}
         onBusyChange={setUploadBusy}
-        readOnly={readOnly}
+        mode="reposition"
       />
-      {!readOnly && label && (
-        <StatusChip label={label} error={status === 'error'} />
-      )}
+      {label && <StatusChip label={label} error={status === 'error'} />}
     </div>
   )
 }
@@ -103,8 +95,6 @@ export default function LandingMobileEditor({
   courseId: string
 }) {
   const { data: course, isLoading, error } = useCourseById(courseId)
-  const searchParams = useSearchParams()
-  const readOnly = searchParams.get('edit') !== '1'
 
   if (isLoading) {
     return (
@@ -120,7 +110,5 @@ export default function LandingMobileEditor({
       </div>
     )
   }
-  return (
-    <Editor organization={organization} course={course} readOnly={readOnly} />
-  )
+  return <Editor organization={organization} course={course} />
 }
