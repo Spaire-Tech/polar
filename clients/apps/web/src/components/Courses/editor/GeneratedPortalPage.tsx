@@ -465,6 +465,12 @@ const MOBILE_640_CSS = `
             justify-content: center;
             height: 56px;
             font-size: 16px;
+            /* Labels never wrap mid-pill — the label FITTER (see the
+               fit-CTA effect) shrinks the font instead when a label is
+               too long for its half. Clip inside the pill as a last
+               resort (a beyond-floor label must not bleed across). */
+            white-space: nowrap;
+            overflow: hidden;
           }
           .gpp .btn-trailer {
             padding: 0 0 0 8px;
@@ -473,6 +479,11 @@ const MOBILE_640_CSS = `
           .gpp .btn-trailer .play {
             width: 38px;
             height: 38px;
+          }
+          /* The design's enroll pill is label-only — no trailing arrow.
+             (Dropping it also frees the width a long price label needs.) */
+          .gpp .btn-enroll svg {
+            display: none;
           }
           .gpp .btn-enroll {
             padding: 0;
@@ -811,6 +822,9 @@ const MOBILE_640_CSS = `
             padding: 0 22px;
             border-radius: 980px;
             font-size: 16px;
+            /* One line per label — the fit-CTA effect shrinks instead. */
+            white-space: nowrap;
+            overflow: hidden;
           }
           .gpp .band-actions .abtn.play {
             box-shadow: 0 8px 26px rgba(0, 0, 0, 0.2);
@@ -2062,6 +2076,39 @@ export function GeneratedPortalPage({
     </button>
   ) : null
 
+  // ── CTA label fitter ── the hero pills share one row, and a long label
+  //    ("Subscribe — $89 / month") must NEVER wrap mid-pill. The labels are
+  //    nowrap; when one overflows its pill, step its font down (16 → 10px)
+  //    until it fits on the single line. Runs after every render (labels
+  //    are props) and again on resize.
+  const gppRootRef = useRef<HTMLDivElement | null>(null)
+  useEffect(() => {
+    const root = gppRootRef.current
+    if (!root) return
+    const fit = () => {
+      const btns = root.querySelectorAll<HTMLElement>(
+        '.hero-actions .btn-trailer, .hero-actions .btn-enroll, .band-actions .abtn',
+      )
+      btns.forEach((b) => {
+        b.style.fontSize = ''
+        let size = parseFloat(getComputedStyle(b).fontSize)
+        // scrollWidth rounds up — 1px slack so exact fits don't shrink.
+        while (b.scrollWidth > b.clientWidth + 1 && size > 10) {
+          size -= 0.5
+          b.style.fontSize = `${size}px`
+        }
+      })
+    }
+    fit()
+    const ro = new ResizeObserver(fit)
+    ro.observe(root)
+    window.addEventListener('resize', fit)
+    return () => {
+      ro.disconnect()
+      window.removeEventListener('resize', fit)
+    }
+  })
+
   // free_preview mode marks every locked lesson with a Free / lock chip.
   const showChips = paywallEnabled && trialMode === 'free_preview'
   // Regardless of trial mode, a lesson that's been set to free preview should
@@ -2470,6 +2517,7 @@ export function GeneratedPortalPage({
 
   return (
     <div
+      ref={gppRootRef}
       className={`gpp ${dark ? 'dark' : ''} ${isEpisodic ? 'epi' : ''} ${
         phoneCanvas ? 'gpp-m' : ''
       }`}
