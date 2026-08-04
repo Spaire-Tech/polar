@@ -9,8 +9,13 @@ import {
 import {
   DndContext,
   DragEndEvent,
+  DragOverEvent,
+  DragOverlay,
+  DragStartEvent,
+  MeasuringStrategy,
   PointerSensor,
   closestCenter,
+  useDroppable,
   useSensor,
   useSensors,
 } from '@dnd-kit/core'
@@ -31,7 +36,7 @@ import PlayArrowRounded from '@mui/icons-material/PlayArrowRounded'
 import ScheduleOutlined from '@mui/icons-material/ScheduleOutlined'
 import SearchOutlined from '@mui/icons-material/SearchOutlined'
 import VisibilityOutlined from '@mui/icons-material/VisibilityOutlined'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { toast } from '../../Toast/use-toast'
 import { LessonOptionsMenu, LessonOptionsPatch } from './LessonOptionsMenu'
 import { PaywallRow } from './PaywallRow'
@@ -273,6 +278,7 @@ export function OutlineTab({
   onUpdateLesson,
   onDeleteLesson,
   onReorderLessons,
+  onMoveLesson,
   onEditPaywall,
   onAddModule,
   onRenameModule,
@@ -293,6 +299,14 @@ export function OutlineTab({
   onUpdateLesson: (lesson: CourseLessonRead, patch: LessonOptionsPatch) => void
   onDeleteLesson: (lesson: CourseLessonRead) => void
   onReorderLessons: (moduleId: string, orderedIds: string[]) => void
+  /** Drag a lesson into another season: re-parent + reorder both seasons. */
+  onMoveLesson?: (
+    lessonId: string,
+    fromModule: CourseModuleRead,
+    toModule: CourseModuleRead,
+    targetOrderedIds: string[],
+    sourceOrderedIds: string[],
+  ) => void
   onEditPaywall?: () => void
   onAddModule?: () => void
   onRenameModule?: (module: CourseModuleRead, title: string) => void
@@ -381,6 +395,18 @@ export function OutlineTab({
     [course.modules],
   )
 
+  // With no paywall split (the common case) all seasons — including empty
+  // ones — live in ONE drag context, in course order, so lessons can be
+  // dragged between any pair of seasons and into an empty one. With the
+  // paywall on, the free/paid split keeps its separate blocks.
+  const mainGroups = useMemo(() => {
+    if (showPaywall || trimmed || episodic) return freeGroups
+    const byId = new Map(freeGroups.map((g) => [g.module.id, g]))
+    return [...course.modules]
+      .sort((a, b) => a.position - b.position)
+      .map((m): ModuleGroup => byId.get(m.id) ?? { module: m, items: [] })
+  }, [freeGroups, showPaywall, trimmed, episodic, course.modules])
+
   const showEmptyCourseState =
     !trimmed && allLessons.length === 0 && course.modules.length === 0
 
@@ -452,7 +478,7 @@ export function OutlineTab({
             count={freeItems.length}
           />
           <ModuleGroups
-            groups={freeGroups}
+            groups={mainGroups}
             episodic={episodic}
             canSchedule={canSchedule}
             scheduleUpgradeTier={scheduleUpgradeTier}
@@ -465,6 +491,7 @@ export function OutlineTab({
             onUpdateLesson={onUpdateLesson}
             onDeleteLesson={onDeleteLesson}
             onReorderLessons={onReorderLessons}
+            onMoveLesson={onMoveLesson}
             onRenameModule={onRenameModule}
             onDeleteModule={onDeleteModule}
           />
@@ -488,16 +515,18 @@ export function OutlineTab({
                 onUpdateLesson={onUpdateLesson}
                 onDeleteLesson={onDeleteLesson}
                 onReorderLessons={onReorderLessons}
+                onMoveLesson={onMoveLesson}
                 onRenameModule={onRenameModule}
                 onDeleteModule={onDeleteModule}
               />
             </>
           )}
 
-          {/* Seasons with no lessons — show only when not searching. In a
-              limited series the single container is invisible, so an empty
-              one renders nothing. */}
-          {!episodic && !trimmed && emptyModules.length > 0 && (
+          {/* Seasons with no lessons — with no paywall they're already part
+              of the main drag context above; with the paywall split they
+              still render here so they stay visible. In a limited series the
+              single container is invisible, so an empty one renders nothing. */}
+          {!episodic && !trimmed && showPaywall && emptyModules.length > 0 && (
             <ModuleGroups
               groups={emptyModules}
               canSchedule={canSchedule}
@@ -537,6 +566,66 @@ export function OutlineTab({
   )
 }
 
+// Merge a reordered visible subset back into a module's full lesson order.
+// Visible slots take the new order; lessons outside the visible range keep
+// their positions.
+function mergeVisibleOrder(
+  fullIds: string[],
+  visibleIds: string[],
+  newVisible: string[],
+): string[] {
+  const visibleSet = new Set(visibleIds)
+  let i = 0
+  return fullIds.map((id) => (visibleSet.has(id) ? newVisible[i++] : id))
+}
+
+// Merge a target module's visible order — which now INCLUDES ids dragged in
+// from another module — into its full lesson order. Existing lessons keep
+// their relative slots; foreign ids are inserted where they sit among the
+// visible ones.
+function mergeVisibleWithInsert(
+  fullIds: string[],
+  newVisible: string[],
+): string[] {
+  const fullSet = new Set(fullIds)
+  const slotSet = new Set(newVisible.filter((id) => fullSet.has(id)))
+  const merged: string[] = []
+  let vi = 0
+  const flushForeign = () => {
+    while (vi < newVisible.length && !slotSet.has(newVisible[vi])) {
+      merged.push(newVisible[vi++])
+    }
+  }
+  for (const id of fullIds) {
+    if (slotSet.has(id)) {
+      flushForeign()
+      merged.push(newVisible[vi++])
+    } else {
+      merged.push(id)
+    }
+  }
+  flushForeign()
+  return merged
+}
+
+// Droppable target for a season with no (visible) lessons, so a card can be
+// dragged INTO it. Outside a drag it's the empty-season hint.
+function EmptySeasonDropZone({ moduleId }: { moduleId: string }) {
+  const { setNodeRef, isOver } = useDroppable({ id: `module:${moduleId}` })
+  return (
+    <div
+      ref={setNodeRef}
+      className={`mb-1 flex items-center justify-center rounded-2xl border border-dashed px-4 py-8 text-[12.5px] transition-colors ${
+        isOver
+          ? 'border-ce-accent bg-ce-accent-tint text-ce-accent'
+          : 'border-gray-200 bg-white text-gray-400'
+      }`}
+    >
+      Drag a lesson here, or add one from the season menu
+    </div>
+  )
+}
+
 function ModuleGroups({
   groups,
   locked,
@@ -547,6 +636,7 @@ function ModuleGroups({
   onUpdateLesson,
   onDeleteLesson,
   onReorderLessons,
+  onMoveLesson,
   onRenameModule,
   onDeleteModule,
   canSchedule = true,
@@ -567,6 +657,14 @@ function ModuleGroups({
   onUpdateLesson: (lesson: CourseLessonRead, patch: LessonOptionsPatch) => void
   onDeleteLesson: (lesson: CourseLessonRead) => void
   onReorderLessons?: (moduleId: string, orderedIds: string[]) => void
+  /** Cross-season move (drag a lesson into another season). */
+  onMoveLesson?: (
+    lessonId: string,
+    fromModule: CourseModuleRead,
+    toModule: CourseModuleRead,
+    targetOrderedIds: string[],
+    sourceOrderedIds: string[],
+  ) => void
   onRenameModule?: (module: CourseModuleRead, title: string) => void
   onDeleteModule?: (module: CourseModuleRead) => void
   canSchedule?: boolean
@@ -579,44 +677,160 @@ function ModuleGroups({
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
   )
-  if (groups.length === 0) return null
 
-  const canReorder = isReorderable && !!onReorderLessons
+  // One DndContext across ALL seasons in this block, so a lesson can be
+  // dragged between them. Per-module id lists drive the render; during (and
+  // just after) a drag an optimistic copy holds the live arrangement — it
+  // stays applied until fresh server data arrives, so cards don't snap back
+  // while a reorder round-trips.
+  const visibleOrders = useMemo(() => {
+    const m: Record<string, string[]> = {}
+    for (const g of groups) m[g.module.id] = g.items.map((x) => x.lesson.id)
+    return m
+  }, [groups])
+  const itemById = useMemo(() => {
+    const m = new Map<string, LessonWithGlobalIndex>()
+    for (const g of groups) for (const it of g.items) m.set(it.lesson.id, it)
+    return m
+  }, [groups])
+  const moduleById = useMemo(() => {
+    const m = new Map<string, CourseModuleRead>()
+    for (const g of groups) m.set(g.module.id, g.module)
+    return m
+  }, [groups])
 
-  const handleDragEnd = (group: ModuleGroup) => (e: DragEndEvent) => {
-    if (!onReorderLessons) return
-    const { active, over } = e
-    if (!over || active.id === over.id) return
-    // The visible items in this group may be a paywall-split subset of the
-    // module's full lesson list. Swap inside the visible subset, then merge
-    // back into the full module order so lessons outside the visible range
-    // keep their positions.
-    const visibleIds = group.items.map((x) => x.lesson.id)
-    const fullIds = group.module.lessons.map((l) => l.id)
-    const from = visibleIds.indexOf(String(active.id))
-    const to = visibleIds.indexOf(String(over.id))
-    if (from < 0 || to < 0) return
-    const newVisible = arrayMove(visibleIds, from, to)
-    const visibleSet = new Set(visibleIds)
-    let i = 0
-    const reordered = fullIds.map((id) =>
-      visibleSet.has(id) ? newVisible[i++] : id,
-    )
-    onReorderLessons(group.module.id, reordered)
+  const [orders, setOrders] = useState<Record<string, string[]> | null>(null)
+  const [activeId, setActiveId] = useState<string | null>(null)
+  useEffect(() => {
+    // Fresh server data — drop the optimistic arrangement.
+    setOrders(null)
+  }, [visibleOrders])
+  const liveOrders = orders ?? visibleOrders
+  const containerOf = (id: string): string | undefined => {
+    if (id.startsWith('module:')) return id.slice('module:'.length)
+    return Object.keys(liveOrders).find((k) => liveOrders[k].includes(id))
   }
 
-  return (
+  const canReorder = isReorderable && !!onReorderLessons
+  const crossSeason = canReorder && !!onMoveLesson && groups.length > 1
+
+  const handleDragStart = (e: DragStartEvent) => {
+    setActiveId(String(e.active.id))
+    setOrders(visibleOrders)
+  }
+
+  // Live cross-container move — this is what makes dragging between seasons
+  // feel smooth: the card leaves one grid and joins the other while you drag.
+  const handleDragOver = (e: DragOverEvent) => {
+    if (!crossSeason) return
+    const { active, over } = e
+    if (!over) return
+    const aid = String(active.id)
+    const from = containerOf(aid)
+    const to = containerOf(String(over.id))
+    if (!from || !to || from === to) return
+    setOrders((prev) => {
+      const cur = prev ?? visibleOrders
+      const next: Record<string, string[]> = { ...cur }
+      next[from] = cur[from].filter((x) => x !== aid)
+      const toArr = cur[to].filter((x) => x !== aid)
+      const overIdx = toArr.indexOf(String(over.id))
+      toArr.splice(overIdx >= 0 ? overIdx : toArr.length, 0, aid)
+      next[to] = toArr
+      return next
+    })
+  }
+
+  const handleDragEnd = (e: DragEndEvent) => {
+    const { active, over } = e
+    const aid = String(active.id)
+    setActiveId(null)
+    const cur = orders ?? visibleOrders
+    const cont = Object.keys(cur).find((k) => cur[k].includes(aid))
+    const originModuleId = itemById.get(aid)?.module.id
+    if (!cont || !originModuleId) {
+      setOrders(null)
+      return
+    }
+    // Settle the within-container position from the drop target.
+    let finalArr = cur[cont]
+    if (over) {
+      const oid = String(over.id)
+      if (
+        !oid.startsWith('module:') &&
+        oid !== aid &&
+        containerOf(oid) === cont
+      ) {
+        const from = finalArr.indexOf(aid)
+        const to = finalArr.indexOf(oid)
+        if (from >= 0 && to >= 0 && from !== to) {
+          finalArr = arrayMove(finalArr, from, to)
+        }
+      }
+    }
+    setOrders({ ...cur, [cont]: finalArr })
+
+    if (cont === originModuleId) {
+      // Plain reorder within the season. The visible items may be a
+      // paywall-split subset of the module's full lesson list — merge back
+      // so out-of-range lessons keep their positions.
+      const mod = moduleById.get(cont)
+      if (!mod || !onReorderLessons) return
+      const fullIds = mod.lessons.map((l) => l.id)
+      const merged = mergeVisibleOrder(
+        fullIds,
+        visibleOrders[cont] ?? [],
+        finalArr,
+      )
+      if (merged.some((id, i) => id !== fullIds[i])) {
+        onReorderLessons(cont, merged)
+      }
+    } else {
+      // Moved to another season.
+      const fromMod = moduleById.get(originModuleId)
+      const toMod = moduleById.get(cont)
+      if (!fromMod || !toMod || !onMoveLesson) {
+        setOrders(null)
+        return
+      }
+      const sourceOrderedIds = fromMod.lessons
+        .map((l) => l.id)
+        .filter((id) => id !== aid)
+      const targetOrderedIds = mergeVisibleWithInsert(
+        toMod.lessons.map((l) => l.id),
+        finalArr,
+      )
+      onMoveLesson(aid, fromMod, toMod, targetOrderedIds, sourceOrderedIds)
+    }
+  }
+
+  const handleDragCancel = () => {
+    setActiveId(null)
+    setOrders(null)
+  }
+
+  if (groups.length === 0) return null
+
+  const activeItem = activeId ? itemById.get(activeId) : null
+
+  const groupsContent = (
     <div className="mb-6 flex flex-col gap-5">
       {groups.map((group) => {
+        const ids = liveOrders[group.module.id] ?? []
+        const items = ids
+          .map((id) => itemById.get(id))
+          .filter((x): x is LessonWithGlobalIndex => Boolean(x))
+        const draggable =
+          canReorder && (crossSeason || group.items.length > 1)
         const lessonGrid = (
           <LessonGrid>
-            {group.items.map(({ lesson, globalIndex }) => (
+            {items.map(({ lesson, globalIndex }) => (
               <LessonCard
                 key={lesson.id}
                 lesson={lesson}
                 position={globalIndex}
                 locked={locked}
-                isReorderable={canReorder && group.items.length > 1}
+                isReorderable={draggable}
                 isSelected={selectedLessonId === lesson.id}
                 canSchedule={canSchedule}
                 allowSchedule={!episodic}
@@ -636,7 +850,7 @@ function ModuleGroups({
             {!episodic && (
               <ModuleHeader
                 module={group.module}
-                count={group.items.length}
+                count={items.length}
                 onAddLesson={
                   onAddLesson
                     ? () => onAddLesson(group.module, 'video')
@@ -661,19 +875,16 @@ function ModuleGroups({
                 }
               />
             )}
-            {canReorder && group.items.length > 1 ? (
-              <DndContext
-                sensors={sensors}
-                collisionDetection={closestCenter}
-                onDragEnd={handleDragEnd(group)}
-              >
-                <SortableContext
-                  items={group.items.map((x) => x.lesson.id)}
-                  strategy={rectSortingStrategy}
-                >
-                  {lessonGrid}
-                </SortableContext>
-              </DndContext>
+            {items.length === 0 && crossSeason ? (
+              <EmptySeasonDropZone moduleId={group.module.id} />
+            ) : items.length === 0 ? (
+              <div className="mb-1 flex items-center justify-center rounded-2xl border border-dashed border-gray-200 bg-white px-4 py-8 text-[12.5px] text-gray-400">
+                No lessons yet — add one from the season menu
+              </div>
+            ) : draggable ? (
+              <SortableContext items={ids} strategy={rectSortingStrategy}>
+                {lessonGrid}
+              </SortableContext>
             ) : (
               lessonGrid
             )}
@@ -681,6 +892,41 @@ function ModuleGroups({
         )
       })}
     </div>
+  )
+
+  if (!canReorder) return groupsContent
+
+  return (
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCenter}
+      measuring={{ droppable: { strategy: MeasuringStrategy.Always } }}
+      onDragStart={handleDragStart}
+      onDragOver={handleDragOver}
+      onDragEnd={handleDragEnd}
+      onDragCancel={handleDragCancel}
+    >
+      {groupsContent}
+      {/* Floating copy of the dragged card — the in-grid original dims, the
+          overlay follows the pointer, which is what keeps the drag smooth. */}
+      <DragOverlay dropAnimation={{ duration: 180, easing: 'ease-out' }}>
+        {activeItem ? (
+          <div className="w-[272px] overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-black/10">
+            <div className="relative aspect-video w-full overflow-hidden">
+              <ThumbArt
+                thumbnailUrl={activeItem.lesson.thumbnail_url ?? null}
+                objectPosition={
+                  activeItem.lesson.thumbnail_object_position ?? null
+                }
+              />
+            </div>
+            <div className="px-3 py-2.5 text-[13px] font-medium tracking-tight text-gray-900">
+              {activeItem.lesson.title}
+            </div>
+          </div>
+        ) : null}
+      </DragOverlay>
+    </DndContext>
   )
 }
 

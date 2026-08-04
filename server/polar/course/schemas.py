@@ -44,6 +44,9 @@ class CourseLessonCreate(Schema):
 
 class CourseLessonUpdate(Schema):
     title: str | None = Field(None, max_length=500)
+    # Move the lesson to another module of the SAME course (the outline's
+    # cross-season drag). Validated in the endpoint.
+    module_id: UUID4 | None = None
     content_type: Literal["video", "text", "download", "quiz"] | None = None
     content: dict | None = None
     video_asset_id: str | None = None
