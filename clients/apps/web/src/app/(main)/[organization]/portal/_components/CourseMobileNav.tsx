@@ -2,14 +2,12 @@
 
 // Mobile-only chrome for the COURSE portal page (≤720px). The bottom tab bar
 // and standard top bar step aside there so the page reads like a streaming
-// app, not a course platform:
-//
-//   [☰ menu]        creator name        [student]
-//
-// The hamburger opens a sheet with the portal destinations (the tabs the
-// bottom bar used to carry, plus Bookmarks); the right button opens the
-// existing "You" profile hub (settings, enrollments, log out…). The bar is
-// a solid portal-dark strip pinned to the top — always visible.
+// app, not a course platform: a single hamburger button floats over the hero
+// (the bar itself is transparent and pinned). Everything else lives inside
+// the sheet it opens — the creator name as the sheet title, the portal
+// destinations (the tabs the bottom bar used to carry, plus Bookmarks), and
+// an account row that opens the existing "You" profile hub (settings,
+// enrollments, log out…).
 
 import { schemas } from '@spaire/client'
 import Link from 'next/link'
@@ -98,22 +96,6 @@ export const CourseMobileNav = ({
             <path d="M4 7h16M4 12h16M4 17h16" />
           </svg>
         </button>
-        <div className="sp-cnav-title">{organization.name}</div>
-        <button
-          type="button"
-          className="sp-cnav-btn sp-cnav-you"
-          aria-label="You — account and more"
-          aria-haspopup="dialog"
-          aria-expanded={hubOpen}
-          onClick={() => setHubOpen(true)}
-        >
-          {avatarUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={avatarUrl} alt="" />
-          ) : (
-            <span>{studentInitials}</span>
-          )}
-        </button>
       </header>
 
       <PortalSheet
@@ -138,6 +120,31 @@ export const CourseMobileNav = ({
               </Link>
             )
           })}
+          <button
+            type="button"
+            className="sp-cnav-item sp-cnav-account"
+            onClick={() => {
+              setMenuOpen(false)
+              setHubOpen(true)
+            }}
+          >
+            <span className="sp-cnav-avatar" aria-hidden>
+              {avatarUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={avatarUrl} alt="" />
+              ) : (
+                <span>{studentInitials}</span>
+              )}
+            </span>
+            <span className="sp-cnav-account-info">
+              <span className="sp-cnav-account-name">
+                {customerProfile?.name ?? customer?.name ?? 'Account'}
+              </span>
+              <span className="sp-cnav-account-sub">
+                Settings, enrollments &amp; more
+              </span>
+            </span>
+          </button>
         </nav>
       </PortalSheet>
 

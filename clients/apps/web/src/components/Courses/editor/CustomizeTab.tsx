@@ -32,12 +32,14 @@ export function CustomizeTab({
   const { undo, redo, canUndo, canRedo, status } = editor
   const queryClient = useQueryClient()
 
-  // Desktop / Phone canvas. Phone renders the SAME editable landing inside an
-  // iframe sized like an iPhone — the iframe is its own viewport, so the
-  // mobile media queries genuinely apply and everything stays editable
-  // (touch-to-edit, reposition, cover/trailer pills). Edits land on the same
-  // server; switching back refetches so the desktop canvas picks them up.
+  // Desktop / Phone canvas. Phone renders the real landing inside an iframe
+  // sized like an iPhone — the iframe is its own viewport, so the mobile media
+  // queries genuinely apply. It opens in Preview (exactly what a visitor sees,
+  // zero editor chrome); the Edit switch swaps the same document into the
+  // touch-to-edit canvas. Edits land on the same server; switching back
+  // refetches so the desktop canvas picks them up.
   const [viewport, setViewport] = useState<'desktop' | 'phone'>('desktop')
+  const [phoneMode, setPhoneMode] = useState<'preview' | 'edit'>('preview')
   const selectViewport = (next: 'desktop' | 'phone') => {
     setViewport((prev) => {
       if (prev === 'phone' && next === 'desktop') {
@@ -47,6 +49,7 @@ export function CustomizeTab({
     })
   }
   const phone = viewport === 'phone'
+  const phoneEditing = phone && phoneMode === 'edit'
 
   // ⌘Z / ⌘⇧Z (and Ctrl+Y) drive undo/redo — but only when the focus isn't in
   // an editable field, so native text-undo keeps working while you're typing.
@@ -87,8 +90,8 @@ export function CustomizeTab({
 
   return (
     <div className="flex h-full flex-col bg-white">
-      {/* Slim status bar — breadcrumb, undo/redo, save status, public preview. */}
-      <div className="flex h-12 flex-shrink-0 items-center justify-between gap-3 border-b border-gray-200 bg-white px-4">
+      {/* Slim status bar — breadcrumb · viewport toggle (centered) · actions. */}
+      <div className="grid h-12 flex-shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-3 border-b border-gray-200 bg-white px-4">
         <div className="flex min-w-0 items-center gap-2">
           <span className="text-[12px] text-gray-500">Course landing</span>
           <span className="text-[13px] text-gray-400">›</span>
@@ -96,24 +99,44 @@ export function CustomizeTab({
             {course.title ?? 'Untitled course'}
           </span>
         </div>
-        <div className="flex items-center gap-3">
-          {/* Canvas viewport — Desktop or Phone (both fully editable). */}
-          <div className="flex items-center rounded-md border border-gray-200 bg-white p-0.5">
-            {(['desktop', 'phone'] as const).map((v) => (
-              <button
-                key={v}
-                type="button"
-                onClick={() => selectViewport(v)}
-                className={`rounded px-2.5 py-[4px] text-[12px] font-medium transition-colors ${
-                  viewport === v
-                    ? 'bg-gray-900 text-white'
-                    : 'text-gray-600 hover:bg-gray-50'
-                }`}
-              >
-                {v === 'desktop' ? 'Desktop' : 'Phone'}
-              </button>
-            ))}
-          </div>
+        {/* Canvas viewport — Desktop or Phone, centered in the bar. */}
+        <div className="flex items-center rounded-md border border-gray-200 bg-white p-0.5">
+          {(['desktop', 'phone'] as const).map((v) => (
+            <button
+              key={v}
+              type="button"
+              onClick={() => selectViewport(v)}
+              className={`rounded px-3 py-[4px] text-[12px] font-medium transition-colors ${
+                viewport === v
+                  ? 'bg-ce-accent text-white'
+                  : 'text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              {v === 'desktop' ? 'Desktop' : 'Phone'}
+            </button>
+          ))}
+        </div>
+        <div className="flex items-center justify-end gap-3">
+          {phone && (
+            // Phone opens as a faithful visitor preview; Edit swaps the same
+            // document into the touch-to-edit canvas.
+            <div className="flex items-center rounded-md border border-gray-200 bg-white p-0.5">
+              {(['preview', 'edit'] as const).map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => setPhoneMode(m)}
+                  className={`rounded px-2.5 py-[4px] text-[12px] font-medium transition-colors ${
+                    phoneMode === m
+                      ? 'bg-ce-accent text-white'
+                      : 'text-gray-600 hover:bg-gray-50'
+                  }`}
+                >
+                  {m === 'preview' ? 'Preview' : 'Edit'}
+                </button>
+              ))}
+            </div>
+          )}
           <div className="flex items-center gap-1.5">
             <button
               type="button"
@@ -139,7 +162,11 @@ export function CustomizeTab({
             role="status"
             aria-live="polite"
           >
-            {phone ? 'Editing in phone preview' : statusLabel}
+            {phone
+              ? phoneEditing
+                ? 'Editing in phone'
+                : 'Viewing as a visitor'
+              : statusLabel}
           </span>
           <a
             href={storefrontLink(organization, `products/${course.product_id}`)}
@@ -156,8 +183,15 @@ export function CustomizeTab({
         <div className="flex flex-1 items-center justify-center overflow-hidden bg-gray-100 py-6">
           <CoursePhoneFrame>
             <iframe
-              src={`/dashboard/${organization.slug}/courses/${course.id}/landing-mobile`}
-              title="Mobile landing preview (editable)"
+              key={phoneMode}
+              src={`/dashboard/${organization.slug}/courses/${course.id}/landing-mobile${
+                phoneEditing ? '?edit=1' : ''
+              }`}
+              title={
+                phoneEditing
+                  ? 'Mobile landing (editable)'
+                  : 'Mobile landing preview'
+              }
               className="block h-full w-full border-0"
             />
           </CoursePhoneFrame>
