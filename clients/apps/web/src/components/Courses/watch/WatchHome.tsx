@@ -802,9 +802,9 @@ export function WatchHome({
                 {playOverlay}
                 <div className="spot-info">
                   <div className="lc-num">Trailer</div>
-                  <div className="spot-title" style={courseTitleStyle}>
-                    {course.title}
-                  </div>
+                  {/* Card titles keep the card typography — the Spaire
+                      Title Style is a HERO treatment only. */}
+                  <div className="spot-title">{course.title}</div>
                   {trailerMeta}
                 </div>
               </div>
