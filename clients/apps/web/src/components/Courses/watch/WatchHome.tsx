@@ -740,6 +740,64 @@ export function WatchHome({
       </span>
     )
 
+  // The Trailers card — the same card variant the lesson cards use, shared
+  // by the desktop rail and the mobile stack.
+  const trailerCard = course.trailer_url
+    ? (() => {
+        const imgStyle = course.thumbnail_url
+          ? { backgroundImage: `url("${course.thumbnail_url}")` }
+          : undefined
+        const playOverlay = (
+          <div className="lc-play">
+            <div className="lc-play-btn">
+              <Glyph d={SF.play} size={18} fill="currentColor" />
+            </div>
+          </div>
+        )
+        const trailerMeta = (
+          <div className="lc-meta">
+            <Glyph d={SF.play2} size={12} fill="currentColor" stroke={0} />
+            <span>Official trailer</span>
+          </div>
+        )
+        if (cardVariant === 'spotlight') {
+          return (
+            <div className="lc-spot" onClick={() => setTrailerPlaying(true)}>
+              <div className={`spot-card ${imgStyle ? '' : 'ph'}`}>
+                <div className="ph-ambient" aria-hidden />
+                <div className="glass-tint" aria-hidden />
+                <div className="img" style={imgStyle} />
+                <div className="spot-shade" />
+                {playOverlay}
+                <div className="spot-info">
+                  <div className="lc-num">Trailer</div>
+                  <div className="spot-title" style={courseTitleStyle}>
+                    {course.title}
+                  </div>
+                  {trailerMeta}
+                </div>
+              </div>
+            </div>
+          )
+        }
+        return (
+          <div className="lc-catalog" onClick={() => setTrailerPlaying(true)}>
+            <div className="lc-card">
+              <div className="lc-thumb">
+                <div className={`img ${imgStyle ? '' : 'ph'}`} style={imgStyle} />
+                {playOverlay}
+              </div>
+              <div className="lc-info">
+                <div className="lc-num">Trailer</div>
+                <div className="lc-title">{course.title}</div>
+                {trailerMeta}
+              </div>
+            </div>
+          </div>
+        )
+      })()
+    : null
+
   return (
     <div className={`sow ${dark ? 'dark' : ''}`}>
       {/* ════════ now-playing hero ════════ */}
@@ -1019,37 +1077,60 @@ export function WatchHome({
           </>
         )}
 
-        {/* ════ mobile hero — one variant-independent layout (Netflix mobile).
-           WatchPageStyles shows this ≤720px and hides the cover/marquee
-           blocks there, so which hero the creator picked no longer decides
-           whether a phone user sees their progress. ════ */}
+        {/* ════ mobile hero — the landing's cinematic treatment, shared by
+           both hero variants (streaming-app detail page): full-bleed course
+           cover, a centered stack at the bottom — course title in the
+           creator's Title Style, meta line, a white "Play Lesson N" pill
+           with a round overview button beside it — then progress.
+           WatchPageStyles shows this ≤720px and hides the desktop blocks. ════ */}
+        {course.thumbnail_url && (
+          <div
+            className="m-hero-art"
+            aria-hidden
+            style={{
+              backgroundImage: `url("${course.thumbnail_url}")`,
+              ...(course.thumbnail_object_position
+                ? { backgroundPosition: course.thumbnail_object_position }
+                : null),
+            }}
+          />
+        )}
         <div className="m-hero">
           <div className={`pt-kicker ${status === 'watched' ? 'done' : ''}`}>
             {kicker}
           </div>
-          <h1 className="m-hero-title">{ep.title}</h1>
+          <h1 className="m-hero-title" style={courseTitleStyle}>
+            {course.title}
+          </h1>
           <div className="m-hero-meta">
-            <span style={courseTitleStyle}>{course.title}</span> ·{' '}
-            {lessons.length} {unitCap.toLowerCase()}
-            {lessons.length === 1 ? '' : 's'} · {fmtRuntime(totalRuntime)}
+            {course.landing_overrides?.ai_hero?.eyebrow || (
+              <>
+                {lessons.length} {unitCap.toLowerCase()}
+                {lessons.length === 1 ? '' : 's'} · {fmtRuntime(totalRuntime)}
+              </>
+            )}
           </div>
           <div className="m-hero-actions">
-            <button
-              className="abtn play"
-              type="button"
-              onClick={() => void playLesson(ep)}
-            >
-              <Glyph d={SF.play} size={15} fill="currentColor" /> {playLabel}{' '}
-              {unitCap} {epN}
-            </button>
-            <div className="m-hero-row">
+            <div className="m-hero-cta">
               <button
-                className="abtn glass"
+                className="abtn play"
                 type="button"
+                onClick={() => void playLesson(ep)}
+              >
+                <Glyph d={SF.play} size={15} fill="currentColor" /> {playLabel}{' '}
+                {unitCap} {epN}
+              </button>
+              <button
+                className="m-hero-ov"
+                type="button"
+                aria-label="Lesson overview"
                 onClick={() => setOverviewFor(ep)}
               >
-                <Glyph d={SF.doc} size={17} stroke={1.9} /> Overview
+                <Glyph d={SF.doc} size={19} stroke={1.9} />
               </button>
+            </div>
+            <div className="m-hero-next">{ep.title}</div>
+            <div className="m-hero-row">
               <button
                 className={`icon-glass ${isBookmarked ? 'on' : ''}`}
                 type="button"
@@ -1251,14 +1332,15 @@ export function WatchHome({
 
           const spot = cardVariant === 'spotlight'
 
-          if (seasonRails) {
-            return seasonRails.map((r, ri) => {
+          const rails = seasonRails ? (
+            seasonRails.map((r, ri) => {
               const watched = r.items.filter(
                 (l) => statusOf(l) === 'watched',
               ).length
               return (
                 <div
                   key={r.module.id}
+                  className="max-[720px]:hidden"
                   style={ri > 0 ? { marginTop: 42 } : undefined}
                 >
                   <div className="row-head">
@@ -1277,9 +1359,7 @@ export function WatchHome({
                 </div>
               )
             })
-          }
-
-          return (
+          ) : (
             <>
               <div className="row-head">
                 <span className="rh">{course.title}</span>
@@ -1294,211 +1374,60 @@ export function WatchHome({
               </RailStrip>
             </>
           )
+
+          // Mobile (≤720): the SAME landing-style cards, stacked full-width
+          // under season headings — not thumbnail rows. Trailers close the
+          // page. WatchPageStyles swaps .m-cards in for the rails there.
+          const mobileCards = (
+            <div className="m-cards">
+              {seasonRails ? (
+                seasonRails.map((r) => (
+                  <div key={r.module.id}>
+                    <div className="ml-module">
+                      {r.module.title || `Season ${r.index + 1}`}
+                    </div>
+                    <div className="m-cards-stack">
+                      {r.items.map((l, idx) => renderRailCard(l, idx + 1))}
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="m-cards-stack">
+                  {lessons.map((l, i) => renderRailCard(l, i + 1))}
+                </div>
+              )}
+              {trailerCard && (
+                <div>
+                  <div className="ml-module">Trailers</div>
+                  <div className="m-cards-stack">{trailerCard}</div>
+                </div>
+              )}
+            </div>
+          )
+
+          return (
+            <>
+              {rails}
+              {mobileCards}
+            </>
+          )
         })()}
 
         {/* ════ Trailers — portal-only rail at the very bottom. The card
             wears the SAME variant the creator chose at onboarding (spotlight
             or catalog), exactly like the lesson cards. Desktop rail hides
-            ≤720px (the m-list carries its own trailer row there). ════ */}
-        {course.trailer_url && (
+            ≤720px (the mobile card stack carries its own Trailers group). ════ */}
+        {trailerCard && (
           <div className="max-[720px]:hidden" style={{ marginTop: 42 }}>
             <div className="row-head">
               <span className="rh">Trailers</span>
             </div>
             <RailStrip spot={cardVariant === 'spotlight'}>
-              {(() => {
-                const imgStyle = course.thumbnail_url
-                  ? { backgroundImage: `url("${course.thumbnail_url}")` }
-                  : undefined
-                const playOverlay = (
-                  <div className="lc-play">
-                    <div className="lc-play-btn">
-                      <Glyph d={SF.play} size={18} fill="currentColor" />
-                    </div>
-                  </div>
-                )
-                const trailerMeta = (
-                  <div className="lc-meta">
-                    <Glyph
-                      d={SF.play2}
-                      size={12}
-                      fill="currentColor"
-                      stroke={0}
-                    />
-                    <span>Official trailer</span>
-                  </div>
-                )
-                if (cardVariant === 'spotlight') {
-                  return (
-                    <div
-                      className="lc-spot"
-                      onClick={() => setTrailerPlaying(true)}
-                    >
-                      <div className={`spot-card ${imgStyle ? '' : 'ph'}`}>
-                        <div className="ph-ambient" aria-hidden />
-                        <div className="glass-tint" aria-hidden />
-                        <div className="img" style={imgStyle} />
-                        <div className="spot-shade" />
-                        {playOverlay}
-                        <div className="spot-info">
-                          <div className="lc-num">Trailer</div>
-                          <div className="spot-title">{course.title}</div>
-                          {trailerMeta}
-                        </div>
-                      </div>
-                    </div>
-                  )
-                }
-                return (
-                  <div
-                    className="lc-catalog"
-                    onClick={() => setTrailerPlaying(true)}
-                  >
-                    <div className="lc-card">
-                      <div className="lc-thumb">
-                        <div
-                          className={`img ${imgStyle ? '' : 'ph'}`}
-                          style={imgStyle}
-                        />
-                        {playOverlay}
-                      </div>
-                      <div className="lc-info">
-                        <div className="lc-num">Trailer</div>
-                        <div className="lc-title">{course.title}</div>
-                        {trailerMeta}
-                      </div>
-                    </div>
-                  </div>
-                )
-              })()}
+              {trailerCard}
             </RailStrip>
           </div>
         )}
 
-        {/* ════ mobile vertical lesson list (YouTube-playlist style) —
-           WatchPageStyles shows this ≤720px and hides the horizontal rail
-           there. Rows group under module headers when the course has more
-           than one module. ════ */}
-        <div className="m-list">
-          {lessons.map((l, i) => {
-            const st = statusOf(l)
-            const frac = fractionOf(l)
-            const barFrac = st === 'watched' ? 1 : frac
-            const thumb = l.thumbnail_url ?? course.thumbnail_url
-            const moduleTitle = moduleTitleById.get(l.id)
-            const prevModuleTitle =
-              i > 0 ? moduleTitleById.get(lessons[i - 1]!.id) : undefined
-            const lockedWhen = l.locked ? unlockDateLabel(l.locked_until) : null
-            return (
-              <div key={l.id}>
-                {moduleTitle && moduleTitle !== prevModuleTitle && (
-                  <div className="ml-module">{moduleTitle}</div>
-                )}
-                <div
-                  className={`ml-row ${l.locked ? 'locked' : ''}`}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => void playLesson(l)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault()
-                      void playLesson(l)
-                    }
-                  }}
-                >
-                  <div className="ml-thumb">
-                    <div
-                      className={`img ${thumb ? '' : 'ph'}`}
-                      style={
-                        thumb
-                          ? { backgroundImage: `url("${thumb}")` }
-                          : undefined
-                      }
-                    />
-                    {l.locked ? (
-                      <span className="ml-state">
-                        <Glyph d={SF.locksm} size={10} stroke={2.1} />
-                      </span>
-                    ) : null}
-                    {l.duration_seconds ? (
-                      <span className="ml-dur">
-                        {fmtTime(l.duration_seconds)}
-                      </span>
-                    ) : null}
-                    {barFrac != null && (
-                      <span className="ml-progbar">
-                        <i style={{ width: `${barFrac * 100}%` }} />
-                      </span>
-                    )}
-                  </div>
-                  <div className="ml-info">
-                    <div className="ml-num">
-                      {unitCap} {i + 1}
-                      {bookmarks.has(l.id) ? ' · Saved' : ''}
-                    </div>
-                    <div className="ml-title">{l.title}</div>
-                    <div className="ml-meta">
-                      {l.locked
-                        ? lockedWhen
-                          ? `Unlocks ${lockedWhen}`
-                          : 'Locked'
-                        : st === 'progress'
-                          ? `Continue · ${Math.round((frac ?? 0) * 100)}%`
-                          : l.duration_seconds
-                            ? fmtTime(l.duration_seconds)
-                            : '—'}
-                    </div>
-                  </div>
-                  <button
-                    className="ml-ov"
-                    type="button"
-                    aria-label="Lesson overview"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      setOverviewFor(l)
-                    }}
-                  >
-                    <Glyph d={SF.info} size={17} stroke={1.9} />
-                  </button>
-                </div>
-              </div>
-            )
-          })}
-          {/* Trailer — the mobile counterpart of the desktop Trailers rail. */}
-          {course.trailer_url && (
-            <div>
-              <div className="ml-module">Trailers</div>
-              <div
-                className="ml-row"
-                role="button"
-                tabIndex={0}
-                onClick={() => setTrailerPlaying(true)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault()
-                    setTrailerPlaying(true)
-                  }
-                }}
-              >
-                <div className="ml-thumb">
-                  <div
-                    className={`img ${course.thumbnail_url ? '' : 'ph'}`}
-                    style={
-                      course.thumbnail_url
-                        ? { backgroundImage: `url("${course.thumbnail_url}")` }
-                        : undefined
-                    }
-                  />
-                </div>
-                <div className="ml-info">
-                  <div className="ml-num">Trailer</div>
-                  <div className="ml-title">{course.title}</div>
-                  <div className="ml-meta">Official trailer</div>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
       </section>
 
       {toastMsg && (
