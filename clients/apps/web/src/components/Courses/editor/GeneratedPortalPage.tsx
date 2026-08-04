@@ -1005,14 +1005,9 @@ const MOBILE_640_CSS = `
             font-size: 16px;
           }
 
-          /* ── Centered mobile heroes ── phone hero content sits in the
-             middle (both variants), matching the portal's mobile hero. */
-          .gpp .hero-content {
-            text-align: center;
-          }
-          .gpp .hero-meta {
-            justify-content: center;
-          }
+          /* ── Centered mobile MARQUEE title ── the marquee hero title sits
+             in the middle on phones. (The cover hero keeps its own style —
+             defined by the creator-supplied cover design.) */
           .gpp .panel-title {
             align-items: center;
           }
@@ -1062,8 +1057,6 @@ const MOBILE_VISITOR_CSS = `
           }
           .gpp .hero-title {
             max-width: var(--tw-m, none) !important;
-            margin-left: auto !important;
-            margin-right: auto !important;
           }
           .gpp .band-desc .bd-text {
             max-width: var(--dw-m, none) !important;
@@ -1072,8 +1065,6 @@ const MOBILE_VISITOR_CSS = `
           }
           .gpp .hero-desc {
             max-width: var(--dw-m, none) !important;
-            margin-left: auto !important;
-            margin-right: auto !important;
           }
 `
 
@@ -6095,8 +6086,12 @@ export function GeneratedPortalPage({
         }
         .gpp.gpp-m .gpp-rz-inner {
           width: fit-content;
-          /* Mobile hero content is centered — keep the sized box centered
-             too (a fit-content block would otherwise hug the left edge). */
+        }
+        /* The MARQUEE's mobile title/desc are centered — keep their sized
+           boxes centered too (a fit-content block would otherwise hug the
+           left edge). The cover hero keeps its own alignment. */
+        .gpp.gpp-m .panel-title .gpp-rz-inner,
+        .gpp.gpp-m .band-desc .gpp-rz-inner {
           margin-left: auto;
           margin-right: auto;
         }
