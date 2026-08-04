@@ -730,18 +730,34 @@ export function WatchPageStyles() {
         background: #111;
         overflow: hidden;
       }
+      .sow .lc-thumb.ph {
+        background: none;
+      }
       .sow .lc-thumb .img {
         position: absolute;
         inset: 0;
         background-size: cover;
         background-position: center;
       }
-      .sow .lc-thumb .img.ph {
+      /* Liquid-glass placeholder — the landing's exact treatment, so an
+         unfilled tile looks the same here as on the public page. */
+      .sow .lc-thumb .ph-ambient {
+        position: absolute;
+        inset: -15%;
         background:
           radial-gradient(42% 52% at 20% 28%, #6e7a5e 0%, transparent 70%),
           radial-gradient(46% 56% at 76% 22%, #8a7565 0%, transparent 70%),
           radial-gradient(52% 62% at 62% 82%, #46464c 0%, transparent 72%),
+          radial-gradient(36% 46% at 28% 78%, #5d6e6a 0%, transparent 70%),
           #57544e;
+        filter: blur(40px);
+      }
+      .sow .lc-thumb .glass-tint {
+        position: absolute;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.18);
+        -webkit-backdrop-filter: blur(60px) saturate(140%);
+        backdrop-filter: blur(60px) saturate(140%);
       }
       .sow .lc-play {
         position: absolute;
@@ -845,22 +861,24 @@ export function WatchPageStyles() {
       .sow .lc-ovbtn:hover {
         background: rgba(0, 0, 0, 0.66);
       }
+      /* Info block — the landing catalog card's exact metrics, so the same
+         card reads identically on the public page and in the portal. */
       .sow .lc-info {
         flex: 1;
         display: flex;
         flex-direction: column;
-        padding: 16px 18px 18px;
+        padding: 18px 20px 20px;
       }
       .sow .lc-num {
-        font-size: 10px;
+        font-size: 11px;
         font-weight: 600;
-        letter-spacing: 0.08em;
+        letter-spacing: 0.07em;
         text-transform: uppercase;
         color: var(--text-2);
-        margin-bottom: 5px;
+        margin-bottom: 6px;
       }
       .sow .lc-title {
-        font-size: 17px;
+        font-size: 18px;
         font-weight: 600;
         letter-spacing: -0.02em;
         line-height: 1.2;
@@ -875,23 +893,23 @@ export function WatchPageStyles() {
         transition: color 0.4s ease;
       }
       .sow .lc-desc {
-        font-size: 13.5px;
+        font-size: 14px;
         color: var(--text-2);
-        line-height: 1.5;
+        line-height: 1.45;
         text-wrap: pretty;
         display: -webkit-box;
         -webkit-line-clamp: 2;
         -webkit-box-orient: vertical;
         overflow: hidden;
-        min-height: 40px;
+        min-height: 41px;
       }
       .sow .lc-meta {
         display: flex;
         align-items: center;
         gap: 6px;
         margin-top: auto;
-        padding-top: 11px;
-        font-size: 12.5px;
+        padding-top: 12px;
+        font-size: 13px;
         font-weight: 500;
         color: var(--text-2);
         font-variant-numeric: tabular-nums;

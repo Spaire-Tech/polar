@@ -133,6 +133,36 @@ function unlockDateLabel(iso?: string | null): string | null {
   return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
 }
 
+// Per-card variation for the liquid-glass placeholder — the landing's
+// formula (GeneratedPortalPage), so unfilled tiles keep the same visual
+// rhythm here as on the public page. n is the 1-based card number.
+function ambientTint(n: number): React.CSSProperties {
+  return {
+    filter: `blur(40px) hue-rotate(${((n * 53) % 44) - 22}deg) brightness(${(
+      0.94 +
+      (n % 3) * 0.06
+    ).toFixed(2)})`,
+  }
+}
+
+// The landing catalog card's duration chip uses a clock, not a play glyph.
+const ClockGlyph = () => (
+  <svg
+    width="11"
+    height="11"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.9"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden
+  >
+    <circle cx="12" cy="12" r="9" />
+    <path d="M12 7v5l3 2" />
+  </svg>
+)
+
 function lessonOverview(l: WatchLessonData): WatchOverview {
   const c = (l.content ?? {}) as {
     overview?: string
@@ -783,8 +813,19 @@ export function WatchHome({
         return (
           <div className="lc-catalog" onClick={() => setTrailerPlaying(true)}>
             <div className="lc-card">
-              <div className="lc-thumb">
-                <div className={`img ${imgStyle ? '' : 'ph'}`} style={imgStyle} />
+              <div className={`lc-thumb ${imgStyle ? '' : 'ph'}`}>
+                {imgStyle ? (
+                  <div className="img" style={imgStyle} />
+                ) : (
+                  <>
+                    <div
+                      className="ph-ambient"
+                      style={ambientTint(1)}
+                      aria-hidden
+                    />
+                    <div className="glass-tint" aria-hidden />
+                  </>
+                )}
                 {playOverlay}
               </div>
               <div className="lc-info">
@@ -1210,12 +1251,7 @@ export function WatchHome({
                 ) : null}
                 {l.duration_seconds ? (
                   <div className="lc-dur">
-                    <Glyph
-                      d={SF.play2}
-                      size={11}
-                      fill="currentColor"
-                      stroke={0}
-                    />
+                    <ClockGlyph />
                     <span>{fmtTime(l.duration_seconds)}</span>
                   </div>
                 ) : null}
@@ -1280,7 +1316,11 @@ export function WatchHome({
                   <div className={`spot-card ${imgStyle ? '' : 'ph'}`}>
                     {/* Liquid-glass placeholder (landing's .ph-ambient +
                         .glass-tint) — hidden once a still exists. */}
-                    <div className="ph-ambient" aria-hidden />
+                    <div
+                      className="ph-ambient"
+                      style={ambientTint(flatIdx + 1)}
+                      aria-hidden
+                    />
                     <div className="glass-tint" aria-hidden />
                     <div className="img" style={imgStyle} />
                     <div className="spot-shade" />
@@ -1309,11 +1349,21 @@ export function WatchHome({
                 onClick={() => void playLesson(l)}
               >
                 <div className="lc-card">
-                  <div className="lc-thumb">
-                    <div
-                      className={`img ${imgStyle ? '' : 'ph'}`}
-                      style={imgStyle}
-                    />
+                  <div className={`lc-thumb ${imgStyle ? '' : 'ph'}`}>
+                    {imgStyle ? (
+                      <div className="img" style={imgStyle} />
+                    ) : (
+                      // The landing's liquid-glass placeholder — never a
+                      // portal-only stand-in.
+                      <>
+                        <div
+                          className="ph-ambient"
+                          style={ambientTint(flatIdx + 1)}
+                          aria-hidden
+                        />
+                        <div className="glass-tint" aria-hidden />
+                      </>
+                    )}
                     {overlays}
                   </div>
                   <div className="lc-info">
