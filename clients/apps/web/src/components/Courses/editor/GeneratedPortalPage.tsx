@@ -449,46 +449,53 @@ const MOBILE_640_CSS = `
             text-shadow: 0 2px 20px rgba(0, 0, 0, 0.5);
             text-wrap: pretty;
           }
-          /* Full-width stacked pills. Side-by-side half-width pills wrapped
-             real labels mid-button ("Play Trailer" → two lines, "Buy — $129"
-             → two lines, and a "Subscribe — $89 / month" label is worse), so
-             stack them: each label stays on one line and the tap targets are
-             bigger. */
+          /* Side-by-side pill CTAs on ONE line, per the design: each takes
+             an equal half (flex: 1 1 0), 56px tall — white trailer pill with
+             the 38px play circle, glass enroll pill beside it. */
           .gpp .hero-actions {
-            flex-direction: column;
             align-items: stretch;
             gap: 12px;
             margin-top: 28px;
           }
           .gpp .btn-trailer,
           .gpp .btn-enroll {
-            width: 100%;
+            flex: 1 1 0;
+            min-width: 0;
+            box-sizing: border-box;
             justify-content: center;
             height: 56px;
             font-size: 16px;
-            white-space: nowrap;
           }
           .gpp .btn-trailer {
-            padding: 0 16px;
+            padding: 0 0 0 8px;
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.28);
           }
           .gpp .btn-trailer .play {
-            width: 34px;
-            height: 34px;
+            width: 38px;
+            height: 38px;
           }
           .gpp .btn-enroll {
-            padding: 0 22px;
+            padding: 0;
             /* A near-opaque fill so the enroll CTA is legible on ANY cover
                even where backdrop-filter is unsupported (Google's in-app
                browser, some Android WebViews) — the translucent glass relied
                on that filter and vanished without it. */
             background: rgba(12, 14, 18, 0.64);
-            -webkit-backdrop-filter: blur(18px) saturate(140%);
-            backdrop-filter: blur(18px) saturate(140%);
             box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.4);
           }
+          /* …and the design's exact glass where the blur IS supported. */
+          @supports (
+            (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))
+          ) {
+            .gpp .btn-enroll {
+              background: rgba(20, 20, 24, 0.42);
+              -webkit-backdrop-filter: blur(20px) saturate(160%);
+              backdrop-filter: blur(20px) saturate(160%);
+              box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.28);
+            }
+          }
           .gpp .btn-enroll:active {
-            background: rgba(40, 40, 46, 0.72);
+            background: rgba(40, 40, 46, 0.6);
           }
 
           /* creator controls → 44px icon pills; Add-cover is the centered
