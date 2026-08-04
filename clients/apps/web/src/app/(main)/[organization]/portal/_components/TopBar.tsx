@@ -21,7 +21,6 @@ import {
   OnboardingModal,
   SettingsModal,
 } from './ProfileOnboarding'
-import { useHideOnScroll } from './useHideOnScroll'
 import { useMediaMax } from './useMediaMax'
 import { usePortalTabs } from './usePortalTabs'
 
@@ -40,11 +39,14 @@ const orgInitial = (name: string) => {
 
 export const TopBar = ({
   organization,
+  hidden = false,
 }: {
   organization: schemas['CustomerOrganization']
+  /** Hide-on-scroll state, owned by PortalShell so the community hub's
+   *  sticky tab bar can coordinate with the bar via a root class. */
+  hidden?: boolean
 }) => {
   const pathname = usePathname()
-  const hidden = useHideOnScroll()
 
   // Tab building, permission gating, and href threading are shared with the
   // mobile bottom tab bar via usePortalTabs.
