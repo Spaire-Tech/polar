@@ -41,24 +41,16 @@ import { ScheduleEdits, ScheduleMenu } from './ScheduleMenu'
 // now that the old ModuleCard that used to own it has been removed.
 export type LessonContentType = 'text' | 'video' | 'quiz'
 
-const THUMB_GRADIENTS: [string, string][] = [
-  ['#1c1c2e', '#2d1b69'],
-  ['#0f2027', '#2c5364'],
-  ['#1a1a1a', '#3d3d3d'],
-  ['#16213e', '#533483'],
-  ['#0d0d0d', '#1a1a2e'],
-  ['#1e3a2f', '#2d5a40'],
-  ['#2c1810', '#8b3a1a'],
-]
+// Every lesson without a still wears the same flat navy placeholder — one
+// color across the whole outline, no per-position variety.
+const THUMB_PLACEHOLDER_COLOR = '#1F3A68'
 
 function ThumbArt({
   thumbnailUrl,
   objectPosition,
-  position,
 }: {
   thumbnailUrl: string | null
   objectPosition?: string | null
-  position: number
 }) {
   if (thumbnailUrl) {
     return (
@@ -70,32 +62,11 @@ function ThumbArt({
       />
     )
   }
-  const [c1, c2] = THUMB_GRADIENTS[(position - 1) % THUMB_GRADIENTS.length]
   return (
-    <svg
-      width="100%"
-      height="100%"
-      viewBox="0 0 160 90"
-      preserveAspectRatio="xMidYMid slice"
+    <div
       className="absolute inset-0 h-full w-full"
-    >
-      <defs>
-        <linearGradient id={`g${position}`} x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor={c1} />
-          <stop offset="100%" stopColor={c2} />
-        </linearGradient>
-      </defs>
-      <rect width="160" height="90" fill={`url(#g${position})`} />
-      <line
-        x1="0"
-        y1="90"
-        x2="160"
-        y2="0"
-        stroke="rgba(255,255,255,0.04)"
-        strokeWidth="40"
-      />
-      <circle cx="138" cy="20" r="40" fill="rgba(255,255,255,0.03)" />
-    </svg>
+      style={{ backgroundColor: THUMB_PLACEHOLDER_COLOR }}
+    />
   )
 }
 
@@ -156,7 +127,6 @@ function LessonCard({
         <ThumbArt
           thumbnailUrl={lesson.thumbnail_url ?? null}
           objectPosition={lesson.thumbnail_object_position ?? null}
-          position={position}
         />
         {/* Ep badge — fades out on hover so the drag handle can sit in the same spot. */}
         <div className="absolute top-[7px] left-2 z-10 text-[9px] font-semibold tracking-[0.07em] text-white/75 uppercase transition-opacity [text-shadow:0_1px_3px_rgba(0,0,0,0.5)] group-hover:opacity-0">
