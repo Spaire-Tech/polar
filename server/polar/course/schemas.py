@@ -268,6 +268,16 @@ class CourseUpdate(Schema):
         return validate_landing_overrides(value)
 
 
+class CourseLessonThumbnailFromVideo(Schema):
+    """Pick a video frame as the lesson thumbnail (YouTube-style).
+
+    The server grabs the frame at ``time_seconds`` from the lesson's
+    processed video and stores it as the thumbnail image.
+    """
+
+    time_seconds: float = Field(ge=0, le=12 * 60 * 60)
+
+
 class QuizAnswerSubmission(Schema):
     question_id: str
     selected_option_ids: list[str] = Field(default_factory=list)

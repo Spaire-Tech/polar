@@ -37,6 +37,7 @@ from .schemas import (
     CourseEnrollmentRead,
     CourseLessonCreate,
     CourseLessonRead,
+    CourseLessonThumbnailFromVideo,
     CourseLessonUpdate,
     CourseModuleCreate,
     CourseModuleRead,
@@ -878,6 +879,71 @@ async def upload_lesson_thumbnail(
 
     lesson = await lesson_repo.update(
         lesson, update_dict={"thumbnail_url": thumbnail_url}
+    )
+    return _lesson_read(lesson)
+
+
+@router.post(
+    "/lessons/{lesson_id}/thumbnail/from-video",
+    response_model=CourseLessonRead,
+    summary="Set Lesson Thumbnail From Video Frame",
+)
+async def set_lesson_thumbnail_from_video(
+    lesson_id: UUID,
+    body: CourseLessonThumbnailFromVideo,
+    auth_subject: auth.CoursesWrite,
+    session: AsyncSession = Depends(get_db_session),
+) -> CourseLessonRead:
+    """YouTube-style thumbnail-from-video: grab the frame at the requested
+    timestamp from the lesson's processed Mux video and store it as the
+    thumbnail image (same content-addressed S3 path as an uploaded one, so
+    everything downstream — cards, rails, portal — just works)."""
+    import httpx
+
+    from polar.config import settings
+    from polar.integrations.aws.s3 import S3Service
+
+    lesson_repo = CourseLessonRepository.from_session(session)
+    lesson = await lesson_repo.get_readable_by_id(lesson_id, auth_subject)
+    if lesson is None:
+        raise HTTPException(status_code=404, detail="Lesson not found")
+    if not lesson.mux_playback_id:
+        raise HTTPException(
+            status_code=400,
+            detail="This lesson's video isn't processed yet",
+        )
+
+    frame_url = (
+        f"https://image.mux.com/{lesson.mux_playback_id}/thumbnail.jpg"
+        f"?time={body.time_seconds:.2f}&width=1280&fit_mode=preserve"
+    )
+    try:
+        async with httpx.AsyncClient(timeout=20.0) as client:
+            resp = await client.get(frame_url)
+    except httpx.HTTPError as exc:
+        raise HTTPException(
+            status_code=502, detail="Could not grab that frame"
+        ) from exc
+    if resp.status_code != 200 or not resp.content:
+        raise HTTPException(status_code=502, detail="Could not grab that frame")
+
+    data = resp.content
+    if len(data) > 10 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="Frame is too large")
+
+    digest = hashlib.sha256(data).hexdigest()[:12]
+    path = f"course-thumbnails/{lesson_id}/{digest}.jpg"
+    s3 = S3Service(bucket=settings.S3_FILES_PUBLIC_BUCKET_NAME)
+    s3.upload(data, path, "image/jpeg")
+    thumbnail_url = s3.get_public_url(path)
+
+    # A picked frame is the full frame — reset any crop from a previous image.
+    lesson = await lesson_repo.update(
+        lesson,
+        update_dict={
+            "thumbnail_url": thumbnail_url,
+            "thumbnail_object_position": None,
+        },
     )
     return _lesson_read(lesson)
 

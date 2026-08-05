@@ -27,6 +27,7 @@ import {
   useDeleteLessonAttachment,
   useRemoveLessonVideo,
   useRewriteLessonAi,
+  useSetLessonThumbnailFromVideo,
   useUpdateCourse,
   useUpdateCourseLesson,
   useUploadLessonAttachment,
@@ -583,6 +584,7 @@ export function LessonEditorV2({
     setReposBusy(true)
     setThumbUrl(URL.createObjectURL(file))
     setThumbPos({ x: 50, y: 50 })
+    setAppliedFrame(null)
     queueSave({ thumbnail_object_position: '50.0% 50.0%' })
     try {
       const updated = await uploadThumbnail.mutateAsync({
@@ -610,11 +612,62 @@ export function LessonEditorV2({
   const clearThumbnail = () => {
     setThumbUrl(null)
     setThumbPos({ x: 50, y: 50 })
+    setAppliedFrame(null)
     queueSave({ thumbnail_url: null, thumbnail_object_position: null })
   }
   const onRepositionThumb = (pos: string) => {
     setThumbPos(parsePos(pos))
     queueSave({ thumbnail_object_position: pos })
+  }
+
+  // ── thumbnail from video (YouTube-style) ── once the video is processed,
+  //    offer three frames from it as one-click thumbnail options next to
+  //    the custom upload. Picking one has the SERVER grab that exact frame
+  //    and store it through the same S3 pipeline as an uploaded image.
+  const thumbFromVideo = useSetLessonThumbnailFromVideo()
+  const [frameBusy, setFrameBusy] = useState<number | null>(null)
+  // Session-local highlight of the applied frame (the stored thumbnail is
+  // a plain image — it doesn't remember which timestamp it came from).
+  const [appliedFrame, setAppliedFrame] = useState<number | null>(null)
+  const frameReady =
+    Boolean(lesson.mux_playback_id) && lesson.mux_status === 'ready'
+  const frameTimes = useMemo(() => {
+    if (!frameReady) return []
+    const d = lesson.duration_seconds ?? 0
+    // Same spread YouTube uses: three stills across the video. Short or
+    // unknown durations fall back to early seconds.
+    const times =
+      d >= 8
+        ? [0.15, 0.45, 0.78].map((f) => Math.round(d * f))
+        : d >= 3
+          ? [1, Math.round(d / 2), Math.max(2, d - 1)]
+          : [0, 1, 2]
+    return [...new Set(times)]
+  }, [frameReady, lesson.duration_seconds])
+  const frameSrc = (t: number, width = 480) =>
+    `https://image.mux.com/${lesson.mux_playback_id}/thumbnail.jpg?time=${t}&width=${width}`
+  const applyFrame = async (t: number) => {
+    if (frameBusy != null) return
+    setFrameBusy(t)
+    try {
+      const updated = await thumbFromVideo.mutateAsync({
+        lessonId: lesson.id,
+        timeSeconds: t,
+      })
+      setThumbUrl(updated.thumbnail_url ?? null)
+      setThumbPos({ x: 50, y: 50 })
+      setAppliedFrame(t)
+      toast({ title: 'Thumbnail updated' })
+    } catch {
+      toast({ title: "Couldn't grab that frame", description: 'Try again.' })
+    } finally {
+      setFrameBusy(null)
+    }
+  }
+  const fmtFrameTime = (t: number) => {
+    const m = Math.floor(t / 60)
+    const s = Math.floor(t % 60)
+    return `${m}:${String(s).padStart(2, '0')}`
   }
 
   const unitCap = isEpisodic ? 'Episode' : 'Lesson'
@@ -905,6 +958,73 @@ export function LessonEditorV2({
                   </span>
                 </div>
               </div>
+              {/* YouTube-style picker — upload a custom image, or one-click
+                  a frame pulled from the processed video. */}
+              {frameTimes.length > 0 && (
+                <div className="tf">
+                  <div className="tf-label">
+                    Or pick a frame from the video
+                  </div>
+                  <div className="tf-row">
+                    <button
+                      type="button"
+                      className="tf-tile tf-upload"
+                      onClick={pickThumbnail}
+                      disabled={frameBusy != null || reposBusy}
+                    >
+                      <svg
+                        width="17"
+                        height="17"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.9"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        aria-hidden
+                      >
+                        <path d="M12 16V4M12 4l-4 4M12 4l4 4M4 20h16" />
+                      </svg>
+                      <span>Upload</span>
+                    </button>
+                    {frameTimes.map((t) => (
+                      <button
+                        key={t}
+                        type="button"
+                        className={`tf-tile ${
+                          appliedFrame === t ? 'active' : ''
+                        }`}
+                        onClick={() => void applyFrame(t)}
+                        disabled={frameBusy != null}
+                        aria-label={`Use the frame at ${fmtFrameTime(t)} as the thumbnail`}
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={frameSrc(t)} alt="" loading="lazy" />
+                        <span className="tf-time">{fmtFrameTime(t)}</span>
+                        {frameBusy === t && (
+                          <span className="tf-spin" aria-hidden />
+                        )}
+                        {appliedFrame === t && frameBusy == null && (
+                          <span className="tf-check" aria-hidden>
+                            <svg
+                              width="11"
+                              height="11"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="3.2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            >
+                              <path d="M4.5 12.8 9.6 18 19.5 6.5" />
+                            </svg>
+                          </span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </section>
@@ -2199,6 +2319,114 @@ function LessonEditorStyles() {
       }
       .led .thumb-tile.filled:hover .thumb-hint {
         opacity: 1;
+      }
+
+      /* ── thumbnail-from-video strip (YouTube-style): an Upload tile plus
+         three frames pulled from the processed video. Selected wears the
+         accent ring + check. ── */
+      .led .tf {
+        margin-top: 12px;
+      }
+      .led .tf-label {
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--text-2);
+        margin-bottom: 8px;
+      }
+      .led .tf-row {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 10px;
+      }
+      .led .tf-tile {
+        position: relative;
+        aspect-ratio: 16 / 9;
+        border-radius: 10px;
+        overflow: hidden;
+        padding: 0;
+        background: rgba(125, 125, 135, 0.1);
+        box-shadow: inset 0 0 0 1px var(--hair);
+        cursor: pointer;
+        transition:
+          box-shadow 0.15s,
+          opacity 0.15s;
+      }
+      .led .tf-tile:disabled {
+        cursor: default;
+        opacity: 0.6;
+      }
+      .led .tf-tile:hover:not(:disabled) {
+        box-shadow: inset 0 0 0 1px rgba(125, 125, 135, 0.55);
+      }
+      .led .tf-tile.active {
+        box-shadow:
+          0 0 0 2px var(--color-ce-accent),
+          inset 0 0 0 1px transparent;
+      }
+      .led .tf-tile img {
+        display: block;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+      .led .tf-upload {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 5px;
+        color: var(--text-2);
+        font-size: 11.5px;
+        font-weight: 600;
+      }
+      .led .tf-upload:hover:not(:disabled) {
+        color: var(--text-1);
+      }
+      .led .tf-time {
+        position: absolute;
+        bottom: 5px;
+        right: 5px;
+        padding: 2px 6px;
+        border-radius: 6px;
+        background: rgba(0, 0, 0, 0.72);
+        color: #fff;
+        font-size: 10.5px;
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+        pointer-events: none;
+      }
+      .led .tf-check {
+        position: absolute;
+        top: 5px;
+        left: 5px;
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        background: var(--color-ce-accent);
+        color: #fff;
+        display: grid;
+        place-items: center;
+      }
+      .led .tf-spin {
+        position: absolute;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        background: rgba(0, 0, 0, 0.35);
+      }
+      .led .tf-spin::after {
+        content: '';
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        border: 2px solid rgba(255, 255, 255, 0.35);
+        border-top-color: #fff;
+        animation: tf-rot 0.7s linear infinite;
+      }
+      @keyframes tf-rot {
+        to {
+          transform: rotate(360deg);
+        }
       }
 
       .led .learn-row {
