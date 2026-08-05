@@ -98,6 +98,9 @@ export type CourseModuleRead = {
   status: string
   release_at: string | null
   drip_days: number | null
+  // Bonus section — renders as the portal's "Bonus Content" rail; its
+  // lessons are unnumbered and don't count toward completion.
+  is_bonus?: boolean
   lessons: CourseLessonRead[]
   created_at: string
   modified_at: string | null
@@ -565,6 +568,7 @@ export const useUpdateCourseModule = () =>
         status?: string
         release_at?: string | null
         drip_days?: number | null
+        is_bonus?: boolean
       }
     }) =>
       courseApiFetch<CourseModuleRead>(`/v1/courses/modules/${moduleId}`, {
@@ -833,6 +837,7 @@ export type CustomerModuleRead = {
   position: number
   locked: boolean
   locked_until: string | null
+  is_bonus?: boolean
   lessons: CustomerLessonRead[]
 }
 
@@ -1124,6 +1129,28 @@ export const useUploadLessonThumbnail = () =>
       }
       return res.json() as Promise<CourseLessonRead>
     },
+    onSuccess: invalidateCourseQueries,
+  })
+
+// YouTube-style thumbnail-from-video: the server grabs the frame at the
+// requested timestamp from the lesson's processed video and stores it as
+// the thumbnail (same S3 pipeline as an uploaded image).
+export const useSetLessonThumbnailFromVideo = () =>
+  useMutation({
+    mutationFn: ({
+      lessonId,
+      timeSeconds,
+    }: {
+      lessonId: string
+      timeSeconds: number
+    }) =>
+      courseApiFetch<CourseLessonRead>(
+        `/v1/courses/lessons/${lessonId}/thumbnail/from-video`,
+        {
+          method: 'POST',
+          body: JSON.stringify({ time_seconds: timeSeconds }),
+        },
+      ),
     onSuccess: invalidateCourseQueries,
   })
 

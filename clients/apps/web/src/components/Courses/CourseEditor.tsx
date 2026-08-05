@@ -277,6 +277,27 @@ export default function CourseEditor({
     }
   }
 
+  const handleToggleModuleBonus = async (mod: CourseModuleRead) => {
+    const next = !mod.is_bonus
+    try {
+      await updateModule.mutateAsync({
+        moduleId: mod.id,
+        body: { is_bonus: next },
+      })
+      invalidateCourse()
+      toast({
+        title: next
+          ? 'Season is now a Bonus section'
+          : 'Season is back to regular',
+        description: next
+          ? 'Shows in the portal’s "Bonus Content" rail — unnumbered, doesn’t count toward completion.'
+          : undefined,
+      })
+    } catch {
+      toast({ title: 'Failed to update section' })
+    }
+  }
+
   const handleDeleteModule = async (mod: CourseModuleRead) => {
     try {
       await deleteModule.mutateAsync(mod.id)
@@ -484,6 +505,7 @@ export default function CourseEditor({
           onAddModule={isEpisodic ? undefined : handleAddModule}
           onRenameModule={isEpisodic ? undefined : handleRenameModule}
           onDeleteModule={isEpisodic ? undefined : handleDeleteModule}
+          onToggleModuleBonus={isEpisodic ? undefined : handleToggleModuleBonus}
           canSchedule={canSchedule}
           scheduleUpgradeTier={scheduleUpgradeTier}
           onUpdateModuleSchedule={

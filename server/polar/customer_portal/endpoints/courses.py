@@ -212,10 +212,23 @@ def _build_module_list(course, paywall_position, enrolled_at, now, completed_ids
                 "position": m.position,
                 "locked": drip_locked,
                 "locked_until": locked_until,
+                "is_bonus": bool(getattr(m, "is_bonus", False)),
                 "lessons": lessons,
             }
         )
     return modules, accessible_ids
+
+
+def _bonus_lesson_ids(course) -> set[str]:
+    """Lesson ids living in bonus sections — shown in the portal's "Bonus
+    Content" rail but excluded from the completion denominator (a student
+    hits 100% without the extras)."""
+    return {
+        str(lesson.id)
+        for module in course.modules
+        if getattr(module, "is_bonus", False)
+        for lesson in module.lessons
+    }
 
 
 def _build_flat_lesson_list(course, paywall_position, enrolled_at, now, completed_ids):
@@ -339,8 +352,10 @@ async def list_enrolled_courses(
             now,
             completed_ids,
         )
-        total_lessons = len(accessible_ids)
-        completed_count = len(completed_ids & accessible_ids)
+        # Bonus-section lessons never count toward completion.
+        counted_ids = accessible_ids - _bonus_lesson_ids(course)
+        total_lessons = len(counted_ids)
+        completed_count = len(completed_ids & counted_ids)
         completion_percent = (
             round(completed_count / total_lessons * 100, 1)
             if total_lessons
@@ -360,7 +375,7 @@ async def list_enrolled_courses(
         completed_at: str | None = None
         if total_lessons > 0 and completed_count == total_lessons:
             relevant = [
-                p for p in progress_items if str(p.lesson_id) in accessible_ids
+                p for p in progress_items if str(p.lesson_id) in counted_ids
             ]
             if relevant:
                 completed_at = max(p.completed_at for p in relevant).isoformat()
@@ -525,9 +540,11 @@ async def get_enrolled_course(
         course, course.paywall_position, enrolled_at, now, completed_ids
     )
 
-    # Progress only counts lessons the student can actually access.
-    total_lessons = len(flat_accessible_ids)
-    completed_count = len(completed_ids & flat_accessible_ids)
+    # Progress only counts lessons the student can actually access —
+    # and never bonus-section lessons (the extras don't gate 100%).
+    counted_ids = flat_accessible_ids - _bonus_lesson_ids(course)
+    total_lessons = len(counted_ids)
+    completed_count = len(completed_ids & counted_ids)
 
     return {
         "enrollment_id": str(enrollment.id),

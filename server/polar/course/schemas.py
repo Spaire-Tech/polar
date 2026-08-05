@@ -171,6 +171,9 @@ class CourseModuleUpdate(Schema):
     status: str | None = None
     release_at: datetime | None = None
     drip_days: int | None = None
+    # Bonus section — renders as the portal's "Bonus Content" rail; its
+    # lessons are unnumbered and don't count toward completion.
+    is_bonus: bool | None = None
 
 
 class CourseModuleRead(TimestampedSchema):
@@ -182,6 +185,7 @@ class CourseModuleRead(TimestampedSchema):
     status: str
     release_at: datetime | None
     drip_days: int | None
+    is_bonus: bool = False
     lessons: list[CourseLessonRead]
 
 
@@ -266,6 +270,16 @@ class CourseUpdate(Schema):
     @classmethod
     def _validate_landing_overrides(cls, value: dict | None) -> dict | None:
         return validate_landing_overrides(value)
+
+
+class CourseLessonThumbnailFromVideo(Schema):
+    """Pick a video frame as the lesson thumbnail (YouTube-style).
+
+    The server grabs the frame at ``time_seconds`` from the lesson's
+    processed video and stores it as the thumbnail image.
+    """
+
+    time_seconds: float = Field(ge=0, le=12 * 60 * 60)
 
 
 class QuizAnswerSubmission(Schema):

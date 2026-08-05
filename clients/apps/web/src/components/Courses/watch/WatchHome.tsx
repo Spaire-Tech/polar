@@ -678,13 +678,32 @@ export function WatchHome({
     () => new Map(lessons.map((l, i) => [l.id, i])),
     [lessons],
   )
+  // Bonus sections: their lessons live in the "Bonus Content" rail at the
+  // bottom (own section, like Trailers), wear "Bonus" instead of a lesson
+  // number, and sit outside the "Lesson N of M" spine.
+  const bonusIds = useMemo(() => {
+    const ids = new Set<string>()
+    for (const m of course.modules ?? []) {
+      if (m.is_bonus) for (const ml of m.lessons) ids.add(ml.id)
+    }
+    return ids
+  }, [course.modules])
+  const numberedById = useMemo(() => {
+    const map = new Map<string, number>()
+    let n = 0
+    for (const l of lessons) if (!bonusIds.has(l.id)) map.set(l.id, ++n)
+    return map
+  }, [lessons, bonusIds])
+  const numberedCount = numberedById.size
   // One rail per season when the course has more than one (Apple-TV-style
   // "Season 1 / Season 2 / …" rows). A single-module course — including a
   // limited series — keeps the one flat rail it always had.
   const seasonRails = useMemo(() => {
-    const modules = [...(course.modules ?? [])].sort(
-      (a, b) => a.position - b.position,
-    )
+    // Bonus sections never render as numbered season rows — they collect
+    // into the Bonus Content rail below.
+    const modules = [...(course.modules ?? [])]
+      .filter((m) => !m.is_bonus)
+      .sort((a, b) => a.position - b.position)
     if (modules.length <= 1) return null
     const byId = new Map(lessons.map((l) => [l.id, l]))
     const rails = modules.map((m, index) => ({
@@ -696,6 +715,27 @@ export function WatchHome({
     }))
     return rails.filter((r) => r.items.length > 0)
   }, [course.modules, lessons])
+  // The Bonus Content rail — every bonus section's lessons, in outline order.
+  const bonusItems = useMemo(() => {
+    const byId = new Map(lessons.map((l) => [l.id, l]))
+    const items: WatchLessonData[] = []
+    for (const m of [...(course.modules ?? [])].sort(
+      (a, b) => a.position - b.position,
+    )) {
+      if (!m.is_bonus) continue
+      for (const ml of m.lessons) {
+        const x = byId.get(ml.id)
+        if (x) items.push(x)
+      }
+    }
+    return items
+  }, [course.modules, lessons])
+  // The single flat rail (one-season courses) lists only numbered lessons —
+  // bonus ones live in their own rail.
+  const railLessons = useMemo(
+    () => lessons.filter((l) => !bonusIds.has(l.id)),
+    [lessons, bonusIds],
+  )
 
   /* ── trailer (portal-only rail at the very bottom) ── */
   const [trailerPlaying, setTrailerPlaying] = useState(false)
@@ -735,6 +775,11 @@ export function WatchHome({
     status === 'watched' ? 'Replay' : status === 'progress' ? 'Resume' : 'Play'
   const isBookmarked = bookmarks.has(ep.id)
   const epN = focus + 1
+  // Bonus lessons wear "Bonus" wherever a numbered label would show.
+  const epIsBonus = bonusIds.has(ep.id)
+  const epLabel = epIsBonus
+    ? 'Bonus'
+    : `${unitCap} ${numberedById.get(ep.id) ?? epN}`
 
   // Shown under every "Your progress" bar once there is anything to wipe.
   const hasAnyProgress = lessonsDone > 0 || Object.keys(watchState.p).length > 0
@@ -752,7 +797,8 @@ export function WatchHome({
   const kicker =
     status === 'watched' ? (
       <span>
-        Watched · {unitCap} {epN} of {lessons.length}
+        Watched · {epLabel}
+        {epIsBonus ? '' : ` of ${numberedCount}`}
       </span>
     ) : status === 'progress' ? (
       <>
@@ -762,12 +808,14 @@ export function WatchHome({
           <i />
         </span>
         <span>
-          Continue · {unitCap} {epN} of {lessons.length}
+          Continue · {epLabel}
+          {epIsBonus ? '' : ` of ${numberedCount}`}
         </span>
       </>
     ) : (
       <span>
-        {unitCap} {epN} of {lessons.length}
+        {epLabel}
+        {epIsBonus ? '' : ` of ${numberedCount}`}
       </span>
     )
 
@@ -894,14 +942,14 @@ export function WatchHome({
                   ? 'Watched'
                   : status === 'progress'
                     ? 'Continue'
-                    : `${unitCap} ${epN}`}
+                    : epLabel}
               </span>
               <span className="meta-line">
                 <span style={courseTitleStyle}>{course.title}</span>
                 <span className="sep">·</span>
                 <span>
-                  {lessons.length} {unitCap.toLowerCase()}
-                  {lessons.length === 1 ? '' : 's'}
+                  {numberedCount} {unitCap.toLowerCase()}
+                  {numberedCount === 1 ? '' : 's'}
                 </span>
                 <span className="sep">·</span>
                 <span>{fmtRuntime(totalRuntime)}</span>
@@ -1004,7 +1052,7 @@ export function WatchHome({
                   onClick={() => void playLesson(ep)}
                 >
                   <Glyph d={SF.play} size={17} fill="currentColor" />{' '}
-                  {playLabel} {unitCap} {epN}
+                  {playLabel} {epLabel}
                 </button>
                 <button
                   className="abtn glass"
@@ -1147,8 +1195,8 @@ export function WatchHome({
           <div className="m-hero-meta">
             {course.landing_overrides?.ai_hero?.eyebrow || (
               <>
-                {lessons.length} {unitCap.toLowerCase()}
-                {lessons.length === 1 ? '' : 's'} · {fmtRuntime(totalRuntime)}
+                {numberedCount} {unitCap.toLowerCase()}
+                {numberedCount === 1 ? '' : 's'} · {fmtRuntime(totalRuntime)}
               </>
             )}
           </div>
@@ -1160,7 +1208,7 @@ export function WatchHome({
                 onClick={() => void playLesson(ep)}
               >
                 <Glyph d={SF.play} size={15} fill="currentColor" /> {playLabel}{' '}
-                {unitCap} {epN}
+                {epLabel}
               </button>
               <button
                 className="m-hero-ov"
@@ -1228,7 +1276,11 @@ export function WatchHome({
           one-season courses and limited series) ════════ */}
       <section className="lessons">
         {(() => {
-          const renderRailCard = (l: WatchLessonData, railN: number) => {
+          const renderRailCard = (
+            l: WatchLessonData,
+            railN: number,
+            numLabel?: string,
+          ) => {
             const flatIdx = flatIndexById.get(l.id) ?? 0
             const st = statusOf(l)
             const frac = fractionOf(l)
@@ -1328,7 +1380,7 @@ export function WatchHome({
                     {overlays}
                     <div className="spot-info">
                       <div className="lc-num">
-                        {unitCap} {railN}
+                        {numLabel ?? `${unitCap} ${railN}`}
                         {bookmarks.has(l.id) ? ' · Saved' : ''}
                       </div>
                       <div className="spot-title">{l.title}</div>
@@ -1369,7 +1421,7 @@ export function WatchHome({
                   </div>
                   <div className="lc-info">
                     <div className="lc-num">
-                      {unitCap} {railN}
+                      {numLabel ?? `${unitCap} ${railN}`}
                       {bookmarks.has(l.id) ? ' · Saved' : ''}
                     </div>
                     <div className="lc-title">{l.title}</div>
@@ -1414,21 +1466,44 @@ export function WatchHome({
               <div className="row-head">
                 <span className="rh">{course.title}</span>
                 <span className="rh-meta">
-                  {lessons.length} lesson
-                  {lessons.length === 1 ? '' : 's'}
+                  {railLessons.length} lesson
+                  {railLessons.length === 1 ? '' : 's'}
                   {lessonsDone > 0 ? ` · ${lessonsDone} watched` : ''}
                 </span>
               </div>
               <RailStrip spot={spot}>
-                {lessons.map((l, i) => renderRailCard(l, i + 1))}
+                {railLessons.map((l, i) => renderRailCard(l, i + 1))}
               </RailStrip>
             </>
           )
 
+          // Bonus Content — its own section at the bottom, like Trailers.
+          // Cards wear the chosen variant; "Bonus" replaces the number.
+          const bonusRail =
+            bonusItems.length > 0 ? (
+              <div style={{ marginTop: 42 }}>
+                <div className="row-head">
+                  <span className="rh">Bonus Content</span>
+                  <span className="rh-meta">
+                    {bonusItems.length} extra
+                    {bonusItems.length === 1 ? '' : 's'}
+                  </span>
+                </div>
+                <RailStrip spot={spot}>
+                  {bonusItems.map((l, i) => renderRailCard(l, i + 1, 'Bonus'))}
+                </RailStrip>
+              </div>
+            ) : null
+
           // Mobile shows these SAME rails — swipeable strips, exactly like
           // the landing (scroll-snap does the work; only the hover arrows
           // hide). No separate mobile list.
-          return rails
+          return (
+            <>
+              {rails}
+              {bonusRail}
+            </>
+          )
         })()}
 
         {/* ════ Trailers — portal-only rail at the very bottom. The card
@@ -1459,7 +1534,11 @@ export function WatchHome({
       {/* ════════ overlays ════════ */}
       {overviewFor && (
         <OverviewSheet
-          lessonN={lessons.findIndex((l) => l.id === overviewFor.id) + 1}
+          lessonN={
+            numberedById.get(overviewFor.id) ??
+            lessons.findIndex((l) => l.id === overviewFor.id) + 1
+          }
+          numLabel={bonusIds.has(overviewFor.id) ? 'Bonus' : undefined}
           title={overviewFor.title}
           durLabel={
             overviewFor.duration_seconds
@@ -1487,7 +1566,7 @@ export function WatchHome({
 
       {showComments && !playing && (
         <CommentsPanel
-          lessonLabel={`${unitCap} ${epN} · ${ep.title}`}
+          lessonLabel={`${epLabel} · ${ep.title}`}
           comments={comments}
           viewerAvatarUrl={data.customer_avatar_url}
           dark={dark}

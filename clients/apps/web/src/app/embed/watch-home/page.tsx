@@ -125,7 +125,33 @@ export default function WatchHomeEmbed() {
         hero_title_font: params.get('font') ?? null,
       },
       trailer_url: params.get('trailer') === '1' ? 'fake-trailer.mp4' : null,
-      modules: [],
+      // ?bonus=1 — split the lessons into a season + a Bonus section, to
+      // verify the "Bonus Content" rail, the unnumbered cards, and the
+      // numbering spine skipping the extras.
+      modules:
+        params.get('bonus') === '1'
+          ? [
+              {
+                id: 'm1',
+                title: 'Season 1',
+                description: null,
+                position: 0,
+                locked: false,
+                locked_until: null,
+                lessons: lessonsForRender.slice(0, 3),
+              },
+              {
+                id: 'm2',
+                title: 'Extras',
+                description: null,
+                position: 1,
+                locked: false,
+                locked_until: null,
+                is_bonus: true,
+                lessons: lessonsForRender.slice(3),
+              },
+            ]
+          : [],
       lessons: [],
     },
   } as unknown as CustomerCourseDetail

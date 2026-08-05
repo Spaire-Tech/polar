@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, Uuid
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, Uuid
 from sqlalchemy.orm import Mapped, declared_attr, mapped_column, relationship
 
 from polar.kit.db.models import RecordModel
@@ -38,6 +38,11 @@ class CourseModule(RecordModel):
     )
 
     drip_days: Mapped[int | None] = mapped_column(Integer, nullable=True, default=None)
+
+    # Bonus section — its lessons render in the portal's "Bonus Content"
+    # rail (own section at the bottom, like Trailers), sit outside the
+    # course's lesson numbering, and don't count toward completion.
+    is_bonus: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
     @declared_attr
     def course(cls) -> Mapped["Course"]:
