@@ -1,6 +1,6 @@
-# Arthur v1 — phase plan
+# Claidor v1 — phase plan
 
-Companion to `arthur-stack-audit.md`. Division of labor: the founder handles accounts,
+Companion to `claidor-stack-audit.md`. Division of labor: the founder handles accounts,
 purchases, corpus sourcing, and legal/business decisions; Claude Code does the
 engineering. Calendar time is dominated by corpus work and lawyer feedback loops, not
 code. Target: a paying pilot in roughly 3–4 months.
@@ -10,10 +10,10 @@ code. Target: a paying pilot in roughly 3–4 months.
 ## Phase 0 — Separation & scaffolding (~1 week)
 
 **Founder:**
-- Create a new private GitHub repository for Arthur (fresh repo, e.g.
-  `Spaire-Tech/arthur` or a new org) and grant Claude Code access to it.
+- Create a new private GitHub repository for Claidor (fresh repo, e.g.
+  `Spaire-Tech/claidor` or a new org) and grant Claude Code access to it.
 - Create an Anthropic API account (console.anthropic.com), add billing with a low
-  monthly spend cap, generate a key named for testing (e.g. `arthur-test`). Needed
+  monthly spend cap, generate a key named for testing (e.g. `claidor-test`). Needed
   from Phase 1 onward; a separate production key replaces it at launch. (Anthropic
   has no sandbox mode — test and prod keys differ only in name and spend cap.)
 - Decision (2026-08): domain purchase and all other paid accounts are deferred until
@@ -23,7 +23,7 @@ code. Target: a paying pilot in roughly 3–4 months.
 
 **Engineering:**
 - Copy the Spaire codebase into the new repo (Spaire untouched thereafter).
-- Prune the obvious non-Arthur verticals: courses, community, masterclass architect
+- Prune the obvious non-Claidor verticals: courses, community, masterclass architect
   (keep its citation validator), mobile app, storefront. Keep the chassis: auth,
   organizations, seats, billing/self-billing, email (incl. broadcast machinery for
   future alerts), files, worker, backoffice, search, observability, tests.
@@ -62,7 +62,7 @@ show it to a colleague. Do not proceed on our own opinion of the answers.
 - Corpus acquisition at scale: the full CCJA decision set, and a settled position on
   sourcing (public court decisions; note provenance for every document).
 - Editorial capacity: who does human verification of links — founder time at first, a
-  French-legally-literate reviewer as it scales. This becomes Arthur's permanent
+  French-legally-literate reviewer as it scales. This becomes Claidor's permanent
   editorial function.
 
 **Engineering:**

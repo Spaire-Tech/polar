@@ -1,17 +1,17 @@
-# Arthur on the Spaire/Polar stack — reuse audit
+# Claidor on the Spaire/Polar stack — reuse audit
 
-**Question:** can this codebase be reused to build Arthur — the definitive record of OHADA
+**Question:** can this codebase be reused to build Claidor — the definitive record of OHADA
 law plus an AI librarian that answers questions in French with article-level citations,
 sold as seat-based subscriptions to law firms?
 
 **Verdict: yes, as a chassis — and this repo has already proven the playbook once.**
 This is not upstream Polar: it is the Spaire fork, which already repurposed Polar's
 payment-infrastructure codebase into a creator-course platform. In doing so it built the
-two things Arthur needs most and Polar never had: a **citation-grounded RAG pipeline over
+two things Claidor needs most and Polar never had: a **citation-grounded RAG pipeline over
 a text corpus** (`course_assistant`) and an **anti-fabrication citation validator**
 (`masterclass_architect`). Roughly the entire SaaS chassis (auth, tenancy, jobs, files,
 email, webhooks, billing, admin, observability, CI/deploy) transfers. What does *not*
-exist anywhere in the repo is Arthur's actual moat: the legal corpus layer — versioned
+exist anywhere in the repo is Claidor's actual moat: the legal corpus layer — versioned
 statute text, document ingestion, semantic retrieval. You would build that regardless of
 starting point; the question was only whether the surrounding 80% comes for free. It
 largely does.
@@ -36,9 +36,9 @@ permitted (keep the license/notice files).
 
 ---
 
-## 2. Reuse map against Arthur's product
+## 2. Reuse map against Claidor's product
 
-### A. Take nearly as-is — the platform kernel (~60% of Arthur's surface)
+### A. Take nearly as-is — the platform kernel (~60% of Claidor's surface)
 
 - **Auth & identity** — `polar/auth`, `polar/oauth2`, `polar/login_code`,
   `polar/personal_access_token`, `polar/organization_access_token`, plus
@@ -50,7 +50,7 @@ permitted (keep the license/notice files).
   A firm = an organization; per-tenant custom domains (`organization_custom_domain`)
   and tenant-scoped rate limits already exist.
 - **Seats** — `customer_seat` + `member` + `member_session` implement the exact flow
-  Arthur sells: seat invitation → email token → claim → revoke, with roles
+  Claidor sells: seat invitation → email token → claim → revoke, with roles
   (owner / billing manager / member) and SSE live updates.
 - **The kernel library** — `polar/kit`: base models (UUID PK, timestamps, first-class
   soft delete), generic repositories with pagination/sorting, JSONB metadata with a
@@ -58,7 +58,7 @@ permitted (keep the license/notice files).
   autogeneration, `alembic-utils`-versioned PG triggers/functions.
 - **Background work** — `polar/worker`: Dramatiq actors with priority queues, cron via
   APScheduler, jobs flushed only after the request transaction commits, debounce
-  middleware. This is the substrate for Arthur's ingestion pipelines and gazette-watch
+  middleware. This is the substrate for Claidor's ingestion pipelines and gazette-watch
   alerts.
 - **Files** — `polar/file` + `integrations/aws/s3`: presigned multipart browser
   uploads, checksums, signed downloads, private/public bucket routing. This is the
@@ -72,7 +72,7 @@ permitted (keep the license/notice files).
 - **Webhooks, notifications, rate limiting, locks, audit log, observability,
   health/migrate-on-boot** — all present and generic.
 - **Backoffice chrome** — the layout/datatable/forms/modal/impersonation scaffold
-  (~10 files) gives an internal admin — including the human-review consoles Arthur's
+  (~10 files) gives an internal admin — including the human-review consoles Claidor's
   "pipelines with human checks" require — in days. The Polar feature screens are
   throwaway.
 - **Test harness** — per-xdist-worker databases, transaction-rollback isolation,
@@ -85,7 +85,7 @@ permitted (keep the license/notice files).
 ### B. The crown jewel — the citation RAG pipeline
 
 `polar/course_assistant/ai.py` (1,300 lines, deliberately import-light and
-unit-testable) is architecturally Arthur's librarian, built for course transcripts
+unit-testable) is architecturally Claidor's librarian, built for course transcripts
 instead of statutes:
 
 - **Corpus → document with offset tracking**: `assemble_knowledge_base_with_refs()`
@@ -95,13 +95,13 @@ instead of statutes:
   `citations: {enabled: true}`; `extract_citations()` + `map_citations_to_lessons()`
   resolve model citations back through the offset map to the originating source —
   rendered client-side as clickable cards that deep-link into the source. Rename
-  "lesson" to "article / CCJA decision paragraph" and this is Arthur's core UX.
+  "lesson" to "article / CCJA decision paragraph" and this is Claidor's core UX.
 - **Grounding discipline**: authority-hierarchy system prompt, strictness modes
   (`course_only` vs labelled general knowledge), a cheap Haiku guardrail call gating
   out-of-domain input, prompt caching on the stable corpus prefix, token budgeting
   against a 600k-token context ceiling, streaming via SSE.
 - **Question log**: append-only, written best-effort after the answer streams, with
-  normalized grouping — Arthur's "what are lawyers asking / what couldn't we answer"
+  normalized grouping — Claidor's "what are lawyers asking / what couldn't we answer"
   analytics for free.
 - **Anti-fabrication validator** (`masterclass_architect/architect_ai.py`): every
   quote/source an AI output cites must exist in the evidence pack or it is stripped.
@@ -125,7 +125,7 @@ streaming-friendly memoized Markdown renderer, and TipTap/MDX/Shiki document plu
      charging firms; the cost is carrying the merchant-of-record machinery underneath.
   2. **Strip to plain Stripe Billing**: delete the MoR core (§3) and keep only the
      seat/member flow shape. Less surface to own; more upfront surgery.
-  Recommendation: start on path 1 (it works today), plan for path 2 once Arthur has
+  Recommendation: start on path 1 (it works today), plan for path 2 once Claidor has
   revenue and the unused MoR surface starts costing maintenance.
 - **Usage metering** — `event`/`meter`/`quotas`/`entitlements` generalize to
   per-seat query quotas and tier gating.
@@ -133,7 +133,7 @@ streaming-friendly memoized Markdown renderer, and TipTap/MDX/Shiki document plu
 
 ### D. Delete — the merchant-of-record core (~35 of 81 backend modules)
 
-Arthur is a SaaS with subscriptions, not payment infrastructure. Unless path C.1 keeps
+Claidor is a SaaS with subscriptions, not payment infrastructure. Unless path C.1 keeps
 some of it temporarily: `account`, `account_credit`, `held_balance`, `payout`,
 `transaction`, `processor_transaction`, `payment`, `payment_method`, `dispute`,
 `refund`, `tax`, `invoice`, `client_invoice`, `wallet`, `pledge`, `campaign`,
@@ -145,11 +145,11 @@ keep its validator) and the Expo mobile app. Also drop the MUI/Emotion dependenc
 
 ---
 
-## 3. What Arthur must build net-new (nothing in the repo does this)
+## 3. What Claidor must build net-new (nothing in the repo does this)
 
 1. **The versioned corpus model — the moat, and a day-one requirement.** Nothing in
    this codebase versions content. `File.version` is an S3 label; courses have no
-   revision history; soft delete is the only temporal affordance. Arthur's core
+   revision history; soft delete is the only temporal affordance. Claidor's core
    tables — uniform acts → articles → article *versions* with validity intervals
    (point-in-time "what did Article 147 say on this date"), amendments as first-class
    links, CCJA decisions linked to the articles they interpret *with the version they
@@ -185,7 +185,7 @@ keep its validator) and the Expo mobile app. Also drop the MUI/Emotion dependenc
 ## 4. Risks and caveats inherited with the fork
 
 - **Half-finished rename.** Polar naming survives in env vars, cookies
-  (`polar_session` fallback), and package internals. Arthur would be the second
+  (`polar_session` fallback), and package internals. Claidor would be the second
   rebrand on this codebase; budget a cleanup pass or accept the archaeology.
 - **A known local-dev break**: `course_assistant/DESIGN-v2.md` notes pytest/alembic
   were blocked locally by a Python 3.14 / pydantic-settings crash at the time of
@@ -198,7 +198,7 @@ keep its validator) and the Expo mobile app. Also drop the MUI/Emotion dependenc
   behind a CSS workaround.
 - **Operational footprint**: Postgres + Redis + S3 + Tinybird + Resend + Sentry +
   Logfire + PostHog + Render. Fine, but it's a real platform to run — Tinybird/
-  ClickHouse and the mobile push stack are droppable for Arthur v1.
+  ClickHouse and the mobile push stack are droppable for Claidor v1.
 
 ---
 
@@ -229,7 +229,7 @@ keep its validator) and the Expo mobile app. Also drop the MUI/Emotion dependenc
    plain Stripe Billing later if the MoR surface becomes a tax.
 
 **Bottom line:** the stack is a strong fit — modern, strictly typed, well-tested on
-the backend, already AI-native with the exact citation mechanism Arthur's credibility
+the backend, already AI-native with the exact citation mechanism Claidor's credibility
 depends on, and already proven to survive one full product pivot. Reusing it buys the
 SaaS chassis and the librarian's skeleton. The library itself — the versioned OHADA
 record — was always going to be built from scratch. That's not a weakness of the
