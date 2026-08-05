@@ -163,15 +163,16 @@ export function LessonEditorV2({
   // transcode or an over-quota upload).
   const status = lesson.mux_status
   const uploading = uploadPct != null
-  const processing = uploading || status === 'waiting' || status === 'processing'
+  const processing =
+    uploading || status === 'waiting' || status === 'processing'
   const videoErrored = !uploading && status === 'errored'
   const quotaExceeded = status === 'quota_exceeded'
   const hasVideo = Boolean(
     lesson.mux_playback_id ||
-      localVideoUrl ||
-      processing ||
-      videoErrored ||
-      quotaExceeded,
+    localVideoUrl ||
+    processing ||
+    videoErrored ||
+    quotaExceeded,
   )
   const playable = Boolean(lesson.mux_playback_id) && !processing
 
@@ -432,7 +433,12 @@ export function LessonEditorV2({
             // onload fires for ANY response — a 4xx/5xx from the video host
             // is a failed upload, not a success.
             if (xhr.status >= 200 && xhr.status < 300) resolve()
-            else reject(new Error(`The video host rejected the upload (HTTP ${xhr.status}).`))
+            else
+              reject(
+                new Error(
+                  `The video host rejected the upload (HTTP ${xhr.status}).`,
+                ),
+              )
           }
           xhr.onerror = () =>
             reject(new Error('Check your connection and try again.'))
@@ -584,7 +590,7 @@ export function LessonEditorV2({
     setReposBusy(true)
     setThumbUrl(URL.createObjectURL(file))
     setThumbPos({ x: 50, y: 50 })
-    setAppliedFrame(null)
+    setAppliedT(null)
     queueSave({ thumbnail_object_position: '50.0% 50.0%' })
     try {
       const updated = await uploadThumbnail.mutateAsync({
@@ -612,7 +618,7 @@ export function LessonEditorV2({
   const clearThumbnail = () => {
     setThumbUrl(null)
     setThumbPos({ x: 50, y: 50 })
-    setAppliedFrame(null)
+    setAppliedT(null)
     queueSave({ thumbnail_url: null, thumbnail_object_position: null })
   }
   const onRepositionThumb = (pos: string) => {
@@ -620,35 +626,64 @@ export function LessonEditorV2({
     queueSave({ thumbnail_object_position: pos })
   }
 
-  // ── thumbnail from video (YouTube-style) ── once the video is processed,
-  //    offer three frames from it as one-click thumbnail options next to
-  //    the custom upload. Picking one has the SERVER grab that exact frame
-  //    and store it through the same S3 pipeline as an uploaded image.
+  // ── thumbnail from the lesson's video ── a scrubber over the WHOLE
+  //    timeline: a filmstrip track, a draggable playhead, live frame
+  //    preview — the frame lands wherever it's dropped. "Use this frame"
+  //    has the SERVER grab that exact frame and store it through the same
+  //    S3 pipeline as an uploaded image. No video on the lesson → no
+  //    scrubber (picking from the device still works above).
   const thumbFromVideo = useSetLessonThumbnailFromVideo()
-  const [frameBusy, setFrameBusy] = useState<number | null>(null)
-  // Session-local highlight of the applied frame (the stored thumbnail is
-  // a plain image — it doesn't remember which timestamp it came from).
-  const [appliedFrame, setAppliedFrame] = useState<number | null>(null)
   const frameReady =
     Boolean(lesson.mux_playback_id) && lesson.mux_status === 'ready'
-  const frameTimes = useMemo(() => {
-    if (!frameReady) return []
-    const d = lesson.duration_seconds ?? 0
-    // Same spread YouTube uses: three stills across the video. Short or
-    // unknown durations fall back to early seconds.
-    const times =
-      d >= 8
-        ? [0.15, 0.45, 0.78].map((f) => Math.round(d * f))
-        : d >= 3
-          ? [1, Math.round(d / 2), Math.max(2, d - 1)]
-          : [0, 1, 2]
-    return [...new Set(times)]
-  }, [frameReady, lesson.duration_seconds])
-  const frameSrc = (t: number, width = 480) =>
+  const frameDuration = Math.max(
+    1,
+    Math.floor(lesson.duration_seconds ?? 0) || 1,
+  )
+  const [scrubT, setScrubT] = useState<number | null>(null)
+  const [scrubbing, setScrubbing] = useState(false)
+  const [frameBusy, setFrameBusy] = useState(false)
+  // Session-local marker of the applied frame time (the stored thumbnail
+  // is a plain image — it doesn't remember its timestamp).
+  const [appliedT, setAppliedT] = useState<number | null>(null)
+  const scrubTrackRef = useRef<HTMLDivElement | null>(null)
+  const scrubTRef = useRef<number | null>(null)
+  // The preview image lags the playhead by a beat while dragging so we
+  // don't request one frame per mouse-move.
+  const [previewT, setPreviewT] = useState<number | null>(null)
+  const previewTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const effT = scrubT ?? Math.floor(frameDuration / 2)
+  const effPreviewT = previewT ?? Math.floor(frameDuration / 2)
+  const scrubTo = (clientX: number) => {
+    const el = scrubTrackRef.current
+    if (!el) return
+    const r = el.getBoundingClientRect()
+    if (r.width <= 0) return
+    const f = Math.min(1, Math.max(0, (clientX - r.left) / r.width))
+    const t = Math.round(f * frameDuration)
+    scrubTRef.current = t
+    setScrubT(t)
+    if (previewTimer.current) clearTimeout(previewTimer.current)
+    previewTimer.current = setTimeout(() => setPreviewT(t), 180)
+  }
+  const flushPreview = () => {
+    if (previewTimer.current) clearTimeout(previewTimer.current)
+    if (scrubTRef.current != null) setPreviewT(scrubTRef.current)
+  }
+  const frameSrc = (t: number, width = 640) =>
     `https://image.mux.com/${lesson.mux_playback_id}/thumbnail.jpg?time=${t}&width=${width}`
-  const applyFrame = async (t: number) => {
-    if (frameBusy != null) return
-    setFrameBusy(t)
+  // The filmstrip under the playhead — small frames spread across the
+  // whole video, purely as a visual timeline.
+  const stripTimes = useMemo(() => {
+    if (!frameReady) return []
+    const n = 8
+    return Array.from({ length: n }, (_, i) =>
+      Math.round(((i + 0.5) / n) * frameDuration),
+    )
+  }, [frameReady, frameDuration])
+  const applyFrame = async () => {
+    if (frameBusy) return
+    const t = effT
+    setFrameBusy(true)
     try {
       const updated = await thumbFromVideo.mutateAsync({
         lessonId: lesson.id,
@@ -656,18 +691,18 @@ export function LessonEditorV2({
       })
       setThumbUrl(updated.thumbnail_url ?? null)
       setThumbPos({ x: 50, y: 50 })
-      setAppliedFrame(t)
+      setAppliedT(t)
       toast({ title: 'Thumbnail updated' })
     } catch {
       toast({ title: "Couldn't grab that frame", description: 'Try again.' })
     } finally {
-      setFrameBusy(null)
+      setFrameBusy(false)
     }
   }
   const fmtFrameTime = (t: number) => {
     const m = Math.floor(t / 60)
-    const s = Math.floor(t % 60)
-    return `${m}:${String(s).padStart(2, '0')}`
+    const sec = Math.floor(t % 60)
+    return `${m}:${String(sec).padStart(2, '0')}`
   }
 
   const unitCap = isEpisodic ? 'Episode' : 'Lesson'
@@ -785,7 +820,11 @@ export function LessonEditorV2({
                       type="button"
                       onClick={pickVideo}
                     >
-                      <Ico d="M20 11A8 8 0 1 0 19 15 M20 4v7h-7" w={2.2} s={12} />
+                      <Ico
+                        d="M20 11A8 8 0 1 0 19 15 M20 4v7h-7"
+                        w={2.2}
+                        s={12}
+                      />
                       Replace
                     </button>
                   )}
@@ -817,9 +856,9 @@ export function LessonEditorV2({
                         Video processing failed
                       </span>
                       <span className="vid-alert-s">
-                        The video host couldn’t process this file. Try
-                        uploading it again — if it keeps failing, re-export
-                        the video as MP4 (H.264) first.
+                        The video host couldn’t process this file. Try uploading
+                        it again — if it keeps failing, re-export the video as
+                        MP4 (H.264) first.
                       </span>
                       <div className="vid-alert-actions">
                         <button
@@ -845,10 +884,10 @@ export function LessonEditorV2({
                         Video hours limit reached
                       </span>
                       <span className="vid-alert-s">
-                        This video pushed your plan past its hosted video
-                        hours, so students can’t play this{' '}
-                        {unitCap.toLowerCase()}. Free up hours by removing or
-                        shortening other videos, or upgrade your plan.
+                        This video pushed your plan past its hosted video hours,
+                        so students can’t play this {unitCap.toLowerCase()}.
+                        Free up hours by removing or shortening other videos, or
+                        upgrade your plan.
                       </span>
                       <div className="vid-alert-actions">
                         <button
@@ -958,70 +997,112 @@ export function LessonEditorV2({
                   </span>
                 </div>
               </div>
-              {/* YouTube-style picker — upload a custom image, or one-click
-                  a frame pulled from the processed video. */}
-              {frameTimes.length > 0 && (
-                <div className="tf">
-                  <div className="tf-label">
-                    Or pick a frame from the video
+              {/* Frame scrubber — drag anywhere on the lesson's timeline;
+                  the frame lands wherever it's dropped. */}
+              {frameReady && (
+                <div className="tfs">
+                  <div className="tfs-label">
+                    Or pick a frame from this lesson — drag the timeline
                   </div>
-                  <div className="tf-row">
+                  <div className="tfs-preview">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={frameSrc(effPreviewT)} alt="" />
+                    <span className="tfs-time">{fmtFrameTime(effT)}</span>
+                  </div>
+                  <div
+                    ref={scrubTrackRef}
+                    className="tfs-track"
+                    role="slider"
+                    tabIndex={0}
+                    aria-label="Lesson timeline — drag to pick the thumbnail frame"
+                    aria-valuemin={0}
+                    aria-valuemax={frameDuration}
+                    aria-valuenow={effT}
+                    aria-valuetext={fmtFrameTime(effT)}
+                    onPointerDown={(e) => {
+                      e.preventDefault()
+                      e.currentTarget.setPointerCapture(e.pointerId)
+                      setScrubbing(true)
+                      scrubTo(e.clientX)
+                    }}
+                    onPointerMove={(e) => {
+                      if (scrubbing) scrubTo(e.clientX)
+                    }}
+                    onPointerUp={(e) => {
+                      e.currentTarget.releasePointerCapture(e.pointerId)
+                      setScrubbing(false)
+                      flushPreview()
+                    }}
+                    onPointerCancel={() => {
+                      setScrubbing(false)
+                      flushPreview()
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight')
+                        return
+                      e.preventDefault()
+                      const step = e.shiftKey ? 5 : 1
+                      const next = Math.min(
+                        frameDuration,
+                        Math.max(
+                          0,
+                          effT + (e.key === 'ArrowRight' ? step : -step),
+                        ),
+                      )
+                      scrubTRef.current = next
+                      setScrubT(next)
+                      setPreviewT(next)
+                    }}
+                  >
+                    {stripTimes.map((t) => (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        key={t}
+                        src={frameSrc(t, 160)}
+                        alt=""
+                        draggable={false}
+                        loading="lazy"
+                      />
+                    ))}
+                    <div
+                      className="tfs-head"
+                      style={{ left: `${(effT / frameDuration) * 100}%` }}
+                    >
+                      {scrubbing && (
+                        <span className="tfs-bubble">{fmtFrameTime(effT)}</span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="tfs-actions">
                     <button
                       type="button"
-                      className="tf-tile tf-upload"
-                      onClick={pickThumbnail}
-                      disabled={frameBusy != null || reposBusy}
+                      className="tfs-use"
+                      onClick={() => void applyFrame()}
+                      disabled={frameBusy}
                     >
-                      <svg
-                        width="17"
-                        height="17"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="1.9"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        aria-hidden
-                      >
-                        <path d="M12 16V4M12 4l-4 4M12 4l4 4M4 20h16" />
-                      </svg>
-                      <span>Upload</span>
+                      {frameBusy ? (
+                        'Saving…'
+                      ) : appliedT === effT ? (
+                        <>
+                          <svg
+                            width="12"
+                            height="12"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="3"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            aria-hidden
+                          >
+                            <path d="M4.5 12.8 9.6 18 19.5 6.5" />
+                          </svg>
+                          Saved as thumbnail
+                        </>
+                      ) : (
+                        'Use this frame'
+                      )}
                     </button>
-                    {frameTimes.map((t) => (
-                      <button
-                        key={t}
-                        type="button"
-                        className={`tf-tile ${
-                          appliedFrame === t ? 'active' : ''
-                        }`}
-                        onClick={() => void applyFrame(t)}
-                        disabled={frameBusy != null}
-                        aria-label={`Use the frame at ${fmtFrameTime(t)} as the thumbnail`}
-                      >
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={frameSrc(t)} alt="" loading="lazy" />
-                        <span className="tf-time">{fmtFrameTime(t)}</span>
-                        {frameBusy === t && (
-                          <span className="tf-spin" aria-hidden />
-                        )}
-                        {appliedFrame === t && frameBusy == null && (
-                          <span className="tf-check" aria-hidden>
-                            <svg
-                              width="11"
-                              height="11"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="3.2"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                            >
-                              <path d="M4.5 12.8 9.6 18 19.5 6.5" />
-                            </svg>
-                          </span>
-                        )}
-                      </button>
-                    ))}
                   </div>
                 </div>
               )}
@@ -1044,11 +1125,7 @@ export function LessonEditorV2({
                   Anything you write yourself is always kept.
                 </div>
               </div>
-              <button
-                className="btn-glass"
-                type="button"
-                onClick={onCancelAi}
-              >
+              <button className="btn-glass" type="button" onClick={onCancelAi}>
                 I’ll write it myself
               </button>
             </div>
@@ -2321,112 +2398,126 @@ function LessonEditorStyles() {
         opacity: 1;
       }
 
-      /* ── thumbnail-from-video strip (YouTube-style): an Upload tile plus
-         three frames pulled from the processed video. Selected wears the
-         accent ring + check. ── */
-      .led .tf {
+      /* ── thumbnail-from-video scrubber: filmstrip timeline + accent
+         playhead, live frame preview above, "Use this frame" below. ── */
+      .led .tfs {
         margin-top: 12px;
       }
-      .led .tf-label {
+      .led .tfs-label {
         font-size: 12px;
         font-weight: 500;
         color: var(--text-2);
         margin-bottom: 8px;
       }
-      .led .tf-row {
-        display: grid;
-        grid-template-columns: repeat(4, 1fr);
-        gap: 10px;
-      }
-      .led .tf-tile {
+      .led .tfs-preview {
         position: relative;
         aspect-ratio: 16 / 9;
-        border-radius: 10px;
+        border-radius: 12px;
         overflow: hidden;
-        padding: 0;
         background: rgba(125, 125, 135, 0.1);
         box-shadow: inset 0 0 0 1px var(--hair);
-        cursor: pointer;
-        transition:
-          box-shadow 0.15s,
-          opacity 0.15s;
       }
-      .led .tf-tile:disabled {
-        cursor: default;
-        opacity: 0.6;
-      }
-      .led .tf-tile:hover:not(:disabled) {
-        box-shadow: inset 0 0 0 1px rgba(125, 125, 135, 0.55);
-      }
-      .led .tf-tile.active {
-        box-shadow:
-          0 0 0 2px var(--color-ce-accent),
-          inset 0 0 0 1px transparent;
-      }
-      .led .tf-tile img {
+      .led .tfs-preview img {
         display: block;
         width: 100%;
         height: 100%;
         object-fit: cover;
       }
-      .led .tf-upload {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        gap: 5px;
-        color: var(--text-2);
-        font-size: 11.5px;
-        font-weight: 600;
-      }
-      .led .tf-upload:hover:not(:disabled) {
-        color: var(--text-1);
-      }
-      .led .tf-time {
+      .led .tfs-time {
         position: absolute;
-        bottom: 5px;
-        right: 5px;
-        padding: 2px 6px;
-        border-radius: 6px;
+        bottom: 8px;
+        right: 8px;
+        padding: 3px 8px;
+        border-radius: 7px;
         background: rgba(0, 0, 0, 0.72);
         color: #fff;
-        font-size: 10.5px;
+        font-size: 11.5px;
         font-weight: 600;
         font-variant-numeric: tabular-nums;
         pointer-events: none;
       }
-      .led .tf-check {
+      .led .tfs-track {
+        position: relative;
+        margin-top: 10px;
+        height: 48px;
+        border-radius: 10px;
+        overflow: hidden;
+        display: flex;
+        cursor: ew-resize;
+        box-shadow: inset 0 0 0 1px var(--hair);
+        touch-action: none;
+        user-select: none;
+        -webkit-user-select: none;
+      }
+      .led .tfs-track:focus-visible {
+        outline: 2px solid var(--color-ce-accent);
+        outline-offset: 2px;
+      }
+      .led .tfs-track img {
+        flex: 1 1 0;
+        min-width: 0;
+        height: 100%;
+        object-fit: cover;
+        pointer-events: none;
+      }
+      .led .tfs-head {
         position: absolute;
-        top: 5px;
-        left: 5px;
-        width: 18px;
-        height: 18px;
-        border-radius: 50%;
+        top: 0;
+        bottom: 0;
+        width: 0;
+        pointer-events: none;
+      }
+      .led .tfs-head::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: -1.5px;
+        width: 3px;
+        border-radius: 2px;
+        background: var(--color-ce-accent);
+        box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
+      }
+      .led .tfs-bubble {
+        position: absolute;
+        top: 4px;
+        left: 0;
+        transform: translateX(-50%);
+        padding: 2px 7px;
+        border-radius: 6px;
+        background: rgba(0, 0, 0, 0.8);
+        color: #fff;
+        font-size: 10.5px;
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+      }
+      .led .tfs-actions {
+        margin-top: 10px;
+        display: flex;
+        justify-content: flex-end;
+      }
+      .led .tfs-use {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        height: 34px;
+        padding: 0 16px;
+        border-radius: 980px;
         background: var(--color-ce-accent);
         color: #fff;
-        display: grid;
-        place-items: center;
+        font-size: 12.5px;
+        font-weight: 600;
+        transition:
+          filter 0.15s,
+          opacity 0.15s;
       }
-      .led .tf-spin {
-        position: absolute;
-        inset: 0;
-        display: grid;
-        place-items: center;
-        background: rgba(0, 0, 0, 0.35);
+      .led .tfs-use:hover:not(:disabled) {
+        filter: brightness(1.1);
       }
-      .led .tf-spin::after {
-        content: '';
-        width: 18px;
-        height: 18px;
-        border-radius: 50%;
-        border: 2px solid rgba(255, 255, 255, 0.35);
-        border-top-color: #fff;
-        animation: tf-rot 0.7s linear infinite;
-      }
-      @keyframes tf-rot {
-        to {
-          transform: rotate(360deg);
-        }
+      .led .tfs-use:disabled {
+        opacity: 0.6;
+        cursor: default;
       }
 
       .led .learn-row {
