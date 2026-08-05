@@ -147,14 +147,19 @@ keep its validator) and the Expo mobile app. Also drop the MUI/Emotion dependenc
 
 ## 3. What Arthur must build net-new (nothing in the repo does this)
 
-1. **The versioned corpus model — the moat.** Nothing in this codebase versions
-   content. `File.version` is an S3 label; courses have no revision history; soft
-   delete is the only temporal affordance. Arthur's core tables — uniform acts →
-   articles → article *versions* with validity intervals (point-in-time "what did
-   Article 147 say on this date"), amendments as first-class links, CCJA decisions
-   linked to the articles they interpret — are a new design. The kernel (`RecordModel`,
-   repositories, alembic-utils triggers) is a good substrate, but the temporal model is
-   original work. Get this schema right first; everything else hangs off it.
+1. **The versioned corpus model — the moat, and a day-one requirement.** Nothing in
+   this codebase versions content. `File.version` is an S3 label; courses have no
+   revision history; soft delete is the only temporal affordance. Arthur's core
+   tables — uniform acts → articles → article *versions* with validity intervals
+   (point-in-time "what did Article 147 say on this date"), amendments as first-class
+   links, CCJA decisions linked to the articles they interpret *with the version they
+   interpret* — are a new design. This cannot be deferred: the flagship act, AUPSRVE,
+   was replaced by the revised act in force 16 February 2024, while the 1998 act
+   continues to govern proceedings started before that date — two versions in active
+   legal life simultaneously, and which one applies depends on when the proceeding
+   began. The kernel (`RecordModel`, repositories, alembic-utils triggers) is a good
+   substrate, but the temporal model is original work. Get this schema right first;
+   everything else hangs off it.
 2. **Document ingestion.** No PDF parsing or OCR exists (only WebVTT transcript
    parsing and PDF *generation* via fpdf2). Gazette-scan → structured-article pipelines
    with human review are new — though they slot naturally into the Dramatiq worker +
@@ -199,12 +204,19 @@ keep its validator) and the Expo mobile app. Also drop the MUI/Emotion dependenc
 
 ## 5. Suggested path
 
-1. **Spike the librarian first (1–2 weeks).** Fork, load one uniform act (AUSCGIE)
-   hand-structured into a minimal `acts/articles/article_versions` schema, point the
-   `course_assistant` pipeline at it with a French system prompt, and validate answer
-   + citation quality with practicing OHADA lawyers. This tests the riskiest
-   assumption (citation-grade answers in French from Claude over statute text) while
-   touching almost nothing else.
+1. **Spike the librarian on AUPSRVE.** AUPSRVE is the right first act for reasons
+   beyond familiarity: it alone generates the majority (reported >70%) of CCJA
+   litigation, making it both the most valuable single act to ship and the densest
+   stress test of the citation graph. It is also the hardest honest test: because of
+   the 2024 revision, the spike must load *both* versions (1998 and 2023) into the
+   `acts/articles/article_versions` schema from day one, tag each CCJA link with the
+   version it interprets (most existing decisions predate the reform and interpret
+   the 1998 text), and the answer engine must resolve or ask for the temporal anchor
+   ("when did the proceeding begin?") before answering. Eval questions must be
+   version-aware. The demo that proves the product is answering "under the old act or
+   the new one?" correctly — the question currently on every practitioner's desk.
+   Start with a thin vertical slice inside the act (e.g. the saisie-attribution
+   articles) before structuring all of it.
 2. **Design the temporal corpus schema** (article versions, amendments, decision
    links) on the `kit` substrate; build ingestion as Dramatiq pipelines with
    backoffice review screens.
