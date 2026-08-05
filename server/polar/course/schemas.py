@@ -171,6 +171,9 @@ class CourseModuleUpdate(Schema):
     status: str | None = None
     release_at: datetime | None = None
     drip_days: int | None = None
+    # Bonus section — renders as the portal's "Bonus Content" rail; its
+    # lessons are unnumbered and don't count toward completion.
+    is_bonus: bool | None = None
 
 
 class CourseModuleRead(TimestampedSchema):
@@ -182,6 +185,7 @@ class CourseModuleRead(TimestampedSchema):
     status: str
     release_at: datetime | None
     drip_days: int | None
+    is_bonus: bool = False
     lessons: list[CourseLessonRead]
 
 

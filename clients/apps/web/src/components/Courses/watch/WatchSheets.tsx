@@ -49,6 +49,7 @@ const RES_ICON: Record<string, keyof typeof SF> = {
 export function OverviewSheet({
   brand = '',
   lessonN,
+  numLabel,
   title,
   durLabel,
   instructorName,
@@ -62,6 +63,8 @@ export function OverviewSheet({
 }: {
   brand?: string
   lessonN: number
+  /** Replaces "Lesson N" (e.g. "Bonus" for bonus-section lessons). */
+  numLabel?: string
   title: string
   durLabel?: string | null
   instructorName?: string | null
@@ -97,7 +100,8 @@ export function OverviewSheet({
           <div className="xs-eyebrow">
             <span className="dot" />
             <span>
-              {brand ? `${brand} · ` : ''}Lesson {lessonN}
+              {brand ? `${brand} · ` : ''}
+              {numLabel ?? `Lesson ${lessonN}`}
               {locked ? ' · Locked' : ''}
             </span>
           </div>

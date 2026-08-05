@@ -27,6 +27,7 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import AddOutlined from '@mui/icons-material/AddOutlined'
+import CardGiftcardOutlined from '@mui/icons-material/CardGiftcardOutlined'
 import DeleteOutlineOutlined from '@mui/icons-material/DeleteOutlineOutlined'
 import DragIndicatorOutlined from '@mui/icons-material/DragIndicatorOutlined'
 import EditOutlined from '@mui/icons-material/EditOutlined'
@@ -286,6 +287,7 @@ export function OutlineTab({
   canSchedule = true,
   scheduleUpgradeTier,
   onUpdateModuleSchedule,
+  onToggleModuleBonus,
   episodic = false,
   onAddEpisode,
 }: {
@@ -311,6 +313,8 @@ export function OutlineTab({
   onAddModule?: () => void
   onRenameModule?: (module: CourseModuleRead, title: string) => void
   onDeleteModule?: (module: CourseModuleRead) => void
+  /** Toggle a season into a Bonus section (portal "Bonus Content" rail). */
+  onToggleModuleBonus?: (module: CourseModuleRead) => void
   // Drip scheduling entitlement, threaded down to the per-lesson and
   // per-module schedule controls so they can show an upgrade hint instead of
   // silently failing the save.
@@ -483,6 +487,7 @@ export function OutlineTab({
             canSchedule={canSchedule}
             scheduleUpgradeTier={scheduleUpgradeTier}
             onUpdateModuleSchedule={onUpdateModuleSchedule}
+            onToggleModuleBonus={onToggleModuleBonus}
             locked={false}
             isReorderable={!trimmed}
             selectedLessonId={selectedLessonId}
@@ -507,6 +512,7 @@ export function OutlineTab({
                 canSchedule={canSchedule}
                 scheduleUpgradeTier={scheduleUpgradeTier}
                 onUpdateModuleSchedule={onUpdateModuleSchedule}
+                onToggleModuleBonus={onToggleModuleBonus}
                 locked
                 isReorderable={!trimmed}
                 selectedLessonId={selectedLessonId}
@@ -532,6 +538,7 @@ export function OutlineTab({
               canSchedule={canSchedule}
               scheduleUpgradeTier={scheduleUpgradeTier}
               onUpdateModuleSchedule={onUpdateModuleSchedule}
+              onToggleModuleBonus={onToggleModuleBonus}
               locked={false}
               isReorderable={false}
               selectedLessonId={selectedLessonId}
@@ -642,6 +649,7 @@ function ModuleGroups({
   canSchedule = true,
   scheduleUpgradeTier,
   onUpdateModuleSchedule,
+  onToggleModuleBonus,
   episodic = false,
 }: {
   groups: ModuleGroup[]
@@ -667,6 +675,7 @@ function ModuleGroups({
   ) => void
   onRenameModule?: (module: CourseModuleRead, title: string) => void
   onDeleteModule?: (module: CourseModuleRead) => void
+  onToggleModuleBonus?: (module: CourseModuleRead) => void
   canSchedule?: boolean
   scheduleUpgradeTier?: string
   onUpdateModuleSchedule?: (
@@ -820,8 +829,7 @@ function ModuleGroups({
         const items = ids
           .map((id) => itemById.get(id))
           .filter((x): x is LessonWithGlobalIndex => Boolean(x))
-        const draggable =
-          canReorder && (crossSeason || group.items.length > 1)
+        const draggable = canReorder && (crossSeason || group.items.length > 1)
         const lessonGrid = (
           <LessonGrid>
             {items.map(({ lesson, globalIndex }) => (
@@ -871,6 +879,11 @@ function ModuleGroups({
                 onUpdateSchedule={
                   onUpdateModuleSchedule
                     ? (edits) => onUpdateModuleSchedule(group.module, edits)
+                    : undefined
+                }
+                onToggleBonus={
+                  onToggleModuleBonus
+                    ? () => onToggleModuleBonus(group.module)
                     : undefined
                 }
               />
@@ -954,6 +967,7 @@ function ModuleHeader({
   onRename,
   onDelete,
   onUpdateSchedule,
+  onToggleBonus,
   canSchedule = true,
   scheduleUpgradeTier,
 }: {
@@ -963,6 +977,8 @@ function ModuleHeader({
   onRename?: (title: string) => void
   onDelete?: () => void
   onUpdateSchedule?: (edits: ScheduleEdits) => void
+  /** Toggle Bonus section (portal "Bonus Content" rail). */
+  onToggleBonus?: () => void
   canSchedule?: boolean
   scheduleUpgradeTier?: string
 }) {
@@ -1032,6 +1048,11 @@ function ModuleHeader({
         </button>
       )}
       <span className="text-[11px] text-gray-400">{count}</span>
+      {mod.is_bonus && (
+        <span className="bg-ce-accent-tint text-ce-accent rounded-full px-1.5 py-[1px] text-[9.5px] font-bold tracking-[0.08em]">
+          BONUS
+        </span>
+      )}
       <div className="ml-auto flex items-center gap-1">
         {onAddLesson && (
           <button
@@ -1042,6 +1063,25 @@ function ModuleHeader({
           >
             <AddOutlined sx={{ fontSize: 12 }} />
             Lesson
+          </button>
+        )}
+        {onToggleBonus && (
+          <button
+            type="button"
+            onClick={onToggleBonus}
+            title={
+              mod.is_bonus
+                ? 'Turn back into a regular season'
+                : 'Make this a Bonus section — shows in the portal\u2019s "Bonus Content" rail, unnumbered, doesn\u2019t count toward completion'
+            }
+            className={`flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10.5px] font-medium tracking-tight transition-colors ${
+              mod.is_bonus
+                ? 'text-ce-accent bg-ce-accent-tint'
+                : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900'
+            }`}
+          >
+            <CardGiftcardOutlined sx={{ fontSize: 12 }} />
+            Bonus
           </button>
         )}
         {onUpdateSchedule && (

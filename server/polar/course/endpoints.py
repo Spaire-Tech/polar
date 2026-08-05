@@ -110,6 +110,7 @@ def _module_read(module) -> CourseModuleRead:
         status=module.status,
         release_at=module.release_at,
         drip_days=module.drip_days,
+        is_bonus=bool(getattr(module, "is_bonus", False)),
         lessons=[_lesson_read(lesson) for lesson in module.lessons],
         created_at=module.created_at,
         modified_at=module.modified_at,
