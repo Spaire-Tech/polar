@@ -12,10 +12,14 @@ code. Target: a paying pilot in roughly 3–4 months.
 **Founder:**
 - Create a new private GitHub repository for Arthur (fresh repo, e.g.
   `Spaire-Tech/arthur` or a new org) and grant Claude Code access to it.
-- Create an Anthropic API account (console.anthropic.com), add billing, generate an
-  API key. This is needed from Phase 1 onward.
-- Pick the working name and buy the domain. Nothing else needs the domain yet, but
-  Google OAuth verification and email sending will want it later, so buy early.
+- Create an Anthropic API account (console.anthropic.com), add billing with a low
+  monthly spend cap, generate a key named for testing (e.g. `arthur-test`). Needed
+  from Phase 1 onward; a separate production key replaces it at launch. (Anthropic
+  has no sandbox mode — test and prod keys differ only in name and spend cap.)
+- Decision (2026-08): domain purchase and all other paid accounts are deferred until
+  the product is validated. Testing runs on free platform subdomains (`*.vercel.app`,
+  `*.onrender.com`); the custom domain, Google OAuth, Resend, etc. move to
+  Phase 3/4. Email-code login covers auth until Google sign-in lands.
 
 **Engineering:**
 - Copy the Spaire codebase into the new repo (Spaire untouched thereafter).
